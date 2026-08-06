@@ -1,0 +1,132 @@
+# MVP Scope and Users
+
+## MVP objective
+
+Deliver a dependable publication website and administrative control plane that continuously collects recent headlines from a whitelist of approved Sources, persists source instances idempotently, suppresses true duplicates, and sends readers to the original Article.
+
+The MVP must prove:
+
+1. The initial indie-author Publication is useful as a rolling industry-news feed.
+2. A second unrelated topic can be configured without changing aggregation-engine business logic.
+
+## Primary users
+
+### Public reader
+A reader wants to answer quickly: “What relevant stories were published recently, where did they come from, and where can I read the original?” No account is required in MVP.
+
+### Publication administrator
+An administrator controls:
+
+- Publication identity/branding/public and collection state;
+- approved Sources/endpoints and their operational states;
+- collection frequency;
+- Categories and deterministic Relevance rules;
+- Source priority;
+- Article visibility/display overrides/categories;
+- Duplicate review/group corrections;
+- Source/endpoint health and Collection-run history.
+
+### Operator/developer
+An operator needs telemetry to diagnose Source failures, parser changes, delayed collection, identity behavior, duplicate decisions, and failed jobs without manual database inspection.
+
+## Required MVP capabilities
+
+### Public feed
+MVP MUST provide:
+
+- reverse-chronological rolling list of feed-eligible Articles;
+- feed eligibility for visible ungrouped Articles and visible Primary Articles;
+- publication date or clearly defined fallback date;
+- linked headline pointing to the original/canonical public Article destination;
+- Source name;
+- responsive desktop/mobile layouts;
+- Category filtering;
+- Source filtering;
+- basic keyword search;
+- deterministic pagination/load-more;
+- light/dark presentation;
+- accessible external-link behavior.
+
+### Administration
+MVP MUST provide:
+
+- authenticated administrator access and Publication-aware authorization;
+- Publication configuration;
+- Source/endpoint create, update, approve/unapprove, enable/pause/disable, archive/state management, and manual-check operations;
+- Source priority and approved-domain policy;
+- Source-type/polling configuration;
+- Category and include/exclude/categorize Relevance-rule management;
+- separate operational state and derived endpoint health;
+- Collection-run history and canonical outcome counts;
+- Article hide/restore/display-override/category controls;
+- Duplicate candidate review, merge, split, dismiss, and Primary selection;
+- reason/audit trails sufficient to explain how an Article entered or was suppressed from the feed.
+
+### Collection engine
+MVP MUST provide:
+
+- RSS/Atom collection;
+- conditional HTTP fetching where supported;
+- configurable polling;
+- pre-fetch/redirect SSRF and approved-domain validation;
+- normalized Article candidates;
+- Article observation provenance;
+- idempotent Article identity/persistence;
+- conservative true-duplicate candidate checks;
+- isolated Source failures;
+- bounded retry/backoff;
+- Collection metrics and structured error records.
+
+### HTML Source support
+Configurable HTML-listing extraction is an MVP capability only after structured-feed collection is stable. It uses the same adapter boundaries. Browser automation is a justified fallback only and not a default collector.
+
+## Initial Publication configuration
+
+The first Publication targets publishing-industry developments relevant to independent authors. Its Source list, Categories, relevance rules, branding, and editorial settings are configuration data.
+
+Suggested initial Categories:
+
+- Platforms and Retailers
+- Publishing Industry
+- Author Business
+- Marketing
+- Audiobooks
+- Artificial Intelligence
+- Copyright and Legal
+- Tools and Technology
+- General
+
+These are not global platform Categories.
+
+## Explicitly outside MVP
+
+Unless separately promoted:
+
+- full Article-body republishing;
+- AI-generated summaries/rewrites;
+- public user accounts/personalized feeds;
+- comments/reactions/community features;
+- newsletters/social publishing;
+- native mobile apps;
+- automated open-web Source discovery;
+- customer billing/self-service tenancy;
+- multilingual translation;
+- semantic event clustering of related but distinct coverage;
+- generic relevance boost/ranking scores;
+- pinning/featured-story ordering;
+- push/webhook Source adapters;
+- legal determinations about fair use/licensing/ownership.
+
+## Quality targets
+
+MVP SHOULD be judged by:
+
+- visible duplicate rate;
+- median Source-publication to first-observation delay;
+- percentage of enabled endpoints successfully collected within expected interval;
+- frequency of admin intervention;
+- percentage of public links resolving to intended original Article;
+- ability to add an ordinary RSS/Atom Source without code changes;
+- ability to configure a non-publishing Publication without engine changes.
+
+No numerical service-level objective is locked in Phase 0; instrumentation precedes target-setting.

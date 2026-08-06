@@ -11,8 +11,10 @@ This directory records foundational choices that shape multiple modules or const
 
 ## Records
 
-- [`0001-topic-independent-publication-model.md`](./0001-topic-independent-publication-model.md)
-- [`0002-whitelist-and-structured-feed-first.md`](./0002-whitelist-and-structured-feed-first.md)
-- [`0003-original-link-and-normalized-metadata.md`](./0003-original-link-and-normalized-metadata.md)
+- [`topic-independent-publication-model.md`](./topic-independent-publication-model.md)
+- [`whitelist-and-structured-feed-first.md`](./whitelist-and-structured-feed-first.md)
+- [`original-link-and-normalized-metadata.md`](./original-link-and-normalized-metadata.md)
 
-New ADRs should describe context, decision, consequences, alternatives, and migration effects where relevant.
+New ADRs use descriptive filenames rather than sequence numbers. Git history and the date/status inside each record provide chronology.
+
+New ADRs should describe context, decision, consequences, rejected alternatives, and migration effects where relevant.

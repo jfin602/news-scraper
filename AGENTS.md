@@ -6,195 +6,146 @@ News Scraper
 
 ## Project Goal
 
-Build a reusable, topic-independent news aggregation platform that collects article metadata only from administrator-approved sources, normalizes source-specific input, persists articles idempotently, suppresses true duplicates without destroying provenance, and serves publication-specific rolling news feeds whose headlines link to the original publishers.
+Build a reusable, topic-independent news aggregation Platform that collects article metadata only from administrator-approved Sources, normalizes Source-specific input, persists Articles idempotently with endpoint/run provenance, suppresses true duplicates without destroying Source instances, and serves Publication-specific rolling feeds whose headlines link to original publishers.
 
-The first configured publication is publishing-industry news relevant to indie authors. That is publication configuration, not aggregation-engine identity.
+The first configured Publication is publishing-industry news relevant to indie authors. That is Publication configuration, not aggregation-engine identity.
 
 ## Documentation Workflow
 
-Follow the repository workflow in `BOOT.md`.
+Follow `BOOT.md`.
 
 - `/docs-review` is always a read-only first pass.
-- Do not modify documentation during a review, cleanup, alignment, or correction request until the user approves the findings or invokes `/docs-apply`.
-- During `/docs-apply`, preserve unrelated wording and limit edits to the approved findings.
-- Documentation-only changes may be committed directly to `main` unless the user asks for a branch or pull request.
-- Prompt creation follows the enforced `/prompt-ass` → `/prompt-plan` → `/prompt-write <folder name>` workflow in `BOOT.md`.
+- Do not modify documentation during review/cleanup/alignment until findings are approved or `/docs-apply` is invoked.
+- `/docs-apply` authorizes only the approved documentation changes. Under this project workflow those documentation-only edits may be committed directly to `main` unless the user requests a branch/PR.
+- Preserve unrelated wording during scoped documentation fixes.
+- Prompt creation follows `/prompt-ass` → `/prompt-plan` → `/prompt-write <folder name>`.
 
-## Core Contracts
+## Canonical documents
 
-Use `BOOT.md` as the document router. Read the narrowest current contract for the behavior being changed rather than relying on duplicated summaries.
-
-Primary source-of-truth documents are:
+Use `BOOT.md` as router and read the narrowest governing document.
 
 ```text
-docs/00-project-contract.md
-docs/01-mvp-scope-and-users.md
-docs/02-domain-and-data-contract.md
-docs/03-system-architecture.md
-docs/04-source-and-collection-contract.md
-docs/05-article-lifecycle-and-deduplication.md
-docs/06-public-feed-and-admin-contract.md
-docs/07-security-reliability-and-operations.md
-docs/08-mvp-roadmap.md
-docs/decisions/0001-topic-independent-publication-model.md
-docs/decisions/0002-whitelist-and-structured-feed-first.md
-docs/decisions/0003-original-link-and-normalized-metadata.md
+docs/contracts/project-contract.md
+docs/contracts/mvp-scope-and-users.md
+docs/contracts/domain-and-data-contract.md
+docs/contracts/source-and-collection-contract.md
+docs/contracts/article-lifecycle-and-deduplication.md
+docs/contracts/public-feed-and-admin-contract.md
+docs/architecture/system-architecture.md
+docs/operations/security-reliability-and-operations.md
+docs/roadmap/mvp-roadmap.md
+docs/decisions/topic-independent-publication-model.md
+docs/decisions/whitelist-and-structured-feed-first.md
+docs/decisions/original-link-and-normalized-metadata.md
 ```
 
-`docs/README.md` indexes the Phase 0 documentation set and its normative language.
+`docs/README.md` indexes the structure and normative language.
 
-If a task conflicts with a locked law in `docs/00-project-contract.md`, stop and identify the conflict. Do not silently weaken the law, invent a compatibility bridge, or treat existing code as higher authority.
+If a task conflicts with a locked law in `docs/contracts/project-contract.md`, identify the conflict. Do not silently weaken the law, invent compatibility bridges, or treat existing code as higher authority.
 
-## Project Laws
-
-The ten locked laws in `docs/00-project-contract.md` govern every phase:
+## Locked project laws
 
 1. The aggregation engine must never contain indie-author-specific business logic.
-2. Every collected article must originate from an administrator-approved source.
+2. Every collected Article must originate from an administrator-approved Source.
 3. RSS or other structured feeds are preferred over HTML scraping.
-4. The original article URL remains the primary public destination.
-5. All source-specific data must be normalized before reaching the public feed.
-6. Repeated collection must be idempotent and must not create duplicate article records.
-7. True duplicates are hidden behind one primary record, but all source instances remain stored.
-8. Categories, relevance rules, branding, and sources belong to publication configuration.
-9. A failing source must not interrupt collection from other sources.
-10. Near-real-time means configurable polling unless a source explicitly supports push delivery.
+4. The original Article URL remains the primary public destination.
+5. Source-specific data is normalized before public-feed use.
+6. Repeated collection is idempotent and does not create duplicate Article records for one Source identity.
+7. True duplicates are hidden behind one Primary Article while all Source instances/provenance remain stored.
+8. Categories, relevance rules, branding, and Sources belong to Publication configuration.
+9. A failing Source must not interrupt unrelated collection.
+10. Near-real-time means configurable polling unless a Source explicitly supports push delivery; push adapters are deferred beyond MVP unless promoted explicitly.
 
-Ordinary implementation work must not weaken these laws indirectly.
+## Canonical domain law
 
-## Canonical Domain Law
-
-Use the terminology in `docs/02-domain-and-data-contract.md`.
+Use terminology from `docs/contracts/domain-and-data-contract.md`.
 
 High-risk distinctions:
 
-- `Publication` is the boundary for topic-specific behavior.
-- `Source` is an administrator-approved publisher/outlet and owns one or more endpoints.
-- `Source endpoint` is the actual feed/API/HTML listing location and owns polling state, parser configuration, HTTP cache metadata, health, and collection runs.
-- `Collection run` is one attempt to collect one endpoint.
-- `Raw item` is parser output and must not write directly to article tables.
-- `Article candidate` is normalized but not yet accepted.
-- `Article` is a persisted normalized source instance.
-- `Primary article` is the article selected to represent a true duplicate group in the public feed.
-- `Duplicate group` contains true duplicate article instances; one member is primary and all members remain stored.
-- `Related coverage` is not a true duplicate and remains separately visible.
-- `Category` and `Relevance rule` are publication-owned configuration.
+- Publication is the topic-specific configuration boundary.
+- Source is an approved publisher/outlet; Source endpoint is the concrete feed/API/HTML location.
+- Approval/trust state, operational state, public visibility, moderation state, and derived health are separate.
+- Collection run is one endpoint attempt.
+- Raw item is parser output; Article candidate is normalized but not yet accepted.
+- Article is a persisted normalized Source instance.
+- Article observation preserves endpoint/run provenance without increasing Article cardinality.
+- Article identity and true-duplicate identity are separate questions.
+- Duplicate review candidate persists uncertain/dismissed duplicate decisions.
+- Duplicate group contains separately stored true-duplicate Articles with exactly one Primary.
+- Article visibility (`visible/hidden/archived`) is separate from duplicate role (`ungrouped/primary/non_primary`).
+- Ordinary feed eligibility is visible + (`ungrouped` or `primary`).
 
-Do not create alternate terminology for these concepts without a contract change.
+## Collection law
 
-## Collection Law
+Governed by `docs/contracts/source-and-collection-contract.md`, `docs/architecture/system-architecture.md`, and `docs/operations/security-reliability-and-operations.md`.
 
-Collection behavior is governed by `docs/04-source-and-collection-contract.md` and `docs/07-security-reliability-and-operations.md`.
+- Only active Publications with approved+enabled Sources/endpoints are collectable.
+- Pre-fetch and every redirect hop pass approval + DNS/address/port/SSRF validation before network contact.
+- Parsed Article links pass a separate post-normalization Source/domain policy gate.
+- Source approved domains are the maximum boundary; endpoint policy may narrow, not silently widen.
+- Structured-first order: RSS/Atom → stable API/feed → HTML extraction → custom adapter → browser fallback.
+- Adapter interfaces are established with RSS/Atom and reused by later Source types.
+- Parsers produce Raw items and never persist Articles directly.
+- Normalization precedes relevance, identity, duplicate, and feed behavior.
+- MVP relevance actions are include/exclude/categorize; generic boost/ranking is deferred.
+- Repeated Source observations converge transactionally on one Article identity.
+- Endpoint jobs/retries fail independently and public-feed reads remain available.
 
-High-risk invariants:
+## Article and duplicate law
 
-- Only approved and enabled sources/endpoints belonging to an active publication may be contacted.
-- The collector must not silently expand the whitelist from discovered links or public submissions.
-- Fetch and redirect destinations must preserve approved-domain and network-safety/SSRF boundaries.
-- Source preference is structured-first: RSS/Atom, then stable structured API/JSON feed, then configurable HTML extraction, then custom adapter, with browser automation only as a justified fallback.
-- Parsers produce raw items; they do not persist articles directly.
-- Normalization occurs before relevance, identity, deduplication, or public-feed behavior.
-- Relevance evaluation is publication configuration and must be explainable.
-- Reprocessing the same item must converge on the same logical article identity.
-- Endpoint jobs and retries are isolated so one failing source cannot monopolize or abort unrelated work.
-- Public-feed reads must remain available during collection failures.
+Governed by `docs/contracts/article-lifecycle-and-deduplication.md`.
 
-## Article and Deduplication Law
+- Article identity prevents repeated polling from inserting the same Source instance.
+- True duplicate grouping applies to separately stored Articles.
+- Fuzzy title alone never overwrites an Article.
+- Weak duplicate evidence becomes a persisted review candidate.
+- Dismissed unchanged review evidence must not recur indefinitely.
+- Duplicate group has exactly one Primary.
+- Changing Primary does not delete members or erase provenance.
+- Hiding/restoring is independent from duplicate membership.
+- Related coverage remains separate.
+- When uncertain, preserve distinct visible reporting rather than suppress aggressively.
 
-Article lifecycle and duplicate behavior are governed by `docs/05-article-lifecycle-and-deduplication.md`.
+## Public/admin law
 
-High-risk invariants:
+Governed by `docs/contracts/public-feed-and-admin-contract.md`.
 
-- Article identity and duplicate identity are different questions.
-- Repeated polling of the same source item is identity resolution, not a new duplicate-group member.
-- Fuzzy-title similarity alone must not overwrite an existing article.
-- Weak duplicate evidence should become a review candidate rather than silently suppressing a possibly distinct article.
-- A duplicate group has exactly one primary article.
-- Changing the primary does not delete or rewrite group membership.
-- Manual merge/split/primary decisions are auditable and override automatic grouping until intentionally revised.
-- When uncertain, preserving two visible articles is preferable to hiding distinct reporting.
+Public MVP:
 
-## Public Feed and Admin Law
+- reverse chronological rolling feed;
+- desktop `Date | Headline | Source`;
+- accessible stacked mobile layout;
+- original Article destination;
+- Category/Source filters, keyword search, deterministic pagination;
+- light/dark modes;
+- no MVP pinning/featured ordering.
 
-The public/admin experience is governed by `docs/06-public-feed-and-admin-contract.md`.
+Admin MVP includes authentication/Publication-aware authorization, Source/endpoint approval/state management, Source priority, health/run history, Article visibility/display overrides/categories, duplicate review/group corrections, and auditability.
 
-Public MVP invariants:
+## Roadmap law
 
-- Reverse-chronological rolling feed of visible primary articles.
-- Desktop supports the core `Date | Headline | Source` presentation.
-- Mobile uses an accessible stacked presentation rather than forcing a compressed desktop table.
-- The headline links to the stored original/canonical public destination.
-- Category filter, source filter, keyword search, deterministic pagination/load-more, light mode, and dark mode are MVP requirements.
-- Branding and topic-specific labels come from publication configuration.
-- The platform must not imply authorship of linked source articles.
-
-Admin MVP invariants include authenticated publication/source management, source health and run history, article moderation, category/relevance controls, duplicate correction, and auditability.
-
-## Architecture Law
-
-Use `docs/03-system-architecture.md` for process and module boundaries.
-
-High-risk invariants:
-
-- The Web/API process and Worker process must be independently runnable roles.
-- Slow or failed collection work must not block normal public-feed requests.
-- Source-specific adapters remain behind fetcher/parser interfaces.
-- Public-feed code consumes normalized article read models only.
-- Admin controllers request/enqueue collection work; they do not perform collection inline.
-- Deduplication must not depend on publication-specific keywords.
-- Publication-specific relevance and categorization enter through configuration interfaces.
-- Critical uniqueness guarantees should use database constraints/transactions rather than application-only assumptions.
-
-## Security and Operations Law
-
-Security and reliability requirements in `docs/07-security-reliability-and-operations.md` are first-class implementation constraints.
-
-Do not postpone the following as optional polish when the affected surface is implemented:
-
-- admin authentication/authorization boundaries;
-- CSRF/session protections for browser administration;
-- SSRF and redirect validation for configured source URLs;
-- bounded response/decompression sizes and timeouts;
-- untrusted-content sanitization/escaping;
-- secret-safe structured logging;
-- failure isolation and bounded concurrency;
-- run/source observability;
-- audit events for administrative changes.
-
-## Roadmap Law
-
-Use `docs/08-mvp-roadmap.md` as the current implementation sequence.
+Use `docs/roadmap/mvp-roadmap.md`.
 
 Current phase: **Phase 0 — Contracts and product foundation**.
 
-Do not claim Phase 0 complete until its documented exit gate is satisfied: no unresolved contradictions among Phase 0 documents, implementation tasks can cite measurable contracts, and topic-specific behavior is explicitly located in publication configuration.
+Do not claim completion until the Phase 0 gate has been evaluated after documentation alignment. Do not pull later-phase/deferred behavior into earlier tasks without an explicit decision or true dependency.
 
-Future phases are ordered Phase 1 through Phase 8. Do not pull later-phase behavior into an earlier task merely because it is nearby unless the user explicitly changes the roadmap or a dependency requires it.
+## Working preferences
 
-## Working Preferences
-
-- Inspect current source and documentation before drafting implementation prompts.
+- Inspect current source/docs before implementation prompts.
 - Prefer file-scoped, regression-safe Codex prompts.
-- State exact files that may be modified whenever scope is knowable.
-- Include non-goals and behavior that must remain unchanged.
-- Require focused tests plus the relevant broader regression suite.
-- Do not claim completion based only on code inspection when runtime or browser validation is required.
-- Separate confirmed facts, inferred behavior, recommendations, and unresolved questions.
-- Favor incremental tasks that can be reviewed independently.
-- Prefer the smallest correct change over speculative architecture work.
-- Trace shared helpers and data semantics across all consumers before changing them.
-- When recommending sequencing, choose a single best next task unless alternatives are materially different.
-- When the user says `recommended`, make a concrete choice using current contracts and architecture.
-- Do not invent repository state, file contents, source behavior, test results, browser results, or commit history.
+- Include non-goals and preserved behavior.
+- Require focused + broader regression tests.
+- Do not claim runtime/browser behavior unless observed.
+- Prefer smallest correct changes over speculative refactors.
+- Trace shared helpers/consumers before changing data or collection semantics.
+- Make a concrete recommendation when asked for the recommended option.
+- Never invent repository state, test results, Source behavior, or history.
 
-## No Compatibility Bridge Rule
+## Pre-production compatibility rule
 
-The project is pre-production. Use canonical names and architecture only. Do not add old/new aliases, duplicate synchronized fields, fallback compatibility paths, or speculative migration bridges unless a current task explicitly requires a one-time migration path.
+Use one canonical design. Do not add old/new aliases, synchronized duplicate fields, fallback compatibility paths, or speculative migration bridges unless a task explicitly requires a one-time migration.
 
-## Repository Identity
+## Repository identity
 
-When the user says `the repo` or `the source code` in this project, interpret it as:
-
-```text
-jfin602/news-scraper
-```
+`the repo` / `the source code` = `jfin602/news-scraper`.
