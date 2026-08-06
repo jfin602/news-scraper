@@ -63,8 +63,9 @@ Use terminology from `docs/contracts/domain-and-data-contract.md`.
 High-risk distinctions:
 
 - Publication is the topic-specific configuration boundary.
-- Source is an approved publisher/outlet; Source endpoint is the concrete feed/API/HTML location.
-- Approval/trust state, operational state, public visibility, moderation state, and derived health are separate.
+- Source is a configured publisher/outlet whose approval state determines trust; Source endpoint is the concrete feed/API/HTML location.
+- Approval/trust state, configuration lifecycle, operational state, public visibility, moderation state, duplicate role, and derived health are separate.
+- Active configuration may be enabled/paused/disabled; archived configuration is retired and not collectable.
 - Collection run is one endpoint attempt.
 - Raw item is parser output; Article candidate is normalized but not yet accepted.
 - Article is a persisted normalized Source instance.
@@ -79,7 +80,7 @@ High-risk distinctions:
 
 Governed by `docs/contracts/source-and-collection-contract.md`, `docs/architecture/system-architecture.md`, and `docs/operations/security-reliability-and-operations.md`.
 
-- Only active Publications with approved+enabled Sources/endpoints are collectable.
+- Only collection-active Publications with approved, active, operationally enabled Sources/endpoints are collectable.
 - Pre-fetch and every redirect hop pass approval + DNS/address/port/SSRF validation before network contact.
 - Parsed Article links pass a separate post-normalization Source/domain policy gate.
 - Source approved domains are the maximum boundary; endpoint policy may narrow, not silently widen.
@@ -87,7 +88,7 @@ Governed by `docs/contracts/source-and-collection-contract.md`, `docs/architectu
 - Adapter interfaces are established with RSS/Atom and reused by later Source types.
 - Parsers produce Raw items and never persist Articles directly.
 - Normalization precedes relevance, identity, duplicate, and feed behavior.
-- MVP relevance actions are include/exclude/categorize; generic boost/ranking is deferred.
+- MVP relevance actions are deterministic include/exclude/categorize with explicit priority/scope tie-breaks; generic boost/ranking is deferred.
 - Repeated Source observations converge transactionally on one Article identity.
 - Endpoint jobs/retries fail independently and public-feed reads remain available.
 
@@ -120,7 +121,7 @@ Public MVP:
 - light/dark modes;
 - no MVP pinning/featured ordering.
 
-Admin MVP includes authentication/Publication-aware authorization, Source/endpoint approval/state management, Source priority, health/run history, Article visibility/display overrides/categories, duplicate review/group corrections, and auditability.
+Admin MVP includes authentication/Publication-aware authorization, Source/endpoint approval/lifecycle/operational management, Source priority, health/run history, Article visibility/display overrides/Categories, duplicate review/group corrections, and auditability.
 
 ## Roadmap law
 

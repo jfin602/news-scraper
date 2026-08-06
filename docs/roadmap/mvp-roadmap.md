@@ -1,6 +1,6 @@
 # MVP Roadmap
 
-This roadmap establishes contracts and a secure vertical collection path before adding complex source types.
+This roadmap establishes contracts and a secure vertical collection path before adding complex Source types.
 
 ## Phase 0 — Contracts and product foundation
 
@@ -19,7 +19,7 @@ This roadmap establishes contracts and a secure vertical collection path before 
 - No unresolved contradiction exists among Phase 0 documents.
 - Implementation tasks can cite measurable contract behavior.
 - Topic-specific behavior is explicitly located in Publication configuration.
-- Approval/operational/health state models, Article identity, duplicate role, provenance, and feed eligibility are unambiguous.
+- Approval/trust, configuration lifecycle, operational state, health, Article identity, duplicate role, provenance, and feed eligibility are unambiguous.
 
 ## Phase 1 — Repository and application foundation
 
@@ -45,15 +45,17 @@ This roadmap establishes contracts and a secure vertical collection path before 
 - administrator identity + audit-event foundation;
 - Publication configuration;
 - Categories and deterministic include/exclude/categorize Relevance rules;
-- Source and Source-endpoint create/update/state/archive management;
-- separate approval/trust and operational states;
+- Source and Source-endpoint create/update/archive lifecycle management;
+- separate approval/trust state;
+- separate active/archived lifecycle state;
+- separate enabled/paused/disabled operational state;
 - approved-domain policy and endpoint narrowing validation;
 - Source priority configuration;
 - admin shell and Source/endpoint screens.
 
 ### Exit gate
 - An administrator can configure a Publication and approved RSS/Atom endpoint without code changes.
-- Unapproved, paused, or disabled Sources/endpoints cannot be scheduled/fetched.
+- Unapproved, archived, paused, or disabled Sources/endpoints cannot be scheduled/fetched.
 - Publication collection-active state is independent from public-feed exposure.
 - State changes are audited.
 
@@ -63,21 +65,22 @@ This roadmap establishes contracts and a secure vertical collection path before 
 - fetcher/parser adapter interfaces;
 - due-endpoint scheduler;
 - durable jobs and endpoint locking;
+- eligibility checks for approved + active + enabled Sources/endpoints;
 - pre-fetch/redirect approval + SSRF/network safety;
 - HTTP fetcher with timeouts, conditional requests, response/decompression limits;
 - RSS/Atom parser;
 - Raw-item to Article-candidate normalization;
 - post-parse Article-link/domain validation;
-- Collection-run records using canonical outcome/status vocabulary appropriate to pre-persistence processing;
+- Collection-run records with transport/parser/normalization status and counts appropriate to pre-persistence processing;
 - isolated retries/backoff;
 - manual check-now operation;
 - baseline structured telemetry.
 
 ### Exit gate
-- At least two approved feeds fetch/parse/normalize independently.
+- At least two approved, active, enabled feeds fetch/parse/normalize independently.
 - Re-fetching unchanged feeds is safe and produces deterministic normalized candidate identities/output without creating persistence side effects.
 - One broken feed does not interrupt another.
-- No request or redirect can bypass approval/network-safety gates.
+- No request or redirect can bypass eligibility or network-safety gates.
 
 ## Phase 4 — Article identity, persistence, relevance, and public feed
 
@@ -98,7 +101,7 @@ This roadmap establishes contracts and a secure vertical collection path before 
 ### Exit gate
 - Repeated unchanged collection does not increase Article cardinality for the same Source identity.
 - Every Article observation traces to endpoint/run provenance.
-- Every visible row traces to an approved Source and normalized stored Article.
+- Every visible row traces to an approved active Source and normalized stored Article.
 - The initial Publication provides a useful rolling feed.
 - A second unrelated test Publication renders unrelated Categories/branding without engine-topic conditionals.
 
@@ -132,7 +135,7 @@ This roadmap establishes contracts and a secure vertical collection path before 
 
 ### Exit gate
 - An approved non-feed Source collects without contaminating normalized downstream code.
-- HTML parsing uses the same approval, safety, normalization, identity, provenance, retry, and failure-isolation boundaries as RSS/Atom.
+- HTML parsing uses the same approval/lifecycle/operational, safety, normalization, identity, provenance, retry, and failure-isolation boundaries as RSS/Atom.
 - Parser failure is isolated/diagnosable.
 
 ## Phase 7 — Reliability, observability, and production hardening

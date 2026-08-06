@@ -2,23 +2,25 @@
 
 ## Approval boundary
 
-Only administrator-approved Sources and Source endpoints may be contacted.
+Only configured Sources/endpoints that are currently trusted and operationally eligible may be contacted.
 
 An endpoint is collectable only when all are true:
 
 - its Publication is active for collection;
 - its Source approval state is `approved`;
+- its Source lifecycle state is `active`;
 - its Source operational state is `enabled`;
 - its endpoint approval state is `approved`;
+- its endpoint lifecycle state is `active`;
 - its endpoint operational state is `enabled`;
 - the endpoint URL passes pre-fetch scheme/host/DNS/address/port safety validation;
 - no active run lock already exists for the endpoint.
 
-`paused` and `disabled` are operational states, not health values. The platform MUST NOT use public submissions or discovered links to expand the whitelist silently.
+`paused`, `disabled`, and `archived` are not health values. The Platform MUST NOT use public submissions or discovered links to expand the whitelist silently.
 
 ## Approved-domain policy
 
-Each Source defines the maximum approved public-domain boundary. Endpoint configuration may narrow that boundary for redirects/article links but may not silently widen it.
+Each Source defines the maximum approved public-domain boundary. Endpoint configuration may narrow that boundary for redirects/Article links but may not silently widen it.
 
 Before every outbound request, including every redirect hop, the fetch layer MUST:
 
@@ -29,14 +31,14 @@ Before every outbound request, including every redirect hop, the fetch layer MUS
 - defend against DNS rebinding by validating the actual resolved destination used for the request;
 - enforce redirect limits and revalidate each redirect before following it.
 
-After parsing/normalization, article-link acceptance MUST separately:
+After parsing/normalization, Article-link acceptance MUST separately:
 
-- resolve relative article URLs against the approved endpoint;
+- resolve relative URLs against the approved endpoint;
 - normalize internationalized/case-insensitive hostnames safely;
-- validate article-link domains against Source/endpoint policy;
-- record unexpected cross-domain article links rather than automatically following/accepting them.
+- validate Article-link domains against Source/endpoint policy;
+- record unexpected cross-domain Article links rather than automatically following/accepting them.
 
-Pre-fetch network safety and post-parse article-link validation are different gates and both are required.
+Pre-fetch network safety and post-parse Article-link validation are different gates and both are required.
 
 ## Source-type priority
 
@@ -50,36 +52,36 @@ Preferred order:
 
 A lower-priority method requires an operational reason. Convenience alone does not justify browser automation.
 
-The parser/fetcher adapter boundary is established with the first structured-feed implementation. Later HTML/custom collectors implement that existing boundary rather than redefining it.
+The fetcher/parser adapter boundary is established with the first structured-feed implementation. Later HTML/custom collectors implement that existing boundary rather than redefining it.
 
 ## Configuration precedence
 
 Source configuration owns:
 
+- approval/trust and lifecycle/operational states;
 - approved-domain maximum boundary;
 - Publication-scoped Source priority;
-- Source operational/approval state;
 - default Category fallback;
 - optional Source-scoped relevance defaults.
 
 Endpoint configuration owns:
 
 - endpoint type/URL;
-- endpoint approval and operational state;
+- approval/trust and lifecycle/operational states;
 - polling interval;
 - timeout;
 - parser profile/adapter key;
-- redirect/article-domain restrictions that only narrow Source policy;
+- redirect/Article-domain restrictions that only narrow Source policy;
 - endpoint default Category override;
-- optional endpoint-specific parser/header settings that do not leak secrets to logs.
+- optional parser/header settings that do not leak secrets to logs.
 
 If both Source and endpoint specify a default Category, endpoint wins for that endpoint; Source is fallback.
 
 ## Fetch contract
 
-The fetcher MUST provide:
+Fetcher MUST provide:
 
-- explicit connect and total timeouts;
+- explicit connect/total timeouts;
 - bounded response size;
 - redirect limit plus pre-request destination revalidation;
 - compressed-response handling with decompressed-size limits;
@@ -89,7 +91,7 @@ The fetcher MUST provide:
 - content-type validation;
 - safe retry classification.
 
-The fetcher SHOULD respect published source guidance and avoid unnecessary traffic.
+Fetcher SHOULD respect published Source guidance and avoid unnecessary traffic.
 
 ## Retry and backoff
 
@@ -97,7 +99,7 @@ The fetcher SHOULD respect published source guidance and avoid unnecessary traff
 - Attempts are bounded.
 - Backoff includes jitter.
 - Authentication, validation, parser-contract, and permanent client errors are not retried indefinitely.
-- Repeated failures influence derived endpoint health and may trigger automatic cooldown/circuit-breaking.
+- Repeated failures influence derived endpoint health and may trigger cooldown/circuit-breaking.
 - One endpoint's retry loop cannot monopolize worker capacity.
 
 ## Parser contract
@@ -106,7 +108,7 @@ A parser converts fetched content into Raw items and MUST NOT write directly to 
 
 Raw items SHOULD expose, when available:
 
-- source-provided identifier;
+- Source-provided identifier;
 - title;
 - URL;
 - publication/update timestamps;
@@ -115,7 +117,7 @@ Raw items SHOULD expose, when available:
 - image URL;
 - category labels;
 - language;
-- bounded source-specific diagnostic metadata.
+- bounded Source-specific diagnostic metadata.
 
 Parser output is untrusted input.
 
@@ -132,31 +134,29 @@ Before relevance, identity, duplicate, or public-feed logic, normalization MUST:
 - bound field lengths;
 - normalize title representation for matching while preserving display/source title;
 - attach Publication, Source, endpoint, and Collection-run provenance;
-- validate normalized article URLs against article-link domain policy before acceptance.
+- validate normalized Article URLs against Article-link domain policy before acceptance.
 
 ## Relevance evaluation
 
 Relevance belongs to Publication configuration, not engine code.
 
-MVP actions are:
+MVP actions are `include`, `exclude`, and `categorize`.
 
-- `include`;
-- `exclude`;
-- `categorize`.
+Deterministic include/exclude procedure:
 
-Default semantics:
-
-- when no inclusion rule is configured for the applicable scope, a valid candidate is eligible unless excluded;
-- exclusion takes precedence over inclusion at the same/lower priority;
-- explicit Source-scoped rules may override Publication defaults where configured;
-- categorization does not imply inclusion/exclusion unless represented by a separate rule;
-- every automatic decision stores the winning rule/reason.
+1. Collect applicable enabled include/exclude rules.
+2. Highest explicit priority wins.
+3. At equal priority, Source-scoped rule wins over Publication-wide rule.
+4. At equal priority and scope specificity, `exclude` wins over `include`.
+5. If no include/exclude rule decides the candidate, include by default.
+6. Category rules are evaluated independently and do not alter inclusion unless a separate include/exclude rule does so.
+7. Persist the winning include/exclude reason and applied Category reasons.
 
 Generic `boost` ranking is deferred until a ranking/scoring contract exists.
 
 ## Article identity and idempotency
 
-Reprocessing the same source item MUST converge on the same logical Article identity.
+Reprocessing the same Source item MUST converge on the same logical Article identity.
 
 Identity resolution combines:
 
@@ -167,13 +167,13 @@ Identity resolution combines:
 
 Fuzzy-title similarity alone never overwrites an existing Article.
 
-Transactional uniqueness constraints are required where practical. Repeated observation may add/update Article observations and run counters, but Article cardinality must not increase for the same source identity.
+Transactional uniqueness constraints are required where practical. Repeated observation may add/update Article observations and run counters, but Article cardinality must not increase for the same Source identity.
 
 True duplicate grouping between separately stored Articles is governed by the Article lifecycle/deduplication contract and is not the same as idempotent identity resolution.
 
 ## Candidate outcomes and run accounting
 
-Each normalized candidate terminates with one canonical primary outcome:
+After Article persistence is active, each normalized candidate terminates with one canonical primary outcome:
 
 - `created`;
 - `updated`;
@@ -184,7 +184,11 @@ Each normalized candidate terminates with one canonical primary outcome:
 - `duplicate_grouped`;
 - `failed`.
 
-Collection runs aggregate these exact outcomes plus transport/run-level status. Other documents must map generic terms such as “accepted” or “skipped” to these outcomes rather than create competing counter definitions.
+Collection runs aggregate these exact outcomes plus transport/run-level status.
+
+During the earlier pre-persistence collection/normalization phase, runs may record transport, parser, and normalization stage counts/statuses, but MUST NOT reuse post-identity names such as `created`, `updated`, or `unchanged Article` as though Article persistence already exists.
+
+Other documents must map generic terms such as `accepted` or `skipped` explicitly rather than create competing counter definitions.
 
 ## Source health
 
@@ -196,10 +200,10 @@ Endpoint health is derived from recent collection behavior and uses:
 - `degraded`;
 - `unhealthy`.
 
-Endpoint operational state remains separately `enabled`, `paused`, or `disabled`.
+Lifecycle (`active/archived`) and operational state (`enabled/paused/disabled`) remain separate from health.
 
-Administrators must be able to distinguish transport, parse, validation, relevance, and persistence failures. A Source-level health indicator, if displayed, is a derived summary of its endpoints.
+Administrators must be able to distinguish transport, parse, validation, relevance, and persistence failures. A Source-level health indicator, if displayed, is a derived summary of endpoint states/health.
 
 ## Push delivery
 
-The platform model may support push-capable Sources in the future, consistent with the near-real-time law. **Push/webhook adapters are deferred beyond MVP unless explicitly promoted by a later project decision.** MVP collection uses configurable polling, even when a Source happens to offer push.
+The Platform model may support push-capable Sources in the future, consistent with the near-real-time law. **Push/webhook adapters are deferred beyond MVP unless explicitly promoted by a later project decision.** MVP collection uses configurable polling even when a Source happens to offer push.

@@ -2,7 +2,7 @@
 
 ## Security model
 
-The highest-risk surfaces are administrator access and server-side fetching of externally configured URLs. Controls must appear with the first implementation of each affected surface; Phase 7 hardens and operationalizes them rather than introducing them for the first time.
+The highest-risk surfaces are administrator access and server-side fetching of externally configured URLs. Controls appear with the first implementation of each affected surface; Phase 7 hardens and operationalizes them rather than introducing them for the first time.
 
 ## Administrative security
 
@@ -21,9 +21,12 @@ Administrative errors must not expose secrets, stack traces, or raw database det
 
 ## Fetching and SSRF defenses
 
-Before the first outbound request and before every redirect hop, the Worker/fetch layer MUST validate:
+Before the first outbound request and before every redirect hop, Worker/fetch logic MUST validate:
 
-- Source/endpoint approval and operational eligibility;
+- Publication collection-active state;
+- Source/endpoint approval state = approved;
+- Source/endpoint lifecycle state = active;
+- Source/endpoint operational state = enabled;
 - HTTP/HTTPS scheme policy;
 - approved endpoint/domain policy;
 - DNS and resolved-address restrictions;
@@ -34,17 +37,17 @@ Before the first outbound request and before every redirect hop, the Worker/fetc
 
 DNS rebinding and redirects must not bypass address validation.
 
-After parsing/normalization, Article URLs are separately validated against Source/endpoint article-domain policy before acceptance. Post-parse Article-link validation does not replace pre-fetch network safety.
+After parsing/normalization, Article URLs are separately validated against Source/endpoint Article-domain policy before acceptance. Post-parse Article-link validation does not replace pre-fetch network safety.
 
 ## Content safety
 
 Collected content is untrusted. The system MUST:
 
 - sanitize/strip HTML before display;
-- escape text for the output context;
-- validate media and Article URLs;
+- escape text for output context;
+- validate media/Article URLs;
 - avoid proxying arbitrary remote content through privileged infrastructure by default;
-- set an appropriate content security policy;
+- set appropriate content security policy;
 - bound stored text/metadata;
 - prevent parser payloads from becoming executable configuration.
 
@@ -57,15 +60,26 @@ Collected content is untrusted. The system MUST:
 - Worker concurrency is bounded globally and per host/Source.
 - Public-feed reads remain available during collection failures.
 
+## State and health observability
+
+Approval/trust, lifecycle, operational state, and health are emitted/reported separately.
+
+- approval: `approved` / `unapproved`;
+- lifecycle: `active` / `archived`;
+- operational: `enabled` / `paused` / `disabled`;
+- derived health: `unknown` / `healthy` / `delayed` / `degraded` / `unhealthy`.
+
+An archived or paused endpoint is not labeled unhealthy merely because it is intentionally not running.
+
 ## Observability
 
-The MVP MUST emit structured information sufficient to answer:
+MVP MUST emit enough structured information to answer:
 
-- Which endpoints are due, running, delayed, degraded, unhealthy, paused, or disabled?
-- What is each endpoint's separate operational state and derived health?
+- Which endpoints are due, running, delayed, degraded, unhealthy, paused, disabled, archived, or unapproved?
 - When was each endpoint last successfully collected?
-- How long did network validation, fetching, parsing, normalization, identity resolution, duplicate evaluation, and persistence take?
-- How many candidate outcomes were `created`, `updated`, `unchanged`, `rejected`, `excluded`, `hidden`, `duplicate_grouped`, or `failed`?
+- How long did eligibility/network validation, fetch, parse, normalize, identity, duplicate evaluation, and persistence take where those stages exist?
+- Before persistence exists, what transport/parser/normalization counts/statuses occurred?
+- Once persistence exists, how many candidates were `created`, `updated`, `unchanged`, `rejected`, `excluded`, `hidden`, `duplicate_grouped`, or `failed`?
 - Why was a candidate rejected/excluded/hidden?
 - Why was a duplicate candidate created, dismissed, or grouped?
 - Which administrator changed Publication/Source/Article/duplicate configuration?
@@ -73,7 +87,7 @@ The MVP MUST emit structured information sufficient to answer:
 Foundations:
 
 - structured logs with run/correlation identifiers;
-- metrics for jobs, durations, failures, queue delay, and canonical candidate outcomes;
+- metrics for jobs, durations, failures, queue delay, and applicable candidate outcomes;
 - health/readiness endpoints for Web/API and Worker dependencies;
 - bounded Collection-run history;
 - alert-ready unhealthy endpoint states.
@@ -114,7 +128,7 @@ Because Article identity is idempotent, safe replay is the preferred recovery me
 
 Baseline controls above are implemented alongside the features they protect. Phase 7 adds production hardening such as:
 
-- dashboards and alert integrations;
+- dashboards/alert integrations;
 - tuned unhealthy/delayed detection;
 - concurrency/rate-limit tuning;
 - backup/restore verification;
@@ -123,7 +137,7 @@ Baseline controls above are implemented alongside the features they protect. Pha
 - deployment/rollback runbooks;
 - production monitoring ownership.
 
-Phase 7 MUST NOT be interpreted as permission to build earlier fetching/authentication without their required security controls.
+Phase 7 MUST NOT be interpreted as permission to build earlier fetching/authentication without required controls.
 
 ## Operational runbooks required before launch
 
