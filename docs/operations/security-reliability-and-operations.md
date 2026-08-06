@@ -79,15 +79,16 @@ MVP MUST emit enough structured information to answer:
 - When was each endpoint last successfully collected?
 - How long did eligibility/network validation, fetch, parse, normalize, identity, duplicate evaluation, and persistence take where those stages exist?
 - Before persistence exists, what transport/parser/normalization counts/statuses occurred?
-- Once persistence exists, how many candidates were `created`, `updated`, `unchanged`, `rejected`, `excluded`, `hidden`, `duplicate_grouped`, or `failed`?
-- Why was a candidate rejected/excluded/hidden?
+- Once persistence exists, how many candidates had processing outcomes `created`, `updated`, `unchanged`, `rejected`, `excluded`, or `failed`?
+- How many orthogonal effects occurred, including `visibility_hidden`, `duplicate_review_created`, and `duplicate_grouped`?
+- Why was a candidate rejected/excluded or left hidden?
 - Why was a duplicate candidate created, dismissed, or grouped?
 - Which administrator changed Publication/Source/Article/duplicate configuration?
 
 Foundations:
 
 - structured logs with run/correlation identifiers;
-- metrics for jobs, durations, failures, queue delay, and applicable candidate outcomes;
+- metrics for jobs, durations, failures, queue delay, processing outcomes, and orthogonal effects;
 - health/readiness endpoints for Web/API and Worker dependencies;
 - bounded Collection-run history;
 - alert-ready unhealthy endpoint states.

@@ -160,7 +160,7 @@ Reprocessing the same Source item MUST converge on the same logical Article iden
 
 Identity resolution combines:
 
-1. reliable immutable Source external identifiers within Source scope;
+1. reliable immutable Source external identifiers within the same Source;
 2. normalized/canonical URL identity within Publication/Source scope;
 3. explicitly configured stable endpoint identity keys;
 4. conservative fingerprints only as secondary corroboration.
@@ -171,24 +171,30 @@ Transactional uniqueness constraints are required where practical. Repeated obse
 
 True duplicate grouping between separately stored Articles is governed by the Article lifecycle/deduplication contract and is not the same as idempotent identity resolution.
 
-## Candidate outcomes and run accounting
+## Candidate processing and run accounting
 
-After Article persistence is active, each normalized candidate terminates with one canonical primary outcome:
+After Article persistence is active, every processed candidate has exactly one processing outcome:
 
 - `created`;
 - `updated`;
 - `unchanged`;
 - `rejected`;
 - `excluded`;
-- `hidden`;
-- `duplicate_grouped`;
 - `failed`.
 
-Collection runs aggregate these exact outcomes plus transport/run-level status.
+Accepted Article processing may additionally produce zero or more orthogonal effects:
 
-During the earlier pre-persistence collection/normalization phase, runs may record transport, parser, and normalization stage counts/statuses, but MUST NOT reuse post-identity names such as `created`, `updated`, or `unchanged Article` as though Article persistence already exists.
+- `visibility_hidden`;
+- `duplicate_review_created`;
+- `duplicate_grouped`.
 
-Other documents must map generic terms such as `accepted` or `skipped` explicitly rather than create competing counter definitions.
+Effects do not replace outcomes. For example, a candidate may be `created` and also cause `duplicate_grouped` in the same run.
+
+Collection runs aggregate processing outcomes and effects separately, plus transport/run-level status.
+
+During the earlier pre-persistence collection/normalization phase, runs may record transport, parser, and normalization stage counts/statuses but MUST NOT use post-identity outcome names as though Article persistence exists.
+
+Generic terms such as `accepted` or `skipped` require explicit mapping rather than competing counter definitions.
 
 ## Source health
 

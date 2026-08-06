@@ -5,31 +5,35 @@
 Article moderation/visibility and duplicate-group membership are orthogonal dimensions.
 
 Visibility states:
-
 - `visible`;
 - `hidden`;
 - `archived`.
 
 Duplicate roles:
-
 - `ungrouped`;
 - `primary` member of a Duplicate group;
 - `non_primary` member of a Duplicate group.
 
-Joining or leaving a Duplicate group does not inherently change visibility. Hiding/restoring an Article does not inherently change group membership.
+Joining/leaving a Duplicate group does not inherently change visibility. Hiding/restoring an Article does not inherently change group membership.
 
-## Candidate lifecycle
+## Candidate processing outcomes
 
-A normalized Article candidate ends processing with one canonical outcome:
+Once Article persistence exists, every normalized candidate ends with exactly one processing outcome:
 
-- `created` — a new Article is persisted;
-- `updated` — an existing Article's source-derived values change;
-- `unchanged` — an existing Article is observed without material change;
-- `rejected` — invalid or unsafe;
-- `excluded` — deterministically excluded by relevance policy;
-- `hidden` — persisted/accepted but hidden by publication/moderation policy;
-- `duplicate_grouped` — a separately stored Article is attached to a true Duplicate group;
-- `failed` — item-level processing failed.
+- `created` — new Article persisted;
+- `updated` — existing Article Source-derived values changed;
+- `unchanged` — existing Article observed without material change;
+- `rejected` — invalid or unsafe before acceptance;
+- `excluded` — deterministically excluded by Relevance policy;
+- `failed` — item-level processing failure.
+
+Accepted processing may additionally produce orthogonal effects:
+
+- `visibility_hidden`;
+- `duplicate_review_created`;
+- `duplicate_grouped`.
+
+Effects do not replace processing outcomes. A newly created Article may also be grouped as a duplicate in the same run.
 
 Every observation preserves sufficient endpoint/run provenance and deterministic reasons.
 
@@ -46,8 +50,8 @@ Identity resolution prevents repeated polling from inserting the same Source Art
 
 Identity SHOULD evaluate:
 
-1. reliable immutable Source external identifier in Source scope;
-2. canonical URL in Publication/Source scope;
+1. reliable immutable Source external identifier within the same Source;
+2. canonical URL within Publication/Source scope;
 3. explicit stable endpoint identity key;
 4. conservative fingerprint corroboration.
 
@@ -62,7 +66,7 @@ The same Source item is encountered again. This is Article identity, not a new D
 Tracking/print/mobile/listing aliases may converge on one Article identity when canonicalization is reliable.
 
 ### Republished or syndicated identical item
-Separate Article instances from one or more Sources reproduce the same underlying published item. These may form one Duplicate group while all Articles remain stored.
+Separate Article instances reproduce the same underlying published item. These may form one Duplicate group while all Articles remain stored.
 
 ### Related coverage
 Different reporting about the same event/subject is not a true duplicate and remains separately visible.
@@ -81,7 +85,7 @@ Signals may include:
 - matching author/date/summary fingerprints;
 - known syndication metadata.
 
-Signals used for **Article identity** must not be mislabeled as true-duplicate logic. A shared external identifier is only a cross-Article duplicate signal when the identifier is known to be meaningful across those Source instances; otherwise it remains Source-scoped identity evidence.
+Signals used for **Article identity** must not be mislabeled as true-duplicate logic. A shared external identifier is a cross-Article duplicate signal only when known to be meaningful across those separate Source instances.
 
 Weak similarity creates or updates a persisted Duplicate review candidate rather than suppressing an Article silently.
 
@@ -90,13 +94,13 @@ Weak similarity creates or updates a persisted Duplicate review candidate rather
 A Duplicate review candidate stores:
 
 - compared Article pair;
-- match signals and deterministic reason codes;
+- match signals/reason codes;
 - confidence;
-- state such as `pending`, `dismissed`, `merged`, or `superseded`;
+- state such as `pending`, `dismissed`, `merged`, `superseded`;
 - automatic/manual origin;
 - administrator identity/time for manual decisions.
 
-A dismissed candidate must not reappear indefinitely from the same unchanged evidence. It may be reconsidered only when materially new evidence or an explicit administrator action warrants it.
+A dismissed candidate does not reappear indefinitely from unchanged evidence. Reconsideration requires materially new evidence or explicit administrator action.
 
 ## Primary selection
 
@@ -113,7 +117,7 @@ Default selection SHOULD consider, in order:
 
 Changing Primary does not delete Articles or change membership.
 
-If the current Primary becomes hidden, the group remains valid. Public-feed eligibility may select no row from that group until an administrator or deterministic policy chooses another visible Primary; hidden state is not silently overridden by duplicate logic.
+If the current Primary becomes hidden, the group remains valid. Ordinary public output may contain no row from that group until a visible Primary is selected intentionally; duplicate logic does not silently override moderation visibility.
 
 ## Public-feed eligibility
 
@@ -122,11 +126,11 @@ Ordinary feed rows include Articles that are:
 - `visible`, and
 - either `ungrouped` or the `primary` member of a Duplicate group.
 
-Visible `non_primary` members are duplicate-suppressed from ordinary feed rows but remain available administratively.
+Visible `non_primary` members are duplicate-suppressed from ordinary rows but remain administratively available.
 
 Related coverage remains separate.
 
-The MVP may show an optional non-interactive “also reported by” count derived from group membership, but it must not emit redundant rows.
+The MVP may show a non-interactive “also reported by” count derived from group membership, but must not emit redundant rows.
 
 ## Manual moderation
 

@@ -15,7 +15,7 @@ A configured publisher or outlet belonging to one Publication in the MVP. Approv
 A configured machine-readable feed, API URL, or HTML listing page belonging to a Source. Approval, lifecycle/operational state, polling state, HTTP cache metadata, parser settings, and derived health are endpoint-level concerns.
 
 ### Collection run
-One attempt to collect one Source endpoint. It records timing, outcome, transport details, counters, and bounded error information.
+One attempt to collect one Source endpoint. It records timing, transport/stage status, processing outcomes/effects, and bounded error information.
 
 ### Raw item
 Minimally interpreted parser output. Raw items are untrusted and retained only as needed for diagnostics/reprocessing.
@@ -151,23 +151,31 @@ Configuration inheritance:
 ### `collection_runs`
 - Source endpoint identifier;
 - start/finish timestamps;
-- terminal status;
+- terminal run/transport status;
 - HTTP/transport metadata where applicable;
-- canonical outcome counters;
+- processing-outcome counters;
+- orthogonal effect counters;
 - structured error code/bounded detail;
 - worker/execution identifier.
 
-Canonical post-identity candidate outcomes:
+Once Article persistence exists, every processed candidate has exactly one **processing outcome**:
+
 - `created` — new Article inserted;
 - `updated` — existing Article Source-derived fields changed;
 - `unchanged` — existing Article observed without material change;
-- `rejected` — invalid or unsafe candidate;
-- `excluded` — deterministically excluded by relevance policy;
-- `hidden` — accepted/stored but hidden by policy/moderation;
-- `duplicate_grouped` — separately stored Article attached to a true Duplicate group;
-- `failed` — item-level processing failure.
+- `rejected` — invalid or unsafe before acceptance;
+- `excluded` — deterministically excluded by Relevance policy;
+- `failed` — item-level processing failed.
 
-Before Article persistence exists, Collection runs may report transport/parser/normalization stage counts/statuses, but they MUST NOT misuse the post-identity outcome names above. Once persistence is active, run counters derive from this canonical outcome taxonomy. Generic terms such as `accepted` or `skipped` require explicit mapping rather than competing semantics.
+Accepted Article processing may also produce zero or more **orthogonal effects**, which do not replace the processing outcome:
+
+- `visibility_hidden` — resulting Article is hidden by policy/moderation;
+- `duplicate_review_created` — new/persisted weak-match review work was created;
+- `duplicate_grouped` — Article was newly attached to or materially changed within a true Duplicate group.
+
+Example: one candidate may be counted as `created` and also increment `duplicate_grouped`; these are not competing outcomes.
+
+Before Article persistence exists, Collection runs may report transport/parser/normalization stage counts/statuses, but MUST NOT use post-identity processing outcomes as though Articles already exist. Generic terms such as `accepted` or `skipped` require explicit mapping rather than competing semantics.
 
 ### `articles`
 - Publication/Source identifiers;
@@ -247,11 +255,11 @@ Persistence MUST enforce or transactionally guarantee:
 
 - unique Publication slug;
 - no duplicate non-archived normalized endpoint URL within the same Source;
-- no duplicate Article for the same reliable immutable Source external identifier;
+- no duplicate Article for the same reliable immutable external identifier within the same Source;
 - no duplicate Article for the same Publication/Source canonical identity when external identifier is absent;
 - one Primary Article per Duplicate group;
 - no cross-Publication Duplicate membership/review pair;
-- one canonical unresolved/reviewed duplicate-candidate relationship per Article pair/method as appropriate;
+- one canonical unresolved/reviewed Duplicate-candidate relationship per Article pair/method as appropriate;
 - every public feed row resolves to an approved active Source and eligible stored Article;
 - pausing/disabling/archiving Source configuration never erases retained Article provenance.
 
