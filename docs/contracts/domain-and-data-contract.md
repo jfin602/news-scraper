@@ -15,13 +15,13 @@ A configured publisher or outlet belonging to one Publication in the MVP. Approv
 A configured machine-readable feed, API URL, or HTML listing page belonging to a Source. Approval, lifecycle/operational state, polling state, HTTP cache metadata, parser settings, and derived health are endpoint-level concerns.
 
 ### Collection run
-One attempt to collect one Source endpoint. It records timing, transport/stage status, processing outcomes/effects, and bounded error information.
+One attempt to collect one Source endpoint. It records timing, transport/stage status, processing outcomes/effects where those stages exist, and bounded error information.
 
 ### Raw item
 Minimally interpreted parser output. Raw items are untrusted and retained only as needed for diagnostics/reprocessing.
 
 ### Article candidate
-A normalized but not yet accepted record produced from a Raw item. Safety, relevance, identity, and duplicate decisions operate on candidates.
+A normalized but not yet accepted record produced from a Raw item. Safety, Relevance, identity, and duplicate decisions operate on candidates.
 
 ### Article
 A persisted normalized Source instance representing one discovered Article URL or reliable Source-provided item identity.
@@ -56,7 +56,7 @@ A Publication-owned deterministic rule used to include, exclude, or categorize c
 - An Article belongs to one Publication and one Source.
 - Article observations link Articles/candidate outcomes to one Source endpoint and one Collection run.
 - Duplicate groups and Duplicate review candidates belong to one Publication and never cross Publication boundaries.
-- Administrative authorization is checked at the Publication boundary.
+- Administrative commands validate Publication/resource ownership and scoping even though MVP does not implement per-user Publication authorization.
 
 ## State model
 
@@ -127,7 +127,7 @@ Names below define logical concepts, not final SQL.
 - approved-domain policy;
 - Publication-scoped priority;
 - default Category;
-- optional Source-scoped relevance settings;
+- optional Source-scoped Relevance settings;
 - created/updated timestamps.
 
 ### `source_endpoints`
@@ -152,11 +152,14 @@ Configuration inheritance:
 - Source endpoint identifier;
 - start/finish timestamps;
 - terminal run/transport status;
+- parser/normalization stage status/counts where applicable;
 - HTTP/transport metadata where applicable;
-- processing-outcome counters;
-- orthogonal effect counters;
+- processing-outcome counters once Article persistence exists;
+- orthogonal effect counters once those effects exist;
 - structured error code/bounded detail;
 - worker/execution identifier.
+
+A minimal Collection run exists from the first real transport implementation. Before Article persistence exists it records only the stages that actually exist and MUST NOT pretend post-identity outcomes have occurred.
 
 Once Article persistence exists, every processed candidate has exactly one **processing outcome**:
 
@@ -188,7 +191,7 @@ Before Article persistence exists, Collection runs may report transport/parser/n
 - Source-updated time where available;
 - stable identity fingerprint;
 - visibility/moderation state;
-- normalization/relevance reasons.
+- normalization/Relevance reasons.
 
 Source-derived normalized values remain distinct from optional administrator display overrides. Later Source observations update Source-derived values without clobbering an active override. Clearing an override reveals the latest normalized Source value.
 
@@ -222,6 +225,10 @@ Deterministic MVP decision procedure:
 6. Category rules are evaluated independently and do not alter inclusion unless a separate include/exclude rule does so.
 7. Persist the winning include/exclude reason and applied Category-rule reasons.
 
+Before configurable Relevance-rule persistence exists, the canonical Relevance boundary still executes with an empty rule set. Safe normalized candidates therefore receive the deterministic default `include` decision rather than bypassing Relevance evaluation.
+
+MVP Relevance-rule edits are prospective by default. Editing rules affects future candidate processing; automatic bulk retroactive re-evaluation of previously persisted Articles is deferred unless a dedicated reprocessing capability is explicitly invoked/implemented later. Article moderation remains available for corrections.
+
 Generic `boost`/ranking behavior is deferred until a ranking/scoring contract exists.
 
 ### `duplicate_review_candidates`
@@ -231,7 +238,7 @@ Generic `boost`/ranking behavior is deferred until a ranking/scoring contract ex
 - confidence;
 - state such as `pending`, `dismissed`, `merged`, `superseded`;
 - automatic/manual origin;
-- reviewing administrator/time where applicable.
+- manual decision time/reason where applicable.
 
 ### `duplicate_groups` and memberships
 - Publication identifier;
@@ -243,11 +250,10 @@ Generic `boost`/ranking behavior is deferred until a ranking/scoring contract ex
 
 Exactly one member is Primary.
 
-### `admin_users` / administrative identity
-The authentication implementation may vary, but the system provides stable administrator identity referenced by audit/moderation records and scoped to authorized Publications.
-
 ### `audit_events`
-Administrative changes affecting Publications, Sources, endpoints, Article visibility/overrides/Categories, duplicate review/groups, and other security-sensitive configuration produce audit events referencing administrator identity.
+MVP may persist bounded administrative configuration/moderation change history for security-sensitive or editorially significant changes. Records may include action, target, prior/new state, timestamp, and reason where applicable. MVP does not require a native administrator identifier or canonical per-user attribution.
+
+Native administrator accounts/identity, roles, per-user Publication authorization, account recovery, and identity-linked audit attribution are outside MVP and require a later contract/ADR if promoted.
 
 ## Identity and uniqueness invariants
 
@@ -283,9 +289,9 @@ A visible `non_primary` member is duplicate-suppressed from ordinary rows but re
 
 ## Retention and deletion principles
 
-- Provenance needed for audit, identity, or duplicate handling is not discarded because an Article is hidden/suppressed.
+- Provenance needed for change history, identity, or duplicate handling is not discarded because an Article is hidden/suppressed.
 - Source/endpoint administration uses create/update, approval, enable/pause/disable, and archive lifecycle management rather than unconstrained physical deletion.
-- Hard deletion requires explicit deletion policy preserving referential/audit requirements or proof that no retained provenance depends on the object.
+- Hard deletion requires explicit deletion policy preserving referential/change-history requirements or proof that no retained provenance depends on the object.
 - Raw responses/items may have bounded retention.
 - Error bodies are bounded/scrubbed.
 - Deletion policy distinguishes moderation hiding, configuration archival, legal takedown, and physical deletion.
