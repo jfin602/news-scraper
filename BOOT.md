@@ -79,13 +79,15 @@ Canonical authority is `docs/contracts/project-contract.md`:
 
 1. locked laws;
 2. explicit project-contract invariants;
-3. domain/lifecycle/testing contracts;
-4. architecture/interface/security contracts and Accepted ADRs;
+3. domain and lifecycle contracts;
+4. architecture, interface, security/operations contracts, and Accepted ADRs;
 5. roadmap/implementation notes;
 6. root summaries/routing (`AGENTS.md`, `README.md`, `BOOT.md`);
 7. implementation;
 8. historical task prompts;
 9. comments/commit messages/stale notes.
+
+`docs/contracts/testing-and-validation-contract.md` governs how implementation behavior is proven and when implementation work may be considered complete. It does not redefine product/domain behavior or outrank the governing behavioral contract being tested.
 
 Observed validation evidence proves behavior only for the source tree/environment/procedure actually tested; it does not outrank or redefine a governing contract.
 
