@@ -10,7 +10,7 @@ Current phase: **Phase 1 — Application foundation**.
 
 Phase 0 is complete. The final pre-code documentation review aligned the contracts around the demo-first delivery strategy, Cloudflare Access admin perimeter, staged Worker collection path, Collection-run provenance, default-include Relevance bridge, bootstrap approval rules, focused Phase 0–20 roadmap, and project-wide testing/regression policy.
 
-Implementation has not yet begun.
+Phase 1 implementation is in progress.
 
 ## Delivery priority
 
