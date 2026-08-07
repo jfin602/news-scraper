@@ -17,7 +17,7 @@ This contract governs:
 - focused and regression-test obligations;
 - PostgreSQL and network isolation;
 - deterministic fixtures and controlled time/randomness;
-- continuous-integration expectations;
+- local execution and final-tree validation expectations;
 - test command conventions;
 - flaky-test and skipped-test policy;
 - evidence levels and reporting language;
@@ -68,7 +68,7 @@ Examples:
 - forbidden dependency or topic-coupling checks;
 - configuration/schema shape checks;
 - deterministic repository/path checks;
-- `git diff --check`.
+- committed-change whitespace/diff validation, such as `git diff --check <base>...HEAD`, or an equivalent command that actually inspects the accepted change range.
 
 Permitted claim:
 
@@ -171,7 +171,7 @@ Permitted claim:
 
 ### Level 7 — Approved live-Source validation
 
-Uses explicitly approved real publisher endpoints outside ordinary deterministic CI.
+Uses explicitly approved real publisher endpoints outside ordinary deterministic regression validation.
 
 It proves only the named Source/endpoints, environment, time, and procedure observed. It does not redefine the whitelist or allow uncontrolled public-network dependencies in ordinary tests.
 
@@ -215,6 +215,8 @@ Durable validation records SHOULD identify:
 - important limitations;
 - evidence level.
 
+A roadmap phase closeout validation artifact MUST identify those items for the exact commit/source tree being accepted.
+
 Historical passing evidence remains historical after later source changes until the applicable matrix is rerun.
 
 ## Test naming and ownership
@@ -255,7 +257,7 @@ npm run test:live-sources
 
 A command is added only with its first substantive suite. Empty/no-op commands are prohibited.
 
-`npm test` MUST represent the ordinary deterministic development regression matrix suitable for local development and CI. Specialized environment-requiring suites MAY remain separate, but CI MUST explicitly run every specialized deterministic suite required by the current implemented phase.
+`npm test` MUST represent the ordinary deterministic development regression matrix suitable for local development and final-tree validation. Specialized environment-requiring suites MAY remain separate, but final phase validation MUST explicitly run every specialized deterministic suite required by the current implemented phase.
 
 If a named/filtered test command is invoked and zero tests match, it MUST fail rather than report success, unless the command is explicitly a discovery/listing operation whose contract says otherwise.
 
@@ -263,25 +265,26 @@ An explicitly invoked database, browser, collection-fixture, security, or other 
 
 The exact test runner/framework is selected during Phase 1. Prefer the smallest toolchain that satisfies TypeScript, coverage, isolation, and browser/integration needs; do not add a large framework solely to wrap behavior already supported adequately by the chosen runner.
 
-## Continuous integration
+## Local execution and final-tree validation
 
-Phase 1 establishes CI for pull requests and pushes to `main`.
+Phase 1 establishes the repeatable local validation workflow used for implementation review and roadmap phase closeout. The project does not require a hosted continuous-integration service or remote status check.
 
-CI MUST:
+Final-tree validation MUST, as applicable:
 
-- install dependencies reproducibly;
+- install/use dependencies reproducibly from the committed lockfile;
 - run applicable static/type/lint/format checks;
 - run the complete deterministic test matrix required by the current implemented phase;
 - fail when a required selected suite contains zero tests;
-- run `git diff --check` or equivalent whitespace validation;
-- surface failures as visible status checks;
-- avoid hidden automatic retries that mask flaky tests.
+- validate the committed change range for whitespace/diff errors rather than relying on an empty clean-working-tree diff;
+- execute any required runtime/database/fixture/browser/recovery procedures at the evidence level needed for the acceptance claim;
+- avoid hidden automatic retries that mask flaky tests;
+- preserve terminal output or an accurate concise result summary sufficient to show the command/procedure actually executed and its result.
 
-As the roadmap advances, CI expands the same validation system rather than creating parallel test paths.
+Routine implementation review may use observed terminal output in the review session. Roadmap phase closeout MUST create a durable record under `docs/validation/` tied to the exact accepted commit/source tree and listing the executed commands/procedures, relevant environment/tool versions, results, evidence levels, and limitations. The artifact records evidence; it does not redefine contracts.
 
 At minimum:
 
-- Phase 1: startup/config/static/test-runner/CI foundation;
+- Phase 1: startup/config/static/test-runner/local-validation foundation;
 - Phase 2: disposable PostgreSQL, migration-from-zero, cleanup verification;
 - Phase 3: Publication/Source/bootstrap/state invariants;
 - Phase 4: eligibility, domain, SSRF, redirect, and lock negatives;
@@ -300,7 +303,7 @@ At minimum:
 - Phase 19: security, restore, deployment, and reference-operations validation;
 - Phase 20: launch validation against the final deployment and approved Sources.
 
-Live public-network Source validation is not an ordinary CI dependency.
+Live public-network Source validation is not part of the ordinary deterministic local regression matrix.
 
 ## PostgreSQL test isolation
 
@@ -330,7 +333,7 @@ Tests MUST NOT use the ordinary development database as their cleanup strategy.
 
 ## Collection and network isolation
 
-Ordinary deterministic test/CI suites MUST NOT depend on live public publishers.
+Ordinary deterministic test/regression suites MUST NOT depend on live public publishers.
 
 Use controlled fixtures, injected fetch/resolution boundaries, or controlled local servers to test network behavior.
 
@@ -348,7 +351,7 @@ Network-safety tests MUST cover both allowed and denied paths, including where a
 - DNS rebinding-resistant resolution/use behavior;
 - Article-link domain validation separately from fetch validation.
 
-Live-Source validation may contact only explicitly approved Source/endpoints and MUST be isolated from ordinary CI.
+Live-Source validation may contact only explicitly approved Source/endpoints and MUST be isolated from ordinary deterministic regression validation.
 
 ## Fixture policy
 
@@ -429,11 +432,11 @@ Increasing or gaming a line percentage does not substitute for missing idempoten
 
 A flaky test is a defect in the test or product until understood.
 
-- Do not automatically retry tests merely to make CI green.
+- Do not automatically retry tests merely to obtain a passing result.
 - Fix nondeterminism or document an explicit bounded environmental limitation.
 - `skip`, `todo`, quarantine, or temporary disablement MUST NOT satisfy a roadmap exit gate for the behavior they would have proved.
 - Required specialized suites MUST fail clearly when prerequisites are missing rather than silently becoming green.
-- If CI cannot execute a required evidence level, report the limitation and keep the corresponding claim unverified.
+- If the available local/reference environment cannot execute a required evidence level, report the limitation and keep the corresponding claim unverified.
 
 ## Phase and prompt completion gate
 
@@ -445,7 +448,8 @@ A phase cannot close until:
 - relevant earlier regression suites pass against the final tree;
 - contract-critical negative/failure cases are covered at the correct level;
 - required database/browser/fixture/recovery evidence for that phase has actually been executed;
-- CI required for the phase is green when CI exists;
+- the complete required local final-tree validation matrix has been executed with terminal evidence for the accepted tree;
+- a durable phase-closeout validation artifact under `docs/validation/` records the exact accepted commit/source tree, commands/procedures, results, evidence levels, and limitations;
 - known skipped/flaky tests do not hide exit-gate behavior;
 - validation limitations are reported explicitly.
 
@@ -459,4 +463,4 @@ Create `docs/testing/` plans only when a feature or phase has enough specialized
 
 Do not create empty placeholders. Specialized plans may define concrete fixture matrices, browser viewport matrices, live-Source procedures, security attack cases, or release/reference-deployment checklists, but they remain subordinate to this contract.
 
-Durable observed evidence may be stored under `docs/validation/` when useful. Validation artifacts record what was actually observed; they do not redefine contracts.
+Durable observed evidence may be stored under `docs/validation/` when useful. Phase-closeout validation artifacts are required by the completion gate above. Validation artifacts record what was actually observed; they do not redefine contracts.
