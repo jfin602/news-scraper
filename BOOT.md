@@ -10,14 +10,14 @@ It establishes project identity, canonical terminology, authority, document rout
 - Default branch: `main`
 - Working product/repository name: News Scraper
 - Platform: reusable, topic-independent news aggregation Platform
-- Current phase: **Phase 2 — Database foundation**
+- Current phase: **Phase 3 — Publication and Source configuration core**
 - Production status: pre-production
 - Initial Publication: publishing-industry news relevant to indie authors
 - Public direction: rolling recent-headline feed sending readers to original publishers
 - Admin direction: Cloudflare Access-protected Publication/Source/endpoint/Relevance/Category/Article/duplicate/health/change-history control plane, built after the tech-demo vertical slice
 - Core constraint: Publication-specific behavior is configuration; shared engine logic remains topic independent
 
-Phase 0 documentation alignment and Phase 1 Application foundation implementation/validation are complete. The repository is ready for Phase 2 implementation planning.
+Phase 0 documentation alignment, Phase 1 Application foundation, and Phase 2 Database foundation implementation/validation are complete. The repository is ready for Phase 3 implementation planning.
 
 ## Delivery priority
 
@@ -97,26 +97,26 @@ Report authoritative conflicts rather than choosing silently.
 
 ## Document routing
 
-| Area | Read first |
-|---|---|
-| Locked laws / authority / product boundaries | `docs/contracts/project-contract.md` |
-| MVP users / demo-first capabilities / exclusions | `docs/contracts/mvp-scope-and-users.md` |
-| Terminology / states / entities / identity / provenance | `docs/contracts/domain-and-data-contract.md` |
-| Testing / regression / evidence / local execution / DB/fixture/browser/live validation | `docs/contracts/testing-and-validation-contract.md` |
-| Process/module architecture / staged Worker execution / scheduling / transactions | `docs/architecture/system-architecture.md` |
-| Approval / bootstrap / collection / safety / parsing / normalization / Relevance / identity / run accounting | `docs/contracts/source-and-collection-contract.md` |
-| Article visibility / duplicate role / review/groups / Primary | `docs/contracts/article-lifecycle-and-deduplication.md` |
-| Public feed / search / themes / admin UX / change history | `docs/contracts/public-feed-and-admin-contract.md` |
-| Admin perimeter / SSRF / content safety / isolation / observability / recovery | `docs/operations/security-reliability-and-operations.md` |
-| Phase sequence / critical path / exit gates | `docs/roadmap/mvp-roadmap.md` |
-| Topic-independent decision | `docs/decisions/topic-independent-publication-model.md` |
-| Whitelist/structured-feed decision | `docs/decisions/whitelist-and-structured-feed-first.md` |
-| Original-link/normalization decision | `docs/decisions/original-link-and-normalized-metadata.md` |
-| Cloudflare Access admin perimeter | `docs/decisions/cloudflare-access-admin-perimeter.md` |
-| Documentation index | `docs/README.md` |
-| Specialized validation plans | `docs/testing/` when present |
-| Implementation prompts | `docs/tasks/` when present |
-| Durable validation artifacts | `docs/validation/` when present |
+| Area                                                                                                         | Read first                                                |
+| ------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------- |
+| Locked laws / authority / product boundaries                                                                 | `docs/contracts/project-contract.md`                      |
+| MVP users / demo-first capabilities / exclusions                                                             | `docs/contracts/mvp-scope-and-users.md`                   |
+| Terminology / states / entities / identity / provenance                                                      | `docs/contracts/domain-and-data-contract.md`              |
+| Testing / regression / evidence / local execution / DB/fixture/browser/live validation                       | `docs/contracts/testing-and-validation-contract.md`       |
+| Process/module architecture / staged Worker execution / scheduling / transactions                            | `docs/architecture/system-architecture.md`                |
+| Approval / bootstrap / collection / safety / parsing / normalization / Relevance / identity / run accounting | `docs/contracts/source-and-collection-contract.md`        |
+| Article visibility / duplicate role / review/groups / Primary                                                | `docs/contracts/article-lifecycle-and-deduplication.md`   |
+| Public feed / search / themes / admin UX / change history                                                    | `docs/contracts/public-feed-and-admin-contract.md`        |
+| Admin perimeter / SSRF / content safety / isolation / observability / recovery                               | `docs/operations/security-reliability-and-operations.md`  |
+| Phase sequence / critical path / exit gates                                                                  | `docs/roadmap/mvp-roadmap.md`                             |
+| Topic-independent decision                                                                                   | `docs/decisions/topic-independent-publication-model.md`   |
+| Whitelist/structured-feed decision                                                                           | `docs/decisions/whitelist-and-structured-feed-first.md`   |
+| Original-link/normalization decision                                                                         | `docs/decisions/original-link-and-normalized-metadata.md` |
+| Cloudflare Access admin perimeter                                                                            | `docs/decisions/cloudflare-access-admin-perimeter.md`     |
+| Documentation index                                                                                          | `docs/README.md`                                          |
+| Specialized validation plans                                                                                 | `docs/testing/` when present                              |
+| Implementation prompts                                                                                       | `docs/tasks/` when present                                |
+| Durable validation artifacts                                                                                 | `docs/validation/` when present                           |
 
 If a path does not exist, search for its current equivalent before assuming intentional deletion.
 
@@ -158,9 +158,9 @@ If a path does not exist, search for its current equivalent before assuming inte
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 2 — Database foundation**.
+Current phase: **Phase 3 — Publication and Source configuration core**.
 
-Phase 0 documentation alignment is complete. Phase 1 Application foundation is complete with durable closeout validation. Phase 2 is the active implementation phase.
+Phase 0 documentation alignment, Phase 1 Application foundation, and Phase 2 Database foundation are complete with durable closeout validation. Phase 3 is the active implementation phase.
 
 ### Tech-demo critical path
 
@@ -215,46 +215,59 @@ Commands are conversational shorthand, not shell commands.
 ## Context
 
 ### `/boot`
+
 Refresh BOOT, root summaries, project contract, roadmap, and narrow governing docs.
 
 ### `/refresh <area>`
+
 Re-read relevant source/docs/tests/recent commits.
 
 ### `/state`
+
 Summarize implementation state, active phase, completed work, constraints, next logical work.
 
 ### `/route <topic>`
+
 Identify governing contracts/ADRs/source/tests/tasks.
 
 ## Analysis
 
 ### `/audit <area>`
+
 Compare contracts, ADRs, source, tests, recent changes, observable behavior; report disagreements/risks.
 
 ### `/contract-check <area>`
+
 Check implementation/tests against governing contracts/laws.
 
 ### `/doc-check <area>`
+
 Narrow documentation consistency check; does not replace full `/docs-review`.
 
 ### `/source-trace <source or behavior>`
+
 Trace Publication → Source → endpoint → approval/lifecycle/operational state → execution/lock/run → safety → fetch → parse/normalize → link validation → Relevance → identity/observation → duplicate → run/health → consumers/tests.
 
 ### `/article-trace <field or concept>`
+
 Trace Raw item → candidate → Relevance → Article identity/persistence → observations → overrides → duplicate role → feed/admin/tests.
 
 ### `/dedupe-trace <case>`
+
 Trace Article identity separately from true-duplicate evidence, review state, groups, Primary, safeguards, moderation, feed/tests.
 
 ### `/blast-radius <change>`
+
 Identify affected contracts, ADRs, schema/migrations, jobs/services/routes/read models/UI/tests/docs.
 
 ### `/regression <behavior>`
+
 Trace suspected regression to likely change, affected invariants, missing test protection, and the evidence level required to prove a fix.
 
 # Documentation workflow
 
 ## `/docs-review`
+
 Always a **read-only first pass**.
 
 Default full scope: every tracked `.md` and `.txt` except:
@@ -269,6 +282,7 @@ Return interpreted scope, reviewed/excluded docs, contradictions, source/docs dr
 Never modify files during `/docs-review`.
 
 ## `/docs-apply`
+
 Apply only approved findings/change groups from current conversation.
 
 Before editing, re-read targets and confirm drift has not invalidated findings.
@@ -307,6 +321,7 @@ Project versions use `0.<roadmap phase>.<phase prompt number>` while the project
 - A closeout prompt that owns a version change performs and commits that version metadata transition before establishing the final source SHA to be validated.
 
 ## `/prompt-ass`
+
 Determine safe task boundaries from established behavior/contracts/roadmap. No writes.
 
 Return target behavior, constraints, roadmap phase, prompt count/order, goal/summary/dependencies/boundary rationale/deferred behavior, and closeout task when needed.
@@ -314,11 +329,13 @@ Return target behavior, constraints, roadmap phase, prompt count/order, goal/sum
 Testing is part of task-boundary assessment: identify whether a prompt can own its focused tests and the required broader regression impact without becoming monolithic.
 
 ## `/prompt-plan`
+
 Requires completed `/prompt-ass` in current conversation. Perform source-level planning for every assessed prompt: contracts/ADRs, implementation, schemas/migrations, process roles, helpers/consumers/tests/recent changes, likely file scope, preserved behavior, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs implications, acceptance criteria, non-goals.
 
 Material boundary revisions produce `Planning needed`. No writes.
 
 ## `/prompt-write <folder name>`
+
 Requires completed unblocked `/prompt-plan`. Revalidate current repo/docs and write one ordered `.txt` per approved prompt under:
 
 ```text
@@ -360,15 +377,19 @@ Reviews distinguish inspection from executed evidence. Do not upgrade a claim fr
 # Decision commands
 
 ### `/lock <decision>`
+
 Treat decision as authoritative direction and identify affected contracts/ADRs/root/task docs. Do not modify files unless instructed. Locked-law amendments use project-contract process.
 
 ### `/recommend`
+
 Choose best option using contracts, architecture, roadmap, user value, security/reliability, implementation risk.
 
 ### `/status`
+
 Return only: Completed / Current / Blocked / Next.
 
 ### `/next`
+
 Recommend the single most logical next task.
 
 # Command modifiers

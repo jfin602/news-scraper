@@ -6,11 +6,11 @@ The first configured Publication focuses on publishing-industry news relevant to
 
 ## Current project state
 
-Current phase: **Phase 2 — Database foundation**.
+Current phase: **Phase 3 — Publication and Source configuration core**.
 
-Phase 0 documentation alignment is complete. Phase 1 Application foundation implementation and closeout validation are complete.
+Phase 0 documentation alignment, Phase 1 Application foundation, and Phase 2 Database foundation implementation and closeout validation are complete.
 
-Phase 2 establishes the shared PostgreSQL connection/configuration, migrations, development/test database workflow, transaction utilities, dependency readiness, and disposable real-PostgreSQL validation foundation before domain persistence is introduced.
+Phase 3 introduces the minimum Publication, Source, and Source-endpoint persistence needed for trusted, administrator-approved collection configuration without pulling later collection or admin UI behavior forward.
 
 ## Delivery priority
 
