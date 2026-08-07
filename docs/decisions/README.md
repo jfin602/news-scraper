@@ -14,6 +14,7 @@ This directory records foundational choices that shape multiple modules or const
 - [`topic-independent-publication-model.md`](./topic-independent-publication-model.md)
 - [`whitelist-and-structured-feed-first.md`](./whitelist-and-structured-feed-first.md)
 - [`original-link-and-normalized-metadata.md`](./original-link-and-normalized-metadata.md)
+- [`cloudflare-access-admin-perimeter.md`](./cloudflare-access-admin-perimeter.md)
 
 New ADRs use descriptive filenames rather than sequence numbers. Git history and the date/status inside each record provide chronology.
 
