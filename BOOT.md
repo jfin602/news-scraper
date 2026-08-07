@@ -152,7 +152,7 @@ If a path does not exist, search for its current equivalent before assuming inte
 - Ordinary deterministic validation does not rely on live public Sources, and test composition must not weaken production whitelist/SSRF policy.
 - Required suites do not pass by silently skipping prerequisites or selecting zero tests.
 - Validation claims apply to the exact final source tree tested; previous passing evidence does not automatically transfer to later source changes.
-- Roadmap phase closeout requires a durable `docs/validation/` artifact tied to the exact accepted commit/source tree and the commands/procedures actually executed.
+- Implementation-roadmap phase closeout requires a durable `docs/validation/` artifact tied to the exact accepted commit/source tree and the commands/procedures actually executed.
 
 ## Roadmap state
 
@@ -204,7 +204,7 @@ Do not advance by assumption. Verify each phase's own exit gate plus the inherit
 - Before Article/duplicate changes trace external IDs/canonical URLs/uniqueness → observations → review candidates → groups → Primary → moderation → feed → tests.
 - Before admin changes trace Cloudflare Access perimeter → origin protection → request integrity → Publication/resource ownership → mutation → change history → tests.
 - Before approving a change, trace the testing blast radius and confirm relevant regression suites were actually executed against the reviewed final tree.
-- For roadmap phase closeout, require observed local terminal evidence and a durable validation artifact tied to the exact accepted commit/source tree.
+- For implementation-roadmap phase closeout, require observed local terminal evidence and a durable validation artifact tied to the exact accepted commit/source tree.
 - Make a concrete choice when asked for `recommended`.
 - Never invent repository state, tests, browser results, Source behavior, or history.
 
