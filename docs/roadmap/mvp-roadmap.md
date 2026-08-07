@@ -16,6 +16,25 @@ Phases are intentionally narrow. Each phase represents one cohesive implementati
 - MVP admin UI/API routes use Cloudflare Access as the external perimeter; supported deployments MUST prevent direct-origin bypass.
 - Cloudflare Access does not replace request-integrity, resource-validation, fetch/network-safety, output/content-safety, secrets, or origin protections.
 - Public-feed and collection behavior should become useful before admin convenience and moderation workflows are expanded.
+- Automated behavioral regression coverage is the primary defense against regressions. Every phase inherits `docs/contracts/testing-and-validation-contract.md`.
+
+## Global phase validation gate
+
+The exit gate written inside each phase is necessary but not sufficient by itself.
+
+Every implementation phase MUST also satisfy the testing and validation contract against the final source tree before it can close. That means, as applicable:
+
+- focused automated tests for new/corrected behavior;
+- relevant broader regression suites for the change's blast radius;
+- negative/failure/boundary coverage for contract-critical behavior;
+- real disposable PostgreSQL evidence for persistence/concurrency claims;
+- deterministic collection-fixture evidence rather than live-public-network dependence in ordinary CI;
+- browser evidence for browser-dependent behavior;
+- required CI status checks green;
+- no skipped/flaky/zero-selected suite standing in for required proof;
+- limitations reported explicitly.
+
+Earlier passing evidence does not automatically validate later source changes. A phase closes only on evidence for the final tree being accepted.
 
 ## Tech-demo critical path
 
@@ -36,7 +55,7 @@ Align governing documentation around the demo-first delivery strategy while pres
 - MVP scope reflects Cloudflare Access rather than native application authentication;
 - focused roadmap phases and explicit tech-demo critical path;
 - topic-specific behavior remains Publication configuration;
-- domain, collection, Article, feed, and security contracts are internally coherent.
+- domain, collection, Article, feed, security, and testing contracts are internally coherent.
 
 ### Out of scope
 - application implementation;
@@ -47,13 +66,13 @@ Align governing documentation around the demo-first delivery strategy while pres
 ### Exit gate
 - No unresolved contradiction exists among Phase 0 documents.
 - Implementation tasks can cite measurable contract behavior.
-- Approval/trust, lifecycle, operational state, health, Article identity, duplicate role, provenance, Relevance ordering, and feed eligibility are unambiguous.
+- Approval/trust, lifecycle, operational state, health, Article identity, duplicate role, provenance, Relevance ordering, feed eligibility, and validation expectations are unambiguous.
 - Native administrator authentication/identity requirements are not MVP blockers.
 
 ## Phase 1 — Application foundation
 
 ### Goal
-Create the independently runnable application skeleton without business behavior.
+Create the independently runnable application skeleton and the regression-testing/CI foundation without business behavior.
 
 ### Depends on
 - Phase 0.
@@ -64,20 +83,27 @@ Create the independently runnable application skeleton without business behavior
 - Worker entry point;
 - environment validation;
 - Publication-aware module boundaries;
-- linting, formatting, type checking, test foundation;
+- formatting, linting, and type-checking foundation;
+- smallest suitable TypeScript-compatible automated test runner/toolchain;
+- substantive startup/configuration/health tests;
+- root test/check commands as they become substantive under the testing contract;
 - health/readiness endpoints;
-- basic CI.
+- GitHub CI for pull requests and pushes to `main`;
+- CI-visible static/test/diff validation with required zero-test-selection protection where filtering is used.
 
 ### Out of scope
 - domain persistence;
 - durable jobs;
 - Source fetching;
 - Article persistence;
-- admin UI.
+- admin UI;
+- placeholder/no-op test suites or scripts.
 
 ### Exit gate
-- Web/API and Worker start independently.
-- CI rejects formatting/type/test failures.
+- Web/API and Worker start independently under automated validation.
+- Invalid required environment/configuration fails predictably.
+- CI rejects formatting/lint/type/test/diff failures on the final Phase 1 tree.
+- Required filtered test jobs cannot pass with zero selected tests.
 - Shared engine modules contain no indie-author-specific condition.
 
 ## Phase 2 — Database foundation
@@ -94,18 +120,24 @@ Establish durable PostgreSQL infrastructure before domain models.
 - development/test DB workflow;
 - transaction utilities;
 - dependency health/readiness checks;
-- migration validation in CI.
+- migration validation in CI;
+- safe `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` test-admin boundary;
+- unique disposable PostgreSQL database creation/migration/cleanup helpers;
+- cleanup verification and clear failure when required DB-test prerequisites are unavailable.
 
 ### Out of scope
 - complete domain schema;
 - Source collection;
 - Article identity;
-- durable scheduler/jobs.
+- durable scheduler/jobs;
+- using development/production data as a test database;
+- silently skipped database suites reported as passing.
 
 ### Exit gate
-- A clean database can be migrated reproducibly.
+- A clean disposable PostgreSQL database can be created and migrated reproducibly from zero.
 - Web/API and Worker connect through the shared database boundary.
-- Migration/test failures are surfaced by CI.
+- Database test runs exercise real PostgreSQL and verify cleanup.
+- Migration/test failures or missing explicit DB-test prerequisites are surfaced rather than silently skipped.
 
 ## Phase 3 — Publication and Source configuration core
 
@@ -144,6 +176,7 @@ Represent the minimum trusted configuration required to collect approved feeds w
 ### Exit gate
 - A generic Publication and at least two approved RSS/Atom endpoints can be configured without engine-topic logic.
 - Invalid state/domain configurations are rejected.
+- Bootstrap idempotency and no-overwrite behavior are protected by automated regression tests.
 - Initial indie-author configuration exists only as Publication-owned bootstrap data.
 
 ## Phase 4 — Collection eligibility and network safety
@@ -176,6 +209,7 @@ Guarantee that only eligible, approved, safe Source endpoints may reach the outb
 - Unapproved, archived, paused, disabled, or unsafe endpoints cannot produce outbound requests.
 - Redirects cannot bypass safety.
 - Overlapping work for one endpoint can be prevented.
+- Safety tests use controlled/injected boundaries without weakening production SSRF/whitelist rules.
 
 ## Phase 5 — RSS/Atom transport, parsing, and minimal Collection runs
 
@@ -198,17 +232,20 @@ Fetch real approved structured feeds through the Worker, persist truthful run pr
 - Raw-item representation;
 - manual Worker collection invocation;
 - minimal persisted Collection run with endpoint, start/finish, transport/parser status/counts, bounded errors, execution identifier;
-- isolated endpoint transport/parser failures.
+- isolated endpoint transport/parser failures;
+- deterministic controlled HTTP/RSS/Atom fixture corpus for ordinary CI.
 
 ### Out of scope
 - automated due-endpoint scheduler;
 - Article persistence;
 - configurable Relevance rules;
-- duplicate detection.
+- duplicate detection;
+- making live publisher endpoints an ordinary CI dependency.
 
 ### Exit gate
-- At least two real approved active enabled feeds fetch/parse independently through Worker execution.
+- At least two real approved active enabled feeds fetch/parse independently through Worker execution for the tech-demo/live-Source evidence.
 - Every real fetch attempt has a persisted truthful Collection run.
+- Deterministic fixture tests cover representative success, malformed, conditional/no-change, redirect, bounds, and isolated-failure behavior.
 - One broken feed does not prevent another run from completing.
 - Re-fetching unchanged content is transport-safe and deterministic at the Raw-item boundary.
 
@@ -243,6 +280,7 @@ Convert untrusted Source-shaped Raw items into safe deterministic Article candid
 - Same Raw item produces deterministic normalized output.
 - Unsafe/out-of-policy Article destinations are rejected before persistence.
 - Real entries are inspectable as normalized candidates with endpoint/run provenance.
+- Normalization fixture coverage includes important malformed, boundary, URL, date, markup, and determinism cases.
 
 ## Phase 7 — Default Relevance, Article identity, and persistence
 
@@ -273,8 +311,9 @@ Preserve canonical pipeline order and persist normalized Source instances transa
 ### Exit gate
 - Every safe candidate passes Relevance before identity; with no configured rules the result is deterministic default `include`.
 - Reprocessing the same unchanged Source item does not increase Article cardinality.
+- Concurrent/racing identity attempts preserve required uniqueness under real disposable PostgreSQL.
 - Every persisted observation traces to endpoint and Collection run.
-- Item failures do not require unrelated Articles from the same run to be lost when integrity permits isolation.
+- Transaction failures preserve database invariants and item failures do not require unrelated Articles from the same run to be lost when integrity permits isolation.
 
 ## Phase 8 — Basic public-feed backend
 
@@ -303,6 +342,7 @@ Expose the smallest useful Publication-scoped rolling feed from real stored Arti
 - Public HTTP request returns real persisted Articles deterministically.
 - Every row traces to approved active Source and normalized stored Article.
 - Headline destination is the original/canonical publisher URL.
+- Feed eligibility/order/read-model regressions pass against the final tree.
 
 ## Phase 9 — Basic public-feed UI and tech demo
 
@@ -333,6 +373,7 @@ Produce the first customer-visible working product using real collected data.
 - Raw items normalize, pass default Relevance, and persist idempotently with observations.
 - Current Articles appear in the public feed with intended publisher links.
 - Re-running collection does not create duplicate Article records for one Source identity.
+- The core public flow has Level 6 browser evidence at representative desktop and mobile viewports, in addition to the automated regression matrix.
 
 ## Phase 10 — Automated polling, durable jobs, and endpoint health
 
@@ -364,6 +405,7 @@ Turn the manually proven endpoint execution unit into a continuously updating ag
 - Due approved endpoints collect automatically.
 - One failing endpoint does not interrupt unrelated collection.
 - Overlapping runs are prevented.
+- Retry/recovery tests are deterministic and verify preserved state, not merely thrown errors.
 - Recent outcomes/failures can be diagnosed without console-only output.
 
 ## Phase 11 — Categories and configurable Relevance execution
@@ -399,6 +441,7 @@ Add deterministic Publication-specific inclusion/exclusion/categorization withou
 
 ### Exit gate
 - Identical candidate + configuration produces identical Relevance result/reasons.
+- The complete documented priority/scope/tie-break/default/category matrix has deterministic automated coverage.
 - A second unrelated Publication can use unrelated Categories/rules without engine-topic conditionals.
 - Relevance changes do not redefine Article identity.
 
@@ -428,6 +471,7 @@ Make the growing feed easy to explore without changing eligibility semantics.
 ### Exit gate
 - Search/filters/pagination return only feed-eligible Articles.
 - Pagination is stable under documented ordering.
+- Browser/API regression coverage preserves URL/reset/navigation behavior.
 
 ## Phase 13 — Public presentation polish
 
@@ -454,7 +498,8 @@ Turn the working feed into a polished customer-facing publication experience.
 - featured ordering.
 
 ### Exit gate
-- Core public workflows are usable on supported desktop/mobile layouts.
+- Core public workflows are usable on supported desktop/mobile layouts with browser evidence.
+- Light/dark/accessibility/navigation regressions pass.
 - Branding remains Publication configuration.
 - Original publisher remains primary read action.
 
@@ -491,6 +536,7 @@ Replace bootstrap/manual Source configuration with a practical control surface p
 ### Exit gate
 - Cloudflare-authorized operator can add/operate RSS/Atom Source without code/DB changes.
 - Admin actions cannot bypass state, ownership, locking, or network safety.
+- Request-integrity/resource-boundary regressions pass.
 - Direct-origin admin bypass is prevented in the supported deployment.
 
 ## Phase 15 — Publication and Relevance administration
@@ -519,6 +565,7 @@ Expose Publication editorial configuration through the Cloudflare-protected cont
 
 ### Exit gate
 - Authorized operator configures branding/Categories/Relevance without code changes.
+- Admin browser/API validation preserves ownership/request-integrity boundaries.
 - Second unrelated Publication remains generic.
 
 ## Phase 16 — True duplicate detection and grouping
@@ -550,6 +597,7 @@ Suppress true duplicate public rows while preserving every Article instance/prov
 - Ungrouped Articles remain eligible.
 - Related coverage remains separate.
 - Unchanged dismissed evidence does not recur indefinitely.
+- Duplicate fixture/case coverage includes false-positive safeguards and real-PostgreSQL Primary/group invariants.
 
 ## Phase 17 — Article and duplicate moderation
 
@@ -579,6 +627,7 @@ Give Cloudflare-authorized operators reversible control over Article presentatio
 - Important automatic decisions are inspectable/reversible.
 - Source updates do not clobber active display overrides.
 - Moderation does not erase provenance.
+- Reversible mutation and change-history regressions pass across API/database/browser surfaces as applicable.
 
 ## Phase 18 — Configurable HTML collection
 
@@ -603,12 +652,13 @@ Add approved non-feed Sources without creating another downstream pipeline.
 
 ### Exit gate
 - Approved HTML Source uses the same state, safety, normalization, Relevance, identity, provenance, retry, and failure-isolation boundaries as RSS/Atom.
+- HTML adapters pass shared downstream regression suites rather than a separate weaker path.
 - Parser failure is isolated/diagnosable.
 
 ## Phase 19 — Reliability, observability, and production operations
 
 ### Goal
-Make the completed MVP safe to operate continuously and recoverably.
+Make the completed MVP safe to operate continuously and recoverably, strengthening integrated evidence for controls already tested throughout earlier phases.
 
 ### Depends on
 - Phase 18.
@@ -623,18 +673,21 @@ Make the completed MVP safe to operate continuously and recoverably.
 - deployment/rollback process;
 - operational runbooks;
 - monitoring/recovery ownership;
-- explicit Cloudflare Access/origin-protection validation.
+- explicit Cloudflare Access/origin-protection validation;
+- reference-deployment validation at the appropriate evidence level.
 
 ### Out of scope
 - native administrator accounts;
 - self-service tenancy;
-- unrelated post-MVP features.
+- unrelated post-MVP features;
+- deferring basic security/recovery tests that belonged to earlier phases.
 
 ### Exit gate
-- Restore is tested.
+- Restore is tested, not merely documented.
 - Source failures/queue delay are observable.
 - Security coverage includes SSRF, unsafe content, secret leakage, fetch limits, admin perimeter/origin assumptions, and request integrity.
-- Deployment/rollback and failure runbooks are usable.
+- Deployment/rollback and failure runbooks are usable and validated where practical.
+- Required deterministic regression suites remain green on the final tree.
 
 ## Phase 20 — Customer launch validation
 
@@ -653,7 +706,8 @@ Configure, validate, and hand off the first real Publication without adding new 
 - launch checklist;
 - monitoring/recovery ownership confirmation;
 - post-launch metric baseline;
-- documented known limitations.
+- documented known limitations;
+- final validation record tied to the launched commit/deployment.
 
 ### Out of scope
 - new foundational engine behavior;
@@ -662,7 +716,8 @@ Configure, validate, and hand off the first real Publication without adding new 
 
 ### Exit gate
 - Customer/operator can manage Sources and moderate feed through Cloudflare-protected admin interface.
-- Public links, dates, Sources, and duplicate suppression are accurate in sampled validation.
+- Public links, dates, Sources, and duplicate suppression are accurate in sampled approved-live-Source validation.
+- Final deterministic regression, browser, recovery, and reference-deployment evidence required by the testing contract is recorded for the launched tree.
 - Known limitations and production ownership are documented.
 
 ## Deferred roadmap candidates
