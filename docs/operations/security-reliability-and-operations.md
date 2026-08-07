@@ -104,9 +104,11 @@ Foundations grow incrementally with the roadmap:
 - normalization stage accounting when normalization exists;
 - processing outcomes when Article persistence exists;
 - job/queue metrics when durable scheduling exists;
-- health/readiness endpoints for Web/API and Worker dependencies;
+- Web/API liveness/readiness endpoints plus Worker startup/dependency readiness checks appropriate to the process role;
 - bounded Collection-run history;
 - alert-ready unhealthy endpoint states before production launch.
+
+In Phase 1, Web/API liveness means the HTTP process is responsive and readiness means initialization plus all currently implemented critical dependencies are usable. The Worker proves readiness through independent startup/configuration/dependency validation and clean shutdown; Phase 1 does not require a separate Worker HTTP health server. Phase 2 extends dependency readiness to PostgreSQL.
 
 ## Logging constraints
 
