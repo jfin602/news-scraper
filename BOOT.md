@@ -302,6 +302,8 @@ If the check is green, invocation of `/closeout` itself constitutes the reposito
 
 Commit that version-only transition directly to `main` unless the user requests a branch/PR. Do not modify source, tests, migrations, tasks, validation artifacts, or unrelated documentation as part of the baseline transition. Report the resulting commit SHA and confirm that the next phase `P1` target is `0.<phase>.1`.
 
+As the final `/closeout` step after the successful version transition, re-read `docs/roadmap/mvp-roadmap.md` and print the complete roadmap entry for the newly current phase into the chat so the next `/docs-review` starts with fresh roadmap context. Use the current roadmap text rather than memory or a summary.
+
 # Documentation workflow
 
 ## `/docs-review`
