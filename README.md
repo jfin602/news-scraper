@@ -157,15 +157,22 @@ Core rules:
 
 Every implementation roadmap phase inherits that contract even when its phase entry does not repeat the complete test matrix.
 
-Database tests are intentionally separate from the ordinary deterministic suite. Set
-`NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` to a dedicated test-capable PostgreSQL
+Database tests are intentionally separate from the ordinary deterministic suite. A
+root `.env` file is an optional, local, ignored configuration source that must not be
+committed. `npm run test:db`, `npm run db:migrate`, `npm run start:web`, and
+`npm run start:worker` load it when it exists; explicit environment variables take
+precedence. The ordinary `npm test`, unit, integration, and `check` commands do not
+automatically load `.env`.
+
+Set `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` to a dedicated test-capable PostgreSQL
 administrative connection and run `npm run test:db`. The command creates and removes
 uniquely named disposable databases; it fails when the prerequisite is absent. Never
 point this variable at a development or production application database.
 
 For an application or development database, set `NEWS_SCRAPER_DATABASE_URL` to its
 PostgreSQL connection URL and run `npm run db:migrate` explicitly. Web/API and Worker
-startup do not apply migrations. The application URL is separate from
+startup do not apply migrations, including when started with values from `.env`. The
+application URL is separate from
 `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL`; the latter is privileged test administration
 used only by `npm run test:db` and must never point at ordinary development or
 production application data.
