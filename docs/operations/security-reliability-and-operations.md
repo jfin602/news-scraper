@@ -4,6 +4,8 @@
 
 The highest-risk surfaces are administrative access and server-side fetching of externally configured URLs. Controls appear with the first implementation of each affected surface; Phase 19 hardens and operationalizes them rather than introducing them for the first time.
 
+Testing/validation for these controls is governed project-wide by `docs/contracts/testing-and-validation-contract.md`. Phase 19 is not the first time security, recovery, persistence, or failure behavior is tested; every earlier phase adds focused and regression evidence for the controls it introduces.
+
 ## Administrative security
 
 MVP administrative UI/API routes use Cloudflare Access as the external authentication/access-control perimeter under `docs/decisions/cloudflare-access-admin-perimeter.md`.
@@ -68,6 +70,8 @@ Once Phase 10 durable scheduling exists:
 - Worker concurrency is bounded globally and per host/Source;
 - public-feed reads remain available during collection failures.
 
+Failure-isolation claims require executed tests at the lowest evidence level capable of proving the actual boundary. A test that only asserts an exception occurred is insufficient when the contract requires unrelated work/state to remain intact.
+
 ## State and health observability
 
 Approval/trust, lifecycle, operational state, and health are emitted/reported separately.
@@ -115,6 +119,8 @@ Logs MUST NOT contain:
 
 Query strings are redacted when they may contain credentials/private tokens.
 
+Security/redaction tests MUST use synthetic credentials/secrets and MUST NOT require real production credentials.
+
 ## Backup and recovery
 
 Before production launch, operations define:
@@ -128,6 +134,8 @@ Before production launch, operations define:
 
 Because Article identity is idempotent, safe replay is the preferred recovery mechanism.
 
+Recovery claims require observed or injected recovery validation under the testing contract. Documentation of a restore procedure alone is not restore proof.
+
 ## Deployment configuration
 
 - Environment settings live outside committed source.
@@ -139,19 +147,20 @@ Because Article identity is idempotent, safe replay is the preferred recovery me
 
 ## Phase 19 hardening boundary
 
-Baseline controls above are implemented alongside the features they protect. Phase 19 adds production hardening such as:
+Baseline controls above are implemented and tested alongside the features they protect. Phase 19 adds production hardening and stronger integrated evidence such as:
 
 - dashboards/alert integrations;
 - tuned unhealthy/delayed detection;
 - concurrency/rate-limit tuning;
 - backup/restore verification;
-- security/abuse testing;
+- security/abuse regression testing;
 - retention jobs;
-- deployment/rollback runbooks;
+- deployment/rollback runbooks and observed validation;
 - production monitoring ownership;
-- explicit validation of Cloudflare Access/origin protection for deployed admin surfaces.
+- explicit validation of Cloudflare Access/origin protection for deployed admin surfaces;
+- reference-deployment validation at the appropriate evidence level.
 
-Phase 19 MUST NOT be interpreted as permission to build earlier fetching or admin mutations without their required controls.
+Phase 19 MUST NOT be interpreted as permission to build earlier fetching, persistence, scheduling, or admin mutations without their required controls and regression coverage.
 
 ## Operational runbooks required before launch
 
