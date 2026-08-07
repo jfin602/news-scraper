@@ -157,6 +157,12 @@ Core rules:
 
 Every implementation roadmap phase inherits that contract even when its phase entry does not repeat the complete test matrix.
 
+Database tests are intentionally separate from the ordinary deterministic suite. Set
+`NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` to a dedicated test-capable PostgreSQL
+administrative connection and run `npm run test:db`. The command creates and removes
+uniquely named disposable databases; it fails when the prerequisite is absent. Never
+point this variable at a development or production application database.
+
 ## Security and reliability
 
 Baseline controls are implemented with the surfaces they protect, not postponed to production hardening:
