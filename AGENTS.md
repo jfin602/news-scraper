@@ -148,12 +148,13 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 - Test evidence applies to the exact final source tree that was executed; earlier passing evidence does not automatically validate later changes.
 - Source inspection is not runtime proof, HTTP integration is not browser proof, fixture collection is not live-Source proof, and mocks do not prove PostgreSQL transactions/constraints/locks.
 - Persistence guarantees use real disposable PostgreSQL where practical from Phase 2 onward.
-- Ordinary CI must not depend on live public publishers; deterministic collection uses controlled fixtures/servers without weakening production SSRF or whitelist policy.
+- Ordinary deterministic local regression validation must not depend on live public publishers; deterministic collection uses controlled fixtures/servers without weakening production SSRF or whitelist policy.
 - Explicitly invoked required suites fail clearly when prerequisites are missing and must not silently skip green.
 - Zero matched tests in a required filtered suite is a failure.
 - Flaky/skipped tests do not satisfy roadmap exit gates for the behavior they would have proved.
 - Every reproducible defect should receive regression coverage when technically practical.
 - Every roadmap phase inherits the testing contract even when its phase entry does not repeat the entire matrix.
+- Roadmap phase closeout requires executed local terminal evidence and a durable `docs/validation/` artifact tied to the exact accepted commit/source tree.
 
 ## Roadmap law
 
@@ -172,6 +173,7 @@ Phase 0 final documentation alignment is complete. Phases 1–9 are the tech-dem
 - Do not claim runtime/browser/database/live-Source behavior unless actually observed at the corresponding evidence level.
 - Prefer smallest correct changes over speculative refactors.
 - Trace shared helpers/consumers before changing data or collection semantics.
+- Confirm applicable local validation commands/suites were actually executed against the final tree before approval.
 - Make a concrete recommendation when asked for the recommended option.
 - Never invent repository state, test results, Source behavior, or history.
 
