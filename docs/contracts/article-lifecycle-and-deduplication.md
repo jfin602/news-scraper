@@ -98,9 +98,11 @@ A Duplicate review candidate stores:
 - confidence;
 - state such as `pending`, `dismissed`, `merged`, `superseded`;
 - automatic/manual origin;
-- administrator identity/time for manual decisions.
+- manual decision time and optional reason where applicable.
 
-A dismissed candidate does not reappear indefinitely from unchanged evidence. Reconsideration requires materially new evidence or explicit administrator action.
+MVP does not require a native administrator identity on manual decisions. If native identity is added later, it may extend attribution without redefining the duplicate decision itself.
+
+A dismissed candidate does not reappear indefinitely from unchanged evidence. Reconsideration requires materially new evidence or explicit operator action.
 
 ## Primary selection
 
@@ -108,7 +110,7 @@ A Duplicate group has exactly one Primary Article.
 
 Default selection SHOULD consider, in order:
 
-1. administrator override;
+1. explicit manual override;
 2. explicit original-publisher/canonical metadata;
 3. Publication-scoped Source priority;
 4. metadata completeness and destination URL quality;
@@ -134,7 +136,7 @@ The MVP may show a non-interactive “also reported by” count derived from gro
 
 ## Manual moderation
 
-Administrators MUST be able to:
+Once moderation UI exists, Cloudflare-authorized operators MUST be able to:
 
 - merge selected Articles into a Duplicate group;
 - split one or more members;
@@ -142,9 +144,11 @@ Administrators MUST be able to:
 - dismiss a Duplicate review candidate;
 - inspect automatic signals/confidence/reasons;
 - hide/restore Articles independently of duplicate role;
-- record audit events for each action.
+- preserve bounded change history for material actions.
 
 Manual decisions override automatic grouping/review outcomes until intentionally revised.
+
+MVP change history does not require canonical per-user attribution inside the application.
 
 ## False-positive safeguards
 
