@@ -31,7 +31,7 @@ docs/
 │   └── cloudflare-access-admin-perimeter.md
 ├── testing/      # created only when specialized validation plans become substantive
 ├── tasks/        # created when implementation prompt stacks are written
-└── validation/   # created when durable observed validation artifacts are useful or required for phase closeout
+└── validation/   # created when durable observed validation artifacts are useful or required for implementation-phase closeout
 ```
 
 Git does not track empty directories, so `testing/`, `tasks/`, and `validation/` may not exist until substantive files are created there. Do not create placeholder testing plans or empty validation artifacts.
@@ -41,7 +41,7 @@ Git does not track empty directories, so `testing/`, `tasks/`, and `validation/`
 - `contracts/project-contract.md` — locked Platform laws, authority hierarchy, boundaries, contract-change process.
 - `contracts/mvp-scope-and-users.md` — MVP users, demo-first capability ordering, exclusions, quality targets.
 - `contracts/domain-and-data-contract.md` — canonical terminology, ownership, state models, logical entities, identity/provenance invariants.
-- `contracts/testing-and-validation-contract.md` — project-wide regression law, evidence levels, test isolation, local/final-tree execution, PostgreSQL/fixture/browser/live-Source validation, and phase/prompt completion gates.
+- `contracts/testing-and-validation-contract.md` — project-wide regression law, evidence levels, test isolation, local/final-tree execution, PostgreSQL/fixture/browser/live-Source validation, and implementation-phase/prompt completion gates.
 - `architecture/system-architecture.md` — process/module boundaries, staged Worker execution, safety-gated pipeline, scheduling, transaction baseline.
 - `contracts/source-and-collection-contract.md` — approval/bootstrap rules, network safety, collection adapters, normalization, Relevance, identity/idempotency, Collection-run accounting.
 - `contracts/article-lifecycle-and-deduplication.md` — Article visibility, duplicate roles, review candidates/groups, Primary selection, feed eligibility.
@@ -72,6 +72,6 @@ Use root `BOOT.md` as the session router; it points to the narrowest authoritati
 
 ## Phase completion discipline
 
-A roadmap phase is complete only when its documented exit gate and the inherited requirements in `contracts/testing-and-validation-contract.md` are actually verified against the final source tree. Phase closeout requires executed local validation evidence and a durable `docs/validation/` artifact tied to the exact accepted commit/source tree. Do not infer completion from partial implementation, source inspection, stale earlier test results, or silently skipped suites.
+An implementation roadmap phase is complete only when its documented exit gate and the inherited requirements in `contracts/testing-and-validation-contract.md` are actually verified against the final source tree. Implementation-phase closeout requires executed local validation evidence and a durable `docs/validation/` artifact tied to the exact accepted commit/source tree. Do not infer completion from partial implementation, source inspection, stale earlier test results, or silently skipped suites.
 
 Phase 0 is the documentation-contract gate. It is complete; the repository is currently in Phase 1 — Application foundation.
