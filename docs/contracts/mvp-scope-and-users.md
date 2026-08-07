@@ -106,7 +106,7 @@ Suggested initial Categories:
 - Tools and Technology
 - General
 
-These are not global Platform Categories.
+These are not global Platform Categories. They are future Publication configuration for the Category/Relevance phases and are not part of the Phase 3 bootstrap schema/data. Phase 3 bootstrap is limited to the minimum Publication/Source/endpoint configuration required by its roadmap boundary; later branding/feed, Category, and Relevance data are introduced in the phases that use them.
 
 Initial Source/endpoint configuration may be created through operator-maintained seed/bootstrap tooling before admin UI exists. Bootstrap approval is explicit operator approval, not an eligibility bypass or auto-discovery mechanism.
 
