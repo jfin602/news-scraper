@@ -102,7 +102,7 @@ Report authoritative conflicts rather than choosing silently.
 | Locked laws / authority / product boundaries | `docs/contracts/project-contract.md` |
 | MVP users / demo-first capabilities / exclusions | `docs/contracts/mvp-scope-and-users.md` |
 | Terminology / states / entities / identity / provenance | `docs/contracts/domain-and-data-contract.md` |
-| Testing / regression / evidence / CI / DB/fixture/browser/live validation | `docs/contracts/testing-and-validation-contract.md` |
+| Testing / regression / evidence / local execution / DB/fixture/browser/live validation | `docs/contracts/testing-and-validation-contract.md` |
 | Process/module architecture / staged Worker execution / scheduling / transactions | `docs/architecture/system-architecture.md` |
 | Approval / bootstrap / collection / safety / parsing / normalization / Relevance / identity / run accounting | `docs/contracts/source-and-collection-contract.md` |
 | Article visibility / duplicate role / review/groups / Primary | `docs/contracts/article-lifecycle-and-deduplication.md` |
@@ -149,9 +149,10 @@ If a path does not exist, search for its current equivalent before assuming inte
 - Push/webhook adapters and pinning/featured ordering are deferred beyond MVP unless explicitly promoted.
 - Every implementation change requires focused automated coverage and relevant broader regression coverage under the testing contract.
 - Persistence/concurrency claims require the evidence level capable of proving real PostgreSQL behavior; mocks do not substitute for database guarantees.
-- Ordinary deterministic CI does not rely on live public Sources, and test composition must not weaken production whitelist/SSRF policy.
+- Ordinary deterministic validation does not rely on live public Sources, and test composition must not weaken production whitelist/SSRF policy.
 - Required suites do not pass by silently skipping prerequisites or selecting zero tests.
 - Validation claims apply to the exact final source tree tested; previous passing evidence does not automatically transfer to later source changes.
+- Roadmap phase closeout requires a durable `docs/validation/` artifact tied to the exact accepted commit/source tree and the commands/procedures actually executed.
 
 ## Roadmap state
 
@@ -203,6 +204,7 @@ Do not advance by assumption. Verify each phase's own exit gate plus the inherit
 - Before Article/duplicate changes trace external IDs/canonical URLs/uniqueness → observations → review candidates → groups → Primary → moderation → feed → tests.
 - Before admin changes trace Cloudflare Access perimeter → origin protection → request integrity → Publication/resource ownership → mutation → change history → tests.
 - Before approving a change, trace the testing blast radius and confirm relevant regression suites were actually executed against the reviewed final tree.
+- For roadmap phase closeout, require observed local terminal evidence and a durable validation artifact tied to the exact accepted commit/source tree.
 - Make a concrete choice when asked for `recommended`.
 - Never invent repository state, tests, browser results, Source behavior, or history.
 
