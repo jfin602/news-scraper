@@ -18,6 +18,22 @@ An endpoint is collectable only when all are true:
 
 `paused`, `disabled`, and `archived` are not health values. The Platform MUST NOT use public submissions or discovered links to expand the whitelist silently.
 
+## Bootstrap configuration and approval
+
+Before Source administration UI exists, operator-maintained seed/bootstrap tooling MAY create Publication, Source, and endpoint configuration, including explicitly setting approval state to `approved`.
+
+Bootstrap approval counts as deliberate operator approval; it is not a bypass of the approval boundary.
+
+Bootstrap tooling:
+
+- MUST NOT discover Sources/endpoints and auto-approve them;
+- MUST NOT infer approval from a successful fetch;
+- MUST NOT silently widen Source approved-domain policy;
+- SHOULD be idempotent;
+- MUST NOT blindly overwrite later operator-managed approval/lifecycle/operational state on ordinary application startup.
+
+Once admin UI becomes the normal management surface, bootstrap data is initialization input rather than competing runtime authority.
+
 ## Approved-domain policy
 
 Each Source defines the maximum approved public-domain boundary. Endpoint configuration may narrow that boundary for redirects/Article links but may not silently widen it.
@@ -62,7 +78,7 @@ Source configuration owns:
 - approved-domain maximum boundary;
 - Publication-scoped Source priority;
 - default Category fallback;
-- optional Source-scoped relevance defaults.
+- optional Source-scoped Relevance defaults.
 
 Endpoint configuration owns:
 
@@ -93,14 +109,32 @@ Fetcher MUST provide:
 
 Fetcher SHOULD respect published Source guidance and avoid unnecessary traffic.
 
+## Pre-scheduler Worker execution
+
+The tech-demo critical path performs real collection before durable scheduling exists.
+
+During this pre-scheduler period:
+
+- collection is invoked manually through the Worker process, not inline inside Web/API request handling;
+- one endpoint invocation creates one isolated Collection run;
+- the same eligibility → run lock → network-safety → fetch/redirect → parse → normalize → Article-link validation → Relevance → identity/persistence stages are used as they become available;
+- a failure for one endpoint does not invalidate an unrelated endpoint run;
+- no temporary second parser/persistence path is introduced.
+
+Phase 10 places this already-proven endpoint execution unit behind durable jobs and due-endpoint scheduling.
+
 ## Retry and backoff
 
-- Retries apply only to transient failures.
-- Attempts are bounded.
-- Backoff includes jitter.
-- Authentication, validation, parser-contract, and permanent client errors are not retried indefinitely.
-- Repeated failures influence derived endpoint health and may trigger cooldown/circuit-breaking.
-- One endpoint's retry loop cannot monopolize worker capacity.
+Once automated polling/jobs exist:
+
+- retries apply only to transient failures;
+- attempts are bounded;
+- backoff includes jitter;
+- authentication, validation, parser-contract, and permanent client errors are not retried indefinitely;
+- repeated failures influence derived endpoint health and may trigger cooldown/circuit-breaking;
+- one endpoint's retry loop cannot monopolize Worker capacity.
+
+Manual pre-scheduler runs may report retry classification, but they do not need to implement the durable automated retry scheduler early.
 
 ## Parser contract
 
@@ -123,7 +157,7 @@ Parser output is untrusted input.
 
 ## Normalization contract
 
-Before relevance, identity, duplicate, or public-feed logic, normalization MUST:
+Before Relevance, identity, duplicate, or public-feed logic, normalization MUST:
 
 - trim/normalize text without changing intended human meaning;
 - resolve relative URLs;
@@ -150,7 +184,11 @@ Deterministic include/exclude procedure:
 4. At equal priority and scope specificity, `exclude` wins over `include`.
 5. If no include/exclude rule decides the candidate, include by default.
 6. Category rules are evaluated independently and do not alter inclusion unless a separate include/exclude rule does so.
-7. Persist the winning include/exclude reason and applied Category reasons.
+7. Persist the winning include/exclude reason and applied Category reasons once persistence for those reasons exists.
+
+Before configurable Relevance rules are implemented, normalized safe candidates still pass through this canonical boundary with an empty rule set and therefore receive the deterministic default `include` decision. The pipeline never bypasses Relevance merely because configuration UI/rule persistence has not arrived yet.
+
+Relevance-rule edits are prospective by default in MVP. They affect future candidate processing. Automatic bulk retroactive re-evaluation of already persisted Articles is deferred unless a dedicated reprocessing operation is explicitly added later. Article moderation may correct existing presentation independently.
 
 Generic `boost` ranking is deferred until a ranking/scoring contract exists.
 
@@ -171,7 +209,11 @@ Transactional uniqueness constraints are required where practical. Repeated obse
 
 True duplicate grouping between separately stored Articles is governed by the Article lifecycle/deduplication contract and is not the same as idempotent identity resolution.
 
-## Candidate processing and run accounting
+## Collection runs and accounting
+
+A minimal persisted Collection run begins with the first real transport/parser phase. It records the endpoint, start/finish timing, transport/parser status, bounded errors, and stage counts that actually exist.
+
+When normalization is introduced, the same run model gains normalization stage status/counts.
 
 After Article persistence is active, every processed candidate has exactly one processing outcome:
 
@@ -192,7 +234,7 @@ Effects do not replace outcomes. For example, a candidate may be `created` and a
 
 Collection runs aggregate processing outcomes and effects separately, plus transport/run-level status.
 
-During the earlier pre-persistence collection/normalization phase, runs may record transport, parser, and normalization stage counts/statuses but MUST NOT use post-identity outcome names as though Article persistence exists.
+During pre-persistence collection/normalization, runs record transport, parser, and normalization stage counts/statuses but MUST NOT use post-identity outcome names as though Article persistence exists.
 
 Generic terms such as `accepted` or `skipped` require explicit mapping rather than competing counter definitions.
 
@@ -208,7 +250,7 @@ Endpoint health is derived from recent collection behavior and uses:
 
 Lifecycle (`active/archived`) and operational state (`enabled/paused/disabled`) remain separate from health.
 
-Administrators must be able to distinguish transport, parse, validation, relevance, and persistence failures. A Source-level health indicator, if displayed, is a derived summary of endpoint states/health.
+Once health UI/telemetry exists, operators must be able to distinguish transport, parse, validation, Relevance, and persistence failures. A Source-level health indicator, if displayed, is a derived summary of endpoint states/health.
 
 ## Push delivery
 
