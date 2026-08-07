@@ -22,7 +22,7 @@ This contract governs:
 - flaky-test and skipped-test policy;
 - evidence levels and reporting language;
 - defect regression coverage;
-- roadmap phase completion evidence.
+- implementation-roadmap phase completion evidence.
 
 It does not choose a test framework before Phase 1 implementation evaluates the smallest suitable TypeScript-compatible tooling. Tool choice does not weaken the behavior or evidence requirements below.
 
@@ -215,7 +215,7 @@ Durable validation records SHOULD identify:
 - important limitations;
 - evidence level.
 
-A roadmap phase closeout validation artifact MUST identify those items for the exact commit/source tree being accepted.
+An implementation-roadmap phase closeout validation artifact MUST identify those items for the exact commit/source tree being accepted.
 
 Historical passing evidence remains historical after later source changes until the applicable matrix is rerun.
 
@@ -257,7 +257,7 @@ npm run test:live-sources
 
 A command is added only with its first substantive suite. Empty/no-op commands are prohibited.
 
-`npm test` MUST represent the ordinary deterministic development regression matrix suitable for local development and final-tree validation. Specialized environment-requiring suites MAY remain separate, but final phase validation MUST explicitly run every specialized deterministic suite required by the current implemented phase.
+`npm test` MUST represent the ordinary deterministic development regression matrix suitable for local development and final-tree validation. Specialized environment-requiring suites MAY remain separate, but final implementation-phase validation MUST explicitly run every specialized deterministic suite required by the current implemented phase.
 
 If a named/filtered test command is invoked and zero tests match, it MUST fail rather than report success, unless the command is explicitly a discovery/listing operation whose contract says otherwise.
 
@@ -267,7 +267,7 @@ The exact test runner/framework is selected during Phase 1. Prefer the smallest 
 
 ## Local execution and final-tree validation
 
-Phase 1 establishes the repeatable local validation workflow used for implementation review and roadmap phase closeout. The project does not require a hosted continuous-integration service or remote status check.
+Phase 1 establishes the repeatable local validation workflow used for implementation review and implementation-phase closeout.
 
 Final-tree validation MUST, as applicable:
 
@@ -280,7 +280,7 @@ Final-tree validation MUST, as applicable:
 - avoid hidden automatic retries that mask flaky tests;
 - preserve terminal output or an accurate concise result summary sufficient to show the command/procedure actually executed and its result.
 
-Routine implementation review may use observed terminal output in the review session. Roadmap phase closeout MUST create a durable record under `docs/validation/` tied to the exact accepted commit/source tree and listing the executed commands/procedures, relevant environment/tool versions, results, evidence levels, and limitations. The artifact records evidence; it does not redefine contracts.
+Routine implementation review may use observed terminal output in the review session. Implementation-roadmap phase closeout MUST create a durable record under `docs/validation/` tied to the exact accepted commit/source tree and listing the executed commands/procedures, relevant environment/tool versions, results, evidence levels, and limitations. The artifact records evidence; it does not redefine contracts.
 
 At minimum:
 
@@ -434,22 +434,22 @@ A flaky test is a defect in the test or product until understood.
 
 - Do not automatically retry tests merely to obtain a passing result.
 - Fix nondeterminism or document an explicit bounded environmental limitation.
-- `skip`, `todo`, quarantine, or temporary disablement MUST NOT satisfy a roadmap exit gate for the behavior they would have proved.
+- `skip`, `todo`, quarantine, or temporary disablement MUST NOT satisfy an implementation-roadmap exit gate for the behavior they would have proved.
 - Required specialized suites MUST fail clearly when prerequisites are missing rather than silently becoming green.
 - If the available local/reference environment cannot execute a required evidence level, report the limitation and keep the corresponding claim unverified.
 
 ## Phase and prompt completion gate
 
-Every roadmap phase inherits this contract even when the roadmap does not repeat its full matrix.
+Every implementation roadmap phase inherits this contract even when the roadmap does not repeat its full matrix.
 
-A phase cannot close until:
+An implementation phase cannot close until:
 
 - each implemented deliverable has appropriate focused tests;
 - relevant earlier regression suites pass against the final tree;
 - contract-critical negative/failure cases are covered at the correct level;
 - required database/browser/fixture/recovery evidence for that phase has actually been executed;
 - the complete required local final-tree validation matrix has been executed with terminal evidence for the accepted tree;
-- a durable phase-closeout validation artifact under `docs/validation/` records the exact accepted commit/source tree, commands/procedures, results, evidence levels, and limitations;
+- a durable implementation-phase closeout validation artifact under `docs/validation/` records the exact accepted commit/source tree, commands/procedures, results, evidence levels, and limitations;
 - known skipped/flaky tests do not hide exit-gate behavior;
 - validation limitations are reported explicitly.
 
@@ -463,4 +463,4 @@ Create `docs/testing/` plans only when a feature or phase has enough specialized
 
 Do not create empty placeholders. Specialized plans may define concrete fixture matrices, browser viewport matrices, live-Source procedures, security attack cases, or release/reference-deployment checklists, but they remain subordinate to this contract.
 
-Durable observed evidence may be stored under `docs/validation/` when useful. Phase-closeout validation artifacts are required by the completion gate above. Validation artifacts record what was actually observed; they do not redefine contracts.
+Durable observed evidence may be stored under `docs/validation/` when useful. Implementation-phase closeout validation artifacts are required by the completion gate above. Validation artifacts record what was actually observed; they do not redefine contracts.
