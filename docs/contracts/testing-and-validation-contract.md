@@ -1,0 +1,462 @@
+# Testing and Validation Contract
+
+## Purpose
+
+Automated behavioral regression coverage is the Platform's primary protection against implementation regressions.
+
+No implementation phase, prompt, fix, refactor, or review is complete merely because requested behavior appears to exist. New behavior requires focused proof, and changed behavior requires the relevant existing regression matrix to pass against the final source tree.
+
+This document is the project-wide authority for testing and validation. Narrow phase- or feature-specific validation plans MAY add requirements but MUST NOT weaken this contract.
+
+## Scope
+
+This contract governs:
+
+- static and structural checks;
+- unit, component, integration, database, recovery, fixture, browser, live-Source, and deployment validation;
+- focused and regression-test obligations;
+- PostgreSQL and network isolation;
+- deterministic fixtures and controlled time/randomness;
+- continuous-integration expectations;
+- test command conventions;
+- flaky-test and skipped-test policy;
+- evidence levels and reporting language;
+- defect regression coverage;
+- roadmap phase completion evidence.
+
+It does not choose a test framework before Phase 1 implementation evaluates the smallest suitable TypeScript-compatible tooling. Tool choice does not weaken the behavior or evidence requirements below.
+
+## Core regression law
+
+Every implementation change MUST satisfy both:
+
+1. **Focused coverage** — tests that directly prove the new or corrected behavior, including realistic negative, boundary, error, and failure cases where applicable.
+2. **Regression coverage** — tests for existing behavior that could reasonably be affected by the change, including important producers, consumers, persistence constraints, public/admin surfaces, and security boundaries.
+
+A passing focused test does not replace the broader regression suite for the blast radius of the change.
+
+Shared helpers and cross-cutting contracts require broader consumer coverage than isolated leaf changes.
+
+Every reproducible defect SHOULD receive an automated regression test when technically practical. The regression SHOULD demonstrate the failed invariant rather than only asserting implementation details.
+
+Tests MUST be run against the final source tree being claimed as validated. Earlier passing evidence does not automatically validate later source changes.
+
+## Evidence levels
+
+Evidence is cumulative only when the higher-level procedure actually includes the lower-level behavior. A lower evidence level MUST NOT be reported as proof of a higher one.
+
+### Level 0 — Source and documentation inspection
+
+Examples:
+
+- reading implementation or contracts;
+- tracing imports/configuration;
+- checking apparent schema or route behavior.
+
+Permitted claim:
+
+> The source appears to implement or require the behavior.
+
+Source inspection is not runtime proof.
+
+### Level 1 — Static and structural checks
+
+Examples:
+
+- formatting/lint/type checks;
+- import/module-boundary checks;
+- forbidden dependency or topic-coupling checks;
+- configuration/schema shape checks;
+- deterministic repository/path checks;
+- `git diff --check`.
+
+Permitted claim:
+
+> The repository structure passed the named checks.
+
+### Level 2 — Unit tests
+
+Examples:
+
+- configuration/state validation;
+- URL normalization;
+- Relevance precedence;
+- date/title normalization;
+- retry/backoff calculations;
+- feed-date calculations;
+- duplicate-signal logic.
+
+Permitted claim:
+
+> The isolated behavior passed the named automated unit tests.
+
+### Level 3 — Component and integration tests
+
+Examples:
+
+- Express routes/middleware/services;
+- Worker pipeline composition with controlled boundaries;
+- parser-to-normalizer flow;
+- feed read-model/API behavior;
+- controlled HTTP servers or injected transport adapters;
+- admin command validation.
+
+Permitted claim:
+
+> The participating components passed in the named test environment.
+
+### Level 4 — Real persistence, concurrency, and recovery validation
+
+Uses real disposable PostgreSQL where database behavior is part of the claim.
+
+Examples:
+
+- migrations from zero;
+- uniqueness constraints;
+- Article identity/idempotency;
+- Article observations and Collection-run accounting;
+- transactions/rollback;
+- endpoint locks;
+- race/concurrency behavior;
+- exactly-one-Primary constraints;
+- scheduler/job recovery;
+- database outage/retry behavior.
+
+Permitted claim:
+
+> The named persistence/concurrency/recovery behavior passed against disposable PostgreSQL or the described observed failure environment.
+
+Mocks alone do not prove PostgreSQL constraints, transactions, locks, or race behavior.
+
+### Level 5 — Deterministic collection-fixture validation
+
+Uses controlled, versioned RSS/Atom/HTTP fixtures or controlled local/injected servers to prove collection behavior without depending on the public internet.
+
+Examples:
+
+- valid/malformed RSS and Atom;
+- redirects;
+- conditional requests/304;
+- response/decompression bounds;
+- content-type handling;
+- relative Article URLs;
+- parser failures;
+- partial item failures;
+- normalized output and run accounting.
+
+Permitted claim:
+
+> The collection behavior passed against the named deterministic fixtures.
+
+Fixture validation does not prove that a live publisher endpoint currently behaves the same way.
+
+### Level 6 — Browser validation
+
+Requires a real browser environment.
+
+Examples:
+
+- public feed rendering/navigation;
+- desktop/mobile responsive behavior;
+- keyboard/focus/accessibility interaction;
+- filters/search/pagination;
+- admin browser mutations and request-integrity behavior when implemented;
+- light/dark presentation.
+
+HTTP integration or HTML-source inspection alone is not browser proof.
+
+Permitted claim:
+
+> The behavior was observed in the named browser/viewports.
+
+### Level 7 — Approved live-Source validation
+
+Uses explicitly approved real publisher endpoints outside ordinary deterministic CI.
+
+It proves only the named Source/endpoints, environment, time, and procedure observed. It does not redefine the whitelist or allow uncontrolled public-network dependencies in ordinary tests.
+
+Permitted claim:
+
+> The collection behavior was observed against the named approved live Sources.
+
+### Level 8 — Reference-deployment validation
+
+Covers the deployed Web/API, Worker, PostgreSQL, scheduler/jobs when present, public feed, Cloudflare Access/admin perimeter when present, backup/recovery, and approved live Sources as applicable.
+
+This is the strongest integrated MVP evidence level.
+
+Permitted claim:
+
+> The named behavior was observed in the reference deployment under the recorded conditions.
+
+## Reporting language
+
+Validation reports MUST distinguish what was actually observed.
+
+Preferred verbs:
+
+- `Inspected`
+- `Checked structurally`
+- `Tested automatically`
+- `Tested against disposable PostgreSQL`
+- `Validated against deterministic collection fixtures`
+- `Observed in a browser`
+- `Observed against approved live Sources`
+- `Observed in the reference deployment`
+
+Do not report behavior as verified, working, passing, supported, production-ready, browser-tested, or database-safe without the corresponding executed evidence.
+
+Durable validation records SHOULD identify:
+
+- commit SHA/source tree;
+- command or procedure;
+- relevant environment/tool versions;
+- result;
+- important limitations;
+- evidence level.
+
+Historical passing evidence remains historical after later source changes until the applicable matrix is rerun.
+
+## Test naming and ownership
+
+Test names SHOULD describe observable behavior and durable outcomes.
+
+Prefer names such as:
+
+- `rejects an unapproved endpoint before transport is invoked`
+- `reprocessing the same external id does not increase article cardinality`
+- `rolls back article creation when observation persistence fails`
+- `preserves unrelated endpoint runs when one parser fails`
+- `keeps visible related coverage separate when duplicate evidence is weak`
+
+Avoid vague names such as `works`, `basic test`, or names coupled only to private implementation functions.
+
+Tests SHOULD live with clear module/feature ownership and shared helpers SHOULD remain outside production source when they exist only for tests.
+
+Do not create empty test directories, empty fixture directories, placeholder suites, or no-op npm scripts. Add them with the first substantive test they own.
+
+## Standard command contract
+
+The project reserves these root command names as capabilities are introduced:
+
+```text
+npm run check
+npm test
+npm run test:unit
+npm run test:integration
+npm run test:db
+npm run test:collection
+npm run test:fixtures
+npm run test:security
+npm run test:recovery
+npm run test:browser
+npm run test:live-sources
+```
+
+A command is added only with its first substantive suite. Empty/no-op commands are prohibited.
+
+`npm test` MUST represent the ordinary deterministic development regression matrix suitable for local development and CI. Specialized environment-requiring suites MAY remain separate, but CI MUST explicitly run every specialized deterministic suite required by the current implemented phase.
+
+If a named/filtered test command is invoked and zero tests match, it MUST fail rather than report success, unless the command is explicitly a discovery/listing operation whose contract says otherwise.
+
+An explicitly invoked database, browser, collection-fixture, security, or other specialized suite MUST fail clearly when its required prerequisite is unavailable. It MUST NOT silently skip and report a passing result.
+
+The exact test runner/framework is selected during Phase 1. Prefer the smallest toolchain that satisfies TypeScript, coverage, isolation, and browser/integration needs; do not add a large framework solely to wrap behavior already supported adequately by the chosen runner.
+
+## Continuous integration
+
+Phase 1 establishes CI for pull requests and pushes to `main`.
+
+CI MUST:
+
+- install dependencies reproducibly;
+- run applicable static/type/lint/format checks;
+- run the complete deterministic test matrix required by the current implemented phase;
+- fail when a required selected suite contains zero tests;
+- run `git diff --check` or equivalent whitespace validation;
+- surface failures as visible status checks;
+- avoid hidden automatic retries that mask flaky tests.
+
+As the roadmap advances, CI expands the same validation system rather than creating parallel test paths.
+
+At minimum:
+
+- Phase 1: startup/config/static/test-runner/CI foundation;
+- Phase 2: disposable PostgreSQL, migration-from-zero, cleanup verification;
+- Phase 3: Publication/Source/bootstrap/state invariants;
+- Phase 4: eligibility, domain, SSRF, redirect, and lock negatives;
+- Phase 5: deterministic HTTP/RSS/Atom/Collection-run fixture coverage;
+- Phase 6: normalization fixture matrix;
+- Phase 7: real-PostgreSQL identity/idempotency/concurrency/provenance coverage;
+- Phase 8: feed eligibility/order/read-model/API coverage;
+- Phase 9: browser validation for the public tech-demo workflow;
+- Phase 10: scheduler/retry/overlap/recovery coverage;
+- Phase 11: complete deterministic Relevance precedence matrix;
+- Phases 12–13: search/filter/pagination and responsive/accessibility/browser regressions;
+- Phases 14–15: admin perimeter/request-integrity/resource-boundary regressions;
+- Phase 16: duplicate corpus, Primary invariants, and false-positive safeguards;
+- Phase 17: reversible moderation and provenance regressions;
+- Phase 18: HTML adapter parity with existing downstream collection tests;
+- Phase 19: security, restore, deployment, and reference-operations validation;
+- Phase 20: launch validation against the final deployment and approved Sources.
+
+Live public-network Source validation is not an ordinary CI dependency.
+
+## PostgreSQL test isolation
+
+From Phase 2 onward, persistence claims use real PostgreSQL where practical.
+
+The reserved administrative test environment variable is:
+
+```text
+NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL
+```
+
+It MUST refer only to a dedicated test-capable PostgreSQL administrative connection and MUST NOT point at development or production application data.
+
+Database suites SHOULD:
+
+1. create a unique disposable database such as `news_scraper_test_<unique-id>`;
+2. apply migrations from zero;
+3. execute tests against actual constraints, transactions, locks, timestamps, and errors;
+4. clean up the disposable database;
+5. verify cleanup.
+
+Parallel database tests MUST NOT share mutable schemas/databases unless concurrency between those actors is the behavior under test.
+
+An explicit `test:db` invocation without a safe usable test-admin prerequisite MUST fail clearly. Database tests MUST NOT silently downgrade to mocked or skipped persistence while reporting success.
+
+Tests MUST NOT use the ordinary development database as their cleanup strategy.
+
+## Collection and network isolation
+
+Ordinary deterministic test/CI suites MUST NOT depend on live public publishers.
+
+Use controlled fixtures, injected fetch/resolution boundaries, or controlled local servers to test network behavior.
+
+The testing harness MUST NOT require a production SSRF, whitelist, approved-domain, redirect, or Article-domain bypass merely to make local fixtures convenient. Production safety policy remains intact in test composition.
+
+Network-safety tests MUST cover both allowed and denied paths, including where applicable:
+
+- scheme restrictions;
+- approved-domain boundaries;
+- hostname normalization;
+- DNS/address classification;
+- loopback/private/link-local/multicast/cloud-metadata rejection;
+- port restrictions;
+- redirect revalidation;
+- DNS rebinding-resistant resolution/use behavior;
+- Article-link domain validation separately from fetch validation.
+
+Live-Source validation may contact only explicitly approved Source/endpoints and MUST be isolated from ordinary CI.
+
+## Fixture policy
+
+Fixtures MUST be:
+
+- authorized;
+- deterministic;
+- minimal;
+- sanitized;
+- versioned with the repository when durable;
+- free of production credentials/secrets;
+- bounded to the metadata needed for the test.
+
+Do not commit uncontrolled full publisher responses or full Article bodies merely for convenience. A live response used as a fixture SHOULD be reduced/sanitized to the smallest representation that preserves the behavior under test.
+
+RSS/Atom fixture corpora SHOULD grow to cover valid, edge, malformed, duplicate, and adversarial inputs as those behaviors are implemented.
+
+## Time, randomness, and determinism
+
+Inject or otherwise control time, UUID/random generation, jitter/backoff, ports, and other nondeterministic values when stable assertions depend on them.
+
+Avoid arbitrary sleeps. Prefer controlled clocks, state advancement, events/barriers, or bounded polling.
+
+Boundary behavior SHOULD be tested immediately below, exactly at, and immediately above important limits.
+
+Fixture runs SHOULD produce deterministic normalized results when relevant providers are fixed.
+
+## Failure and recovery testing
+
+Happy-path coverage is insufficient for contract-critical behavior.
+
+As the relevant phases arrive, tests MUST cover realistic failures such as:
+
+- invalid configuration;
+- unavailable dependencies;
+- endpoint/network timeout;
+- redirect rejection;
+- malformed parser input;
+- item-level normalization/persistence failure;
+- transaction rollback;
+- duplicate/race insert attempts;
+- lost/failed job execution;
+- overlapping-run prevention;
+- PostgreSQL interruption/recovery;
+- failed admin mutation/request-integrity checks;
+- backup/restore and interrupted-run reconciliation before production launch.
+
+Failure tests MUST verify preserved invariants and recovery state, not only that an exception was thrown.
+
+## Browser validation
+
+Browser behavior requires browser evidence.
+
+When UI behavior exists, applicable validation includes:
+
+- direct navigation and refresh;
+- loading/empty/error states;
+- external Article destination behavior;
+- desktop and mobile viewport behavior;
+- keyboard/focus/accessibility interaction;
+- filters/search/pagination when implemented;
+- light/dark modes when implemented;
+- admin request-integrity and protected mutation flows when implemented.
+
+Source/DOM string assertions alone MUST NOT be used as complete proof for behavior that depends on browser layout, navigation, focus, JavaScript, or responsive interaction.
+
+## Coverage policy
+
+The project does not use an arbitrary global line-coverage percentage as its primary quality gate.
+
+Coverage tooling MAY be used to identify gaps, but contract compliance is behavioral:
+
+> Every contract-critical invariant touched by implemented behavior must have direct automated protection at the lowest evidence level capable of actually proving it.
+
+Increasing or gaming a line percentage does not substitute for missing idempotency, concurrency, security, provenance, failure-isolation, duplicate, or browser tests.
+
+## Flaky and skipped-test policy
+
+A flaky test is a defect in the test or product until understood.
+
+- Do not automatically retry tests merely to make CI green.
+- Fix nondeterminism or document an explicit bounded environmental limitation.
+- `skip`, `todo`, quarantine, or temporary disablement MUST NOT satisfy a roadmap exit gate for the behavior they would have proved.
+- Required specialized suites MUST fail clearly when prerequisites are missing rather than silently becoming green.
+- If CI cannot execute a required evidence level, report the limitation and keep the corresponding claim unverified.
+
+## Phase and prompt completion gate
+
+Every roadmap phase inherits this contract even when the roadmap does not repeat its full matrix.
+
+A phase cannot close until:
+
+- each implemented deliverable has appropriate focused tests;
+- relevant earlier regression suites pass against the final tree;
+- contract-critical negative/failure cases are covered at the correct level;
+- required database/browser/fixture/recovery evidence for that phase has actually been executed;
+- CI required for the phase is green when CI exists;
+- known skipped/flaky tests do not hide exit-gate behavior;
+- validation limitations are reported explicitly.
+
+Every Codex implementation prompt MUST specify focused tests, broader regression tests, and any runtime/browser/database/fixture validation needed for acceptance.
+
+A reviewer MUST NOT approve a change solely because its requested feature appears present in source.
+
+## Specialized validation plans
+
+Create `docs/testing/` plans only when a feature or phase has enough specialized validation detail to justify one.
+
+Do not create empty placeholders. Specialized plans may define concrete fixture matrices, browser viewport matrices, live-Source procedures, security attack cases, or release/reference-deployment checklists, but they remain subordinate to this contract.
+
+Durable observed evidence may be stored under `docs/validation/` when useful. Validation artifacts record what was actually observed; they do not redefine contracts.
