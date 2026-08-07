@@ -8,11 +8,12 @@ Keep Publication-specific configuration at the edges while the core collection, 
 
 ```mermaid
 flowchart LR
-    A[Admin UI] --> B[Web/API Application]
+    A[Cloudflare Access-protected Admin UI/API] --> B[Web/API Application]
     P[Public Feed] --> B
     B --> D[(PostgreSQL)]
-    B --> Q[Durable Job Queue / Scheduler]
+    B --> Q[Durable Job Queue / Scheduler - Phase 10+]
     Q --> W[Collection Worker]
+    M[Manual Worker Invocation - Tech Demo] --> W
     W --> G[Eligibility + Pre-fetch Network Safety Gate]
     G --> F[Fetcher]
     F --> S[Approved Active Enabled Source Endpoint]
@@ -21,7 +22,7 @@ flowchart LR
     N --> L[Article-link / Source Policy Validation]
     L --> V[Publication Relevance + Categories]
     V --> I[Article Identity Resolution]
-    I --> X[Duplicate Candidate / Grouping]
+    I --> X[Duplicate Candidate / Grouping when implemented]
     X --> D
     W --> O[Metrics + Structured Logs]
     B --> O
@@ -31,10 +32,12 @@ flowchart LR
 
 The initial deployment may use one repository/database, but it MUST support at least two independently runnable process roles:
 
-- **Web/API process:** serves public/admin interfaces, validates commands, reads normalized data, and requests/enqueues jobs.
-- **Worker process:** schedules/performs collection, eligibility/network-safety checks, parsing, normalization, validation, relevance, identity resolution, duplicate evaluation, and persistence.
+- **Web/API process:** serves public/admin interfaces, validates commands, reads normalized data, and later requests/enqueues jobs. It does not perform Source collection inline.
+- **Worker process:** performs collection execution, eligibility/network-safety checks, parsing, normalization, validation, Relevance, identity resolution, duplicate evaluation where implemented, and persistence.
 
 A slow/crashed Source request in the Worker must not block normal public-feed requests.
+
+During the tech-demo critical path before durable jobs/scheduling exist, collection is invoked manually through the Worker process. Phase 10 adds durable scheduling around the same endpoint execution unit; it does not create a second collection path.
 
 ## Module boundaries
 
@@ -43,11 +46,10 @@ Recommended initial layout:
 ```text
 src/
   app/
-  auth/
   publications/
   sources/
   collection/
-    scheduler/
+    scheduler/       # populated when automated polling arrives
     fetchers/
     parsers/
     normalization/
@@ -57,58 +59,82 @@ src/
   deduplication/
   public-feed/
   admin/
-  jobs/
+  jobs/              # populated when durable jobs arrive
   database/
   observability/
   shared/
 ```
 
+Native application authentication/account modules are deferred beyond MVP unless a later decision promotes them.
+
 Rules:
 
 - Source-specific retrieval/parsing lives behind fetcher/parser adapter interfaces established with the first RSS/Atom implementation.
 - Public-feed code consumes normalized Article read models only.
-- Admin controllers do not perform collection inline; they enqueue/request jobs.
+- Admin controllers do not perform collection inline; once manual check-now exists they invoke/request the Worker collection path and later enqueue the same endpoint execution unit.
 - Deduplication logic does not depend on Publication-specific keywords.
-- Publication relevance/Categories enter through configuration interfaces.
+- Publication Relevance/Categories enter through configuration interfaces.
+- Before configurable Relevance rules exist, the same Relevance boundary runs with an empty rule set and returns the deterministic default `include` decision.
 - Article observations preserve endpoint/run provenance independently from Article cardinality.
 
 ## Collection pipeline
 
 ```mermaid
 flowchart TD
-    A[Endpoint becomes due] --> B{Publication collection-active + Source/endpoint approved, active, enabled?}
-    B -- No --> Z[Skip scheduling with reason]
+    A[Manual Worker invocation or due endpoint] --> B{Publication collection-active + Source/endpoint approved, active, enabled?}
+    B -- No --> Z[Skip with reason]
     B -- Yes --> C[Acquire endpoint run lock]
-    C --> G[Validate configured URL + DNS/address/port safety]
+    C --> R0[Create Collection run]
+    R0 --> G[Validate configured URL + DNS/address/port safety]
     G --> D[Conditional fetch]
     D --> E{Transport result}
     E -- Not modified --> F[Successful no-change transport result]
-    E -- Failure --> H[Record isolated failure + retry policy]
+    E -- Failure --> H[Record isolated failure]
     E -- Content --> I[Parse Raw items]
     I --> J[Normalize Article candidates]
     J --> K[Validate normalized Article-link/source-domain policy]
-    K --> L[Evaluate Publication relevance/Categories]
+    K --> L[Evaluate Publication Relevance/Categories]
     L --> M[Resolve Article identity idempotently]
     M --> N[Persist/update Article + Article observation transactionally]
     N --> O[Evaluate duplicate candidate/grouping where applicable]
-    O --> P[Update run counters + endpoint health]
+    O --> P[Update run counters + endpoint health where implemented]
 ```
 
 Every redirect returns through the pre-request network-safety gate before being followed.
 
-Before Phase 4 Article persistence exists, the Phase 3 Worker stops after normalization/Article-link validation and records only transport/parser/normalization run status/counts. It does not pretend post-identity Article outcomes exist.
+The pipeline grows by phase without inventing outcomes for stages that do not exist yet:
+
+- Phase 5 creates minimal persisted Collection runs and records transport/parser status/counts.
+- Phase 6 adds normalization status/counts and validated candidates.
+- Before configurable Relevance rules exist, candidates pass the empty-rule/default-include Relevance boundary.
+- Phase 7 adds Article identity/persistence, observations, and canonical post-identity outcomes.
+- Later duplicate phases add duplicate effects/grouping without redefining Article identity.
 
 ## Scheduling model
 
-- Polling is endpoint-specific.
-- Scheduler identifies due approved + active + enabled endpoints under collection-active Publications and enqueues independent jobs.
-- Distributed/database-backed locking prevents overlapping runs for one endpoint.
-- Bounded jitter avoids synchronized spikes.
-- Manual `check now` uses the same approval, lifecycle, operational, locking, network-safety, timeout, concurrency, and rate-limit rules.
-- Push/webhook adapters are not MVP work; a future push ingress must reuse the normalized downstream pipeline.
+### Tech-demo execution
+
+Before Phase 10:
+
+- collection is manually invoked in the Worker for one configured endpoint at a time;
+- eligibility, locking, network safety, fetch/redirect, parsing, normalization, Relevance, identity/persistence, and run accounting use the canonical pipeline stages that exist;
+- separate endpoint runs fail independently;
+- Web/API does not fetch Sources inline.
+
+### Automated polling
+
+From Phase 10 onward:
+
+- polling is endpoint-specific;
+- scheduler identifies due approved + active + enabled endpoints under collection-active Publications and enqueues independent jobs;
+- distributed/database-backed locking prevents overlapping runs for one endpoint;
+- bounded jitter avoids synchronized spikes;
+- manual `check now` uses the same approval, lifecycle, operational, locking, network-safety, timeout, concurrency, and rate-limit rules and requests the same endpoint execution unit;
+- push/webhook adapters are not MVP work; a future push ingress must reuse the normalized downstream pipeline.
 
 ## Persistence and transactions
 
+- Minimal Collection-run persistence begins with real transport; it does not wait for Article persistence.
 - Article identity resolution and insert/update occur transactionally with critical uniqueness constraints.
 - An Article observation is linked to the Collection run as part of successful identity processing.
 - Duplicate-group changes preserve exactly one Primary Article.
@@ -117,6 +143,15 @@ Before Phase 4 Article persistence exists, the Phase 3 Worker stops after normal
 - Once Article persistence exists, Collection-run accounting uses the canonical post-identity outcome taxonomy from the domain contract.
 - Database constraints are preferred over application-only assumptions for critical identity/uniqueness rules.
 
+## Administrative perimeter
+
+MVP administrative UI/API routes are protected by Cloudflare Access according to `docs/decisions/cloudflare-access-admin-perimeter.md`.
+
+- Supported deployments prevent direct-origin bypass of the Access perimeter.
+- Application-managed accounts/sessions/roles are not part of MVP architecture.
+- State-changing admin browser actions still require applicable CSRF/equivalent request-integrity protection.
+- Admin commands validate Publication/resource ownership regardless of external access control.
+
 ## Initial technical baseline
 
 Unless superseded by an Accepted ADR:
@@ -124,7 +159,8 @@ Unless superseded by an Accepted ADR:
 - Node.js with TypeScript;
 - Express-compatible HTTP structure;
 - PostgreSQL as system of record;
-- durable scheduler/job mechanism suitable for retries and separate Workers;
+- manual Worker collection during the tech-demo critical path;
+- durable scheduler/job mechanism suitable for retries and separate Workers from Phase 10 onward;
 - server-rendered or lightweight client-rendered web UI;
 - container-friendly environment/secrets configuration.
 
