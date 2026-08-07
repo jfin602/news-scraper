@@ -149,10 +149,11 @@ Core rules:
 - validation evidence applies to the exact final source tree tested;
 - source inspection is not runtime proof and browser/database/live-Source claims require the corresponding evidence level;
 - persistence guarantees use real disposable PostgreSQL where practical from Phase 2 onward;
-- ordinary deterministic CI does not depend on live public publishers;
+- ordinary deterministic local regression validation does not depend on live public publishers;
 - collection behavior is tested with controlled fixtures/servers without weakening production whitelist/SSRF policy;
 - explicitly invoked required suites fail clearly when prerequisites are missing and cannot silently skip green;
-- flaky/skipped tests do not satisfy phase exit gates.
+- flaky/skipped tests do not satisfy phase exit gates;
+- roadmap phase closeout uses executed local terminal evidence and a durable `docs/validation/` record tied to the exact accepted commit/source tree.
 
 Every roadmap phase inherits that contract even when its phase entry does not repeat the complete test matrix.
 
