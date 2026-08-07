@@ -8,7 +8,7 @@ The first configured Publication focuses on publishing-industry news relevant to
 
 Current phase: **Phase 1 — Application foundation**.
 
-Phase 0 is complete. The final pre-code documentation review aligned the contracts around the demo-first delivery strategy, Cloudflare Access admin perimeter, staged Worker collection path, Collection-run provenance, default-include Relevance bridge, bootstrap approval rules, and focused Phase 0–20 roadmap.
+Phase 0 is complete. The final pre-code documentation review aligned the contracts around the demo-first delivery strategy, Cloudflare Access admin perimeter, staged Worker collection path, Collection-run provenance, default-include Relevance bridge, bootstrap approval rules, focused Phase 0–20 roadmap, and project-wide testing/regression policy.
 
 Implementation has not yet begun.
 
@@ -76,7 +76,7 @@ The contracts deliberately separate:
 - duplicate-group role;
 - derived endpoint health.
 
-An approved Source can be paused without becoming “unhealthy,” and a hidden Article can remain a member of a Duplicate group without duplicate membership forcing it visible again.
+An approved Source can therefore be paused without becoming “unhealthy,” and a hidden Article can remain a member of a Duplicate group without duplicate membership forcing it visible again.
 
 ## Collection architecture
 
@@ -138,6 +138,24 @@ MVP admin UI/API routes:
 
 Native application-managed administrator accounts, sessions, roles, account recovery, per-user Publication authorization, and identity-linked audit attribution are deferred beyond MVP.
 
+## Testing and regression policy
+
+`docs/contracts/testing-and-validation-contract.md` is the project-wide testing authority.
+
+Core rules:
+
+- automated behavioral regression coverage is the primary defense against regressions;
+- every implementation change requires focused tests plus relevant broader regression coverage for its blast radius;
+- validation evidence applies to the exact final source tree tested;
+- source inspection is not runtime proof and browser/database/live-Source claims require the corresponding evidence level;
+- persistence guarantees use real disposable PostgreSQL where practical from Phase 2 onward;
+- ordinary deterministic CI does not depend on live public publishers;
+- collection behavior is tested with controlled fixtures/servers without weakening production whitelist/SSRF policy;
+- explicitly invoked required suites fail clearly when prerequisites are missing and cannot silently skip green;
+- flaky/skipped tests do not satisfy phase exit gates.
+
+Every roadmap phase inherits that contract even when its phase entry does not repeat the complete test matrix.
+
 ## Security and reliability
 
 Baseline controls are implemented with the surfaces they protect, not postponed to production hardening:
@@ -148,7 +166,8 @@ Baseline controls are implemented with the surfaces they protect, not postponed 
 - Source/endpoint run isolation;
 - transactionally idempotent Article identity;
 - secret-safe structured logs and truthful Collection-run telemetry;
-- Cloudflare Access/origin/request-integrity controls when admin surfaces arrive.
+- Cloudflare Access/origin/request-integrity controls when admin surfaces arrive;
+- focused and regression testing for contract-critical security/reliability behavior as each capability is introduced.
 
 Phase 19 hardens/operationalizes these controls with dashboards, alerts, restore testing, abuse regression tests, retention jobs, deployment/rollback validation, and runbooks.
 
@@ -164,7 +183,8 @@ docs/
 │   ├── domain-and-data-contract.md
 │   ├── source-and-collection-contract.md
 │   ├── article-lifecycle-and-deduplication.md
-│   └── public-feed-and-admin-contract.md
+│   ├── public-feed-and-admin-contract.md
+│   └── testing-and-validation-contract.md
 ├── architecture/
 │   └── system-architecture.md
 ├── operations/
