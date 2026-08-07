@@ -2,7 +2,9 @@
 
 ## MVP objective
 
-Deliver a dependable publication website and administrative control plane that continuously collects recent headlines from a whitelist of approved Sources, persists source instances idempotently, suppresses true duplicates, and sends readers to the original Article.
+Deliver a dependable publication website and administrative control plane that continuously collects recent headlines from a whitelist of approved Sources, persists Source instances idempotently, suppresses true duplicates, and sends readers to the original Article.
+
+Delivery is demo-first. The first implementation milestone is a real vertical slice that collects approved RSS/Atom Sources, normalizes and persists Articles idempotently with provenance, and displays them in the public rolling feed. Full admin UX follows after that vertical slice is working.
 
 The MVP must prove:
 
@@ -14,8 +16,8 @@ The MVP must prove:
 ### Public reader
 A reader wants to answer quickly: “What relevant stories were published recently, where did they come from, and where can I read the original?” No account is required in MVP.
 
-### Publication administrator
-An administrator controls:
+### Publication administrator/operator
+An authorized operator controls:
 
 - Publication identity/branding/public and collection state;
 - approved Sources/endpoints and their operational states;
@@ -25,6 +27,8 @@ An administrator controls:
 - Article visibility/display overrides/categories;
 - Duplicate review/group corrections;
 - Source/endpoint health and Collection-run history.
+
+MVP administrative UI/API routes are protected by Cloudflare Access as defined by the accepted admin-perimeter ADR. The application does not provide native administrator accounts, passwords/passkeys, sessions, roles, account recovery, per-user Publication authorization, or canonical internal administrator identity in MVP.
 
 ### Operator/developer
 An operator needs telemetry to diagnose Source failures, parser changes, delayed collection, identity behavior, duplicate decisions, and failed jobs without manual database inspection.
@@ -47,10 +51,12 @@ MVP MUST provide:
 - light/dark presentation;
 - accessible external-link behavior.
 
-### Administration
-MVP MUST provide:
+The earlier tech-demo milestone may expose the core `Date | Headline | Source` feed before search, filters, final responsive polish, theming, duplicate grouping, or admin UI are complete; the roadmap defines the exact staged boundary.
 
-- authenticated administrator access and Publication-aware authorization;
+### Administration
+MVP MUST provide, after the tech-demo vertical slice:
+
+- Cloudflare Access-protected administrative UI/API routes with direct-origin bypass prevented by the supported deployment;
 - Publication configuration;
 - Source/endpoint create, update, approve/unapprove, enable/pause/disable, archive/state management, and manual-check operations;
 - Source priority and approved-domain policy;
@@ -60,7 +66,9 @@ MVP MUST provide:
 - Collection-run history and canonical outcome counts;
 - Article hide/restore/display-override/category controls;
 - Duplicate candidate review, merge, split, dismiss, and Primary selection;
-- reason/audit trails sufficient to explain how an Article entered or was suppressed from the feed.
+- bounded configuration/moderation change history sufficient to explain material changes without requiring native administrator identity.
+
+State-changing browser actions MUST use CSRF protection or an equivalent request-integrity control when introduced. Administrative commands MUST validate Publication/resource ownership and domain invariants even though MVP has no per-user Publication permission system.
 
 ### Collection engine
 MVP MUST provide:
@@ -77,12 +85,14 @@ MVP MUST provide:
 - bounded retry/backoff;
 - Collection metrics and structured error records.
 
+Before configurable Relevance rules exist, safe normalized candidates use the canonical empty-rule/default-include decision rather than bypassing the Relevance boundary.
+
 ### HTML Source support
 Configurable HTML-listing extraction is an MVP capability only after structured-feed collection is stable. It uses the same adapter boundaries. Browser automation is a justified fallback only and not a default collector.
 
 ## Initial Publication configuration
 
-The first Publication targets publishing-industry developments relevant to independent authors. Its Source list, Categories, relevance rules, branding, and editorial settings are configuration data.
+The first Publication targets publishing-industry developments relevant to independent authors. Its Source list, Categories, Relevance rules, branding, and editorial settings are configuration data.
 
 Suggested initial Categories:
 
@@ -96,12 +106,17 @@ Suggested initial Categories:
 - Tools and Technology
 - General
 
-These are not global platform Categories.
+These are not global Platform Categories.
+
+Initial Source/endpoint configuration may be created through operator-maintained seed/bootstrap tooling before admin UI exists. Bootstrap approval is explicit operator approval, not an eligibility bypass or auto-discovery mechanism.
 
 ## Explicitly outside MVP
 
 Unless separately promoted:
 
+- native application-managed administrator accounts/identity;
+- application passwords/passkeys, login/logout sessions, account recovery, and administrator roles;
+- Publication-aware per-user authorization and identity-linked audit attribution;
 - full Article-body republishing;
 - AI-generated summaries/rewrites;
 - public user accounts/personalized feeds;
@@ -115,6 +130,7 @@ Unless separately promoted:
 - generic relevance boost/ranking scores;
 - pinning/featured-story ordering;
 - push/webhook Source adapters;
+- automatic bulk retroactive Relevance reprocessing after every rule edit;
 - legal determinations about fair use/licensing/ownership.
 
 ## Quality targets
@@ -124,9 +140,9 @@ MVP SHOULD be judged by:
 - visible duplicate rate;
 - median Source-publication to first-observation delay;
 - percentage of enabled endpoints successfully collected within expected interval;
-- frequency of admin intervention;
+- frequency of operator intervention;
 - percentage of public links resolving to intended original Article;
-- ability to add an ordinary RSS/Atom Source without code changes;
+- ability to add an ordinary RSS/Atom Source without code changes once Source administration exists;
 - ability to configure a non-publishing Publication without engine changes.
 
-No numerical service-level objective is locked in Phase 0; instrumentation precedes target-setting.
+No numerical service-level objective is locked before production hardening; instrumentation precedes target-setting.
