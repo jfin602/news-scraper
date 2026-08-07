@@ -28,11 +28,12 @@ Every implementation phase MUST also satisfy the testing and validation contract
 - relevant broader regression suites for the change's blast radius;
 - negative/failure/boundary coverage for contract-critical behavior;
 - real disposable PostgreSQL evidence for persistence/concurrency claims;
-- deterministic collection-fixture evidence rather than live-public-network dependence in ordinary CI;
+- deterministic collection-fixture evidence rather than live-public-network dependence in ordinary deterministic validation;
 - browser evidence for browser-dependent behavior;
-- required CI status checks green;
+- repeatable local static/test/runtime validation executed against the exact final tree;
 - no skipped/flaky/zero-selected suite standing in for required proof;
-- limitations reported explicitly.
+- terminal evidence and limitations reported explicitly;
+- a durable phase-closeout validation artifact tied to the exact accepted commit/source tree.
 
 Earlier passing evidence does not automatically validate later source changes. A phase closes only on evidence for the final tree being accepted.
 
@@ -72,7 +73,7 @@ Align governing documentation around the demo-first delivery strategy while pres
 ## Phase 1 — Application foundation
 
 ### Goal
-Create the independently runnable application skeleton and the regression-testing/CI foundation without business behavior.
+Create the independently runnable application skeleton and the regression-testing/local-validation foundation without business behavior.
 
 ### Depends on
 - Phase 0.
@@ -80,31 +81,45 @@ Create the independently runnable application skeleton and the regression-testin
 ### Deliverables
 - Node.js/TypeScript scaffold;
 - Web/API entry point;
-- Worker entry point;
-- environment validation;
-- Publication-aware module boundaries;
+- Worker entry point with independently testable startup/bootstrap and clean shutdown;
+- centralized typed environment/runtime configuration validation with substantive malformed/out-of-range failure coverage;
+- Publication-aware structural module boundaries only;
 - formatting, linting, and type-checking foundation;
 - smallest suitable TypeScript-compatible automated test runner/toolchain;
 - substantive startup/configuration/health tests;
 - root test/check commands as they become substantive under the testing contract;
-- health/readiness endpoints;
-- GitHub CI for pull requests and pushes to `main`;
-- CI-visible static/test/diff validation with required zero-test-selection protection where filtering is used.
+- Web/API liveness/readiness endpoints;
+- Worker startup/dependency readiness validation without requiring a separate Worker HTTP probe in Phase 1;
+- repeatable local static/test/runtime validation procedure for implementation review and phase closeout;
+- required zero-test-selection protection where filtering is used;
+- durable Phase 1 closeout record under `docs/validation/` tied to the exact accepted commit/source tree.
+
+### Boundary clarification
+- Phase 1 Publication-awareness means generic naming, dependency direction, and module placement preserve Publication as the future topic/configuration boundary.
+- Phase 1 does not implement Publication persistence, Source configuration, bootstrap/seed data, Categories, Relevance rules, or the initial indie-author Publication.
+- Future module directories/components are created only when substantive code first needs them; placeholder directories/modules are not required.
+- Web/API owns HTTP liveness/readiness. Worker readiness is startup/configuration/dependency validation until a concrete deployment requirement justifies a Worker HTTP probe.
+- Phase 1 readiness has no PostgreSQL dependency; Phase 2 extends dependency readiness to the shared database.
 
 ### Out of scope
 - domain persistence;
+- Publication/Source persistence or bootstrap data;
 - durable jobs;
 - Source fetching;
 - Article persistence;
 - admin UI;
-- placeholder/no-op test suites or scripts.
+- placeholder/no-op test suites, scripts, directories, or modules;
+- hosted continuous-integration/status-check infrastructure.
 
 ### Exit gate
-- Web/API and Worker start independently under automated validation.
-- Invalid required environment/configuration fails predictably.
-- CI rejects formatting/lint/type/test/diff failures on the final Phase 1 tree.
-- Required filtered test jobs cannot pass with zero selected tests.
+- Web/API and Worker start independently under automated/runtime validation and shut down cleanly where applicable.
+- Web/API liveness/readiness behavior is exercised and reflects only dependencies implemented in Phase 1.
+- Worker startup/configuration/dependency readiness is exercised independently without requiring a Worker HTTP server.
+- Invalid or malformed Phase 1 environment/runtime configuration fails predictably.
+- Formatting, linting, type checking, deterministic tests, committed-change whitespace/diff validation, and required startup/runtime checks are executed locally and pass against the exact final Phase 1 tree.
+- Required filtered test commands cannot pass with zero selected tests.
 - Shared engine modules contain no indie-author-specific condition.
+- A durable Phase 1 validation artifact records the accepted commit/source tree, commands/procedures, results, evidence levels, environment/tool versions, and limitations.
 
 ## Phase 2 — Database foundation
 
@@ -120,7 +135,7 @@ Establish durable PostgreSQL infrastructure before domain models.
 - development/test DB workflow;
 - transaction utilities;
 - dependency health/readiness checks;
-- migration validation in CI;
+- migration validation in the local final-tree regression matrix;
 - safe `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` test-admin boundary;
 - unique disposable PostgreSQL database creation/migration/cleanup helpers;
 - cleanup verification and clear failure when required DB-test prerequisites are unavailable.
@@ -233,14 +248,14 @@ Fetch real approved structured feeds through the Worker, persist truthful run pr
 - manual Worker collection invocation;
 - minimal persisted Collection run with endpoint, start/finish, transport/parser status/counts, bounded errors, execution identifier;
 - isolated endpoint transport/parser failures;
-- deterministic controlled HTTP/RSS/Atom fixture corpus for ordinary CI.
+- deterministic controlled HTTP/RSS/Atom fixture corpus for the ordinary local regression matrix.
 
 ### Out of scope
 - automated due-endpoint scheduler;
 - Article persistence;
 - configurable Relevance rules;
 - duplicate detection;
-- making live publisher endpoints an ordinary CI dependency.
+- making live publisher endpoints an ordinary deterministic regression dependency.
 
 ### Exit gate
 - At least two real approved active enabled feeds fetch/parse independently through Worker execution for the tech-demo/live-Source evidence.
