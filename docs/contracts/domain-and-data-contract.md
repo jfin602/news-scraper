@@ -89,6 +89,8 @@ Required concepts:
 
 `paused`, `disabled`, and `archived` are not health values. A Source-level health summary, if shown, is derived from endpoint state/health rather than stored as competing authority.
 
+Archival makes Source/endpoint configuration non-collectable regardless of retained approval or operational values. Archiving does not implicitly revoke approval. Restoring archived configuration MUST NOT implicitly resume collection; active/enabled operation must be explicitly established.
+
 ### Article visibility and duplicate role
 
 These are orthogonal.
@@ -107,7 +109,17 @@ Joining/leaving a Duplicate group does not inherently change Article visibility.
 
 ## Logical entities
 
-Names below define logical concepts, not final SQL.
+Names below define logical concepts, not final SQL. They describe the completed MVP domain model; roadmap phases introduce only the fields needed by behavior that exists in that phase. An earlier phase MUST NOT front-load later scheduling/cache/health/parser/Relevance/Category/branding fields merely because they appear in the logical entity descriptions below.
+
+### Phase 3 minimum persisted configuration boundary
+
+Phase 3 introduces only the trusted configuration needed by later collection eligibility:
+
+- Publication: stable identifier, name, unique slug, `active_for_collection`, `public_status`, and timestamps;
+- Source: stable identifier, Publication identifier, immutable Publication-scoped configuration key, display name/site URL, approval state, lifecycle state, operational state, approved-domain policy, and timestamps;
+- Source endpoint: stable identifier, Source identifier, immutable Source-scoped configuration key, endpoint URL/type, approval state, lifecycle state, operational state, basic polling interval, optional policy narrowing, and timestamps.
+
+Runtime parser/cache fields, due/attempt/success timing, derived health, Categories/Relevance persistence, and final branding/feed configuration are introduced by the roadmap phase that first uses them.
 
 ### `publications`
 - stable identifier;
@@ -120,6 +132,7 @@ Names below define logical concepts, not final SQL.
 
 ### `sources`
 - Publication identifier;
+- stable immutable configuration key unique within the Publication;
 - display name/site URL;
 - approval state;
 - lifecycle state/archive timestamp as appropriate;
@@ -132,6 +145,7 @@ Names below define logical concepts, not final SQL.
 
 ### `source_endpoints`
 - Source identifier;
+- stable immutable configuration key unique within the Source;
 - endpoint URL/type;
 - approval state;
 - lifecycle state/archive timestamp as appropriate;
@@ -260,6 +274,8 @@ Native administrator accounts/identity, roles, per-user Publication authorizatio
 Persistence MUST enforce or transactionally guarantee:
 
 - unique Publication slug;
+- unique immutable Source configuration key within a Publication;
+- unique immutable Source-endpoint configuration key within a Source;
 - no duplicate non-archived normalized endpoint URL within the same Source;
 - no duplicate Article for the same reliable immutable external identifier within the same Source;
 - no duplicate Article for the same Publication/Source canonical identity when external identifier is absent;
