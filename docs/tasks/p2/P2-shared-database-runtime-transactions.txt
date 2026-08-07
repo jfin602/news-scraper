@@ -1,0 +1,190 @@
+TASK: Phase 2 / P2 — Shared database runtime and transaction boundary
+
+ROADMAP PHASE
+Phase 2 — Database foundation.
+
+VERSIONING
+- This is Phase 2 prompt 2 and its assigned project version is `0.2.2`.
+- On first execution confirm P1 left `package.json` at `0.2.1`, then advance it to `0.2.2` and synchronize npm-generated lockfile package metadata.
+- If this same P2 prompt is rerun and `package.json` is already `0.2.2`, retain `0.2.2`; do not increment again.
+- `package.json` remains the sole authoritative project-version source.
+- Do not duplicate the version in docs or source constants.
+
+DEPENDS ON
+- P1-disposable-postgres-test-foundation.txt implemented and reviewed.
+- A working `test:db` command and verified disposable PostgreSQL helper exist.
+
+GOAL
+Create the canonical production PostgreSQL boundary used by future Web/API, Worker, migrations, and persistence modules. Add safe application database configuration, pool lifecycle, connectivity probing, and one correct transaction utility. Prove real query/transaction behavior against disposable PostgreSQL in this same prompt.
+
+Do not integrate this database boundary into Web/API or Worker startup/readiness yet; that belongs to P4. Do not implement migrations yet; that belongs to P3.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- BOOT.md
+- AGENTS.md
+- docs/contracts/project-contract.md
+- docs/contracts/testing-and-validation-contract.md
+- docs/architecture/system-architecture.md
+- docs/operations/security-reliability-and-operations.md
+- docs/roadmap/mvp-roadmap.md
+- P1 implementation/test support
+
+LOCKED / PRESERVED BEHAVIOR
+- PostgreSQL is the system of record, but Phase 2 still contains no domain models.
+- Shared engine code remains topic independent.
+- Do not add Publication, Source, endpoint, Article, Collection-run, Category, Relevance, duplicate, collection, job, or scheduler persistence.
+- Environment/secrets remain outside source control.
+- Credential-bearing connection strings must never be emitted in logs or errors.
+- Importing a database module must not create implicit global connections as a side effect.
+- Web/API and Worker behavior remain unchanged in P2.
+- Transaction claims require real PostgreSQL evidence; mocks are not sufficient.
+
+APPLICATION DATABASE CONFIGURATION
+Introduce the ordinary application PostgreSQL variable:
+- `NEWS_SCRAPER_DATABASE_URL`
+
+Recommended ownership:
+- `src/database/config.ts`
+
+Requirements:
+- require an explicit value when the database boundary is being configured;
+- accept PostgreSQL connection URLs only;
+- return a typed immutable/read-only configuration object;
+- use a deterministic safe error type/shape consistent with the repository's runtime configuration style;
+- identify the offending variable and a bounded reason without reproducing the raw URL, password, query string, or unrelated environment;
+- do not consume `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` in production source;
+- do not silently substitute a test-admin URL or development fallback.
+
+Keep database-specific configuration under `src/database/` rather than making common `src/shared/runtime-config.ts` own database concerns unless a very small reusable parsing primitive is genuinely justified.
+
+DATABASE RUNTIME BOUNDARY
+Recommended ownership:
+- `src/database/database.ts`
+
+Use one pool-backed database object per application process. Avoid exposing global mutable pool state.
+
+The public boundary should remain narrow and future-consumer-friendly. It should support at least:
+- parameterized query execution;
+- `ping()` / connectivity probe using a tiny real query such as `SELECT 1`;
+- `transaction(work)`;
+- idempotent `close()` / pool shutdown.
+
+The exact TypeScript interface names may differ, but future repositories/services should not need to own pool construction or transaction boilerplate themselves.
+
+Pool requirements:
+- create the pool from the validated application database configuration;
+- handle idle-pool/client errors so they do not become unhandled EventEmitter failures;
+- any surfaced/loggable database error representation must be safe and bounded;
+- `close()` must drain/end the pool and be safe under repeated or concurrent calls;
+- ownership should be explicit enough for P4 to close resources on process shutdown/startup failure.
+
+Do not add retries/backoff in Phase 2. A failed query/ping should fail truthfully.
+
+TRANSACTION CONTRACT
+Implement one canonical transaction helper using one checked-out PostgreSQL client for the entire transaction.
+
+Required sequence:
+1. acquire a client from the pool;
+2. execute `BEGIN`;
+3. execute the supplied callback using that same client's query interface;
+4. `COMMIT` when the callback succeeds;
+5. on callback/query failure, attempt `ROLLBACK`;
+6. preserve/rethrow the original failure unless a more severe rollback/connection failure must be represented safely;
+7. release the client in `finally` in all cases.
+
+Do not implement transactions with `pool.query()` for BEGIN/COMMIT/ROLLBACK because transaction state is connection-scoped.
+
+Expose only the smallest transaction-scoped query surface needed by future persistence code rather than leaking arbitrary pool lifecycle operations into the callback.
+
+FAILURE HANDLING
+Tests and implementation must consider:
+- connection acquisition failure;
+- callback/query failure;
+- rollback path;
+- client release after success and failure;
+- pool shutdown with no leaked clients;
+- operations after close failing predictably according to the chosen boundary;
+- safe handling of credential-bearing URLs in configuration/error tests.
+
+Do not catch-and-ignore PostgreSQL failures merely to keep the application apparently healthy.
+
+FOCUSED UNIT TESTS
+Add Level 2 coverage at minimum for:
+- missing `NEWS_SCRAPER_DATABASE_URL`;
+- malformed/non-PostgreSQL URL;
+- synthetic credentials not appearing in config error text;
+- immutable/stable database configuration shape;
+- `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` is not accepted as a production fallback;
+- any injected lifecycle/error-mapping behavior that can be meaningfully proved without PostgreSQL.
+
+REAL POSTGRESQL TESTS
+Use P1's disposable helper and prove at Level 4:
+- the production database boundary can connect to a disposable DB;
+- parameterized query execution works;
+- `ping()` succeeds against a healthy DB;
+- a successful transaction commits actual data;
+- a failing transaction callback rolls back actual data;
+- the original callback failure propagates after rollback;
+- committed state remains after the transaction;
+- rolled-back state does not remain;
+- a transaction-scoped client is released after success and failure;
+- repeated/concurrent `close()` is safe and leaves no usable owned pool resources;
+- a database operation after shutdown fails predictably if that behavior is exposed.
+
+Create only synthetic tables/data inside disposable databases. Do not add production domain schema.
+
+LIKELY FILE SCOPE
+Expected approximately:
+- package.json
+- package-lock.json
+- src/database/config.ts
+- src/database/database.ts
+- test/unit/database-config.test.ts
+- test/database/database.test.ts
+- test/database/transactions.test.ts
+- existing P1 test-support files only if a genuine reusable helper improvement is required
+
+Do not modify Web/API or Worker files in P2.
+
+BROADER REGRESSION VALIDATION
+Execute against the final P2 tree:
+- npm run format:check
+- npm run lint
+- npm run typecheck
+- npm test
+- npm run test:unit
+- npm run test:integration
+- npm run check
+- npm run test:db with valid dedicated test-admin PostgreSQL
+- explicit missing-admin-prerequisite `test:db` negative remains nonzero/clear
+- committed-change whitespace/diff validation appropriate to the P2 change range
+
+REQUIRED EVIDENCE LEVELS
+- Level 1: module/version/package/static checks.
+- Level 2: application DB configuration and isolated lifecycle contracts.
+- Level 4: real query, commit, rollback, and cleanup behavior against disposable PostgreSQL.
+
+ACCEPTANCE CRITERIA
+- `package.json` and npm lockfile metadata are synchronized at `0.2.2`.
+- `NEWS_SCRAPER_DATABASE_URL` is a safe typed production configuration boundary.
+- Production source never consumes the privileged test-admin URL.
+- One reusable pool/database abstraction owns connection lifecycle.
+- One canonical transaction helper commits on success, rolls back on failure, and always releases its client.
+- Real PostgreSQL tests prove commit/rollback behavior; no mock-only persistence claim is made.
+- Database configuration/errors do not expose credentials.
+- Web/API and Worker startup/readiness behavior remains unchanged from P1/Phase 1 in this prompt.
+- No domain schema or future-phase behavior is introduced.
+
+NON-GOALS
+- Migration discovery/ledger/status.
+- Automatic schema migration.
+- Web `/health/ready` database integration.
+- Worker database readiness.
+- Publication/Source/Article/Collection-run tables.
+- ORM/query-builder adoption.
+- Retry/backoff/circuit breaker behavior.
+- Scheduler/jobs/collection.
+
+DELIVERY / REVIEW NOTES
+Keep the database boundary small enough that later persistence modules can reuse it without wrapping a second pool/transaction abstraction. If the repository or P1 implementation has drifted materially, stop and report the conflict instead of inventing compatibility bridges. Report exact commands/tests actually executed and distinguish Level 2 source/unit proof from Level 4 real PostgreSQL proof.
