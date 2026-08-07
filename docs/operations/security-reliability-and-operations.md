@@ -2,20 +2,24 @@
 
 ## Security model
 
-The highest-risk surfaces are administrator access and server-side fetching of externally configured URLs. Controls appear with the first implementation of each affected surface; Phase 7 hardens and operationalizes them rather than introducing them for the first time.
+The highest-risk surfaces are administrative access and server-side fetching of externally configured URLs. Controls appear with the first implementation of each affected surface; Phase 19 hardens and operationalizes them rather than introducing them for the first time.
 
 ## Administrative security
 
+MVP administrative UI/API routes use Cloudflare Access as the external authentication/access-control perimeter under `docs/decisions/cloudflare-access-admin-perimeter.md`.
+
 When administrator functionality is introduced, MVP MUST provide:
 
-- secure password handling or trusted external identity;
-- secure, HTTP-only, appropriate same-site session cookies;
-- CSRF protection for state-changing browser actions;
-- authentication rate limiting;
-- authorization at every admin operation and Publication boundary;
-- stable administrator identity for audit references;
-- audit events for configuration/moderation changes;
+- Cloudflare Access protection for all admin UI/API routes;
+- supported deployment/origin configuration that prevents direct unauthenticated bypass of that perimeter;
+- CSRF protection or an equivalent request-integrity control for state-changing browser actions;
+- Publication/resource ownership and domain-invariant validation for every admin command;
+- bounded configuration/moderation change history where required by the governing contracts;
 - secrets outside source control.
+
+The MVP application does not implement native administrator accounts, passwords/passkeys, application login/logout sessions, account recovery, roles, per-user Publication authorization, or canonical internal administrator identity.
+
+Cloudflare identity/access logs may provide operational evidence but are not the application's canonical domain identity/audit attribution.
 
 Administrative errors must not expose secrets, stack traces, or raw database details.
 
@@ -53,12 +57,16 @@ Collected content is untrusted. The system MUST:
 
 ## Failure isolation
 
-- Each endpoint Collection run is an independent job.
-- One failed Source cannot abort unrelated queued work.
-- Item-level failures are recorded/skipped when safe.
-- Circuit-breaking/cooldown protects repeatedly failing endpoints.
-- Worker concurrency is bounded globally and per host/Source.
-- Public-feed reads remain available during collection failures.
+Before durable jobs exist, each manually invoked endpoint Collection run in the Worker is an independent execution unit and one endpoint failure must not invalidate another run.
+
+Once Phase 10 durable scheduling exists:
+
+- each endpoint Collection run is an independent job;
+- one failed Source cannot abort unrelated queued work;
+- item-level failures are recorded/skipped when safe;
+- circuit-breaking/cooldown protects repeatedly failing endpoints;
+- Worker concurrency is bounded globally and per host/Source;
+- public-feed reads remain available during collection failures.
 
 ## State and health observability
 
@@ -73,31 +81,34 @@ An archived or paused endpoint is not labeled unhealthy merely because it is int
 
 ## Observability
 
-MVP MUST emit enough structured information to answer:
+MVP MUST emit enough structured information, as the relevant stages are introduced, to answer:
 
-- Which endpoints are due, running, delayed, degraded, unhealthy, paused, disabled, archived, or unapproved?
-- When was each endpoint last successfully collected?
+- Which endpoints are running/due/delayed/degraded/unhealthy/paused/disabled/archived/unapproved once those scheduling/health concepts exist?
+- When was each endpoint last successfully collected once that state exists?
 - How long did eligibility/network validation, fetch, parse, normalize, identity, duplicate evaluation, and persistence take where those stages exist?
 - Before persistence exists, what transport/parser/normalization counts/statuses occurred?
 - Once persistence exists, how many candidates had processing outcomes `created`, `updated`, `unchanged`, `rejected`, `excluded`, or `failed`?
-- How many orthogonal effects occurred, including `visibility_hidden`, `duplicate_review_created`, and `duplicate_grouped`?
+- How many orthogonal effects occurred, including `visibility_hidden`, `duplicate_review_created`, and `duplicate_grouped` once those effects exist?
 - Why was a candidate rejected/excluded or left hidden?
 - Why was a duplicate candidate created, dismissed, or grouped?
-- Which administrator changed Publication/Source/Article/duplicate configuration?
+- What material administrative configuration/moderation change occurred, when, and to which resource?
 
-Foundations:
+Foundations grow incrementally with the roadmap:
 
 - structured logs with run/correlation identifiers;
-- metrics for jobs, durations, failures, queue delay, processing outcomes, and orthogonal effects;
+- minimal persisted Collection-run transport/parser history from the first real fetch phase;
+- normalization stage accounting when normalization exists;
+- processing outcomes when Article persistence exists;
+- job/queue metrics when durable scheduling exists;
 - health/readiness endpoints for Web/API and Worker dependencies;
 - bounded Collection-run history;
-- alert-ready unhealthy endpoint states.
+- alert-ready unhealthy endpoint states before production launch.
 
 ## Logging constraints
 
 Logs MUST NOT contain:
 
-- passwords, session tokens, API keys, authorization headers;
+- passwords, access/session tokens, API keys, authorization headers;
 - unbounded response bodies;
 - sensitive environment values;
 - credential-bearing database connection strings.
@@ -124,10 +135,11 @@ Because Article identity is idempotent, safe replay is the preferred recovery me
 - Web/API and Worker versions are compatible with active schema.
 - Graceful shutdown lets jobs finish or become safely retryable.
 - Readiness fails when critical dependencies are unavailable.
+- MVP deployments with admin routes prevent direct-origin bypass of the Cloudflare Access perimeter.
 
-## Phase 7 hardening boundary
+## Phase 19 hardening boundary
 
-Baseline controls above are implemented alongside the features they protect. Phase 7 adds production hardening such as:
+Baseline controls above are implemented alongside the features they protect. Phase 19 adds production hardening such as:
 
 - dashboards/alert integrations;
 - tuned unhealthy/delayed detection;
@@ -136,9 +148,10 @@ Baseline controls above are implemented alongside the features they protect. Pha
 - security/abuse testing;
 - retention jobs;
 - deployment/rollback runbooks;
-- production monitoring ownership.
+- production monitoring ownership;
+- explicit validation of Cloudflare Access/origin protection for deployed admin surfaces.
 
-Phase 7 MUST NOT be interpreted as permission to build earlier fetching/authentication without required controls.
+Phase 19 MUST NOT be interpreted as permission to build earlier fetching or admin mutations without their required controls.
 
 ## Operational runbooks required before launch
 
@@ -147,10 +160,10 @@ Phase 7 MUST NOT be interpreted as permission to build earlier fetching/authenti
 - duplicate false-positive correction;
 - stuck/overlapping job recovery;
 - database restore;
-- administrator account recovery;
+- Cloudflare Access/admin-perimeter incident or lockout handling;
 - unsafe/compromised Source response;
 - legal/editorial Article takedown.
 
 ## Privacy and retention
 
-The public MVP collects minimal personal data. Administrative account data, audit records, IP logs, Source-provided author metadata, and bounded Raw-item payloads require documented retention/access rules before production launch.
+The public MVP collects minimal personal data. Cloudflare/admin access logs, application change records, IP logs, Source-provided author metadata, and bounded Raw-item payloads require documented retention/access rules before production launch. Native administrator account data is not part of MVP.
