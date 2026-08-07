@@ -150,6 +150,8 @@ From Phase 10 onward:
 
 ## Persistence and transactions
 
+- Git-tracked migrations and migration infrastructure are authoritative for database schema structure and schema evolution.
+- Runtime processes do not make ad hoc schema changes; Web/API and Worker startup do not automatically apply migrations.
 - Minimal Collection-run persistence begins with real transport; it does not wait for Article persistence.
 - Article identity resolution and insert/update occur transactionally with critical uniqueness constraints.
 - An Article observation is linked to the Collection run as part of successful identity processing.
