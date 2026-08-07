@@ -1,6 +1,6 @@
 {
   "name": "news-scraper",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "type": "module",
   "engines": {
@@ -13,14 +13,20 @@
     "typecheck": "tsc --noEmit",
     "test": "node scripts/run-tests.mjs \"test/**/*.test.ts\"",
     "test:unit": "node scripts/run-tests.mjs \"test/unit/**/*.test.ts\"",
+    "test:integration": "node scripts/run-tests.mjs \"test/integration/**/*.test.ts\"",
+    "start:web": "node src/app/web/main.ts",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm test"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@types/express": "^5.0.6",
     "@types/node": "^26.1.2",
     "eslint": "^10.8.0",
     "prettier": "^3.9.6",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.66.0"
+  },
+  "dependencies": {
+    "express": "^5.2.1"
   }
 }
