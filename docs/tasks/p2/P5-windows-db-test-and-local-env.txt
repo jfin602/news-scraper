@@ -1,0 +1,338 @@
+TASK: Phase 2 / P5 — Windows database-test lifecycle reliability and optional local .env loading
+
+ROADMAP PHASE
+Phase 2 — Database foundation.
+
+VERSIONING
+- This is Phase 2 prompt 5 and its assigned project version is `0.2.5`.
+- On first execution confirm P4 left `package.json` at `0.2.4`, then advance it to `0.2.5` and synchronize npm-generated lockfile package metadata.
+- If this same P5 prompt is rerun after failed/partial implementation and `package.json` is already `0.2.5`, retain `0.2.5`; do not increment again.
+- `package.json` remains the sole authoritative project-version source.
+- Do not duplicate the current version in README, BOOT, source constants, or other manually maintained files.
+
+DEPENDS ON
+- P1 disposable PostgreSQL test foundation implemented and reviewed.
+- P2 shared production database runtime/transaction boundary implemented and reviewed.
+- P3 explicit SQL migration workflow implemented and reviewed.
+- P4 Web/Worker PostgreSQL readiness integration implemented and reviewed.
+- Local dedicated PostgreSQL development/test infrastructure is available for the required Level 4 validation.
+
+GOAL
+Correct two Phase 2 local-development/validation defects before final closeout without changing production database semantics:
+
+1. Make the real PostgreSQL process-readiness tests terminate reliably on Windows instead of hanging after earlier database tests complete.
+2. Make the project-local ignored `.env` file an optional configuration source for environment-requiring local npm commands so developers do not need to manually import it into each PowerShell session.
+
+By the end of this prompt:
+- the DB-backed Web/Worker process-readiness tests complete and return control to the shell on Windows;
+- process-exit waits are bounded and fail clearly rather than hanging indefinitely;
+- Windows test IPC handles are released correctly without replacing graceful shutdown proof with force-kill behavior;
+- `npm run test:db`, `npm run db:migrate`, `npm run start:web`, and `npm run start:worker` optionally load root `.env` using the repository's supported Node runtime rather than a new dotenv dependency;
+- explicit process/shell environment values override `.env` values;
+- ordinary deterministic tests remain independent of automatic `.env` loading;
+- `.env` remains ignored, untracked, operator-owned, and secret-bearing.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- BOOT.md
+- AGENTS.md
+- docs/contracts/project-contract.md
+- docs/contracts/testing-and-validation-contract.md
+- docs/architecture/system-architecture.md
+- docs/operations/security-reliability-and-operations.md
+- docs/roadmap/mvp-roadmap.md
+- README.md
+- current P1-P4 task prompts where historical intent is useful
+- current package scripts and test/process helpers
+
+GOVERNING ARCHITECTURE / OPERATIONS RULES
+Preserve the current database ownership boundary:
+- Git-tracked migrations and migration infrastructure are authoritative for database schema structure/evolution.
+- PostgreSQL is authoritative for persisted runtime data and applied database state.
+- Web/API and Worker startup do not automatically apply migrations.
+- Secrets and environment-specific connection details live outside committed source.
+- The same versioned migration history is used across local development, disposable test, and deployed environments.
+
+P5 changes local command/test orchestration only. It must not weaken or reinterpret those rules.
+
+CURRENT OBSERVED DEFECT / HIGH-CONFIDENCE SOURCE DIAGNOSIS
+A Windows invocation of `npm run test:db` was observed to execute the database runtime, disposable-database, and migration tests successfully and then stop producing results before the DB-backed process-readiness tests completed.
+
+Inspect the current implementation rather than assuming the diagnosis is automatically correct, but note the current source discrepancy:
+- `test/database/process-readiness.test.ts` uses a Windows-only IPC channel to emulate signal delivery to real Web/Worker child entrypoints;
+- that test currently waits for child exit after sending its synthetic termination signal without releasing the Windows IPC channel;
+- the older Phase 1 Web/Worker process integration tests explicitly disconnect IPC before awaiting final exit;
+- current `waitForExit` helpers are unbounded, so a leaked IPC/resource handle can freeze the selected suite indefinitely rather than fail clearly.
+
+Treat the missing IPC release as the primary suspected regression introduced at the P4 DB-process test boundary. Confirm by tracing and, where possible, reproducing the focused test before finalizing the fix. If another cause is discovered, fix the smallest correct owning boundary and report why the planned diagnosis differed.
+
+PRESERVED PRODUCTION BEHAVIOR
+Do not change these established contracts merely to satisfy tests:
+- Web/API and Worker remain independently runnable process roles.
+- Web `/health/live` remains database-independent.
+- Web `/health/ready` remains truthful for DB reachability + schema compatibility.
+- Worker emits `worker.ready` only after DB/schema readiness succeeds.
+- Web with a syntactically valid unavailable DB may listen and report live=200 / ready=503.
+- Worker with unavailable/incompatible DB fails startup safely and never emits ready.
+- Web and Worker close their owned database resources on clean shutdown/startup failure.
+- Worker has no HTTP health server.
+- Web does not depend on Worker and Worker does not depend on Web.
+- No process auto-migrates.
+- Shared engine/process code remains topic independent.
+- No Phase 3+ Publication/Source/Article/Collection-run schema or behavior is introduced.
+
+WINDOWS PROCESS-TEST SUPPORT BOUNDARY
+Prefer a small shared TEST-ONLY child-process helper rather than maintaining three nearly identical copies of Windows IPC/signal/wait logic.
+
+Expected ownership:
+- create a shared helper under `test/support/` (for example `test/support/process.ts`, exact name may adapt to current conventions);
+- consume it from the existing real Web/Worker process integration tests and the DB-backed process-readiness tests;
+- keep all Windows IPC emulation and process-test-only lifecycle mechanics outside production `src/`.
+
+The shared helper should provide the smallest useful primitives for current consumers, such as:
+- spawning a Node Web/Worker entrypoint with controlled environment;
+- Windows IPC signal bridging while retaining real POSIX signal behavior on non-Windows platforms;
+- waiting for one structured stdout/stderr JSON event with a bounded timeout;
+- sending the established graceful termination action;
+- disconnecting the Windows IPC channel at the correct lifecycle point;
+- waiting for process exit with a bounded timeout;
+- final cleanup that can force-kill only after a test is already failing/finishing cleanup.
+
+Do not invent a generic subprocess framework beyond these current needs.
+
+GRACEFUL SHUTDOWN PROOF MUST REMAIN REAL
+Do NOT 'fix' the hang by simply killing the Web/Worker process after sending termination.
+
+For a successful graceful-shutdown case, the test must still prove the actual application lifecycle:
+1. child reaches expected ready/listening state;
+2. register/await the expected `web.stopped` / `worker.stopped` lifecycle evidence where applicable;
+3. deliver the graceful termination action using the established cross-platform mechanism;
+4. observe the real stopped event;
+5. release Windows test IPC where applicable;
+6. observe actual child process exit within a bounded timeout;
+7. assert the expected zero exit.
+
+For startup-failure cases:
+1. observe the safe `*.start_failed` event;
+2. prove no forbidden ready event where applicable;
+3. release Windows IPC where applicable;
+4. observe actual nonzero process exit within a bounded timeout.
+
+If a child does not stop/exit within the bound, reject/fail with a useful lifecycle-specific error. A timeout may trigger cleanup in `finally`, but cleanup must never turn the failed graceful-shutdown assertion into a passing test.
+
+NO ARBITRARY SLEEPS
+Do not add fixed sleeps to work around lifecycle races. Use emitted events, exit events, IPC state, bounded timers, and explicit cleanup.
+
+CONTROLLED CHILD ENVIRONMENT
+Current process tests often start from `...process.env`. Preserve legitimate inherited environment where useful, but make per-test removals deterministic.
+
+The shared spawn/environment helper must support explicit removal semantics, e.g. when a test passes `NEWS_SCRAPER_DATABASE_URL: undefined` or another explicitly absent variable, that key must be deleted from the child environment rather than accidentally inherited from the developer's PowerShell session.
+
+This is important after local `.env` support because developers may also have database values exported in their parent shell. Tests that claim a variable is missing must create a child where it is genuinely missing.
+
+Do not globally scrub unrelated environment variables unless required. Make explicit test overrides/removals authoritative.
+
+OPTIONAL LOCAL .ENV COMMAND CONTRACT
+The project already requires a Node 24.12+ runtime. Use Node's native optional env-file CLI support; do not add `dotenv` or another dependency solely for this behavior.
+
+For environment-requiring local/runtime commands, make root `.env` optional using the equivalent of:
+- `node --env-file-if-exists=.env ...`
+
+Apply this to the command boundary for:
+- `npm run test:db`
+- `npm run db:migrate`
+- `npm run start:web`
+- `npm run start:worker`
+
+The exact package script strings should remain simple and cross-platform.
+
+Node's env-file behavior must preserve this precedence:
+1. explicit process/shell environment value wins;
+2. otherwise optional `.env` supplies the value when present;
+3. then the existing typed configuration parser validates `process.env`.
+
+Do not add application-level dotenv imports or a second configuration path inside Web, Worker, migration, or database modules.
+
+ORDINARY DETERMINISTIC SUITES MUST NOT AUTO-LOAD .ENV
+Do NOT add automatic `.env` loading to:
+- `npm test`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run check`
+- format/lint/typecheck commands.
+
+Those commands may naturally inherit variables already present in the caller's process environment, but they must not become coupled to the presence/content of the repository-local `.env` file.
+
+The specialized `test:db` suite is the correct place to consume the local test-admin prerequisite.
+
+TEST-ADMIN SAFETY / PRECEDENCE
+Preserve the existing hard separation:
+- `NEWS_SCRAPER_DATABASE_URL` is the ordinary application/development database URL;
+- `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` is privileged test administration used only for disposable test databases;
+- test administration never falls back to the application database URL;
+- disposable test cleanup never targets the persistent development database.
+
+Because `.env` may contain a valid test-admin URL after P5, validation must also prove that an explicit environment override wins rather than silently falling back to `.env`.
+
+Use a synthetic explicit unusable/blank-after-trim override in a controlled child shell/process (for example a single-space value where the shell supports it) and invoke `npm run test:db`.
+Expected:
+- nonzero exit;
+- clear required/invalid test-admin prerequisite message;
+- no fallback to the valid `.env` value;
+- no credential/environment dump.
+
+Do not record real URL values.
+
+LOCAL .ENV OWNERSHIP / SECRET HANDLING
+- Do not create, modify, copy, inspect, print, or commit the operator's actual `.env` contents.
+- `.env` is already expected to be ignored and must remain ignored/untracked.
+- No `.env.example` is required by this corrective task.
+- Never include real database passwords/URLs in tests, README, commits, prompts, logs, or validation output.
+- Tests that need credential values use synthetic values only.
+
+README UPDATE
+Update only the concise local DB/testing usage guidance needed to explain the new command behavior.
+
+README should state, without secrets:
+- root `.env` is optional, local, ignored, and not committed;
+- the environment-requiring npm commands above load `.env` when it exists;
+- explicit environment variables override `.env`;
+- ordinary deterministic unit/integration/check commands do not automatically load `.env`;
+- `NEWS_SCRAPER_DATABASE_URL` and `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` retain their distinct application-vs-test-admin meanings;
+- Web/Worker do not auto-migrate.
+
+Do not turn README into an environment/secrets runbook and do not duplicate the current package version there.
+
+LIKELY FILE SCOPE
+Expected approximately:
+- `package.json`
+- `package-lock.json`
+- `README.md`
+- `test/database/process-readiness.test.ts`
+- `test/integration/web-process.test.ts`
+- `test/integration/worker-process.test.ts`
+- new small shared test-only process helper under `test/support/`
+- a focused deterministic unit test for package-script env-file contract, if useful (for example `test/unit/package-scripts.test.ts`)
+
+Prefer NOT to modify:
+- `scripts/run-tests.mjs` — current wrapper is expected to wait for the selected Node test process; fix the leaking child lifecycle inside the test rather than masking it globally;
+- `src/app/web/*`
+- `src/app/worker/*`
+- `src/database/*`
+- `migrations/*`
+- `.gitignore`
+
+If source inspection proves a production change is genuinely required, stop and report the material boundary change rather than casually widening this prompt.
+
+PACKAGE-SCRIPT REGRESSION COVERAGE
+Add deterministic protection for the intended root command contract without reading the real `.env` file.
+
+At minimum prove structurally/through an isolated child where appropriate that:
+- `test:db`, `db:migrate`, `start:web`, and `start:worker` use optional `.env` loading;
+- ordinary `test`, `test:unit`, `test:integration`, and `check` do not automatically load `.env`;
+- no dotenv dependency was added;
+- package and lockfile root metadata remain synchronized at `0.2.5`.
+
+Do not create a unit test that depends on the developer's actual `.env` contents.
+
+FOCUSED PROCESS REGRESSION COVERAGE
+Update/reuse tests to prove:
+- Windows/POSIX real Web process graceful shutdown still emits `web.stopped` and actually exits;
+- relevant Worker real-process failure paths actually exit rather than being kept alive by test IPC;
+- DB-backed successful Web/Worker readiness case emits the expected events, gracefully shuts down, releases test IPC, and both child processes actually exit;
+- DB-backed uninitialized-schema case keeps Web live/ready truth, rejects Worker readiness, and all children terminate correctly;
+- exit waits are bounded so future regressions fail rather than hang forever;
+- explicit child-environment removal prevents parent DB settings from contaminating missing-config tests.
+
+Use observable lifecycle outcomes; avoid assertions coupled only to helper internals.
+
+REQUIRED PHYSICAL WINDOWS VALIDATION
+After implementation, on the Windows development environment with a valid dedicated test-admin PostgreSQL prerequisite available via the local ignored `.env`, execute and record:
+
+1. Focused suspected regression:
+   - invoke only `test/database/process-readiness.test.ts` through the repository test wrapper while using optional `.env` loading (equivalent to `node --env-file-if-exists=.env scripts/run-tests.mjs "test/database/process-readiness.test.ts"`);
+   - both DB-backed process tests must report results and the command must return to the shell;
+   - no manual kill should be needed for a passing run.
+
+2. Full Level 4 DB suite:
+   - in a child shell/session where the test-admin URL is not separately exported, run `npm run test:db`;
+   - it must obtain its prerequisite from `.env`, complete all selected database tests, clean disposable DBs, and return to the shell.
+
+3. Explicit environment precedence / unusable prerequisite negative:
+   - provide an explicit synthetic value for `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` that is blank-after-trim or otherwise invalid while a valid `.env` exists;
+   - run `npm run test:db`;
+   - expect nonzero, safe prerequisite/config error, and no fallback to `.env`.
+
+4. Persistent development migration command:
+   - in a child shell/session where `NEWS_SCRAPER_DATABASE_URL` is not separately exported, run `npm run db:migrate`;
+   - it must use the operator's `.env` application URL and report current/apply migrations safely;
+   - do not expose the URL in recorded evidence.
+
+5. Ignore/tracking proof:
+   - `git check-ignore .env` or equivalent confirms ignored;
+   - `git ls-files .env` or equivalent confirms it is not tracked.
+
+If the required local PostgreSQL environment is unavailable, do not claim these behaviors as validated and do not treat P5 as ready for Phase 2 closeout.
+
+BROADER REGRESSION MATRIX
+Run against the final P5 tree:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm test`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run check`
+- `npm run test:db` with valid dedicated admin prerequisite supplied through the intended local workflow
+- explicit unusable/missing-admin negative described above
+- committed-change whitespace/diff validation appropriate to P5
+
+No hidden automatic retries. A timeout/hang is a defect, not permission to rerun until green.
+
+REQUIRED EVIDENCE LEVELS
+- Level 1: package command/version/lock/env-file/ignore/module-boundary checks.
+- Level 2: deterministic package-script and child-environment helper behavior where isolated tests are appropriate.
+- Level 3: real child-process lifecycle semantics for Web/Worker without claiming PostgreSQL behavior from mocks.
+- Level 4: focused and full real PostgreSQL DB-backed process-readiness execution on Windows, including actual child exit and disposable DB cleanup.
+
+DOCUMENTATION IMPLICATIONS
+- README concise local-use clarification is allowed/expected.
+- Do not modify BOOT.md, AGENTS.md, roadmap, contracts, ADRs, or operations/architecture docs; they are already aligned with this behavior.
+- Do not create the Phase 2 validation artifact in P5. Final durable Phase 2 evidence belongs to P6 closeout after the final accepted implementation tree exists.
+
+ACCEPTANCE CRITERIA
+- `package.json` and lockfile root package metadata are synchronized at `0.2.5`.
+- The previously hanging DB-backed process-readiness tests complete and return to the shell on Windows.
+- Web/Worker graceful/failure process tests release Windows IPC correctly and prove actual child exit.
+- Process exit waits are bounded; a lifecycle regression fails rather than hanging indefinitely.
+- No passing test substitutes force-kill cleanup for graceful shutdown proof.
+- Explicit child environment removal prevents inherited DB variables from invalidating missing-config tests.
+- `test:db`, `db:migrate`, `start:web`, and `start:worker` optionally load root `.env` using native Node support.
+- No dotenv dependency/application-level env loader is introduced.
+- Explicit process environment values override `.env` in observed validation.
+- `npm test`, `test:unit`, `test:integration`, and `check` do not automatically load `.env`.
+- `.env` remains ignored and untracked; no real secret is committed or printed.
+- The valid full `npm run test:db` suite passes against real PostgreSQL and verifies cleanup.
+- An explicit unusable test-admin override still makes `test:db` fail clearly/nonzero even with a valid `.env` present.
+- `npm run db:migrate` can use the persistent local application DB setting from `.env` explicitly and safely.
+- No production Web/Worker/database semantics, startup migration behavior, schema ownership, or Phase 3+ domain behavior changes.
+- Full static/deterministic/DB regression matrix passes against the final P5 source tree.
+
+NON-GOALS
+- VPS PostgreSQL or reference deployment setup.
+- Production secret-manager selection/configuration.
+- Hosted CI secret configuration.
+- Adding dotenv or a generalized configuration framework.
+- Creating/committing `.env` or `.env.example`.
+- Domain migrations/schema.
+- Publication/Source persistence/bootstrap.
+- Source fetching/RSS/Atom parsing.
+- Network safety/SSRF work.
+- Scheduler/jobs.
+- Worker HTTP health server.
+- Automatic Web/Worker migrations.
+- Production lifecycle refactor when the defect is test orchestration.
+- Phase 2 closeout artifact or Phase 3 advancement.
+
+DELIVERY / REVIEW NOTES
+Start by reproducing/tracing the focused Windows DB-process hang if possible. Compare the Phase 1 integration process helper behavior to the P4 DB-process helper before editing. Keep the fix at the smallest test/package boundary that restores truthful graceful-shutdown evidence. Report every command actually executed and distinguish source diagnosis from observed Windows/Level-4 proof. Do not expose `.env` values in the report.
