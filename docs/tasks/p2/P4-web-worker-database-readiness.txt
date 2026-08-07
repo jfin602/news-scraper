@@ -1,0 +1,270 @@
+TASK: Phase 2 / P4 — Web and Worker PostgreSQL readiness integration
+
+ROADMAP PHASE
+Phase 2 — Database foundation.
+
+VERSIONING
+- This is Phase 2 prompt 4 and its assigned project version is `0.2.4`.
+- On first execution confirm P3 left `package.json` at `0.2.3`, then advance it to `0.2.4` and synchronize npm-generated lockfile package metadata.
+- If this same P4 prompt is rerun and `package.json` is already `0.2.4`, retain `0.2.4`; do not increment again.
+- `package.json` remains the sole authoritative project-version source.
+- Do not duplicate the version in docs or source constants.
+
+DEPENDS ON
+- P1 disposable PostgreSQL test foundation implemented and reviewed.
+- P2 shared production DB runtime/transaction boundary implemented and reviewed.
+- P3 migration runner and non-mutating schema compatibility/status check implemented and reviewed.
+
+GOAL
+Make PostgreSQL plus current migration compatibility a real critical dependency of both established application process roles while preserving their separation and lifecycle semantics.
+
+By the end of this prompt:
+- Web `/health/live` remains process-only and does not depend on PostgreSQL;
+- Web `/health/ready` truthfully reports PostgreSQL/schema readiness;
+- Worker does not emit `worker.ready` until the shared DB dependency is usable and schema-compatible;
+- both processes own/close their DB resources correctly;
+- neither process auto-migrates on startup.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- BOOT.md
+- AGENTS.md
+- docs/contracts/project-contract.md
+- docs/contracts/testing-and-validation-contract.md
+- docs/architecture/system-architecture.md
+- docs/operations/security-reliability-and-operations.md
+- docs/roadmap/mvp-roadmap.md
+- current P1-P3 implementation/tests
+- existing Web/Worker Phase 1 lifecycle tests
+
+CURRENT PROCESS CONTRACTS TO PRESERVE
+Web currently:
+- parses Web config;
+- starts an Express listener;
+- emits `web.listening`;
+- exposes `/health/live` and `/health/ready`;
+- performs idempotent signal-triggered server shutdown;
+- emits `web.stopped` on clean shutdown.
+
+Worker currently:
+- parses common runtime config;
+- starts an importable runtime with an explicit keepalive/lifecycle;
+- emits `worker.ready` after startup;
+- remains alive until shutdown;
+- performs idempotent shutdown;
+- emits `worker.stopped` on clean termination;
+- does not expose a Worker HTTP health server.
+
+P4 must extend these contracts rather than replace them with a second architecture.
+
+LOCKED / PRESERVED BEHAVIOR
+- Web/API and Worker remain independently runnable process roles.
+- Web/API must not perform Source collection inline.
+- Worker must not require Web/API to be running.
+- Do not add a Worker HTTP health server.
+- Shared DB behavior must be consumed through the canonical P2 `src/database` boundary; do not create Web-specific or Worker-specific pools/transaction wrappers.
+- Process startup must not run migrations automatically.
+- Shared engine/process code remains topic independent.
+- Do not add domain schema/persistence, collection, jobs, scheduler, Sources, Articles, or admin behavior.
+- Secrets/raw PostgreSQL errors/credential-bearing connection strings must not appear in process output.
+
+DATABASE READINESS DEFINITION
+A process database dependency is ready only when:
+1. `NEWS_SCRAPER_DATABASE_URL` is valid;
+2. PostgreSQL is reachable through the shared database boundary;
+3. the database migration/schema status from P3 is current and compatible with the repository migration set.
+
+Reachability alone is not enough. A reachable database with an uninitialized ledger, pending migration, checksum mismatch, or missing-local/applied migration history must not be advertised as current/ready.
+
+The readiness check itself must be non-mutating. It must not create the migration ledger, apply migrations, alter schema, or repair history.
+
+WEB APP DEPENDENCY INJECTION
+Refactor `createWebApp` (or introduce the smallest equivalent app construction boundary) so readiness is injected rather than imported from process-global mutable database state.
+
+The app-level readiness abstraction should be narrow enough for deterministic tests to supply a fake ready/unready dependency without PostgreSQL.
+
+Do not make ordinary Web component tests spin up PostgreSQL merely to exercise HTTP semantics.
+
+WEB `/health/live`
+Preserve liveness as process/server health:
+- no database ping or migration query;
+- HTTP 200 when the Web process/listener is responsive;
+- deterministic safe JSON body retaining the established `role: 'web'` identity;
+- `Cache-Control: no-store`;
+- database outage must not make this endpoint fail merely because the DB is down.
+
+WEB `/health/ready`
+Make readiness dependency-aware.
+
+Success:
+- database ping succeeds;
+- schema/migration compatibility is current;
+- HTTP 200;
+- deterministic bounded JSON indicating ready and Web role.
+
+Failure:
+- database unreachable OR schema not current/compatible;
+- HTTP 503;
+- deterministic bounded non-ready body;
+- no raw PostgreSQL error, stack trace, database URL, credentials, migration SQL, or sensitive environment data.
+
+The exact JSON shape can evolve minimally, but existing consumers/tests for successful `status: 'ready', role: 'web'` should be preserved if practical rather than changed gratuitously.
+
+WEB PROCESS STARTUP / SHUTDOWN
+Startup behavior:
+- parse Web + required DB configuration before listener startup;
+- malformed/missing DB configuration fails predictably before listening and emits only safe startup failure output;
+- a syntactically valid DB URL whose server/database is temporarily unavailable should still allow the Web HTTP listener to start so `/health/live` remains operational and `/health/ready` can report 503;
+- do not require DB connectivity as a pre-listen gate for Web.
+
+Shutdown ownership:
+1. stop accepting/drain Web server using existing lifecycle boundary;
+2. close the owned database pool;
+3. emit clean `web.stopped` only after owned resources are closed;
+4. repeated/concurrent shutdown signals remain idempotent;
+5. startup failure after a DB object has been created must close it before process completion.
+
+Do not add retry loops/backoff.
+
+WORKER STARTUP READINESS
+Worker readiness is different from Web liveness/readiness because Worker has no health HTTP server.
+
+Before `worker.ready`, the real Worker entrypoint/runtime must prove:
+- application DB config valid;
+- PostgreSQL ping succeeds;
+- migration/schema state is current.
+
+If any dependency validation fails:
+- never emit `worker.ready`;
+- emit bounded safe `worker.start_failed` or equivalent established failure event;
+- exit nonzero;
+- close any DB/runtime resources already created;
+- do not expose raw PostgreSQL details or credentials.
+
+Worker must still start without Web host/port configuration and without a Web process running.
+
+WORKER RUNTIME / SHUTDOWN
+Extend the importable Worker runtime/bootstrap so it owns the DB lifecycle explicitly.
+
+Requirements:
+- preserve existing keepalive behavior after readiness;
+- preserve idempotent `shutdown()` contract;
+- close database pool as part of shutdown;
+- close keepalive resources;
+- resolve `stopped` only after owned shutdown work completes;
+- repeated/concurrent shutdown requests return/share the same logical shutdown work;
+- do not introduce a second Worker lifecycle path.
+
+DETERMINISTIC UNIT / INTEGRATION TEST STRATEGY
+After P4, real process success with full dependencies genuinely requires PostgreSQL. Do not add `NODE_ENV=test`, special environment switches, or production safety bypasses that skip database readiness just to keep old tests green.
+
+Instead:
+- inject fake readiness/database dependencies into app/runtime component tests;
+- keep ordinary Web HTTP tests deterministic without PostgreSQL;
+- keep ordinary Worker runtime lifecycle tests deterministic with an injected fake dependency where appropriate;
+- preserve malformed configuration process-negative tests that fail before DB contact when they remain meaningful;
+- move/add true DB-backed real-entrypoint success/failure behavior under `test:db`.
+
+ORDINARY WEB TESTS
+At Level 2/3 prove with injected controlled readiness:
+- `/health/live` stays 200 whether fake DB readiness is healthy or unhealthy;
+- `/health/live` does not call the readiness dependency if observable through the injected fake;
+- `/health/ready` returns 200 for ready state;
+- `/health/ready` returns 503 for unavailable/incompatible state;
+- responses remain `no-store` and JSON;
+- safe response bodies do not expose injected synthetic secret/error values;
+- existing Web server lifecycle and host/port configuration regressions remain protected.
+
+ORDINARY WORKER TESTS
+At Level 2/3 prove with controlled dependencies:
+- readiness validation occurs before state becomes ready;
+- failed dependency validation prevents ready state;
+- keepalive remains active after successful readiness;
+- shutdown remains idempotent;
+- DB close and keepalive cleanup occur during shutdown;
+- Worker remains independent of Web-specific config.
+
+REAL POSTGRESQL / PROCESS TESTS
+Use P1 disposable databases and P3 migrations to establish Level 4 evidence.
+
+Web real-process cases:
+- migrated/current disposable DB: real Web entrypoint listens; `/health/live` 200; `/health/ready` 200; clean signal shutdown closes resources and exits zero;
+- syntactically valid but unavailable/nonexistent application DB: real Web still listens; `/health/live` 200; `/health/ready` 503; clean shutdown remains possible;
+- reachable but uninitialized/pending/incompatible DB: liveness 200; readiness 503;
+- synthetic credential-bearing DB URL in failure scenario is not printed to stdout/stderr.
+
+Worker real-process cases:
+- migrated/current disposable DB: real Worker emits `worker.ready`, remains running, and shuts down cleanly;
+- malformed/missing DB config: no ready event, safe startup failure, nonzero exit;
+- unreachable/nonexistent DB: no ready event, safe startup failure, nonzero exit;
+- reachable but uninitialized/pending/incompatible DB: no ready event, safe startup failure, nonzero exit;
+- synthetic credential-bearing connection failure does not leak the secret;
+- Worker starts successfully without Web process and without Web host/port variables when its DB is ready.
+
+Avoid arbitrary sleeps; reuse/better-factor the existing process line/exit waiting helpers or introduce test-only helpers if needed. Keep process-test helpers out of production source.
+
+LIKELY FILE SCOPE
+Expected approximately:
+- package.json
+- package-lock.json
+- src/app/web/create-app.ts
+- src/app/web/main.ts
+- src/app/worker/main.ts
+- src/app/worker/runtime.ts
+- src/database/* only where a small readiness/composition extension belongs canonically
+- test/integration/web-health.test.ts
+- test/integration/web-process.test.ts
+- test/integration/worker-process.test.ts
+- test/unit/worker-runtime.test.ts
+- test/database/web-database-readiness.test.ts
+- test/database/worker-database-readiness.test.ts
+- test/support/* only for reusable test-only process/database helpers
+
+Do not add Phase 3+ domain files.
+
+BROADER REGRESSION MATRIX
+Because P4 touches both process lifecycles, execute against the final P4 tree:
+- npm run format:check
+- npm run lint
+- npm run typecheck
+- npm test
+- npm run test:unit
+- npm run test:integration
+- npm run check
+- npm run test:db with valid dedicated admin prerequisite
+- explicit missing-admin `test:db` negative remains clear/nonzero
+- committed-change whitespace/diff validation appropriate to P4
+
+Also physically inspect/execute enough real process cases through the DB suite or explicit commands to prove actual Web/Worker entrypoints use the shared database boundary rather than only app factories/fakes.
+
+REQUIRED EVIDENCE LEVELS
+- Level 1: static/config/module/process-boundary checks.
+- Level 2: injected dependency/state/lifecycle behavior.
+- Level 3: HTTP/component/process behavior independent of real DB where applicable.
+- Level 4: real PostgreSQL-backed process readiness and schema compatibility.
+
+ACCEPTANCE CRITERIA
+- `package.json` and lockfile metadata are synchronized at `0.2.4`.
+- Web `/health/live` remains independent of DB state and returns 200 while the process is responsive.
+- Web `/health/ready` returns 200 only when DB is reachable and migration state is current; otherwise 503.
+- Web with a syntactically valid but unavailable DB can still listen and expose liveness/readiness truthfully.
+- Worker never emits `worker.ready` until DB + schema readiness succeeds.
+- Worker dependency failure is safe, nonzero, and produces no ready event.
+- Both processes close the shared DB boundary on shutdown/startup failure.
+- Worker still has no HTTP health server and remains independent of Web.
+- No auto-migration occurs at process startup.
+- Real PostgreSQL process evidence exists for success and failure paths.
+- No credentials/raw DB details leak through health bodies or process output.
+
+NON-GOALS
+- Domain schema/persistence.
+- Source collection or Collection runs.
+- Retry/backoff/circuit breaking.
+- Worker HTTP health server.
+- Automatic migrations.
+- Scheduler/jobs.
+- Publication/Source bootstrap/admin behavior.
+- Browser/deployment/live-Source validation.
+
+DELIVERY / REVIEW NOTES
+Trace both process owners and all existing lifecycle tests before changing shared behavior. Do not treat a passing fake-dependency unit test as proof that the real entrypoints connect to PostgreSQL. If P1-P3 implementation differs materially from the expected boundaries, adapt within the canonical shared DB/migration ownership rather than duplicating logic, and report any material plan conflict.
