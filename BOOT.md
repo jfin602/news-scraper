@@ -2,7 +2,7 @@
 
 This is the session initialization contract for repository-aware work in `jfin602/news-scraper`. Read it first in a new ChatGPT/Codex session.
 
-It establishes project identity, canonical terminology, authority, document routing, workflow gates, shorthand commands, and repository safety rails. It is a router/interpreter, not a substitute for specialized contracts, ADRs, implementation docs, or tests.
+It establishes project identity, canonical terminology, authority, document routing, workflow gates, shorthand commands, and repository safety rails. It is a router/interpreter, not a substitute for specialized contracts, ADRs, implementation docs, tests, or observed validation evidence.
 
 ## Project identity
 
@@ -27,6 +27,8 @@ The first demonstrable milestone is: at least two real approved RSS/Atom Sources
 
 Do not front-load admin convenience, native authentication, feed discovery polish, duplicate moderation, or HTML collection into that critical path unless a true dependency is demonstrated.
 
+Every implementation phase inherits `docs/contracts/testing-and-validation-contract.md`. Fast delivery does not permit regression protection, persistence proof, network-safety tests, or final-tree validation to be deferred when the corresponding behavior is introduced.
+
 ## New-session startup
 
 For project-wide work refresh:
@@ -36,7 +38,7 @@ For project-wide work refresh:
 3. `AGENTS.md`
 4. `docs/contracts/project-contract.md`
 5. `docs/roadmap/mvp-roadmap.md`
-6. narrowest governing contract/ADR
+6. narrowest governing contract/ADR, including `docs/contracts/testing-and-validation-contract.md` for implementation/review work
 7. relevant implementation/tests
 8. recent commits affecting the area when recency matters
 
@@ -65,10 +67,11 @@ Governed by `docs/contracts/domain-and-data-contract.md`.
 - `contract` = behavior implementation must preserve
 - `ADR` = decision record in `docs/decisions/`
 - `task` = implementation prompt under `docs/tasks/`
+- `validation artifact` = durable record under `docs/validation/` of evidence actually observed against a specific source tree/environment; it does not redefine contracts
 - `refresh` = re-read current repository sources before answering
 - `lock` = treat a decision as authoritative and identify documents that must reflect it
 
-Do not blur Source vs endpoint, approval vs lifecycle/operational state, operational state vs health, Article identity vs duplicate identity, Article visibility vs duplicate role, or external admin access control vs application resource validation.
+Do not blur Source vs endpoint, approval vs lifecycle/operational state, operational state vs health, Article identity vs duplicate identity, Article visibility vs duplicate role, external admin access control vs application resource validation, or source inspection vs executed validation evidence.
 
 ## Authority and conflicts
 
@@ -76,13 +79,15 @@ Canonical authority is `docs/contracts/project-contract.md`:
 
 1. locked laws;
 2. explicit project-contract invariants;
-3. domain/lifecycle contracts;
+3. domain/lifecycle/testing contracts;
 4. architecture/interface/security contracts and Accepted ADRs;
 5. roadmap/implementation notes;
 6. root summaries/routing (`AGENTS.md`, `README.md`, `BOOT.md`);
 7. implementation;
 8. historical task prompts;
 9. comments/commit messages/stale notes.
+
+Observed validation evidence proves behavior only for the source tree/environment/procedure actually tested; it does not outrank or redefine a governing contract.
 
 Current user instruction controls task scope. A proposed locked-law change is a contract-change request, not permission for lower-authority work to override it silently.
 
@@ -95,6 +100,7 @@ Report authoritative conflicts rather than choosing silently.
 | Locked laws / authority / product boundaries | `docs/contracts/project-contract.md` |
 | MVP users / demo-first capabilities / exclusions | `docs/contracts/mvp-scope-and-users.md` |
 | Terminology / states / entities / identity / provenance | `docs/contracts/domain-and-data-contract.md` |
+| Testing / regression / evidence / CI / DB/fixture/browser/live validation | `docs/contracts/testing-and-validation-contract.md` |
 | Process/module architecture / staged Worker execution / scheduling / transactions | `docs/architecture/system-architecture.md` |
 | Approval / bootstrap / collection / safety / parsing / normalization / Relevance / identity / run accounting | `docs/contracts/source-and-collection-contract.md` |
 | Article visibility / duplicate role / review/groups / Primary | `docs/contracts/article-lifecycle-and-deduplication.md` |
@@ -106,8 +112,9 @@ Report authoritative conflicts rather than choosing silently.
 | Original-link/normalization decision | `docs/decisions/original-link-and-normalized-metadata.md` |
 | Cloudflare Access admin perimeter | `docs/decisions/cloudflare-access-admin-perimeter.md` |
 | Documentation index | `docs/README.md` |
+| Specialized validation plans | `docs/testing/` when present |
 | Implementation prompts | `docs/tasks/` when present |
-| Validation artifacts | `docs/validation/` when present |
+| Durable validation artifacts | `docs/validation/` when present |
 
 If a path does not exist, search for its current equivalent before assuming intentional deletion.
 
@@ -138,6 +145,11 @@ If a path does not exist, search for its current equivalent before assuming inte
 - State-changing admin browser actions use CSRF/equivalent request-integrity controls when introduced; application commands still validate Publication/resource ownership.
 - Native application administrator accounts/sessions/roles/account recovery/per-user Publication authorization/identity-linked audit attribution are deferred beyond MVP.
 - Push/webhook adapters and pinning/featured ordering are deferred beyond MVP unless explicitly promoted.
+- Every implementation change requires focused automated coverage and relevant broader regression coverage under the testing contract.
+- Persistence/concurrency claims require the evidence level capable of proving real PostgreSQL behavior; mocks do not substitute for database guarantees.
+- Ordinary deterministic CI does not rely on live public Sources, and test composition must not weaken production whitelist/SSRF policy.
+- Required suites do not pass by silently skipping prerequisites or selecting zero tests.
+- Validation claims apply to the exact final source tree tested; previous passing evidence does not automatically transfer to later source changes.
 
 ## Roadmap state
 
@@ -173,7 +185,7 @@ Phase 0 is complete after the final full documentation review/alignment.
 19. Phase 19 — Reliability, observability, and production operations
 20. Phase 20 — Customer launch validation
 
-Do not advance by assumption. Verify each phase's exit gate before updating current phase.
+Do not advance by assumption. Verify each phase's own exit gate plus the inherited testing-and-validation gate against the final tree before updating current phase.
 
 ## Working preferences
 
@@ -181,13 +193,14 @@ Do not advance by assumption. Verify each phase's exit gate before updating curr
 - Prefer file-scoped, regression-safe prompts.
 - State allowed files when knowable.
 - Include non-goals and preserved behavior.
-- Require focused + broader regression tests.
-- Do not claim runtime/browser behavior unless observed.
+- Require focused + broader regression tests and identify the evidence level needed for each acceptance claim.
+- Do not claim runtime/browser/database/live-Source behavior unless observed at the corresponding evidence level.
 - Prefer smallest correct incremental change.
 - Trace shared helpers/consumers before changes.
 - Before collection changes trace bootstrap/approval → lifecycle/operational state → manual/scheduled execution → lock → Collection run → network safety → fetch/redirect → parse → normalize → Article-link validation → Relevance → identity → observation → duplicate → run accounting → health → tests.
 - Before Article/duplicate changes trace external IDs/canonical URLs/uniqueness → observations → review candidates → groups → Primary → moderation → feed → tests.
 - Before admin changes trace Cloudflare Access perimeter → origin protection → request integrity → Publication/resource ownership → mutation → change history → tests.
+- Before approving a change, trace the testing blast radius and confirm relevant regression suites were actually executed against the reviewed final tree.
 - Make a concrete choice when asked for `recommended`.
 - Never invent repository state, tests, browser results, Source behavior, or history.
 
@@ -233,7 +246,7 @@ Trace Article identity separately from true-duplicate evidence, review state, gr
 Identify affected contracts, ADRs, schema/migrations, jobs/services/routes/read models/UI/tests/docs.
 
 ### `/regression <behavior>`
-Trace suspected regression to likely change, affected invariants, and missing protection.
+Trace suspected regression to likely change, affected invariants, missing test protection, and the evidence level required to prove a fix.
 
 # Documentation workflow
 
@@ -277,8 +290,10 @@ Determine safe task boundaries from established behavior/contracts/roadmap. No w
 
 Return target behavior, constraints, roadmap phase, prompt count/order, goal/summary/dependencies/boundary rationale/deferred behavior, and closeout task when needed.
 
+Testing is part of task-boundary assessment: identify whether a prompt can own its focused tests and the required broader regression impact without becoming monolithic.
+
 ## `/prompt-plan`
-Requires completed `/prompt-ass` in current conversation. Perform source-level planning for every assessed prompt: contracts/ADRs, implementation, schemas/migrations, process roles, helpers/consumers/tests/recent changes, likely file scope, preserved behavior, risks, tests, runtime/browser validation, docs implications, acceptance criteria, non-goals.
+Requires completed `/prompt-ass` in current conversation. Perform source-level planning for every assessed prompt: contracts/ADRs, implementation, schemas/migrations, process roles, helpers/consumers/tests/recent changes, likely file scope, preserved behavior, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs implications, acceptance criteria, non-goals.
 
 Material boundary revisions produce `Planning needed`. No writes.
 
@@ -315,7 +330,9 @@ P2-<short-task-slug>.txt
 - `/collector-check <source or collector>`
 - `/dedupe-check <rule or case>`
 
-These must honor current contracts, state separation, security, provenance, idempotency, failure isolation, and feed eligibility.
+These must honor current contracts, state separation, security, provenance, idempotency, failure isolation, feed eligibility, and `docs/contracts/testing-and-validation-contract.md`.
+
+Reviews distinguish inspection from executed evidence. Do not upgrade a claim from source inspection to unit/integration/database/browser/live/deployment proof without observing the corresponding evidence.
 
 # Decision commands
 
@@ -337,17 +354,19 @@ Recommend the single most logical next task.
 
 # Codex prompt requirements
 
-Finished implementation prompts normally include Task, Context, Current/Required behavior, roadmap phase, governing contracts/ADRs/laws, inspected source, allowed/forbidden files, constraints, preserved behavior, applicable security/provenance/idempotency/failure-isolation implications, risks, focused/broader tests, runtime/browser validation, docs updates, acceptance criteria, and non-goals.
+Finished implementation prompts normally include Task, Context, Current/Required behavior, roadmap phase, governing contracts/ADRs/laws, inspected source, allowed/forbidden files, constraints, preserved behavior, applicable security/provenance/idempotency/failure-isolation implications, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs updates, acceptance criteria, and non-goals.
 
-Collection prompts preserve bootstrap/approval/lifecycle/operational boundaries, truthful Collection runs, pre-request network safety, run isolation, retry limits when applicable, and Source-domain policy.
+Every implementation prompt inherits `docs/contracts/testing-and-validation-contract.md`. A prompt must not treat tests as optional cleanup, silently accept missing prerequisites, or claim a higher evidence level than its validation procedure can prove.
 
-Persistence/identity prompts address canonical Relevance ordering, transactional idempotency, and Article observations.
+Collection prompts preserve bootstrap/approval/lifecycle/operational boundaries, truthful Collection runs, pre-request network safety, run isolation, retry limits when applicable, Source-domain policy, and controlled deterministic collection tests without production safety bypasses.
 
-Duplicate prompts preserve every Article/observation, exactly one Primary/group, review-state persistence, false-positive safeguards, and manual reversibility.
+Persistence/identity prompts address canonical Relevance ordering, transactional idempotency, Article observations, real-PostgreSQL constraints/concurrency where applicable, and rollback behavior.
 
-Publication/Relevance prompts preserve topic independence, deterministic rule precedence, and prospective-by-default rule edits.
+Duplicate prompts preserve every Article/observation, exactly one Primary/group, review-state persistence, false-positive safeguards, manual reversibility, and regression corpus coverage.
 
-Public-feed prompts preserve original-publisher destination and visible ungrouped-or-Primary eligibility.
+Publication/Relevance prompts preserve topic independence, deterministic rule precedence, prospective-by-default rule edits, and full precedence-matrix tests.
+
+Public-feed prompts preserve original-publisher destination and visible ungrouped-or-Primary eligibility; browser-dependent claims require browser evidence.
 
 Admin prompts preserve Cloudflare Access/origin protection, request integrity, Publication/resource ownership validation, and the MVP prohibition on unnecessary native identity/account work.
 
@@ -366,10 +385,11 @@ Admin prompts preserve Cloudflare Access/origin protection, request integrity, P
 - No Web/API inline Source fetching.
 - No bypass of the Relevance boundary even before configurable rules exist.
 - No deletion of Article/observation provenance because duplicate suppression exists.
-- No weakening identity/duplicate/security boundaries to make tests pass.
+- No weakening identity/duplicate/security/testing boundaries to make tests pass.
+- No silent-green required test suite caused by missing prerequisites, skipped coverage, or zero matched tests.
 - No MVP native administrator account/session/role subsystem unless explicitly promoted.
 - Search all references before renames.
-- Do not report tests/runtime/browser behavior as verified unless observed.
+- Do not report tests/runtime/browser/database/live-Source behavior as verified unless observed at the appropriate evidence level.
 - Do not create PRs, merge, force-update history, or perform non-document history changes unless explicitly instructed.
 - Preserve smallest viable diff for scoped fixes.
 
@@ -379,6 +399,6 @@ Prefer one canonical design. Do not add old/new aliases, duplicate synchronized 
 
 # Boot maintenance
 
-Update BOOT when phase, core paths, terminology, commands, authority, locked laws, modification conventions, branch, repository identity, critical delivery ordering, or foundational security/deployment decisions change.
+Update BOOT when phase, core paths, terminology, commands, authority, locked laws, modification conventions, branch, repository identity, critical delivery ordering, foundational security/deployment decisions, or project-wide testing/validation policy changes.
 
 Detailed feature specifications belong in specialized contracts/ADRs. When BOOT conflicts with a higher-authority contract, the contract wins and BOOT must be corrected.
