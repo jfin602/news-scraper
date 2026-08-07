@@ -1,0 +1,255 @@
+TASK: Phase 1 / P3 — Final-tree local validation and Phase 1 closeout evidence
+
+ROADMAP PHASE
+Phase 1 — Application foundation.
+
+DEPENDS ON
+- P0-project-scaffold-config.txt implemented and reviewed.
+- P1-web-api-health.txt implemented and reviewed.
+- P2-worker-lifecycle.txt implemented and reviewed.
+- All Phase 1 runtime/source changes committed so the source tree to be validated has a stable commit SHA.
+
+GOAL
+Execute the complete Phase 1 local validation matrix against the exact final implementation source tree, physically exercise the real Web/API and Worker processes, prove required negative cases, and create the durable Phase 1 validation artifact required by the testing contract.
+
+This is a closeout/evidence task, not a feature-development task.
+
+GOVERNING DOCUMENTS
+Read current versions before execution:
+- BOOT.md
+- AGENTS.md
+- docs/contracts/testing-and-validation-contract.md
+- docs/architecture/system-architecture.md
+- docs/operations/security-reliability-and-operations.md
+- docs/roadmap/mvp-roadmap.md
+- current package scripts/config/source/tests produced by P0-P2
+
+PRESERVED BEHAVIOR / RULES
+- Do not advance the roadmap/current phase to Phase 2 in this task.
+- Do not claim a test/runtime behavior was verified unless the corresponding command/procedure was actually executed and observed.
+- Do not use hosted CI/status checks as evidence.
+- Do not silently skip missing prerequisites.
+- Required suites must not pass by selecting zero tests.
+- No browser/database/live-Source evidence is required or claimed for Phase 1.
+- Validation evidence records what happened; it does not redefine contracts.
+
+CRITICAL CLOSEOUT RULE
+If validation reveals an implementation defect, contract violation, flaky/hanging test, false-green suite, unsafe output, or other failure:
+1. stop Phase 1 closeout;
+2. report the exact failed invariant/command/procedure;
+3. do not hide/fix the defect inside this closeout task unless the current user explicitly authorizes a new implementation task;
+4. return the fix to the owning P0/P1/P2 boundary;
+5. after the fix is committed, rerun this P3 procedure from the beginning against the new final source tree.
+
+Do not create an accepted Phase 1 validation artifact for a failing source tree.
+
+SOURCE MODIFICATION SCOPE
+This task should normally create only:
+- docs/validation/phase-1-application-foundation.md
+
+Do not modify runtime/source/tests/package configuration during successful closeout.
+
+PRECONDITION / TREE IDENTITY
+Before validation:
+- require a clean working tree (`git status --short` empty);
+- record `VALIDATED_SOURCE_SHA=$(git rev-parse HEAD)`;
+- record branch name;
+- record relevant OS/platform information;
+- record Node and npm versions.
+
+The validated source SHA is the committed P0-P2 implementation tree before the evidence artifact itself is created.
+
+PHASE 1 IMPLEMENTATION BASE FOR DIFF VALIDATION
+The testing contract requires committed-change whitespace/diff validation, not an empty working-tree diff.
+
+Determine the first commit that introduced the Phase 1 implementation scaffold (normally the commit that first added `package.json`) and set its parent as `PHASE1_BASE_SHA`.
+
+Record both:
+- `PHASE1_BASE_SHA`
+- `VALIDATED_SOURCE_SHA`
+
+Then run committed-range whitespace validation equivalent to:
+- `git diff --check PHASE1_BASE_SHA...VALIDATED_SOURCE_SHA`
+
+Do not substitute plain `git diff --check` on a clean checkout because that may inspect no committed Phase 1 changes.
+
+ENVIRONMENT / TOOL VERSION EVIDENCE
+Record actual output for at least:
+- `node --version`
+- `npm --version`
+- OS/platform identification appropriate to the environment
+
+Confirm the Node version satisfies package engines and the documented Node 24 LTS baseline.
+
+REPRODUCIBLE INSTALL VALIDATION
+Run:
+- `npm ci`
+
+This must succeed from the committed lockfile. Do not replace it with a pre-existing node_modules assumption.
+
+STATIC / DETERMINISTIC AUTOMATED VALIDATION
+Run each required command explicitly and observe its result:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm test`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run check`
+- committed-range `git diff --check` using the Phase 1 base and validated source SHA
+
+If `npm run check` intentionally includes some of the commands above, still record its execution as the root aggregate contract. It is acceptable that explicit component commands duplicate work because closeout is proving command contracts as well as the aggregate path.
+
+ZERO-SELECTION NEGATIVE VALIDATION
+Physically invoke the repository's test-selection wrapper/command with a deliberately nonexistent pattern.
+
+Expected result:
+- zero matching tests are detected before/at runner invocation;
+- command exits nonzero;
+- output clearly explains that no required tests matched.
+
+Record the command and observed nonzero result. A zero-match command that exits successfully is a Phase 1 closeout failure.
+
+PHYSICAL WEB/API RUNTIME VALIDATION
+Run the real Web/API entrypoint/package script, not only tests around an app factory.
+
+Use a safe local host and an available port (port 0 is preferred if the package/runtime supports reporting the actual assigned port).
+
+Observe and record:
+1. startup command;
+2. structured `web.listening` event or equivalent actual listener evidence;
+3. actual bound host/port;
+4. HTTP request to `/health/live`;
+5. observed HTTP status and concise JSON body;
+6. HTTP request to `/health/ready`;
+7. observed HTTP status and concise JSON body;
+8. SIGTERM/SIGINT graceful-shutdown action;
+9. clean `web.stopped`/termination evidence;
+10. successful exit after clean shutdown.
+
+Expected Phase 1 health semantics:
+- live: Web process is responsive;
+- ready: initialization/current Phase 1 dependencies are usable;
+- no PostgreSQL dependency exists yet.
+
+Do not use browser evidence; curl/native HTTP is sufficient for this Phase 1 HTTP process claim.
+
+WEB INVALID-CONFIG NEGATIVE VALIDATION
+Execute the actual Web startup command with intentionally invalid Phase 1 Web configuration, such as an out-of-range/non-numeric port.
+
+Expected result:
+- listener does not become ready/listening;
+- bounded configuration error is emitted;
+- process exits nonzero;
+- output does not dump the complete environment or secrets.
+
+Record the exact synthetic invalid value and result. Do not use any real secret values in validation.
+
+PHYSICAL WORKER RUNTIME VALIDATION
+Run the actual Worker entrypoint/package script with valid common configuration.
+
+Observe and record:
+1. startup command;
+2. `worker.ready` lifecycle event or equivalent readiness evidence;
+3. confirmation the process remains running after readiness rather than immediately exiting;
+4. SIGTERM/SIGINT shutdown action;
+5. `worker.stopped` or equivalent clean-stop evidence;
+6. successful process exit.
+
+Confirm the Worker starts without Web/API running and without requiring Web-only host/port configuration.
+
+WORKER INVALID-CONFIG NEGATIVE VALIDATION
+Execute the actual Worker command with intentionally invalid common runtime configuration (for example unsupported NODE_ENV).
+
+Expected result:
+- no Worker ready event;
+- bounded safe configuration error;
+- nonzero process exit;
+- no environment/secret dump.
+
+Record the exact synthetic invalid input and observed result.
+
+PROCESS ISOLATION CONFIRMATION
+During physical validation, demonstrate:
+- Web can start/serve health without Worker running;
+- Worker can start/become ready without Web running.
+
+This is runtime evidence for the required process separation.
+
+EVIDENCE LEVELS TO RECORD
+Phase 1 closeout should claim only the evidence actually established:
+- Level 1: format/lint/type/static/diff checks.
+- Level 2: automated configuration/runtime unit tests.
+- Level 3: Web HTTP/component/process and Worker process integration/runtime behavior.
+
+Explicitly state that Phase 1 does not establish:
+- Level 4 PostgreSQL/concurrency persistence evidence;
+- Level 5 collection-fixture evidence;
+- Level 6 browser evidence;
+- Level 7 approved live-Source evidence;
+- Level 8 reference-deployment evidence.
+
+VALIDATION ARTIFACT
+Only after all required validation succeeds, create:
+- `docs/validation/phase-1-application-foundation.md`
+
+The artifact should be concise but durable and include:
+- title and Phase 1 identification;
+- validation date/time;
+- branch;
+- `PHASE1_BASE_SHA`;
+- `VALIDATED_SOURCE_SHA`;
+- explanation that the validated SHA is the pre-evidence committed implementation tree;
+- OS/platform;
+- Node version;
+- npm version;
+- each executed static/test command with PASS result and useful summary/counts where available;
+- committed-range diff check command/result;
+- zero-test-selection negative command/result;
+- Web physical startup/live/ready/shutdown observations;
+- Web invalid-config observation;
+- Worker physical startup/readiness/shutdown observation;
+- Worker invalid-config observation;
+- process isolation observation;
+- evidence levels established;
+- explicit limitations/non-evidence levels;
+- any non-blocking environmental note that does not undermine an exit criterion.
+
+Do not paste thousands of lines of test output. Preserve exact commands and concise terminal excerpts/results sufficient to demonstrate that execution really occurred.
+
+SELF-REFERENCE / SHA TRUTHFULNESS
+The validation artifact cannot truthfully contain the commit SHA of the commit that contains itself while also claiming that exact commit was runtime-tested beforehand.
+
+Therefore use this convention:
+- `VALIDATED_SOURCE_SHA` = the clean committed implementation tree actually tested before creating the artifact;
+- the later documentation-only commit containing the validation artifact is an evidence-record commit and must not be represented as though its own SHA received the runtime validation above.
+
+After creating the artifact, perform structural/static checks appropriate to the artifact itself (including whitespace/diff inspection). Any subsequent runtime/source/test/package change invalidates the Phase 1 runtime evidence and requires rerunning the applicable closeout matrix against the new source SHA.
+
+PHASE 1 EXIT-GATE CHECK
+Before declaring closeout evidence complete, explicitly map results to each Phase 1 exit criterion:
+- Web/API starts independently and shuts down cleanly.
+- Worker starts independently and shuts down cleanly.
+- Web liveness/readiness is exercised and reflects only Phase 1 dependencies.
+- Worker startup/config/dependency readiness is exercised with no Worker HTTP server.
+- invalid/malformed Phase 1 runtime configuration fails predictably.
+- format/lint/type/tests/diff/runtime checks passed locally on the exact validated implementation tree.
+- required filtered test selection cannot false-green on zero matches.
+- shared runtime/engine source contains no indie-author-specific condition/data.
+- durable Phase 1 validation artifact records source identity, commands, environment, evidence levels, results, and limitations.
+
+NO ROADMAP ADVANCEMENT
+Successful P3 means Phase 1 has the required implementation evidence available for review/acceptance. Do not edit BOOT.md, README phase state, AGENTS.md, or roadmap to declare Phase 2 current unless a later explicit documentation workflow/approval instructs that transition.
+
+NON-GOALS
+- Feature implementation or bug fixing.
+- PostgreSQL validation.
+- Source collection or live publisher access.
+- Browser testing.
+- Deployment/reference-environment testing.
+- Hosted CI.
+- Phase 2 implementation.
+- Automatic phase-state documentation changes.
+
+DELIVERY / REVIEW NOTES
+Report every executed command/procedure and distinguish passed automated tests from physically observed runtime behavior. If any required evidence cannot be executed in the available environment, report the limitation and leave the corresponding Phase 1 claim unverified rather than manufacturing a passing artifact.
