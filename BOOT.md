@@ -280,29 +280,74 @@ phase implementation / closeout task
 
 ## `/closeout`
 
-Perform a quick repository-level handoff check after the previous roadmap phase's closeout prompt has completed and before beginning the next phase's documentation review.
+`/closeout` is a bounded phase-handoff state transition, not an audit or troubleshooting workflow. Under normal repository and tool conditions, target completion is **under 60 seconds**.
 
-Read `BOOT.md`, the roadmap, the previous phase's durable validation artifact, `package.json`, npm lock metadata, relevant phase task state, and recent commits. Confirm at minimum that:
+### Fast path
+
+Execute this sequence and do not expand it unless a material closeout blocker must be reported:
+
+1. Read this `/closeout` section and the roadmap entries needed to identify the completed phase and intended next phase.
+2. Read the completed phase's durable validation artifact and extract the accepted/validated implementation source SHA.
+3. Read `package.json`, npm lockfile root package-version metadata, and the completed phase's task filenames/version sequence.
+4. Perform one accepted-SHA-to-current-`main` compare to classify post-validation drift. Documentation-only changes do not invalidate implementation evidence. Any unvalidated implementation, test, package, migration, or runtime drift blocks handoff.
+5. If green, perform only the next-phase baseline version transition described below.
+6. Verify the transition diff, then re-read `docs/roadmap/mvp-roadmap.md` and print the complete roadmap entry for the newly current phase into the chat.
+
+The required structural checks are:
 
 - the previous roadmap phase is marked complete and the intended next phase is identifiable;
 - the durable validation artifact exists and identifies the accepted/validated implementation source SHA;
-- commits after that validated SHA do not introduce unvalidated implementation, test, package, migration, or runtime drift that would invalidate the closeout evidence;
+- the single post-validation compare shows no unvalidated implementation, test, package, migration, or runtime drift;
 - root/roadmap phase state is coherent enough to begin the next phase;
 - `package.json` and npm-generated lockfile version metadata agree before transition;
 - the completed phase's prompt/version sequence is coherent and there are no obvious stale phase artifacts that block handoff.
 
-`/closeout` is intentionally a fast structural/evidence check. It does not rerun the full phase validation matrix and must not upgrade source inspection into runtime/database/browser/live-Source proof.
+### Time and scope guardrails
 
-If any material closeout problem is found, report `Closeout check blocked`, explain the blocker, and make no version change.
+- Do not rerun the full phase validation matrix, tests, runtime checks, database checks, browser checks, or live-Source checks during `/closeout`.
+- Do not perform a broad contract/document/source review. `/docs-review` and the later planning workflow own that work.
+- Do not walk every post-validation commit individually when one commit-range comparison can classify the changed files.
+- If the range comparison reveals relevant unvalidated drift, report `Closeout check blocked` with the affected files/categories and stop. Do not perform root-cause investigation inside `/closeout`.
+- If the required repository state cannot be established quickly because a tool/read/compare primitive is unavailable, report the blocker rather than expanding into an open-ended investigation.
+- The version transition gets one predetermined safe write strategy. Do not cycle through alternate write mechanisms if that strategy is unavailable or unsafe.
+- Do not regenerate `package-lock.json`, run `npm install`, normalize dependency metadata, or manually reconstruct a large lockfile merely to change the project version.
+- Do not escalate into speculative Git plumbing or hand-built Git objects merely to overcome a connector limitation. If an exact targeted write cannot be performed safely, report `Closeout transition blocked: safe version-write primitive unavailable.` and stop.
+- A blocked closeout should remain a fast result; use a separate command/task for investigation or remediation.
 
-If the check is green, invocation of `/closeout` itself constitutes the repository owner's explicit authorization to transition to the next phase baseline. Update only:
+### Green-path version transition
 
-- `package.json` to `0.<next roadmap phase>.0`;
-- npm-generated lockfile package-version metadata to the same version.
+Invocation of `/closeout` constitutes the repository owner's explicit authorization for this version-only transition when the structural check is green.
 
-Commit that version-only transition directly to `main` unless the user requests a branch/PR. Do not modify source, tests, migrations, tasks, validation artifacts, or unrelated documentation as part of the baseline transition. Report the resulting commit SHA and confirm that the next phase `P1` target is `0.<phase>.1`.
+Before writing, capture the pre-transition `main` SHA. Then update exactly these three JSON values to `0.<next roadmap phase>.0`:
 
-As the final `/closeout` step after the successful version transition, re-read `docs/roadmap/mvp-roadmap.md` and print the complete roadmap entry for the newly current phase into the chat so the next `/docs-review` starts with fresh roadmap context. Use the current roadmap text rather than memory or a summary.
+- `package.json` top-level `version`;
+- `package-lock.json` top-level `version`;
+- `package-lock.json` `packages[""] .version` (the root package metadata; spacing here is descriptive, not a literal JSON path).
+
+Use the exact current file contents and a deterministic targeted substitution/update. Preserve every other package and lockfile value. Do not change dependencies, dependency metadata, formatting, or unrelated bytes as part of the transition.
+
+Commit the version-only transition directly to `main` unless the user requests a branch/PR. Prefer one atomic version-only commit when the available tool supports it. A high-level connector may use the smallest safe sequential file-update operation it supports, but it must not introduce any unrelated change.
+
+Immediately compare the pre-transition SHA to the resulting `main` SHA. The complete transition range MUST:
+
+- change only `package.json` and `package-lock.json`;
+- contain exactly the three expected version-value substitutions;
+- contain no dependency, integrity, license, engine, formatting, or other metadata drift.
+
+If the transition diff contains anything else, report `Closeout transition invalid`, stop the workflow, and do not print the new phase as successfully entered until the version transition is corrected through an explicitly authorized remediation.
+
+If a material structural closeout problem is found before writing, report `Closeout check blocked`, explain the blocker, and make no version change.
+
+### Required final output
+
+A successful `/closeout` response MUST contain, in this order:
+
+1. `Closeout check: GREEN`;
+2. the resulting baseline transition commit SHA (or final SHA when a high-level connector required more than one version-only commit);
+3. `Next P1 version: 0.<new phase>.1`;
+4. the **complete current roadmap entry** for the newly current phase, copied from the freshly re-read `docs/roadmap/mvp-roadmap.md` rather than memory or a summary.
+
+The roadmap entry is mandatory context for the next `/docs-review`; do not omit it even when the handoff itself is otherwise obvious.
 
 # Documentation workflow
 
