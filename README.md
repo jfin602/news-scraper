@@ -223,7 +223,20 @@ docs/
 
 ## Repository workflow
 
-Documentation:
+Phase handoff after a roadmap phase has formally closed:
+
+```text
+/closeout
+→ /docs-review
+→ /docs-apply
+→ /prompt-ass
+→ /prompt-plan
+→ /prompt-write <folder name>
+```
+
+`/closeout` performs a quick structural/evidence check of the completed phase and, only when green, advances `package.json` plus npm lock metadata to the next `0.<phase>.0` baseline. Its invocation authorizes that version-only transition; it does not rerun the full phase validation matrix.
+
+Documentation review/application:
 
 ```text
 /docs-review
@@ -239,7 +252,7 @@ Implementation prompt workflow:
 → /prompt-write <folder name>
 ```
 
-`BOOT.md` defines exact workflow gates, source-of-truth routing, validation expectations, and repository modification rules.
+`BOOT.md` defines exact workflow gates, source-of-truth routing, validation expectations, versioning behavior, and repository modification rules.
 
 ## Roadmap
 
