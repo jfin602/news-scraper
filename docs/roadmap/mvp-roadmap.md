@@ -2,39 +2,41 @@
 
 This roadmap prioritizes the fastest safe path to a working product demonstration: collect real Articles from administrator-approved Sources, normalize and persist them idempotently, and display them in a public rolling feed whose headlines link to the original publishers.
 
-Phases are intentionally narrow. Each phase should represent one cohesive implementation boundary that can be implemented, tested, reviewed, and closed without bundling unrelated feature domains.
+Phases are intentionally narrow. Each phase represents one cohesive implementation boundary that can be implemented, tested, reviewed, and closed without bundling unrelated feature domains.
 
 ## Roadmap principles
 
 - The first implementation milestone is a real end-to-end aggregation vertical slice, not a complete administrative control plane.
-- Initial Publication/Source configuration may be bootstrapped through seed/configuration tooling so collection can be proven before full admin UX exists.
+- Initial Publication/Source configuration may be bootstrapped through operator-maintained seed/configuration tooling so collection can be proven before full admin UX exists.
+- Bootstrap approval is explicit operator approval; it never bypasses whitelist eligibility or silently expands approved domains.
 - The aggregation engine remains topic independent; the initial indie-author Publication is configuration only.
-- Network safety, Source approval boundaries, normalization, provenance, and idempotent Article identity are not deferred for the tech demo because they are expensive and risky to retrofit.
-- Native application-managed administrator accounts, passwords, sessions, roles, account recovery, Publication-scoped user authorization, and identity-linked audit attribution are outside MVP. MVP admin routes are deployed behind Cloudflare Access as the external access perimeter.
-- Cloudflare Access does not replace fetch/network-safety controls, output/content safety, secrets handling, or origin/deployment protections.
+- Network safety, Source approval boundaries, Collection-run provenance, normalization, Relevance ordering, and idempotent Article identity are not deferred for the tech demo because they are expensive and risky to retrofit.
+- Before configurable Relevance rules exist, the canonical Relevance boundary runs with an empty rule set and deterministically includes safe candidates by default.
+- Native application-managed administrator accounts, passwords/passkeys, sessions, roles, account recovery, Publication-scoped user authorization, and identity-linked audit attribution are outside MVP.
+- MVP admin UI/API routes use Cloudflare Access as the external perimeter; supported deployments MUST prevent direct-origin bypass.
+- Cloudflare Access does not replace request-integrity, resource-validation, fetch/network-safety, output/content-safety, secrets, or origin protections.
 - Public-feed and collection behavior should become useful before admin convenience and moderation workflows are expanded.
 
 ## Tech-demo critical path
 
 Phases 1 through 9 form the critical path to the first demonstrable product.
 
-The tech-demo milestone is reached when at least two real approved RSS/Atom Sources can be collected through the Worker, normalized, persisted idempotently with provenance, and displayed as current public feed rows with headlines linking to the original publishers.
+The tech-demo milestone is reached when at least two real approved RSS/Atom Sources can be collected through the Worker, recorded in Collection runs, normalized, passed through the default-include Relevance boundary, persisted idempotently with Article-observation provenance, and displayed as current public feed rows with headlines linking to the original publishers.
 
 ## Phase 0 — Contracts and roadmap alignment
 
 ### Goal
-Align the governing documentation around the demo-first delivery strategy while preserving the locked aggregation laws.
+Align governing documentation around the demo-first delivery strategy while preserving locked aggregation laws.
 
 ### Depends on
 - none.
 
 ### Deliverables
 - locked project laws remain intact;
-- MVP scope/exclusions reflect Cloudflare Access rather than native application authentication;
-- roadmap uses focused implementation phases;
-- tech-demo critical path is explicit;
-- topic-specific behavior remains located in Publication configuration;
-- domain, collection, Article, feed, and security contracts remain internally coherent.
+- MVP scope reflects Cloudflare Access rather than native application authentication;
+- focused roadmap phases and explicit tech-demo critical path;
+- topic-specific behavior remains Publication configuration;
+- domain, collection, Article, feed, and security contracts are internally coherent.
 
 ### Out of scope
 - application implementation;
@@ -45,30 +47,30 @@ Align the governing documentation around the demo-first delivery strategy while 
 ### Exit gate
 - No unresolved contradiction exists among Phase 0 documents.
 - Implementation tasks can cite measurable contract behavior.
-- Approval/trust, lifecycle, operational state, health, Article identity, duplicate role, provenance, and feed eligibility remain unambiguous.
-- Native administrator authentication/identity requirements are no longer blockers for MVP implementation.
+- Approval/trust, lifecycle, operational state, health, Article identity, duplicate role, provenance, Relevance ordering, and feed eligibility are unambiguous.
+- Native administrator authentication/identity requirements are not MVP blockers.
 
 ## Phase 1 — Application foundation
 
 ### Goal
-Create the independently runnable application skeleton without introducing business behavior.
+Create the independently runnable application skeleton without business behavior.
 
 ### Depends on
 - Phase 0.
 
 ### Deliverables
-- Node.js/TypeScript project scaffold;
+- Node.js/TypeScript scaffold;
 - Web/API entry point;
 - Worker entry point;
 - environment validation;
 - Publication-aware module boundaries;
-- linting, formatting, type checking, and test foundation;
+- linting, formatting, type checking, test foundation;
 - health/readiness endpoints;
 - basic CI.
 
 ### Out of scope
 - domain persistence;
-- durable collection jobs;
+- durable jobs;
 - Source fetching;
 - Article persistence;
 - admin UI.
@@ -76,12 +78,12 @@ Create the independently runnable application skeleton without introducing busin
 ### Exit gate
 - Web/API and Worker start independently.
 - CI rejects formatting/type/test failures.
-- No indie-author-specific condition exists in shared engine modules.
+- Shared engine modules contain no indie-author-specific condition.
 
 ## Phase 2 — Database foundation
 
 ### Goal
-Establish durable PostgreSQL infrastructure before adding domain models.
+Establish durable PostgreSQL infrastructure before domain models.
 
 ### Depends on
 - Phase 1.
@@ -89,7 +91,7 @@ Establish durable PostgreSQL infrastructure before adding domain models.
 ### Deliverables
 - PostgreSQL connection/configuration;
 - migration workflow;
-- development/test database workflow;
+- development/test DB workflow;
 - transaction utilities;
 - dependency health/readiness checks;
 - migration validation in CI.
@@ -97,18 +99,18 @@ Establish durable PostgreSQL infrastructure before adding domain models.
 ### Out of scope
 - complete domain schema;
 - Source collection;
-- Article identity rules;
-- durable scheduler/job behavior.
+- Article identity;
+- durable scheduler/jobs.
 
 ### Exit gate
 - A clean database can be migrated reproducibly.
-- Web/API and Worker can connect through the shared database boundary.
+- Web/API and Worker connect through the shared database boundary.
 - Migration/test failures are surfaced by CI.
 
 ## Phase 3 — Publication and Source configuration core
 
 ### Goal
-Represent the minimum trusted configuration required to collect approved feeds without waiting for a full admin interface.
+Represent the minimum trusted configuration required to collect approved feeds without waiting for admin UI.
 
 ### Depends on
 - Phase 2.
@@ -123,19 +125,26 @@ Represent the minimum trusted configuration required to collect approved feeds w
 - Source approved-domain policy;
 - endpoint URL/type and narrowing policy;
 - basic polling configuration fields;
-- seed/bootstrap mechanism for initial Publication and approved Sources.
+- idempotent seed/bootstrap mechanism for initial Publication and approved Sources.
+
+### Bootstrap rules
+- bootstrap may explicitly create `approved` Source/endpoint state as deliberate operator approval;
+- no discovery/auto-approval;
+- no approval inferred from fetch success;
+- no silent domain widening;
+- bootstrap must not overwrite later operator-managed state on ordinary startup.
 
 ### Out of scope
 - admin CRUD screens;
-- Categories/Relevance rules;
+- configurable Categories/Relevance rules;
 - Source health UI;
 - collection scheduling;
 - outbound HTTP.
 
 ### Exit gate
-- A generic Publication and at least two approved RSS/Atom endpoints can be configured without changing aggregation-engine business logic.
+- A generic Publication and at least two approved RSS/Atom endpoints can be configured without engine-topic logic.
 - Invalid state/domain configurations are rejected.
-- Initial indie-author Source configuration exists only as Publication-owned data/bootstrap input.
+- Initial indie-author configuration exists only as Publication-owned bootstrap data.
 
 ## Phase 4 — Collection eligibility and network safety
 
@@ -146,14 +155,14 @@ Guarantee that only eligible, approved, safe Source endpoints may reach the outb
 - Phase 3.
 
 ### Deliverables
-- Publication collection-active eligibility checks;
-- Source/endpoint approval, lifecycle, and operational eligibility checks;
+- Publication collection-active eligibility;
+- Source/endpoint approval, lifecycle, operational checks;
 - HTTP/HTTPS scheme policy;
 - approved-domain validation;
 - DNS/address/port safety validation;
 - loopback/private/link-local/multicast/cloud-metadata rejection;
 - redirect destination revalidation primitives;
-- endpoint run-lock primitive sufficient to prevent overlapping collection work;
+- endpoint run-lock primitive;
 - explicit skip/rejection reasons.
 
 ### Out of scope
@@ -163,15 +172,15 @@ Guarantee that only eligible, approved, safe Source endpoints may reach the outb
 - public feed.
 
 ### Exit gate
-- Eligible test endpoints can reach the fetch boundary.
+- Eligible test endpoints reach the fetch boundary.
 - Unapproved, archived, paused, disabled, or unsafe endpoints cannot produce outbound requests.
-- Redirects cannot bypass the same safety boundary.
+- Redirects cannot bypass safety.
 - Overlapping work for one endpoint can be prevented.
 
-## Phase 5 — RSS/Atom transport and parsing
+## Phase 5 — RSS/Atom transport, parsing, and minimal Collection runs
 
 ### Goal
-Fetch real approved structured feeds and convert them into Raw items behind reusable adapter boundaries.
+Fetch real approved structured feeds through the Worker, persist truthful run provenance, and convert responses into Raw items behind reusable adapter boundaries.
 
 ### Depends on
 - Phase 4.
@@ -180,88 +189,92 @@ Fetch real approved structured feeds and convert them into Raw items behind reus
 - fetcher adapter interface;
 - parser adapter interface;
 - HTTP fetcher with connect/total timeouts;
-- response and decompression limits;
-- bounded redirect handling through Phase 4 safety checks;
-- conditional request support where Source metadata permits;
+- response/decompression limits;
+- bounded redirects through Phase 4 safety;
+- conditional request support where metadata permits;
 - content-type handling;
 - RSS parser;
 - Atom parser;
 - Raw-item representation;
-- manual Worker collection invocation for development/demo validation;
-- isolated transport/parser errors.
+- manual Worker collection invocation;
+- minimal persisted Collection run with endpoint, start/finish, transport/parser status/counts, bounded errors, execution identifier;
+- isolated endpoint transport/parser failures.
 
 ### Out of scope
 - automated due-endpoint scheduler;
 - Article persistence;
-- Relevance rules;
+- configurable Relevance rules;
 - duplicate detection.
 
 ### Exit gate
-- At least two real approved, active, enabled feeds fetch and parse independently.
-- One broken feed does not prevent another from completing.
-- Re-fetching an unchanged feed is transport-safe and deterministic at the Raw-item boundary.
+- At least two real approved active enabled feeds fetch/parse independently through Worker execution.
+- Every real fetch attempt has a persisted truthful Collection run.
+- One broken feed does not prevent another run from completing.
+- Re-fetching unchanged content is transport-safe and deterministic at the Raw-item boundary.
 
 ## Phase 6 — Article normalization
 
 ### Goal
-Convert untrusted Source-shaped Raw items into safe, deterministic Article candidates.
+Convert untrusted Source-shaped Raw items into safe deterministic Article candidates.
 
 ### Depends on
 - Phase 5.
 
 ### Deliverables
-- text normalization while preserving intended human meaning;
+- text normalization preserving intended meaning;
 - relative URL resolution;
 - original discovered URL preservation;
-- canonical identity URL normalization and recognized tracking-parameter removal;
+- canonical identity URL normalization/tracking cleanup;
 - date parsing with confidence/fallback metadata;
 - unsafe markup stripping/sanitization;
-- field-length bounds;
-- normalized title representation for later identity/matching;
-- Publication/Source/endpoint/run provenance attachment;
-- post-parse Article-link/domain validation.
+- field bounds;
+- normalized title representation;
+- Publication/Source/endpoint/Collection-run provenance attachment;
+- post-parse Article-link/domain validation;
+- normalization status/counts added to the existing Collection run.
 
 ### Out of scope
 - Article persistence;
-- Relevance execution;
+- configurable Relevance rules;
 - duplicate grouping;
 - public rendering.
 
 ### Exit gate
-- The same Raw item produces deterministic normalized Article-candidate output.
-- Unsafe or out-of-policy Article destinations are rejected before persistence.
-- Real RSS/Atom entries can be inspected as normalized candidates with provenance.
+- Same Raw item produces deterministic normalized output.
+- Unsafe/out-of-policy Article destinations are rejected before persistence.
+- Real entries are inspectable as normalized candidates with endpoint/run provenance.
 
-## Phase 7 — Article identity and persistence
+## Phase 7 — Default Relevance, Article identity, and persistence
 
 ### Goal
-Persist normalized Source instances transactionally and idempotently without conflating Article identity with true-duplicate detection.
+Preserve canonical pipeline order and persist normalized Source instances transactionally/idempotently without conflating Article identity with true duplicates.
 
 ### Depends on
 - Phase 6.
 
 ### Deliverables
+- canonical Relevance boundary executing the empty-rule/default-include decision until configurable rules exist;
 - Article schema;
 - Article-observation provenance schema;
-- Collection-run persistence sufficient for endpoint/run provenance and candidate outcomes;
-- reliable Source external-ID identity resolution;
-- canonical-URL identity resolution within the required Publication/Source scope;
+- reliable Source external-ID identity;
+- canonical-URL identity within Publication/Source scope;
 - configured stable identity-key support where required;
 - transactional uniqueness constraints;
 - idempotent create/update/unchanged behavior;
-- Article observation linkage to endpoint and Collection run;
-- canonical processing outcome accounting for persisted candidates.
+- Article observation linked to endpoint and existing Collection run;
+- canonical processing outcomes added to Collection-run accounting.
 
 ### Out of scope
+- configurable include/exclude/categorize rules;
 - cross-Article true-duplicate grouping;
-- Relevance-rule engine;
 - Article moderation UI;
 - search/filter UI.
 
 ### Exit gate
-- Reprocessing the same unchanged Source item does not increase Article cardinality for that Source identity.
-- Every persisted Article observation traces to its endpoint and Collection run.
-- Item-level failures do not require unrelated Articles from the same run to be lost when integrity permits isolation.
+- Every safe candidate passes Relevance before identity; with no configured rules the result is deterministic default `include`.
+- Reprocessing the same unchanged Source item does not increase Article cardinality.
+- Every persisted observation traces to endpoint and Collection run.
+- Item failures do not require unrelated Articles from the same run to be lost when integrity permits isolation.
 
 ## Phase 8 — Basic public-feed backend
 
@@ -272,12 +285,12 @@ Expose the smallest useful Publication-scoped rolling feed from real stored Arti
 - Phase 7.
 
 ### Deliverables
-- Publication-scoped public-feed read model/endpoint;
-- reverse-chronological ordering using canonical feed-date semantics;
+- Publication-scoped read model/endpoint;
+- reverse-chronological canonical feed-date ordering;
 - visible ungrouped Article eligibility baseline;
-- data required for date, headline, Source, and original/canonical destination;
-- safe output shaping from normalized stored data;
-- explicit loading/error-compatible API behavior.
+- date/headline/Source/original destination data;
+- safe output shaping;
+- explicit error-compatible API behavior.
 
 ### Out of scope
 - keyword search;
@@ -287,9 +300,9 @@ Expose the smallest useful Publication-scoped rolling feed from real stored Arti
 - public theme/branding polish.
 
 ### Exit gate
-- A public HTTP request returns real persisted Article rows in deterministic reverse-chronological order.
-- Every returned row traces to an approved active Source and normalized stored Article.
-- The headline destination is the original/canonical publisher URL.
+- Public HTTP request returns real persisted Articles deterministically.
+- Every row traces to approved active Source and normalized stored Article.
+- Headline destination is the original/canonical publisher URL.
 
 ## Phase 9 — Basic public-feed UI and tech demo
 
@@ -302,29 +315,29 @@ Produce the first customer-visible working product using real collected data.
 ### Deliverables
 - database-backed public feed page;
 - core desktop `Date | Headline | Source` presentation;
-- sane basic mobile rendering without forcing an unusable compressed desktop table;
-- Publication name/identity display;
-- linked headlines opening the original publisher destination;
-- loading, empty, and error states.
+- sane basic mobile rendering;
+- Publication name/identity;
+- linked original-publisher headlines;
+- loading, empty, error states.
 
 ### Out of scope
-- full responsive/accessibility polish;
+- final responsive/accessibility polish;
 - dark-mode completion;
 - filters/search;
 - duplicate moderation;
-- admin configuration UI.
+- admin UI.
 
 ### Exit gate — tech-demo milestone
-- At least two real approved RSS/Atom Sources are collected through the Worker.
-- Their Raw items are normalized and persisted idempotently with endpoint/run provenance.
-- Current Articles appear in the public rolling feed.
-- Headlines link to the intended original publishers.
-- Re-running collection does not create duplicate Article records for the same Source identity.
+- At least two real approved RSS/Atom Sources collect through the Worker.
+- Collection runs record the attempts.
+- Raw items normalize, pass default Relevance, and persist idempotently with observations.
+- Current Articles appear in the public feed with intended publisher links.
+- Re-running collection does not create duplicate Article records for one Source identity.
 
-## Phase 10 — Automated polling and Collection runs
+## Phase 10 — Automated polling, durable jobs, and endpoint health
 
 ### Goal
-Turn the manually provable pipeline into a continuously updating aggregator.
+Turn the manually proven endpoint execution unit into a continuously updating aggregator without creating a second collection path.
 
 ### Depends on
 - Phase 9.
@@ -332,32 +345,31 @@ Turn the manually provable pipeline into a continuously updating aggregator.
 ### Deliverables
 - durable job mechanism;
 - due-endpoint scheduler;
-- independent endpoint jobs;
-- endpoint locking integrated with job execution;
-- configurable polling intervals;
+- independent endpoint jobs reusing the canonical Worker execution path;
+- locking integrated with jobs;
+- polling intervals;
 - conditional-fetch state persistence;
-- bounded retries/backoff with jitter;
-- Collection-run lifecycle/status records;
-- transport/parser/normalization/persistence timing and outcome telemetry;
+- bounded retries/backoff/jitter;
+- expanded Collection-run lifecycle/telemetry;
 - baseline endpoint health derivation;
-- failure isolation between Sources/endpoints.
+- failure isolation.
 
 ### Out of scope
 - admin Source screens;
-- production dashboards/alerts;
+- production alert dashboards;
 - HTML collection;
 - duplicate grouping.
 
 ### Exit gate
-- Due approved endpoints collect automatically according to configured intervals.
+- Due approved endpoints collect automatically.
 - One failing endpoint does not interrupt unrelated collection.
 - Overlapping runs are prevented.
-- Recent run outcomes and failures can be diagnosed without relying on console-only output.
+- Recent outcomes/failures can be diagnosed without console-only output.
 
-## Phase 11 — Categories and Relevance execution
+## Phase 11 — Categories and configurable Relevance execution
 
 ### Goal
-Add deterministic Publication-specific editorial inclusion/exclusion/categorization without topic logic in the aggregation engine.
+Add deterministic Publication-specific inclusion/exclusion/categorization without topic logic in the engine.
 
 ### Depends on
 - Phase 10.
@@ -366,28 +378,34 @@ Add deterministic Publication-specific editorial inclusion/exclusion/categorizat
 - Category persistence;
 - Relevance-rule persistence;
 - include/exclude/categorize actions;
-- explicit priority ordering;
-- Publication-wide and Source-scoped rule behavior;
-- deterministic precedence/tie-break implementation;
+- explicit priority;
+- Publication-wide and Source-scoped behavior;
+- deterministic precedence/tie-breaks;
 - Source/endpoint default Category precedence;
-- persisted inclusion/exclusion/category reasons;
-- excluded candidate outcome accounting.
+- persisted Relevance/category reasons;
+- excluded outcome accounting.
+
+### Behavioral boundary
+- the existing default-include Relevance boundary is extended, not replaced;
+- rule changes are prospective by default;
+- automatic bulk retroactive re-evaluation of already persisted Articles is deferred unless a dedicated reprocessing capability is explicitly added.
 
 ### Out of scope
-- generic boost/ranking scores;
+- generic boost/ranking;
 - semantic AI relevance;
 - admin rule-builder polish;
-- duplicate grouping.
+- duplicate grouping;
+- automatic bulk historical reprocessing.
 
 ### Exit gate
-- Identical candidate plus configuration produces the same Relevance result and reasons.
-- A second unrelated test Publication can use unrelated Categories/rules without engine-topic conditionals.
-- Relevance configuration changes do not redefine Article identity.
+- Identical candidate + configuration produces identical Relevance result/reasons.
+- A second unrelated Publication can use unrelated Categories/rules without engine-topic conditionals.
+- Relevance changes do not redefine Article identity.
 
 ## Phase 12 — Feed discovery features
 
 ### Goal
-Make a growing rolling feed easy to explore without changing its eligibility semantics.
+Make the growing feed easy to explore without changing eligibility semantics.
 
 ### Depends on
 - Phase 11.
@@ -395,22 +413,21 @@ Make a growing rolling feed easy to explore without changing its eligibility sem
 ### Deliverables
 - Category filter;
 - Source filter;
-- keyword search over safe normalized/display metadata;
-- deterministic pagination/load-more cursor behavior;
-- URL-reflected filter/search state where practical;
-- clear reset behavior;
-- query/index tuning appropriate to MVP scale.
+- keyword search over safe metadata;
+- deterministic pagination/load-more cursors;
+- URL-reflected state where practical;
+- reset behavior;
+- MVP-scale query/index tuning.
 
 ### Out of scope
-- personalized feeds;
+- personalization;
 - ranking/boost scoring;
 - featured/pinned ordering;
-- public user accounts.
+- public accounts.
 
 ### Exit gate
-- Search, filters, and pagination return only feed-eligible Articles.
-- Pagination is stable and deterministic under the documented ordering rules.
-- Reset/navigation behavior is predictable on desktop and mobile.
+- Search/filters/pagination return only feed-eligible Articles.
+- Pagination is stable under documented ordering.
 
 ## Phase 13 — Public presentation polish
 
@@ -424,112 +441,115 @@ Turn the working feed into a polished customer-facing publication experience.
 - final desktop three-column presentation;
 - accessible stacked mobile layout;
 - responsive refinement;
-- light/dark presentation;
-- Publication branding/configuration integration;
-- contrast, focus, keyboard, wrapping, and tap-target accessibility pass;
-- clear external-link semantics;
-- browser validation of supported layouts/states.
+- light/dark modes;
+- Publication branding integration;
+- contrast/focus/keyboard/wrapping/tap-target pass;
+- external-link semantics;
+- browser validation.
 
 ### Out of scope
 - admin UX;
 - duplicate moderation;
-- public Article-body republishing;
-- pinning/featured ordering.
+- Article-body republishing;
+- featured ordering.
 
 ### Exit gate
-- Core public-feed workflows are usable on supported desktop/mobile layouts.
-- Light/dark and Publication branding do not introduce topic-specific shared-engine behavior.
-- Original publisher navigation remains the primary read action.
+- Core public workflows are usable on supported desktop/mobile layouts.
+- Branding remains Publication configuration.
+- Original publisher remains primary read action.
 
 ## Phase 14 — Source administration
 
 ### Goal
-Replace bootstrap/manual Source configuration with a practical Source/endpoint control surface protected by Cloudflare Access.
+Replace bootstrap/manual Source configuration with a practical control surface protected by Cloudflare Access.
 
 ### Depends on
 - Phase 13.
 
 ### Deliverables
-- admin shell behind the deployment's Cloudflare Access perimeter;
-- Source list/detail/create/update flows;
-- endpoint list/detail/create/update flows;
-- approve/unapprove actions;
-- enable/pause/disable actions;
-- archive lifecycle actions;
-- Source approved-domain and endpoint narrowing configuration;
-- polling interval/configuration controls;
-- Source priority configuration;
-- manual check-now action using the same collection safety/locking path;
-- recent Collection-run and endpoint-health visibility.
+- admin shell with all admin UI/API routes behind Cloudflare Access;
+- supported deployment prevents direct-origin bypass;
+- CSRF/equivalent request-integrity protection for state-changing browser actions;
+- Publication/resource ownership validation on admin commands;
+- Source/endpoint list/detail/create/update;
+- approve/unapprove;
+- enable/pause/disable;
+- archive lifecycle;
+- approved-domain/narrowing configuration;
+- polling controls;
+- Source priority;
+- manual check-now reusing the canonical Worker/job path;
+- recent Collection-run/health visibility.
 
 ### Out of scope
-- application-managed login/accounts/sessions;
-- native administrator roles/permissions;
+- application-managed accounts/sessions;
+- native roles/permissions;
 - account recovery;
 - identity-linked audit attribution;
 - Article/duplicate moderation.
 
 ### Exit gate
-- A Cloudflare-authorized operator can add and operate an ordinary RSS/Atom Source without code or direct database changes.
-- Admin actions cannot bypass approval, lifecycle, operational, lock, or network-safety boundaries.
-- Unprotected direct-origin access to admin surfaces is not part of the supported deployment model.
+- Cloudflare-authorized operator can add/operate RSS/Atom Source without code/DB changes.
+- Admin actions cannot bypass state, ownership, locking, or network safety.
+- Direct-origin admin bypass is prevented in the supported deployment.
 
 ## Phase 15 — Publication and Relevance administration
 
 ### Goal
-Expose Publication editorial configuration through the Cloudflare-protected admin control plane.
+Expose Publication editorial configuration through the Cloudflare-protected control plane.
 
 ### Depends on
 - Phase 14.
 
 ### Deliverables
-- Publication identity/settings management;
-- collection-active/public-status controls;
+- Publication identity/settings;
+- collection/public controls;
 - branding/feed configuration;
 - Category management;
 - Relevance-rule management;
-- Source priority/default Category configuration where not already surfaced;
-- validation/explanation of deterministic rule precedence.
+- Source priority/default Category controls;
+- deterministic rule-precedence explanation/validation.
 
 ### Out of scope
-- application-managed administrator identity;
+- native administrator identity;
 - per-user Publication permissions;
+- automatic historical Relevance reprocessing;
 - Article moderation;
 - duplicate review.
 
 ### Exit gate
-- A Cloudflare-authorized operator can configure Publication branding, Categories, and deterministic Relevance behavior without code changes.
-- A second unrelated Publication remains configurable without shared-engine topic conditionals.
+- Authorized operator configures branding/Categories/Relevance without code changes.
+- Second unrelated Publication remains generic.
 
 ## Phase 16 — True duplicate detection and grouping
 
 ### Goal
-Suppress true duplicate public rows while preserving every separately collected Article instance and its provenance.
+Suppress true duplicate public rows while preserving every Article instance/provenance.
 
 ### Depends on
 - Phase 15.
 
 ### Deliverables
-- deterministic cross-Article duplicate candidate signals;
-- persisted Duplicate review candidates and dismissal decisions;
+- deterministic duplicate signals;
+- persisted review candidates/dismissals;
 - Duplicate groups/memberships;
-- Primary selection using original-publisher metadata, Source priority, completeness/time/tie-break rules;
-- automatic reason/confidence records;
+- Primary selection with original-publisher metadata, Source priority, completeness/time/tie-breaks;
+- reason/confidence records;
 - ordinary-feed suppression for visible non-primary duplicates;
-- exactly-one-Primary invariants;
+- exactly-one-Primary invariant;
 - related-coverage safeguards.
 
 ### Out of scope
 - human review UI;
-- Article display overrides;
-- semantic event clustering;
-- deletion of non-primary Article instances/provenance.
+- display overrides;
+- event clustering;
+- deletion of non-primary provenance.
 
 ### Exit gate
-- Separately stored true-duplicate Source instances produce one ordinary public row while all Article instances/observations remain stored.
-- Ungrouped Articles remain feed-eligible.
+- True duplicates produce one ordinary row while every Article/observation remains stored.
+- Ungrouped Articles remain eligible.
 - Related coverage remains separate.
-- Dismissed unchanged duplicate evidence does not recur indefinitely.
+- Unchanged dismissed evidence does not recur indefinitely.
 
 ## Phase 17 — Article and duplicate moderation
 
@@ -541,85 +561,85 @@ Give Cloudflare-authorized operators reversible control over Article presentatio
 
 ### Deliverables
 - Article search/filter across stored instances;
-- Source/endpoint/run provenance inspection;
-- Article hide/restore;
+- provenance inspection;
+- hide/restore;
 - Category overrides;
-- administrator display overrides preserving Source-derived normalized values;
+- display overrides preserving Source-derived values;
 - duplicate review queue;
-- merge, split, dismiss, and choose-Primary actions;
-- bounded change/event history sufficient to explain material configuration/moderation changes without requiring native administrator accounts.
+- merge/split/dismiss/choose-Primary;
+- bounded change history with action/target/time/reason as applicable, without requiring native administrator identity.
 
 ### Out of scope
-- native administrator identity/account system;
+- native identity/account system;
 - per-user attribution guarantees;
-- public comments/community moderation;
+- public community moderation;
 - related-story clustering.
 
 ### Exit gate
-- Important automatic Article/duplicate decisions can be inspected and reversed where appropriate.
-- Source updates do not silently clobber active display overrides.
-- Moderation does not erase Article/observation provenance.
+- Important automatic decisions are inspectable/reversible.
+- Source updates do not clobber active display overrides.
+- Moderation does not erase provenance.
 
 ## Phase 18 — Configurable HTML collection
 
 ### Goal
-Add approved non-feed Sources without creating a second downstream aggregation pipeline.
+Add approved non-feed Sources without creating another downstream pipeline.
 
 ### Depends on
 - Phase 17.
 
 ### Deliverables
-- HTML listing parser profiles behind the existing parser adapter boundary;
-- selector validation and safe preview/testing;
+- HTML listing profiles behind existing parser adapter;
+- selector validation/safe preview;
 - parser-version/failure diagnostics;
 - approved non-feed Source support;
-- browser-automation fallback decision gate, not default implementation.
+- browser-automation fallback decision gate only.
 
 ### Out of scope
 - unrestricted crawling;
 - silent Source discovery;
-- browser automation as default collection behavior;
-- parser-specific downstream Article persistence logic.
+- default browser automation;
+- parser-specific downstream persistence.
 
 ### Exit gate
-- An approved non-feed Source collects through the same approval/lifecycle/operational, safety, normalization, Relevance, identity, provenance, retry, and failure-isolation boundaries as RSS/Atom.
-- Parser failure is isolated and diagnosable.
+- Approved HTML Source uses the same state, safety, normalization, Relevance, identity, provenance, retry, and failure-isolation boundaries as RSS/Atom.
+- Parser failure is isolated/diagnosable.
 
 ## Phase 19 — Reliability, observability, and production operations
 
 ### Goal
-Make the completed MVP safe to operate continuously and recoverably in production.
+Make the completed MVP safe to operate continuously and recoverably.
 
 ### Depends on
 - Phase 18.
 
 ### Deliverables
-- metrics dashboards and alerts;
-- tuned unhealthy/delayed endpoint detection;
+- metrics dashboards/alerts;
+- tuned health/delay detection;
 - concurrency/per-host rate-limit tuning;
-- security/abuse regression tests for the implemented MVP boundaries;
-- backup/restore procedure and tested non-production restore;
-- data-retention jobs/policies;
-- deployment and rollback process;
+- security/abuse regression tests;
+- backup/restore procedure and tested restore;
+- retention jobs/policies;
+- deployment/rollback process;
 - operational runbooks;
-- production monitoring/recovery ownership;
-- Cloudflare Access/origin-protection deployment validation for admin surfaces.
+- monitoring/recovery ownership;
+- explicit Cloudflare Access/origin-protection validation.
 
 ### Out of scope
 - native administrator accounts;
 - self-service tenancy;
-- unrelated post-MVP feature work.
+- unrelated post-MVP features.
 
 ### Exit gate
 - Restore is tested.
-- Source failures and queue delay are observable.
-- Security regression coverage includes SSRF/network safety, unsafe content, secret leakage, fetch limits, admin perimeter assumptions, and request-integrity controls applicable to deployed admin actions.
-- Deployment/rollback and core failure runbooks are usable by the operator.
+- Source failures/queue delay are observable.
+- Security coverage includes SSRF, unsafe content, secret leakage, fetch limits, admin perimeter/origin assumptions, and request integrity.
+- Deployment/rollback and failure runbooks are usable.
 
 ## Phase 20 — Customer launch validation
 
 ### Goal
-Configure, validate, and hand off the first real Publication without introducing new engine capability during launch work.
+Configure, validate, and hand off the first real Publication without adding new engine capability during launch work.
 
 ### Depends on
 - Phase 19.
@@ -629,9 +649,9 @@ Configure, validate, and hand off the first real Publication without introducing
 - Category/Relevance tuning;
 - duplicate-quality review;
 - responsive/accessibility validation;
-- administrator/operator training notes;
+- operator training notes;
 - launch checklist;
-- production monitoring/recovery ownership confirmation;
+- monitoring/recovery ownership confirmation;
 - post-launch metric baseline;
 - documented known limitations.
 
@@ -641,27 +661,27 @@ Configure, validate, and hand off the first real Publication without introducing
 - deferred product features.
 
 ### Exit gate
-- Customer/operator can manage Sources and moderate the feed through the Cloudflare-protected admin interface.
+- Customer/operator can manage Sources and moderate feed through Cloudflare-protected admin interface.
 - Public links, dates, Sources, and duplicate suppression are accurate in sampled validation.
-- Known limitations are documented.
-- Production monitoring and recovery ownership are assigned.
+- Known limitations and production ownership are documented.
 
 ## Deferred roadmap candidates
 
 After MVP evidence supports them:
 
-- native application-managed administrator accounts and identity;
+- native application-managed administrator accounts/identity;
 - passwords/passkeys or application-managed identity-provider integration;
-- application session/account recovery workflows;
+- application sessions/account recovery;
 - administrator roles and Publication-aware per-user authorization;
 - multi-administrator identity-linked audit attribution;
+- automatic/bulk historical Relevance reprocessing tooling;
 - email newsletters;
 - Source push/webhook adapters;
-- AI-assisted summaries with clear attribution/controls;
+- AI-assisted summaries with attribution/controls;
 - related-story/event clustering;
 - public accounts/personalized feeds;
 - outbound newsletter/social publishing;
-- multi-Publication roles and self-service tenancy;
+- self-service tenancy;
 - generic relevance ranking/boost scoring;
 - pinning/editorial featured-story ordering;
 - API access;
