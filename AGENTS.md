@@ -20,6 +20,17 @@ Follow `BOOT.md`.
 - Preserve unrelated wording during scoped documentation fixes.
 - Prompt creation follows `/prompt-ass` → `/prompt-plan` → `/prompt-write <folder name>`.
 
+## Versioning Workflow
+
+Follow the canonical versioning and prompt-numbering rules in `BOOT.md`.
+
+- Phase prompt filenames are one-based: `P1`, `P2`, `P3`, and so on; do not create `P0` tasks.
+- Project versions use `0.<roadmap phase>.<phase prompt number>` while pre-1.0.
+- `package.json` is the sole authoritative current-version source; do not duplicate the current version in docs or source constants.
+- npm lockfile package metadata may mirror the version mechanically and must stay synchronized when a Codex phase prompt changes `package.json`, but it is not an independent authority.
+- Only execution of a new Codex roadmap-phase prompt increments the version. Documentation/prompt/review workflow activity does not.
+- Re-running or correcting the same prompt keeps that prompt's assigned version rather than consuming a new number.
+
 ## Canonical documents
 
 Use `BOOT.md` as router and read the narrowest governing document.
@@ -174,6 +185,7 @@ Phase 0 final documentation alignment is complete. Phases 1–9 are the tech-dem
 - Prefer smallest correct changes over speculative refactors.
 - Trace shared helpers/consumers before changing data or collection semantics.
 - Confirm applicable local validation commands/suites were actually executed against the final tree before approval.
+- Confirm each Codex phase prompt uses its assigned one-based prompt number/version and that `package.json` remains the authoritative version source.
 - Make a concrete recommendation when asked for the recommended option.
 - Never invent repository state, test results, Source behavior, or history.
 
