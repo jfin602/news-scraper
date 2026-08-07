@@ -1,0 +1,218 @@
+TASK: Phase 1 / P2 — Web/API process and liveness/readiness contract
+
+ROADMAP PHASE
+Phase 1 — Application foundation.
+
+VERSIONING
+- This is Phase 1 prompt 2 and its assigned project version is `0.1.2`.
+- Before implementation, confirm `package.json` is at the preceding Phase 1 prompt version (`0.1.1`), unless this same P2 prompt is being rerun after a partial/failed attempt that already set `0.1.2`.
+- Set/retain the authoritative `package.json` version at `0.1.2` for this prompt and keep npm-generated lockfile package metadata synchronized as a mechanical mirror.
+- Do not duplicate the current version in README, BOOT, source constants, or other documentation.
+- Re-running/fixing this same prompt does not increment the version again.
+
+DEPENDS ON
+P1-project-scaffold-config.txt must be implemented first.
+
+GOAL
+Implement the independently runnable Web/API process boundary, including role-specific configuration, Express application construction, HTTP listener lifecycle, deterministic liveness/readiness endpoints, and graceful process shutdown. Keep the implementation free of database, Source, Article, collection, admin, and other business behavior.
+
+CONTEXT
+Phase 1 requires Web/API and Worker to be independently runnable. The architecture explicitly states that Web/API owns the HTTP listener and health/readiness endpoints, while the Worker remains a separate process and must never become an inline HTTP collection path.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- BOOT.md
+- AGENTS.md
+- docs/contracts/project-contract.md
+- docs/contracts/testing-and-validation-contract.md
+- docs/architecture/system-architecture.md
+- docs/operations/security-reliability-and-operations.md
+- docs/roadmap/mvp-roadmap.md
+- the implemented P1 source/tests
+
+PRESERVED BEHAVIOR / INVARIANTS
+- Web/API does not perform Source collection inline.
+- Phase 1 readiness has no PostgreSQL dependency; Phase 2 extends readiness to database availability.
+- Publication-awareness remains structural only.
+- Shared/runtime code remains topic independent.
+- Do not introduce Source, Publication data, Articles, collection, jobs, admin UI, native auth, or database behavior.
+- Do not add a Worker HTTP probe in this task.
+- Do not add hosted CI.
+- Preserve P1 zero-test-selection protection and existing test/static commands.
+
+LIKELY FILE SCOPE
+Expected additions/changes are approximately:
+- package.json / package-lock.json for the `0.1.2` version, Express and types, plus new substantive integration command
+- src/app/web/web-config.ts
+- src/app/web/create-app.ts
+- src/app/web/server.ts
+- src/app/web/main.ts
+- test/unit/web-config.test.ts
+- test/integration/web-health.test.ts
+- test/integration/web-process.test.ts
+- small P1 shared-config changes only if required for clean composition
+
+Do not create unrelated future modules.
+
+DEPENDENCIES
+Use Express 5 and matching TypeScript types. Do not add Supertest unless a verified limitation prevents native HTTP integration testing. Prefer Node's built-in `fetch` and real ephemeral listeners for integration coverage.
+
+WEB CONFIGURATION
+Compose Web-specific configuration on top of P1's common runtime configuration.
+
+Use these role-specific variables:
+- `NEWS_SCRAPER_WEB_HOST`
+- `NEWS_SCRAPER_WEB_PORT`
+
+Recommended defaults:
+- host: `127.0.0.1` so local startup does not unexpectedly expose the service on the LAN;
+- port: `3000` for ordinary local use.
+
+Contract requirements:
+- allow port `0` for OS-assigned ephemeral ports in automated/runtime validation;
+- reject nonnumeric, fractional, negative, and >65535 values;
+- reject blank/invalid host values;
+- Web-only variables must not become required common config for the Worker;
+- configuration errors must be bounded and secret-safe;
+- do not introduce database/Source/Publication settings.
+
+APPLICATION / LISTENER SEPARATION
+Do not implement all Web behavior in `main.ts`.
+
+Use a composable structure equivalent to:
+1. `createWebApp(...)` builds/configures the Express app and routes without opening a socket.
+2. `startWebServer(...)` owns the Node HTTP listener and returns enough lifecycle information to test/stop it.
+3. `main.ts` is the actual process composition root: load validated config, start the listener, install signal handling, and report startup/shutdown errors safely.
+
+Library code should not call `process.exit()`.
+
+HEALTH / READINESS CONTRACT
+Implement exactly these Phase 1 endpoints:
+- `GET /health/live`
+- `GET /health/ready`
+
+Use deterministic JSON with no timestamp/random fields.
+
+Recommended response contracts:
+- `/health/live` -> HTTP 200, `{ "status": "ok", "role": "web" }`
+- `/health/ready` -> HTTP 200, `{ "status": "ready", "role": "web" }`
+
+Set JSON content type normally through Express. Avoid caching health responses if straightforward to do so.
+
+Semantics:
+- liveness means the Web HTTP process/server is responsive;
+- readiness means Web initialization is complete and every critical dependency implemented in the current phase is usable;
+- since Phase 1 has no external critical dependency, readiness is expected to be ready once startup succeeds;
+- do not pretend to check PostgreSQL or future dependencies.
+
+PROCESS LIFECYCLE / OBSERVABILITY
+The actual `main.ts` process should produce small machine-readable, secret-safe lifecycle output that can synchronize tests and physical validation without arbitrary sleeps.
+
+Use an event shape equivalent to:
+- startup/listening: `{ "event": "web.listening", "host": "...", "port": <actualPort> }`
+- clean stop: `{ "event": "web.stopped", "role": "web" }`
+
+The listening event must report the actual bound port so a port-0 child-process test can connect to it.
+
+Do not add a general logging framework unless the existing P1 implementation already establishes one for a substantive reason.
+
+GRACEFUL SHUTDOWN
+Handle SIGINT and SIGTERM predictably:
+1. start shutdown at most once;
+2. stop accepting new HTTP connections;
+3. close the listener cleanly;
+4. emit the bounded stopped lifecycle event;
+5. allow the process to terminate successfully after clean shutdown.
+
+Startup/config/listener failure should produce a bounded safe error and nonzero termination.
+
+Avoid duplicated signal handlers or process-global behavior in importable library modules. Keep signal wiring in the entrypoint/composition boundary.
+
+TEST COMMAND
+P2 now introduces the first substantive integration suite, so add:
+- `npm run test:integration`
+
+It must use the existing P1 test-selection guard and must fail if its selected integration test set is empty.
+
+FOCUSED TESTS — WEB CONFIG
+At minimum prove:
+- default host/port;
+- explicit host and port;
+- port 0 accepted;
+- negative port rejected;
+- >65535 rejected;
+- decimal rejected;
+- nonnumeric rejected;
+- blank host rejected;
+- role-specific config composes with common config;
+- errors remain deterministic and bounded.
+
+FOCUSED TESTS — HTTP COMPONENT/INTEGRATION
+Start an actual ephemeral HTTP listener and use native `fetch` to prove:
+- `/health/live` returns 200 and exact expected JSON contract;
+- `/health/ready` returns 200 and exact expected JSON contract;
+- JSON content type is correct;
+- the listener can close without leaving the test hanging;
+- readiness does not require a fake Phase 2 dependency.
+
+FOCUSED TESTS — ACTUAL PROCESS ENTRYPOINT
+Spawn the real command/entrypoint (`node src/app/web/main.ts` or the substantive package script that resolves to it) with an ephemeral port.
+
+The test should:
+1. wait for the structured `web.listening` event rather than sleeping;
+2. parse the actual port;
+3. make real HTTP requests to both health endpoints;
+4. send SIGTERM;
+5. observe the clean stop event/termination;
+6. require successful exit after normal shutdown.
+
+Also spawn with intentionally malformed Web configuration and require predictable nonzero startup failure.
+
+Avoid arbitrary sleep-based synchronization. Use lifecycle output, process events, and bounded timeouts only as safety limits.
+
+BROADER REGRESSION MATRIX
+Run and observe on the final P2 tree:
+- npm run format:check
+- npm run lint
+- npm run typecheck
+- npm test
+- npm run test:unit
+- npm run test:integration
+- npm run check
+
+P1 configuration/test-runner behavior must remain green after Web changes.
+
+EVIDENCE LEVEL
+Expected proof:
+- Level 1 static/structural checks;
+- Level 2 configuration/unit tests;
+- Level 3 HTTP/process integration tests.
+Do not claim browser, database, live-Source, or deployment evidence.
+
+ACCEPTANCE CRITERIA
+- `package.json` has authoritative version `0.1.2` and npm lockfile package metadata is synchronized without becoming a second version authority.
+- Web/API starts independently from the Worker.
+- Web config is validated before listener startup.
+- `createWebApp` does not bind a socket.
+- real Web process binds successfully and reports actual listening address/port.
+- liveness and readiness return the documented deterministic Phase 1 contracts.
+- readiness has no fake PostgreSQL/Source dependency.
+- SIGTERM/SIGINT shutdown is idempotent and clean.
+- malformed Web config fails nonzero and predictably.
+- Web source contains no indie-author-specific business condition/data.
+- Web code does not fetch Sources or introduce future business routes.
+- integration suite is substantive and protected from zero-match false success.
+- required local regression commands were actually run and observed before completion is claimed.
+
+NON-GOALS
+- Public feed or Article routes.
+- Source/Publication/admin routes.
+- PostgreSQL health checks.
+- Collection, parser, fetcher, scheduler, or job behavior.
+- Cloudflare-specific middleware or native authentication.
+- HTML/browser UI.
+- Worker implementation.
+- Hosted CI.
+
+DELIVERY / REVIEW NOTES
+Keep Web process construction testable and dependency-light. If P1's implementation differs from the likely file structure, preserve the same behavioral boundaries rather than forcing filenames mechanically. Stop and report any contract/repository drift that would materially alter the task.
