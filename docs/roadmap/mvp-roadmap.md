@@ -16,11 +16,11 @@ Phases are intentionally narrow. Each phase represents one cohesive implementati
 - MVP admin UI/API routes use Cloudflare Access as the external perimeter; supported deployments MUST prevent direct-origin bypass.
 - Cloudflare Access does not replace request-integrity, resource-validation, fetch/network-safety, output/content-safety, secrets, or origin protections.
 - Public-feed and collection behavior should become useful before admin convenience and moderation workflows are expanded.
-- Automated behavioral regression coverage is the primary defense against regressions. Every phase inherits `docs/contracts/testing-and-validation-contract.md`.
+- Automated behavioral regression coverage is the primary defense against regressions. Every implementation phase inherits `docs/contracts/testing-and-validation-contract.md`.
 
 ## Global phase validation gate
 
-The exit gate written inside each phase is necessary but not sufficient by itself.
+The exit gate written inside each implementation phase is necessary but not sufficient by itself.
 
 Every implementation phase MUST also satisfy the testing and validation contract against the final source tree before it can close. That means, as applicable:
 
@@ -33,9 +33,9 @@ Every implementation phase MUST also satisfy the testing and validation contract
 - repeatable local static/test/runtime validation executed against the exact final tree;
 - no skipped/flaky/zero-selected suite standing in for required proof;
 - terminal evidence and limitations reported explicitly;
-- a durable phase-closeout validation artifact tied to the exact accepted commit/source tree.
+- a durable implementation-phase closeout validation artifact tied to the exact accepted commit/source tree.
 
-Earlier passing evidence does not automatically validate later source changes. A phase closes only on evidence for the final tree being accepted.
+Earlier passing evidence does not automatically validate later source changes. An implementation phase closes only on evidence for the final tree being accepted.
 
 ## Tech-demo critical path
 
@@ -108,8 +108,7 @@ Create the independently runnable application skeleton and the regression-testin
 - Source fetching;
 - Article persistence;
 - admin UI;
-- placeholder/no-op test suites, scripts, directories, or modules;
-- hosted continuous-integration/status-check infrastructure.
+- placeholder/no-op test suites, scripts, directories, or modules.
 
 ### Exit gate
 - Web/API and Worker start independently under automated/runtime validation and shut down cleanly where applicable.
