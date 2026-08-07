@@ -6,9 +6,19 @@ The first configured Publication focuses on publishing-industry news relevant to
 
 ## Current project state
 
-Current phase: **Phase 0 — Contracts and product foundation**.
+Current phase: **Phase 1 — Application foundation**.
 
-The Phase 0 contracts have been reorganized by purpose under `docs/` and aligned through the documentation-review workflow. Implementation has not yet entered Phase 1.
+Phase 0 is complete. The final pre-code documentation review aligned the contracts around the demo-first delivery strategy, Cloudflare Access admin perimeter, staged Worker collection path, Collection-run provenance, default-include Relevance bridge, bootstrap approval rules, and focused Phase 0–20 roadmap.
+
+Implementation has not yet begun.
+
+## Delivery priority
+
+Phases 1–9 are the tech-demo critical path.
+
+The first demonstrable milestone is reached when at least two real approved RSS/Atom Sources are collected through the Worker, recorded in Collection runs, normalized, passed through the canonical default-include Relevance boundary, persisted idempotently with Article-observation provenance, and displayed in the public rolling feed with headlines linking to the original publishers.
+
+Full admin UX follows after that vertical slice is working.
 
 ## MVP objective
 
@@ -25,15 +35,17 @@ Core desktop concept:
 Date | Headline | Source
 ```
 
-MVP adds:
+Completed MVP adds:
 
-- reverse-chronological feed eligibility for visible ungrouped Articles and visible Primary Articles;
+- reverse-chronological eligibility for visible ungrouped Articles and visible Primary Articles;
 - original/canonical Article destination links;
 - clear Source identity;
 - accessible stacked mobile layout;
 - Category/Source filtering and keyword search;
 - deterministic pagination/load-more;
 - light/dark presentation.
+
+The Phase 9 tech demo intentionally reaches a useful basic feed before discovery/presentation polish is complete.
 
 Pinning/featured-story ordering is deferred beyond MVP.
 
@@ -48,7 +60,7 @@ See `docs/contracts/project-contract.md`.
 5. Source-specific data is normalized before public-feed use.
 6. Repeated collection is idempotent.
 7. True duplicates suppress redundant public rows without deleting Source instances/provenance.
-8. Categories, relevance rules, branding, and Sources belong to Publication configuration.
+8. Categories, Relevance rules, branding, and Sources belong to Publication configuration.
 9. Source failures are isolated.
 10. Near-real-time means configurable polling unless a Source explicitly supports push; push adapters are deferred beyond MVP unless promoted.
 
@@ -57,80 +69,88 @@ See `docs/contracts/project-contract.md`.
 The contracts deliberately separate:
 
 - approval/trust state;
+- configuration lifecycle state;
 - operational collection state;
 - Publication public visibility;
 - Article moderation visibility;
 - duplicate-group role;
 - derived endpoint health.
 
-An approved Source can therefore be paused without becoming “unhealthy,” and a hidden Article can remain a member of a Duplicate group without duplicate membership forcing it visible again.
+An approved Source can be paused without becoming “unhealthy,” and a hidden Article can remain a member of a Duplicate group without duplicate membership forcing it visible again.
 
 ## Collection architecture
 
 ```text
-Admin UI / Public Feed
-        ↓
-Web/API
-        ↓
-PostgreSQL + durable jobs
-        ↓
-Worker
-        ↓
-Pre-fetch approval + network-safety gate
-        ↓
-Fetcher → approved Source endpoint
-        ↓
-Parser adapter → Raw item
-        ↓
-Normalizer → Article candidate
-        ↓
-Article-link / Source-domain validation
-        ↓
-Publication relevance + Categories
-        ↓
-Article identity + idempotent persistence
-        ↓
-Article observation provenance
-        ↓
-Duplicate review/grouping
-        ↓
-Public-feed read model → original Article URL
+Cloudflare Access-protected Admin UI/API       Public Feed
+                    \                           /
+                     -------- Web/API ----------
+                              |
+                          PostgreSQL
+                              |
+            durable jobs/scheduler (Phase 10+)
+                              |
+                           Worker
+                              |
+       eligibility + run lock + network safety
+                              |
+             Fetcher -> approved endpoint
+                              |
+                  Parser -> Raw item
+                              |
+            Normalizer -> Article candidate
+                              |
+             Article-link policy validation
+                              |
+            Publication Relevance/Categories
+                              |
+             Article identity + persistence
+                              |
+               Article observation provenance
+                              |
+          duplicate review/grouping when built
+                              |
+             public-feed read model -> publisher
 ```
 
-Web/API and Worker roles are independently runnable so slow/failing Sources do not block normal feed requests.
+During Phases 5–9 the Worker is invoked manually for configured endpoints. Phase 10 places the same proven endpoint execution unit behind durable jobs/scheduling; Web/API never performs Source collection inline.
+
+Minimal Collection runs begin with the first real fetch in Phase 5. Before configurable Relevance rules exist, safe candidates pass through the canonical empty-rule/default-include decision before identity.
 
 ## Identity versus duplicates
 
-- **Article identity:** have we already stored this Source instance? This is solved transactionally in Phase 4 using reliable Source external IDs, canonical URLs, and constrained fallback evidence.
-- **True duplicate identity:** do two separately stored Articles represent the same underlying published item? This is Phase 5 duplicate-review/grouping behavior.
+- **Article identity:** have we already stored this Source instance? Solved transactionally in Phase 7 using reliable Source external IDs, canonical URLs, and constrained fallback evidence.
+- **True duplicate identity:** do two separately stored Articles represent the same underlying published item? Added in Phase 16.
 
 Weak duplicate evidence becomes a persisted review candidate rather than silently hiding an Article.
 
 ## Administration
 
-MVP administration covers:
+Initial Publication/Source configuration may be supplied through idempotent operator-maintained bootstrap data. Bootstrap approval is explicit operator approval and never bypasses whitelist/state/network-safety rules.
 
-- Publication identity/branding/collection/public state;
-- Source/endpoint approval and enable/pause/disable/archive state;
-- Source priority and approved-domain policy;
-- collection intervals and endpoint health/run history;
-- deterministic include/exclude/categorize rules;
-- Article visibility, Categories, and display overrides preserving normalized Source values;
-- Duplicate review, merge/split/dismiss/Primary controls;
-- audit events tied to administrator identity.
+MVP Source admin UI begins in Phase 14, after the working public vertical slice.
+
+MVP admin UI/API routes:
+
+- are protected by Cloudflare Access;
+- require supported deployment/origin configuration that prevents direct-origin bypass;
+- use CSRF or equivalent request-integrity controls for state-changing browser actions;
+- validate Publication/resource ownership in application commands.
+
+Native application-managed administrator accounts, sessions, roles, account recovery, per-user Publication authorization, and identity-linked audit attribution are deferred beyond MVP.
 
 ## Security and reliability
 
-Baseline controls are implemented with the surfaces they protect, not postponed to Phase 7:
+Baseline controls are implemented with the surfaces they protect, not postponed to production hardening:
 
-- authenticated/authorized admin operations with session/CSRF protections;
 - SSRF-resistant validation before every request/redirect;
 - response/decompression limits and timeouts;
 - untrusted-content sanitization/escaping;
-- independent endpoint jobs and bounded retries/concurrency;
-- secret-safe structured logs and Collection-run telemetry.
+- Source/endpoint run isolation;
+- transactionally idempotent Article identity;
+- secret-safe structured logs and truthful Collection-run telemetry;
+- Cloudflare Access/origin/request-integrity controls when admin surfaces arrive.
 
-Phase 7 hardens/operationalizes those controls with dashboards, alerts, restore testing, abuse tests, retention jobs, and runbooks.
+Phase 19 hardens/operationalizes these controls with dashboards, alerts, restore testing, abuse regression tests, retention jobs, deployment/rollback validation, and runbooks.
 
 ## Documentation map
 
@@ -154,7 +174,8 @@ docs/
 └── decisions/
     ├── topic-independent-publication-model.md
     ├── whitelist-and-structured-feed-first.md
-    └── original-link-and-normalized-metadata.md
+    ├── original-link-and-normalized-metadata.md
+    └── cloudflare-access-admin-perimeter.md
 ```
 
 `docs/README.md` is the documentation index. `AGENTS.md` is the compact project-law summary. Detailed behavior belongs to specialized documents.
@@ -181,19 +202,35 @@ Implementation prompt workflow:
 
 ## Roadmap
 
-See `docs/roadmap/mvp-roadmap.md`:
+See `docs/roadmap/mvp-roadmap.md` for full deliverables/dependencies/non-goals/exit gates.
 
-- Phase 0 — Contracts and product foundation
-- Phase 1 — Repository and application foundation
-- Phase 2 — Authentication, Publication, and Source administration
-- Phase 3 — RSS/Atom collection and normalization vertical slice
-- Phase 4 — Article identity, persistence, relevance, and public feed
-- Phase 5 — True duplicate detection and moderation
-- Phase 6 — Configurable HTML collection
-- Phase 7 — Reliability, observability, and production hardening
-- Phase 8 — Customer launch validation
+Tech-demo critical path:
 
-Deferred: push/webhook adapters, AI summaries, related-story clustering, user personalization, outbound publishing, self-service tenancy, generic ranking/boost scoring, pinning/featured ordering, API access, multilingual feeds.
+1. Phase 1 — Application foundation
+2. Phase 2 — Database foundation
+3. Phase 3 — Publication and Source configuration core
+4. Phase 4 — Collection eligibility and network safety
+5. Phase 5 — RSS/Atom transport, parsing, and minimal Collection runs
+6. Phase 6 — Article normalization
+7. Phase 7 — Default Relevance, Article identity, and persistence
+8. Phase 8 — Basic public-feed backend
+9. Phase 9 — Basic public-feed UI and tech demo
+
+Then:
+
+10. Phase 10 — Automated polling, durable jobs, and endpoint health
+11. Phase 11 — Categories and configurable Relevance execution
+12. Phase 12 — Feed discovery features
+13. Phase 13 — Public presentation polish
+14. Phase 14 — Source administration
+15. Phase 15 — Publication and Relevance administration
+16. Phase 16 — True duplicate detection and grouping
+17. Phase 17 — Article and duplicate moderation
+18. Phase 18 — Configurable HTML collection
+19. Phase 19 — Reliability, observability, and production operations
+20. Phase 20 — Customer launch validation
+
+Deferred: native administrator identity/accounts, historical Relevance bulk reprocessing, push/webhook adapters, AI summaries, related-story clustering, public personalization, outbound publishing, self-service tenancy, generic ranking/boost scoring, pinning/featured ordering, API access, multilingual feeds.
 
 ## Repository
 
