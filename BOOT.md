@@ -289,6 +289,22 @@ Strict order:
 
 Do not silently run missing stages. If unstable requirements, contradictory docs, repository drift, or a material decision blocks progress, return `Planning needed` and stop before the next stage.
 
+## Versioning and phase-prompt numbering
+
+Project versions use `0.<roadmap phase>.<phase prompt number>` while the project remains in the pre-1.0 roadmap.
+
+- Phase prompt numbers are one-based. Task filenames begin with `P1`, then `P2`, `P3`, and so on; `P0` is not used.
+- The task number and version patch number match directly. Example: Phase 1 `P1` → `0.1.1`; Phase 1 `P4` → `0.1.4`; Phase 2 `P1` → `0.2.1`.
+- `0.<phase>.0` is a reserved conceptual phase baseline. Do not create a version-only commit merely to manufacture it; the first executed Codex prompt in a phase moves directly to `0.<phase>.1`.
+- `package.json` is the sole authoritative source for the current project version.
+- npm-generated lockfile package metadata MAY mechanically mirror the package version and MUST be kept synchronized when Codex changes `package.json`, but it is not an independent version authority.
+- Do not duplicate the current version in README, BOOT, contracts, source constants, or other manually maintained files.
+- Only execution of a new Codex roadmap-phase prompt changes the project version. Documentation review/application, prompt assessment/planning/writing, code review, validation discussion, and other ChatGPT workflow activity do not increment it.
+- Re-running or correcting the same Codex prompt retains that prompt's assigned version; it does not consume a new version number.
+- Entering a new roadmap phase does not require a standalone `.0` commit. The first prompt of the new phase changes directly from the prior phase's last version to `0.<new phase>.1`.
+- Each implementation/closeout task prompt MUST state its assigned target version and require Codex to verify the preceding expected version (or the same assigned version on a rerun), update `package.json` as part of that prompt, synchronize npm lock metadata where applicable, and include the versioned tree in the prompt's final validation.
+- A closeout prompt that owns a version change performs and commits that version metadata transition before establishing the final source SHA to be validated.
+
 ## `/prompt-ass`
 Determine safe task boundaries from established behavior/contracts/roadmap. No writes.
 
@@ -313,10 +329,12 @@ Do not overwrite existing tasks without explicit authorization.
 Default names:
 
 ```text
-P0-<short-task-slug>.txt
 P1-<short-task-slug>.txt
 P2-<short-task-slug>.txt
+P3-<short-task-slug>.txt
 ```
+
+Continue one-based numbering for additional prompts in the same phase.
 
 ## Supporting prompt commands
 
@@ -358,9 +376,11 @@ Recommend the single most logical next task.
 
 # Codex prompt requirements
 
-Finished implementation prompts normally include Task, Context, Current/Required behavior, roadmap phase, governing contracts/ADRs/laws, inspected source, allowed/forbidden files, constraints, preserved behavior, applicable security/provenance/idempotency/failure-isolation implications, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs updates, acceptance criteria, and non-goals.
+Finished implementation prompts normally include Task, Context, Current/Required behavior, roadmap phase, assigned project version, governing contracts/ADRs/laws, inspected source, allowed/forbidden files, constraints, preserved behavior, applicable security/provenance/idempotency/failure-isolation implications, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs updates, acceptance criteria, and non-goals.
 
 Every implementation prompt inherits `docs/contracts/testing-and-validation-contract.md`. A prompt must not treat tests as optional cleanup, silently accept missing prerequisites, or claim a higher evidence level than its validation procedure can prove.
+
+Every Codex roadmap-phase prompt also inherits the versioning rules above: it owns exactly its assigned `0.<phase>.<prompt>` version, uses `package.json` as the authority, keeps generated lock metadata synchronized, and does not create duplicate manually maintained version constants.
 
 Collection prompts preserve bootstrap/approval/lifecycle/operational boundaries, truthful Collection runs, pre-request network safety, run isolation, retry limits when applicable, Source-domain policy, and controlled deterministic collection tests without production safety bypasses.
 
@@ -381,6 +401,7 @@ Admin prompts preserve Cloudflare Access/origin protection, request integrity, P
 - `/docs-apply` writes only approved docs; invocation authorizes those documentation-only changes on `main` unless branch/PR requested.
 - `/prompt-ass` and `/prompt-plan` never write.
 - `/prompt-write` writes only approved task files in established task folder.
+- Documentation/prompt/review workflow activity does not change the package version; only execution of a Codex roadmap-phase prompt may do so under the versioning contract above.
 - No task writes while `Planning needed` remains unresolved.
 - No speculative migrations/compatibility bridges.
 - No topic conditionals in shared engine code.
@@ -403,6 +424,6 @@ Prefer one canonical design. Do not add old/new aliases, duplicate synchronized 
 
 # Boot maintenance
 
-Update BOOT when phase, core paths, terminology, commands, authority, locked laws, modification conventions, branch, repository identity, critical delivery ordering, foundational security/deployment decisions, or project-wide testing/validation policy changes.
+Update BOOT when phase, core paths, terminology, commands, authority, locked laws, modification conventions, versioning/prompt-numbering conventions, branch, repository identity, critical delivery ordering, foundational security/deployment decisions, or project-wide testing/validation policy changes.
 
 Detailed feature specifications belong in specialized contracts/ADRs. When BOOT conflicts with a higher-authority contract, the contract wins and BOOT must be corrected.
