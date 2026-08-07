@@ -1,10 +1,18 @@
+import { parseDatabaseConfig } from '../../database/config.ts';
+import { createDatabase } from '../../database/database.ts';
+import { createDatabaseDependency } from '../../database/readiness.ts';
 import { parseRuntimeConfig } from '../../shared/runtime-config.ts';
 import { startWorkerRuntime } from './runtime.ts';
 
 async function main(): Promise<void> {
   try {
     const config = parseRuntimeConfig(process.env);
-    const runtime = await startWorkerRuntime(config);
+    const databaseConfig = parseDatabaseConfig(process.env);
+    const database = createDatabase(databaseConfig);
+    const runtime = await startWorkerRuntime(
+      config,
+      createDatabaseDependency(database),
+    );
     let shutdownPromise: Promise<void> | undefined;
     const shutdown = () => {
       shutdownPromise ??= runtime.shutdown();

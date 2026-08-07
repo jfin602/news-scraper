@@ -3,33 +3,24 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { describe, it } from 'node:test';
 
 describe('Worker process entrypoint', () => {
-  it('starts without Web configuration, remains alive, and stops cleanly', async () => {
+  it('rejects missing database configuration without requiring Web configuration', async () => {
     const child = spawnWorker({
       NODE_ENV: 'test',
       NEWS_SCRAPER_WEB_HOST: undefined,
       NEWS_SCRAPER_WEB_PORT: undefined,
     });
-    try {
-      assert.deepEqual(await waitForJsonLine(child, 'stdout', 'worker.ready'), {
-        event: 'worker.ready',
+    const stdout: Buffer[] = [];
+    child.stdout?.on('data', (chunk: Buffer) => stdout.push(chunk));
+    assert.deepEqual(
+      await waitForJsonLine(child, 'stderr', 'worker.start_failed'),
+      {
+        event: 'worker.start_failed',
         role: 'worker',
-      });
-      await new Promise<void>((resolve) => setImmediate(resolve));
-      assert.equal(child.exitCode, null);
-      assert.equal(child.signalCode, null);
-
-      const stoppedEvent = waitForJsonLine(child, 'stdout', 'worker.stopped');
-      const exitEvent = waitForExit(child);
-      sendTermination(child);
-      assert.deepEqual(await stoppedEvent, {
-        event: 'worker.stopped',
-        role: 'worker',
-      });
-      if (child.connected) child.disconnect();
-      assert.deepEqual(await exitEvent, { code: 0, signal: null });
-    } finally {
-      if (child.exitCode === null && child.signalCode === null) child.kill();
-    }
+      },
+    );
+    if (child.connected) child.disconnect();
+    assert.deepEqual(await waitForExit(child), { code: 1, signal: null });
+    assert.doesNotMatch(Buffer.concat(stdout).toString(), /worker\.ready/u);
   });
 
   it('rejects invalid common configuration before readiness', async () => {
@@ -66,11 +57,6 @@ function spawnWorker(environment: NodeJS.ProcessEnv): ChildProcess {
       ...(process.platform === 'win32' ? ['ipc' as const] : []),
     ],
   });
-}
-
-function sendTermination(child: ChildProcess): void {
-  if (process.platform === 'win32') child.send?.('SIGTERM');
-  else assert.equal(child.kill('SIGTERM'), true);
 }
 
 function waitForJsonLine(

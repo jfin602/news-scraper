@@ -1,11 +1,18 @@
+import { parseDatabaseConfig } from '../../database/config.ts';
+import { createDatabase } from '../../database/database.ts';
+import { createDatabaseDependency } from '../../database/readiness.ts';
 import { createWebApp } from './create-app.ts';
 import { startWebServer } from './server.ts';
 import { parseWebConfig } from './web-config.ts';
 
 async function main(): Promise<void> {
+  let database: ReturnType<typeof createDatabase> | undefined;
   try {
     const config = parseWebConfig(process.env);
-    const webServer = await startWebServer(createWebApp(), config);
+    const databaseConfig = parseDatabaseConfig(process.env);
+    database = createDatabase(databaseConfig);
+    const dependency = createDatabaseDependency(database);
+    const webServer = await startWebServer(createWebApp(dependency), config);
     writeEvent({
       event: 'web.listening',
       host: webServer.host,
@@ -14,8 +21,13 @@ async function main(): Promise<void> {
 
     let shutdownPromise: Promise<void> | undefined;
     const shutdown = () => {
-      shutdownPromise ??= webServer
-        .close()
+      shutdownPromise ??= (async () => {
+        try {
+          await webServer.close();
+        } finally {
+          await dependency.close();
+        }
+      })()
         .then(() => writeEvent({ event: 'web.stopped', role: 'web' }))
         .catch(() => {
           writeError('web.shutdown_failed');
@@ -25,6 +37,7 @@ async function main(): Promise<void> {
     process.once('SIGINT', shutdown);
     process.once('SIGTERM', shutdown);
   } catch {
+    await database?.close().catch(() => undefined);
     writeError('web.start_failed');
     process.exitCode = 1;
   }

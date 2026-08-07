@@ -3,12 +3,17 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { describe, it } from 'node:test';
 
 describe('Web process entrypoint', () => {
-  it('reports its actual port, serves health, and stops cleanly', async () => {
+  it('listens with an unavailable database, serves liveness, and stops cleanly', async () => {
     const child = spawnWeb({
       NODE_ENV: 'test',
       NEWS_SCRAPER_WEB_HOST: '127.0.0.1',
       NEWS_SCRAPER_WEB_PORT: '0',
+      NEWS_SCRAPER_DATABASE_URL:
+        'postgresql://synthetic-secret@127.0.0.1:1/unavailable',
     });
+    const output: Buffer[] = [];
+    child.stdout?.on('data', (chunk: Buffer) => output.push(chunk));
+    child.stderr?.on('data', (chunk: Buffer) => output.push(chunk));
     try {
       const listening = await waitForJsonLine(child, 'stdout', 'web.listening');
       assert.equal(listening.host, '127.0.0.1');
@@ -18,8 +23,10 @@ describe('Web process entrypoint', () => {
         status: 'ok',
         role: 'web',
       });
-      assert.deepEqual(await (await fetch(`${baseUrl}/health/ready`)).json(), {
-        status: 'ready',
+      const readiness = await fetch(`${baseUrl}/health/ready`);
+      assert.equal(readiness.status, 503);
+      assert.deepEqual(await readiness.json(), {
+        status: 'not_ready',
         role: 'web',
       });
       const stoppedEvent = waitForJsonLine(child, 'stdout', 'web.stopped');
@@ -31,6 +38,10 @@ describe('Web process entrypoint', () => {
       });
       if (child.connected) child.disconnect();
       assert.deepEqual(await exitEvent, { code: 0, signal: null });
+      assert.doesNotMatch(
+        Buffer.concat(output).toString(),
+        /synthetic-secret/u,
+      );
     } finally {
       if (child.exitCode === null && child.signalCode === null) child.kill();
     }
