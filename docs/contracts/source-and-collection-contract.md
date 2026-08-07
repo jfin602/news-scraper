@@ -24,19 +24,41 @@ Before Source administration UI exists, operator-maintained seed/bootstrap tooli
 
 Bootstrap approval counts as deliberate operator approval; it is not a bypass of the approval boundary.
 
+Bootstrap is an explicit operator action. Web/API and Worker ordinary startup MUST NOT implicitly apply bootstrap configuration.
+
+Bootstrap identity is stable and configuration-owned:
+
+- Publication bootstrap identity uses the Publication slug;
+- each Source has an immutable `config_key` unique within its Publication;
+- each Source endpoint has an immutable `config_key` unique within its Source.
+
+Ordinary bootstrap execution is create-if-absent by those stable identities. If a matching Publication/Source/endpoint already exists, bootstrap MUST leave the existing record unchanged, including later operator-managed approval, lifecycle, operational state, approved domains, endpoint URL, and polling configuration. A rerun therefore MUST NOT recreate an obsolete seeded endpoint merely because an operator later changed its URL.
+
 Bootstrap tooling:
 
 - MUST NOT discover Sources/endpoints and auto-approve them;
 - MUST NOT infer approval from a successful fetch;
 - MUST NOT silently widen Source approved-domain policy;
-- SHOULD be idempotent;
-- MUST NOT blindly overwrite later operator-managed approval/lifecycle/operational state on ordinary application startup.
+- MUST be idempotent;
+- MUST NOT blindly overwrite later operator-managed approval/lifecycle/operational state or other existing configuration.
 
 Once admin UI becomes the normal management surface, bootstrap data is initialization input rather than competing runtime authority.
 
 ## Approved-domain policy
 
 Each Source defines the maximum approved public-domain boundary. Endpoint configuration may narrow that boundary for redirects/Article links but may not silently widen it.
+
+Configuration representation is intentionally structural and deterministic:
+
+- an approved-domain rule stores a normalized DNS hostname, not a scheme/path/query/credential-bearing URL;
+- exact-host matching is the default;
+- subdomain inclusion is explicit rather than inferred from a parent hostname;
+- free-form wildcard strings are not a domain-policy primitive;
+- absent endpoint narrowing means the endpoint inherits the Source maximum boundary;
+- when endpoint narrowing exists, every endpoint rule MUST be equal to or narrower than an approved Source rule;
+- an endpoint cannot enter `approved` state when its configured hostname falls outside the Source approved-domain policy.
+
+Phase 3 validates and persists these configuration relationships only. It does not resolve DNS, classify resolved addresses, enforce runtime port policy, follow redirects, or contact endpoints. Those pre-request network-safety behaviors begin in Phase 4.
 
 Before every outbound request, including every redirect hop, the fetch layer MUST:
 
@@ -69,6 +91,12 @@ Preferred order:
 A lower-priority method requires an operational reason. Convenience alone does not justify browser automation.
 
 The fetcher/parser adapter boundary is established with the first structured-feed implementation. Later HTML/custom collectors implement that existing boundary rather than redefining it.
+
+### Phase 3 endpoint type and polling configuration
+
+Phase 3 persists only the structured-feed type needed for the initial critical path. The canonical initial endpoint type is `rss_atom`; the later parser determines whether fetched content is RSS or Atom rather than requiring an operator to pre-classify the XML dialect correctly.
+
+The canonical basic polling field is `poll_interval_seconds`. It MUST be a positive bounded value. `0` MUST NOT mean disabled because operational state already owns `enabled`, `paused`, and `disabled` semantics. Other endpoint types and their adapter-specific configuration arrive only with the roadmap phase that implements them.
 
 ## Configuration precedence
 
