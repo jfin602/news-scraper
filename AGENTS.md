@@ -31,6 +31,7 @@ docs/contracts/domain-and-data-contract.md
 docs/contracts/source-and-collection-contract.md
 docs/contracts/article-lifecycle-and-deduplication.md
 docs/contracts/public-feed-and-admin-contract.md
+docs/contracts/testing-and-validation-contract.md
 docs/architecture/system-architecture.md
 docs/operations/security-reliability-and-operations.md
 docs/roadmap/mvp-roadmap.md
@@ -138,6 +139,22 @@ Admin MVP:
 - native application accounts/sessions/roles/account recovery/per-user Publication authorization/identity-linked audit attribution are deferred beyond MVP;
 - Source/endpoint management, Publication/Relevance administration, Article moderation, duplicate review, and bounded change history arrive in their roadmap phases.
 
+## Validation law
+
+Governed by `docs/contracts/testing-and-validation-contract.md`.
+
+- Automated behavioral regression coverage is the primary protection against implementation regressions.
+- Every implementation change requires focused tests for the changed behavior plus relevant broader regression coverage for its blast radius.
+- Test evidence applies to the exact final source tree that was executed; earlier passing evidence does not automatically validate later changes.
+- Source inspection is not runtime proof, HTTP integration is not browser proof, fixture collection is not live-Source proof, and mocks do not prove PostgreSQL transactions/constraints/locks.
+- Persistence guarantees use real disposable PostgreSQL where practical from Phase 2 onward.
+- Ordinary CI must not depend on live public publishers; deterministic collection uses controlled fixtures/servers without weakening production SSRF or whitelist policy.
+- Explicitly invoked required suites fail clearly when prerequisites are missing and must not silently skip green.
+- Zero matched tests in a required filtered suite is a failure.
+- Flaky/skipped tests do not satisfy roadmap exit gates for the behavior they would have proved.
+- Every reproducible defect should receive regression coverage when technically practical.
+- Every roadmap phase inherits the testing contract even when its phase entry does not repeat the entire matrix.
+
 ## Roadmap law
 
 Use `docs/roadmap/mvp-roadmap.md`.
@@ -151,8 +168,8 @@ Phase 0 final documentation alignment is complete. Phases 1–9 are the tech-dem
 - Inspect current source/docs before implementation prompts.
 - Prefer file-scoped, regression-safe Codex prompts.
 - Include non-goals and preserved behavior.
-- Require focused + broader regression tests.
-- Do not claim runtime/browser behavior unless observed.
+- Require focused + broader regression tests and name the evidence level needed to prove acceptance.
+- Do not claim runtime/browser/database/live-Source behavior unless actually observed at the corresponding evidence level.
 - Prefer smallest correct changes over speculative refactors.
 - Trace shared helpers/consumers before changing data or collection semantics.
 - Make a concrete recommendation when asked for the recommended option.
