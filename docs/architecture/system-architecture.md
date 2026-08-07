@@ -39,6 +39,18 @@ A slow/crashed Source request in the Worker must not block normal public-feed re
 
 During the tech-demo critical path before durable jobs/scheduling exist, collection is invoked manually through the Worker process. Phase 10 adds durable scheduling around the same endpoint execution unit; it does not create a second collection path.
 
+### Phase 1 process bootstrap contract
+
+Phase 1 establishes the process/lifecycle boundary without implementing collection or persistence.
+
+- The Web/API process owns the HTTP listener and exposes liveness/readiness endpoints.
+- Web/API liveness means the process/server is responsive. Readiness means startup initialization has completed and every critical dependency implemented in the current phase is usable.
+- Phase 1 has no PostgreSQL dependency. Phase 2 extends readiness to cover the shared database dependency.
+- The Worker is an independently executable process role with a testable bootstrap/startup and clean-shutdown contract.
+- Phase 1 does not require a separate Worker HTTP server merely to expose health probes. Worker readiness is proven through startup/configuration/dependency validation until a concrete deployment requirement justifies an HTTP probe.
+- Phase 5 adds manual endpoint execution behind this same Worker boundary. Phase 10 adds durable job consumption/scheduling around the same endpoint execution unit rather than creating another Worker path.
+- Phase 1 runtime configuration is centralized and typed/validated. Malformed or out-of-range startup configuration must fail predictably; database, Source, Publication-data, scheduler, and collection secrets/configuration are not invented early merely to make validation non-empty.
+
 ## Module boundaries
 
 Recommended initial layout:
@@ -66,6 +78,10 @@ src/
 ```
 
 Native application authentication/account modules are deferred beyond MVP unless a later decision promotes them.
+
+The layout above is a target ownership map, not a requirement to create empty directories or placeholder modules before substantive code exists.
+
+Phase 1 Publication-awareness is structural only: generic naming, dependency direction, and module placement must preserve Publication as the future topic/configuration scoping boundary. Phase 1 does not implement Publication persistence, Source configuration, bootstrap/seed data, Categories, Relevance rules, or the initial indie-author Publication.
 
 Rules:
 
