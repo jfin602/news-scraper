@@ -286,7 +286,7 @@ At minimum:
 
 - Phase 1: startup/config/static/test-runner/local-validation foundation;
 - Phase 2: disposable PostgreSQL, migration-from-zero, cleanup verification;
-- Phase 3: Publication/Source/bootstrap/state invariants;
+- Phase 3: Publication/Source/endpoint migrations from zero plus real-PostgreSQL state/uniqueness/bootstrap-idempotency/no-overwrite/rollback evidence; pure configuration normalization/validation may additionally use unit coverage;
 - Phase 4: eligibility, domain, SSRF, redirect, and lock negatives;
 - Phase 5: deterministic HTTP/RSS/Atom/Collection-run fixture coverage;
 - Phase 6: normalization fixture matrix;
