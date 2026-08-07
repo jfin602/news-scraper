@@ -10,12 +10,22 @@ It establishes project identity, canonical terminology, authority, document rout
 - Default branch: `main`
 - Working product/repository name: News Scraper
 - Platform: reusable, topic-independent news aggregation Platform
-- Current phase: Phase 0 — Contracts and product foundation
+- Current phase: **Phase 1 — Application foundation**
 - Production status: pre-production
 - Initial Publication: publishing-industry news relevant to indie authors
 - Public direction: rolling recent-headline feed sending readers to original publishers
-- Admin direction: Publication/Source/endpoint/relevance/Category/Article/duplicate/health/audit control plane
+- Admin direction: Cloudflare Access-protected Publication/Source/endpoint/Relevance/Category/Article/duplicate/health/change-history control plane, built after the tech-demo vertical slice
 - Core constraint: Publication-specific behavior is configuration; shared engine logic remains topic independent
+
+Phase 0 final documentation alignment is complete. The repository is ready for Phase 1 implementation planning.
+
+## Delivery priority
+
+Phases 1–9 are the tech-demo critical path.
+
+The first demonstrable milestone is: at least two real approved RSS/Atom Sources are collected through the Worker, recorded in Collection runs, normalized, passed through the canonical default-include Relevance boundary, persisted idempotently with Article-observation provenance, and displayed in the public feed with original-publisher headline links.
+
+Do not front-load admin convenience, native authentication, feed discovery polish, duplicate moderation, or HTML collection into that critical path unless a true dependency is demonstrated.
 
 ## New-session startup
 
@@ -41,7 +51,7 @@ Governed by `docs/contracts/domain-and-data-contract.md`.
 - `Publication` = configured news product and topic-specific boundary
 - `Source` = configured publisher/outlet; approval state determines whether it is trusted for collection
 - `Source endpoint` = configured feed/API/HTML location owned by a Source
-- `Collection run` = one attempt to collect one endpoint
+- `Collection run` = one attempt to collect one endpoint; persisted provenance begins with the first real fetch phase
 - `Raw item` = minimally interpreted parser output
 - `Article candidate` = normalized but not yet accepted
 - `Article` = persisted normalized Source instance
@@ -58,7 +68,7 @@ Governed by `docs/contracts/domain-and-data-contract.md`.
 - `refresh` = re-read current repository sources before answering
 - `lock` = treat a decision as authoritative and identify documents that must reflect it
 
-Do not blur Source vs endpoint, approval vs lifecycle/operational state, operational state vs health, Article identity vs duplicate identity, or Article visibility vs duplicate role.
+Do not blur Source vs endpoint, approval vs lifecycle/operational state, operational state vs health, Article identity vs duplicate identity, Article visibility vs duplicate role, or external admin access control vs application resource validation.
 
 ## Authority and conflicts
 
@@ -83,17 +93,18 @@ Report authoritative conflicts rather than choosing silently.
 | Area | Read first |
 |---|---|
 | Locked laws / authority / product boundaries | `docs/contracts/project-contract.md` |
-| MVP users / capabilities / exclusions | `docs/contracts/mvp-scope-and-users.md` |
+| MVP users / demo-first capabilities / exclusions | `docs/contracts/mvp-scope-and-users.md` |
 | Terminology / states / entities / identity / provenance | `docs/contracts/domain-and-data-contract.md` |
-| Process/module architecture / pipeline / scheduling / transactions | `docs/architecture/system-architecture.md` |
-| Approval / collection / safety / parsing / normalization / relevance / identity / run accounting | `docs/contracts/source-and-collection-contract.md` |
+| Process/module architecture / staged Worker execution / scheduling / transactions | `docs/architecture/system-architecture.md` |
+| Approval / bootstrap / collection / safety / parsing / normalization / Relevance / identity / run accounting | `docs/contracts/source-and-collection-contract.md` |
 | Article visibility / duplicate role / review/groups / Primary | `docs/contracts/article-lifecycle-and-deduplication.md` |
-| Public feed / search / themes / admin UX | `docs/contracts/public-feed-and-admin-contract.md` |
-| Auth / SSRF / content safety / isolation / observability / recovery | `docs/operations/security-reliability-and-operations.md` |
-| Phase sequence / exit gates | `docs/roadmap/mvp-roadmap.md` |
+| Public feed / search / themes / admin UX / change history | `docs/contracts/public-feed-and-admin-contract.md` |
+| Admin perimeter / SSRF / content safety / isolation / observability / recovery | `docs/operations/security-reliability-and-operations.md` |
+| Phase sequence / critical path / exit gates | `docs/roadmap/mvp-roadmap.md` |
 | Topic-independent decision | `docs/decisions/topic-independent-publication-model.md` |
 | Whitelist/structured-feed decision | `docs/decisions/whitelist-and-structured-feed-first.md` |
 | Original-link/normalization decision | `docs/decisions/original-link-and-normalized-metadata.md` |
+| Cloudflare Access admin perimeter | `docs/decisions/cloudflare-access-admin-perimeter.md` |
 | Documentation index | `docs/README.md` |
 | Implementation prompts | `docs/tasks/` when present |
 | Validation artifacts | `docs/validation/` when present |
@@ -104,40 +115,65 @@ If a path does not exist, search for its current equivalent before assuming inte
 
 - Shared engine code remains topic independent.
 - Source/endpoint approval/trust, lifecycle (`active/archived`), operational state (`enabled/paused/disabled`), and derived health are distinct.
+- Bootstrap may explicitly create approved configuration as operator input but may not auto-discover/auto-approve, infer approval from fetch success, widen domains silently, or overwrite later operator-managed state on normal startup.
 - Only collection-active Publications with approved + active + operationally enabled Sources/endpoints are contacted.
 - Every request/redirect passes pre-fetch network-safety validation before contact.
 - Parsed Article links pass a separate post-normalization Source/domain gate.
 - Source approved domains are the maximum boundary; endpoint rules may narrow, not silently widen.
 - Parsers output Raw items and never persist Articles directly.
-- Source-shaped data is normalized before relevance, identity, duplicate, or feed use.
-- Relevance uses deterministic include/exclude/categorize priority/scope rules; generic boost/ranking is deferred.
+- Source-shaped data is normalized before Relevance, identity, duplicate, or feed use.
+- Relevance ordering is never bypassed: before configurable rules exist the empty rule set deterministically returns `include`.
+- Configurable MVP Relevance uses deterministic include/exclude/categorize priority/scope rules; edits are prospective by default; automatic bulk historical reprocessing is deferred.
 - Article identity is transactionally idempotent.
 - Article observations preserve endpoint/run provenance.
+- Minimal Collection-run persistence begins with the first real fetch in Phase 5 and expands as pipeline stages are introduced.
+- During Phases 5–9, collection is manually invoked through the Worker; Web/API never fetches Sources inline.
+- Phase 10 adds durable scheduling/jobs around the same endpoint execution unit.
 - True-duplicate grouping applies to separately stored Articles.
 - Article visibility is independent from duplicate role.
 - Ordinary feed eligibility = visible + (`ungrouped` or `primary`).
 - Weak duplicate evidence persists as review state; unchanged dismissed evidence does not recur indefinitely.
-- Source jobs/failures are isolated and public feed remains readable during collection failures.
+- Source runs/jobs fail independently and public-feed reads remain readable during collection failures.
+- MVP admin UI/API routes are behind Cloudflare Access and supported deployments prevent direct-origin bypass.
+- State-changing admin browser actions use CSRF/equivalent request-integrity controls when introduced; application commands still validate Publication/resource ownership.
+- Native application administrator accounts/sessions/roles/account recovery/per-user Publication authorization/identity-linked audit attribution are deferred beyond MVP.
 - Push/webhook adapters and pinning/featured ordering are deferred beyond MVP unless explicitly promoted.
 
 ## Roadmap state
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 0 — Contracts and product foundation**.
+Current phase: **Phase 1 — Application foundation**.
 
-Do not advance by assumption. Evaluate the Phase 0 gate after documentation alignment.
+Phase 0 is complete after the final full documentation review/alignment.
 
-Future order:
+### Tech-demo critical path
 
-1. Phase 1 — Repository/application foundation
-2. Phase 2 — Authentication, Publication, Source administration
-3. Phase 3 — RSS/Atom collection/normalization vertical slice
-4. Phase 4 — Article identity/persistence/relevance/public feed
-5. Phase 5 — True duplicate detection/moderation
-6. Phase 6 — Configurable HTML collection
-7. Phase 7 — Reliability/observability/production hardening
-8. Phase 8 — Customer launch validation
+1. Phase 1 — Application foundation
+2. Phase 2 — Database foundation
+3. Phase 3 — Publication and Source configuration core
+4. Phase 4 — Collection eligibility and network safety
+5. Phase 5 — RSS/Atom transport, parsing, and minimal Collection runs
+6. Phase 6 — Article normalization
+7. Phase 7 — Default Relevance, Article identity, and persistence
+8. Phase 8 — Basic public-feed backend
+9. Phase 9 — Basic public-feed UI and tech demo
+
+### Remaining MVP order
+
+10. Phase 10 — Automated polling, durable jobs, and endpoint health
+11. Phase 11 — Categories and configurable Relevance execution
+12. Phase 12 — Feed discovery features
+13. Phase 13 — Public presentation polish
+14. Phase 14 — Source administration
+15. Phase 15 — Publication and Relevance administration
+16. Phase 16 — True duplicate detection and grouping
+17. Phase 17 — Article and duplicate moderation
+18. Phase 18 — Configurable HTML collection
+19. Phase 19 — Reliability, observability, and production operations
+20. Phase 20 — Customer launch validation
+
+Do not advance by assumption. Verify each phase's exit gate before updating current phase.
 
 ## Working preferences
 
@@ -149,8 +185,9 @@ Future order:
 - Do not claim runtime/browser behavior unless observed.
 - Prefer smallest correct incremental change.
 - Trace shared helpers/consumers before changes.
-- Before collection changes trace approval → lifecycle/operational state → scheduler → lock → network safety → fetch/redirect → parse → normalize → Article-link validation → relevance → identity → observation → duplicate → run accounting → health → tests.
+- Before collection changes trace bootstrap/approval → lifecycle/operational state → manual/scheduled execution → lock → Collection run → network safety → fetch/redirect → parse → normalize → Article-link validation → Relevance → identity → observation → duplicate → run accounting → health → tests.
 - Before Article/duplicate changes trace external IDs/canonical URLs/uniqueness → observations → review candidates → groups → Primary → moderation → feed → tests.
+- Before admin changes trace Cloudflare Access perimeter → origin protection → request integrity → Publication/resource ownership → mutation → change history → tests.
 - Make a concrete choice when asked for `recommended`.
 - Never invent repository state, tests, browser results, Source behavior, or history.
 
@@ -184,10 +221,10 @@ Check implementation/tests against governing contracts/laws.
 Narrow documentation consistency check; does not replace full `/docs-review`.
 
 ### `/source-trace <source or behavior>`
-Trace Publication → Source → endpoint → approval/lifecycle/operational state → safety → schedule/fetch → parse/normalize → link validation → relevance → identity/observation → duplicate → run/health → consumers/tests.
+Trace Publication → Source → endpoint → approval/lifecycle/operational state → execution/lock/run → safety → fetch → parse/normalize → link validation → Relevance → identity/observation → duplicate → run/health → consumers/tests.
 
 ### `/article-trace <field or concept>`
-Trace Raw item → candidate → Article identity/persistence → observations → overrides → duplicate role → feed/admin/tests.
+Trace Raw item → candidate → Relevance → Article identity/persistence → observations → overrides → duplicate role → feed/admin/tests.
 
 ### `/dedupe-trace <case>`
 Trace Article identity separately from true-duplicate evidence, review state, groups, Primary, safeguards, moderation, feed/tests.
@@ -302,15 +339,17 @@ Recommend the single most logical next task.
 
 Finished implementation prompts normally include Task, Context, Current/Required behavior, roadmap phase, governing contracts/ADRs/laws, inspected source, allowed/forbidden files, constraints, preserved behavior, applicable security/provenance/idempotency/failure-isolation implications, risks, focused/broader tests, runtime/browser validation, docs updates, acceptance criteria, and non-goals.
 
-Collection prompts preserve approval/lifecycle/operational boundaries, pre-request network safety, run isolation, retry limits, and Source-domain policy.
+Collection prompts preserve bootstrap/approval/lifecycle/operational boundaries, truthful Collection runs, pre-request network safety, run isolation, retry limits when applicable, and Source-domain policy.
 
-Persistence/identity prompts address transactional idempotency + Article observations.
+Persistence/identity prompts address canonical Relevance ordering, transactional idempotency, and Article observations.
 
 Duplicate prompts preserve every Article/observation, exactly one Primary/group, review-state persistence, false-positive safeguards, and manual reversibility.
 
-Publication/relevance prompts preserve topic independence and deterministic rule precedence.
+Publication/Relevance prompts preserve topic independence, deterministic rule precedence, and prospective-by-default rule edits.
 
 Public-feed prompts preserve original-publisher destination and visible ungrouped-or-Primary eligibility.
+
+Admin prompts preserve Cloudflare Access/origin protection, request integrity, Publication/resource ownership validation, and the MVP prohibition on unnecessary native identity/account work.
 
 # Repository modification rules
 
@@ -324,8 +363,11 @@ Public-feed prompts preserve original-publisher destination and visible ungroupe
 - No topic conditionals in shared engine code.
 - No Source/endpoint approval/state bypass or silent whitelist expansion.
 - No parser-to-Article direct persistence.
+- No Web/API inline Source fetching.
+- No bypass of the Relevance boundary even before configurable rules exist.
 - No deletion of Article/observation provenance because duplicate suppression exists.
 - No weakening identity/duplicate/security boundaries to make tests pass.
+- No MVP native administrator account/session/role subsystem unless explicitly promoted.
 - Search all references before renames.
 - Do not report tests/runtime/browser behavior as verified unless observed.
 - Do not create PRs, merge, force-update history, or perform non-document history changes unless explicitly instructed.
@@ -337,6 +379,6 @@ Prefer one canonical design. Do not add old/new aliases, duplicate synchronized 
 
 # Boot maintenance
 
-Update BOOT when phase, core paths, terminology, commands, authority, locked laws, modification conventions, branch, or repository identity change.
+Update BOOT when phase, core paths, terminology, commands, authority, locked laws, modification conventions, branch, repository identity, critical delivery ordering, or foundational security/deployment decisions change.
 
 Detailed feature specifications belong in specialized contracts/ADRs. When BOOT conflicts with a higher-authority contract, the contract wins and BOOT must be corrected.
