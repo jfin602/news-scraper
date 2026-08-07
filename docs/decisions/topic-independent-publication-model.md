@@ -23,7 +23,7 @@ Core engine modules use generic domain terms and must not branch on the initial 
 
 ### Costs
 - Publication scoping appears in the data model from the start.
-- Authorization and uniqueness rules respect Publication boundaries.
+- Data scoping, resource ownership validation, and uniqueness rules respect Publication boundaries.
 - Configuration validation is more important than in a hard-coded single-topic site.
 
 ## Rejected alternatives
@@ -32,7 +32,7 @@ Core engine modules use generic domain terms and must not branch on the initial 
 Rejected because it creates topic coupling and weakens reuse.
 
 ### Build full commercial multi-tenancy immediately
-Rejected for MVP because billing, self-service signup, tenant provisioning, and complex role management are not required. Publication boundaries are implemented now without committing to a full SaaS control plane.
+Rejected for MVP because billing, self-service signup, tenant provisioning, native administrator accounts, and complex per-user role management are not required. Publication boundaries are implemented now without committing to a full SaaS control plane.
 
 ## Compliance check
 
