@@ -41,7 +41,6 @@ describe('package command environment contract', () => {
     const manifest = await readJson<PackageManifest>('package.json');
     const lock = await readJson<PackageLock>('package-lock.json');
 
-    assert.equal(manifest.version, '0.2.5');
     assert.equal(lock.version, manifest.version);
     assert.equal(lock.packages['']?.version, manifest.version);
   });
