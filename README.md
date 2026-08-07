@@ -240,9 +240,11 @@ Documentation review/application:
 
 ```text
 /docs-review
-→ explicit approval or /docs-apply
+→ explicit approval
 → /docs-apply
 ```
+
+Invoking `/docs-apply` after the review constitutes approval of the reviewed change set unless the user explicitly narrows it.
 
 Implementation prompt workflow:
 
