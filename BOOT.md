@@ -264,6 +264,44 @@ Identify affected contracts, ADRs, schema/migrations, jobs/services/routes/read 
 
 Trace suspected regression to likely change, affected invariants, missing test protection, and the evidence level required to prove a fix.
 
+# Phase handoff workflow
+
+After an implementation roadmap phase has been formally closed by its closeout task and durable validation record, use:
+
+```text
+phase implementation / closeout task
+→ /closeout
+→ /docs-review
+→ /docs-apply
+→ /prompt-ass
+→ /prompt-plan
+→ /prompt-write <folder name>
+```
+
+## `/closeout`
+
+Perform a quick repository-level handoff check after the previous roadmap phase's closeout prompt has completed and before beginning the next phase's documentation review.
+
+Read `BOOT.md`, the roadmap, the previous phase's durable validation artifact, `package.json`, npm lock metadata, relevant phase task state, and recent commits. Confirm at minimum that:
+
+- the previous roadmap phase is marked complete and the intended next phase is identifiable;
+- the durable validation artifact exists and identifies the accepted/validated implementation source SHA;
+- commits after that validated SHA do not introduce unvalidated implementation, test, package, migration, or runtime drift that would invalidate the closeout evidence;
+- root/roadmap phase state is coherent enough to begin the next phase;
+- `package.json` and npm-generated lockfile version metadata agree before transition;
+- the completed phase's prompt/version sequence is coherent and there are no obvious stale phase artifacts that block handoff.
+
+`/closeout` is intentionally a fast structural/evidence check. It does not rerun the full phase validation matrix and must not upgrade source inspection into runtime/database/browser/live-Source proof.
+
+If any material closeout problem is found, report `Closeout check blocked`, explain the blocker, and make no version change.
+
+If the check is green, invocation of `/closeout` itself constitutes the repository owner's explicit authorization to transition to the next phase baseline. Update only:
+
+- `package.json` to `0.<next roadmap phase>.0`;
+- npm-generated lockfile package-version metadata to the same version.
+
+Commit that version-only transition directly to `main` unless the user requests a branch/PR. Do not modify source, tests, migrations, tasks, validation artifacts, or unrelated documentation as part of the baseline transition. Report the resulting commit SHA and confirm that the next phase `P1` target is `0.<phase>.1`.
+
 # Documentation workflow
 
 ## `/docs-review`
@@ -309,16 +347,16 @@ Project versions use `0.<roadmap phase>.<phase prompt number>` while the project
 
 - Phase prompt numbers are one-based. Task filenames begin with `P1`, then `P2`, `P3`, and so on; `P0` is not used.
 - The task number and version patch number match directly. Example: Phase 1 `P1` → `0.1.1`; Phase 1 `P4` → `0.1.4`; Phase 2 `P1` → `0.2.1`.
-- `0.<phase>.0` is the phase baseline. After the prior roadmap phase has formally closed, the repository owner MAY explicitly authorize a transition to `0.<new phase>.0`. This baseline transition consumes no implementation prompt number and does not change the P1 → `.1`, P2 → `.2`, P3 → `.3` mapping.
-- A phase-baseline transition is never automatic. Without explicit owner authorization, the first executed prompt in the new phase may move directly from the prior phase's final version to `0.<new phase>.1`.
+- `0.<phase>.0` is the phase baseline. After the prior roadmap phase has formally closed, `/closeout` is the canonical handoff that verifies the closeout and, only on a green result, explicitly authorizes and performs the transition to `0.<new phase>.0`. This baseline transition consumes no implementation prompt number and does not change the P1 → `.1`, P2 → `.2`, P3 → `.3` mapping.
+- A phase-baseline transition is never automatic. Invoking `/closeout` constitutes explicit repository-owner authorization for its green-path version-only transition. The owner may also separately authorize a `.0` transition explicitly when needed.
 - `package.json` is the sole authoritative source for the current project version.
-- npm-generated lockfile package metadata MAY mechanically mirror the package version and MUST be kept synchronized whenever `package.json` changes, including an explicitly authorized `.0` phase-baseline transition; it is not an independent version authority.
+- npm-generated lockfile package metadata MAY mechanically mirror the package version and MUST be kept synchronized whenever `package.json` changes, including a `/closeout` or separately authorized `.0` phase-baseline transition; it is not an independent version authority.
 - Do not duplicate the current version in README, BOOT, contracts, source constants, or other manually maintained files.
-- Project version changes occur only through execution of a new Codex roadmap-phase prompt or an explicit repository-owner-authorized `.0` phase-baseline transition after the prior phase closes. Documentation review/application, prompt assessment/planning/writing, code review, validation discussion, and other ChatGPT workflow activity do not otherwise increment it.
+- Project version changes occur only through execution of a new Codex roadmap-phase prompt, a green `/closeout` phase-baseline transition, or another explicit repository-owner-authorized `.0` transition after the prior phase closes. Documentation review/application, prompt assessment/planning/writing, code review, validation discussion, and other ChatGPT workflow activity do not otherwise increment it.
 - Re-running or correcting the same Codex prompt retains that prompt's assigned version; it does not consume a new version number.
-- If an explicit `.0` baseline exists, the first prompt in that phase advances from `0.<phase>.0` to `0.<phase>.1`. If no `.0` baseline was authorized, the first prompt advances directly from the prior phase's final version to `0.<phase>.1`.
+- If a `.0` baseline exists, the first prompt in that phase advances from `0.<phase>.0` to `0.<phase>.1`. If no `.0` baseline was authorized, the first prompt advances directly from the prior phase's final version to `0.<phase>.1`.
 - Each implementation/closeout task prompt MUST state its assigned target version and require Codex to verify the expected preceding version (the authorized `.0` baseline when present, otherwise the prior phase/prompt version; or the same assigned version on a rerun), update `package.json` as part of that prompt, synchronize npm lock metadata where applicable, and include the versioned tree in the prompt's final validation.
-- A closeout prompt that owns a version change performs and commits that version metadata transition before establishing the final source SHA to be validated.
+- A closeout task prompt that owns a version change performs and commits that prompt-numbered version metadata transition before establishing the final source SHA to be validated. The later `/closeout` command, if green, performs the separate next-phase `.0` baseline transition.
 
 ## `/prompt-ass`
 
@@ -360,7 +398,6 @@ Continue one-based numbering for additional prompts in the same phase.
 - `/stack <goal>` — legacy shorthand for `/prompt-ass`.
 - `/split <task>` — narrow assessment shorthand.
 - `/revalidate <task or stack>` — compare existing task(s) to current repo/contracts.
-- `/closeout <task>` — assess final regression/docs/runtime validation task.
 
 # Review and validation commands
 
@@ -419,11 +456,12 @@ Admin prompts preserve Cloudflare Access/origin protection, request integrity, P
 # Repository modification rules
 
 - Do not modify/commit unless authorized by current request/command.
+- `/closeout` performs only the quick phase-handoff verification described above and, when green, writes/commits only `package.json` plus npm-generated lockfile version metadata for the next `0.<phase>.0` baseline. Invocation authorizes those version-only changes on `main` unless a branch/PR is requested.
 - `/docs-review` never writes.
 - `/docs-apply` writes only approved docs; invocation authorizes those documentation-only changes on `main` unless branch/PR requested.
 - `/prompt-ass` and `/prompt-plan` never write.
 - `/prompt-write` writes only approved task files in established task folder.
-- Documentation/prompt/review workflow activity does not change the package version. Version changes are limited to executed Codex roadmap-phase prompts and explicit owner-authorized `.0` phase-baseline transitions after the prior phase closes.
+- Documentation/prompt/review workflow activity does not change the package version except for the explicitly defined `/closeout` phase-baseline transition. Other version changes are limited to executed Codex roadmap-phase prompts and separately explicit owner-authorized `.0` transitions after the prior phase closes.
 - No task writes while `Planning needed` remains unresolved.
 - No speculative migrations/compatibility bridges.
 - No topic conditionals in shared engine code.
