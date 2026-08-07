@@ -151,10 +151,10 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 - Ordinary deterministic local regression validation must not depend on live public publishers; deterministic collection uses controlled fixtures/servers without weakening production SSRF or whitelist policy.
 - Explicitly invoked required suites fail clearly when prerequisites are missing and must not silently skip green.
 - Zero matched tests in a required filtered suite is a failure.
-- Flaky/skipped tests do not satisfy roadmap exit gates for the behavior they would have proved.
+- Flaky/skipped tests do not satisfy implementation-roadmap exit gates for the behavior they would have proved.
 - Every reproducible defect should receive regression coverage when technically practical.
-- Every roadmap phase inherits the testing contract even when its phase entry does not repeat the entire matrix.
-- Roadmap phase closeout requires executed local terminal evidence and a durable `docs/validation/` artifact tied to the exact accepted commit/source tree.
+- Every implementation roadmap phase inherits the testing contract even when its phase entry does not repeat the entire matrix.
+- Implementation-roadmap phase closeout requires executed local terminal evidence and a durable `docs/validation/` artifact tied to the exact accepted commit/source tree.
 
 ## Roadmap law
 
