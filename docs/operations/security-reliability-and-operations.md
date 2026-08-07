@@ -140,8 +140,9 @@ Recovery claims require observed or injected recovery validation under the testi
 
 ## Deployment configuration
 
-- Environment settings live outside committed source.
-- Database migrations are versioned and forward-safe.
+- Secrets and environment-specific settings, including database connection details, live outside committed source.
+- Git-tracked migrations and migration infrastructure are authoritative for database schema structure and schema evolution; PostgreSQL is authoritative for persisted runtime data and applied database state.
+- The same versioned migration history is used across local development, disposable test, and deployed environments.
 - Web/API and Worker versions are compatible with active schema.
 - Graceful shutdown lets jobs finish or become safely retryable.
 - Readiness fails when critical dependencies are unavailable.
