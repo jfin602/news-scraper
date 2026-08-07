@@ -6,11 +6,11 @@ The first configured Publication focuses on publishing-industry news relevant to
 
 ## Current project state
 
-Current phase: **Phase 1 — Application foundation**.
+Current phase: **Phase 2 — Database foundation**.
 
-Phase 0 is complete. The final pre-code documentation review aligned the contracts around the demo-first delivery strategy, Cloudflare Access admin perimeter, staged Worker collection path, Collection-run provenance, default-include Relevance bridge, bootstrap approval rules, focused Phase 0–20 roadmap, and project-wide testing/regression policy.
+Phase 0 documentation alignment is complete. Phase 1 Application foundation implementation and closeout validation are complete.
 
-Phase 1 implementation is in progress.
+Phase 2 establishes the shared PostgreSQL connection/configuration, migrations, development/test database workflow, transaction utilities, dependency readiness, and disposable real-PostgreSQL validation foundation before domain persistence is introduced.
 
 ## Delivery priority
 
