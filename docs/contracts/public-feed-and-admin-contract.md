@@ -13,6 +13,8 @@ Ordinary public rows contain Articles that are:
 
 Visible `non_primary` members remain stored and administratively accessible but are duplicate-suppressed from ordinary rows. Hidden/archived Articles are not feed-eligible.
 
+Before duplicate grouping exists, visible persisted Articles are `ungrouped` and therefore use the same eligibility rule rather than a temporary feed-only exception.
+
 ## Desktop feed
 
 The default desktop presentation MUST support the customer's core three-column concept:
@@ -43,9 +45,11 @@ Linked article headline
 
 Tap targets, wrapping, Source identification, and external-link behavior must remain accessible.
 
+The tech-demo milestone may use a basic mobile layout before the later presentation-polish phase completes the full accessibility/responsive pass.
+
 ## Search and filters
 
-MVP MUST support:
+Completed MVP MUST support:
 
 - Category filter;
 - Source filter;
@@ -54,46 +58,58 @@ MVP MUST support:
 - filter state reflected in URL where practical;
 - clear reset action.
 
-Search results use the same feed-eligibility rule as the rolling feed.
+Search results use the same feed-eligibility rule as the rolling feed. These discovery features are not blockers for the earlier basic-feed tech demo.
 
 ## Theme and branding
 
-- Light/dark modes required.
-- Publication name/logo/accent/descriptive copy/Category labels come from Publication configuration.
-- Contrast and keyboard focus remain accessible.
-- Shared engine/UI logic does not embed indie-author branding.
+Completed MVP requires:
+
+- light/dark modes;
+- Publication name/logo/accent/descriptive copy/Category labels from Publication configuration;
+- accessible contrast and keyboard focus;
+- no indie-author branding embedded in shared engine/UI logic.
+
+Final theme/branding polish follows the basic public-feed tech-demo milestone as defined by the roadmap.
 
 ## External destination behavior
 
 - Original Article URL is the primary destination.
-- UI must not imply platform authorship of linked content.
+- UI must not imply Platform authorship of linked content.
 - External navigation is visually/accessibly understandable.
 - Redirector/tracking links are not MVP behavior unless separately approved/documented.
 - Broken-link handling never silently substitutes another Article.
 
 ## Public Article detail pages
 
-A platform-hosted detail page is optional in MVP. If implemented, it may show normalized metadata, Source attribution, Categories, and duplicate provenance, but the primary read action remains the original Article link. Full Article content is not reproduced without a separate rights contract.
+A Platform-hosted detail page is optional in MVP. If implemented, it may show normalized metadata, Source attribution, Categories, and duplicate provenance, but the primary read action remains the original Article link. Full Article content is not reproduced without a separate rights contract.
+
+## Admin delivery model
+
+The aggregation vertical slice and basic public feed are implemented before the full administrative control plane.
+
+Initial Publication/Source configuration MAY be supplied through approved operator-maintained bootstrap/seed tooling until the corresponding admin screens exist. That mechanism does not bypass Source approval or other collection eligibility rules.
+
+When administrative UI/API routes are introduced, they are protected by Cloudflare Access under `docs/decisions/cloudflare-access-admin-perimeter.md`.
 
 ## Admin information architecture
 
-Administrative area SHOULD contain:
+Administrative area SHOULD eventually contain:
 
 - Dashboard;
 - Publications;
 - Sources;
 - Articles;
 - Duplicate review;
-- Categories and relevance rules;
+- Categories and Relevance rules;
 - Collection runs;
-- Audit log;
+- change/audit history;
 - Settings.
 
-A single-Publication MVP may simplify navigation while preserving Publication-scoped authorization/data boundaries.
+A single-Publication MVP may simplify navigation while preserving Publication/resource ownership and data-scoping boundaries.
 
 ## Source management UI
 
-Administrators MUST be able to view/change:
+Once the Source-administration phase is complete, authorized operators MUST be able to view/change:
 
 - Source name/site URL/approved domains/Source priority/default Category;
 - Source approval state and operational state;
@@ -110,11 +126,11 @@ Physical deletion is not generic CRUD behavior when retained provenance depends 
 
 ## Article management UI
 
-Administrators MUST be able to:
+Once the Article-moderation phase is complete, authorized operators MUST be able to:
 
 - search/filter all stored Article instances;
 - distinguish ungrouped Articles, Primary members, non-primary members, hidden Articles, and archived Articles;
-- inspect Source, endpoint, Collection-run observations, and relevance reasons;
+- inspect Source, endpoint, Collection-run observations, and Relevance reasons;
 - edit optional display overrides without replacing/loss of current normalized Source-derived values;
 - clear an override to reveal latest normalized Source value;
 - hide/restore and categorize Articles;
@@ -137,14 +153,18 @@ Review SHOULD place candidate Articles side-by-side with:
 
 Dismissed decisions persist so unchanged evidence does not repeatedly recreate the same review work.
 
-## Authentication and authorization UX
+## Administrative access and request integrity
 
 - Public readers do not authenticate in MVP.
-- Admin routes require authentication.
-- Unauthorized users receive no administrative data.
-- Session expiry/failed actions are clearly communicated.
-- Authorization is Publication-aware and must not assume every administrator controls every Publication.
+- All MVP admin UI and admin API routes require the Cloudflare Access perimeter.
+- Supported deployments MUST prevent direct-origin access from bypassing that perimeter.
+- The MVP application does not implement native administrator accounts, login/logout sessions, account recovery, roles, or per-user Publication authorization.
+- State-changing admin browser actions MUST use CSRF protection or an equivalent request-integrity control.
+- Administrative commands MUST validate Publication/resource ownership and domain invariants even without per-user Publication permissions.
+- Administrative errors must not expose secrets, stack traces, or raw database details.
 
-## Auditability
+## Change history
 
-Security-sensitive configuration and moderation changes produce audit events tied to stable administrator identity, including Source/endpoint state/approval changes, Article visibility/overrides/categories, and Duplicate review/group changes.
+Security-sensitive configuration and moderation changes SHOULD produce bounded application change/audit records sufficient to explain material actions, including Source/endpoint state/approval changes, Article visibility/overrides/Categories, and Duplicate review/group changes.
+
+MVP change records do not require a stable native administrator identifier or guaranteed per-user attribution. Cloudflare identity/access logs are operational evidence rather than the application's canonical domain identity.
