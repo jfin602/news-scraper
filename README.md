@@ -163,6 +163,13 @@ administrative connection and run `npm run test:db`. The command creates and rem
 uniquely named disposable databases; it fails when the prerequisite is absent. Never
 point this variable at a development or production application database.
 
+For an application or development database, set `NEWS_SCRAPER_DATABASE_URL` to its
+PostgreSQL connection URL and run `npm run db:migrate` explicitly. Web/API and Worker
+startup do not apply migrations. The application URL is separate from
+`NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL`; the latter is privileged test administration
+used only by `npm run test:db` and must never point at ordinary development or
+production application data.
+
 ## Security and reliability
 
 Baseline controls are implemented with the surfaces they protect, not postponed to production hardening:
