@@ -153,9 +153,9 @@ Core rules:
 - collection behavior is tested with controlled fixtures/servers without weakening production whitelist/SSRF policy;
 - explicitly invoked required suites fail clearly when prerequisites are missing and cannot silently skip green;
 - flaky/skipped tests do not satisfy phase exit gates;
-- roadmap phase closeout uses executed local terminal evidence and a durable `docs/validation/` record tied to the exact accepted commit/source tree.
+- implementation-roadmap phase closeout uses executed local terminal evidence and a durable `docs/validation/` record tied to the exact accepted commit/source tree.
 
-Every roadmap phase inherits that contract even when its phase entry does not repeat the complete test matrix.
+Every implementation roadmap phase inherits that contract even when its phase entry does not repeat the complete test matrix.
 
 ## Security and reliability
 
