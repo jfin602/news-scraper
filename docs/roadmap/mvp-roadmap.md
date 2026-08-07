@@ -185,39 +185,55 @@ Represent the minimum trusted configuration required to collect approved feeds w
 
 ### Deliverables
 
-- Publication persistence with collection/public state needed by the pipeline;
-- Source persistence;
-- Source-endpoint persistence;
+- Publication persistence with only the collection/public state needed by the pipeline at this phase;
+- Source persistence with an immutable Publication-scoped configuration key;
+- Source-endpoint persistence with an immutable Source-scoped configuration key;
 - separate approval/trust state;
 - separate active/archived lifecycle state;
 - separate enabled/paused/disabled operational state;
-- Source approved-domain policy;
-- endpoint URL/type and narrowing policy;
-- basic polling configuration fields;
-- idempotent seed/bootstrap mechanism for initial Publication and approved Sources.
+- Source approved-domain policy using deterministic normalized-host rules;
+- endpoint URL, initial `rss_atom` type, and optional policy narrowing that cannot widen Source policy;
+- positive bounded `poll_interval_seconds` configuration, with operational state rather than sentinel values controlling disablement;
+- explicit idempotent operator-invoked seed/bootstrap mechanism for the initial Publication and approved Sources.
 
 ### Bootstrap rules
 
 - bootstrap may explicitly create `approved` Source/endpoint state as deliberate operator approval;
+- Publication slug, Source `config_key`, and endpoint `config_key` provide stable bootstrap identity;
+- ordinary bootstrap is create-if-absent and leaves already-existing configuration unchanged;
+- bootstrap is not an implicit Web/API or Worker startup mutation;
 - no discovery/auto-approval;
 - no approval inferred from fetch success;
 - no silent domain widening;
-- bootstrap must not overwrite later operator-managed state on ordinary startup.
+- a rerun must not recreate obsolete seeded configuration merely because an operator later changed mutable fields such as an endpoint URL;
+- bootstrap must not overwrite later operator-managed approval, lifecycle, operational, domain, URL, polling, or other existing state.
+
+### Boundary clarification
+
+- Phase 3 performs structural/configuration validation only for endpoint URL/domain relationships; DNS/address/port/redirect/runtime SSRF enforcement begins in Phase 4.
+- The complete logical domain model contains later parser/cache/health/scheduling/Category/Relevance/branding fields, but Phase 3 persists only fields required by its current behavior.
 
 ### Out of scope
 
 - admin CRUD screens;
-- configurable Categories/Relevance rules;
+- configurable Categories/Relevance rules or initial Category data;
+- final Publication branding/feed configuration;
+- parser profile/cache metadata, due/attempt/success timing, failure counters, or derived endpoint health;
 - Source health UI;
 - collection scheduling;
+- DNS/address/port/redirect network-safety execution;
 - outbound HTTP.
 
 ### Exit gate
 
-- A generic Publication and at least two approved RSS/Atom endpoints can be configured without engine-topic logic.
-- Invalid state/domain configurations are rejected.
-- Bootstrap idempotency and no-overwrite behavior are protected by automated regression tests.
+- The Phase 3 domain migration applies reproducibly from zero on a disposable PostgreSQL database.
+- A generic Publication and at least two approved `rss_atom` endpoints can be configured without engine-topic logic.
+- Database constraints and focused configuration validation reject invalid state/domain relationships owned by Phase 3.
+- Repeating bootstrap does not increase logical Publication/Source/endpoint cardinality.
+- Operator-modified existing configuration remains unchanged after another ordinary bootstrap run.
+- Bootstrap/database failure paths preserve coherent state and rollback where transactional integrity requires it.
 - Initial indie-author configuration exists only as Publication-owned bootstrap data.
+- The focused and broader regression matrix includes the real-PostgreSQL evidence required by `docs/contracts/testing-and-validation-contract.md`.
 
 ## Phase 4 — Collection eligibility and network safety
 
