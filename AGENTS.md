@@ -26,9 +26,11 @@ Follow the canonical versioning and prompt-numbering rules in `BOOT.md`.
 
 - Phase prompt filenames are one-based: `P1`, `P2`, `P3`, and so on; do not create `P0` tasks.
 - Project versions use `0.<roadmap phase>.<phase prompt number>` while pre-1.0.
+- After a roadmap phase formally closes, the repository owner may explicitly authorize `0.<new phase>.0` as the new phase baseline. That transition consumes no prompt number; P1 still maps to `.1`, P2 to `.2`, and so on.
+- The `.0` phase baseline is never automatic. Without explicit owner authorization, the first prompt in the new phase may move directly from the prior phase's final version to `0.<new phase>.1`.
 - `package.json` is the sole authoritative current-version source; do not duplicate the current version in docs or source constants.
-- npm lockfile package metadata may mirror the version mechanically and must stay synchronized when a Codex phase prompt changes `package.json`, but it is not an independent authority.
-- Only execution of a new Codex roadmap-phase prompt increments the version. Documentation/prompt/review workflow activity does not.
+- npm lockfile package metadata may mirror the version mechanically and must stay synchronized whenever `package.json` changes, including an explicitly authorized `.0` phase baseline, but it is not an independent authority.
+- Project version changes occur only through execution of a new Codex roadmap-phase prompt or an explicit owner-authorized `.0` phase-baseline transition after the prior phase closes. Documentation/prompt/review workflow activity does not otherwise increment the version.
 - Re-running or correcting the same prompt keeps that prompt's assigned version rather than consuming a new number.
 
 ## Canonical documents
@@ -171,9 +173,9 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 1 — Application foundation**.
+Current phase: **Phase 2 — Database foundation**.
 
-Phase 0 final documentation alignment is complete. Phases 1–9 are the tech-demo critical path; do not pull later admin/discovery/deduplication work into those phases without a true dependency or explicit decision.
+Phase 0 documentation alignment and Phase 1 Application foundation implementation/validation are complete. Phases 1–9 remain the tech-demo critical path; do not pull later admin/discovery/deduplication work into those phases without a true dependency or explicit decision.
 
 ## Working preferences
 

@@ -10,14 +10,14 @@ It establishes project identity, canonical terminology, authority, document rout
 - Default branch: `main`
 - Working product/repository name: News Scraper
 - Platform: reusable, topic-independent news aggregation Platform
-- Current phase: **Phase 1 — Application foundation**
+- Current phase: **Phase 2 — Database foundation**
 - Production status: pre-production
 - Initial Publication: publishing-industry news relevant to indie authors
 - Public direction: rolling recent-headline feed sending readers to original publishers
 - Admin direction: Cloudflare Access-protected Publication/Source/endpoint/Relevance/Category/Article/duplicate/health/change-history control plane, built after the tech-demo vertical slice
 - Core constraint: Publication-specific behavior is configuration; shared engine logic remains topic independent
 
-Phase 0 final documentation alignment is complete. The repository is ready for Phase 1 implementation planning.
+Phase 0 documentation alignment and Phase 1 Application foundation implementation/validation are complete. The repository is ready for Phase 2 implementation planning.
 
 ## Delivery priority
 
@@ -158,9 +158,9 @@ If a path does not exist, search for its current equivalent before assuming inte
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 1 — Application foundation**.
+Current phase: **Phase 2 — Database foundation**.
 
-Phase 0 is complete after the final full documentation review/alignment.
+Phase 0 documentation alignment is complete. Phase 1 Application foundation is complete with durable closeout validation. Phase 2 is the active implementation phase.
 
 ### Tech-demo critical path
 
@@ -295,14 +295,15 @@ Project versions use `0.<roadmap phase>.<phase prompt number>` while the project
 
 - Phase prompt numbers are one-based. Task filenames begin with `P1`, then `P2`, `P3`, and so on; `P0` is not used.
 - The task number and version patch number match directly. Example: Phase 1 `P1` → `0.1.1`; Phase 1 `P4` → `0.1.4`; Phase 2 `P1` → `0.2.1`.
-- `0.<phase>.0` is a reserved conceptual phase baseline. Do not create a version-only commit merely to manufacture it; the first executed Codex prompt in a phase moves directly to `0.<phase>.1`.
+- `0.<phase>.0` is the phase baseline. After the prior roadmap phase has formally closed, the repository owner MAY explicitly authorize a transition to `0.<new phase>.0`. This baseline transition consumes no implementation prompt number and does not change the P1 → `.1`, P2 → `.2`, P3 → `.3` mapping.
+- A phase-baseline transition is never automatic. Without explicit owner authorization, the first executed prompt in the new phase may move directly from the prior phase's final version to `0.<new phase>.1`.
 - `package.json` is the sole authoritative source for the current project version.
-- npm-generated lockfile package metadata MAY mechanically mirror the package version and MUST be kept synchronized when Codex changes `package.json`, but it is not an independent version authority.
+- npm-generated lockfile package metadata MAY mechanically mirror the package version and MUST be kept synchronized whenever `package.json` changes, including an explicitly authorized `.0` phase-baseline transition; it is not an independent version authority.
 - Do not duplicate the current version in README, BOOT, contracts, source constants, or other manually maintained files.
-- Only execution of a new Codex roadmap-phase prompt changes the project version. Documentation review/application, prompt assessment/planning/writing, code review, validation discussion, and other ChatGPT workflow activity do not increment it.
+- Project version changes occur only through execution of a new Codex roadmap-phase prompt or an explicit repository-owner-authorized `.0` phase-baseline transition after the prior phase closes. Documentation review/application, prompt assessment/planning/writing, code review, validation discussion, and other ChatGPT workflow activity do not otherwise increment it.
 - Re-running or correcting the same Codex prompt retains that prompt's assigned version; it does not consume a new version number.
-- Entering a new roadmap phase does not require a standalone `.0` commit. The first prompt of the new phase changes directly from the prior phase's last version to `0.<new phase>.1`.
-- Each implementation/closeout task prompt MUST state its assigned target version and require Codex to verify the preceding expected version (or the same assigned version on a rerun), update `package.json` as part of that prompt, synchronize npm lock metadata where applicable, and include the versioned tree in the prompt's final validation.
+- If an explicit `.0` baseline exists, the first prompt in that phase advances from `0.<phase>.0` to `0.<phase>.1`. If no `.0` baseline was authorized, the first prompt advances directly from the prior phase's final version to `0.<phase>.1`.
+- Each implementation/closeout task prompt MUST state its assigned target version and require Codex to verify the expected preceding version (the authorized `.0` baseline when present, otherwise the prior phase/prompt version; or the same assigned version on a rerun), update `package.json` as part of that prompt, synchronize npm lock metadata where applicable, and include the versioned tree in the prompt's final validation.
 - A closeout prompt that owns a version change performs and commits that version metadata transition before establishing the final source SHA to be validated.
 
 ## `/prompt-ass`
@@ -401,7 +402,7 @@ Admin prompts preserve Cloudflare Access/origin protection, request integrity, P
 - `/docs-apply` writes only approved docs; invocation authorizes those documentation-only changes on `main` unless branch/PR requested.
 - `/prompt-ass` and `/prompt-plan` never write.
 - `/prompt-write` writes only approved task files in established task folder.
-- Documentation/prompt/review workflow activity does not change the package version; only execution of a Codex roadmap-phase prompt may do so under the versioning contract above.
+- Documentation/prompt/review workflow activity does not change the package version. Version changes are limited to executed Codex roadmap-phase prompts and explicit owner-authorized `.0` phase-baseline transitions after the prior phase closes.
 - No task writes while `Planning needed` remains unresolved.
 - No speculative migrations/compatibility bridges.
 - No topic conditionals in shared engine code.
