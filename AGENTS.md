@@ -189,6 +189,7 @@ Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Databas
 - Trace shared helpers/consumers before changing data or collection semantics.
 - Confirm applicable local validation commands/suites were actually executed against the final tree before approval.
 - Confirm each Codex phase prompt uses its assigned one-based prompt number/version and that `package.json` remains the authoritative version source.
+- Every roadmap implementation/closeout prompt carries the minimum model/effort rating established by the `BOOT.md` prompt workflow. Treat it as a minimum recommendation: a stronger rating/model may be used, and the recorded rating must not be silently removed or lowered when a task is revised.
 - Make a concrete recommendation when asked for the recommended option.
 - Never invent repository state, test results, Source behavior, or history.
 
