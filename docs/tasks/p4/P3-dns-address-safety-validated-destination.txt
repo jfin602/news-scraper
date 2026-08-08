@@ -1,0 +1,242 @@
+TASK: Phase 4 / P3 — DNS/address safety and validated destination handoff
+
+ROADMAP PHASE
+Phase 4 — Collection eligibility and network safety.
+
+VERSIONING
+- This is Phase 4 prompt 3 and its assigned project version is `0.4.3`.
+- On first execution confirm P2 left `package.json` at `0.4.2`, then advance only its top-level `version` to `0.4.3`.
+- If this same P3 prompt is rerun and `package.json` is already `0.4.3`, retain `0.4.3`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` remains the sole authoritative current-version source.
+- The repository intentionally does not use `package-lock.json`; do not create or require one.
+
+DEPENDS ON
+- P1 canonical Phase 4 decision/reason vocabulary.
+- P2 static destination validation for request shape, scheme, approved-domain policy, endpoint narrowing, and default ports.
+
+GOAL
+Implement deterministic DNS resolution and public-unicast address safety, producing the concrete validated destination result that Phase 5 transport must consume without performing an unchecked second DNS decision.
+
+P3 owns DNS/address classification, resolver abstraction, validated-address handoff, and redirect-candidate reuse of the same complete destination-safety pipeline. It does NOT perform HTTP, follow real redirects, acquire endpoint locks, create Collection runs, or add Worker endpoint execution.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- `docs/decisions/whitelist-and-structured-feed-first.md`
+- P1/P2 implementation and tests
+- current Node/runtime compatibility in `package.json`
+
+LOCKED / PRESERVED BEHAVIOR
+- Every destination must pass P2 static policy before DNS is attempted.
+- DNS/address safety is fail closed.
+- DNS must produce at least one usable answer.
+- Every returned address considered for the destination must be public unicast. If any answer is unsafe/special-use, reject the hostname; do not silently choose only a safe member from a mixed set.
+- IPv4-mapped IPv6 forms must be classified by their embedded IPv4 address and cannot bypass IPv4 policy.
+- Redirect candidates reuse the exact same static + DNS/address path; no weaker redirect policy.
+- Production/test code must not need to disable SSRF/domain policy to use deterministic fixtures.
+- Ordinary tests must not depend on public DNS or live publishers.
+- The result sent to future transport must contain concrete already-validated address information, not only a hostname.
+- No topic/publisher-specific network policy.
+
+RECOMMENDED MODULE BOUNDARIES
+Create substantive modules under `src/collection/safety/`, recommended:
+- `address-policy.ts` — IP syntax/family normalization and public-unicast classification;
+- `resolver.ts` — resolver interface + production Node resolver adapter;
+- `destination-safety.ts` — compose P2 static validation with resolver/address policy and produce `ValidatedDestination`.
+
+Do not create empty placeholder fetcher/transport modules.
+
+RESOLVER ABSTRACTION
+Define a narrow injectable resolver contract that returns all addresses for one hostname with address + family information.
+
+Production implementation SHOULD use Node's OS-backed name lookup with all answers requested (for example the supported `dns.promises.lookup` all-address form) so policy evaluates the same class of concrete destinations normal outbound sockets would use.
+
+Requirements:
+- request all usable addresses rather than one arbitrary answer;
+- do not resolve at module import/startup;
+- preserve a deterministic returned order for a supplied resolver result;
+- exact duplicate address/family answers may be removed before returning the validated result;
+- resolver exception, malformed unusable resolver output, or zero addresses returns `dns_resolution_failed` as a normal blocked safety decision rather than leaking low-level resolver errors to callers;
+- production resolver errors/details must not expose secrets (hostnames themselves are configuration, but do not add credential/query logging).
+
+Make the thin production resolver adapter testable without public DNS, e.g. by allowing its lower-level lookup function to be injected in focused tests while the normal exported constructor/default uses Node's real lookup function.
+
+ADDRESS CLASSIFICATION
+Implement a clear, reviewable public-unicast-only policy using standard Node primitives where practical (for example `node:net` syntax checks and `BlockList`) plus explicit named CIDR/range data in code.
+
+Do not add a third-party IP/CIDR dependency unless repository reality demonstrates that a correct implementation is otherwise impractical; if that occurs, stop and explain the tradeoff before expanding dependencies.
+
+At minimum reject IPv4 destinations in these classes/ranges:
+- unspecified/current-network/special zero space, including `0.0.0.0/8`;
+- RFC1918 private: `10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`;
+- shared/CGNAT: `100.64.0.0/10`;
+- loopback: `127.0.0.0/8`;
+- link-local: `169.254.0.0/16`;
+- IETF/reserved/special-use blocks such as `192.0.0.0/24` and deprecated/special relay space `192.88.99.0/24`;
+- documentation: `192.0.2.0/24`, `198.51.100.0/24`, `203.0.113.0/24`;
+- benchmarking: `198.18.0.0/15`;
+- multicast: `224.0.0.0/4`;
+- reserved/future/broadcast space: `240.0.0.0/4` including `255.255.255.255`;
+- cloud/link-local metadata addresses such as `169.254.169.254` even though broader link-local rejection already covers them.
+
+At minimum reject IPv6 destinations in these classes/ranges:
+- unspecified `::/128`;
+- loopback `::1/128`;
+- IPv4-compatible/deprecated/special low-address forms that are not public global unicast;
+- IPv4-mapped `::ffff:0:0/96` when the embedded IPv4 is blocked by IPv4 policy;
+- NAT64/special translation prefixes that are not direct public-unicast destinations for this collector policy, including well-known/local-use translation ranges;
+- discard-only/special-use space such as `100::/64`;
+- IETF protocol-assignment/documentation/special-use ranges as applicable, including documentation `2001:db8::/32`;
+- deprecated 6to4 `2002::/16`;
+- deprecated site-local `fec0::/10`;
+- unique-local `fc00::/7`;
+- link-local `fe80::/10`;
+- multicast `ff00::/8`;
+- cloud metadata IPv6 addresses when applicable, including addresses already covered by ULA/special-use policy.
+
+The contract is broader than the examples above: PUBLIC UNICAST ONLY. If Node/IANA-standard special-use ranges relevant to the supported runtime are missing from this list, include them conservatively and make them named/reviewable. Do not reject ordinary globally routable IPv4/IPv6 merely because it is unfamiliar.
+
+IPV4-MAPPED IPV6
+Handle IPv4-mapped IPv6 robustly, including both common dotted-decimal and hexadecimal textual forms. Normalize/extract the embedded IPv4 and run the same IPv4 policy.
+
+Focused tests must prove at least:
+- mapped loopback/private/link-local/shared/documentation values are rejected;
+- a mapped globally routable IPv4 value is accepted if otherwise syntactically valid;
+- representation differences do not change the safety decision.
+
+Do not rely on string-prefix checks alone if they miss equivalent canonical IPv6 forms.
+
+VALIDATED DESTINATION RESULT
+Compose P2 + DNS/address policy in `destination-safety.ts`.
+
+A successful immutable result should contain enough plain data for Phase 5 transport to bind to validated concrete destinations, including at least:
+- normalized/request URL without fragment semantics;
+- protocol;
+- normalized hostname/original HTTP authority hostname needed for Host/TLS semantics;
+- effective port;
+- one or more validated concrete addresses, each with family (`4`/`6` or the repository's equivalent stable representation).
+
+The output must make an unchecked later resolver unnecessary. Phase 5 transport will be required to connect to one of these approved addresses (or an equivalent resolver-binding mechanism tied to them) while still using the original hostname for HTTP Host/TLS SNI/certificate semantics.
+
+Do NOT implement the transport in P3.
+
+MIXED-ANSWER POLICY
+For a resolver result such as one public address plus one loopback/private/special address:
+- return blocked `unsafe_resolved_address`;
+- do not return the public address as a partial success;
+- do not invoke any later outbound boundary.
+
+This is deliberate DNS-rebinding defense and must be directly tested.
+
+REDIRECT REVALIDATION PRIMITIVE
+Expose a reusable way to validate a redirect candidate by:
+1. resolving the candidate against the current URL through P2;
+2. rechecking scheme/domain/port;
+3. resolving the resulting hostname through the injected resolver;
+4. rerunning the full address policy;
+5. returning the same `ValidatedDestination` type or a stable blocked decision with redirect context.
+
+No socket/request is made and no redirect count is tracked in P3.
+
+FOCUSED UNIT / COMPONENT TESTS
+Recommended files:
+- `test/unit/address-policy.test.ts`
+- `test/unit/destination-safety.test.ts`
+- optionally `test/unit/resolver.test.ts` if the production adapter needs focused composition proof
+
+Use only injected deterministic resolver answers. Cover at least:
+- allowed globally routable IPv4;
+- allowed globally routable IPv6;
+- every blocked IPv4 category above;
+- every blocked IPv6 category above;
+- IPv4-mapped IPv6 cases;
+- malformed IP answer fails closed;
+- zero answers -> `dns_resolution_failed`;
+- resolver exception -> `dns_resolution_failed`;
+- mixed public + unsafe answers -> `unsafe_resolved_address`;
+- multiple public answers all survive in deterministic order;
+- exact duplicate answers do not create misleading duplicate destinations;
+- P2 static rejection occurs before resolver invocation;
+- approved initial destination produces validated addresses;
+- relative redirect produces a newly validated result;
+- redirect outside domain is blocked before DNS;
+- redirect to approved host resolving unsafe is blocked after DNS;
+- redirect cannot reuse the previous host's validated addresses accidentally;
+- returned successful object includes concrete addresses and is immutable/read-only by API contract;
+- thin production resolver adapter requests all answers using injected lookup proof without public DNS.
+
+No arbitrary sleeps, random external IP services, public DNS, or live publisher tests.
+
+BROADER REGRESSION COVERAGE
+Run and record at minimum:
+- P3 focused unit/component tests;
+- existing P1/P2 collection safety tests;
+- existing Source/domain configuration tests;
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm test`
+- `npm run check`
+
+No real PostgreSQL is required for P3-specific behavior. `npm run test:db` is not required solely because DNS safety was added, unless implementation unexpectedly touches the DB boundary.
+
+LIKELY FILE SCOPE
+Expected successful P3 changes:
+- `package.json`
+- `src/collection/safety/address-policy.ts`
+- `src/collection/safety/resolver.ts`
+- `src/collection/safety/destination-safety.ts`
+- `test/unit/address-policy.test.ts`
+- `test/unit/destination-safety.test.ts`
+- optional focused resolver test file
+
+Allowed only when directly necessary:
+- small P1/P2 type/export refinements without changing established behavior
+- corresponding existing P1/P2 tests
+
+Do not modify migrations, database runtime, Worker/Web runtime, bootstrap configuration, package scripts, roadmap/contracts/docs, or validation artifacts in a normal P3 implementation.
+
+REQUIRED EVIDENCE LEVELS
+- Level 1: boundary/version/no-HTTP inspection.
+- Level 2: address classification and pure resolver/result behavior.
+- Level 3: composition of injected resolver + static destination + validated-destination pipeline if tests cross modules.
+- Level 4+: not required for new P3 claims.
+
+ACCEPTANCE CRITERIA
+P3 is complete only when:
+- package version is exactly `0.4.3`;
+- production code can resolve all addresses for a statically approved hostname through an injectable resolver boundary;
+- zero/error DNS results fail `dns_resolution_failed`;
+- every non-public/special-use address class required by contract fails closed;
+- any unsafe answer in a mixed DNS result rejects the entire destination;
+- IPv4-mapped IPv6 cannot bypass IPv4 safety;
+- successful output contains concrete validated address/family information suitable for Phase 5 binding;
+- initial and redirect candidates use the same complete safety policy;
+- deterministic tests use injected DNS only and do not weaken production policy;
+- no HTTP, real redirect following, endpoint lock, Collection run, Worker command, or topic-specific behavior is introduced;
+- all applicable deterministic regressions pass;
+- no `package-lock.json` is created.
+
+NON-GOALS / DEFERRED
+Do not implement in P3:
+- socket/HTTP connection to validated addresses;
+- TLS/SNI implementation;
+- real redirect following/count limits;
+- endpoint run locks;
+- Collection runs;
+- Worker endpoint invocation;
+- response/timeouts/retries/decompression;
+- RSS/Atom parsing;
+- Articles/Relevance/feed/scheduler/health.
+
+IMPLEMENTATION DISCIPLINE
+Security correctness outranks convenience. Trace every helper that normalizes addresses and every call site that receives a successful safety result. If the supported Node primitives cannot correctly classify a contract-required address representation without a dependency or substantially larger parser, stop and report the concrete limitation instead of shipping a string-based bypass-prone approximation.
