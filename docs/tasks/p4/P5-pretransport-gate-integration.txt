@@ -1,0 +1,266 @@
+TASK: Phase 4 / P5 — Pre-transport gate integration
+
+ROADMAP PHASE
+Phase 4 — Collection eligibility and network safety.
+
+VERSIONING
+- This is Phase 4 prompt 5 and its assigned project version is `0.4.5`.
+- On first execution confirm P4 left `package.json` at `0.4.4`, then advance only its top-level `version` to `0.4.5`.
+- If this same P5 prompt is rerun and `package.json` is already `0.4.5`, retain `0.4.5`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` is the sole authoritative current-version source.
+- The repository intentionally does not use `package-lock.json`; do not create or require one.
+
+DEPENDS ON
+- P1 endpoint-state eligibility + Phase 4 decision vocabulary.
+- P2 static request destination policy.
+- P3 DNS/address validation + `ValidatedDestination` handoff.
+- P4 shared cross-process endpoint run lock + dedicated DB-session support.
+
+GOAL
+Compose the completed Phase 4 pieces into reusable production boundaries that prove only an eligible, lock-owning, network-safe Source endpoint can reach an injected/controlled outbound-fetch boundary.
+
+P5 is the Phase 4 integration task. It must preserve the Phase 5 insertion point for persisted Collection-run creation after lock acquisition and before network safety/HTTP. Therefore P5 must NOT hide eligibility -> lock -> safety -> outbound inside one irreversible monolithic helper.
+
+P5 still performs NO publisher HTTP, NO real redirect following, NO persisted Collection runs, and NO manual Worker endpoint command.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- `docs/decisions/whitelist-and-structured-feed-first.md`
+- P1-P4 implementation/tests
+- `src/sources/repository.ts`
+- current Worker runtime/main only to preserve the Phase 5 boundary, not to add commands now
+
+CURRENT SOURCE / IMPORTANT BASELINE
+By P5 the repository should have:
+- a pure `EndpointConfigurationAggregate` state eligibility evaluator;
+- one stable Phase 4 decision vocabulary;
+- static URL/scheme/domain/port validation;
+- injected resolver + public-unicast address policy returning a concrete `ValidatedDestination`;
+- callback-scoped real PostgreSQL endpoint lock ownership;
+- no collection transport/parser/Collection-run runtime yet.
+
+Phase 3's `findEndpointConfigurationByKeys()` already provides the complete aggregate needed by P1-P3 and should remain the canonical persisted read boundary. P5 should consume it in integration tests rather than create a second configuration loader.
+
+CRITICAL FUTURE PIPELINE INVARIANT
+The completed staged collection pipeline requires this future order:
+1. load configured endpoint aggregate;
+2. evaluate Publication/Source/endpoint eligibility;
+3. acquire endpoint run lock;
+4. Phase 5 creates the truthful Collection run;
+5. validate destination network safety;
+6. Phase 5 performs real HTTP/redirect transport;
+7. later parse/normalize/Relevance/identity stages.
+
+P5 must make steps 2-3 and step 5 composable so Phase 5 can insert step 4 naturally without replacing the Phase 4 execution API.
+
+PRODUCTION BOUNDARY A — ELIGIBLE LOCKED EXECUTION
+Create a small collection execution module, recommended:
+- `src/collection/execution.ts`
+
+It should expose a callback-scoped boundary conceptually equivalent to `withEligibleEndpointExecution(...)`.
+
+Responsibilities ONLY:
+1. accept an already-loaded endpoint aggregate;
+2. run P1 state eligibility;
+3. if blocked, return that decision without attempting lock acquisition;
+4. acquire the P4 endpoint lock for `aggregate.endpoint.id`;
+5. if contended, return `endpoint_locked` without invoking caller work;
+6. while ownership is held, invoke caller-supplied work;
+7. rely on P4 to release safely on success/failure.
+
+It must know nothing about DNS, URLs, HTTP, Collection runs, parsing, or scheduler jobs.
+
+DESIGN FOR TESTABILITY
+Do not hard-code an unmockable global database singleton. Prefer a narrow injected lock-runner dependency or a small production factory binding the P4 lock helper to a `Database`, while keeping the execution function easy to test without PostgreSQL.
+
+Do not duplicate lock implementation in P5.
+
+Normal eligibility/lock-contention outcomes should use stable decisions. Infrastructure/database errors and caller-work errors should remain errors rather than being misreported as an endpoint state reason.
+
+PRODUCTION BOUNDARY B — VALIDATED OUTBOUND ENTRY
+Create a focused safety/outbound composition module, recommended:
+- `src/collection/safety/outbound-boundary.ts`
+
+It should expose a function that:
+1. accepts the endpoint aggregate/policy context plus initial or redirect destination input;
+2. runs the exact P2 + P3 safety pipeline through injected/production resolver dependency;
+3. if blocked, returns the stable safety decision WITHOUT invoking outbound work;
+4. if safe, invokes an injected outbound-boundary callback exactly once with the immutable `ValidatedDestination`;
+5. returns the callback result or propagates its error.
+
+The outbound callback is NOT an HTTP client in Phase 4. It is a controlled integration seam proving that future transport receives only validated concrete addresses.
+
+Do not add `fetch`, `http.request`, `https.request`, undici, Axios, or a fake production fetcher in P5.
+
+INITIAL / REDIRECT SUPPORT
+Boundary B should support the same initial and redirect-candidate safety APIs already established in P3 without copying logic.
+
+For redirects:
+- P5 only invokes the P3 redirect revalidation primitive with a controlled candidate;
+- it does not follow the redirect;
+- there is no response object/status-code handling or redirect-count loop in Phase 4.
+
+COMPOSITION DEMONSTRATION
+The production pieces must be composable as:
+
+`withEligibleEndpointExecution(aggregate, lockRunner, async () => reachValidatedOutboundBoundary(...))`
+
+This is a Phase 4 demonstration, not the only allowed future composition.
+
+Phase 5 must be able to evolve it as:
+
+`withEligibleEndpointExecution(aggregate, lockRunner, async () => { createCollectionRun(); return reachValidatedOutboundBoundary(...real transport callback...); })`
+
+Do not add an empty `createCollectionRun` hook/callback today just to model future work. The callback boundary itself is the insertion point.
+
+NO AUTOMATIC CONFIGURATION LOAD INSIDE EXECUTION CORE
+Keep aggregate loading separate from execution. P5 may add a tiny composition helper only if there is a concrete need, but the core should not accept publication/source/endpoint config keys and silently query configuration inside a broad helper.
+
+Reason:
+- persisted configuration loading is already owned by `src/sources/repository.ts`;
+- later scheduler/manual commands may identify endpoints differently;
+- the execution contract should operate on one explicit aggregate snapshot.
+
+ORDINARY DETERMINISTIC INTEGRATION TESTS
+Create substantive component/integration coverage, recommended:
+- `test/integration/collection-pretransport.test.ts`
+
+Use fake/injected lock runner, deterministic resolver, and spy outbound callback to prove exact short-circuit/order behavior without PostgreSQL or network.
+
+Cover at least:
+- inactive Publication -> no lock, no resolver, no outbound;
+- each representative Source/endpoint eligibility block -> no lock/safety/outbound;
+- lock contention -> no resolver/outbound;
+- eligible + lock acquired -> safety begins;
+- unsupported scheme/domain/port block -> resolver not called where static policy should stop first;
+- DNS failure/unsafe answer -> outbound not called;
+- fully safe endpoint -> outbound called exactly once with `ValidatedDestination` containing concrete address/family information;
+- callback result is returned;
+- outbound callback throw propagates through the locked execution scope;
+- deterministic event log/call assertions prove order: eligibility before lock, lock before caller work, static policy before resolver, resolver before outbound;
+- redirect candidate goes through the same validated outbound boundary and cannot bypass static/DNS safety;
+- no branch invokes a second resolver after a `ValidatedDestination` is produced.
+
+Avoid implementation-private assertions where observable calls/results suffice.
+
+REAL POSTGRESQL INTEGRATION TEST
+Add focused database integration coverage, recommended:
+- `test/database/collection-pretransport.test.ts`
+
+Use the existing disposable PostgreSQL helper and production migration/configuration repository functions.
+
+Required proof:
+1. create/migrate one disposable DB;
+2. persist or bootstrap a generic synthetic Publication/Source/endpoint/domain policy using current production repository/configuration boundaries (do not depend on public publisher network);
+3. load it using `findEndpointConfigurationByKeys()`;
+4. create/use a real `Database` and P4 lock runner;
+5. inject a deterministic safe resolver answer;
+6. invoke P5 eligible locked execution + validated outbound boundary;
+7. prove the controlled outbound callback receives validated concrete address data;
+8. while one actor holds the endpoint lock at a barrier, a second real DB actor cannot reach safety/outbound for the same endpoint;
+9. after release, a subsequent call can reach the controlled boundary;
+10. all clients close and disposable DB cleanup succeeds.
+
+This test proves production component composition at Level 4 for locking/persistence interaction while outbound behavior itself remains injected/no-network.
+
+Do not use the real Author Media/The Creative Penn endpoints or public DNS for this deterministic integration proof.
+
+FAILURE / RELEASE PROOF
+Ensure an error thrown by safety/outbound caller work while under `withEligibleEndpointExecution` cannot leak the endpoint lock. This may be proven in the real P4 lock tests and additionally asserted in the P5 database integration where useful.
+
+Do not convert thrown infrastructure/callback failures to normal safety reasons.
+
+WORKER / WEB BOUNDARY
+Do NOT modify `src/app/worker/main.ts` or `src/app/worker/runtime.ts` to add endpoint execution in P5.
+
+During Phase 4 Worker remains readiness/lifecycle only. Phase 5 owns the first manual Worker collection invocation.
+
+Web/API continues to perform no Source fetching.
+
+STRUCTURAL NO-TRANSPORT RULE
+Successful P5 source must contain no production publisher transport. Inspect the final diff/source and confirm P5 did not introduce:
+- `fetch()` to Source endpoints;
+- `node:http`/`node:https` request calls for Source collection;
+- redirect response loops;
+- RSS/Atom parser packages/code;
+- Collection-run schema/table/repository;
+- Worker CLI endpoint arguments/commands;
+- scheduler/due-endpoint loops.
+
+BROADER REGRESSION COVERAGE
+Run and record at minimum:
+- focused ordinary P5 integration tests;
+- focused P1-P3 unit/security tests;
+- focused P4 lock/database-session tests;
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm test`
+- `npm run check`
+- full `npm run test:db` with valid test-admin prerequisite, because P5 includes a real lock/configuration integration and P4 changed shared database behavior
+
+Do not add a `test:security` or `test:collection` script solely to rename tests already substantively covered by the ordinary + DB suites. Add a specialized command only if a substantive suite truly requires separate environment semantics under the testing contract.
+
+LIKELY FILE SCOPE
+Expected successful P5 changes:
+- `package.json`
+- `src/collection/execution.ts`
+- `src/collection/safety/outbound-boundary.ts`
+- `test/integration/collection-pretransport.test.ts`
+- `test/database/collection-pretransport.test.ts`
+
+Allowed directly necessary refinements:
+- small P1-P4 exported type/factory adjustments and corresponding tests, without changing their owned semantics
+- narrow generic database test helper reuse/additions
+
+Do not modify migrations, Source bootstrap data, Worker/Web runtime, package scripts in normal conditions, contracts/roadmap/docs, or validation artifacts.
+
+REQUIRED EVIDENCE LEVELS
+- Level 1: no-transport/no-Collection-run boundary and final diff/version inspection.
+- Level 2/3: deterministic full pretransport short-circuit/order composition through injected dependencies.
+- Level 4: production aggregate + real PostgreSQL endpoint lock + deterministic validated outbound-boundary integration.
+- Levels 5-8: not applicable; no actual HTTP/fixture/live/browser/deployment behavior exists yet.
+
+ACCEPTANCE CRITERIA
+P5 is complete only when:
+- package version is exactly `0.4.5`;
+- ineligible state never reaches lock/safety/outbound as appropriate;
+- lock contention never reaches safety/outbound;
+- unsafe destination never reaches outbound;
+- safe destination reaches controlled outbound exactly once with concrete validated address information;
+- redirect candidate uses the same safety path;
+- P5's execution API leaves a clean callback insertion point for Phase 5 Collection-run creation after lock acquisition and before safety;
+- real disposable PostgreSQL proves aggregate -> eligibility -> lock -> deterministic safety -> controlled outbound composition;
+- endpoint locks release across relevant success/failure paths;
+- existing DB/config/readiness regressions remain green;
+- Worker/Web perform no collection;
+- no publisher HTTP, real redirect following, Collection run, parser, scheduler, Article, or topic-specific logic was introduced;
+- no `package-lock.json` is created.
+
+NON-GOALS / DEFERRED
+Do not implement in P5:
+- Source HTTP fetcher;
+- TLS/socket binding implementation;
+- real redirect following/count limits;
+- request/response timeout or size limits;
+- ETag/Last-Modified;
+- RSS/Atom parser;
+- Raw items;
+- persisted Collection runs;
+- manual Worker endpoint command;
+- normalization/Relevance/Articles;
+- scheduler/jobs/health;
+- public/admin UI.
+
+IMPLEMENTATION DISCIPLINE
+Preserve the staged architecture rather than optimizing for a one-phase convenience API. If the existing P1-P4 interfaces cannot compose without a substantial ownership redesign, stop and report the concrete mismatch instead of creating a parallel path that Phase 5 would immediately replace.
