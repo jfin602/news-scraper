@@ -1,0 +1,72 @@
+{
+  "publication": {
+    "name": "Indie Author Publishing News",
+    "slug": "indie-author-publishing-news",
+    "activeForCollection": true,
+    "publicStatus": "private"
+  },
+  "sources": [
+    {
+      "configKey": "author_media",
+      "displayName": "Author Media",
+      "siteUrl": "https://www.authormedia.com/",
+      "approvalState": "approved",
+      "lifecycleState": "active",
+      "operationalState": "enabled",
+      "domainRules": [
+        {
+          "hostname": "www.authormedia.com",
+          "includeSubdomains": false
+        }
+      ],
+      "endpoints": [
+        {
+          "configKey": "site_rss",
+          "endpointUrl": "https://www.authormedia.com/feed/",
+          "endpointType": "rss_atom",
+          "approvalState": "approved",
+          "lifecycleState": "active",
+          "operationalState": "enabled",
+          "pollIntervalSeconds": 21600,
+          "endpointDomainRules": [
+            {
+              "hostname": "www.authormedia.com",
+              "includeSubdomains": false
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "configKey": "the_creative_penn",
+      "displayName": "The Creative Penn",
+      "siteUrl": "https://www.thecreativepenn.com/",
+      "approvalState": "approved",
+      "lifecycleState": "active",
+      "operationalState": "enabled",
+      "domainRules": [
+        {
+          "hostname": "www.thecreativepenn.com",
+          "includeSubdomains": false
+        }
+      ],
+      "endpoints": [
+        {
+          "configKey": "podcast_rss",
+          "endpointUrl": "https://www.thecreativepenn.com/feed/podcast/",
+          "endpointType": "rss_atom",
+          "approvalState": "approved",
+          "lifecycleState": "active",
+          "operationalState": "enabled",
+          "pollIntervalSeconds": 21600,
+          "endpointDomainRules": [
+            {
+              "hostname": "www.thecreativepenn.com",
+              "includeSubdomains": false
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

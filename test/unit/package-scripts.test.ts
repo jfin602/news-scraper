@@ -17,7 +17,13 @@ interface PackageLock {
 describe('package command environment contract', () => {
   it('loads optional .env only for environment-requiring commands', async () => {
     const manifest = await readJson<PackageManifest>('package.json');
-    const envCommands = ['test:db', 'db:migrate', 'start:web', 'start:worker'];
+    const envCommands = [
+      'test:db',
+      'db:migrate',
+      'db:bootstrap',
+      'start:web',
+      'start:worker',
+    ];
     const deterministicCommands = [
       'test',
       'test:unit',
