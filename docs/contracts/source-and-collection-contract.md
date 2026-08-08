@@ -14,7 +14,7 @@ An endpoint is collectable only when all are true:
 - its endpoint lifecycle state is `active`;
 - its endpoint operational state is `enabled`;
 - the endpoint URL passes pre-fetch scheme/host/DNS/address/port safety validation;
-- no active run lock already exists for the endpoint.
+- the shared per-endpoint run lock can be acquired.
 
 `paused`, `disabled`, and `archived` are not health values. The Platform MUST NOT use public submissions or discovered links to expand the whitelist silently.
 
@@ -60,14 +60,53 @@ Configuration representation is intentionally structural and deterministic:
 
 Phase 3 validates and persists these configuration relationships only. It does not resolve DNS, classify resolved addresses, enforce runtime port policy, follow redirects, or contact endpoints. Those pre-request network-safety behaviors begin in Phase 4.
 
-Before every outbound request, including every redirect hop, the fetch layer MUST:
+### Phase 4 pre-fetch network-safety policy
 
-- allow only approved HTTP/HTTPS schemes;
-- validate configured host/domain policy;
-- resolve and reject loopback, link-local, private, multicast, and cloud-metadata destinations unless a documented deployment-only exception exists;
-- enforce port policy;
-- defend against DNS rebinding by validating the actual resolved destination used for the request;
-- enforce redirect limits and revalidate each redirect before following it.
+Before every outbound request, including every redirect hop once transport exists, the destination MUST pass the same safety gate:
+
+- only `http:` and `https:` schemes are permitted;
+- the normalized hostname MUST remain inside the effective Source/endpoint approved-domain policy;
+- the effective port MUST be 80 for HTTP or 443 for HTTPS; an explicit or derived non-default port is rejected until a later deliberately approved configuration mechanism defines otherwise;
+- DNS resolution MUST succeed with at least one address;
+- every resolved address considered for the request MUST be public unicast; if any returned address is non-public or special-use, the destination is rejected rather than selecting a different answer silently;
+- loopback, RFC1918 private space, IPv6 unique-local space, link-local, multicast, unspecified, carrier-grade/shared address space, reserved/special-use destinations, and cloud-metadata destinations are rejected;
+- IPv4-mapped IPv6 addresses MUST be classified according to their embedded IPv4 address so representation cannot bypass policy;
+- redirects MUST resolve relative locations safely and rerun scheme, domain, port, DNS, and resolved-address validation before any redirected network contact;
+- redirect limits are enforced by the transport phase that follows redirects and do not weaken per-hop safety validation.
+
+The validated safety result consumed by transport MUST retain enough concrete destination information to prevent a second unchecked DNS decision. Phase 5 transport MUST connect to an address that was validated by the Phase 4 gate, or use an equivalent resolver-binding mechanism that guarantees the actual destination is one of the validated addresses, while preserving the original hostname for HTTP Host/TLS semantics where required. A transport that independently re-resolves the hostname after safety approval is not compliant.
+
+Phase 4 may perform DNS resolution because address classification is part of the safety decision. It does **not** issue publisher HTTP requests, follow real HTTP redirects, create Collection runs, or add the manual Worker collection command. An eligible endpoint reaches an injected/controlled outbound-fetch boundary with a validated destination; Phase 5 is the first phase that performs real HTTP transport and follows redirects through this gate.
+
+### Phase 4 endpoint run lock
+
+The endpoint run lock is a shared, cross-process exclusivity primitive keyed by Source endpoint identity. It MUST prevent two Worker processes from simultaneously owning execution for the same endpoint while permitting unrelated endpoints to proceed independently.
+
+The lock MUST use PostgreSQL or another equivalently shared/durable coordination mechanism available to all Worker processes; a process-local mutex alone is insufficient. Acquisition failure is a normal non-execution outcome, and lock release MUST be safe on success and failure paths. Phase 10 durable jobs/scheduling reuse this Phase 4 primitive rather than introducing the first distributed endpoint lock.
+
+### Phase 4 decision reasons
+
+Eligibility and network-safety decisions MUST expose stable machine-readable reason codes rather than relying on free-form text. Bounded human detail MAY accompany the code but MUST NOT replace it.
+
+The Phase 4 reason vocabulary MUST distinguish at least:
+
+- `publication_inactive`;
+- `source_unapproved`;
+- `source_archived`;
+- `source_paused`;
+- `source_disabled`;
+- `endpoint_unapproved`;
+- `endpoint_archived`;
+- `endpoint_paused`;
+- `endpoint_disabled`;
+- `endpoint_locked`;
+- `unsupported_scheme`;
+- `domain_not_approved`;
+- `port_not_allowed`;
+- `dns_resolution_failed`;
+- `unsafe_resolved_address`.
+
+Redirect revalidation uses the same destination-safety reason vocabulary with redirect-stage context rather than inventing a weaker second policy.
 
 After parsing/normalization, Article-link acceptance MUST separately:
 
@@ -149,7 +188,7 @@ During this pre-scheduler period:
 - a failure for one endpoint does not invalidate an unrelated endpoint run;
 - no temporary second parser/persistence path is introduced.
 
-Phase 10 places this already-proven endpoint execution unit behind durable jobs and due-endpoint scheduling.
+Phase 4 establishes eligibility, the shared endpoint lock, and network-safety primitives only. Manual Worker endpoint execution and Collection-run creation begin in Phase 5. Phase 10 later places the already-proven endpoint execution unit behind durable jobs and due-endpoint scheduling while reusing the Phase 4 lock.
 
 ## Retry and backoff
 
