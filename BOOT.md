@@ -390,6 +390,36 @@ Strict order:
 
 Do not silently run missing stages. If unstable requirements, contradictory docs, repository drift, or a material decision blocks progress, return `Planning needed` and stop before the next stage.
 
+## Prompt model/effort rating
+
+Every implementation and closeout task MUST carry a minimum recommended model/effort rating. The rating guides Codex model/effort selection; it does not change task authority, acceptance criteria, or evidence requirements.
+
+Allowed ratings, from lowest to highest, are:
+
+1. `Terra High`
+2. `Terra Max`
+3. `Sol High`
+4. `Sol Max`
+
+`Terra High` is the default minimum baseline for roadmap implementation and closeout work. A stronger rating/model may always be used. Do not recommend below `Terra High` for roadmap implementation/closeout prompts. A lower-than-recorded rating may be used only by explicit repository-owner choice; workflow docs and task revisions MUST NOT silently remove or lower a rating.
+
+Escalate based on reasoning, correctness, and regression risk rather than task length or token count alone:
+
+| Rating       | Intended task class |
+| ------------ | ------------------- |
+| `Terra High` | Bounded implementation, leaf modules, straightforward migrations/repositories, deterministic tests, and contained refactors. |
+| `Terra Max`  | Security-sensitive logic, subtle validation/state behavior, meaningful persistence concerns, multiple interacting modules, or difficult edge cases. |
+| `Sol High`   | Cross-cutting architecture, concurrency/transaction ownership, shared infrastructure changes, high-risk security boundaries, or integration where subtle regressions are likely. |
+| `Sol Max`    | Exceptional tasks combining several high-risk dimensions such as architecture, security, concurrency/data integrity, and broad blast radius where the strongest reasoning tier is materially justified. |
+
+Workflow ownership:
+
+- `/prompt-ass` assigns a provisional minimum rating and concise rationale to every proposed implementation/closeout prompt.
+- `/prompt-plan` reassesses that rating after source-level investigation and finalizes or raises it based on the actual implementation boundary and risk. It does not silently lower the assessed minimum.
+- `/prompt-write` writes the finalized minimum rating into every implementation/closeout task file. A stronger model may be used at execution time.
+- If `/prompt-write` revalidation discovers information that materially requires a higher rating and also changes the approved task boundary, return `Planning needed` rather than silently rewriting the plan.
+- `/revalidate` reports when an existing prompt's recorded minimum is no longer adequate for current repository reality.
+
 ## Versioning and phase-prompt numbering
 
 Project versions use `0.<roadmap phase>.<phase prompt number>` while the project remains in the pre-1.0 roadmap.
@@ -411,13 +441,15 @@ Project versions use `0.<roadmap phase>.<phase prompt number>` while the project
 
 Determine safe task boundaries from established behavior/contracts/roadmap. No writes.
 
-Return target behavior, constraints, roadmap phase, prompt count/order, goal/summary/dependencies/boundary rationale/deferred behavior, and closeout task when needed.
+Return target behavior, constraints, roadmap phase, prompt count/order, goal/summary/dependencies/boundary rationale/deferred behavior, closeout task when needed, and a provisional minimum model/effort rating with concise rationale for every proposed implementation/closeout prompt.
 
 Testing is part of task-boundary assessment: identify whether a prompt can own its focused tests and the required broader regression impact without becoming monolithic.
 
 ## `/prompt-plan`
 
 Requires completed `/prompt-ass` in current conversation. Perform source-level planning for every assessed prompt: contracts/ADRs, implementation, schemas/migrations, process roles, helpers/consumers/tests/recent changes, likely file scope, preserved behavior, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs implications, acceptance criteria, non-goals.
+
+Reassess each provisional minimum model/effort rating against the source-level plan and finalize or raise it. Do not silently lower the assessed minimum.
 
 Material boundary revisions produce `Planning needed`. No writes.
 
@@ -428,6 +460,10 @@ Requires completed unblocked `/prompt-plan`. Revalidate current repo/docs and wr
 ```text
 docs/tasks/<folder name>/
 ```
+
+Each implementation/closeout task file MUST include its finalized `MINIMUM MODEL / EFFORT` rating. A stronger model may be used at execution time. Do not silently remove or lower the recorded minimum when revising an existing task.
+
+If revalidation reveals a materially higher required rating together with a task-boundary change, return `Planning needed` rather than silently changing the approved plan.
 
 Do not overwrite existing tasks without explicit authorization.
 
@@ -446,7 +482,7 @@ Continue one-based numbering for additional prompts in the same phase.
 - `/prompt <task>` — one prompt in conversation only.
 - `/stack <goal>` — legacy shorthand for `/prompt-ass`.
 - `/split <task>` — narrow assessment shorthand.
-- `/revalidate <task or stack>` — compare existing task(s) to current repo/contracts.
+- `/revalidate <task or stack>` — compare existing task(s) to current repo/contracts and report whether their recorded minimum model/effort ratings remain adequate.
 
 # Review and validation commands
 
@@ -484,11 +520,13 @@ Recommend the single most logical next task.
 
 # Codex prompt requirements
 
-Finished implementation prompts normally include Task, Context, Current/Required behavior, roadmap phase, assigned project version, governing contracts/ADRs/laws, inspected source, allowed/forbidden files, constraints, preserved behavior, applicable security/provenance/idempotency/failure-isolation implications, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs updates, acceptance criteria, and non-goals.
+Finished implementation prompts normally include Task, Context, Current/Required behavior, roadmap phase, assigned project version, finalized minimum model/effort rating, governing contracts/ADRs/laws, inspected source, allowed/forbidden files, constraints, preserved behavior, applicable security/provenance/idempotency/failure-isolation implications, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs updates, acceptance criteria, and non-goals.
 
 Every implementation prompt inherits `docs/contracts/testing-and-validation-contract.md`. A prompt must not treat tests as optional cleanup, silently accept missing prerequisites, or claim a higher evidence level than its validation procedure can prove.
 
 Every Codex roadmap-phase prompt also inherits the versioning rules above: it owns exactly its assigned `0.<phase>.<prompt>` version, uses `package.json` as the authority, respects the lockfile-disabled npm policy, and does not create duplicate manually maintained version constants.
+
+Every Codex roadmap-phase implementation/closeout prompt also inherits the finalized minimum model/effort rating from the prompt workflow. The rating is a minimum recommendation, not a ceiling; stronger model/effort may be used, and the task must not silently lower or omit its recorded minimum.
 
 Collection prompts preserve bootstrap/approval/lifecycle/operational boundaries, truthful Collection runs, pre-request network safety, run isolation, retry limits when applicable, Source-domain policy, and controlled deterministic collection tests without production safety bypasses.
 

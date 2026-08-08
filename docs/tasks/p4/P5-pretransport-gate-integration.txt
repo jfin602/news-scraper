@@ -3,6 +3,11 @@ TASK: Phase 4 / P5 — Pre-transport gate integration
 ROADMAP PHASE
 Phase 4 — Collection eligibility and network safety.
 
+MINIMUM MODEL / EFFORT
+- Minimum recommended rating: `Sol High`.
+- A stronger model/effort tier may be used.
+- Do not lower this rating without explicit repository-owner direction.
+
 VERSIONING
 - This is Phase 4 prompt 5 and its assigned project version is `0.4.5`.
 - On first execution confirm P4 left `package.json` at `0.4.4`, then advance only its top-level `version` to `0.4.5`.
