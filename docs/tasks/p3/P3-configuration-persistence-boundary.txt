@@ -1,0 +1,269 @@
+TASK: Phase 3 / P3 — Publication/Source configuration persistence boundary
+
+ROADMAP PHASE
+Phase 3 — Publication and Source configuration core.
+
+VERSIONING
+- This is Phase 3 prompt 3 and its assigned project version is `0.3.3`.
+- On first execution confirm P2 left `package.json` at `0.3.2`, then advance it to `0.3.3` and synchronize npm-generated lockfile package metadata.
+- If this same P3 prompt is rerun and `package.json` is already `0.3.3`, retain `0.3.3`; do not increment again.
+- `package.json` remains the sole authoritative project-version source.
+- Do not duplicate the version in docs or source constants.
+
+DEPENDS ON
+- P1 Phase 3 relational schema implemented and reviewed.
+- P2 pure configuration normalization/validation implemented and reviewed.
+
+GOAL
+Create the minimal reusable persistence/read boundary for validated Publications, Sources, Source approved-domain rules, Source endpoints, and optional endpoint narrowing. This boundary must support P4 bootstrap and give later collection-eligibility work one clean topic-independent way to load a configured endpoint tree.
+
+Do not build a general admin CRUD service. Phase 3 needs create/read primitives and stable-key lookup behavior only.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- BOOT.md
+- AGENTS.md
+- docs/contracts/project-contract.md
+- docs/contracts/domain-and-data-contract.md
+- docs/contracts/source-and-collection-contract.md
+- docs/contracts/testing-and-validation-contract.md
+- docs/architecture/system-architecture.md
+- docs/roadmap/mvp-roadmap.md
+- docs/decisions/whitelist-and-structured-feed-first.md
+- P1 migration/schema/tests
+- P2 configuration modules/tests
+- src/database/database.ts and transaction tests
+
+CURRENT DATABASE BOUNDARY
+Preserve the Phase 2 abstraction:
+- `QueryExecutor.query(text, values?)` is the generic SQL execution boundary.
+- `Database` extends `QueryExecutor` and owns `transaction(...)` and `close()`.
+- Transaction callbacks receive a `QueryExecutor` bound to one PostgreSQL client.
+
+Do not expose `pg.Pool`/`PoolClient` directly to Phase 3 domain modules and do not redesign the database layer merely to make repository code convenient.
+
+LOCKED / PRESERVED BEHAVIOR
+- Publication remains the topic-specific boundary; repositories contain no indie-author/publisher names or keywords.
+- Source belongs to one Publication; endpoint belongs to one Source.
+- Approval, lifecycle, and operational state remain separate persisted fields.
+- Source maximum approved-domain policy and endpoint narrowing remain separate.
+- All write inputs must use/reuse P2 normalized validation rather than reimplementing hostname/URL/poll/state rules in SQL strings.
+- PostgreSQL constraints remain authoritative for uniqueness/FK invariants even when application validation exists.
+- No update/delete/admin-management API is introduced in P3.
+- No bootstrap semantics are introduced in P3; P4 owns create-if-absent/no-overwrite behavior.
+- No network activity, DNS resolution, collection eligibility, fetching, parsing, scheduling, health, Category/Relevance, Article, or Collection-run behavior.
+
+IDENTIFIER STRATEGY
+Generate new Publication/Source/endpoint UUIDs in Node using `randomUUID()` before insert. Do not add a PostgreSQL extension solely for UUID generation.
+
+Return/store IDs as strings in the application types. Stable bootstrap identity remains slug/config_key, not UUID.
+
+MODULE OWNERSHIP
+Recommended production ownership:
+- `src/publications/repository.ts`
+- `src/sources/repository.ts`
+
+The exact exported function/class style may vary, but keep SQL ownership narrow and obvious. Avoid an abstract generic repository framework.
+
+PUBLICATION PERSISTENCE
+Provide minimum operations sufficient for P4 and later configuration reads:
+- insert one validated Publication;
+- find Publication by stable slug;
+- optionally find by ID only if needed internally;
+- return a typed persisted Publication record including ID, collection/public state, and timestamps.
+
+Insertion requirements:
+- accepts/uses P2 validated Publication representation;
+- generated UUID supplied explicitly;
+- parameterized SQL only;
+- no `ON CONFLICT` bootstrap semantics hidden in this operation; duplicate creation should surface the database invariant so P4 can deliberately handle create-if-absent.
+
+SOURCE PERSISTENCE
+Provide minimum operations:
+- insert one validated Source owned by a known Publication plus its complete Source approved-domain-rule set;
+- find Source by `(publicationId, configKey)`;
+- load Source approved-domain rules deterministically;
+- return a typed persisted Source record with separate states and timestamps.
+
+Source + Source-domain creation must be capable of running inside one caller-provided transaction so P4 can make a larger Publication-tree transaction atomic.
+
+Do not perform nested independent transactions inside a helper that receives a transaction `QueryExecutor`.
+
+ENDPOINT PERSISTENCE
+Provide minimum operations:
+- insert one validated endpoint for a known Source plus optional complete narrowing-rule set;
+- find endpoint by `(sourceId, configKey)`;
+- load endpoint narrowing deterministically;
+- return typed persisted endpoint record including URL/type/states/polling/timestamps.
+
+P2 validation must prove endpoint policy against the relevant Source maximum before insert. Do not assume the database can infer DNS hierarchy from rows.
+
+AGGREGATE CONFIGURATION READ
+Add one topic-independent aggregate read intended for Phase 4/5 consumers, recommended conceptually:
+
+`findEndpointConfigurationByKeys(publicationSlug, sourceConfigKey, endpointConfigKey)`
+
+The exact name may differ, but one call must be able to return either no match or a coherent configuration aggregate containing at minimum:
+
+Publication:
+- id;
+- slug/name as useful;
+- `active_for_collection`;
+- `public_status`.
+
+Source:
+- id/config_key/display name/site URL;
+- approval state;
+- lifecycle state;
+- operational state;
+- complete Source approved-domain rules.
+
+Endpoint:
+- id/config_key;
+- endpoint URL/type;
+- approval state;
+- lifecycle state;
+- operational state;
+- `poll_interval_seconds`;
+- complete endpoint narrowing rules or an explicit empty collection meaning inheritance.
+
+Requirements:
+- scope every join through ownership; a matching Source key in another Publication or endpoint key under another Source must not leak into the result;
+- deterministic rule ordering so tests/consumers do not depend on PostgreSQL incidental row order;
+- do not compute Phase 4 collectability or network safety in this read model;
+- do not resolve DNS/contact endpoints;
+- do not add Source health or scheduling state.
+
+PERSISTED RECORD MAPPING
+Use explicit row mapping rather than leaking raw `pg` row shapes throughout callers.
+
+Requirements:
+- timestamps returned consistently;
+- boolean/integer/string fields mapped predictably;
+- state values represented using P2 types where practical;
+- database-returned configuration that violates expected enum/shape assumptions should fail safely rather than be silently coerced into a different state.
+
+Because P1 constraints protect stored values, such a mismatch should be exceptional, but the mapper should not use unsafe casts as a substitute for reasoning.
+
+TRANSACTION COMPOSITION
+Design write functions so the caller can compose:
+- Publication insert;
+- Source insert + Source rules;
+- endpoint insert + endpoint rules;
+
+inside `Database.transaction(...)` without opening new transactions.
+
+A useful pattern is functions/repositories parameterized by `QueryExecutor`; use the existing Database itself for ordinary operations and the callback QueryExecutor for transactional work.
+
+Do not invent distributed transaction abstractions or unit-of-work frameworks.
+
+ERROR BOUNDARY
+Keep errors safe and bounded.
+
+- Do not echo connection strings, credentials, arbitrary SQL, or full configuration documents in thrown/logged errors.
+- Do not over-normalize all PostgreSQL errors into one indistinguishable application error if P4 needs to recognize a uniqueness race. If a small explicit insertion result or safe constraint-classification helper is needed, keep it narrow and test it.
+- Do not make business decisions by matching human PostgreSQL error text when a stable code/constraint name can be used.
+- Preserve the existing database runtime error behavior outside these repository-specific operations.
+
+FOCUSED REAL-POSTGRESQL TESTS
+Create a substantive suite, recommended:
+- `test/database/configuration-persistence.test.ts`
+
+Use real disposable PostgreSQL and production migrations.
+
+Prove at Level 4:
+
+Publication:
+- validated Publication inserts and reads back by slug;
+- different slugs remain isolated;
+- duplicate slug is still rejected by the database boundary.
+
+Source:
+- validated Source with multiple domain rules round-trips correctly;
+- lookup by Publication + config key scopes correctly;
+- same Source key in another Publication returns that Publication's Source, not the first row found;
+- rules return in deterministic order;
+- insert with nonexistent Publication fails through FK/integrity behavior.
+
+Endpoint:
+- validated endpoint/narrowing round-trips;
+- endpoint lookup scopes by owning Source;
+- same endpoint key under another Source remains distinct;
+- empty narrowing is preserved as inheritance representation rather than copied Source rules;
+- endpoint with nonexistent Source fails;
+- database endpoint key/URL uniqueness remains effective.
+
+Aggregate read:
+- correct three-level key tuple returns the expected complete configuration;
+- wrong Publication slug with otherwise matching Source/endpoint keys returns no aggregate;
+- wrong Source key with endpoint key existing elsewhere returns no aggregate;
+- Source maximum rules and endpoint narrowing are both present and not conflated;
+- Publication collection/public state and Source/endpoint state triples are returned exactly as persisted.
+
+Validation/persistence boundary:
+- malformed input is rejected by P2 validation before the repository attempts insertion in the normal public write path;
+- approved endpoint outside Source/effective policy cannot be persisted through the validated repository API;
+- endpoint narrowing that widens Source policy cannot be persisted through validated repository API;
+- if raw SQL bypasses application validation, P1 DB constraints still reject DB-owned invalid enums/uniqueness/poll bounds.
+
+Transaction behavior:
+- a transaction that inserts a Publication and then fails while inserting a child leaves no Publication/Source/domain fragments;
+- a transaction that inserts Source/domain data and later throws rolls all of those writes back;
+- no repository helper commits independently inside the caller's transaction.
+
+Use synthetic topic-independent records in P3 tests. Do not use the real owner-approved Source data yet.
+
+LIKELY FILE SCOPE
+Expected:
+- package.json
+- package-lock.json
+- src/publications/repository.ts
+- src/sources/repository.ts
+- test/database/configuration-persistence.test.ts
+
+P2 configuration modules may receive a narrowly necessary exported type/helper refinement. P1 migration should not change unless a real schema defect is found; if so, stop and report because applied migration mutation is a high-risk history issue rather than silently editing it after review.
+
+BROADER REGRESSION VALIDATION
+Execute against the final P3 tree:
+- npm run format:check
+- npm run lint
+- npm run typecheck
+- npm test
+- npm run test:unit
+- npm run test:integration
+- npm run check
+- npm run test:db with a valid dedicated PostgreSQL admin prerequisite
+- committed-change whitespace/diff validation over the P3 range
+
+The full DB suite is mandatory because P3 claims real transaction/ownership/constraint behavior.
+
+REQUIRED EVIDENCE LEVELS
+- Level 1: module/version/static boundary and topic independence.
+- Level 2: P2 validation regressions remain green.
+- Level 4: persistence round-trip, ownership/scoping, uniqueness/FK effects, transactional rollback, and aggregate reads against disposable PostgreSQL.
+
+ACCEPTANCE CRITERIA
+- package and lockfile version metadata are synchronized at `0.3.3`.
+- Publication/Source/endpoint repository code consumes the existing QueryExecutor/Database transaction boundary rather than bypassing it.
+- Node-generated UUID primary keys are used without new PostgreSQL extension dependency.
+- validated configuration writes and reads round-trip with domain rules intact.
+- stable-key lookup is correctly scoped through Publication -> Source -> endpoint ownership.
+- one aggregate endpoint-configuration read exists for later Phase 4/5 consumers without computing eligibility/network safety.
+- transaction failure leaves no partial parent/child configuration.
+- P2 validation rules are reused, not duplicated.
+- no admin CRUD/update/delete, bootstrap, network, scheduling, health, Category/Relevance, or Article behavior is introduced.
+
+NON-GOALS
+- Update/patch/delete configuration management.
+- Archive/restore command implementation.
+- Bootstrap create-if-absent semantics.
+- Initial real Publication/Source data.
+- Collection eligibility/run locks/network safety.
+- HTTP fetching/parsing.
+- Scheduler/health/cache/timing.
+- Category/Relevance/branding.
+- Article/Collection-run persistence.
+- Admin UI/API.
+
+DELIVERY / REVIEW NOTES
+P3 exists to keep bootstrap SQL from becoming a temporary persistence API and to provide later collection phases a clean configuration read boundary. Keep it small and explicit. If a needed behavior actually belongs to bootstrap or Phase 4 eligibility, leave it for that owner instead of widening the repository layer.
