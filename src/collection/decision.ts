@@ -10,6 +10,7 @@ export const COLLECTION_DECISION_REASONS = Object.freeze([
   'endpoint_disabled',
   'endpoint_locked',
   'unsupported_scheme',
+  'invalid_destination_url',
   'domain_not_approved',
   'port_not_allowed',
   'dns_resolution_failed',
