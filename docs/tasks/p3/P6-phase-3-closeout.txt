@@ -109,7 +109,7 @@ Record actual output/results for:
 - `npm --version`;
 - PostgreSQL server version actually used for Level 4 evidence.
 
-Confirm Node satisfies package engines.
+`package.json` `engines.node` is the compatibility authority: confirm the runtime satisfies that range. `.nvmrc` records a preferred developer version, not an exact closeout requirement; a Node 24.x runtime such as `24.11.1` is acceptable when it satisfies package engines.
 
 LOCAL ENVIRONMENT SAFETY PRECHECK
 - confirm root `.env` remains ignored;

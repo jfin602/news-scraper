@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=24.12.0 <25"
+    "node": ">=24.10.0 <25"
   },
   "scripts": {
     "format": "prettier --write package.json tsconfig.json eslint.config.mjs prettier.config.mjs scripts src test README.md",
