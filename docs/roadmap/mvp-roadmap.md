@@ -173,7 +173,7 @@ Establish durable PostgreSQL infrastructure before domain models.
 
 ## Phase 3 — Publication and Source configuration core
 
-**Status:** Current.
+**Status:** Complete with durable validation recorded in `docs/validation/phase-3-publication-source-configuration.md`.
 
 ### Goal
 
@@ -237,6 +237,8 @@ Represent the minimum trusted configuration required to collect approved feeds w
 
 ## Phase 4 — Collection eligibility and network safety
 
+**Status:** Current.
+
 ### Goal
 
 Guarantee that only eligible, approved, safe Source endpoints may reach the outbound fetch boundary.
@@ -251,14 +253,28 @@ Guarantee that only eligible, approved, safe Source endpoints may reach the outb
 - Source/endpoint approval, lifecycle, operational checks;
 - HTTP/HTTPS scheme policy;
 - approved-domain validation;
-- DNS/address/port safety validation;
-- loopback/private/link-local/multicast/cloud-metadata rejection;
+- DNS/address safety validation using the public-unicast-only policy from the Source/collection contract;
+- default-port enforcement for HTTP 80 and HTTPS 443;
+- loopback/private/unique-local/link-local/multicast/unspecified/shared-or-CGNAT/reserved-or-special-use/cloud-metadata rejection, including equivalent IPv4-mapped IPv6 forms;
+- rebinding-resistant validated-destination handoff to the future transport boundary;
 - redirect destination revalidation primitives;
-- endpoint run-lock primitive;
-- explicit skip/rejection reasons.
+- shared cross-process endpoint run-lock primitive;
+- stable machine-readable skip/rejection reasons.
+
+### Boundary clarification
+
+- Phase 4 may resolve DNS because concrete address classification is part of pre-fetch safety.
+- Phase 4 stops at an injected/controlled outbound-fetch boundary. It does not issue publisher HTTP requests, follow real HTTP redirects, create Collection runs, or add the manual Worker collection command.
+- Redirect revalidation in this phase proves reusable destination-safety primitives with controlled candidate destinations. Phase 5 is the first phase that follows actual HTTP redirects through them.
+- The endpoint lock introduced here prevents overlapping ownership across Worker processes for the same endpoint. PostgreSQL or an equivalently shared coordination mechanism is required; Phase 10 durable jobs reuse this primitive rather than introducing the first distributed lock.
+- An eligible network-safety result carries validated concrete destination/address information forward so future transport cannot silently perform a second unchecked DNS decision.
 
 ### Out of scope
 
+- outbound publisher HTTP transport;
+- real HTTP redirect following;
+- persisted Collection runs;
+- manual Worker endpoint collection invocation;
 - RSS parsing;
 - Article normalization;
 - automated polling scheduler;
@@ -266,11 +282,13 @@ Guarantee that only eligible, approved, safe Source endpoints may reach the outb
 
 ### Exit gate
 
-- Eligible test endpoints reach the fetch boundary.
-- Unapproved, archived, paused, disabled, or unsafe endpoints cannot produce outbound requests.
-- Redirects cannot bypass safety.
-- Overlapping work for one endpoint can be prevented.
-- Safety tests use controlled/injected boundaries without weakening production SSRF/whitelist rules.
+- Eligible test endpoints reach the injected/controlled outbound-fetch boundary with a validated destination result.
+- Unapproved, archived, paused, disabled, or unsafe endpoints cannot invoke that outbound boundary.
+- Scheme/domain/port/DNS/address decisions produce the documented stable machine-readable reasons.
+- Controlled redirect destinations cannot bypass the same safety policy.
+- Concurrent process-equivalent actors cannot own the same endpoint lock simultaneously, unrelated endpoint locks remain independent, and required release/reacquisition behavior is proven against real disposable PostgreSQL or an equivalently capable shared store.
+- Safety tests use controlled/injected resolution and outbound boundaries without weakening production SSRF/whitelist rules or depending on live public publishers/DNS.
+- Phase 4 validation performs no publisher HTTP collection and creates no Collection runs.
 
 ## Phase 5 — RSS/Atom transport, parsing, and minimal Collection runs
 
