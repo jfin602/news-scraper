@@ -1,0 +1,276 @@
+TASK: Phase 3 / P1 — Publication, Source, endpoint, and domain-policy schema
+
+ROADMAP PHASE
+Phase 3 — Publication and Source configuration core.
+
+VERSIONING
+- This is Phase 3 prompt 1 and its assigned project version is `0.3.1`.
+- The repository owner explicitly established the Phase 3 baseline at `0.3.0`; on first execution confirm `package.json` is `0.3.0`, then advance it to `0.3.1` and synchronize npm-generated lockfile package metadata.
+- If this same P1 prompt is rerun after failed/partial implementation and `package.json` is already `0.3.1`, retain `0.3.1`; do not increment again.
+- `package.json` remains the sole authoritative project-version source.
+- Do not duplicate the current version in README, BOOT, source constants, contracts, or other manually maintained documentation.
+
+GOAL
+Create the first substantive News Scraper domain migration: the minimum Phase 3 relational schema for Publications, Sources, Source endpoints, Source approved-domain rules, and optional endpoint domain narrowing.
+
+This prompt owns database-enforceable structure and invariants only. Do not add TypeScript configuration semantics, repositories, bootstrap tooling, real publisher data, collection eligibility, networking, parsers, Categories, Relevance, scheduling, health, or Articles.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- BOOT.md
+- AGENTS.md
+- docs/contracts/project-contract.md
+- docs/contracts/domain-and-data-contract.md
+- docs/contracts/source-and-collection-contract.md
+- docs/contracts/testing-and-validation-contract.md
+- docs/architecture/system-architecture.md
+- docs/roadmap/mvp-roadmap.md
+- docs/decisions/whitelist-and-structured-feed-first.md
+- current Phase 2 migration/database implementation and tests
+
+CURRENT SOURCE / IMPORTANT BASELINE
+- `package.json` is `0.3.0` at planning time.
+- `src/` currently contains only `app/`, `database/`, and `shared/`; no Phase 3 domain module exists yet.
+- `src/database/migrations.ts` already discovers strict `NNNN_slug.sql` migrations, checks SHA-256 history, uses a PostgreSQL advisory lock, and applies each pending migration transactionally.
+- The production migration directory does not yet contain substantive application-domain migrations, so Phase 3 P1 owns the first production domain migration.
+- `test/support/database/disposable-database.ts` already creates, drops, and verifies cleanup of unique disposable PostgreSQL databases through `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL`.
+- `npm run test:db` is the required real-PostgreSQL suite and must remain separate from ordinary deterministic `npm test`.
+
+LOCKED / PRESERVED BEHAVIOR
+- Shared aggregation behavior remains topic independent.
+- Publication is the topic/configuration boundary.
+- Source belongs to exactly one Publication in MVP.
+- Source endpoint belongs to exactly one Source.
+- Approval, lifecycle, and operational state are separate concepts.
+- Source approved domains define the maximum configuration boundary; endpoint policy may narrow but not silently widen it.
+- Phase 3 is structural configuration only. Do not resolve DNS, classify addresses, enforce runtime port policy, follow redirects, or contact endpoints.
+- Canonical Phase 3 endpoint type is `rss_atom` only.
+- `poll_interval_seconds` is positive and bounded; `0` is never a disabled sentinel.
+- Do not front-load parser/cache/health/scheduling/Category/Relevance/branding fields from the completed logical MVP model.
+- Web/API and Worker startup must remain non-migrating and must not gain bootstrap behavior in P1.
+- Do not add an ORM, schema generator, or compatibility layer.
+
+PRIMARY-KEY STRATEGY
+Use PostgreSQL `uuid` columns for Publication, Source, and Source-endpoint primary keys, but do not require a PostgreSQL extension merely to generate them.
+
+P1 may require callers/tests to provide UUID values explicitly. Later application persistence should generate UUIDs in Node before insert. Bootstrap identity is NOT the database UUID:
+- Publication bootstrap identity is slug;
+- Source bootstrap identity is Publication-scoped `config_key`;
+- endpoint bootstrap identity is Source-scoped `config_key`.
+
+PRODUCTION MIGRATION
+Create one substantive first migration under the repository root migration directory, recommended:
+- `migrations/0001_publication_source_configuration.sql`
+
+Use the existing migration runner exactly as designed. Do not modify migration infrastructure unless a concrete blocker is demonstrated.
+
+TABLE: publications
+Persist only:
+- `id uuid PRIMARY KEY`;
+- `name text NOT NULL`;
+- `slug text NOT NULL`;
+- `active_for_collection boolean NOT NULL`;
+- `public_status text NOT NULL`;
+- `created_at timestamptz NOT NULL DEFAULT now()`;
+- `updated_at timestamptz NOT NULL DEFAULT now()`.
+
+Required constraints:
+- unique `slug`;
+- name is nonblank after trim and reasonably bounded;
+- slug uses a canonical lowercase hyphenated shape such as `[a-z0-9]+(-[a-z0-9]+)*` and is reasonably bounded;
+- `public_status` accepts only the minimal Phase 3 values `private` and `public`.
+
+Do not add description, timezone, branding, feed settings, Categories, Relevance fields, or other future Publication fields.
+
+TABLE: sources
+Persist only:
+- `id uuid PRIMARY KEY`;
+- `publication_id uuid NOT NULL`;
+- `config_key text NOT NULL`;
+- `display_name text NOT NULL`;
+- `site_url text NOT NULL`;
+- `approval_state text NOT NULL`;
+- `lifecycle_state text NOT NULL`;
+- `operational_state text NOT NULL`;
+- `created_at timestamptz NOT NULL DEFAULT now()`;
+- `updated_at timestamptz NOT NULL DEFAULT now()`.
+
+Required constraints:
+- FK to `publications(id)`;
+- `UNIQUE (publication_id, config_key)`;
+- config key canonical lowercase underscore shape such as `[a-z0-9]+(_[a-z0-9]+)*` and reasonably bounded;
+- display name nonblank and reasonably bounded;
+- site URL nonblank and reasonably bounded at SQL level; full URL semantics belong to P2;
+- approval state only `approved` / `unapproved`;
+- lifecycle state only `active` / `archived`;
+- operational state only `enabled` / `paused` / `disabled`.
+
+Do not add Source priority, default Category, Relevance settings, health, collection timing, or parser fields.
+
+TABLE: source_approved_domain_rules
+Represent Source maximum approved-domain policy relationally rather than as a JSON blob or wildcard string.
+
+Persist:
+- `source_id uuid NOT NULL`;
+- `hostname text NOT NULL`;
+- `include_subdomains boolean NOT NULL DEFAULT false`.
+
+Required constraints:
+- FK to `sources(id)`;
+- one logical rule per normalized hostname for a Source, recommended `UNIQUE (source_id, hostname)`;
+- hostname nonblank, lowercase, no surrounding whitespace, and reasonably bounded at SQL level.
+
+P1 should enforce cheap persisted-shape invariants only. Full DNS-hostname normalization and hierarchy semantics belong to P2. Do not parse schemes/paths or implement suffix hierarchy through SQL triggers.
+
+TABLE: source_endpoints
+Persist only:
+- `id uuid PRIMARY KEY`;
+- `source_id uuid NOT NULL`;
+- `config_key text NOT NULL`;
+- `endpoint_url text NOT NULL`;
+- `endpoint_type text NOT NULL`;
+- `approval_state text NOT NULL`;
+- `lifecycle_state text NOT NULL`;
+- `operational_state text NOT NULL`;
+- `poll_interval_seconds integer NOT NULL`;
+- `created_at timestamptz NOT NULL DEFAULT now()`;
+- `updated_at timestamptz NOT NULL DEFAULT now()`.
+
+Required constraints:
+- FK to `sources(id)`;
+- `UNIQUE (source_id, config_key)`;
+- `UNIQUE (source_id, endpoint_url)`;
+- config key canonical lowercase underscore shape and reasonably bounded;
+- endpoint URL nonblank and reasonably bounded at SQL level; structural URL/domain semantics belong to P2;
+- endpoint type only `rss_atom`;
+- approval/lifecycle/operational vocabularies match Source state vocabularies;
+- polling bound exactly `60 <= poll_interval_seconds <= 2592000`.
+
+The endpoint URL must NOT be globally unique. The same URL may be configured under another independent Source/Publication later. Stable bootstrap identity is `config_key`, not URL.
+
+TABLE: source_endpoint_domain_rules
+Represent optional endpoint narrowing relationally.
+
+Persist:
+- `source_endpoint_id uuid NOT NULL`;
+- `hostname text NOT NULL`;
+- `include_subdomains boolean NOT NULL DEFAULT false`.
+
+Required constraints:
+- FK to `source_endpoints(id)`;
+- `UNIQUE (source_endpoint_id, hostname)`;
+- same basic lowercase/nonblank/bounded persisted-host shape as Source domain rules.
+
+Zero endpoint-domain-rule rows means inherit the Source maximum policy. P1 must not attempt cross-table hostname hierarchy enforcement; P2/P3 own semantic validation before writes.
+
+FOREIGN-KEY / DELETE BEHAVIOR
+Choose conservative referential behavior consistent with lifecycle-based retirement. Do not introduce broad cascading deletion semantics merely for convenience. Child domain-policy rows may use tightly scoped cascade behavior if justified, but deleting a Publication/Source should not silently erase large configuration trees unless an explicit contract requires it.
+
+DATABASE VERSUS APPLICATION AUTHORITY
+Use PostgreSQL constraints for invariants PostgreSQL can prove directly:
+- parent ownership;
+- stable-key uniqueness;
+- endpoint URL uniqueness within Source;
+- state vocabularies;
+- endpoint type;
+- polling numeric bounds;
+- basic canonical key/host persisted shape.
+
+Do NOT use SQL triggers/functions for:
+- DNS suffix/subdomain hierarchy;
+- endpoint hostname membership in Source policy;
+- endpoint policy narrowing;
+- runtime collectability;
+- archive/restore transitions;
+- network safety.
+
+Those semantics belong in later TypeScript configuration/eligibility layers.
+
+FOCUSED REAL-POSTGRESQL TESTS
+Create a substantive database suite, recommended:
+- `test/database/configuration-schema.test.ts`
+
+Using the existing disposable PostgreSQL helper and production migration directory, prove at Level 4:
+- an untouched disposable DB migrates from zero with the production Phase 3 migration;
+- rerunning production migrations is repeat-safe/current and does not duplicate schema history;
+- all expected tables exist;
+- Publication slug uniqueness rejects duplicates;
+- Source `config_key` uniqueness is scoped to one Publication;
+- the same Source `config_key` is allowed in a different Publication;
+- endpoint `config_key` uniqueness is scoped to one Source;
+- the same endpoint `config_key` is allowed in a different Source;
+- duplicate endpoint URL within one Source is rejected;
+- the same endpoint URL is allowed in another Source/Publication;
+- invalid Source/endpoint approval states are rejected;
+- invalid lifecycle states are rejected;
+- invalid operational states are rejected;
+- invalid endpoint type is rejected;
+- polling values immediately below, exactly at, and immediately above both bounds behave correctly;
+- nonexistent Publication/Source/endpoint parents are rejected by FKs;
+- duplicate domain rule hostname for one parent is rejected;
+- equivalent rule hostname may exist under another parent;
+- obvious noncanonical uppercase/whitespace persisted host/key shapes are rejected by SQL where P1 claims that defense;
+- created/updated timestamp defaults exist and are populated.
+
+Tests should use synthetic UUIDs and generic data. Do not use real publisher URLs as business fixtures in P1.
+
+EXISTING MIGRATION REGRESSION
+Do not weaken the existing Phase 2 migration behavior. The full DB suite must still prove:
+- strict deterministic migration discovery;
+- checksum/history incompatibility detection;
+- failed migration rollback;
+- later migration stop after failure;
+- non-mutating schema readiness/status behavior;
+- disposable DB cleanup.
+
+LIKELY FILE SCOPE
+Expected:
+- package.json
+- package-lock.json
+- migrations/0001_publication_source_configuration.sql
+- test/database/configuration-schema.test.ts
+
+Modify `src/database/migrations.ts`, readiness code, Web/Worker code, README, or existing Phase 2 tests only if a real blocker is discovered. The default expectation is no production TypeScript change in P1 beyond version metadata.
+
+BROADER REGRESSION VALIDATION
+Execute against the final P1 tree:
+- npm run format:check
+- npm run lint
+- npm run typecheck
+- npm test
+- npm run test:unit
+- npm run test:integration
+- npm run check
+- npm run test:db with a valid dedicated PostgreSQL admin prerequisite
+- committed-change whitespace/diff validation over the P1 change range
+
+The complete `npm run test:db` run is required because adding a production migration changes Web/Worker schema-readiness behavior as well as migration history.
+
+REQUIRED EVIDENCE LEVELS
+- Level 1: migration/version/static structure and no topic-specific implementation.
+- Level 4: migration from zero, rerun, FK/uniqueness/state/type/poll constraints, migration regression, and disposable cleanup against real PostgreSQL.
+
+ACCEPTANCE CRITERIA
+- package and lockfile root version metadata are synchronized at `0.3.1`.
+- One substantive Phase 3 production migration creates only the minimum Publication/Source/endpoint/domain-policy schema.
+- Publication slug, Publication-scoped Source config key, and Source-scoped endpoint config key uniqueness are enforced by PostgreSQL.
+- Source and endpoint approval/lifecycle/operational state vocabularies remain separate.
+- Source/endpoint domain policy is represented structurally as normalized-host rules with explicit subdomain flags.
+- Endpoint type is restricted to `rss_atom`.
+- `poll_interval_seconds` is constrained to 60..2592000 inclusive and `0` is invalid.
+- No Category/Relevance/branding/parser/cache/health/scheduler/Article fields are introduced.
+- Production migrations apply reproducibly from zero and full Phase 2 DB regressions remain green.
+
+NON-GOALS
+- TypeScript normalization/validation.
+- Persistence repositories/services.
+- Bootstrap/seed engine or real Source data.
+- Collection eligibility or runtime state transition behavior.
+- DNS/address/port/redirect safety.
+- Outbound HTTP or RSS parsing.
+- Categories, Relevance, branding, Source priority, health, timing/cache fields.
+- Article/Collection-run persistence.
+- Admin CRUD/UI.
+
+DELIVERY / REVIEW NOTES
+Keep P1 schema-focused. Do not solve semantic hostname hierarchy with database triggers and do not front-load later roadmap fields. If the current repository has materially drifted from the Phase 3 baseline or governing contracts conflict with this prompt, stop and report the conflict rather than broadening the implementation. Report exact validation commands actually executed and distinguish source inspection from real PostgreSQL evidence.
