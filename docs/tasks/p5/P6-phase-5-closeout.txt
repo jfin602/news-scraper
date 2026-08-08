@@ -1,0 +1,467 @@
+TASK: Phase 5 / P6 — Phase 5 closeout validation
+
+ROADMAP PHASE
+Phase 5 — RSS/Atom transport, parsing, and minimal Collection runs.
+
+MINIMUM MODEL / EFFORT
+- Minimum recommended rating: `Terra Max`.
+- A stronger model/effort tier may be used.
+- Do not lower this rating without explicit repository-owner direction.
+- Rationale: closeout must reason across security-sensitive transport/redirect behavior, real PostgreSQL run provenance, deterministic fixture evidence, Worker process behavior, and approved live-Source evidence while ensuring no partial proof is overstated. It should add no new architecture.
+
+VERSIONING
+- This is Phase 5 prompt 6 and its assigned project version is `0.5.6`.
+- On first execution confirm P5 left `package.json` at `0.5.5`, then advance only its top-level `version` to `0.5.6` before establishing the final source SHA to validate.
+- If this same P6 prompt is rerun and `package.json` is already `0.5.6`, retain `0.5.6`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` is the sole authoritative current-version source.
+- The repository intentionally does not use `package-lock.json`; do not create, require, regenerate, or validate one.
+- The later conversational `/closeout` command, if Phase 5 is accepted, separately transitions to the next phase baseline and is NOT part of this P6 task.
+
+DEPENDS ON
+- P1 minimal Collection-run persistence.
+- P2 Raw-item/RSS/Atom parser boundary.
+- P3 validated-address one-hop HTTP transport.
+- P4 safe redirect-aware feed fetcher.
+- P5 canonical manual Worker endpoint collection service/command.
+- Existing approved bootstrap configuration containing Author Media and The Creative Penn.
+
+GOAL
+Perform final-tree Phase 5 validation, fix only defects required to satisfy the already-approved Phase 5 contracts/roadmap if any are discovered, rerun the complete required matrix against the exact accepted tree, and create the durable Phase 5 validation artifact.
+
+P6 is primarily a validation/closeout task, not a feature prompt. Do not add new product scope merely to make validation easier.
+
+GOVERNING DOCUMENTS
+Read current versions before validation and again if implementation changes materially during defect correction:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- `docs/decisions/whitelist-and-structured-feed-first.md`
+- `docs/validation/phase-4-collection-eligibility-network-safety.md`
+- Phase 5 P1-P5 task files and final implementation/tests.
+
+PHASE 5 EXIT GATE TO PROVE
+The Phase 5 roadmap exit gate requires all of the following on the accepted final tree:
+- at least two real approved active enabled feeds fetch/parse independently through Worker execution for live-Source evidence;
+- every real fetch attempt has a persisted truthful Collection run;
+- deterministic fixture tests cover representative success, malformed, conditional/no-change, redirect, bounds, and isolated-failure behavior;
+- one broken feed does not prevent another run from completing;
+- re-fetching unchanged content is transport-safe and deterministic at the Raw-item boundary.
+
+The inherited testing contract also requires:
+- focused tests for each implemented capability;
+- broader regression coverage for touched Phase 1-4 behavior;
+- Level 4 PostgreSQL proof for persistence/lock claims;
+- Level 5 deterministic collection-fixture evidence;
+- final-tree static/test/runtime evidence;
+- no skipped/flaky/zero-selected required suite standing in for proof;
+- durable validation artifact tied to the exact accepted implementation source SHA.
+
+NO NEW FEATURE DESIGN
+P6 should not redesign interfaces or add new capabilities if P1-P5 are contract-correct.
+
+If validation exposes a defect:
+- fix the smallest root cause under the same P6 `0.5.6` version;
+- add/adjust focused regression coverage;
+- rerun every affected broader suite plus the complete closeout matrix;
+- the accepted implementation SHA must be established only after the final code/test/version state is complete.
+
+If validation exposes a material contract ambiguity or architecture decision that cannot be corrected as a clear defect, stop and report the blocker rather than inventing new Phase 5 scope during closeout.
+
+EXPECTED PHASE 5 IMPLEMENTATION SHAPE
+Before running proof, inspect the final tree and confirm it has one coherent implementation path:
+- one minimal `collection_runs` persistence model/repository;
+- one generic Raw-item model;
+- one parser adapter and RSS/Atom parser;
+- one validated-address one-hop HTTP transport;
+- one redirect-aware fetcher reusing the Phase 4 safety gate every hop;
+- one canonical endpoint collection service;
+- one manual Worker-owned endpoint command;
+- existing long-running Worker runtime preserved;
+- no inline Web/API Source fetching.
+
+Report unexpected parallel fetch/parser/run paths as a closeout concern even if tests pass.
+
+CLEAN DEPENDENCY / ENVIRONMENT RECORD
+Record at minimum:
+- final implementation commit/source SHA;
+- branch;
+- Node version;
+- npm version;
+- PostgreSQL server/client version relevant to DB evidence;
+- operating system/platform where useful;
+- resolved XML parser dependency version;
+- relevant environment prerequisites used, without exposing credentials.
+
+Because the repository intentionally has no package lock:
+- use `npm install`, not `npm ci`;
+- confirm `.npmrc` prevents lock generation;
+- do not describe dependency installation as byte-for-byte reproducible;
+- confirm no `package-lock.json` was created.
+
+VERSION-FIRST CLOSEOUT SEQUENCE
+P6 owns `0.5.6`.
+
+Before final validation:
+1. verify expected preceding version `0.5.5` or existing rerun version `0.5.6`;
+2. set top-level `package.json` version to `0.5.6` if needed;
+3. do not alter dependency ranges merely for the version bump;
+4. include the versioned tree in every final validation claim;
+5. if later defect fixes alter source after an earlier test pass, rerun the applicable final matrix against the new final tree.
+
+STATIC / STRUCTURAL REVIEW
+Before or alongside execution, inspect final Phase 5 source and confirm:
+- shared aggregation code contains no indie-author/Author Media/Creative Penn-specific business conditions;
+- only configured approved Sources/endpoints can enter canonical collection execution;
+- Web/API does not perform Source collection inline;
+- every redirect passes Phase 4 scheme/domain/default-port/DNS/public-address validation before contact;
+- actual transport uses only Phase-4-approved concrete address information and preserves hostname/TLS verification;
+- no TLS certificate bypass or production safety test bypass exists;
+- parsers emit Raw items and do not persist Articles;
+- Raw-item data remains unnormalized/untrusted at Phase 5 boundary;
+- Collection runs start only after eligibility + lock and before safety/fetch;
+- ineligible/locked attempts do not create runs;
+- expected safety/transport/parser attempts produce truthful terminal run accounting;
+- 304/no-change behavior does not invoke parser on nonexistent content;
+- no persistent endpoint ETag/Last-Modified scheduling/cache state has been front-loaded;
+- no normalization/Relevance/Article/duplicate/scheduler/health/public-feed implementation exists;
+- no uncontrolled full publisher response/body fixtures are committed;
+- fixture data is minimal/sanitized/deterministic;
+- logging/output does not expose credentials, database URLs, authorization headers, raw bodies, or unbounded stack/error content.
+
+ORDINARY STATIC / DETERMINISTIC COMMANDS
+Run against the exact final tree and record exact outcomes:
+- `npm install`
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:collection`
+- `npm test`
+- `npm run check`
+
+If any explicit filtered/subsuite command selects zero tests, that is a failure; do not report green.
+
+Run `git diff --check` against the accepted Phase 5 change range/appropriate base so committed whitespace errors are actually inspected. Do not substitute an empty clean-working-tree diff.
+
+DATABASE / LEVEL 4 MATRIX
+Run the full:
+- `npm run test:db`
+
+with a valid safe `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` pointing only to a disposable-test-capable PostgreSQL administrative environment.
+
+Required DB evidence includes:
+- production migrations from zero apply in order through Phase 5 schema;
+- rerun is idempotent/current;
+- Collection-run FK/status/count/timestamp/error constraints;
+- Collection-run start/finalize repository lifecycle;
+- double-finalization protection;
+- transaction/failure behavior as implemented;
+- Phase 3 Publication/Source/endpoint configuration constraints/bootstrap idempotency/no-overwrite regressions;
+- Phase 4 endpoint advisory-lock contention, unrelated endpoint independence, release/reacquisition;
+- canonical collection execution creates no run for lock contention;
+- canonical collection execution creates truthful terminal runs for actual attempted safety/transport/parser paths;
+- failure paths do not leak the endpoint lock;
+- disposable databases are cleaned up and cleanup is verified.
+
+A mocked DB test does not satisfy these claims.
+
+DETERMINISTIC LEVEL 5 COLLECTION MATRIX
+`npm run test:collection` plus relevant ordinary integration tests must prove representative behavior without live publisher dependencies.
+
+Required fixture coverage should include at least:
+
+RSS/ATOM PARSING
+- valid RSS with multiple items;
+- valid Atom with multiple entries;
+- zero-item valid feed;
+- common namespace metadata supported by implementation;
+- missing optional item fields;
+- malformed XML;
+- valid XML that is not supported RSS/Atom;
+- hostile/DOCTYPE/entity-expansion or equivalent XML security case;
+- parser/item/field bounds;
+- repeated fixture parse determinism.
+
+HTTP TRANSPORT
+- validated-address binding/no unchecked second DNS;
+- Host/TLS hostname semantics at the strongest deterministic evidence implemented;
+- identifiable User-Agent/Accept headers;
+- 2xx content;
+- conditional request headers;
+- ETag/Last-Modified response metadata;
+- 304 no-change;
+- supported XML content types;
+- unsupported content type;
+- HTTP failure/retry classification;
+- connect timeout;
+- total timeout;
+- wire response-size below/at/above boundary;
+- gzip/deflate and Brotli if supported;
+- decompressed-size below/at/above boundary;
+- malformed compression;
+- unsupported encoding;
+- network reset/failure cleanup.
+
+REDIRECTS
+- relative redirect;
+- allowed absolute redirect;
+- multiple allowed hops;
+- rejected cross-domain redirect;
+- unsupported scheme;
+- non-default port;
+- unsafe/mixed DNS answer on later hop;
+- missing/blank/malformed Location;
+- redirect loop if implemented;
+- redirect limit below/at/above boundary;
+- fresh DNS safety decision per hop including same-host redirect;
+- no prior-hop address reuse;
+- shared overall deadline across redirect chain;
+- 304 after redirect.
+
+CANONICAL COLLECTION ORCHESTRATION
+- eligibility blocked -> no run/fetch;
+- lock blocked -> no run/fetch;
+- run creation failure -> no network work, lock release;
+- safety block -> persisted failed run with transport/parser not_run;
+- transport failure -> persisted failed run with parser not_run;
+- 304 -> persisted successful not_modified run, no parser;
+- content + parser success -> persisted successful run + correct Raw-item count;
+- parser failure -> persisted failed run with transport succeeded/parser failed;
+- run finalization failure surfaces instead of false success;
+- unrelated/later endpoint can still execute after one failure.
+
+Do not weaken production SSRF/whitelist policy to run these fixtures.
+
+MANUAL WORKER RUNTIME / PROCESS VALIDATION
+Exercise the actual Phase 5 manual endpoint command against a controlled environment before live Sources where possible.
+
+Record:
+- exact command syntax;
+- argument validation behavior;
+- missing endpoint behavior;
+- database startup/failure behavior;
+- structured success/failure output shape;
+- clean resource shutdown;
+- confirmation existing `start:worker` lifecycle/readiness tests remain green.
+
+Web/API should require no Phase 5 runtime change; existing Web regressions must remain green under ordinary tests.
+
+LIVE-SOURCE SUITE / COMMAND
+P6 should add the first substantive explicit live-Source validation command if P1-P5 did not already add one:
+- recommended `npm run test:live-sources`.
+
+This command must remain OUTSIDE ordinary `npm test` and `npm run check` because live public network is not deterministic regression infrastructure.
+
+It may be implemented as a dedicated Node test/procedure under e.g.:
+- `test/live-sources/phase-5-approved-feeds.test.ts`
+- plus only the smallest support required.
+
+The command should load optional `.env` because it requires DB/network environment.
+
+Update package-script contract tests accordingly:
+- `test:live-sources` is environment-requiring;
+- ordinary deterministic commands remain `.env`-free.
+
+LIVE-SOURCE PREREQUISITES
+The live suite/procedure must:
+- require a safe usable `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL`;
+- fail clearly if required DB/network prerequisites are unavailable; do not silently skip green;
+- create a unique disposable PostgreSQL database rather than use development/production application data;
+- run production migrations from zero;
+- explicitly run the existing approved bootstrap configuration into the disposable DB;
+- contact only endpoints already explicitly approved in repository-owner configuration;
+- use the real canonical manual Worker collection service/path and real production Phase 4 safety/HTTP/parser implementation;
+- clean up the disposable DB and verify cleanup.
+
+Do not auto-approve newly discovered Sources during live testing.
+
+APPROVED PHASE 5 LIVE SOURCES
+The repository-owner-approved initial Source set is:
+
+1. Author Media
+- Publication slug: `indie-author-publishing-news`
+- Source config key: `author_media`
+- endpoint config key: `site_rss`
+- approved URL from bootstrap: `https://www.authormedia.com/feed/`
+
+2. The Creative Penn
+- Publication slug: `indie-author-publishing-news`
+- Source config key: `the_creative_penn`
+- endpoint config key: `podcast_rss`
+- approved URL from bootstrap: `https://www.thecreativepenn.com/feed/podcast/`
+
+Do not substitute a different publisher/feed without explicit repository-owner approval.
+
+Historical Phase 3 reconnaissance that these feeds existed does NOT satisfy Phase 5 Level 7 proof. P6 must observe the current live behavior through the implemented Worker collection path.
+
+LEVEL 7 LIVE PROCEDURE
+For each approved endpoint independently:
+1. load configured aggregate from the disposable DB;
+2. verify it is approved/active/enabled and Publication collection-active through the real service path;
+3. execute the canonical endpoint collection operation using production resolver/safety/transport/redirect/parser;
+4. assert/record that a Collection run was created for the real attempt;
+5. if live fetch/parse succeeds, record terminal transport/parser status, HTTP status, redirect count, byte counts, Raw-item count, and parser dialect where available;
+6. inspect only bounded metadata/sample fields needed to establish Raw-item plausibility—do not persist/print full publisher content;
+7. confirm the second Source executes independently even if the first failed;
+8. record actual observed failure honestly if a publisher is unavailable/changed; do not rewrite contracts or whitelist policy to force green.
+
+The roadmap exit gate requires at least two real approved feeds to fetch/parse successfully. If one/both approved feeds are currently unavailable or changed incompatibly, Phase 5 closeout is BLOCKED until the real issue is resolved through an appropriate follow-up decision/fix. Do not treat a historical or mocked success as substitute evidence.
+
+UNCHANGED / CONDITIONAL LIVE BEHAVIOR
+The exit gate also requires re-fetching unchanged content to be transport-safe and deterministic at the Raw-item boundary.
+
+Phase 5 intentionally does not persist endpoint cache validators yet, so live proof may perform a controlled two-step fetch in the validation procedure:
+- first real fetch captures ETag/Last-Modified if the publisher supplies them and parses Raw items;
+- second immediate fetch supplies available validators to the same fetcher/service test seam/procedure;
+- if server returns 304, confirm no parser invocation/zero Raw items and truthful run state as applicable;
+- if server ignores validators/does not supply them and returns content, parse again and confirm Raw-item output is deterministic for unchanged returned content where observable;
+- do not invent persistent endpoint cache columns to satisfy this proof.
+
+Because publisher content may change between calls, record limitations honestly. Deterministic fixture evidence remains the authoritative regression proof for conditional/no-change semantics; live evidence proves only what was observed at that time.
+
+FAILURE-ISOLATION LIVE EVIDENCE
+The roadmap requires one broken feed not to prevent another run from completing.
+
+Deterministic tests must prove this reliably.
+
+For live validation, do not intentionally break or attack a publisher. It is enough to execute the two approved endpoints as independent operations and establish that one operation’s result/failure does not control whether the other is attempted. If both succeed, deterministic controlled failure tests remain the proof of the broken-feed case.
+
+DO NOT RUN IN BROWSER
+Phase 5 has no browser-dependent product behavior. `test:browser` / Level 6 is not required.
+
+DO NOT CLAIM REFERENCE DEPLOYMENT
+Phase 5 closeout is not Level 8 deployment proof unless the user separately requests and an actual reference environment exists. Do not imply production readiness from local/fixture/live validation.
+
+CLOSEOUT VALIDATION ARTIFACT
+Create exactly one durable artifact after final implementation validation succeeds, recommended:
+- `docs/validation/phase-5-rss-atom-transport-parsing-collection-runs.md`
+
+The artifact must identify:
+- validation date/time/timezone;
+- branch;
+- exact accepted Phase 5 implementation source SHA (the final source tree being validated, before/independent of any later docs-only artifact commit if the workflow requires that distinction);
+- package version `0.5.6`;
+- Node/npm/PostgreSQL/XML-parser versions/environment;
+- commands/procedures actually executed;
+- concise result counts/statuses;
+- evidence level for each claim;
+- live Source names/endpoints actually observed;
+- bounded observed live results and timing context;
+- limitations/environmental caveats;
+- explicit Phase 5 roadmap exit-gate determination;
+- explicit statement that the artifact records evidence and does not redefine contracts.
+
+Do not copy huge terminal logs into the artifact. Preserve enough exact command/result information to prove what was run.
+
+If the artifact itself is committed after the validated source SHA, state both:
+- accepted/validated implementation source SHA;
+- docs artifact commit SHA if known afterward.
+
+FINAL NO-SCOPE-LEAK INSPECTION
+Before declaring Phase 5 complete, inspect final tree and affirm that Phase 5 did NOT implement:
+- Article normalization;
+- relative Article URL acceptance/canonical identity URL handling;
+- Source/domain Article-link post-normalization gate;
+- Relevance evaluation;
+- Article schema/persistence;
+- Article observations;
+- Article processing outcome/effect counters;
+- duplicate detection/grouping;
+- due-endpoint scheduler/durable jobs;
+- retry/backoff/jitter scheduler;
+- endpoint last-success/next-due/health/failure-counter state;
+- persistent ETag/Last-Modified endpoint cache state;
+- public feed/API/UI;
+- admin collection route/UI;
+- HTML collection/custom browser automation;
+- topic-specific engine rules.
+
+If later-phase code was introduced accidentally, remove it or report the blocker before closeout.
+
+BROADER REGRESSION / PRESERVED BEHAVIOR
+Explicitly confirm earlier behavior remains green on the final P6 tree:
+- Web/API liveness/readiness;
+- Worker readiness/lifecycle/clean shutdown;
+- runtime/database config validation;
+- database migration/checksum behavior;
+- Publication/Source/endpoint structural constraints;
+- bootstrap idempotency/no overwrite;
+- Phase 4 eligibility decisions;
+- static destination scheme/domain/default-port policy;
+- DNS public-unicast/special-use rejection;
+- IPv4-mapped IPv6 safety;
+- redirect safety primitives;
+- rebinding-resistant validated-address handoff;
+- endpoint lock contention/release/reacquisition;
+- no public-network dependency in ordinary deterministic tests.
+
+LIKELY FILE SCOPE
+Expected P6 changes when P1-P5 are correct:
+- `package.json` — version + `test:live-sources` script if not already substantive;
+- `test/live-sources/**` and minimal support for the explicit live suite/procedure;
+- `test/unit/package-scripts.test.ts` for command classification;
+- `docs/validation/phase-5-rss-atom-transport-parsing-collection-runs.md`;
+- only defect-fix source/tests discovered by closeout validation.
+
+Do not perform broad documentation cleanup in P6. Root/roadmap phase-state advancement happens later through `/closeout` then `/docs-review`/`/docs-apply` workflow.
+
+REQUIRED EVIDENCE LEVELS
+- Level 0/1: final architecture/file/scope/security inspection + static checks.
+- Level 2/3: focused/unit/integration/process regression proof.
+- Level 4: real disposable PostgreSQL migration/run/lock persistence evidence.
+- Level 5: deterministic controlled HTTP/RSS/Atom/redirect/conditional/bounds/failure fixture evidence.
+- Level 6: not applicable.
+- Level 7: both approved live Sources through the production Worker collection execution path.
+- Level 8: not required.
+
+ACCEPTANCE CRITERIA
+P6 / Phase 5 is complete only when:
+- `package.json` is exactly `0.5.6`;
+- clean install/static/type/lint/format checks pass on the final tree;
+- complete deterministic ordinary and `test:collection` matrices pass with no required zero-selected/skipped/flaky substitutes;
+- full `test:db` passes against safe disposable PostgreSQL and cleanup is verified;
+- deterministic fixtures prove RSS, Atom, malformed XML, HTTP conditionals/304, redirects, timeouts, size/decompression bounds, content-type/encoding handling, and isolated failures;
+- Phase 4 security/lock regressions remain green;
+- manual Worker collection command/service behavior is validated;
+- Author Media and The Creative Penn each successfully fetch/parse through the real canonical Worker execution path under Level 7 evidence;
+- every observed live fetch attempt has truthful persisted Collection-run provenance;
+- unchanged/refetch behavior is supported safely with deterministic fixture proof and live observations recorded without persistent Phase 10 cache state;
+- failure isolation is proven deterministically and independent live attempts are observed;
+- no later-phase scope leak remains;
+- a durable Phase 5 validation artifact records the exact accepted implementation SHA, commands/procedures, environment, results, evidence levels, and limitations;
+- no `package-lock.json` exists.
+
+BLOCKED CLOSEOUT CONDITIONS
+Report Phase 5 closeout as blocked rather than green if any required item is missing, including:
+- one/both approved live feeds cannot successfully fetch/parse and no approved replacement exists;
+- live attempt lacks persisted truthful run provenance;
+- safety requires a test/production bypass;
+- transport can independently re-resolve after safety validation;
+- required deterministic collection suite is flaky/skipped/zero-selected;
+- DB prerequisite is unavailable and Level 4 cannot be executed;
+- migration/run/lock constraints fail;
+- final tree changes after the last relevant validation run;
+- validation artifact cannot truthfully tie evidence to the accepted tree;
+- later-phase behavior materially contaminates Phase 5 boundaries.
+
+NON-GOALS / DEFERRED
+Do not use P6 to implement:
+- Phase 6 normalization;
+- Phase 7 Relevance/Article persistence;
+- Phase 8/9 public feed;
+- Phase 10 scheduler/cache persistence/health;
+- admin UI;
+- HTML collection;
+- duplicate behavior;
+- production monitoring/reference-deployment infrastructure.
+
+IMPLEMENTATION DISCIPLINE
+Validation evidence is the product of this prompt. Do not optimize for a green report by weakening tests, safety, bounds, approval policy, or evidence terminology. If the exact final tree cannot satisfy the Phase 5 exit gate at the required evidence levels, report the limitation/blocker explicitly and leave the phase open.
