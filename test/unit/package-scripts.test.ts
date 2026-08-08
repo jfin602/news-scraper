@@ -1,16 +1,11 @@
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { access, readFile } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 
 interface PackageManifest {
   dependencies?: Record<string, string>;
   devDependencies?: Record<string, string>;
   scripts: Record<string, string>;
-  version: string;
-}
-
-interface PackageLock {
-  packages: Record<string, { version?: string }>;
   version: string;
 }
 
@@ -43,12 +38,12 @@ describe('package command environment contract', () => {
     assert.equal(manifest.devDependencies?.dotenv, undefined);
   });
 
-  it('keeps package and lockfile root versions synchronized', async () => {
+  it('keeps package.json as the sole version source under lockfile-disabled npm policy', async () => {
     const manifest = await readJson<PackageManifest>('package.json');
-    const lock = await readJson<PackageLock>('package-lock.json');
 
-    assert.equal(lock.version, manifest.version);
-    assert.equal(lock.packages['']?.version, manifest.version);
+    assert.match(manifest.version, /^\d+\.\d+\.\d+$/u);
+    assert.match(await readFile('.npmrc', 'utf8'), /^package-lock=false$/mu);
+    await assert.rejects(access('package-lock.json'));
   });
 });
 
