@@ -11,6 +11,14 @@
 - Browser limitation: the in-app browser displayed the public landing pages and feed metadata, but direct navigation to several XML URLs reported `net::ERR_BLOCKED_BY_CLIENT`. Those feeds were therefore directly inspected with `Invoke-WebRequest`; a feed is marked VERIFIED below only where that direct response was successfully inspected.
 - This artifact records observations and recommendations only. It does not approve Sources, create configuration/bootstrap data, redefine contracts, or implement Phase 3, Phase 4, Phase 5, or Phase 10 behavior. Any actual bootstrap approval requires explicit repository-owner acceptance.
 
+## Targeted Follow-up Metadata
+
+- Targeted Authors Publish follow-up date/time: 2026-08-07 22:07 CDT (UTC-05:00).
+- Follow-up source-tree HEAD SHA: `ecc72e222e23655199ee8fc55b4d19981ca7ff6c`.
+- Targeted artifact: `docs/validation/phase-3-authors-publish-targeted-reconnaissance.md`.
+- Current targeted technical classification: `CONFIRM_WITHHOLD_FROM_MVP`.
+- This later observation session directly verified the Publishing Industry News archive and its explicitly exposed category RSS feed. It updates only the current Authors Publish conclusion below; it does not alter the original reconnaissance metadata or make the original session appear to have observed this evidence.
+
 ## Executive Summary
 
 | Source | Best Method | Verified Endpoint | Scope Quality | Reliability | MVP Recommendation |
@@ -18,7 +26,7 @@
 | Author Media - Author Update | RSS (whole-site feed; no dedicated category feed verified) | `https://www.authormedia.com/feed/` | Usable with moderate noise | WordPress RSS, 100 retained items observed; broad feed | APPROVE_WITH_CAVEAT |
 | The Creative Penn | Podcast RSS | `https://www.thecreativepenn.com/feed/podcast/` | Usable with moderate noise | First-party WordPress podcast RSS; public show-notes links | APPROVE_WITH_CAVEAT |
 | Jane Friedman | Withhold | None recommended | Poor for the requested open industry-news feed | Public feeds exist, but the intended industry reporting is paid and the Substack is a different personal channel | WITHHOLD_FROM_MVP |
-| Authors Publish | Withhold | None recommended | Fundamentally mismatched | First-party WordPress RSS is technically sound but dominated by submission opportunities | WITHHOLD_FROM_MVP |
+| Authors Publish | Withhold | None recommended | Narrow category RSS is technically valid but stale and still materially mixed | First-party category RSS is verified, has 14 retained items, and preserves source-owned links; latest item is 2025-10-23 | WITHHOLD_FROM_MVP |
 | Sub Club | Withhold | None recommended | Poor alignment | First-party Substack RSS is technically sound but devoted to jobs, pitches, and submissions | WITHHOLD_FROM_MVP |
 | Upstream Reviews | Withhold | None recommended | Fundamentally mismatched | First-party Substack RSS is technically sound but reviews/podcasts, not industry news | WITHHOLD_FROM_MVP |
 
@@ -240,6 +248,10 @@ No access control was bypassed. Treating premium feed excerpts as a substitute f
 
 WITHHOLD_FROM_MVP
 
+### Targeted Technical Classification
+
+CONFIRM_WITHHOLD_FROM_MVP
+
 ### Reason
 
 The authoritative reporting product is paid/private, while the technically collectable public channels do not provide the requested industry-news stream. Reconsider only if Jane Friedman explicitly offers a public, appropriately scoped feed or authorizes a public syndication route.
@@ -266,6 +278,11 @@ The customer likely expects publishing opportunities or industry information use
    - URL: `https://authorspublish.com/feed/`
    - Evidence: Direct inspection returned RSS 2.0. Recent sampled entry “Nine Publishers Open to Direct Submissions in August 2026” (2026-08-06) links to `https://authorspublish.com/nine-publishers-open-to-direct-submissions-in-august-2026/`, has a WordPress GUID, date, author, categories, and excerpt. The next public landing-page items were a literary magazine seeking submissions and themed submission calls/contests.
    - Result: Valid first-party feed, but dominated by submissions/opportunities rather than publishing-industry reporting. No cleaner first-party category feed was discovered from the authoritative landing page.
+3. Targeted follow-up: Publishing Industry News archive and explicitly exposed category RSS
+   - Archive URL: `https://authorspublish.com/category/publishing-news/`
+   - Follow-up evidence: A later browser observation verified the first-party archive, its `Publishing Industry News` heading, and `rel="alternate"` `application/rss+xml` link to `https://authorspublish.com/category/publishing-news/feed/`. Direct public HTTP inspection of that feed returned 200, `application/rss+xml; charset=UTF-8`, RSS 2.0, titled `Publishing Industry News – Authors Publish Magazine`, with 14 retained items and no redirect. Its three newest entries are October, September, and August 2025 `Notes from the Editor’s Desk` roundups. Each has a stable WordPress GUID, date, author, categories, excerpt, and an exact-host Authors Publish article URL.
+   - Content evidence: The October summary begins with writer opportunities; September combines publishing contracts with grants and eight submission calls; August combines Hugo/Authors Guild news with three publishing opportunities. July through May follow the same mixed monthly-roundup pattern. The latest retained item is 2025-10-23, roughly 9.5 months before follow-up observation.
+   - Result: The narrower feed is technically verified and better scoped than the whole-site feed, but it is stale and does not substantially eliminate opportunity noise. It is therefore not an appropriate initial publishing-industry-news endpoint.
 
 ### Recommended Method
 
@@ -274,7 +291,7 @@ Withhold
 ### Endpoint Verification
 
 - Status: NONE
-- No endpoint is recommended. `https://authorspublish.com/feed/` was verified as RSS 2.0 (200, `application/rss+xml; charset=UTF-8`) but withheld for editorial fit, not technical failure.
+- No endpoint is recommended. The whole-site feed and the dedicated `https://authorspublish.com/category/publishing-news/feed/` endpoint are both verified RSS 2.0 (200, `application/rss+xml; charset=UTF-8`). The category endpoint is withheld for stale/mixed editorial fit, not technical failure.
 
 ### Proposed Source Domain Policy
 
@@ -294,11 +311,11 @@ Withhold
 
 ### Content Fit
 
-Fundamentally mismatched for a rolling publishing-industry news product. The observed content is useful to writers but is primarily submissions, contests, journals, and publisher listings.
+The targeted category is materially closer to the intended Publication than the whole-site feed, but still falls short: its monthly posts bundle some legitimate industry developments with grants, submission calls, and other opportunities, and it has no current material. The whole-site feed remains fundamentally opportunity-oriented.
 
 ### Collection and Reliability Risks
 
-Technically, the feed is conventional first-party WordPress RSS with source-owned links. Operationally, it would fill the public feed with time-sensitive opportunity content instead of the intended news, creating avoidable scope/noise without a demonstrated clean endpoint.
+Both feeds are conventional first-party WordPress RSS with source-owned links. The category feed avoids the whole-site feed’s worst noise but has only 14 retained items, has not updated since 2025-10-23, and still packages opportunities into each sampled item. Selecting it would produce a stale, mixed stream and would not avoid later filtering pressure.
 
 ### MVP Recommendation
 
@@ -306,7 +323,7 @@ WITHHOLD_FROM_MVP
 
 ### Reason
 
-This is a content-fit withholding, not a scraping problem. Reconsider for a separate opportunities-focused Publication or if Authors Publish exposes and verifies a substantially cleaner publishing-industry news feed.
+This is an editorial/freshness withholding, not a scraping or RSS failure. The targeted follow-up resolved the previously incomplete category-feed question: the dedicated RSS exists but is stale and still mixed with opportunities. Reconsider only for a separately configured opportunities-oriented Publication or if Authors Publish resumes a substantially cleaner, current industry-news feed.
 
 ## Source: Sub Club
 
@@ -458,7 +475,7 @@ These values are bootstrap-ready proposals only. Reconnaissance did not authoriz
 ## Withheld or Deferred Sources
 
 - Jane Friedman — WITHHOLD_FROM_MVP. The actual authoritative industry-reporting channel is the paid *The Bottom Line*; public feeds are either mixed/premium-excerpt site content or a separate personal Substack. Reconsider if a public, suitably scoped industry feed is explicitly offered.
-- Authors Publish — WITHHOLD_FROM_MVP. Its verified RSS is primarily submissions, contests, and literary-magazine/publisher opportunities. Reconsider for a separate opportunities Publication or on verification of a cleaner industry-news endpoint.
+- Authors Publish — WITHHOLD_FROM_MVP. The targeted follow-up verified the narrower `Publishing Industry News` RSS, but it has 14 retained items, last updated 2025-10-23, and its monthly posts still mix industry developments with grants and submission opportunities. Reconsider for a separately configured opportunities Publication or if the category resumes a materially cleaner, current stream.
 - Sub Club — WITHHOLD_FROM_MVP. Its verified RSS is opportunities, jobs, pitch calls, agents, and submissions. Reconsider only under an explicitly separate opportunities-product configuration.
 - Upstream Reviews — WITHHOLD_FROM_MVP. Its verified RSS is reviews and entertainment podcasts. Reconsider only for a separately scoped reviews/discovery Publication.
 
@@ -469,7 +486,7 @@ These values are bootstrap-ready proposals only. Reconnaissance did not authoriz
 
 ## Phase 3 Planning Impact
 
-1. Do we now have at least two technically verified and suitable `rss_atom` endpoints? **Yes.** `https://www.authormedia.com/feed/` and `https://www.thecreativepenn.com/feed/podcast/` were directly inspected successfully and are suitable only with the stated editorial-scope caveats.
+1. Do we now have at least two technically verified and suitable `rss_atom` endpoints? **Yes: two.** `https://www.authormedia.com/feed/` and `https://www.thecreativepenn.com/feed/podcast/` were directly inspected successfully and are suitable only with the stated editorial-scope caveats. Authors Publish’s targeted category RSS is technically verified but not suitable for this Publication.
 2. Which Sources could safely become deliberate Phase 3 bootstrap approvals if the repository owner accepts this reconnaissance? **Author Media** (`author_media` / `site_rss`) and **The Creative Penn** (`the_creative_penn` / `podcast_rss`), with exact-host Source policies and endpoint narrowing recorded above.
 3. Does any Source require behavior outside Phase 3? **Yes, but none is proposed on that basis.** HTML collection for the cleaner Author Update category would be a later HTML-adapter concern; runtime DNS/address/port/redirect enforcement remains Phase 4; HTTP/RSS parsing remains Phase 5; scheduling remains Phase 10. Paid Bottom Line access, browser automation, and collection of private material are not proposed.
 4. Does any finding require changing the currently assessed Phase 3 P1-P6 task boundaries? **No.** The findings provide configuration candidates only and do not require new behavior, a source-specific adapter, or topic-specific engine code.
@@ -480,6 +497,6 @@ These values are bootstrap-ready proposals only. Reconnaissance did not authoriz
 - The browser’s XML navigation was blocked by a client rule for several feeds, so direct HTTP inspection supplied the endpoint body/header evidence. This limits the browser claim to the public source pages and metadata, not feed-rendering behavior.
 - No browser request headers were available for the feeds; the artifact records `Invoke-WebRequest` HTTP outcomes and response `Content-Type` values where observed.
 - Feed retention counts were only recorded where directly observed: Author Media exposed 100 items. Counts for the other feeds were not asserted.
-- Authors Publish did not expose a narrower industry-news feed from the inspected landing page. This is not a claim that none exists anywhere on the site; it is sufficient evidence that the verified whole-site feed is not suitable for this Publication.
+- The original landing-page observation did not expose a narrower industry-news feed. A later targeted follow-up did: `https://authorspublish.com/category/publishing-news/feed/` is verified RSS, but its staleness and mixed roundups confirm withholding for the initial Publication. See `docs/validation/phase-3-authors-publish-targeted-reconnaissance.md`.
 - The Creative Penn’s second recent title was observed in the authoritative podcast page listing, but only the first corresponding RSS item’s full metadata/link was bounded and retained in this artifact. The feed remains verified from its direct XML response.
 - Publisher contents, access models, endpoint behavior, and editorial focus are time-sensitive. No conclusion here authorizes live-source validation or weakens future Phase 4 safety checks.
