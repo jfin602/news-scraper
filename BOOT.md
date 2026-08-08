@@ -10,14 +10,14 @@ It establishes project identity, canonical terminology, authority, document rout
 - Default branch: `main`
 - Working product/repository name: News Scraper
 - Platform: reusable, topic-independent news aggregation Platform
-- Current phase: **Phase 3 — Publication and Source configuration core**
+- Current phase: **Phase 4 — Collection eligibility and network safety**
 - Production status: pre-production
 - Initial Publication: publishing-industry news relevant to indie authors
 - Public direction: rolling recent-headline feed sending readers to original publishers
 - Admin direction: Cloudflare Access-protected Publication/Source/endpoint/Relevance/Category/Article/duplicate/health/change-history control plane, built after the tech-demo vertical slice
 - Core constraint: Publication-specific behavior is configuration; shared engine logic remains topic independent
 
-Phase 0 documentation alignment, Phase 1 Application foundation, and Phase 2 Database foundation implementation/validation are complete. The repository is ready for Phase 3 implementation planning.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, and Phase 3 Publication/Source configuration implementation/validation are complete. The repository is ready for Phase 4 implementation planning.
 
 ## Delivery priority
 
@@ -158,9 +158,9 @@ If a path does not exist, search for its current equivalent before assuming inte
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 3 — Publication and Source configuration core**.
+Current phase: **Phase 4 — Collection eligibility and network safety**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, and Phase 2 Database foundation are complete with durable closeout validation. Phase 3 is the active implementation phase.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, and Phase 3 Publication and Source configuration core are complete with durable closeout validation. Phase 4 is the active implementation phase.
 
 ### Tech-demo critical path
 
@@ -278,6 +278,8 @@ phase implementation / closeout task
 → /prompt-write <folder name>
 ```
 
+A green `/closeout` establishes the next implementation phase by committing its `0.<phase>.0` package baseline. Because `/closeout` is intentionally version-only, the roadmap and root phase summaries may still identify the just-completed phase until the immediately following `/docs-review` → `/docs-apply` alignment. This short post-closeout/pre-docs-apply state is expected and is not itself repository drift or a failed handoff.
+
 ## `/closeout`
 
 `/closeout` is a bounded phase-handoff state transition, not an audit or troubleshooting workflow. Under normal repository and tool conditions, target completion is **under 60 seconds**.
@@ -287,18 +289,18 @@ phase implementation / closeout task
 Execute this sequence and do not expand it unless a material closeout blocker must be reported:
 
 1. Read this `/closeout` section and the roadmap entries needed to identify the completed phase and intended next phase.
-2. Read the completed phase's durable validation artifact and extract the accepted/validated implementation source SHA.
+2. Read the completed phase's durable validation artifact and extract the accepted/validated implementation source SHA and exit-gate conclusion.
 3. Read `package.json` as the sole project-version authority and read the completed phase's task filenames/version sequence. Do not require or search for npm lockfile version metadata.
 4. Perform one accepted-SHA-to-current-`main` compare to classify post-validation drift. Documentation-only changes do not invalidate implementation evidence. Explicitly owner-approved repository workflow/tooling-policy changes also do not invalidate implementation evidence when they do not modify application runtime behavior, tests, migrations, committed Publication configuration, `package.json` dependency/script/engine metadata, or other executable product behavior. Dependency-manifest, implementation, test, migration, runtime, or executable-configuration drift remains blocking.
 5. If green, perform only the next-phase baseline version transition described below.
-6. Verify the transition diff, then re-read `docs/roadmap/mvp-roadmap.md` and print the complete roadmap entry for the newly current phase into the chat.
+6. Verify the transition diff, then re-read `docs/roadmap/mvp-roadmap.md` and print the complete roadmap entry for the phase being entered into the chat. The roadmap's status marker may still reflect the pre-alignment phase until `/docs-apply`.
 
 The required structural checks are:
 
-- the previous roadmap phase is marked complete and the intended next phase is identifiable;
+- the completed phase's durable validation artifact states that its exit gate is satisfied and the intended next roadmap phase is identifiable;
 - the durable validation artifact exists and identifies the accepted/validated implementation source SHA;
 - the single post-validation compare shows no unvalidated dependency-manifest, implementation, test, migration, runtime, or executable-configuration drift; documentation-only and explicitly owner-approved non-executable repository workflow/tooling-policy changes are non-blocking;
-- root/roadmap phase state is coherent enough to begin the next phase;
+- root/roadmap phase state is coherent with the completed phase and intended next phase; it does not need to have been advanced yet because `/docs-review` and `/docs-apply` own that documentation transition;
 - `package.json` contains the expected completed-phase version before transition;
 - the completed phase's prompt/version sequence is coherent and there are no obvious stale phase artifacts that block handoff.
 
@@ -345,9 +347,9 @@ A successful `/closeout` response MUST contain, in this order:
 1. `Closeout check: GREEN`;
 2. the resulting baseline transition commit SHA (or final SHA when a high-level connector required more than one version-only commit);
 3. `Next P1 version: 0.<new phase>.1`;
-4. the **complete current roadmap entry** for the newly current phase, copied from the freshly re-read `docs/roadmap/mvp-roadmap.md` rather than memory or a summary.
+4. the **complete roadmap entry for the phase being entered**, copied from the freshly re-read `docs/roadmap/mvp-roadmap.md` rather than memory or a summary.
 
-The roadmap entry is mandatory context for the next `/docs-review`; do not omit it even when the handoff itself is otherwise obvious.
+The roadmap entry is mandatory context for the next `/docs-review`; do not omit it even when the roadmap's current-status marker is intentionally awaiting documentation alignment.
 
 # Documentation workflow
 
