@@ -269,9 +269,11 @@ The exact test runner/framework is selected during Phase 1. Prefer the smallest 
 
 Phase 1 establishes the repeatable local validation workflow used for implementation review and implementation-phase closeout.
 
+News Scraper intentionally does not use npm package locks. `package.json` is the dependency manifest, and repository npm configuration disables `package-lock.json` generation. Clean dependency installation uses `npm install`, not `npm ci`. Because declared dependency ranges may resolve to different compatible versions over time, validation MUST NOT describe installation as byte-for-byte dependency reproducibility; evidence applies to the exact source tree and recorded Node/npm environment actually exercised.
+
 Final-tree validation MUST, as applicable:
 
-- install/use dependencies reproducibly from the committed lockfile;
+- perform a clean dependency installation from `package.json` using the repository npm configuration;
 - run applicable static/type/lint/format checks;
 - run the complete deterministic test matrix required by the current implemented phase;
 - fail when a required selected suite contains zero tests;
