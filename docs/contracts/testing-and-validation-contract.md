@@ -289,7 +289,7 @@ At minimum:
 - Phase 1: startup/config/static/test-runner/local-validation foundation;
 - Phase 2: disposable PostgreSQL, migration-from-zero, cleanup verification;
 - Phase 3: Publication/Source/endpoint migrations from zero plus real-PostgreSQL state/uniqueness/bootstrap-idempotency/no-overwrite/rollback evidence; pure configuration normalization/validation may additionally use unit coverage;
-- Phase 4: eligibility, domain, SSRF, redirect, and lock negatives;
+- Phase 4: deterministic eligibility/domain/scheme/port/DNS/address/redirect/rebinding negatives through injected boundaries, plus real-disposable-PostgreSQL evidence for cross-process endpoint-lock contention and release;
 - Phase 5: deterministic HTTP/RSS/Atom/Collection-run fixture coverage;
 - Phase 6: normalization fixture matrix;
 - Phase 7: real-PostgreSQL identity/idempotency/concurrency/provenance coverage;
@@ -327,7 +327,7 @@ Database suites SHOULD:
 4. clean up the disposable database;
 5. verify cleanup.
 
-Parallel database tests MUST NOT share mutable schemas/databases unless concurrency between those actors is the behavior under test.
+Parallel database tests MUST NOT share mutable schemas/databases unless concurrency between those actors is the behavior under test. Phase 4 endpoint-lock validation is such an intentional concurrency case: independent clients/process-equivalent actors MUST contend for the same endpoint lock against the same disposable PostgreSQL database, prove that only one owner succeeds at a time, prove unrelated endpoint locks can proceed independently, and prove release/reacquisition on relevant success/failure paths.
 
 An explicit `test:db` invocation without a safe usable test-admin prerequisite MUST fail clearly. Database tests MUST NOT silently downgrade to mocked or skipped persistence while reporting success.
 
@@ -335,23 +335,29 @@ Tests MUST NOT use the ordinary development database as their cleanup strategy.
 
 ## Collection and network isolation
 
-Ordinary deterministic test/regression suites MUST NOT depend on live public publishers.
+Ordinary deterministic test/regression suites MUST NOT depend on live public publishers or uncontrolled public DNS.
 
-Use controlled fixtures, injected fetch/resolution boundaries, or controlled local servers to test network behavior.
+Use controlled fixtures, injected fetch/resolution boundaries, or controlled local servers to test network behavior. Phase 4 address-safety tests SHOULD inject deterministic DNS answers rather than weakening production policy or depending on the machine's current resolver/network environment.
 
 The testing harness MUST NOT require a production SSRF, whitelist, approved-domain, redirect, or Article-domain bypass merely to make local fixtures convenient. Production safety policy remains intact in test composition.
 
 Network-safety tests MUST cover both allowed and denied paths, including where applicable:
 
-- scheme restrictions;
-- approved-domain boundaries;
+- HTTP/HTTPS scheme restrictions and unsupported schemes;
+- approved-domain boundaries and endpoint narrowing;
 - hostname normalization;
-- DNS/address classification;
-- loopback/private/link-local/multicast/cloud-metadata rejection;
-- port restrictions;
-- redirect revalidation;
-- DNS rebinding-resistant resolution/use behavior;
-- Article-link domain validation separately from fetch validation.
+- effective default ports and rejection of non-default HTTP/HTTPS ports under the MVP policy;
+- successful public-unicast DNS resolution;
+- zero-answer/resolution failures;
+- mixed DNS answers where any unsafe address causes rejection;
+- IPv4 and IPv6 loopback/private-or-unique-local/link-local/multicast/unspecified/shared-or-CGNAT/reserved-or-special-use/cloud-metadata rejection;
+- IPv4-mapped IPv6 forms of unsafe IPv4 destinations;
+- redirect destination revalidation through the same safety gate;
+- DNS rebinding-resistant handoff showing that the outbound boundary receives validated concrete destination information rather than performing an unchecked second resolution;
+- stable machine-readable eligibility/network-safety rejection reasons;
+- Article-link domain validation separately from fetch validation once that later stage exists.
+
+Phase 4 tests stop at an injected/controlled outbound-fetch boundary and MUST NOT require real publisher HTTP requests or real redirect following. Phase 5 deterministic transport fixtures exercise actual HTTP/redirect behavior while reusing the Phase 4 gate.
 
 Live-Source validation may contact only explicitly approved Source/endpoints and MUST be isolated from ordinary deterministic regression validation.
 
