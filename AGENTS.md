@@ -174,9 +174,9 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 3 — Publication and Source configuration core**.
+Current phase: **Phase 4 — Collection eligibility and network safety**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, and Phase 2 Database foundation implementation/validation are complete. Phases 1–9 remain the tech-demo critical path; do not pull later admin/discovery/deduplication work into those phases without a true dependency or explicit decision.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, and Phase 3 Publication and Source configuration implementation/validation are complete. Phase 4 is active. Phases 1–9 remain the tech-demo critical path; do not pull later admin/discovery/deduplication work into those phases without a true dependency or explicit decision.
 
 ## Working preferences
 
