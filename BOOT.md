@@ -516,3 +516,19 @@ Admin prompts preserve Cloudflare Access/origin protection, request integrity, P
 - No bypass of the Relevance boundary even before configurable rules exist.
 - No deletion of Article/observation provenance because duplicate suppression exists.
 - No weakening identity/duplicate/security/testing boundaries to make tests pass.
+- No silent-green required test suite caused by missing prerequisites, skipped coverage, or zero matched tests.
+- No MVP native administrator account/session/role subsystem unless explicitly promoted.
+- Search all references before renames.
+- Do not report tests/runtime/browser/database/live-Source behavior as verified unless observed at the appropriate evidence level.
+- Do not create PRs, merge, force-update history, or perform non-document history changes unless explicitly instructed.
+- Preserve smallest viable diff for scoped fixes.
+
+# Pre-production compatibility rule
+
+Prefer one canonical design. Do not add old/new aliases, duplicate synchronized fields, fallback paths, or speculative migration compatibility unless explicitly required.
+
+# Boot maintenance
+
+Update BOOT when phase, core paths, terminology, commands, authority, locked laws, modification conventions, versioning/prompt-numbering conventions, branch, repository identity, critical delivery ordering, foundational security/deployment decisions, or project-wide testing/validation policy changes.
+
+Detailed feature specifications belong in specialized contracts/ADRs. When BOOT conflicts with a higher-authority contract, the contract wins and BOOT must be corrected.
