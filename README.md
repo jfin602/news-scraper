@@ -6,11 +6,11 @@ The first configured Publication focuses on publishing-industry news relevant to
 
 ## Current project state
 
-Current phase: **Phase 3 — Publication and Source configuration core**.
+Current phase: **Phase 4 — Collection eligibility and network safety**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, and Phase 2 Database foundation implementation and closeout validation are complete.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, and Phase 3 Publication and Source configuration implementation and closeout validation are complete.
 
-Phase 3 introduces the minimum Publication, Source, and Source-endpoint persistence needed for trusted, administrator-approved collection configuration without pulling later collection or admin UI behavior forward.
+Phase 4 establishes the reusable eligibility, shared endpoint-lock, and pre-fetch network-safety boundary that must approve a configured endpoint before future HTTP transport may contact it. Real publisher HTTP transport and Collection runs begin in Phase 5.
 
 ## Delivery priority
 
@@ -248,7 +248,7 @@ Phase handoff after a roadmap phase has formally closed:
 → /prompt-write <folder name>
 ```
 
-`/closeout` performs a quick structural/evidence check of the completed phase and, only when green, advances `package.json` to the next `0.<phase>.0` baseline. Its invocation authorizes that version-only transition; it does not rerun the full phase validation matrix.
+`/closeout` performs a quick structural/evidence check of the completed phase and, only when green, advances `package.json` to the next `0.<phase>.0` baseline. Its invocation authorizes that version-only transition; it does not rerun the full phase validation matrix. The following docs review/apply aligns roadmap and root phase-state summaries with that already-entered baseline.
 
 Documentation review/application:
 
