@@ -30,10 +30,23 @@ describe('run-tests wrapper', () => {
     assert.notEqual(result.status, 0);
     assert.match(result.stdout, /expected fixture failure/);
   });
+
+  it('runs a configured global setup before selected test files', () => {
+    const result = runWrapper(
+      '--test-global-setup=test/fixtures/run-tests/global-setup.fixture.mjs',
+      'test/fixtures/run-tests/pass-*.fixture.test.mjs',
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.ok(
+      result.stdout.indexOf('global setup fixture') <
+        result.stdout.indexOf('fixture-a'),
+    );
+  });
 });
 
-function runWrapper(pattern: string) {
-  return spawnSync(process.execPath, ['scripts/run-tests.mjs', pattern], {
+function runWrapper(...arguments_: string[]) {
+  return spawnSync(process.execPath, ['scripts/run-tests.mjs', ...arguments_], {
     cwd: process.cwd(),
     encoding: 'utf8',
   });

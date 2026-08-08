@@ -166,8 +166,20 @@ automatically load `.env`.
 
 Set `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` to a dedicated test-capable PostgreSQL
 administrative connection and run `npm run test:db`. The command creates and removes
-uniquely named disposable databases; it fails when the prerequisite is absent. Never
-point this variable at a development or production application database.
+uniquely named disposable databases, including forced cleanup of ordinary leaked
+connections, and fails when the prerequisite is absent. This privileged test role
+must be able to create databases and terminate ordinary disposable-database
+connections. A PostgreSQL administrator should provision a dedicated non-production
+role with `CREATEDB` and `pg_signal_backend`, for example:
+
+```sql
+ALTER ROLE <test-role> CREATEDB;
+GRANT pg_signal_backend TO <test-role>;
+```
+
+News Scraper never grants these privileges. `SUPERUSER` is neither required nor
+recommended. Never point this variable at a development or production application
+database.
 
 For an application or development database, set `NEWS_SCRAPER_DATABASE_URL` to its
 PostgreSQL connection URL and run `npm run db:migrate` explicitly. Web/API and Worker

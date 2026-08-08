@@ -6,6 +6,7 @@ import {
   generateDisposableDatabaseName,
 } from '../support/database/disposable-database.ts';
 import {
+  assertTestDatabaseAdminCapabilities,
   readTestDatabaseAdminUrl,
   TEST_DATABASE_ADMIN_URL_ENV,
 } from '../support/database/test-database-config.ts';
@@ -49,6 +50,44 @@ test('database test configuration never falls back to an application URL', () =>
     readTestDatabaseAdminUrl({
       NEWS_SCRAPER_DATABASE_URL: 'postgresql://application.example/app',
     }),
+  );
+});
+
+test('test-admin capability preflight accepts dedicated and superuser capability paths', () => {
+  assert.doesNotThrow(() =>
+    assertTestDatabaseAdminCapabilities({
+      currentRole: 'news_scraper_test',
+      canCreateDatabase: true,
+      canSignalBackend: true,
+    }),
+  );
+  assert.doesNotThrow(() =>
+    assertTestDatabaseAdminCapabilities({
+      currentRole: 'postgres',
+      canCreateDatabase: true,
+      canSignalBackend: true,
+    }),
+  );
+});
+
+test('test-admin capability preflight rejects missing creation or forced-cleanup capability', () => {
+  assert.throws(
+    () =>
+      assertTestDatabaseAdminCapabilities({
+        currentRole: 'news_scraper_test',
+        canCreateDatabase: false,
+        canSignalBackend: true,
+      }),
+    /CREATEDB/u,
+  );
+  assert.throws(
+    () =>
+      assertTestDatabaseAdminCapabilities({
+        currentRole: 'news_scraper_test',
+        canCreateDatabase: true,
+        canSignalBackend: false,
+      }),
+    /backend-signal/u,
   );
 });
 

@@ -1,7 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
 
-import { readTestDatabaseAdminUrl } from './test-database-config.ts';
+import {
+  preflightTestDatabaseAdminCapabilities,
+  readTestDatabaseAdminUrl,
+} from './test-database-config.ts';
 
 const DISPOSABLE_DATABASE_NAME_PATTERN = /^news_scraper_test_[0-9a-f]{32}$/u;
 
@@ -87,6 +90,7 @@ export async function withDisposableDatabase<T>(
   callback: (database: DisposableDatabase) => Promise<T>,
 ): Promise<T> {
   const adminUrl = readTestDatabaseAdminUrl();
+  await preflightTestDatabaseAdminCapabilities(adminUrl);
   const databaseName = generateDisposableDatabaseName();
   assertDisposableDatabaseName(databaseName);
   await createDatabase(adminUrl, databaseName);
