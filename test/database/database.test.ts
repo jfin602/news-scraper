@@ -41,6 +41,13 @@ test('concurrent and repeated close is safe and prevents later operations', asyn
       database.transaction(async () => undefined),
       /closed/u,
     );
+    await assert.rejects(
+      database.withSession(async () => undefined),
+      (error: unknown) =>
+        error instanceof DatabaseRuntimeError &&
+        error.operation === 'session' &&
+        /closed/u.test(error.message),
+    );
   });
 });
 
@@ -77,6 +84,29 @@ test('transaction acquisition failures are safe and predictable', async () => {
         assert.doesNotMatch(
           error.message,
           /synthetic-acquisition-secret|token=private/u,
+        );
+        return true;
+      },
+    );
+  } finally {
+    await database.close();
+  }
+});
+
+test('session acquisition failures are safe and predictable', async () => {
+  const secret = 'synthetic-session-acquisition-secret';
+  const database = createDatabase({
+    connectionString: `postgresql://user:${secret}@127.0.0.1:1/db?token=private`,
+  });
+  try {
+    await assert.rejects(
+      database.withSession(async () => 'unreachable'),
+      (error: unknown) => {
+        assert.ok(error instanceof DatabaseRuntimeError);
+        assert.equal(error.operation, 'session');
+        assert.doesNotMatch(
+          error.message,
+          /synthetic-session-acquisition-secret|token=private/u,
         );
         return true;
       },

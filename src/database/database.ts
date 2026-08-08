@@ -15,9 +15,14 @@ export interface QueryExecutor {
   ): Promise<QueryResult<Row>>;
 }
 
+export interface DatabaseSession extends QueryExecutor {
+  discard(): void;
+}
+
 export interface Database extends QueryExecutor {
   ping(): Promise<void>;
   transaction<T>(work: (transaction: QueryExecutor) => Promise<T>): Promise<T>;
+  withSession<T>(work: (session: DatabaseSession) => Promise<T>): Promise<T>;
   close(): Promise<void>;
 }
 
@@ -33,6 +38,7 @@ export class DatabaseRuntimeError extends Error {
 
 const CLOSED_REASON = 'database is closed';
 const UNAVAILABLE_REASON = 'database connection is unavailable';
+const DISCARDED_SESSION_REASON = 'database session is discarded';
 
 export function createDatabase(config: Readonly<DatabaseConfig>): Database {
   return new PooledDatabase({ connectionString: config.connectionString });
@@ -112,6 +118,52 @@ class PooledDatabase implements Database {
       throw error;
     } finally {
       client.release();
+    }
+  }
+
+  async withSession<T>(
+    work: (session: DatabaseSession) => Promise<T>,
+  ): Promise<T> {
+    this.#assertUsable('session');
+
+    let client: PoolClient;
+    try {
+      client = await this.#pool.connect();
+    } catch {
+      throw new DatabaseRuntimeError('session', UNAVAILABLE_REASON);
+    }
+
+    let discard = false;
+    const session: DatabaseSession = {
+      discard: () => {
+        discard = true;
+      },
+      query: async <Row extends QueryResultRow = QueryResultRow>(
+        text: string,
+        values?: readonly unknown[],
+      ) => {
+        if (discard) {
+          throw new DatabaseRuntimeError(
+            'session query',
+            DISCARDED_SESSION_REASON,
+          );
+        }
+        try {
+          return await client.query<Row>(
+            text,
+            values === undefined ? [] : [...values],
+          );
+        } catch {
+          discard = true;
+          throw new DatabaseRuntimeError('session query', UNAVAILABLE_REASON);
+        }
+      },
+    };
+
+    try {
+      return await work(session);
+    } finally {
+      client.release(discard);
     }
   }
 
