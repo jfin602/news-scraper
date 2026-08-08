@@ -288,7 +288,7 @@ Execute this sequence and do not expand it unless a material closeout blocker mu
 
 1. Read this `/closeout` section and the roadmap entries needed to identify the completed phase and intended next phase.
 2. Read the completed phase's durable validation artifact and extract the accepted/validated implementation source SHA.
-3. Read `package.json`, npm lockfile root package-version metadata, and the completed phase's task filenames/version sequence.
+3. Read `package.json` and the completed phase's task filenames/version sequence.
 4. Perform one accepted-SHA-to-current-`main` compare to classify post-validation drift. Documentation-only changes do not invalidate implementation evidence. Any unvalidated implementation, test, package, migration, or runtime drift blocks handoff.
 5. If green, perform only the next-phase baseline version transition described below.
 6. Verify the transition diff, then re-read `docs/roadmap/mvp-roadmap.md` and print the complete roadmap entry for the newly current phase into the chat.
@@ -299,7 +299,7 @@ The required structural checks are:
 - the durable validation artifact exists and identifies the accepted/validated implementation source SHA;
 - the single post-validation compare shows no unvalidated implementation, test, package, migration, or runtime drift;
 - root/roadmap phase state is coherent enough to begin the next phase;
-- `package.json` and npm-generated lockfile version metadata agree before transition;
+- `package.json` contains the expected completed-phase version before transition;
 - the completed phase's prompt/version sequence is coherent and there are no obvious stale phase artifacts that block handoff.
 
 ### Time and scope guardrails
@@ -310,7 +310,7 @@ The required structural checks are:
 - If the range comparison reveals relevant unvalidated drift, report `Closeout check blocked` with the affected files/categories and stop. Do not perform root-cause investigation inside `/closeout`.
 - If the required repository state cannot be established quickly because a tool/read/compare primitive is unavailable, report the blocker rather than expanding into an open-ended investigation.
 - The version transition gets one predetermined safe write strategy. Do not cycle through alternate write mechanisms if that strategy is unavailable or unsafe.
-- Do not regenerate `package-lock.json`, run `npm install`, normalize dependency metadata, or manually reconstruct a large lockfile merely to change the project version.
+- Do not run `npm install` or otherwise normalize dependency state merely to change the project version.
 - Do not escalate into speculative Git plumbing or hand-built Git objects merely to overcome a connector limitation. If an exact targeted write cannot be performed safely, report `Closeout transition blocked: safe version-write primitive unavailable.` and stop.
 - A blocked closeout should remain a fast result; use a separate command/task for investigation or remediation.
 
@@ -318,21 +318,19 @@ The required structural checks are:
 
 Invocation of `/closeout` constitutes the repository owner's explicit authorization for this version-only transition when the structural check is green.
 
-Before writing, capture the pre-transition `main` SHA. Then update exactly these three JSON values to `0.<next roadmap phase>.0`:
+Before writing, capture the pre-transition `main` SHA. Then update exactly one JSON value to `0.<next roadmap phase>.0`:
 
-- `package.json` top-level `version`;
-- `package-lock.json` top-level `version`;
-- `package-lock.json` `packages[""] .version` (the root package metadata; spacing here is descriptive, not a literal JSON path).
+- `package.json` top-level `version`.
 
-Use the exact current file contents and a deterministic targeted substitution/update. Preserve every other package and lockfile value. Do not change dependencies, dependency metadata, formatting, or unrelated bytes as part of the transition.
+Use the exact current file contents and a deterministic targeted substitution/update. Preserve every other package value. Do not change dependencies, dependency metadata, engines, formatting, or unrelated bytes as part of the transition.
 
-Commit the version-only transition directly to `main` unless the user requests a branch/PR. Prefer one atomic version-only commit when the available tool supports it. A high-level connector may use the smallest safe sequential file-update operation it supports, but it must not introduce any unrelated change.
+Commit the version-only transition directly to `main` unless the user requests a branch/PR. Prefer one atomic version-only commit when the available tool supports it. A high-level connector may use the smallest safe file-update operation it supports, but it must not introduce any unrelated change.
 
 Immediately compare the pre-transition SHA to the resulting `main` SHA. The complete transition range MUST:
 
-- change only `package.json` and `package-lock.json`;
-- contain exactly the three expected version-value substitutions;
-- contain no dependency, integrity, license, engine, formatting, or other metadata drift.
+- change only `package.json`;
+- contain exactly the one expected version-value substitution;
+- contain no dependency, engine, formatting, or other metadata drift.
 
 If the transition diff contains anything else, report `Closeout transition invalid`, stop the workflow, and do not print the new phase as successfully entered until the version transition is corrected through an explicitly authorized remediation.
 
@@ -397,12 +395,12 @@ Project versions use `0.<roadmap phase>.<phase prompt number>` while the project
 - `0.<phase>.0` is the phase baseline. After the prior roadmap phase has formally closed, `/closeout` is the canonical handoff that verifies the closeout and, only on a green result, explicitly authorizes and performs the transition to `0.<new phase>.0`. This baseline transition consumes no implementation prompt number and does not change the P1 → `.1`, P2 → `.2`, P3 → `.3` mapping.
 - A phase-baseline transition is never automatic. Invoking `/closeout` constitutes explicit repository-owner authorization for its green-path version-only transition. The owner may also separately authorize a `.0` transition explicitly when needed.
 - `package.json` is the sole authoritative source for the current project version.
-- npm-generated lockfile package metadata MAY mechanically mirror the package version and MUST be kept synchronized whenever `package.json` changes, including a `/closeout` or separately authorized `.0` phase-baseline transition; it is not an independent version authority.
+- The project intentionally does not use npm package locks. Repository npm configuration disables `package-lock.json` generation; dependency installation uses `package.json` and clean installs use `npm install`, not `npm ci`.
 - Do not duplicate the current version in README, BOOT, contracts, source constants, or other manually maintained files.
 - Project version changes occur only through execution of a new Codex roadmap-phase prompt, a green `/closeout` phase-baseline transition, or another explicit repository-owner-authorized `.0` transition after the prior phase closes. Documentation review/application, prompt assessment/planning/writing, code review, validation discussion, and other ChatGPT workflow activity do not otherwise increment it.
 - Re-running or correcting the same Codex prompt retains that prompt's assigned version; it does not consume a new version number.
 - If a `.0` baseline exists, the first prompt in that phase advances from `0.<phase>.0` to `0.<phase>.1`. If no `.0` baseline was authorized, the first prompt advances directly from the prior phase's final version to `0.<phase>.1`.
-- Each implementation/closeout task prompt MUST state its assigned target version and require Codex to verify the expected preceding version (the authorized `.0` baseline when present, otherwise the prior phase/prompt version; or the same assigned version on a rerun), update `package.json` as part of that prompt, synchronize npm lock metadata where applicable, and include the versioned tree in the prompt's final validation.
+- Each implementation/closeout task prompt MUST state its assigned target version and require Codex to verify the expected preceding version (the authorized `.0` baseline when present, otherwise the prior phase/prompt version; or the same assigned version on a rerun), update `package.json` as part of that prompt, avoid generating `package-lock.json`, and include the versioned tree in the prompt's final validation.
 - A closeout task prompt that owns a version change performs and commits that prompt-numbered version metadata transition before establishing the final source SHA to be validated. The later `/closeout` command, if green, performs the separate next-phase `.0` baseline transition.
 
 ## `/prompt-ass`
@@ -486,7 +484,7 @@ Finished implementation prompts normally include Task, Context, Current/Required
 
 Every implementation prompt inherits `docs/contracts/testing-and-validation-contract.md`. A prompt must not treat tests as optional cleanup, silently accept missing prerequisites, or claim a higher evidence level than its validation procedure can prove.
 
-Every Codex roadmap-phase prompt also inherits the versioning rules above: it owns exactly its assigned `0.<phase>.<prompt>` version, uses `package.json` as the authority, keeps generated lock metadata synchronized, and does not create duplicate manually maintained version constants.
+Every Codex roadmap-phase prompt also inherits the versioning rules above: it owns exactly its assigned `0.<phase>.<prompt>` version, uses `package.json` as the authority, respects the lockfile-disabled npm policy, and does not create duplicate manually maintained version constants.
 
 Collection prompts preserve bootstrap/approval/lifecycle/operational boundaries, truthful Collection runs, pre-request network safety, run isolation, retry limits when applicable, Source-domain policy, and controlled deterministic collection tests without production safety bypasses.
 
@@ -503,7 +501,7 @@ Admin prompts preserve Cloudflare Access/origin protection, request integrity, P
 # Repository modification rules
 
 - Do not modify/commit unless authorized by current request/command.
-- `/closeout` performs only the quick phase-handoff verification described above and, when green, writes/commits only `package.json` plus npm-generated lockfile version metadata for the next `0.<phase>.0` baseline. Invocation authorizes those version-only changes on `main` unless a branch/PR is requested.
+- `/closeout` performs only the quick phase-handoff verification described above and, when green, writes/commits only `package.json` for the next `0.<phase>.0` baseline. Invocation authorizes that version-only change on `main` unless a branch/PR is requested.
 - `/docs-review` never writes.
 - `/docs-apply` writes only approved docs; invocation authorizes those documentation-only changes on `main` unless branch/PR requested.
 - `/prompt-ass` and `/prompt-plan` never write.
@@ -518,19 +516,3 @@ Admin prompts preserve Cloudflare Access/origin protection, request integrity, P
 - No bypass of the Relevance boundary even before configurable rules exist.
 - No deletion of Article/observation provenance because duplicate suppression exists.
 - No weakening identity/duplicate/security/testing boundaries to make tests pass.
-- No silent-green required test suite caused by missing prerequisites, skipped coverage, or zero matched tests.
-- No MVP native administrator account/session/role subsystem unless explicitly promoted.
-- Search all references before renames.
-- Do not report tests/runtime/browser/database/live-Source behavior as verified unless observed at the appropriate evidence level.
-- Do not create PRs, merge, force-update history, or perform non-document history changes unless explicitly instructed.
-- Preserve smallest viable diff for scoped fixes.
-
-# Pre-production compatibility rule
-
-Prefer one canonical design. Do not add old/new aliases, duplicate synchronized fields, fallback paths, or speculative migration compatibility unless explicitly required.
-
-# Boot maintenance
-
-Update BOOT when phase, core paths, terminology, commands, authority, locked laws, modification conventions, versioning/prompt-numbering conventions, branch, repository identity, critical delivery ordering, foundational security/deployment decisions, or project-wide testing/validation policy changes.
-
-Detailed feature specifications belong in specialized contracts/ADRs. When BOOT conflicts with a higher-authority contract, the contract wins and BOOT must be corrected.
