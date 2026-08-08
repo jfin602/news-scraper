@@ -9,7 +9,7 @@
 - Tooling/procedure: Codex in-app Browser was used to open every supplied public Source page and inspect rendered content and `link[rel=alternate]` metadata. PowerShell `Invoke-WebRequest` directly opened candidate XML endpoints and recorded the HTTP result, final URL, content type, and bounded item metadata. No authentication, subscription, CAPTCHA action, paywall bypass, form submission, or browser automation for collection was attempted.
 - Evidence level: live public-source reconnaissance, limited to the named endpoints and observed time. It is not ordinary deterministic regression evidence and does not approve a Source.
 - Browser limitation: the in-app browser displayed the public landing pages and feed metadata, but direct navigation to several XML URLs reported `net::ERR_BLOCKED_BY_CLIENT`. Those feeds were therefore directly inspected with `Invoke-WebRequest`; a feed is marked VERIFIED below only where that direct response was successfully inspected.
-- This artifact records observations and recommendations only. It does not approve Sources, create configuration/bootstrap data, redefine contracts, or implement Phase 3, Phase 4, Phase 5, or Phase 10 behavior. Any actual bootstrap approval requires explicit repository-owner acceptance.
+- This artifact records observations and recommendations. A later explicit repository-owner decision recorded below approves the initial bootstrap set; that decision does not change the historical evidence collected during reconnaissance.
 
 ## Targeted Follow-up Metadata
 
@@ -19,18 +19,25 @@
 - Current targeted technical classification: `CONFIRM_WITHHOLD_FROM_MVP`.
 - This later observation session directly verified the Publishing Industry News archive and its explicitly exposed category RSS feed. It updates only the current Authors Publish conclusion below; it does not alter the original reconnaissance metadata or make the original session appear to have observed this evidence.
 
+## Operator Bootstrap Decision
+
+- Decision date/time: 2026-08-07 22:22 CDT (UTC-05:00).
+- Decision: the repository owner explicitly approved **Author Media** and **The Creative Penn** as the initial Phase 3 bootstrap Source set, with the caveats and exact configuration boundaries recorded below.
+- Withheld from the initial bootstrap set: Jane Friedman, Authors Publish, Sub Club, and Upstream Reviews.
+- Approval applies to bootstrap configuration only. It does not weaken Phase 4 runtime network-safety requirements, Phase 5 transport/parser requirements, or later Publication-owned Relevance behavior.
+
 ## Executive Summary
 
 | Source | Best Method | Verified Endpoint | Scope Quality | Reliability | MVP Recommendation |
 | --- | --- | --- | --- | --- | --- |
-| Author Media - Author Update | RSS (whole-site feed; no dedicated category feed verified) | `https://www.authormedia.com/feed/` | Usable with moderate noise | WordPress RSS, 100 retained items observed; broad feed | APPROVE_WITH_CAVEAT |
+| Author Media | RSS (whole-site feed; no dedicated Author Update category feed verified) | `https://www.authormedia.com/feed/` | Usable with moderate noise | WordPress RSS, 100 retained items observed; broad feed | APPROVE_WITH_CAVEAT |
 | The Creative Penn | Podcast RSS | `https://www.thecreativepenn.com/feed/podcast/` | Usable with moderate noise | First-party WordPress podcast RSS; public show-notes links | APPROVE_WITH_CAVEAT |
 | Jane Friedman | Withhold | None recommended | Poor for the requested open industry-news feed | Public feeds exist, but the intended industry reporting is paid and the Substack is a different personal channel | WITHHOLD_FROM_MVP |
 | Authors Publish | Withhold | None recommended | Narrow category RSS is technically valid but stale and still materially mixed | First-party category RSS is verified, has 14 retained items, and preserves source-owned links; latest item is 2025-10-23 | WITHHOLD_FROM_MVP |
 | Sub Club | Withhold | None recommended | Poor alignment | First-party Substack RSS is technically sound but devoted to jobs, pitches, and submissions | WITHHOLD_FROM_MVP |
 | Upstream Reviews | Withhold | None recommended | Fundamentally mismatched | First-party Substack RSS is technically sound but reviews/podcasts, not industry news | WITHHOLD_FROM_MVP |
 
-## Source: Author Media - Author Update
+## Source: Author Media
 
 ### Customer Intent
 
@@ -38,9 +45,10 @@ The customer appears to want Author Media's recurring Author Update publishing-n
 
 ### Authoritative Site
 
-- Site: `https://www.authormedia.com/author-update/`
+- Site: `https://www.authormedia.com/`
+- Customer-provided starting page: `https://www.authormedia.com/author-update/`
 - Hostname: `www.authormedia.com`
-- Channel type: Author Media publisher subsection and podcast/show; the landing page describes publishing news, advice, and analysis and displays Author Update article entries.
+- Channel type: publisher site. Author Update is a subsection/podcast within Author Media; the selected structured endpoint is publisher-wide rather than Author Update-specific.
 
 ### Candidate Collection Methods Tested
 
@@ -109,7 +117,7 @@ APPROVE_WITH_CAVEAT
 
 ### Reason
 
-The whole-site first-party RSS is reliable and preserves source-owned article URLs, and the observed stream includes Author Update content. Approval is conditional on accepting the known breadth/noise because no dedicated Author Update RSS endpoint was verified.
+The whole-site first-party RSS is reliable and preserves source-owned article URLs, and the observed stream includes Author Update content. The repository owner explicitly accepted the known breadth/noise caveat for the initial bootstrap set.
 
 ## Source: The Creative Penn
 
@@ -119,9 +127,10 @@ The customer appears to want a dependable stream of self-publishing and author-b
 
 ### Authoritative Site
 
-- Site: `https://www.thecreativepenn.com/the-creative-penn-podcast-for-authors/`
+- Site: `https://www.thecreativepenn.com/`
+- Customer-provided starting page: `https://www.thecreativepenn.com/the-creative-penn-podcast-for-authors/`
 - Hostname: `www.thecreativepenn.com`
-- Channel type: publisher-hosted author-business podcast. The page says episodes post every Wednesday and offers its own RSS link.
+- Channel type: publisher site with an author-business podcast. The podcast page says episodes post every Wednesday and offers its own RSS link.
 
 ### Candidate Collection Methods Tested
 
@@ -182,7 +191,7 @@ APPROVE_WITH_CAVEAT
 
 ### Reason
 
-The official, site-hosted podcast RSS gives stable identifiers, timestamps, and publisher-hosted show-notes links. It is a viable second deliberate MVP feed if the owner accepts a broader author-business/interview stream rather than pure industry news.
+The official, site-hosted podcast RSS gives stable identifiers, timestamps, and publisher-hosted show-notes links. The repository owner explicitly accepted the broader author-business/interview caveat for the initial bootstrap set.
 
 ## Source: Jane Friedman
 
@@ -247,10 +256,6 @@ No access control was bypassed. Treating premium feed excerpts as a substitute f
 ### MVP Recommendation
 
 WITHHOLD_FROM_MVP
-
-### Targeted Technical Classification
-
-CONFIRM_WITHHOLD_FROM_MVP
 
 ### Reason
 
@@ -445,32 +450,38 @@ WITHHOLD_FROM_MVP
 
 The task specifically allows withholding a technically easy feed when it is fundamentally book-review content. Reconsider only for a separately scoped reviews/discovery Publication.
 
-## Recommended Initial MVP Source Set
+## Approved Initial MVP Bootstrap Set
 
-- Source name: Author Media - Author Update (configured as the broader Author Media source with the caveat documented above)
-  - Source config_key: `author_media`
-  - Source site URL: `https://www.authormedia.com/author-update/`
-  - Source approved hostname rule(s): exact `www.authormedia.com`
-  - Endpoint config_key: `site_rss`
-  - Endpoint URL: `https://www.authormedia.com/feed/`
-  - Endpoint type: `rss_atom`
-  - Endpoint narrowing: exact `www.authormedia.com`
-  - poll_interval_seconds: `21600`
-  - recommendation classification: APPROVE_WITH_CAVEAT
-  - recommended initial states if explicitly accepted in bootstrap: approval `approved`; lifecycle `active`; operational `enabled`.
-- Source name: The Creative Penn
-  - Source config_key: `the_creative_penn`
-  - Source site URL: `https://www.thecreativepenn.com/the-creative-penn-podcast-for-authors/`
-  - Source approved hostname rule(s): exact `www.thecreativepenn.com`
-  - Endpoint config_key: `podcast_rss`
-  - Endpoint URL: `https://www.thecreativepenn.com/feed/podcast/`
-  - Endpoint type: `rss_atom`
-  - Endpoint narrowing: exact `www.thecreativepenn.com`
-  - poll_interval_seconds: `21600`
-  - recommendation classification: APPROVE_WITH_CAVEAT
-  - recommended initial states if explicitly accepted in bootstrap: approval `approved`; lifecycle `active`; operational `enabled`.
+The repository owner explicitly approved this Phase 3 bootstrap set on 2026-08-07 at 22:22 CDT (UTC-05:00):
 
-These values are bootstrap-ready proposals only. Reconnaissance did not authorize any approval state, and ordinary bootstrap must remain deliberate, idempotent, create-if-absent, and non-overwriting.
+1. **Author Media**
+   - Source config_key: `author_media`
+   - Source site URL: `https://www.authormedia.com/`
+   - Source approved hostname rule(s): exact `www.authormedia.com`
+   - Endpoint config_key: `site_rss`
+   - Endpoint URL: `https://www.authormedia.com/feed/`
+   - Endpoint type: `rss_atom`
+   - Endpoint narrowing: exact `www.authormedia.com`
+   - poll_interval_seconds: `21600`
+   - approval state: `approved`
+   - lifecycle state: `active`
+   - operational state: `enabled`
+   - accepted caveat: the selected feed is broader than the customer-provided Author Update subsection.
+2. **The Creative Penn**
+   - Source config_key: `the_creative_penn`
+   - Source site URL: `https://www.thecreativepenn.com/`
+   - Source approved hostname rule(s): exact `www.thecreativepenn.com`
+   - Endpoint config_key: `podcast_rss`
+   - Endpoint URL: `https://www.thecreativepenn.com/feed/podcast/`
+   - Endpoint type: `rss_atom`
+   - Endpoint narrowing: exact `www.thecreativepenn.com`
+   - poll_interval_seconds: `21600`
+   - approval state: `approved`
+   - lifecycle state: `active`
+   - operational state: `enabled`
+   - accepted caveat: the selected feed is mainly author-business/interview programming rather than a pure industry-news desk.
+
+Bootstrap implementation must remain explicit, idempotent, create-if-absent, and non-overwriting. This approval does not authorize Source discovery, implicit startup bootstrap, domain widening, or later overwrites of operator-managed configuration.
 
 ## Withheld or Deferred Sources
 
@@ -481,22 +492,22 @@ These values are bootstrap-ready proposals only. Reconnaissance did not authoriz
 
 ## Open Questions and Operator Decisions
 
-- Accept or reject the two caveated bootstrap candidates knowing that Author Media’s selected feed is broader than Author Update and The Creative Penn is mainly author-business/interview programming.
-- Decide whether the product should later add a separate opportunities-oriented Publication. That is a product-scope decision, not a reason to add Authors Publish or Sub Club to this publishing-industry news feed.
+- No Source-approval decision remains for Phase 3 planning. The initial bootstrap set is explicitly approved above.
+- A future product decision remains on whether to create a separate opportunities-oriented Publication for Sources such as Authors Publish or Sub Club. That decision does not block Phase 3.
 
 ## Phase 3 Planning Impact
 
-1. Do we now have at least two technically verified and suitable `rss_atom` endpoints? **Yes: two.** `https://www.authormedia.com/feed/` and `https://www.thecreativepenn.com/feed/podcast/` were directly inspected successfully and are suitable only with the stated editorial-scope caveats. Authors Publish’s targeted category RSS is technically verified but not suitable for this Publication.
-2. Which Sources could safely become deliberate Phase 3 bootstrap approvals if the repository owner accepts this reconnaissance? **Author Media** (`author_media` / `site_rss`) and **The Creative Penn** (`the_creative_penn` / `podcast_rss`), with exact-host Source policies and endpoint narrowing recorded above.
+1. Do we now have at least two technically verified and suitable `rss_atom` endpoints? **Yes: two.** `https://www.authormedia.com/feed/` and `https://www.thecreativepenn.com/feed/podcast/` were directly inspected successfully and their editorial-scope caveats have now been explicitly accepted. Authors Publish’s targeted category RSS is technically verified but not suitable for this Publication.
+2. Which Sources are explicitly approved for the initial Phase 3 bootstrap? **Author Media** (`author_media` / `site_rss`) and **The Creative Penn** (`the_creative_penn` / `podcast_rss`), with the exact-host Source policies, endpoint narrowing, polling intervals, and initial states recorded above.
 3. Does any Source require behavior outside Phase 3? **Yes, but none is proposed on that basis.** HTML collection for the cleaner Author Update category would be a later HTML-adapter concern; runtime DNS/address/port/redirect enforcement remains Phase 4; HTTP/RSS parsing remains Phase 5; scheduling remains Phase 10. Paid Bottom Line access, browser automation, and collection of private material are not proposed.
-4. Does any finding require changing the currently assessed Phase 3 P1-P6 task boundaries? **No.** The findings provide configuration candidates only and do not require new behavior, a source-specific adapter, or topic-specific engine code.
-5. What specific information, if any, is still required before `/prompt-plan` can proceed? **Only explicit repository-owner acceptance/rejection of the two caveated candidates as initial bootstrap data.** The technical reconnaissance needed for at least two `rss_atom` endpoints is complete.
+4. Does any finding require changing the currently assessed Phase 3 P1-P6 task boundaries? **No.** The findings provide configuration data only and do not require new behavior, a source-specific adapter, or topic-specific engine code.
+5. What specific information, if any, is still required before `/prompt-plan` can proceed? **None.** The technical reconnaissance is complete and the initial bootstrap Source set has explicit repository-owner approval. `/prompt-plan` is unblocked.
 
 ## Evidence Limitations
 
 - The browser’s XML navigation was blocked by a client rule for several feeds, so direct HTTP inspection supplied the endpoint body/header evidence. This limits the browser claim to the public source pages and metadata, not feed-rendering behavior.
 - No browser request headers were available for the feeds; the artifact records `Invoke-WebRequest` HTTP outcomes and response `Content-Type` values where observed.
-- Feed retention counts were only recorded where directly observed: Author Media exposed 100 items. Counts for the other feeds were not asserted.
+- Feed retention counts were only recorded where directly observed: Author Media exposed 100 items. Counts for the other original feeds were not asserted; the later Authors Publish targeted recon directly observed 14 retained category-feed items.
 - The original landing-page observation did not expose a narrower industry-news feed. A later targeted follow-up did: `https://authorspublish.com/category/publishing-news/feed/` is verified RSS, but its staleness and mixed roundups confirm withholding for the initial Publication. See `docs/validation/phase-3-authors-publish-targeted-reconnaissance.md`.
 - The Creative Penn’s second recent title was observed in the authoritative podcast page listing, but only the first corresponding RSS item’s full metadata/link was bounded and retained in this artifact. The feed remains verified from its direct XML response.
-- Publisher contents, access models, endpoint behavior, and editorial focus are time-sensitive. No conclusion here authorizes live-source validation or weakens future Phase 4 safety checks.
+- Publisher contents, access models, endpoint behavior, and editorial focus are time-sensitive. No conclusion here weakens future Phase 4 safety checks.
