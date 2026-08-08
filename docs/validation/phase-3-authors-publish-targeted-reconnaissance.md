@@ -106,12 +106,20 @@ Authors Publish does have a clean, first-party feed for its Publishing Industry 
 2. If yes, what exact endpoint should be used? Not applicable; no endpoint is proposed.
 3. If no, is the reason technical, editorial, or both? Editorial and freshness; not a technical RSS failure.
 4. Does this alter the existing Phase 3 P1-P6 boundaries? No.
-5. Does this block `/prompt-plan`? No; the existing two technically verified, caveated candidates remain sufficient for planning, pending owner acceptance.
-6. What explicit owner decision remains? Whether to approve the existing Author Media and The Creative Penn bootstrap proposals; no approval decision for Authors Publish is requested.
+5. Does this block `/prompt-plan`? At the time of this reconnaissance, no; the existing two technically verified, caveated candidates were sufficient for planning pending owner acceptance. That owner acceptance was subsequently granted as recorded below.
+6. What explicit owner decision remains? At the time of this reconnaissance, approval of the Author Media and The Creative Penn bootstrap proposals remained. That decision was subsequently resolved as recorded below; no Authors Publish approval decision was requested.
+
+## Subsequent Operator Decision
+
+- Decision date/time: 2026-08-07 22:22 CDT (UTC-05:00).
+- The repository owner explicitly approved Author Media and The Creative Penn as the initial Phase 3 bootstrap Source set.
+- Authors Publish remains withheld from the initial bootstrap set in accordance with this targeted reconnaissance.
+- `/prompt-plan` is unblocked by Source approval.
+- This subsequent operator decision does not alter the point-in-time technical evidence above.
 
 ## Evidence Limitations
 
 - The Browser directly verified the archive and exposed RSS metadata, but its XML navigation was blocked by a client rule; direct public HTTP/XML inspection supplied the feed response evidence.
 - The 14 retained feed items establish observed retention, not a contractual retention guarantee.
 - Editorial output and endpoint behavior are time-sensitive. This evidence does not approve a Source, test runtime safety, or weaken Phase 4/5/10/18 boundaries.
-- The requested companion decisions artifact did not exist in the inspected repository, so it could not be updated within the task’s write authority.
+- The requested companion decisions artifact did not exist in the inspected repository at reconnaissance time, so it could not be updated during that task. It was subsequently restored/merged and reconciled after the operator decision.
