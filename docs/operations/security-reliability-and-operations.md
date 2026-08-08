@@ -27,21 +27,23 @@ Administrative errors must not expose secrets, stack traces, or raw database det
 
 ## Fetching and SSRF defenses
 
-Before the first outbound request and before every redirect hop, Worker/fetch logic MUST validate:
+The detailed destination-safety policy is governed by `docs/contracts/source-and-collection-contract.md`. Before the first outbound request and before every redirect hop, Worker/fetch logic MUST validate:
 
 - Publication collection-active state;
 - Source/endpoint approval state = approved;
 - Source/endpoint lifecycle state = active;
 - Source/endpoint operational state = enabled;
 - HTTP/HTTPS scheme policy;
-- approved endpoint/domain policy;
-- DNS and resolved-address restrictions;
-- loopback/private/link-local/multicast/cloud-metadata restrictions;
-- port policy;
-- redirect-count limits;
-- response/decompression size limits.
+- approved Source/endpoint domain policy;
+- effective port policy, which for MVP permits only HTTP 80 and HTTPS 443 until a later deliberately approved mechanism defines otherwise;
+- DNS resolution and concrete resolved-address restrictions;
+- public-unicast-only destination policy, including rejection of loopback, private/unique-local, link-local, multicast, unspecified, shared/CGNAT, reserved/special-use, cloud-metadata, and equivalent IPv4-mapped IPv6 destinations.
 
-DNS rebinding and redirects must not bypass address validation.
+DNS rebinding must not bypass validation: transport consumes the concrete destination information approved by the safety gate or an equivalent resolver-bound result, rather than independently re-resolving the hostname after approval. A DNS response containing any unsafe address is rejected rather than selectively trusting another returned answer.
+
+Every redirect destination reruns scheme, domain, port, DNS, and resolved-address validation before contact. Redirect-count enforcement, response/decompression size limits, timeouts, and other transport controls begin with the Phase 5 fetcher and do not weaken Phase 4 per-hop validation.
+
+Phase 4 may perform DNS resolution but stops at a controlled outbound-fetch boundary. It does not issue publisher HTTP requests, follow real HTTP redirects, or create Collection runs. Phase 5 is the first real transport phase.
 
 After parsing/normalization, Article URLs are separately validated against Source/endpoint Article-domain policy before acceptance. Post-parse Article-link validation does not replace pre-fetch network safety.
 
