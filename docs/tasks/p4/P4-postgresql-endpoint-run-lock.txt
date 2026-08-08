@@ -1,0 +1,224 @@
+TASK: Phase 4 / P4 — Shared PostgreSQL endpoint run lock
+
+ROADMAP PHASE
+Phase 4 — Collection eligibility and network safety.
+
+VERSIONING
+- This is Phase 4 prompt 4 and its assigned project version is `0.4.4`.
+- On first execution confirm P3 left `package.json` at `0.4.3`, then advance only its top-level `version` to `0.4.4`.
+- If this same P4 prompt is rerun and `package.json` is already `0.4.4`, retain `0.4.4`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` is the sole authoritative current-version source.
+- The repository intentionally does not use `package-lock.json`; do not create or require one.
+
+DEPENDS ON
+- P1 canonical Phase 4 decision/reason vocabulary, including `endpoint_locked`.
+- Existing Phase 2 database pool/transaction/readiness/test infrastructure.
+- P2/P3 may already exist but P4 must not depend on DNS/network-safety implementation details.
+
+GOAL
+Implement the Phase 4 shared, cross-process per-endpoint run-lock primitive using PostgreSQL session-level advisory locking plus the smallest generic database-session capability required to acquire and release that lock on the same physical PostgreSQL session.
+
+The lock prevents overlapping execution ownership for one Source endpoint while permitting unrelated endpoint locks to proceed independently. Lock contention is a normal non-execution decision, not an exception.
+
+P4 does NOT create a scheduler, job table, Collection run, HTTP fetcher, Worker command, lease/heartbeat subsystem, or process-local compatibility lock.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- P1 implementation/tests
+- `src/database/database.ts`
+- `src/database/readiness.ts`
+- `src/database/migrations.ts`
+- current database tests and disposable-database support
+
+CURRENT SOURCE / IMPORTANT BASELINE
+- `Database` currently exposes pool-level `query`, `ping`, callback-scoped `transaction`, and `close`.
+- Pool-level `query()` calls do not guarantee that two calls use the same `pg` `PoolClient` session.
+- PostgreSQL session advisory locks therefore MUST NOT be acquired through one ordinary `database.query()` call and released through another ordinary pooled call.
+- Existing `transaction()` already leases a `PoolClient` for transaction lifetime but holding a SQL transaction open for future HTTP collection would be the wrong lifecycle for a long-running endpoint run.
+- Migration infrastructure itself already uses a separate PostgreSQL advisory lock for schema migration serialization; the endpoint lock must not collide intentionally with or reuse that semantic namespace.
+- `test/support/database/disposable-database.ts` and `npm run test:db` provide real isolated PostgreSQL Level 4 evidence.
+
+LOCK MECHANISM DECISION
+Use PostgreSQL SESSION-LEVEL advisory locks with nonblocking acquisition:
+- `pg_try_advisory_lock(...)` for acquisition;
+- corresponding session-level advisory unlock on the exact same connection for release.
+
+Do not use:
+- process-local mutex as the production guarantee;
+- a long-lived transaction + transaction advisory lock across future collection work;
+- a persistent lock-row table requiring stale-row/lease recovery;
+- blocking `pg_advisory_lock` that can wait indefinitely;
+- migration advisory-lock key as the endpoint lock.
+
+No new database migration should be required for P4.
+
+GENERIC DATABASE SESSION CAPABILITY
+Extend the production database abstraction with the smallest callback-scoped dedicated-session primitive needed by locks, recommended conceptually:
+- `Database.withSession<T>(work: (session: DatabaseSession) => Promise<T>): Promise<T>`;
+- `DatabaseSession` implements `QueryExecutor` and guarantees all queries in the callback use one leased `PoolClient`;
+- session automatically returns/releases when callback completes;
+- the session has a narrow way to mark/discard/destroy the leased connection when returning it to the pool would be unsafe (for example after an advisory-unlock failure).
+
+Exact naming should follow repository style. Keep the capability generic to database-session ownership; do not put endpoint-lock concepts into `src/database/database.ts`.
+
+Required session semantics:
+- acquisition fails predictably through bounded `DatabaseRuntimeError` behavior without reproducing connection credentials;
+- callback result is returned normally;
+- callback error propagates after the client is safely released/discarded;
+- one callback uses one backend session;
+- repeated/concurrent normal `Database.close()` behavior remains safe;
+- operations after database close remain rejected;
+- session clients are never leaked;
+- a session explicitly marked unsafe/discarded is destroyed rather than returned to the pool.
+
+Do not expose raw `Pool` to collection code.
+
+ENDPOINT LOCK KEY
+Create a stable topic-independent 64-bit advisory-lock key derived from the Source endpoint UUID/identity plus an explicit News Scraper endpoint-lock namespace.
+
+Recommended approach:
+- validate/use the persisted endpoint ID string as the logical lock identity;
+- hash a namespaced value such as `news-scraper:endpoint-run-lock:<endpoint-id>` with Node `crypto` SHA-256;
+- take a deterministic signed 64-bit portion for PostgreSQL advisory-lock use;
+- pass it safely as a decimal bigint-compatible value/string so JavaScript number precision is not used for 64-bit keys.
+
+The namespace is required so endpoint-run locks are semantically separated from other advisory-lock uses. Do not use `parseInt`/floating-point conversion that can lose bigint precision.
+
+A cryptographic 64-bit reduction has an astronomically small collision probability but is still conservatively allowed to serialize colliding unrelated endpoints; do not claim mathematical collision impossibility. Tests must still prove ordinary distinct synthetic endpoint IDs use distinct keys and acquire independently.
+
+ENDPOINT RUN LOCK API
+Create a focused module, recommended:
+- `src/collection/locks/endpoint-run-lock.ts`
+
+Prefer a callback-scoped API so lock release cannot be forgotten, conceptually:
+- acquire nonblocking lock for endpoint ID;
+- if not acquired, return a normal blocked result with `stage: 'lock'` and `reason: 'endpoint_locked'` WITHOUT invoking caller work;
+- if acquired, invoke caller work while the same leased DB session owns the advisory lock;
+- release in `finally` on both successful and failing work;
+- return successful callback value in a clear acquired result or propagate callback failure after safe release.
+
+The exact public type should compose cleanly with P1/P5 and avoid forcing callers to parse SQL/exception text.
+
+DATABASE FAILURE SEMANTICS
+Differentiate normal contention from infrastructure failure:
+- `pg_try_advisory_lock` returns false -> normal `endpoint_locked` decision;
+- database/session query/acquisition failure -> bounded infrastructure error, NOT `endpoint_locked`;
+- unlock failure -> never return the connection to the pool as though it is known clean; mark/discard/destroy it so PostgreSQL session termination releases any remaining advisory lock.
+
+If caller work throws and unlock also fails, preserve both facts in a bounded error form (for example an `AggregateError` with safe causes) rather than silently hiding unlock failure. Never include connection strings/passwords/query secrets in a custom message.
+
+Do not retry lock acquisition automatically in Phase 4.
+
+FOCUSED DATABASE-BOUNDARY TESTS
+Extend/create database tests for the new leased-session primitive, likely:
+- modify `test/database/database.test.ts` and/or add `test/database/database-session.test.ts` if separation is clearer.
+
+Against real disposable PostgreSQL prove:
+- one leased session uses one PostgreSQL backend PID across multiple callback queries;
+- separate sessions can use independent backend sessions;
+- callback success returns its result and releases the client;
+- callback failure releases the client;
+- session acquisition after database close is rejected;
+- existing query/ping/transaction/close semantics remain green;
+- no credential leakage on session acquisition/query failure.
+
+Pure injected tests may additionally prove the discard-on-unsafe path if forcing a real unlock-protocol failure would be nondeterministic/destructive.
+
+REQUIRED ENDPOINT LOCK LEVEL 4 TESTS
+Create substantive real-PostgreSQL tests, recommended:
+- `test/database/endpoint-run-lock.test.ts`
+
+Use ONE disposable PostgreSQL database and at least TWO independent `Database` instances pointing at that same database to represent independent Worker/process actors.
+
+Use deterministic barriers/deferred promises/events. Do NOT use arbitrary sleeps to guess lock timing.
+
+Prove:
+1. actor A acquires endpoint A and holds it at a controlled barrier;
+2. while A owns it, actor B attempts endpoint A and receives `endpoint_locked` without executing its work callback;
+3. while A owns endpoint A, actor B can acquire a different endpoint B and execute normally;
+4. after actor A releases endpoint A, actor B can reacquire endpoint A;
+5. a thrown callback releases endpoint A and later reacquisition succeeds;
+6. repeated sequential ownership does not leak advisory locks;
+7. distinct endpoint IDs produce independent keys in ordinary cases;
+8. lock result reason/stage is stable machine-readable output;
+9. closing/destroying the owning session/database does not leave a permanent stale logical lock;
+10. all database/test clients are closed before disposable database cleanup.
+
+Where practical, query `pg_backend_pid()` in controlled test code to demonstrate contention actors are independent sessions rather than accidentally reentrant calls on one session.
+
+LOCK REENTRANCY
+Do not design recursive/reentrant lock acquisition as an application feature. PostgreSQL session advisory locks are reentrant on the same session, which could hide an overlap bug if P4 invokes acquisition twice on one leased session. Keep the public endpoint-lock helper responsible for acquiring once per callback ownership scope; tests for cross-process exclusion MUST use independent database instances/sessions.
+
+BROADER REGRESSION COVERAGE
+Because `src/database/database.ts` is shared by Web, Worker, migrations/readiness, bootstrap, and tests, P4 must run broader coverage than a leaf collection module.
+
+At minimum run and record:
+- focused endpoint-lock DB tests;
+- focused database-session tests;
+- full `npm run test:db` against real disposable PostgreSQL;
+- existing transactions/database/readiness/configuration/bootstrap DB regressions;
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm test`
+- `npm run check`
+
+Required `test:db` must fail rather than skip if `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` is unavailable; do not weaken that prerequisite to make P4 convenient.
+
+LIKELY FILE SCOPE
+Expected successful P4 changes:
+- `package.json`
+- `src/database/database.ts`
+- `src/collection/locks/endpoint-run-lock.ts`
+- `test/database/endpoint-run-lock.test.ts`
+- `test/database/database.test.ts` and/or one focused new database-session test file
+
+Allowed only if directly necessary:
+- P1 decision types/imports and their tests, without changing P1 behavior
+- narrow test-support helper additions under `test/support/database/**` that remain generic and preserve cleanup safety
+
+No production migration is expected. Do not modify `migrations/0001_publication_source_configuration.sql`, Source/bootstrap configuration, Worker/Web runtime behavior, package scripts, contracts/roadmap/docs, or validation artifacts in a normal P4 implementation.
+
+REQUIRED EVIDENCE LEVELS
+- Level 1: source/diff/version/session-boundary inspection.
+- Level 2/3: any pure key derivation/discard error handling tests.
+- Level 4: actual cross-session endpoint lock contention, independence, release/reacquisition, and database-session behavior against disposable PostgreSQL.
+
+ACCEPTANCE CRITERIA
+P4 is complete only when:
+- package version is exactly `0.4.4`;
+- the production database abstraction can safely lease one dedicated callback-scoped PostgreSQL session without exposing the raw pool;
+- endpoint lock uses the same leased session for acquire/release;
+- lock acquisition is nonblocking;
+- contention returns exactly `endpoint_locked` and does not execute protected work;
+- independent process-equivalent database actors cannot simultaneously own the same endpoint lock;
+- unrelated endpoint locks proceed independently in real PostgreSQL tests;
+- success/failure release and reacquisition are proven;
+- an uncertain/failed unlock cannot return a possibly locked connection to the pool as clean;
+- existing shared DB/readiness/transaction/configuration regressions remain green;
+- no lock table/migration, scheduler, Collection run, HTTP, Worker command, or topic-specific behavior was introduced;
+- no `package-lock.json` is created.
+
+NON-GOALS / DEFERRED
+Do not implement in P4:
+- polling scheduler/jobs;
+- endpoint due calculation/health;
+- retry/backoff around lock contention;
+- distributed queueing;
+- Collection-run persistence;
+- publisher HTTP/DNS safety integration;
+- parser/normalizer/Articles/feed;
+- admin check-now behavior.
+
+IMPLEMENTATION DISCIPLINE
+Trace every `Database` consumer before changing the shared interface. Keep connection/session ownership explicit. If session advisory locking cannot be made safe without exposing/leaking raw `pg` resources or breaking existing close semantics, stop and report the concrete blocker rather than hiding advisory locks behind ordinary pooled `query()` calls.
