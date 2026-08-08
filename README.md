@@ -6,17 +6,17 @@ The first configured Publication focuses on publishing-industry news relevant to
 
 ## Current project state
 
-Current phase: **Phase 4 — Collection eligibility and network safety**.
+Current phase: **Phase 5 — RSS/Atom transport, parsing, and minimal Collection runs**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, and Phase 3 Publication and Source configuration implementation and closeout validation are complete.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, and Phase 4 Collection eligibility and network safety implementation and closeout validation are complete.
 
-Phase 4 establishes the reusable eligibility, shared endpoint-lock, and pre-fetch network-safety boundary that must approve a configured endpoint before future HTTP transport may contact it. Real publisher HTTP transport and Collection runs begin in Phase 5.
+Phase 5 builds on the completed Phase 4 eligibility, shared endpoint-lock, and pre-fetch network-safety boundary. It introduces real approved-feed HTTP transport and redirects through that safety gate, RSS/Atom parsing into Raw items, manual Worker endpoint execution, and minimal persisted Collection runs.
 
 ## Delivery priority
 
 Phases 1–9 are the tech-demo critical path.
 
-The first demonstrable milestone is reached when at least two real approved RSS/Atom Sources are collected through the Worker, recorded in Collection runs, normalized, passed through the canonical default-include Relevance boundary, persisted idempotently with Article-observation provenance, and displayed in the public rolling feed with headlines linking to the original publishers.
+The first demonstrable milestone is reached when at least two real approved RSS/Atom Sources are collected through the Worker, recorded in Collection runs, normalized, passed through the canonical default-include Relevance boundary, persisted idempotently with Article-observation provenance, and displayed in the public rolling feed with headlines linking to original publishers.
 
 Full admin UX follows after that vertical slice is working.
 
