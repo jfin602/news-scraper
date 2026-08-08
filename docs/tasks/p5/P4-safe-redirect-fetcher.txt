@@ -1,0 +1,349 @@
+TASK: Phase 5 / P4 — Redirect-aware safe feed fetcher
+
+ROADMAP PHASE
+Phase 5 — RSS/Atom transport, parsing, and minimal Collection runs.
+
+MINIMUM MODEL / EFFORT
+- Minimum recommended rating: `Sol High`.
+- A stronger model/effort tier may be used.
+- Do not lower this rating without explicit repository-owner direction.
+- Rationale: this task composes real transport with untrusted server-controlled redirect targets and must rerun the Phase 4 SSRF/domain/DNS/address gate before every new network contact. A subtle orchestration bug here could bypass the project’s highest-risk trust boundary.
+
+VERSIONING
+- This is Phase 5 prompt 4 and its assigned project version is `0.5.4`.
+- On first execution confirm P3 left `package.json` at `0.5.3`, then advance only its top-level `version` to `0.5.4`.
+- If this same P4 prompt is rerun and `package.json` is already `0.5.4`, retain `0.5.4`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` is the sole authoritative current-version source.
+- The repository intentionally does not use `package-lock.json`; do not create, require, or regenerate one.
+
+DEPENDS ON
+- Phase 4 static destination validation, DNS/address validation, redirect-context validation, and immutable `ValidatedDestination` handoff.
+- P3 one-hop HTTP transport with typed content/not-modified/redirect/failure outcomes.
+- No Worker command or Collection-run orchestration is required yet.
+
+GOAL
+Create the reusable Phase 5 HTTP fetcher that starts from the configured endpoint URL, applies Phase 4 safety before the first request, follows only bounded approved redirects, reruns the complete Phase 4 destination-safety decision before every redirected contact, and returns one terminal fetch result.
+
+P4 owns redirect orchestration only. It must reuse P3’s one-hop transport and Phase 4 safety helpers rather than duplicating either. It must NOT create Collection runs, parse RSS/Atom, add Worker invocation, or persist conditional-fetch state.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- `docs/decisions/whitelist-and-structured-feed-first.md`
+- Phase 4 safety implementation/tests;
+- P3 fetcher/transport implementation/tests.
+
+CURRENT SOURCE / IMPORTANT BASELINE
+By P4 the repository should have:
+- `validateInitialDestination(...)` / `validateRedirectDestination(...)` or equivalent Phase 4 safety APIs;
+- redirect validation resolving relative Location values against the current URL before scheme/domain/port/DNS/address checks;
+- a `ValidatedDestination` containing only approved concrete addresses;
+- P3 one-hop transport that never independently re-resolves the hostname and does not follow redirects;
+- deterministic controlled HTTP fixture support;
+- no canonical multi-hop feed fetcher yet.
+
+CANONICAL FETCHER OWNERSHIP
+Create the real redirect-aware fetcher, recommended:
+- `src/collection/fetchers/http-fetcher.ts`
+
+It should implement the generic fetcher adapter established in P3 or refine that interface minimally if P3 intentionally separated transport from fetch orchestration.
+
+Conceptual flow:
+1. validate initial configured URL through Phase 4 static + DNS/address safety;
+2. if blocked, return the existing Phase 4 safety decision unchanged;
+3. invoke P3 one-hop transport with the resulting `ValidatedDestination`;
+4. if terminal content, not-modified, or transport failure, return terminal result;
+5. if redirect, validate the Location using the current response URL + existing effective Source/endpoint domain policy + production resolver;
+6. if redirect safety blocks, return that exact safety decision with redirect context and do NOT contact the target;
+7. if safe, invoke the one-hop transport with the new `ValidatedDestination`;
+8. repeat only within a bounded redirect limit and one bounded total fetch deadline.
+
+Do not create a second whitelist, second domain matcher, second address classifier, or weaker redirect policy.
+
+INPUT
+The fetcher should accept:
+- one explicit `EndpointConfigurationAggregate` or the smallest policy/request object derived from it;
+- configured initial endpoint URL;
+- production/injected `DestinationResolver`;
+- P3 one-hop transport dependency;
+- fetch options such as connect timeout, total timeout, size limits, User-Agent, optional ETag/Last-Modified validators, redirect limit.
+
+Prefer explicit dependency injection/factories so deterministic tests can control resolver/transport behavior without public network.
+
+Do not make the core fetcher look up Publication/Source/endpoint configuration by database key. Configuration loading remains separate so future manual/scheduled callers can share the same fetcher.
+
+INITIAL REQUEST SAFETY
+The configured endpoint URL must still pass the Phase 4 gate immediately before contact even though Phase 3 configuration validation already checked structural domain relationships.
+
+Required:
+- static scheme/domain/default-port validation;
+- current DNS lookup;
+- public-unicast classification of every returned answer;
+- immutable concrete validated handoff;
+- no P3 transport call when blocked.
+
+Do not assume persisted approval/domain configuration alone makes a URL safe to contact.
+
+REDIRECT STATUS SUPPORT
+Follow only the redirect statuses surfaced by P3 and supported by the fetch contract:
+- 301;
+- 302;
+- 303;
+- 307;
+- 308.
+
+Phase 5 feed requests are GET-only, therefore subsequent redirect requests remain GET.
+
+Do not follow HTML/meta refresh, JavaScript redirects, Location-like XML fields, or non-HTTP redirect mechanisms.
+
+LOCATION HANDLING
+For every HTTP redirect:
+- require a nonblank bounded Location header;
+- pass it to the existing Phase 4 redirect validator together with the current request URL;
+- allow that validator to resolve relative/scheme-relative references;
+- never pre-normalize in a way that bypasses the existing static destination rules;
+- malformed/credential-bearing/unsupported-scheme/non-default-port/out-of-domain locations must be blocked before transport;
+- DNS/address safety must run fresh for the newly resolved hostname before contact.
+
+A redirect missing/blank Location is a transport/fetcher failure, not a Phase 4 domain/DNS decision.
+
+REDIRECT LIMIT
+Use a conservative explicit default maximum, recommended 5 followed redirect hops unless current execution requirements justify another small bound.
+
+Define semantics clearly:
+- the initial request is not counted as a redirect;
+- a limit of N allows at most N redirects to be followed;
+- receiving redirect N+1 produces a typed `redirect_limit_exceeded`/equivalent fetch failure and does not contact the next target;
+- test immediately below, at, and above the limit.
+
+Do not set an unbounded limit.
+
+REDIRECT LOOP DETECTION
+Add deterministic loop detection if it remains simple and improves diagnostics.
+
+Recommended:
+- track normalized request URLs already contacted in the current fetch operation;
+- if the next safe redirect resolves to an already-contacted URL, return a typed redirect-loop failure without repeating indefinitely.
+
+The redirect limit is still mandatory even if loop detection exists, because loops can involve unique URLs.
+
+PER-HOP DNS / ADDRESS INVARIANT
+Every redirect hop gets a fresh Phase 4 DNS/address decision.
+
+Required proof:
+- previous-hop `ValidatedDestination.addresses` are never reused for a different redirect destination;
+- redirect to same hostname still reruns DNS safety immediately before that hop, because rebinding can occur between requests;
+- transport receives only the new hop’s validated address set;
+- if any new DNS answer is unsafe, no request is made even if an earlier hop for that hostname was safe.
+
+Do not cache DNS safety decisions in P4.
+
+TOTAL DEADLINE ACROSS REDIRECT CHAIN
+P3 supports one-hop total timing. P4 must impose one overall fetch deadline across the full redirect chain so repeated redirects cannot multiply the allowed execution time indefinitely.
+
+Requirements:
+- start one monotonic overall deadline before initial safety/fetch;
+- each resolver/transport hop receives/derives remaining time where practical;
+- stop before the next contact when no budget remains;
+- redirect count does not reset the total budget;
+- classify overall deadline exhaustion predictably;
+- no arbitrary sleeps in tests.
+
+If Phase 4 resolver API does not currently accept timeout/deadline control, do not silently redesign DNS infrastructure without need. Bound what P4 owns, and if DNS resolution itself can exceed the required total contract because no cancellation exists, add the smallest timeout wrapper/cancellable resolver refinement with focused Phase 4 regression coverage rather than creating a parallel resolver.
+
+CONDITIONAL HEADERS ACROSS REDIRECTS
+Optional ETag/Last-Modified validators belong to the requested endpoint representation.
+
+Preserve P3 conditional header support across safe redirects unless there is a standards/security reason to strip them. These validators are not authentication secrets.
+
+Do not persist returned validators in P4.
+
+Do not add arbitrary Authorization/Cookie forwarding behavior.
+
+TERMINAL RESULT
+The final fetcher should return a stable result suitable for P5 orchestration without parsing arbitrary exceptions.
+
+Recommended categories:
+- `content`: terminal successful response body + final URL + response metadata/validators/metrics + redirect count;
+- `not_modified`: successful 304 + final URL/metrics + redirect count;
+- existing Phase 4 safety blocked result for initial/redirect network-safety rejection;
+- typed fetch/transport failure with machine-readable reason, retry classification where applicable, bounded detail/metadata.
+
+Aggregate per-hop metrics only when useful and bounded. At minimum expose enough for the Collection run to record truthful transport status/HTTP/byte information.
+
+Do not produce Raw items here.
+
+FAILURE VOCABULARY
+Keep Phase 4 reason ownership intact.
+
+Do NOT add redirect transport errors into `CollectionDecisionReason` merely because the fetcher sees them.
+
+Phase 4 safety reasons remain things like:
+- unsupported_scheme;
+- invalid_destination_url;
+- domain_not_approved;
+- port_not_allowed;
+- dns_resolution_failed;
+- unsafe_resolved_address.
+
+P4/P3 fetcher-owned reasons may include:
+- redirect_missing_location;
+- redirect_limit_exceeded;
+- redirect_loop;
+- total_timeout;
+- connect_timeout;
+- response_too_large;
+- decompressed_response_too_large;
+- invalid_content_type;
+- unsupported_content_encoding;
+- network_failure;
+- HTTP failure classification.
+
+Do not create duplicate synonyms for P3 reasons where the one-hop transport already owns them.
+
+CONTROLLED REDIRECT FIXTURES
+Extend the deterministic collection fixture server/routes for redirect behavior.
+
+Cover deterministic routes for:
+- one relative redirect to terminal feed content;
+- one absolute redirect within approved policy;
+- two or more legal hops;
+- redirect to malformed URL;
+- missing Location;
+- blank Location;
+- redirect loop;
+- long redirect chain;
+- redirect resulting in 304;
+- redirect followed by terminal HTTP failure;
+- redirect followed by oversized/invalid response where P3 handles the final failure.
+
+Full Phase 4 safety + real local socket composition needs special care because production safety correctly rejects loopback. Do not add a loopback safety exemption.
+
+For deterministic P4 tests, use one or both of these valid approaches:
+1. inject a controlled resolver plus an injected one-hop transport spy to prove safety/order/address handoff; and separately retain P3 real local HTTP fixture tests for transport behavior; or
+2. inject a connector mapping validated synthetic public addresses to the local fixture at the transport test seam without changing production safety classification.
+
+The test harness must make the distinction explicit. Never claim loopback itself passed production safety.
+
+FOCUSED P4 TESTS
+Create/extend `test/collection` tests, recommended:
+- `test/collection/http-fetcher.test.ts`.
+
+Cover at least:
+- initial safety block -> no transport;
+- initial safe destination -> one-hop transport receives exact validated address set;
+- terminal content returned unchanged except bounded fetch metadata;
+- terminal 304 returned as not-modified;
+- relative redirect resolves against current URL through Phase 4 helper;
+- allowed absolute redirect passes fresh static + DNS safety;
+- redirect outside effective approved domains blocked with `context: 'redirect'` and no target transport call;
+- redirect to non-default port blocked;
+- redirect to unsupported scheme blocked;
+- redirect containing credentials blocked as existing static policy dictates;
+- redirect DNS failure blocked;
+- redirect mixed/unsafe DNS answers blocked;
+- fresh DNS called for every followed hop including same-host redirects;
+- next-hop transport receives new addresses, never the prior-hop address object;
+- missing/blank Location classified as fetcher failure;
+- redirect limit below/at/above boundary;
+- redirect loop detection where implemented;
+- overall deadline is shared across hops and does not reset;
+- P3 transport timeout/size/content errors propagate as typed fetch failures;
+- 304 after one or more redirects works;
+- conditional validators are sent through the safe redirect chain as designed;
+- no branch calls transport after a safety block.
+
+Use deterministic event/call order assertions where security-sensitive ordering matters.
+
+PHASE 4 REGRESSION TESTS
+P4 is the first real consumer of redirect safety, so rerun and preserve:
+- static destination policy tests;
+- destination DNS/address safety tests;
+- Phase 4 pretransport integration tests;
+- address classifier tests;
+- endpoint lock tests as relevant to unchanged collection boundaries.
+
+Do not rewrite Phase 4 tests merely to fit a new P4 abstraction unless an exported API genuinely needs a small backward-compatible structural refinement.
+
+BROADER REGRESSION COVERAGE
+Run and record at minimum:
+- `npm run test:collection`;
+- `npm run test:unit`;
+- `npm run test:integration`;
+- `npm test`;
+- `npm run format:check`;
+- `npm run lint`;
+- `npm run typecheck`;
+- `npm run check`.
+
+P4 normally does not require `npm run test:db` because it changes no persistence/lock semantics, but run affected DB tests if implementation unexpectedly touches shared execution/lock/database code.
+
+LIKELY FILE SCOPE
+Expected successful P4 changes:
+- `package.json` — version only;
+- `src/collection/fetchers/http-fetcher.ts`;
+- small refinements to `src/collection/fetchers/fetcher.ts` / `http-transport.ts` as required for composition;
+- `test/collection/http-fetcher.test.ts`;
+- controlled collection fixture-server route/support changes.
+
+Allowed directly necessary refinements:
+- small Phase 4 resolver/deadline export adjustment with corresponding regression tests if needed to honor overall timeout without parallel DNS logic;
+- small P3 result typing refinements preserving one-hop ownership.
+
+Do not modify in normal conditions:
+- Collection-run migration/repository;
+- Source endpoint schema/cache fields;
+- Phase 4 domain/address safety semantics/reason meanings;
+- Publication bootstrap data;
+- P2 parser implementation;
+- Worker/Web runtime;
+- contracts/roadmap/root docs;
+- validation artifacts.
+
+REQUIRED EVIDENCE LEVELS
+- Level 1: source/static proof of per-hop safety ordering, no loopback/test bypass, no persistent cache/scheduler/parser work.
+- Level 2/3: deterministic orchestration helpers and controlled component tests.
+- Level 5: deterministic HTTP/redirect fixture validation for supported success/failure/boundary cases.
+- Level 4/6/7/8: not required in P4.
+
+ACCEPTANCE CRITERIA
+P4 is complete only when:
+- `package.json` is exactly `0.5.4`;
+- initial configured destination is safety-validated before first contact;
+- every followed HTTP redirect reruns the same Phase 4 static/domain/port/DNS/address gate before network contact;
+- no redirect target is contacted after a safety block;
+- fresh DNS/address validation occurs for every hop and previous validated addresses are not reused silently;
+- redirect count is bounded and tested at boundary;
+- missing/malformed/looping redirects fail deterministically and boundedly;
+- one overall total deadline covers the whole redirect chain;
+- terminal content/304/P3 failures are returned in a form P5 can map to run accounting;
+- P3 remains a one-hop transport and P4 is the only redirect-following path;
+- Phase 4 safety regressions remain green;
+- no Collection run, parser invocation, Worker command, scheduler, Article, or persistent ETag/Last-Modified state is introduced;
+- no `package-lock.json` is created.
+
+NON-GOALS / DEFERRED
+Do not implement in P4:
+- Collection-run creation/finalization;
+- RSS/Atom parsing;
+- Raw-item production;
+- manual Worker CLI/process command;
+- configuration lookup by keys inside fetcher core;
+- persistent endpoint HTTP cache state;
+- automatic application retries/backoff/jitter;
+- scheduler/jobs/health;
+- normalization/Relevance/Articles/duplicates;
+- HTML/API custom collectors;
+- public/live Source dependency in ordinary tests.
+
+IMPLEMENTATION DISCIPLINE
+Redirects are attacker/server-controlled new outbound destinations. Treat every hop as a new request authorization decision, not a continuation implicitly trusted because the initial URL was approved. If implementation pressure suggests bypassing or caching the Phase 4 gate, stop and preserve the contract instead.
