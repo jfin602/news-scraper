@@ -157,6 +157,8 @@ Core rules:
 
 Every implementation roadmap phase inherits that contract even when its phase entry does not repeat the complete test matrix.
 
+Dependency installation intentionally uses `package.json` without an npm package lock. Repository npm configuration disables `package-lock.json` generation, so clean installs use `npm install` rather than `npm ci`. Because declared dependency ranges may resolve to different compatible versions over time, validation applies to the exact source tree and recorded Node/npm environment that was actually tested rather than claiming byte-for-byte dependency reproducibility.
+
 Database tests are intentionally separate from the ordinary deterministic suite. A
 root `.env` file is an optional, local, ignored configuration source that must not be
 committed. `npm run test:db`, `npm run db:migrate`, `npm run start:web`, and
@@ -246,7 +248,7 @@ Phase handoff after a roadmap phase has formally closed:
 → /prompt-write <folder name>
 ```
 
-`/closeout` performs a quick structural/evidence check of the completed phase and, only when green, advances `package.json` plus npm lock metadata to the next `0.<phase>.0` baseline. Its invocation authorizes that version-only transition; it does not rerun the full phase validation matrix.
+`/closeout` performs a quick structural/evidence check of the completed phase and, only when green, advances `package.json` to the next `0.<phase>.0` baseline. Its invocation authorizes that version-only transition; it does not rerun the full phase validation matrix.
 
 Documentation review/application:
 
