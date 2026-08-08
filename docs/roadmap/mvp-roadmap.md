@@ -237,7 +237,7 @@ Represent the minimum trusted configuration required to collect approved feeds w
 
 ## Phase 4 — Collection eligibility and network safety
 
-**Status:** Current.
+**Status:** Complete with durable validation recorded in `docs/validation/phase-4-collection-eligibility-network-safety.md`.
 
 ### Goal
 
@@ -291,6 +291,8 @@ Guarantee that only eligible, approved, safe Source endpoints may reach the outb
 - Phase 4 validation performs no publisher HTTP collection and creates no Collection runs.
 
 ## Phase 5 — RSS/Atom transport, parsing, and minimal Collection runs
+
+**Status:** Current.
 
 ### Goal
 
