@@ -1,0 +1,403 @@
+TASK: Phase 4 / P6 — Final-tree collection-safety validation and Phase 4 closeout evidence
+
+ROADMAP PHASE
+Phase 4 — Collection eligibility and network safety.
+
+VERSIONING
+- This is Phase 4 prompt 6 and its assigned project version is `0.4.6`.
+- On first execution confirm P5 left `package.json` at `0.4.5`, then advance only its top-level `version` to `0.4.6` BEFORE establishing the final validated implementation source SHA.
+- If this same P6 prompt is rerun after failed/partial closeout and `package.json` is already `0.4.6`, retain `0.4.6`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` is the sole authoritative current-version source.
+- The repository intentionally does not use `package-lock.json`; `.npmrc` disables lock generation. Do not create, regenerate, inspect for version synchronization, or require an npm package lock.
+- Do not duplicate the current version in README, BOOT, AGENTS, contracts, source constants, or other manually maintained docs.
+
+DEPENDS ON
+- P1 eligibility and stable Phase 4 reason model implemented/reviewed.
+- P2 static request destination policy implemented/reviewed.
+- P3 DNS/address safety + validated-destination handoff implemented/reviewed.
+- P4 shared PostgreSQL endpoint run lock + database-session support implemented/reviewed.
+- P5 composable pre-transport integration implemented/reviewed.
+- All P1-P5 source/test/package changes committed.
+- Safe local PostgreSQL prerequisites exist for Level 4 evidence through a dedicated `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL`.
+
+GOAL
+Advance the final Phase 4 prompt version, execute the complete Phase 4 static/deterministic/real-PostgreSQL validation matrix against one exact committed implementation tree, prove the Phase 4 roadmap/testing-contract exit gates, and create the durable Phase 4 validation artifact only after every required check passes.
+
+This is a CLOSEOUT/EVIDENCE task, not a feature-development task. Apart from the required `0.4.6` version transition and the successful evidence artifact, do not change runtime behavior.
+
+GOVERNING DOCUMENTS
+Read current versions before execution:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- `docs/decisions/whitelist-and-structured-feed-first.md`
+- `docs/validation/phase-3-publication-source-configuration.md` as historical predecessor evidence only
+- current P1-P5 implementation/tests/package scripts
+
+IMPORTANT CURRENT TOOLING POLICY
+Do NOT copy the old Phase 3 historical lockfile procedure into Phase 4 closeout.
+
+Current repository policy is:
+- no `package-lock.json`;
+- clean dependency installation uses `npm install`, not `npm ci`;
+- `.npmrc` must continue to contain the lockfile-disabled policy;
+- validation applies to the exact source tree plus the recorded Node/npm environment actually exercised and does NOT claim byte-for-byte dependency reproducibility.
+
+Historical Phase 3 evidence remains accurate for the older tree and must not be rewritten merely because policy changed later.
+
+PRESERVED BEHAVIOR / RULES
+- Shared engine/collection code remains topic independent.
+- Only collection-active Publications with approved + active + enabled Sources/endpoints may proceed.
+- Source and endpoint state dimensions remain distinct.
+- Source approved-domain rules remain the maximum trust boundary; endpoint rules only narrow.
+- Before network contact, destination safety is fail-closed for scheme/domain/port/DNS/address.
+- Mixed safe/unsafe DNS answers reject the entire destination.
+- IPv4-mapped IPv6 cannot bypass IPv4 policy.
+- Validated destination output contains concrete addresses and prevents an unchecked second DNS decision at the Phase 4 boundary.
+- Endpoint lock is cross-process/shared and proven against real PostgreSQL.
+- Phase 4 performs no publisher HTTP requests, no real redirect following, no persisted Collection runs, and no manual Worker endpoint command.
+- Ordinary deterministic validation does not depend on live publishers or uncontrolled public DNS.
+- Web/API never collects inline.
+- Required suites cannot silently skip or pass with zero selected tests.
+- Do not claim browser/live-Source/deployment evidence that was not exercised.
+
+CRITICAL CLOSEOUT RULE
+If validation reveals an implementation defect, contract violation, unsafe IP-classification gap, whitelist/domain bypass, unchecked DNS re-resolution, lock/session leak, lock-contention defect, false-green/skipped/hanging test, database regression, credential leak, cleanup failure, accidental publisher HTTP, Collection-run/Worker/scheduler scope creep, or other substantive problem:
+1. stop Phase 4 closeout;
+2. report the exact failed invariant/command/procedure;
+3. do NOT hide or repair runtime/source/test behavior inside P6 unless the repository owner explicitly authorizes a separate corrective implementation task;
+4. return the defect to the owning P1-P5 boundary;
+5. retain assigned version `0.4.6` on rerun of this same P6 prompt;
+6. after correction is committed, rerun P6 validation from the beginning against the new final source tree.
+
+Do not create an accepted Phase 4 validation artifact for a failing tree.
+
+SUCCESSFUL MODIFICATION SCOPE
+Before final-tree validation this task may modify only:
+- `package.json` for the required version transition to `0.4.6`.
+
+After the versioned implementation tree is committed and ALL required validation succeeds, create only:
+- `docs/validation/phase-4-collection-eligibility-network-safety.md`
+
+Do not modify runtime source, migrations, tests, scripts, package dependencies/scripts/engines, Source/bootstrap config, README, BOOT, AGENTS, contracts, ADRs, roadmap, earlier validation artifacts, or task prompts during successful P6 closeout.
+
+VERSION TRANSITION / VALIDATED SOURCE SHA
+Before final validation:
+1. inspect `package.json` and `.npmrc`;
+2. confirm `.npmrc` preserves lockfile-disabled behavior;
+3. if version is `0.4.5`, change only `package.json` top-level version to `0.4.6`;
+4. if already `0.4.6` because P6 is being rerun, do not increment;
+5. if another unexpected version exists, stop;
+6. confirm no `package-lock.json` is tracked/present as a generated project artifact;
+7. commit the P6 version transition;
+8. require a clean working tree for tracked files;
+9. record `VALIDATED_SOURCE_SHA` as that committed implementation/version tree BEFORE creating the evidence artifact;
+10. record branch and confirm version exactly `0.4.6` at that SHA.
+
+PHASE 4 BASE / COMMITTED-RANGE VALIDATION
+Determine from repository history the explicit accepted Phase 4 `0.4.0` baseline created by the prior `/closeout`. Do not blindly use a stale hard-coded SHA from this prompt or conversation.
+
+Record:
+- `PHASE4_BASE_SHA`;
+- `VALIDATED_SOURCE_SHA`.
+
+Documentation/task-writing commits after `.0` are allowed history and do not by themselves invalidate implementation evidence.
+
+Run committed-range whitespace validation equivalent to:
+- `git diff --check PHASE4_BASE_SHA...VALIDATED_SOURCE_SHA`
+
+Do not substitute a clean-working-tree-only diff that may inspect no committed Phase 4 implementation changes.
+
+ENVIRONMENT / TOOL EVIDENCE
+Record actual observed output/results for:
+- OS/platform;
+- `node --version`;
+- `npm --version`;
+- PostgreSQL server version actually used for Level 4 evidence.
+
+Confirm the Node runtime satisfies current `package.json` `engines`.
+
+LOCAL ENVIRONMENT SAFETY PRECHECK
+- confirm root `.env` remains ignored and untracked;
+- do not display `.env` contents;
+- identify only relevant variable names when needed, especially `NEWS_SCRAPER_DATABASE_URL` and `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL`;
+- confirm real credentials/URLs are not present in committed tests/output/artifacts.
+
+If `.env` is tracked or real credentials are committed/emitted, stop closeout.
+
+CLEAN DEPENDENCY INSTALLATION
+Perform a clean local dependency installation from `package.json` under current repository npm configuration.
+
+Recommended procedure:
+- remove only local generated `node_modules` as needed for a clean install;
+- run `npm install` from the committed P6 source tree;
+- confirm install succeeds;
+- confirm it does NOT generate `package-lock.json` because repository policy disables package locks;
+- record Node/npm environment and install result without claiming byte-for-byte reproducibility.
+
+Do not run `npm ci`.
+
+STATIC / ORDINARY DETERMINISTIC MATRIX
+Run each explicitly against `VALIDATED_SOURCE_SHA` and record result/test counts where available:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm test`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run check`
+- committed-range `git diff --check PHASE4_BASE_SHA...VALIDATED_SOURCE_SHA`
+
+Confirm ordinary deterministic commands do not require PostgreSQL, live public publishers, or uncontrolled public DNS.
+
+REQUIRED DATABASE SUITE
+With a valid dedicated test-admin prerequisite run:
+- `npm run test:db`
+
+It must:
+- complete and return control to the shell;
+- use real disposable PostgreSQL;
+- include all applicable Phase 2/3 regressions plus P4/P5 database-session/lock/pretransport integration tests;
+- leave disposable DB cleanup verified;
+- contain zero skipped/todo tests that would hide required Phase 4 behavior.
+
+Record actual test count/result and state explicitly which claims are Level 4.
+
+EXPLICIT DATABASE-PREREQUISITE NEGATIVE
+Physically invoke `npm run test:db` with an explicit synthetic missing/blank/unusable `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` override that takes precedence over any valid local `.env` value.
+
+Expected:
+- nonzero exit before a false-green database suite;
+- clear bounded prerequisite failure;
+- no skipped-green result;
+- no credential or environment dump.
+
+Restore/remove the synthetic override before valid DB procedures.
+
+ZERO-SELECTION NEGATIVE
+Physically invoke the repository test wrapper with a deliberately nonexistent required test glob.
+
+Expected:
+- zero matching files detected;
+- nonzero exit;
+- clear no-tests-matched output.
+
+PHASE 4 ELIGIBILITY EVIDENCE
+Ensure executed deterministic tests prove and artifact records:
+- fully eligible endpoint proceeds;
+- `publication_inactive`;
+- `source_unapproved`;
+- `source_archived`;
+- `source_paused`;
+- `source_disabled`;
+- `endpoint_unapproved`;
+- `endpoint_archived`;
+- `endpoint_paused`;
+- `endpoint_disabled`;
+- deterministic precedence when multiple blocking states exist;
+- Source-vs-endpoint reasons remain distinct;
+- blocked eligibility does not invoke later lock/safety/outbound boundaries.
+
+PHASE 4 STATIC DESTINATION EVIDENCE
+Ensure executed deterministic tests prove and artifact records:
+- HTTP and HTTPS allowed schemes;
+- unsupported schemes rejected `unsupported_scheme`;
+- malformed/userinfo request destinations fail with a stable machine-readable reason;
+- HTTP effective port 80 allowed and other HTTP ports rejected;
+- HTTPS effective port 443 allowed and other HTTPS ports rejected;
+- exact-host approval behavior;
+- explicit subdomain approval behavior;
+- suffix-confusion negatives;
+- endpoint narrowing cannot be bypassed by redirect destination;
+- empty narrowing inherits Source maximum policy;
+- initial and redirect candidates use the same static policy;
+- statically rejected destination does not invoke DNS.
+
+PHASE 4 DNS / ADDRESS / REBINDING EVIDENCE
+Ensure executed deterministic tests use injected resolution and prove at least:
+- public-unicast IPv4 success;
+- public-unicast IPv6 success;
+- resolver exception -> `dns_resolution_failed`;
+- zero answers -> `dns_resolution_failed`;
+- malformed unusable answer fails closed;
+- IPv4 unspecified/current-network rejection;
+- RFC1918 private rejection;
+- shared/CGNAT rejection;
+- IPv4 loopback rejection;
+- IPv4 link-local/cloud-metadata rejection;
+- IPv4 documentation/benchmark/reserved/special-use rejection;
+- IPv4 multicast and reserved/future/broadcast rejection;
+- IPv6 unspecified and loopback rejection;
+- IPv6 unique-local rejection;
+- IPv6 link-local rejection;
+- IPv6 multicast rejection;
+- IPv6 documentation/protocol/special-use/deprecated translation/tunnel ranges required by the implementation policy are rejected;
+- IPv4-mapped IPv6 private/loopback/link-local/special values are rejected;
+- an IPv4-mapped globally routable IPv4 value behaves consistently with underlying IPv4 policy;
+- mixed public + unsafe DNS answers reject entire destination `unsafe_resolved_address`;
+- multiple all-public answers produce one validated destination result containing concrete addresses/families;
+- redirect destination is resolved/revalidated independently through the same policy;
+- successful `ValidatedDestination` carries the concrete addresses needed by transport rather than only the hostname;
+- the controlled outbound boundary receives this validated data and does not perform an unchecked second resolver call.
+
+Do NOT use public DNS to prove this matrix. The production resolver adapter itself may be composition-tested with an injected lower-level lookup function.
+
+PHASE 4 ENDPOINT-LOCK LEVEL 4 EVIDENCE
+Against one shared disposable PostgreSQL database, ensure real tests prove and artifact records:
+- independent database/session/process-equivalent actor A acquires endpoint A;
+- independent actor B cannot simultaneously acquire endpoint A and receives `endpoint_locked`;
+- B's protected work does not execute under contention;
+- while A is held, B can acquire unrelated endpoint B;
+- after release, endpoint A can be reacquired;
+- callback failure still releases endpoint A;
+- repeated ownership does not leak locks;
+- one leased DB session stays on one PostgreSQL backend for its callback;
+- database session/client is released on callback completion/failure;
+- uncertain/failed unlock path cannot return a possibly locked client to the pool as clean (this may include controlled lower-level proof if forcing real protocol failure is unsafe/nondeterministic);
+- existing database close/query/transaction/readiness behavior remains green.
+
+Do not use arbitrary sleeps for concurrency proof; use deterministic barriers/events.
+
+PHASE 4 FULL PRETRANSPORT INTEGRATION EVIDENCE
+Ensure deterministic + real-PostgreSQL P5 tests prove:
+- persisted synthetic aggregate can be loaded through the Phase 3 repository boundary;
+- eligibility runs before lock;
+- lock ownership is established before caller work;
+- static safety runs before DNS;
+- DNS/address safety runs before controlled outbound;
+- fully safe endpoint reaches controlled outbound exactly once with validated concrete address data;
+- ineligible/locked/unsafe endpoints never reach controlled outbound;
+- same endpoint cannot reach controlled outbound concurrently under two real DB actors;
+- release permits later execution;
+- redirect candidate cannot bypass policy;
+- the production composition leaves a callback insertion point after lock acquisition where Phase 5 can create a Collection run before invoking network safety.
+
+PHASE 2/3 REGRESSION REQUIREMENTS
+Because P4 changes the shared database abstraction and P5 consumes Phase 3 configuration, ensure the complete DB/ordinary matrix still proves:
+- migration-from-zero/current behavior;
+- database query/transaction/close/readiness behavior;
+- disposable DB cleanup;
+- Publication/Source/endpoint schema constraints;
+- configuration normalization/domain matching/narrowing;
+- persistence aggregate reads;
+- generic/bootstrap idempotency/no-overwrite/rollback;
+- Web/Worker current-vs-uninitialized readiness behavior;
+- startup does not auto-migrate/bootstrap.
+
+Do not treat old Phase 3 evidence as a substitute for rerunning relevant regression suites on the Phase 4 final tree.
+
+STRUCTURAL BOUNDARY REVIEW
+Perform and record Level 1 inspection of the accepted Phase 4 source tree.
+
+Confirm:
+- no topic/publisher-specific collection branch exists in generic `src/collection/**`;
+- Source approved-domain enforcement has no test-only production bypass;
+- Web/API does not collect Sources inline;
+- Worker main/runtime still has no manual endpoint collection command;
+- no production publisher `fetch`/HTTP request implementation exists;
+- no real redirect-following loop exists;
+- no RSS/Atom parser or Raw-item pipeline exists;
+- no persisted Collection-run schema/repository exists;
+- no scheduler/jobs/due-endpoint logic exists;
+- no Article normalization/Relevance/identity/persistence exists;
+- no new Source discovery/auto-approval exists;
+- P2 runtime safety did not retroactively collapse Phase 3 structural configuration semantics;
+- endpoint advisory locking is session-correct and is not implemented through ordinary pooled acquire/release calls;
+- no `package-lock.json` was created.
+
+NO LIVE-SOURCE / REAL HTTP / BROWSER REQUIREMENT
+Do NOT contact Author Media, The Creative Penn, or any other live publisher to close Phase 4.
+
+- Level 5 HTTP/RSS fixture validation first becomes substantive in Phase 5.
+- Level 6 browser validation is not applicable.
+- Level 7 approved-live-Source validation is not applicable because Phase 4 performs no fetch.
+- Level 8 deployment validation is not applicable.
+
+Record these as not applicable rather than pretending they were exercised.
+
+DURABLE VALIDATION ARTIFACT
+After ALL required validation succeeds against `VALIDATED_SOURCE_SHA`, create:
+- `docs/validation/phase-4-collection-eligibility-network-safety.md`
+
+The artifact must record at minimum:
+- validation date/time/timezone;
+- branch;
+- Phase 4 base SHA;
+- `VALIDATED_SOURCE_SHA`;
+- package version `0.4.6`;
+- OS/platform;
+- Node/npm/PostgreSQL versions;
+- lockfile-free clean `npm install` result and confirmation no `package-lock.json` was generated;
+- every static/test/DB/negative command actually executed and its result;
+- useful test counts where available;
+- evidence level for each class of claim;
+- eligibility/reason evidence;
+- static scheme/domain/port evidence;
+- deterministic DNS/address/redirect/rebinding matrix evidence;
+- real-PostgreSQL database-session/lock contention/release evidence;
+- full pretransport integration evidence;
+- relevant Phase 2/3 regression evidence;
+- structural no-transport/no-Collection-run/no-topic-coupling findings;
+- disposable DB cleanup verification;
+- limitations/non-applicable Level 5-8 evidence;
+- explicit Phase 4 roadmap exit-gate conclusion.
+
+Never include passwords, full DB URLs, `.env` contents, secret query parameters, or uncontrolled resolver/HTTP response bodies.
+
+ARTIFACT / SHA SEQUENCING
+The validation artifact is created AFTER validating `VALIDATED_SOURCE_SHA`, so its documentation commit will be later than the accepted implementation source SHA.
+
+The artifact must clearly identify the exact source SHA it validates. Do not falsely claim that the later artifact commit itself was the tree executed unless the entire matrix is rerun after adding only the artifact and that distinction is documented.
+
+PHASE 4 EXIT-GATE CHECKLIST
+Close Phase 4 only if all are demonstrated:
+- eligible test endpoints reach the injected/controlled outbound-fetch boundary with a validated destination result;
+- unapproved, archived, paused, disabled, and unsafe endpoints cannot invoke that boundary;
+- scheme/domain/port/DNS/address decisions expose stable machine-readable reasons;
+- controlled redirect candidates cannot bypass the same safety policy;
+- mixed/special-use DNS answers fail closed;
+- validated output carries concrete addresses and proves the Phase 4 boundary does not independently re-resolve them;
+- concurrent process-equivalent actors cannot own the same endpoint lock simultaneously;
+- unrelated endpoint locks remain independently acquirable;
+- success/failure release and reacquisition are proven against real PostgreSQL;
+- deterministic safety tests use injected resolution and no live public publishers/DNS;
+- no publisher HTTP collection or Collection runs exist in the Phase 4 accepted tree;
+- required broader regressions pass on that exact final tree.
+
+Do not mark Phase 4 complete if any item is only assumed/source-inspected when Level 2/3/4 execution is required.
+
+LIKELY FILE SCOPE
+Before validation:
+- `package.json`
+
+After successful validation only:
+- `docs/validation/phase-4-collection-eligibility-network-safety.md`
+
+No other successful P6 changes.
+
+REQUIRED EVIDENCE LEVELS
+- Level 1: final-tree structure, version, phase diff, no-transport/no-scope-creep inspection.
+- Level 2: pure eligibility/static/IP classification behavior.
+- Level 3: deterministic multi-module resolver/redirect/outbound-boundary composition.
+- Level 4: real PostgreSQL database-session/endpoint-lock/full pretransport integration and relevant prior DB regressions.
+- Levels 5-8: not applicable to Phase 4 closeout.
+
+FINAL RESPONSE / HANDOFF
+On successful P6 completion report:
+- final package version;
+- `PHASE4_BASE_SHA`;
+- `VALIDATED_SOURCE_SHA`;
+- validation artifact path + artifact commit SHA;
+- exact commands/procedures executed and concise results/counts;
+- evidence levels actually achieved;
+- explicit `Phase 4 exit gate: satisfied` conclusion;
+- any limitations/non-applicable evidence.
+
+Do NOT advance BOOT/README/AGENTS/roadmap to Phase 5 inside P6. After P6 is accepted, the repository owner will use the conversational `/closeout` workflow to verify the artifact and, only on green, create the separate `0.5.0` Phase 5 baseline transition followed by `/docs-review` and `/docs-apply`.
