@@ -1,0 +1,313 @@
+TASK: Phase 5 / P1 — Minimal Collection-run persistence
+
+ROADMAP PHASE
+Phase 5 — RSS/Atom transport, parsing, and minimal Collection runs.
+
+MINIMUM MODEL / EFFORT
+- Minimum recommended rating: `Terra Max`.
+- A stronger model/effort tier may be used.
+- Do not lower this rating without explicit repository-owner direction.
+- Rationale: this task introduces durable provenance and stage-state semantics that later phases extend. The SQL/repository mechanics are bounded, but incorrect lifecycle/state modeling would create persistent data-integrity debt across the collection pipeline.
+
+VERSIONING
+- This is Phase 5 prompt 1 and its assigned project version is `0.5.1`.
+- On first execution confirm the authorized Phase 5 baseline left `package.json` at `0.5.0`, then advance only its top-level `version` to `0.5.1`.
+- If this same P1 prompt is rerun and `package.json` is already `0.5.1`, retain `0.5.1`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` is the sole authoritative current-version source.
+- The repository intentionally does not use `package-lock.json`; do not create, require, or regenerate one.
+
+DEPENDS ON
+- Completed Phase 4 collection eligibility/network-safety implementation and validation.
+- Existing Phase 2 database/migration/disposable-PostgreSQL foundation.
+- Existing Phase 3 Source-endpoint persistence and ownership constraints.
+- No Phase 5 parser or HTTP transport code is required for this task.
+
+GOAL
+Introduce the smallest truthful persisted Collection-run model needed by the first real transport/parser phase.
+
+P1 owns durable run provenance only. It must establish an expandable run lifecycle that Phase 5 Worker execution can create after endpoint eligibility + lock acquisition and before network safety/fetch. It must NOT front-load normalization, Article identity/persistence, Article observations, endpoint health, scheduler state, or persistent HTTP cache state.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+
+CURRENT SOURCE / IMPORTANT BASELINE
+At the Phase 5 baseline:
+- production schema is currently introduced by `migrations/0001_publication_source_configuration.sql`;
+- `source_endpoints` is the persisted endpoint owner and uses UUID identity;
+- migration discovery/checksum/order behavior already exists in `src/database/migrations.ts`;
+- database repositories depend on `QueryExecutor` rather than global database singletons;
+- disposable PostgreSQL test infrastructure is substantive and required for persistence claims;
+- no Collection-run table/repository exists yet;
+- no HTTP transport/parser code exists yet;
+- Phase 4 deliberately leaves a callback insertion point after endpoint lock acquisition and before network safety where Phase 5 will later create a run.
+
+CANONICAL COLLECTION-RUN OWNERSHIP
+A Collection run represents one attempt to collect exactly one Source endpoint.
+
+P1 must preserve these invariants:
+- every run belongs to one existing Source endpoint;
+- a run is created only by later collection execution after eligibility + lock ownership have succeeded;
+- `started_at` records run creation/start;
+- a running run is unfinished;
+- a terminal run has a finish time;
+- transport/parser state reflects only stages that actually exist in Phase 5;
+- bounded structured errors are retained without storing response bodies/secrets;
+- Phase 5 does not use post-Article-persistence processing outcome names such as `created`, `updated`, `unchanged`, `rejected`, `excluded`, or `failed` as candidate counters;
+- later phases may extend the same run model rather than replace it.
+
+MIGRATION
+Add exactly one new production migration, recommended:
+- `migrations/0002_collection_runs.sql`
+
+Do not modify the checksum/content of `0001_publication_source_configuration.sql`.
+
+The Phase 5 Collection-run schema should minimally represent:
+- `id` UUID primary key;
+- `source_endpoint_id` UUID NOT NULL FK to `source_endpoints(id)`;
+- bounded nonblank `execution_id`/worker-correlation identifier;
+- `started_at` timestamptz NOT NULL, defaulting to current database time unless there is a strong existing project reason to inject it;
+- nullable `finished_at` timestamptz;
+- run status with the minimal vocabulary `running`, `succeeded`, `failed`;
+- transport status with minimal vocabulary `not_run`, `succeeded`, `not_modified`, `failed`;
+- parser status with minimal vocabulary `not_run`, `succeeded`, `failed`;
+- nullable HTTP status code when a transport response supplied one;
+- nonnegative transport/wire byte count when known;
+- nonnegative decompressed byte count when known;
+- nonnegative Raw-item count;
+- nullable bounded machine-readable error code;
+- nullable bounded human-safe error detail.
+
+Choose concrete column names consistently with existing snake_case SQL conventions.
+
+Do NOT add normalization fields yet. Phase 6 owns normalization stage accounting.
+
+Do NOT add:
+- Article-processing counters/effects;
+- Article/observation foreign keys;
+- endpoint last-attempt/last-success/next-due state;
+- ETag/Last-Modified endpoint cache columns;
+- health/failure counters;
+- scheduling/job IDs;
+- Publication/Source duplicate foreign keys that can be derived through the endpoint relationship;
+- arbitrary raw response/body storage.
+
+DATABASE CONSTRAINTS
+Use PostgreSQL constraints for durable shape/state invariants where they remain valid as later phases extend the row.
+
+At minimum enforce:
+- allowed status vocabularies;
+- nonnegative counts/byte values;
+- valid HTTP status range when non-null;
+- execution identifier length/nonblank shape;
+- error-code/detail bounds;
+- a `running` run has `finished_at IS NULL`;
+- a terminal `succeeded`/`failed` run has non-null `finished_at`;
+- terminal finish time is not earlier than start time.
+
+Avoid over-constraining cross-stage combinations in SQL if that would make legitimate Phase 6+ extension difficult. For example, do not encode every possible future parser/normalization sequence as an irreversible database truth when application lifecycle validation is a cleaner owner.
+
+Use `ON DELETE` semantics that preserve provenance. Do not cascade-delete Collection runs merely because an endpoint is retired; current configuration law favors archival and retained provenance. A normal FK without delete cascade is preferred unless current contracts clearly require another behavior.
+
+REPOSITORY
+Create a focused production repository, recommended:
+- `src/collection/runs/repository.ts`
+
+The repository should depend on `QueryExecutor` and expose a narrow lifecycle rather than general-purpose mutation.
+
+Recommended capabilities:
+1. `startCollectionRun(...)`
+   - validates/bounds application input;
+   - creates a UUID run;
+   - stores endpoint + execution identifier;
+   - persists initial state: run `running`, transport `not_run`, parser `not_run`, zero Raw items;
+   - returns an immutable mapped persisted object.
+2. `finalizeCollectionRun(...)`
+   - accepts terminal Phase 5 stage data;
+   - performs a guarded update only while the row is still `running`;
+   - sets finish time and terminal statuses/counts/metadata/errors;
+   - returns the resulting immutable persisted object;
+   - exact same finalization call should not silently rewrite already-terminal provenance.
+3. `findCollectionRunById(...)`
+   - focused read boundary for orchestration/tests/diagnostics.
+
+A dedicated `CollectionRunPersistenceError` or similarly scoped error is appropriate if consistent with current repository patterns.
+
+Do not expose a generic `updateCollectionRun(partial)` API that permits arbitrary state rewriting.
+
+ROW MAPPING / VALIDATION
+Treat database output as untrusted enough to validate shape, as existing repositories do.
+
+Map:
+- required strings/UUID-like identifiers;
+- timestamps to `Date`;
+- exact status vocabularies;
+- nullable bounded values;
+- integer counts/status codes.
+
+Return immutable objects consistent with existing repository style.
+
+Do not move generic Phase 3 configuration mapping helpers solely to reuse private implementation details unless a clearly shared helper is justified without increasing coupling. Small run-owned validators are acceptable.
+
+FINALIZATION SEMANTICS
+The repository must prevent accidental double terminal mutation.
+
+Prefer a guarded SQL update conceptually equivalent to:
+`UPDATE ... WHERE id = $id AND run_status = 'running' RETURNING ...`
+
+If no row is returned, distinguish at least:
+- nonexistent run; or
+- run no longer mutable/terminal.
+
+It is acceptable to report both through one bounded persistence error if callers do not yet require separate domain behavior, but do not silently succeed.
+
+Do not invent crash reconciliation or abandoned-run recovery in P1. Production recovery belongs to later operational/scheduler work. A row left `running` after a catastrophic process/database failure is more truthful than falsely marking it successful.
+
+APPLICATION-LEVEL FINALIZATION INPUT
+Define a small terminal input type that can represent P5 mappings later:
+- terminal run status;
+- transport status;
+- parser status;
+- optional HTTP status;
+- byte counts;
+- Raw-item count;
+- optional structured error.
+
+P1 does NOT own the policy deciding whether a network-safety rejection maps to transport `not_run`, whether a parser failure maps the run to `failed`, etc. P5 orchestration owns those mappings. P1 owns validation + persistence of a valid terminal record.
+
+BOUNDED ERRORS
+Use conservative explicit bounds in schema/application validation.
+
+Requirements:
+- machine-readable error code must be bounded and safe for structured logging/inspection;
+- human detail must be bounded and must not contain unbounded response bodies;
+- no database URL, authorization header, token, credential, or environment secret should be required/stored;
+- do not store arbitrary thrown stack traces as run detail.
+
+PRODUCTION-SCHEMA TEST UPDATES
+The existing production schema test currently expects only the Phase 3 tables/migration history. Update it intentionally for the new production migration rather than weakening the assertion.
+
+After migration from zero, prove:
+- `0001_publication_source_configuration.sql` then `0002_collection_runs.sql` are applied in order;
+- migration ledger count advances accordingly;
+- rerunning migrations produces no new effects;
+- `collection_runs` exists with required constraints/ownership.
+
+Do not loosen migration checksum/history tests.
+
+FOCUSED REAL-POSTGRESQL TESTS
+Add substantive DB coverage, recommended:
+- `test/database/collection-runs.test.ts`
+
+Use the existing disposable database helper and production migrations.
+
+Cover at least:
+- start creates one running row associated with a real persisted endpoint;
+- default initial stage state is truthful (`not_run`/zero count as applicable);
+- find maps the row correctly;
+- valid successful finalization persists finish/status/counts/HTTP metadata;
+- valid failed finalization persists bounded error code/detail;
+- `not_modified` can be persisted with parser `not_run` and zero Raw items;
+- zero-item successful parse is valid;
+- negative counts rejected;
+- invalid statuses rejected at the DB/application boundary;
+- invalid HTTP status rejected when present;
+- blank/oversized execution identifier rejected;
+- oversized error fields rejected;
+- nonexistent endpoint FK rejected;
+- running row cannot have terminal finish state through direct invalid SQL;
+- terminal row cannot be finalized a second time through repository API;
+- finish-before-start invalid state rejected;
+- failure in a transaction using run operations preserves transaction invariants where applicable.
+
+Where a claim relies on PostgreSQL constraints or foreign keys, test against real disposable PostgreSQL rather than mocks.
+
+UNIT TESTS
+If P1 introduces pure validation/mapping helpers with meaningful behavior, add focused unit tests for boundary values. Do not create unit tests that merely duplicate SQL constraints without value.
+
+BROADER REGRESSION COVERAGE
+Run and record at minimum:
+- focused Collection-run DB tests;
+- production migration/schema tests;
+- migration workflow tests;
+- existing Source configuration persistence/bootstrap DB tests because the new migration is in their migration-from-zero path;
+- `npm run format:check`;
+- `npm run lint`;
+- `npm run typecheck`;
+- `npm test`;
+- `npm run check`;
+- full `npm run test:db` with the safe test-admin prerequisite.
+
+Do not add `test:collection` in P1; no collection fixture behavior exists yet.
+
+LIKELY FILE SCOPE
+Expected successful P1 changes:
+- `package.json` — version only;
+- `migrations/0002_collection_runs.sql`;
+- `src/collection/runs/repository.ts`;
+- `test/database/collection-runs.test.ts`;
+- existing production schema/migration assertion test files as directly required.
+
+Allowed directly necessary additions:
+- a small run-owned types/validation module under `src/collection/runs/` if that keeps repository concerns coherent;
+- focused unit tests for those helpers.
+
+Do not modify:
+- `migrations/0001_publication_source_configuration.sql`;
+- Publication bootstrap config;
+- Phase 4 safety/lock semantics;
+- Worker/Web runtime;
+- contracts/roadmap/root docs;
+- validation artifacts;
+- package scripts except if a truly existing test path requires no speculative command changes (normal P1 should not).
+
+REQUIRED EVIDENCE LEVELS
+- Level 1: version/migration/file-scope/static checks.
+- Level 2: pure run-input/status validation where implemented.
+- Level 4: migration, FK, constraint, repository lifecycle, guarded finalization, transaction behavior against disposable PostgreSQL.
+- Level 5+: not applicable; there is no HTTP/parser fixture behavior in P1.
+
+ACCEPTANCE CRITERIA
+P1 is complete only when:
+- `package.json` is exactly `0.5.1`;
+- production migrations apply from zero in deterministic order and rerun cleanly;
+- one Source endpoint can own many retained Collection runs;
+- a new run begins as truthful `running` / pre-stage state;
+- terminal success/failure finalization is persisted exactly once;
+- terminal rows cannot be silently rewritten by a repeated finalize call;
+- Collection-run timestamps/status/counts/error fields are bounded and structurally valid;
+- no post-identity Article outcome/effect taxonomy appears in the Phase 5 run model;
+- no scheduler/cache/health/Article behavior is introduced;
+- existing configuration/migration/DB regressions remain green;
+- no `package-lock.json` is created.
+
+NON-GOALS / DEFERRED
+Do not implement in P1:
+- HTTP fetcher;
+- DNS/address transport binding;
+- redirect following;
+- response/decompression limits;
+- conditional requests;
+- RSS/Atom parsing;
+- Raw items;
+- manual Worker collection invocation;
+- normalization or Article-link validation;
+- Relevance;
+- Article persistence/observations;
+- duplicate handling;
+- endpoint health;
+- scheduling/jobs/retries;
+- persistent ETag/Last-Modified cache state;
+- public/admin UI.
+
+IMPLEMENTATION DISCIPLINE
+Keep the persisted model minimal and truthful. If a proposed field only becomes meaningful with a later phase, do not add it merely because it appears in the completed logical entity description. Preserve one canonical Collection-run table/repository that later phases extend.
