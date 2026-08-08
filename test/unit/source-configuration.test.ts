@@ -15,6 +15,8 @@ import {
   normalizeOperationalState,
   normalizePollIntervalSeconds,
   normalizeSourceEndpointConfiguration,
+  normalizeSourceEndpointConfigurationForSource,
+  normalizeSourceConfiguration,
   parseEndpointUrl,
   parseSourceSiteUrl,
 } from '../../src/sources/configuration.ts';
@@ -186,6 +188,11 @@ test('validates approved endpoint containment and preserves unapproved drafting 
       .endpointUrl.value,
     base.endpointUrl,
   );
+  assert.deepEqual(
+    normalizeSourceEndpointConfiguration({ ...base, approvalState: 'approved' })
+      .endpointDomainRules,
+    [],
+  );
   assertConfigurationFailure(() =>
     normalizeSourceEndpointConfiguration({
       ...base,
@@ -217,6 +224,47 @@ test('enforces positive bounded integer polling intervals', () => {
   for (const value of [60, 300, 2_592_000]) {
     assert.equal(normalizePollIntervalSeconds(value), value);
   }
+});
+
+test('normalizes Source writes and validates endpoint writes against supplied Source policy', () => {
+  assert.deepEqual(
+    normalizeSourceConfiguration({
+      configKey: 'primary_source',
+      displayName: '  Primary Source  ',
+      siteUrl: 'https://source.example/about',
+      approvalState: 'approved',
+      lifecycleState: 'active',
+      operationalState: 'enabled',
+      domainRules: [{ hostname: 'example.com', includeSubdomains: true }],
+    }),
+    {
+      configKey: 'primary_source',
+      displayName: 'Primary Source',
+      siteUrl: {
+        value: 'https://source.example/about',
+        hostname: 'source.example',
+      },
+      approvalState: 'approved',
+      lifecycleState: 'active',
+      operationalState: 'enabled',
+      domainRules: [{ hostname: 'example.com', includeSubdomains: true }],
+    },
+  );
+
+  assertConfigurationFailure(() =>
+    normalizeSourceEndpointConfigurationForSource(
+      {
+        configKey: 'feed',
+        endpointUrl: 'https://outside.example.net/feed.xml',
+        endpointType: 'rss_atom',
+        approvalState: 'approved',
+        lifecycleState: 'active',
+        operationalState: 'enabled',
+        pollIntervalSeconds: 300,
+      },
+      [{ hostname: 'example.com', includeSubdomains: true }],
+    ),
+  );
 });
 
 function assertConfigurationFailure(operation: () => unknown): void {

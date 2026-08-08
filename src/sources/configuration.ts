@@ -35,6 +35,16 @@ export interface SourceEndpointConfiguration {
   readonly endpointDomainRules: readonly DomainRule[];
 }
 
+export interface SourceConfiguration {
+  readonly configKey: string;
+  readonly displayName: string;
+  readonly siteUrl: ParsedConfiguredUrl;
+  readonly approvalState: ApprovalState;
+  readonly lifecycleState: LifecycleState;
+  readonly operationalState: OperationalState;
+  readonly domainRules: readonly DomainRule[];
+}
+
 const CONFIG_KEY_MAX_LENGTH = 100;
 const URL_MAX_LENGTH = 2048;
 const POLL_INTERVAL_MINIMUM_SECONDS = 60;
@@ -224,14 +234,18 @@ export function normalizeSourceEndpointConfiguration(
   const approvalState = normalizeApprovalState(record.approvalState);
   const endpointUrl = parseEndpointUrl(record.endpointUrl);
   const sourceDomainRules = normalizeDomainRules(record.sourceDomainRules);
-  const endpointDomainRules = effectiveEndpointDomainRules(
+  const endpointDomainRules =
+    record.endpointDomainRules === undefined
+      ? Object.freeze([])
+      : normalizeDomainRules(record.endpointDomainRules);
+  const effectiveDomainRules = effectiveEndpointDomainRules(
     sourceDomainRules,
-    record.endpointDomainRules,
+    endpointDomainRules,
   );
 
   if (
     approvalState === 'approved' &&
-    !endpointDomainRules.some((rule) =>
+    !effectiveDomainRules.some((rule) =>
       hostMatchesDomainRule(endpointUrl.hostname, rule),
     )
   ) {
@@ -253,6 +267,32 @@ export function normalizeSourceEndpointConfiguration(
     ),
     sourceDomainRules,
     endpointDomainRules,
+  });
+}
+
+export function normalizeSourceConfiguration(
+  input: unknown,
+): Readonly<SourceConfiguration> {
+  const record = configurationRecord(input, 'source');
+  return Object.freeze({
+    configKey: normalizeConfigKey(record.configKey),
+    displayName: normalizedDisplayName(record.displayName),
+    siteUrl: parseSourceSiteUrl(record.siteUrl),
+    approvalState: normalizeApprovalState(record.approvalState),
+    lifecycleState: normalizeLifecycleState(record.lifecycleState),
+    operationalState: normalizeOperationalState(record.operationalState),
+    domainRules: normalizeDomainRules(record.domainRules),
+  });
+}
+
+export function normalizeSourceEndpointConfigurationForSource(
+  input: unknown,
+  sourceDomainRules: unknown,
+): Readonly<SourceEndpointConfiguration> {
+  const record = configurationRecord(input, 'sourceEndpoint');
+  return normalizeSourceEndpointConfiguration({
+    ...record,
+    sourceDomainRules,
   });
 }
 
@@ -307,6 +347,26 @@ function parseConfiguredUrl(
     throw new ConfigurationValidationError(field, 'fragment_not_allowed');
   }
   return Object.freeze({ value: input, hostname: url.hostname.toLowerCase() });
+}
+
+function normalizedDisplayName(input: unknown): string {
+  if (typeof input !== 'string') {
+    throw new ConfigurationValidationError(
+      'source.displayName',
+      'must_be_a_string',
+    );
+  }
+  const displayName = input.trim();
+  if (displayName.length === 0) {
+    throw new ConfigurationValidationError(
+      'source.displayName',
+      'must_not_be_blank',
+    );
+  }
+  if (displayName.length > 200) {
+    throw new ConfigurationValidationError('source.displayName', 'too_long');
+  }
+  return displayName;
 }
 
 function enumValue<const T extends readonly string[]>(
