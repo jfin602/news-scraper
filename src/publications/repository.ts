@@ -39,6 +39,41 @@ export async function insertPublication(
   return insertValidatedPublication(executor, publication);
 }
 
+export interface CreateIfAbsentResult<T> {
+  readonly value: T;
+  readonly created: boolean;
+}
+
+export async function createPublicationIfAbsent(
+  executor: QueryExecutor,
+  input: unknown,
+): Promise<CreateIfAbsentResult<PersistedPublication>> {
+  const publication = normalizePublicationConfiguration(input);
+  const result = await executor.query<PublicationRow>(
+    `INSERT INTO publications (
+       id, name, slug, active_for_collection, public_status
+     ) VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (slug) DO NOTHING
+     RETURNING ${PUBLICATION_COLUMNS}`,
+    [
+      randomUUID(),
+      publication.name,
+      publication.slug,
+      publication.activeForCollection,
+      publication.publicStatus,
+    ],
+  );
+  const inserted = result.rows[0];
+  if (inserted !== undefined) {
+    return Object.freeze({ value: mapPublicationRow(inserted), created: true });
+  }
+  const existing = await findPublicationBySlug(executor, publication.slug);
+  if (existing === undefined) {
+    throw new ConfigurationPersistenceError('publication conflict lookup');
+  }
+  return Object.freeze({ value: existing, created: false });
+}
+
 async function insertValidatedPublication(
   executor: QueryExecutor,
   publication: Readonly<PublicationConfiguration>,

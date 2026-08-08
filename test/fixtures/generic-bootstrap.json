@@ -1,0 +1,64 @@
+{
+  "publication": {
+    "name": "Technology Bulletin",
+    "slug": "technology-bulletin",
+    "activeForCollection": true,
+    "publicStatus": "public"
+  },
+  "sources": [
+    {
+      "configKey": "circuit_journal",
+      "displayName": "Circuit Journal",
+      "siteUrl": "https://www.circuit.example/about",
+      "approvalState": "approved",
+      "lifecycleState": "active",
+      "operationalState": "enabled",
+      "domainRules": [
+        {
+          "hostname": "circuit.example",
+          "includeSubdomains": true
+        }
+      ],
+      "endpoints": [
+        {
+          "configKey": "main_feed",
+          "endpointUrl": "https://feeds.circuit.example/news.xml",
+          "endpointType": "rss_atom",
+          "approvalState": "approved",
+          "lifecycleState": "active",
+          "operationalState": "enabled",
+          "pollIntervalSeconds": 300,
+          "endpointDomainRules": [
+            {
+              "hostname": "feeds.circuit.example"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "configKey": "research_wire",
+      "displayName": "Research Wire",
+      "siteUrl": "https://research.example/",
+      "approvalState": "approved",
+      "lifecycleState": "active",
+      "operationalState": "enabled",
+      "domainRules": [
+        {
+          "hostname": "research.example"
+        }
+      ],
+      "endpoints": [
+        {
+          "configKey": "updates_feed",
+          "endpointUrl": "https://research.example/updates.atom",
+          "endpointType": "rss_atom",
+          "approvalState": "approved",
+          "lifecycleState": "active",
+          "operationalState": "enabled",
+          "pollIntervalSeconds": 900
+        }
+      ]
+    }
+  ]
+}

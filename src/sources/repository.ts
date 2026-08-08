@@ -8,6 +8,7 @@ import {
   requiredString,
   requiredTimestamp,
   type PersistedPublication,
+  type CreateIfAbsentResult,
 } from '../publications/repository.ts';
 import {
   normalizeApprovalState,
@@ -137,6 +138,47 @@ export async function insertSource(
   );
 }
 
+export async function createSourceIfAbsent(
+  executor: QueryExecutor,
+  publicationId: string,
+  input: unknown,
+): Promise<CreateIfAbsentResult<PersistedSource>> {
+  const source = normalizeSourceConfiguration(input);
+  const sourceResult = await executor.query<SourceRow>(
+    `INSERT INTO sources (
+       id, publication_id, config_key, display_name, site_url,
+       approval_state, lifecycle_state, operational_state
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     ON CONFLICT (publication_id, config_key) DO NOTHING
+     RETURNING ${SOURCE_COLUMNS}`,
+    [
+      randomUUID(),
+      publicationId,
+      source.configKey,
+      source.displayName,
+      source.siteUrl.value,
+      source.approvalState,
+      source.lifecycleState,
+      source.operationalState,
+    ],
+  );
+  const inserted = sourceResult.rows[0];
+  if (inserted !== undefined) {
+    const value = mapSourceRow(inserted);
+    await insertSourceDomainRules(executor, value.id, source.domainRules);
+    return Object.freeze({ value, created: true });
+  }
+  const existing = await findSourceByPublicationAndConfigKey(
+    executor,
+    publicationId,
+    source.configKey,
+  );
+  if (existing === undefined) {
+    throw new ConfigurationPersistenceError('source conflict lookup');
+  }
+  return Object.freeze({ value: existing, created: false });
+}
+
 async function insertValidatedSource(
   executor: QueryExecutor,
   publicationId: string,
@@ -209,6 +251,59 @@ export async function insertSourceEndpoint(
     sourceId,
     normalizeSourceEndpointConfigurationForSource(input, sourceDomainRules),
   );
+}
+
+export async function createSourceEndpointIfAbsent(
+  executor: QueryExecutor,
+  sourceId: string,
+  input: unknown,
+): Promise<CreateIfAbsentResult<PersistedSourceEndpoint>> {
+  const sourceDomainRules = await loadSourceApprovedDomainRules(
+    executor,
+    sourceId,
+  );
+  const endpoint = normalizeSourceEndpointConfigurationForSource(
+    input,
+    sourceDomainRules,
+  );
+  const endpointResult = await executor.query<EndpointRow>(
+    `INSERT INTO source_endpoints (
+       id, source_id, config_key, endpoint_url, endpoint_type,
+       approval_state, lifecycle_state, operational_state, poll_interval_seconds
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     ON CONFLICT (source_id, config_key) DO NOTHING
+     RETURNING ${ENDPOINT_COLUMNS}`,
+    [
+      randomUUID(),
+      sourceId,
+      endpoint.configKey,
+      endpoint.endpointUrl.value,
+      endpoint.endpointType,
+      endpoint.approvalState,
+      endpoint.lifecycleState,
+      endpoint.operationalState,
+      endpoint.pollIntervalSeconds,
+    ],
+  );
+  const inserted = endpointResult.rows[0];
+  if (inserted !== undefined) {
+    const value = mapEndpointRow(inserted);
+    await insertEndpointDomainRules(
+      executor,
+      value.id,
+      endpoint.endpointDomainRules,
+    );
+    return Object.freeze({ value, created: true });
+  }
+  const existing = await findSourceEndpointBySourceAndConfigKey(
+    executor,
+    sourceId,
+    endpoint.configKey,
+  );
+  if (existing === undefined) {
+    throw new ConfigurationPersistenceError('endpoint conflict lookup');
+  }
+  return Object.freeze({ value: existing, created: false });
 }
 
 async function insertValidatedSourceEndpoint(
