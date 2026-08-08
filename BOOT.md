@@ -288,8 +288,8 @@ Execute this sequence and do not expand it unless a material closeout blocker mu
 
 1. Read this `/closeout` section and the roadmap entries needed to identify the completed phase and intended next phase.
 2. Read the completed phase's durable validation artifact and extract the accepted/validated implementation source SHA.
-3. Read `package.json` and the completed phase's task filenames/version sequence.
-4. Perform one accepted-SHA-to-current-`main` compare to classify post-validation drift. Documentation-only changes do not invalidate implementation evidence. Any unvalidated implementation, test, package, migration, or runtime drift blocks handoff.
+3. Read `package.json` as the sole project-version authority and read the completed phase's task filenames/version sequence. Do not require or search for npm lockfile version metadata.
+4. Perform one accepted-SHA-to-current-`main` compare to classify post-validation drift. Documentation-only changes do not invalidate implementation evidence. Explicitly owner-approved repository workflow/tooling-policy changes also do not invalidate implementation evidence when they do not modify application runtime behavior, tests, migrations, committed Publication configuration, `package.json` dependency/script/engine metadata, or other executable product behavior. Dependency-manifest, implementation, test, migration, runtime, or executable-configuration drift remains blocking.
 5. If green, perform only the next-phase baseline version transition described below.
 6. Verify the transition diff, then re-read `docs/roadmap/mvp-roadmap.md` and print the complete roadmap entry for the newly current phase into the chat.
 
@@ -297,10 +297,12 @@ The required structural checks are:
 
 - the previous roadmap phase is marked complete and the intended next phase is identifiable;
 - the durable validation artifact exists and identifies the accepted/validated implementation source SHA;
-- the single post-validation compare shows no unvalidated implementation, test, package, migration, or runtime drift;
+- the single post-validation compare shows no unvalidated dependency-manifest, implementation, test, migration, runtime, or executable-configuration drift; documentation-only and explicitly owner-approved non-executable repository workflow/tooling-policy changes are non-blocking;
 - root/roadmap phase state is coherent enough to begin the next phase;
 - `package.json` contains the expected completed-phase version before transition;
 - the completed phase's prompt/version sequence is coherent and there are no obvious stale phase artifacts that block handoff.
+
+The repository intentionally does not use `package-lock.json`. Its absence is expected and is never itself a `/closeout` blocker. `/closeout` MUST NOT require, regenerate, inspect for version synchronization, or recreate an npm lockfile.
 
 ### Time and scope guardrails
 
