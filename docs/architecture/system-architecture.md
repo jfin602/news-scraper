@@ -37,7 +37,7 @@ The initial deployment may use one repository/database, but it MUST support at l
 
 A slow/crashed Source request in the Worker must not block normal public-feed requests.
 
-During the tech-demo critical path before durable jobs/scheduling exist, collection is invoked manually through the Worker process. Phase 10 adds durable scheduling around the same endpoint execution unit; it does not create a second collection path.
+During the tech-demo critical path before durable jobs/scheduling exist, collection is invoked manually through the Worker process once transport exists. Phase 10 adds durable scheduling around the same endpoint execution unit; it does not create a second collection path.
 
 ### Phase 1 process bootstrap contract
 
@@ -50,6 +50,16 @@ Phase 1 establishes the process/lifecycle boundary without implementing collecti
 - Phase 1 does not require a separate Worker HTTP server merely to expose health probes. Worker readiness is proven through startup/configuration/dependency validation until a concrete deployment requirement justifies an HTTP probe.
 - Phase 5 adds manual endpoint execution behind this same Worker boundary. Phase 10 adds durable job consumption/scheduling around the same endpoint execution unit rather than creating another Worker path.
 - Phase 1 runtime configuration is centralized and typed/validated. Malformed or out-of-range startup configuration must fail predictably; database, Source, Publication-data, scheduler, and collection secrets/configuration are not invented early merely to make validation non-empty.
+
+### Phase 4 execution boundary
+
+Phase 4 introduces the reusable pre-transport gate without introducing transport itself.
+
+- Eligibility reads the persisted Publication/Source/endpoint state and approved-domain policy established in Phase 3.
+- A shared cross-process per-endpoint run lock prevents overlapping ownership for one endpoint and is available to every Worker process. PostgreSQL or an equivalently shared coordination mechanism is required; process-local locking alone is insufficient.
+- Network safety may resolve DNS and classifies the concrete destination before transport. Eligible results carry validated destination/address information forward so later transport cannot silently make a second unchecked DNS decision.
+- Eligible execution stops at an injected/controlled outbound-fetch boundary in Phase 4. No publisher HTTP request, real HTTP redirect following, persisted Collection run, or manual endpoint collection command exists yet.
+- Redirect destination revalidation is exposed as a reusable primitive in Phase 4; Phase 5 is the first phase that follows actual HTTP redirects through it.
 
 ## Module boundaries
 
@@ -116,11 +126,12 @@ flowchart TD
     O --> P[Update run counters + endpoint health where implemented]
 ```
 
-Every redirect returns through the pre-request network-safety gate before being followed.
+This is the completed staged pipeline, not a claim that every node exists in Phase 4. Every redirect returns through the pre-request network-safety gate before being followed.
 
 The pipeline grows by phase without inventing outcomes for stages that do not exist yet:
 
-- Phase 5 creates minimal persisted Collection runs and records transport/parser status/counts.
+- Phase 4 establishes eligibility, the shared endpoint lock, network-safety decisions, and the controlled outbound-fetch boundary only.
+- Phase 5 first adds manual endpoint execution, real HTTP transport/redirect following, minimal persisted Collection runs, and transport/parser status/counts.
 - Phase 6 adds normalization status/counts and validated candidates.
 - Before configurable Relevance rules exist, candidates pass the empty-rule/default-include Relevance boundary.
 - Phase 7 adds Article identity/persistence, observations, and canonical post-identity outcomes.
@@ -130,12 +141,14 @@ The pipeline grows by phase without inventing outcomes for stages that do not ex
 
 ### Tech-demo execution
 
-Before Phase 10:
+During Phases 5–9 before durable scheduling exists:
 
 - collection is manually invoked in the Worker for one configured endpoint at a time;
-- eligibility, locking, network safety, fetch/redirect, parsing, normalization, Relevance, identity/persistence, and run accounting use the canonical pipeline stages that exist;
+- eligibility, the Phase 4 shared lock, network safety, fetch/redirect, parsing, normalization, Relevance, identity/persistence, and run accounting use the canonical pipeline stages that exist;
 - separate endpoint runs fail independently;
 - Web/API does not fetch Sources inline.
+
+Phase 4 itself stops at the controlled outbound-fetch boundary and does not yet create endpoint Collection runs.
 
 ### Automated polling
 
@@ -143,7 +156,7 @@ From Phase 10 onward:
 
 - polling is endpoint-specific;
 - scheduler identifies due approved + active + enabled endpoints under collection-active Publications and enqueues independent jobs;
-- distributed/database-backed locking prevents overlapping runs for one endpoint;
+- jobs reuse the Phase 4 shared/database-backed endpoint lock to prevent overlapping runs for one endpoint;
 - bounded jitter avoids synchronized spikes;
 - manual `check now` uses the same approval, lifecycle, operational, locking, network-safety, timeout, concurrency, and rate-limit rules and requests the same endpoint execution unit;
 - push/webhook adapters are not MVP work; a future push ingress must reuse the normalized downstream pipeline.
@@ -152,7 +165,8 @@ From Phase 10 onward:
 
 - Git-tracked migrations and migration infrastructure are authoritative for database schema structure and schema evolution.
 - Runtime processes do not make ad hoc schema changes; Web/API and Worker startup do not automatically apply migrations.
-- Minimal Collection-run persistence begins with real transport; it does not wait for Article persistence.
+- The Phase 4 endpoint lock is shared across Worker processes and requires real persistence/concurrency evidence when implemented through PostgreSQL or another shared coordination store.
+- Minimal Collection-run persistence begins with real transport in Phase 5; it does not wait for Article persistence.
 - Article identity resolution and insert/update occur transactionally with critical uniqueness constraints.
 - An Article observation is linked to the Collection run as part of successful identity processing.
 - Duplicate-group changes preserve exactly one Primary Article.
