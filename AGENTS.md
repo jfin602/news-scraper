@@ -14,7 +14,7 @@ The first configured Publication is publishing-industry news relevant to indie a
 
 Follow `BOOT.md`.
 
-- `/closeout` is the phase-handoff command after a roadmap phase has formally closed. It performs a quick closeout/evidence check and, only when green, advances `package.json` plus npm lock metadata to `0.<next phase>.0`.
+- `/closeout` is the phase-handoff command after a roadmap phase has formally closed. It performs a quick closeout/evidence check and, only when green, advances `package.json` to `0.<next phase>.0`.
 - `/docs-review` is always a read-only first pass.
 - Do not modify documentation during review/cleanup/alignment until findings are approved or `/docs-apply` is invoked.
 - `/docs-apply` authorizes only approved documentation changes and may commit them directly to `main` unless the user requests otherwise.
@@ -30,7 +30,7 @@ Follow the canonical versioning and prompt-numbering rules in `BOOT.md`.
 - `0.<phase>.0` is the phase baseline. After a roadmap phase formally closes, `/closeout` is the canonical handoff: it verifies the closeout and, on a green result, performs the next `0.<new phase>.0` transition. That transition consumes no prompt number; P1 still maps to `.1`, P2 to `.2`, and so on.
 - Invoking `/closeout` constitutes explicit repository-owner authorization for its green-path version-only transition. The baseline never changes merely because a phase appears complete.
 - `package.json` is the sole authoritative current-version source; do not duplicate the current version in docs or source constants.
-- npm lockfile package metadata may mirror the version mechanically and must stay synchronized whenever `package.json` changes, including a `/closeout` phase baseline, but it is not an independent authority.
+- The project intentionally does not use npm package locks. Repository npm configuration disables `package-lock.json` generation; dependency installation uses `package.json` rather than lockfile metadata.
 - Project version changes occur only through execution of a new Codex roadmap-phase prompt, a green `/closeout` transition, or another explicit owner-authorized `.0` transition after the prior phase closes. Other documentation/prompt/review workflow activity does not increment the version.
 - Re-running or correcting the same prompt keeps that prompt's assigned version rather than consuming a new number.
 
