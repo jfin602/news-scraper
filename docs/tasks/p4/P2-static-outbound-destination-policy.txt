@@ -1,0 +1,208 @@
+TASK: Phase 4 / P2 — Static outbound destination policy
+
+ROADMAP PHASE
+Phase 4 — Collection eligibility and network safety.
+
+VERSIONING
+- This is Phase 4 prompt 2 and its assigned project version is `0.4.2`.
+- On first execution confirm P1 left `package.json` at `0.4.1`, then advance only its top-level `version` to `0.4.2`.
+- If this same P2 prompt is rerun and `package.json` is already `0.4.2`, retain `0.4.2`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` is the sole authoritative version source.
+- The repository intentionally does not use `package-lock.json`; do not create or require one.
+
+DEPENDS ON
+- P1 collection decision/reason model and pure endpoint-state eligibility are implemented and reviewed.
+- Phase 3 domain normalization/matching and persisted endpoint aggregate remain intact.
+
+GOAL
+Implement the reusable Phase 4 destination checks that can be decided without DNS or outbound network contact: URL resolution/parsing, request-safe shape, HTTP/HTTPS-only scheme policy, approved-domain enforcement including endpoint narrowing, and the MVP default-port policy.
+
+P2 must stop before DNS/address classification. It must not perform publisher HTTP, real redirect following, endpoint locking, Collection-run creation, Worker endpoint execution, parsing, or later pipeline behavior.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- `docs/decisions/whitelist-and-structured-feed-first.md`
+- P1 implementation/tests
+- `src/sources/configuration.ts`
+- `src/sources/repository.ts`
+
+CURRENT SOURCE / IMPORTANT BASELINE
+- Phase 3 intentionally parses configured endpoint URLs structurally without applying runtime request-safety scheme/port policy. Existing tests explicitly accept structurally valid non-HTTP schemes at the configuration parser boundary.
+- `normalizeDomainHostname`, `hostMatchesDomainRule`, `endpointRuleIsNarrowerThanSourceRule`, and `effectiveEndpointDomainRules` already define canonical domain normalization/matching/narrowing behavior.
+- `EndpointConfigurationAggregate` provides Source maximum domain rules plus optional endpoint narrowing.
+- P1 provides the canonical Phase 4 machine-readable reason vocabulary.
+
+LOCKED / PRESERVED BEHAVIOR
+- Do NOT change Phase 3 configuration parsing so that persisted unapproved/draft configuration suddenly becomes impossible to represent.
+- Runtime collection safety belongs in `src/collection/**`; structural configuration semantics stay in `src/sources/**`.
+- Source domain rules remain the maximum approved boundary; endpoint rules may narrow but never widen.
+- Exact-host rules do not imply subdomains. `includeSubdomains` is explicit.
+- No suffix-confusion acceptance such as `example.com.evil.test` or `evil-example.com`.
+- No test-only production whitelist bypass.
+- No topic/publisher-specific allowlist in shared code.
+- Phase 4 performs no publisher HTTP and no real redirect following.
+
+STATIC DESTINATION MODULE
+Create a focused substantive module, recommended:
+- `src/collection/safety/static-destination.ts`
+
+It should expose immutable types/results suitable for reuse by P3 and Phase 5.
+
+Recommended concepts:
+- `DestinationContext` such as `initial` / `redirect` where useful for diagnostics;
+- `StaticValidatedDestination` containing the normalized request URL, protocol (`http:` or `https:`), normalized hostname, and effective numeric port;
+- a blocked result using P1's stable reason vocabulary and `stage: 'network_safety'` (or the exact stable stage name established in P1).
+
+Do not expose mutable `URL` instances as the durable security decision. Internally using `URL` is expected; return immutable plain data.
+
+INITIAL / REDIRECT URL RESOLUTION
+Support two uses through one policy path:
+1. initial endpoint destination, which is already an absolute configured URL;
+2. redirect candidate destination resolved against the current URL.
+
+A redirect candidate may be relative. Resolve it with standards-compliant URL semantics, then run the exact same request-shape/scheme/domain/port policy as an initial destination.
+
+P2 does not follow redirects and does not enforce redirect-count limits; Phase 5 transport owns actual following/counting.
+
+REQUEST-SAFE URL SHAPE
+Reject a destination before DNS when any of these apply:
+- URL cannot be parsed/resolved;
+- no hostname exists;
+- username or password/userinfo is present;
+- scheme is not `http:` or `https:`;
+- effective hostname cannot be normalized by the canonical domain-hostname rules.
+
+Use stable machine-readable outcomes. The contract requires `unsupported_scheme`, `domain_not_approved`, and `port_not_allowed`; a bounded `invalid_destination_url` reason is appropriate for malformed/userinfo/hostless request destinations if P1 included it or P2 adds it to the central P1 reason union.
+
+URL fragments are not part of an HTTP request target. For a valid initial/redirect destination that otherwise passes policy, ensure the normalized request URL/result does not cause a fragment to be transmitted/used as destination identity. Do not reinterpret fragments as host/path data.
+
+SCHEME / PORT POLICY
+Enforce exactly the MVP policy:
+- `http:` effective port must be 80;
+- `https:` effective port must be 443;
+- omitted/default ports are interpreted by scheme;
+- explicit default ports are allowed even if WHATWG URL serialization removes them;
+- all non-default explicit/effective ports are blocked with `port_not_allowed`.
+
+Do not add a configuration knob for extra ports in P2.
+
+DOMAIN POLICY
+For each candidate:
+1. normalize the hostname using the existing canonical Source hostname normalization behavior;
+2. derive the endpoint's effective domain policy from Source maximum rules + endpoint narrowing using existing helpers;
+3. require at least one effective rule to match the normalized hostname;
+4. otherwise return `domain_not_approved`.
+
+Do not create a second wildcard implementation, regex-domain engine, or DNS suffix helper that disagrees with `src/sources/configuration.ts`.
+
+If repository inspection shows the P2 module needs a small exported pure helper from `src/sources/configuration.ts`, prefer exposing/reusing the existing canonical behavior rather than copying it. Do not change its established semantics.
+
+NO DNS / NETWORK SIDE EFFECTS
+P2 must not import or call:
+- `node:dns` / resolver functions;
+- `fetch` / HTTP(S) clients;
+- PostgreSQL for safety decisions;
+- Worker runtime execution.
+
+The static validator must be synchronously/purely testable unless a concrete codebase convention requires Promise wrapping; do not introduce async solely for future phases.
+
+FOCUSED UNIT TESTS
+Create substantive tests, recommended:
+- `test/unit/static-destination-safety.test.ts`
+
+Use synthetic generic domains. Cover at least:
+- HTTPS omitted port -> effective 443 and allowed;
+- HTTPS explicit 443 -> allowed;
+- HTTP omitted port -> effective 80 and allowed;
+- HTTP explicit 80 -> allowed;
+- HTTPS 80 rejected `port_not_allowed`;
+- HTTP 443 rejected `port_not_allowed`;
+- arbitrary non-default ports rejected;
+- FTP and another unsupported scheme rejected `unsupported_scheme`;
+- malformed URL rejected with stable invalid-destination reason;
+- credential-bearing/userinfo URL rejected before DNS;
+- exact-host allow success/failure;
+- subdomain-enabled rule permits DNS-label descendants;
+- exact rule does not permit subdomain;
+- `evil-example.com` and `example.com.evil.test` are rejected;
+- case/trailing-dot/IDN normalization follows canonical existing behavior where valid URL parsing permits it;
+- endpoint narrowing overrides inherited Source breadth without widening it;
+- empty endpoint narrowing inherits Source policy;
+- relative redirect resolves against current destination and is revalidated;
+- scheme-relative redirect is revalidated;
+- redirect outside effective domain returns `domain_not_approved`;
+- redirect to disallowed port returns `port_not_allowed`;
+- URL fragment does not survive as request-destination data;
+- blocked result contains stable machine-readable reason/stage/context rather than requiring message parsing.
+
+Include boundary tests immediately around important port policy where meaningful.
+
+REGRESSION COVERAGE
+Because P2 reuses Phase 3 domain helpers, run:
+- focused P2 unit tests;
+- existing Source configuration/domain-rule unit tests;
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm test`
+- `npm run check`
+
+No real PostgreSQL, HTTP fixture server, browser, public DNS, or live Source validation is required for the new P2 behavior.
+
+LIKELY FILE SCOPE
+Expected successful P2 changes:
+- `package.json`
+- `src/collection/safety/static-destination.ts`
+- `test/unit/static-destination-safety.test.ts`
+
+Allowed only if directly necessary to reuse canonical pure behavior:
+- a minimal export/refactor in `src/sources/configuration.ts`
+- corresponding existing `test/unit/source-configuration.test.ts`
+- P1 `src/collection/decision.ts` only to add the bounded `invalid_destination_url` reason if it was not already present
+
+Do not modify migrations, database runtime, bootstrap config, Worker/Web runtime, package scripts, roadmap/contracts/docs, or validation artifacts in normal P2 implementation.
+
+REQUIRED EVIDENCE LEVELS
+- Level 1: final source/diff/version inspection and no-network boundary inspection.
+- Level 2: all static destination policy behavior.
+- Level 3+: not required for new P2 claims.
+
+ACCEPTANCE CRITERIA
+P2 is complete only when:
+- version is exactly `0.4.2`;
+- one reusable static safety path handles initial and redirect candidates;
+- only HTTP/HTTPS reach later safety;
+- only effective HTTP 80 / HTTPS 443 pass;
+- Source maximum domain policy + endpoint narrowing are enforced with existing canonical host semantics;
+- malformed/userinfo destinations fail with stable machine-readable output;
+- redirect candidates cannot bypass static policy;
+- no DNS resolution or outbound HTTP occurs;
+- existing Phase 1–3 and P1 deterministic regressions remain green;
+- no `package-lock.json` is created.
+
+NON-GOALS / DEFERRED
+Do not implement in P2:
+- DNS resolution;
+- IP/public-unicast classification;
+- cloud metadata address classification;
+- DNS rebinding protection beyond defining the static data needed by P3;
+- endpoint locking;
+- real redirects/HTTP transport;
+- Collection runs;
+- Worker manual execution;
+- response/timeouts/retries;
+- RSS/Atom parsing;
+- Articles/Relevance/feed/scheduling.
+
+IMPLEMENTATION DISCIPLINE
+Trace existing domain helpers before editing. If satisfying P2 would require weakening Phase 3 domain semantics, test bypasses, or contacting real networks, stop and report the conflict rather than implementing a parallel or weaker policy.
