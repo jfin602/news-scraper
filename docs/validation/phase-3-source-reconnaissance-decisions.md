@@ -2,283 +2,328 @@
 
 ## Purpose
 
-This document is the decision-and-issues companion to `docs/validation/phase-3-source-reconnaissance.md`.
+This document is the decision-and-issues companion to:
 
-It records the current interpretation of the reconnaissance results for Phase 3 planning and for reporting findings back to the customer. It does not replace the reconnaissance evidence, redefine project contracts, or by itself authorize Source or endpoint approval in bootstrap data.
+- `docs/validation/phase-3-source-reconnaissance.md`
+- `docs/validation/phase-3-authors-publish-targeted-reconnaissance.md`
 
-Actual Phase 3 bootstrap approval remains a deliberate repository-owner decision under `docs/contracts/source-and-collection-contract.md`.
+It records the current repository-owner decisions derived from those reconnaissance artifacts for Phase 3 planning and for reporting findings back to the customer.
+
+It does not redefine project contracts. Bootstrap implementation must still obey `docs/contracts/source-and-collection-contract.md`.
 
 ## Evidence Basis
 
-- Reconnaissance artifact: `docs/validation/phase-3-source-reconnaissance.md`
-- Reconnaissance source tree: `8aabc08a710d7bed237dcc02b38592db23300e66`
-- Reconnaissance artifact commit: `ecc72e222e23655199ee8fc55b4d19981ca7ff6c`
-- Initial candidates investigated: 6
-- Technically verified `rss_atom` endpoints currently suitable as Phase 3 bootstrap candidates: 2
+- Original six-source reconnaissance source tree: `8aabc08a710d7bed237dcc02b38592db23300e66`
+- Original reconnaissance artifact commit: `ecc72e222e23655199ee8fc55b4d19981ca7ff6c`
+- Authors Publish targeted follow-up source tree: `ecc72e222e23655199ee8fc55b4d19981ca7ff6c`
+- Initial customer candidates investigated: 6
+- Technically verified `rss_atom` endpoints suitable for the initial Phase 3 bootstrap: 2
+- Explicit bootstrap-set approval: 2026-08-07 22:22 CDT (UTC-05:00)
+
+## Final Bootstrap Decision
+
+The repository owner explicitly approves the following two Sources for the initial Phase 3 bootstrap configuration:
+
+1. **Author Media**
+2. **The Creative Penn**
+
+The following four Sources are explicitly withheld from the initial bootstrap configuration:
+
+1. Jane Friedman
+2. Authors Publish
+3. Sub Club
+4. Upstream Reviews
+
+This approval is deliberate operator approval under the Source and Collection Contract. It authorizes Phase 3 bootstrap data to create the two approved Source/endpoint pairs with approval state `approved`, lifecycle state `active`, and operational state `enabled` when absent.
+
+It does not authorize:
+
+- implicit bootstrap during Web/API or Worker startup;
+- Source discovery or auto-approval;
+- approval inferred from fetch success;
+- silent domain widening;
+- overwriting later operator-managed configuration;
+- Phase 4 network-safety behavior to be skipped;
+- Phase 5 transport/parser behavior to be implemented early;
+- Publication-specific rules to enter shared engine logic.
 
 ## Executive Decision Summary
 
-| Source | Current planning position | Main reason | Follow-up |
+| Source | Final Phase 3 position | Main reason | Bootstrap status |
 | --- | --- | --- | --- |
-| Author Media | RECOMMEND FOR MVP WITH CAVEAT | Reliable first-party RSS with publisher-owned article links, but the usable feed is broader than Author Update | Use the publisher as the Source identity; document feed breadth |
-| The Creative Penn | RECOMMEND FOR MVP WITH CAVEAT | Reliable first-party podcast RSS with publisher-hosted show-notes links, but editorial scope is broader than pure industry news | Use the publisher as the Source identity and podcast RSS as its endpoint |
-| Jane Friedman | WITHHOLD FROM INITIAL MVP | The customer's label does not map cleanly to the authoritative industry-reporting channel; the best-matching reporting product is paid and the public Substack is a different channel | Reconsider if a suitable public industry-reporting feed or authorized syndication route becomes available |
-| Authors Publish | HOLD PENDING TARGETED FOLLOW-UP | Whole-site RSS is too opportunity-heavy, but an existing Publishing Industry News archive means the narrow-feed question is not fully settled | Directly verify the Publishing Industry News category/feed path before final exclusion |
-| Sub Club | WITHHOLD FROM INITIAL MVP | Technically easy RSS, but editorial output is jobs, pitches, agents, and submissions rather than publishing-industry news | Reconsider only for a separately scoped opportunities Publication |
-| Upstream Reviews | WITHHOLD FROM INITIAL MVP | Technically easy RSS, but editorial output is reviews and entertainment podcasts rather than publishing-industry news | Reconsider only for a separately scoped reviews/discovery Publication |
+| Author Media | APPROVE WITH CAVEAT | Reliable first-party RSS with publisher-owned article links; selected feed is broader than Author Update | APPROVED |
+| The Creative Penn | APPROVE WITH CAVEAT | Reliable first-party podcast RSS with publisher-hosted show-notes links; editorial scope is broader than pure industry news | APPROVED |
+| Jane Friedman | WITHHOLD FROM INITIAL MVP | Public structured channels do not cleanly represent the industry-reporting product the customer appears to mean | WITHHELD |
+| Authors Publish | WITHHOLD FROM INITIAL MVP | Narrow first-party RSS exists but is stale and still mixes industry news with opportunities | WITHHELD |
+| Sub Club | WITHHOLD FROM INITIAL MVP | Technically good RSS, but editorial output is jobs, pitches, agents, and submissions | WITHHELD |
+| Upstream Reviews | WITHHOLD FROM INITIAL MVP | Technically good RSS, but editorial output is reviews and entertainment podcasts | WITHHELD |
 
-## Decisions and Planning Positions
+## D1 - Author Media Approved for Bootstrap
 
-### D1 - Author Media is a viable initial MVP Source candidate
-
-Current position: **Recommend for MVP with caveat.**
+Final position: **Approved with accepted editorial-scope caveat.**
 
 Verified endpoint:
 
 `https://www.authormedia.com/feed/`
 
-The feed is first-party RSS 2.0 and observed entries link back to public Author Media article pages. This preserves the original-publisher destination requirement.
+The feed is first-party RSS 2.0 and observed entries link back to public Author Media article pages. It preserves the original-publisher destination requirement.
 
-The caveat is editorial scope. The verified feed is the whole Author Media site feed, not a dedicated Author Update feed. The recon tested the inferred Author Update category feed and did not verify a usable RSS endpoint for that narrower channel.
+The selected feed is publisher-wide rather than specific to Author Update. The inferred Author Update category feed did not provide a usable dedicated RSS endpoint during reconnaissance.
 
-Planning consequence:
+Approved Phase 3 configuration:
 
-- Persist the Source identity as **Author Media**, not `Author Media - Author Update`.
-- Use `author_media` as the proposed stable Source `config_key`.
-- Use `site_rss` as the proposed endpoint `config_key`.
-- Use exact host `www.authormedia.com` as the proposed Source maximum domain rule.
-- Proposed endpoint URL: `https://www.authormedia.com/feed/`.
-- Proposed endpoint type: `rss_atom`.
-- Proposed polling interval: `21600` seconds.
-- Do not widen the Source boundary to Buzzsprout merely to use the podcast feed.
+- Source name: `Author Media`
+- Source config_key: `author_media`
+- Source site URL: `https://www.authormedia.com/`
+- Source approved hostname rule: exact `www.authormedia.com`
+- Source subdomains allowed: no
+- Endpoint config_key: `site_rss`
+- Endpoint URL: `https://www.authormedia.com/feed/`
+- Endpoint type: `rss_atom`
+- Endpoint narrowing: exact `www.authormedia.com`
+- poll_interval_seconds: `21600`
+- approval state: `approved`
+- lifecycle state: `active`
+- operational state: `enabled`
+
+Accepted caveat:
+
+The whole-site feed contains Author Update reporting plus broader author education, marketing, websites, genre, and other material. Later Publication-owned Relevance rules may filter that broader content, but Phase 3 must not hard-code Author Update-specific logic into the shared engine.
 
 Customer-facing explanation:
 
-Author Media can be included immediately through a reliable first-party RSS feed, but the available feed contains broader author education and marketing content in addition to the requested Author Update reporting. The system can collect it safely now, while later Publication-owned relevance rules can decide which items belong in the final news feed.
+Author Media can be included immediately through a reliable first-party RSS feed. The available feed is broader than the specific Author Update subsection the customer linked, but it safely preserves Author Media article URLs and gives the MVP a dependable structured source.
 
-### D2 - The Creative Penn is a viable initial MVP Source candidate
+## D2 - The Creative Penn Approved for Bootstrap
 
-Current position: **Recommend for MVP with caveat.**
+Final position: **Approved with accepted editorial-scope caveat.**
 
 Verified endpoint:
 
 `https://www.thecreativepenn.com/feed/podcast/`
 
-The feed is first-party RSS 2.0 and observed entries link to public `thecreativepenn.com` show-notes/article pages. Audio enclosures are supplementary rather than the preferred public destination.
+The feed is first-party RSS 2.0 and observed entries link to public `www.thecreativepenn.com` show-notes/article pages. Audio enclosures are supplementary rather than the selected public destination.
 
-The caveat is editorial scope. The feed is primarily an author-business/interview podcast rather than a dedicated publishing-news desk.
+Approved Phase 3 configuration:
 
-Planning consequence:
+- Source name: `The Creative Penn`
+- Source config_key: `the_creative_penn`
+- Source site URL: `https://www.thecreativepenn.com/`
+- Source approved hostname rule: exact `www.thecreativepenn.com`
+- Source subdomains allowed: no
+- Endpoint config_key: `podcast_rss`
+- Endpoint URL: `https://www.thecreativepenn.com/feed/podcast/`
+- Endpoint type: `rss_atom`
+- Endpoint narrowing: exact `www.thecreativepenn.com`
+- poll_interval_seconds: `21600`
+- approval state: `approved`
+- lifecycle state: `active`
+- operational state: `enabled`
 
-- Persist the Source identity as **The Creative Penn**.
-- Treat the podcast as the Source endpoint, not as a separate publisher identity.
-- Use `the_creative_penn` as the proposed stable Source `config_key`.
-- Use `podcast_rss` as the proposed endpoint `config_key`.
-- Use exact host `www.thecreativepenn.com` as the proposed Source maximum domain rule.
-- Proposed endpoint URL: `https://www.thecreativepenn.com/feed/podcast/`.
-- Proposed endpoint type: `rss_atom`.
-- Proposed polling interval: `21600` seconds.
+Accepted caveat:
 
-Customer-facing explanation:
-
-The Creative Penn has a clean, publisher-owned RSS feed with reliable episode metadata and links back to public publisher pages. It is technically one of the strongest initial sources, although some episodes will be author-business or interview material rather than direct industry news.
-
-### D3 - Jane Friedman should be withheld from the initial MVP
-
-Current position: **Withhold from the initial MVP.**
-
-The key issue is not simply that some material is paid. A paywall alone does not necessarily make a source unusable for News Scraper because the product is designed to link readers to the original publisher rather than reproduce full articles.
-
-The stronger issue is channel mismatch:
-
-- The customer's label was `Jane Friedman's Substack`.
-- The inspected Substack is a distinct personal/advice channel rather than the authoritative publishing-industry reporting product.
-- The authoritative industry-reporting product is The Bottom Line.
-- The available public site feed is mixed and includes premium items, while no clean public structured endpoint was verified that corresponds directly to the desired industry-reporting stream.
-
-Planning consequence:
-
-- Do not create a Phase 3 bootstrap Source for Jane Friedman yet.
-- Do not merge `janefriedman.com` and `janefriedman.substack.com` into one approved-domain boundary.
-- Do not attempt authentication, subscription access, paywall bypass, email-account ingestion, or browser automation for the MVP.
+The feed is primarily author-business/interview programming rather than a pure publishing-industry news desk.
 
 Customer-facing explanation:
 
-Jane Friedman remains a valuable editorial source, but the public machine-readable channels do not cleanly match the specific industry-reporting product the customer appears to want. It is safer to withhold it from the first automated source set than to ingest the wrong Jane Friedman channel or blur paid and public content boundaries.
+The Creative Penn has a clean publisher-owned RSS feed with stable metadata and links back to public publisher pages. It is technically one of the strongest initial Sources, while some episodes will be broader author-business or interview material.
 
-### D4 - Authors Publish should not be considered finally rejected yet
+## D3 - Jane Friedman Withheld from Initial Bootstrap
 
-Current position: **Hold pending targeted follow-up.**
+Final position: **Withhold from the initial MVP.**
 
-The recon correctly established that the verified whole-site RSS feed is dominated by submissions, contests, literary magazines, and publisher opportunities. That feed is not a good match for the initial publishing-industry-news Publication.
+The reason is not a blanket prohibition on paywalled destinations. News Scraper links readers to original publishers and could potentially represent a public feed entry whose destination requires a subscription.
 
-However, the Source has a first-party **Publishing Industry News** archive. The reconnaissance did not fully settle whether that narrower section exposes a usable structured feed.
+The present problem is channel mismatch:
 
-This is the main open recon issue.
+- the customer described `Jane Friedman's Substack`;
+- the observed Substack is a separate personal/advice channel;
+- the authoritative publishing-industry reporting product is *The Bottom Line*;
+- no clean public structured endpoint was verified that maps directly to that intended reporting stream;
+- the main-site feed is mixed and is not a clean substitute.
 
 Planning consequence:
 
-- Do not use the broad `https://authorspublish.com/feed/` endpoint for the initial Publication.
-- Do not permanently classify Authors Publish as unsuitable until the narrow Publishing Industry News category/feed path is directly tested.
-- A targeted follow-up should verify the category page and any RSS/Atom endpoint exposed or conventionally mapped from it.
-- If a working narrow RSS/Atom feed is verified and its recent items are genuinely industry-news focused, Authors Publish may become a third initial MVP Source candidate.
-- If no suitable structured feed exists, withhold it from the initial MVP rather than front-loading Phase 18 HTML collection.
+- no Jane Friedman Phase 3 bootstrap Source;
+- do not merge `janefriedman.com` and `janefriedman.substack.com` into one trust boundary;
+- do not introduce authentication, subscription access, paywall bypass, email ingestion, or browser automation for this MVP.
 
 Customer-facing explanation:
 
-Authors Publish as a whole is too focused on submission opportunities for this news product, but it appears to maintain a narrower Publishing Industry News section. We want to verify whether that section has its own reliable feed before making the final inclusion decision.
+Jane Friedman remains highly relevant, but the public machine-readable channels do not cleanly match the industry-reporting product the customer appears to mean. It is safer to revisit this Source later than to automate the wrong channel now.
 
-### D5 - Sub Club should be withheld from the initial publishing-industry Publication
+## D4 - Authors Publish Withheld After Targeted Follow-up
 
-Current position: **Withhold from the initial MVP.**
+Final position: **Withhold from the initial MVP.**
 
-Its Substack RSS is technically straightforward and well-structured, but the observed editorial product centers on jobs, pitches, agents, submission calls, and opportunities.
+The targeted follow-up resolved the previously open question.
 
-This is an editorial-fit decision, not a technical collection failure.
+Verified narrow endpoint:
+
+`https://authorspublish.com/category/publishing-news/feed/`
+
+Observed technical result:
+
+- first-party RSS 2.0;
+- HTTP 200;
+- no redirect observed;
+- publisher-owned item URLs;
+- stable WordPress metadata;
+- approximately 14 retained items.
+
+Observed editorial/freshness result:
+
+- newest retained item: 2025-10-23;
+- recent retained posts are monthly `Notes from the Editor's Desk` roundups;
+- sampled posts still combine legitimate industry developments with grants, submission calls, and other opportunities;
+- the whole-site feed remains current but is overwhelmingly opportunities-oriented.
+
+Therefore the withholding is **editorial/freshness-based, not a technical RSS failure**.
 
 Planning consequence:
 
-- Do not bootstrap Sub Club into the initial publishing-industry Publication.
-- Do not broaden Relevance behavior merely to rescue a fundamentally different content stream.
-- Preserve it as a candidate for a future opportunities-oriented Publication if that product is desired.
+- do not bootstrap Authors Publish into the initial Publication;
+- no further Authors Publish reconnaissance is required for Phase 3;
+- do not introduce Phase 18 HTML collection to rescue this Source;
+- reconsider if the Publishing Industry News feed resumes as a materially cleaner and current stream, or for a separately scoped opportunities Publication.
 
 Customer-facing explanation:
 
-Sub Club is easy to collect technically, but it is primarily an opportunities feed rather than an industry-news feed. It would add significant noise to the current product, so it is better reserved for a separately scoped opportunities product.
+Authors Publish does have a dedicated first-party Publishing Industry News RSS feed, so the technical integration would be easy. However, that feed has not updated since October 2025 and its posts still mix news with publishing opportunities. The broad feed is current but much noisier. For the first MVP, neither feed is a good fit.
 
-### D6 - Upstream Reviews should be withheld from the initial publishing-industry Publication
+## D5 - Sub Club Withheld from Initial Bootstrap
 
-Current position: **Withhold from the initial MVP.**
+Final position: **Withhold from the initial MVP.**
 
-Its Substack RSS is technically straightforward, but the observed publication is centered on genre book reviews, video reviews, and entertainment podcasts.
-
-This is an editorial-fit decision, not a technical collection failure.
+Its first-party Substack RSS is technically straightforward, but the observed product centers on jobs, pitches, agents, submission calls, and opportunities rather than publishing-industry reporting.
 
 Planning consequence:
 
-- Do not bootstrap Upstream Reviews into the initial publishing-industry Publication.
-- Preserve it only as a possible future Source for a separately scoped reviews/discovery Publication.
+- no Sub Club Phase 3 bootstrap Source;
+- do not broaden engine behavior to compensate for a different editorial product;
+- preserve it as a possible future Source for an opportunities-oriented Publication.
+
+Customer-facing explanation:
+
+Sub Club is easy to collect technically, but it is primarily an opportunities feed. Including it in the current news product would add substantial content outside the intended scope.
+
+## D6 - Upstream Reviews Withheld from Initial Bootstrap
+
+Final position: **Withhold from the initial MVP.**
+
+Its first-party Substack RSS is technically straightforward, but the observed publication centers on genre book reviews, video reviews, and entertainment podcasts.
+
+Planning consequence:
+
+- no Upstream Reviews Phase 3 bootstrap Source;
+- preserve it only as a potential Source for a separately scoped reviews/discovery Publication.
 
 Customer-facing explanation:
 
 Upstream Reviews has a usable feed, but its actual output is reviews and entertainment content rather than publishing-industry reporting. Including it would dilute the purpose of the initial news product.
 
-## Issues Requiring Follow-up
+## Resolved Alignment Decisions
 
-### I1 - Authors Publish narrow-feed verification
+### Source identity follows the publisher boundary
 
-Priority: **High before final Source-set freeze; not required to begin Phase 3 core implementation planning.**
+The persisted Author Media Source is **Author Media**, not `Author Media - Author Update`.
 
-Required follow-up:
+`Author Update` is the customer-requested subsection, but the selected structured endpoint is the publisher-wide Author Media feed. The configuration must not claim a narrower Source boundary than the endpoint actually provides.
 
-1. Open the first-party Publishing Industry News archive directly.
-2. Inspect page metadata for RSS/Atom alternates.
-3. Test any explicit or inferred category-feed endpoint directly.
-4. Confirm HTTP result, final URL, feed type, recent items, and item destinations.
-5. Compare its editorial scope with the already rejected whole-site feed.
-6. If technically and editorially suitable, propose exact-host Phase 3 configuration.
+The Author Media Source site URL is therefore:
 
-Expected result:
+`https://www.authormedia.com/`
 
-- Either promote Authors Publish to a third `rss_atom` bootstrap candidate, or
-- confirm the current withholding without requiring HTML collection in Phase 3.
+### The Creative Penn podcast is an endpoint, not a separate Source
 
-### I2 - Author Media source naming must reflect the actual collected boundary
+The persisted Source is **The Creative Penn**.
 
-The customer supplied `Author Media - Author Update`, but the selected endpoint is the publisher-wide Author Media RSS feed.
+The selected podcast RSS is its Source endpoint. The Source site URL is:
 
-The persisted Source should therefore be **Author Media**. `Author Update` is a content subsection observed within that Source, not the technical collection boundary currently selected.
+`https://www.thecreativepenn.com/`
 
-This prevents the configuration from claiming a narrower Source scope than the endpoint actually provides.
+### Jane Friedman withholding is not a general paywall rule
 
-### I3 - The Creative Penn source identity and endpoint identity must remain separate
+A paywalled original destination is not automatically invalid. The current withholding is based on the lack of a clean public structured channel corresponding to the customer's intended industry-reporting stream.
 
-The Source is **The Creative Penn**.
+### Transport quality and editorial fit remain separate
 
-The selected endpoint is its podcast RSS feed.
+Authors Publish, Sub Club, and Upstream Reviews demonstrate that a Source can have technically excellent RSS while still being inappropriate for this Publication.
 
-Do not encode the podcast as if it were a separate publisher unless later evidence establishes a true provenance boundary requiring that split.
+These editorial decisions remain Publication-owned configuration decisions and must not become shared aggregation-engine logic.
 
-### I4 - Jane Friedman withholding must not be described as a blanket paywall prohibition
+## Approved Initial Phase 3 Bootstrap Set
 
-News Scraper's public destination is the publisher's original page. Therefore, a public feed item that links to a premium destination could potentially be valid in a future configuration.
+### Author Media
 
-The present withholding decision is narrower:
+- Source name: `Author Media`
+- Source config_key: `author_media`
+- Source site URL: `https://www.authormedia.com/`
+- Source approved hostname rule: exact `www.authormedia.com`
+- Endpoint config_key: `site_rss`
+- Endpoint URL: `https://www.authormedia.com/feed/`
+- Endpoint type: `rss_atom`
+- Endpoint narrowing: exact `www.authormedia.com`
+- poll_interval_seconds: `21600`
+- approval: `approved`
+- lifecycle: `active`
+- operational: `enabled`
 
-- no clean public structured channel was verified that corresponds to the customer's intended industry-reporting stream;
-- the public Substack is a different editorial channel;
-- the main-site feed is mixed and not an adequate substitute for The Bottom Line.
+### The Creative Penn
 
-This distinction should be preserved in customer communication and future planning.
+- Source name: `The Creative Penn`
+- Source config_key: `the_creative_penn`
+- Source site URL: `https://www.thecreativepenn.com/`
+- Source approved hostname rule: exact `www.thecreativepenn.com`
+- Endpoint config_key: `podcast_rss`
+- Endpoint URL: `https://www.thecreativepenn.com/feed/podcast/`
+- Endpoint type: `rss_atom`
+- Endpoint narrowing: exact `www.thecreativepenn.com`
+- poll_interval_seconds: `21600`
+- approval: `approved`
+- lifecycle: `active`
+- operational: `enabled`
 
-### I5 - Source quality and transport quality are separate decisions
-
-The recon demonstrated that several withheld Sources have technically good RSS feeds.
-
-They are withheld because their editorial products do not match the current Publication, not because News Scraper cannot collect them.
-
-This distinction is important for future reuse of the Platform:
-
-- Sub Club may fit an opportunities Publication.
-- Authors Publish may fit an opportunities Publication if the narrow news feed is not viable.
-- Upstream Reviews may fit a reviews/discovery Publication.
-
-The shared engine must not hard-code these editorial judgments.
-
-## Current Recommended Initial Source Set
-
-Subject to explicit repository-owner bootstrap approval, the current recommended minimum Phase 3 Source set is:
-
-1. **Author Media**
-   - Endpoint: `https://www.authormedia.com/feed/`
-   - Type: `rss_atom`
-   - Exact approved host: `www.authormedia.com`
-   - Poll interval: `21600`
-   - Status: recommended with editorial-scope caveat
-
-2. **The Creative Penn**
-   - Endpoint: `https://www.thecreativepenn.com/feed/podcast/`
-   - Type: `rss_atom`
-   - Exact approved host: `www.thecreativepenn.com`
-   - Poll interval: `21600`
-   - Status: recommended with editorial-scope caveat
-
-This set is sufficient to satisfy the Phase 3 technical requirement that at least two real `rss_atom` endpoints can be configured, assuming the repository owner explicitly approves them as bootstrap configuration.
-
-Authors Publish remains a possible third Source pending the targeted follow-up above.
+This is the complete initial Phase 3 bootstrap Source set. No other customer-supplied Source is approved for initial bootstrap.
 
 ## Customer Report Summary
 
-The six supplied candidates break into three groups:
+The six customer-supplied candidates now fall into three final groups.
 
-### Ready enough for the first MVP
+### Approved for the first MVP
 
-**Author Media** and **The Creative Penn** both expose reliable first-party RSS feeds that can be integrated without scraping or browser automation. Both are broader than a pure industry-news wire, so they should be included with the expectation that later Publication-owned relevance rules will determine which collected items appear publicly.
+**Author Media** and **The Creative Penn** both expose reliable first-party RSS feeds that can be integrated without scraping or browser automation. Their feeds are somewhat broader than a pure industry-news wire, but those scope caveats have been explicitly accepted for the MVP.
 
-### Valuable but not ready for this automated MVP feed
+### Relevant but withheld for now
 
-**Jane Friedman** is highly relevant editorially, but the public structured channels inspected do not cleanly represent the industry-reporting product the customer appears to mean. It should be revisited if a suitable public feed or authorized syndication path becomes available.
+**Jane Friedman** is highly relevant editorially, but the public structured channels inspected do not cleanly represent the specific publishing-industry reporting product the customer appears to mean.
 
-**Authors Publish** is not yet a final rejection. Its general feed is too opportunity-heavy, but a narrower Publishing Industry News section exists and deserves one targeted feed-verification pass.
+**Authors Publish** has a technically valid dedicated Publishing Industry News feed, but it is stale and still mixes news with grants and submission opportunities. Its broad feed is current but much more opportunity-heavy.
 
 ### Technically collectable but wrong product fit
 
-**Sub Club** and **Upstream Reviews** both have technically usable feeds, but their editorial focus does not match the current publishing-industry-news Publication. They are better candidates for separate future products rather than sources for this feed.
+**Sub Club** and **Upstream Reviews** both have technically usable feeds, but their editorial focus does not match the current publishing-industry-news Publication. They are better candidates for separately configured future products.
 
 ## Phase 3 Planning Impact
 
 - The Phase 3 P1-P6 task boundary does not need to change.
-- Core Phase 3 planning can proceed because two real structured endpoint candidates are already verified.
-- The Authors Publish follow-up can run in parallel and may improve the seed set without changing the architecture.
-- No Source-specific adapter is currently required.
+- The initial bootstrap Source set is now explicitly approved.
+- Two real structured endpoints are verified and approved, satisfying the Source-count prerequisite for Phase 3 planning.
+- Authors Publish requires no further Phase 3 reconnaissance.
+- No Source-specific adapter is required.
 - No HTML collector should be introduced in Phase 3.
 - No paywall bypass, authenticated collection, or browser automation should be introduced.
-- The initial Source data must remain Publication-owned bootstrap configuration rather than shared-engine logic.
+- The initial Source data remains Publication-owned bootstrap configuration rather than shared-engine logic.
+- `/prompt-plan` is **UNBLOCKED**.
+
+## Remaining Product Questions
+
+No Source-approval decision remains for Phase 3.
+
+A future product question remains whether to create separate Publications for opportunities-oriented or reviews/discovery content. That decision does not block the current roadmap.
 
 ## Decision Status
 
-This document records the current engineering recommendation and the issues that should be communicated to the customer.
+**FINAL FOR PHASE 3 PLANNING.**
 
-It does **not** itself convert recommended Sources into approved bootstrap configuration.
-
-Before the Phase 3 bootstrap-data task is finalized, the repository owner must explicitly accept or reject the proposed initial Source set. Any later Authors Publish promotion likewise requires explicit approval after its narrow-feed reconnaissance is complete.
+The repository owner has explicitly approved Author Media and The Creative Penn as the initial bootstrap Source set and withheld the other four customer-supplied candidates from the initial bootstrap.
