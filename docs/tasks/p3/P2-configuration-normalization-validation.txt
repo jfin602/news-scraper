@@ -1,0 +1,309 @@
+TASK: Phase 3 / P2 — Pure Publication/Source configuration normalization and validation
+
+ROADMAP PHASE
+Phase 3 — Publication and Source configuration core.
+
+VERSIONING
+- This is Phase 3 prompt 2 and its assigned project version is `0.3.2`.
+- On first execution confirm P1 left `package.json` at `0.3.1`, then advance it to `0.3.2` and synchronize npm-generated lockfile package metadata.
+- If this same P2 prompt is rerun and `package.json` is already `0.3.2`, retain `0.3.2`; do not increment again.
+- `package.json` remains the sole authoritative project-version source.
+- Do not duplicate the version in docs or source constants.
+
+DEPENDS ON
+- P1 Publication/Source/endpoint/domain-policy schema implemented and reviewed.
+
+GOAL
+Create the topic-independent pure TypeScript configuration semantics that Phase 3 persistence and bootstrap will rely on: canonical Publication slugs/config keys, state vocabularies, DNS-hostname normalization, exact-host/subdomain policy semantics, endpoint narrowing validation, endpoint URL structural parsing, approved-endpoint hostname containment, and positive bounded polling validation.
+
+This prompt owns pure deterministic configuration rules only. It does not persist records, perform bootstrap, resolve DNS, perform runtime network safety, fetch Sources, or add customer-specific configuration.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- BOOT.md
+- AGENTS.md
+- docs/contracts/project-contract.md
+- docs/contracts/domain-and-data-contract.md
+- docs/contracts/source-and-collection-contract.md
+- docs/contracts/testing-and-validation-contract.md
+- docs/architecture/system-architecture.md
+- docs/roadmap/mvp-roadmap.md
+- docs/decisions/whitelist-and-structured-feed-first.md
+- P1 migration/schema and tests
+
+LOCKED / PRESERVED BEHAVIOR
+- Shared configuration behavior must remain topic independent.
+- Approval, lifecycle, and operational state are independent concepts.
+- Source approved-domain rules define the maximum configured hostname boundary.
+- Endpoint policy may inherit or narrow Source policy; it may never widen it.
+- Exact-host matching is the default; subdomain inclusion must be explicit.
+- Approved-domain rules store normalized DNS hostnames, not scheme/path/query/credential-bearing URLs and not free-form wildcard strings.
+- An endpoint cannot enter approved configuration state if its configured hostname is outside its effective approved-domain policy.
+- Canonical initial endpoint type is `rss_atom` only.
+- `poll_interval_seconds` is bounded and positive; operational state owns disablement.
+- Phase 3 validates structural configuration relationships only. Phase 4 owns allowed-request-scheme policy, DNS resolution, resolved-address classification, port restrictions, redirect safety, DNS-rebinding defense, and actual outbound-request eligibility.
+- Do not contact any live Source in unit tests.
+
+MODULE OWNERSHIP
+Create substantive domain modules only when needed, recommended:
+- `src/publications/configuration.ts`
+- `src/sources/configuration.ts`
+
+Keep Publication concepts in the Publication module and Source/endpoint/domain concepts in the Source module. Shared helpers should exist only when truly generic; do not create speculative utility layers.
+
+PUBLICATION CONFIGURATION
+Define a small validated/normalized Publication input representation matching P1 only:
+- name;
+- slug;
+- `active_for_collection` / equivalent camelCase application representation;
+- `public_status`.
+
+Publication rules:
+- name is a string, trimmed for validation, nonblank, and bounded consistently with P1;
+- slug is canonical lowercase ASCII using `[a-z0-9]+(-[a-z0-9]+)*` and the P1 bound;
+- do not silently turn arbitrary labels into a different slug unless the API explicitly represents normalization as such; invalid configuration should fail predictably rather than hiding operator mistakes;
+- public status accepts only `private` / `public`;
+- do not add branding, timezone, Category, Relevance, description, or feed fields.
+
+CONFIG KEY RULES
+Use one canonical Source/endpoint config-key shape consistent with P1:
+- lowercase ASCII;
+- `[a-z0-9]+(_[a-z0-9]+)*`;
+- P1 length bound;
+- no leading/trailing underscore;
+- no repeated empty segments.
+
+Source and endpoint keys use the same syntactic validator, but their uniqueness/scoping remains different and is enforced by persistence/DB constraints.
+
+STATE VOCABULARIES
+Expose typed canonical values for:
+- approval: `approved`, `unapproved`;
+- lifecycle: `active`, `archived`;
+- operational: `enabled`, `paused`, `disabled`;
+- Publication public status: `private`, `public`;
+- endpoint type: `rss_atom`.
+
+Do not create health values or collapse these concepts into one status enum.
+
+DNS HOSTNAME NORMALIZATION
+Create a pure normalization/validation function for approved-domain-rule hostnames.
+
+Required behavior:
+- accept a hostname value only, not a URL;
+- trim surrounding configuration whitespace before canonical validation or reject it consistently; the persisted result must have no surrounding whitespace;
+- normalize ASCII case to lowercase;
+- normalize a single DNS root/trailing dot consistently so semantically identical hostnames cannot create different policy entries;
+- use Node/platform standard IDN/domain-to-ASCII support where appropriate rather than inventing Punycode logic;
+- reject empty result;
+- reject scheme prefixes;
+- reject path, query, fragment, credentials, or explicit port syntax;
+- reject IP address literals because the contract calls for normalized DNS hostnames as the domain-policy primitive;
+- reject malformed labels, empty interior labels, overlong labels/names, or characters not accepted by the chosen DNS-host representation;
+- produce one deterministic normalized hostname string.
+
+Do not resolve the hostname. A syntactically valid hostname may later resolve to a private/unsafe address; Phase 4 owns that rejection.
+
+DOMAIN RULE REPRESENTATION
+Use a small immutable/read-only application representation conceptually like:
+- `hostname`;
+- `includeSubdomains` boolean.
+
+Reject duplicate rules after hostname normalization even if input spelling/case/trailing-dot differs.
+
+HOST MATCHING SEMANTICS
+Implement a pure host-policy predicate.
+
+Required examples:
+- exact rule `example.com`, subdomains false -> matches only `example.com`;
+- rule `example.com`, subdomains true -> matches `example.com` and true descendants such as `news.example.com`;
+- `evil-example.com` is never a child of `example.com`;
+- `example.com.evil.test` is never a child of `example.com`;
+- normalized case/trailing-dot forms compare consistently.
+
+Do not use naive `endsWith(hostname)` without a DNS-label boundary.
+
+ENDPOINT POLICY NARROWING
+Implement a pure relation that determines whether an endpoint rule is equal to or narrower than a Source maximum rule.
+
+Required semantics:
+- Source exact `example.com` permits endpoint exact `example.com` only;
+- Source exact `example.com` does NOT permit endpoint `example.com` with subdomains enabled;
+- Source `example.com` with subdomains enabled permits endpoint exact `example.com`;
+- Source `example.com` with subdomains enabled permits endpoint exact `news.example.com`;
+- Source `example.com` with subdomains enabled permits endpoint `news.example.com` with subdomains enabled;
+- Source subtree `example.com` does not permit sibling `example.net`;
+- endpoint subtree rooted above/broader than the Source rule is invalid.
+
+For rule sets:
+- every endpoint narrowing rule must be contained by at least one Source maximum rule;
+- a missing/empty endpoint narrowing set means inherit the complete Source maximum policy;
+- do not treat an explicitly malformed/invalid narrowing array as inheritance;
+- normalized duplicates must be rejected.
+
+ENDPOINT URL STRUCTURAL VALIDATION
+Create a deterministic parser/validator for configured endpoint URLs and Source site URLs as needed by Phase 3 configuration.
+
+For endpoint URL:
+- require an absolute URL form with a nonempty hostname;
+- expose/use the normalized URL hostname for policy comparison;
+- reject credentials in configured endpoint URLs;
+- reject fragments for an endpoint fetch location because they are not part of HTTP transport identity;
+- retain a deterministic normalized URL representation only where normalization is contract-safe; do not silently change path/query semantics;
+- do not perform DNS lookup or network contact.
+
+IMPORTANT PHASE 3/4 BOUNDARY:
+Do NOT implement the runtime HTTP/HTTPS allowlist or port-safety policy in P2. A structurally parseable URL with a hostname may still be rejected by Phase 4 before any request. P2 is not the SSRF gate.
+
+SOURCE SITE URL
+Validate Source site URL only to the extent required for clean persisted configuration:
+- absolute URL;
+- hostname present;
+- credentials rejected;
+- deterministic bounded string.
+
+Do not conflate Source site URL with Source approved-domain rules. Site URL is display/configuration identity; domain rules are trust boundaries.
+
+APPROVED ENDPOINT HOST CONTAINMENT
+The endpoint validation path must enforce this Phase 3 relationship:
+- when endpoint approval state is `approved`, its configured endpoint hostname must be contained by the effective endpoint domain policy;
+- effective policy is endpoint narrowing when present, otherwise Source maximum policy;
+- endpoint narrowing itself must first be proven equal to or narrower than Source maximum policy.
+
+An `unapproved` endpoint may be represented before the final endpoint-host containment relationship is approved, but its narrowing policy still must not exceed the Source maximum if narrowing is supplied.
+
+Do not infer approval from successful parsing, hostname match, or any future fetch result.
+
+POLLING VALIDATION
+Use exactly the P1 contract:
+- minimum 60 seconds;
+- maximum 2592000 seconds;
+- integer only;
+- values below/above are invalid;
+- `0` is invalid;
+- do not model disabled as a polling value.
+
+INPUT / ERROR DESIGN
+Prefer explicit validation functions that either return a normalized typed value or throw/return a bounded configuration-validation error with stable field/reason information.
+
+Requirements:
+- no secrets or arbitrary input blobs echoed into errors;
+- failures are deterministic;
+- callers can distinguish configuration validation failure from database/runtime failure later;
+- do not create a giant schema framework or add a dependency solely for these small validators unless a proven requirement exists.
+
+FOCUSED UNIT TESTS
+Recommended substantive files:
+- `test/unit/publication-configuration.test.ts`
+- `test/unit/source-configuration.test.ts`
+
+Cover at minimum:
+
+Publication/key cases:
+- valid name/slug;
+- blank/overlong name;
+- valid slug at boundary;
+- uppercase/space/underscore malformed slug;
+- valid Source/endpoint config keys;
+- malformed key separators/case/length.
+
+State/type cases:
+- every allowed approval/lifecycle/operational/public state accepted;
+- unknown values rejected;
+- `rss_atom` accepted;
+- other endpoint type rejected.
+
+Hostname normalization cases:
+- mixed-case -> lowercase;
+- trailing root dot canonicalized consistently;
+- IDN normalization where platform support is deterministic;
+- scheme-bearing value rejected;
+- path/query/fragment/credentials/port-bearing domain-rule value rejected;
+- IPv4 and IPv6 literals rejected as domain-rule primitive;
+- empty/malformed/overlong labels rejected;
+- duplicate rules after normalization rejected.
+
+Host-policy cases:
+- exact match;
+- exact rule rejects child;
+- subtree rule matches exact and true descendants;
+- sibling and suffix-confusion hostnames rejected;
+- endpoint exact narrowing under Source subtree accepted;
+- endpoint subtree under Source subtree accepted;
+- same-host subtree cannot widen an exact Source rule;
+- unrelated host narrowing rejected;
+- multi-rule set validation requires every endpoint rule to fit at least one Source rule;
+- absent narrowing inherits Source rules.
+
+Endpoint URL/config cases:
+- absolute endpoint with hostname accepted structurally;
+- relative/missing-host URL rejected;
+- endpoint credentials rejected;
+- fragment rejected;
+- query/path retained appropriately;
+- approved endpoint inside Source/effective policy accepted;
+- approved endpoint outside policy rejected;
+- endpoint narrowing can make an otherwise Source-allowed hostname disallowed;
+- unapproved endpoint behavior follows the contract distinction above.
+
+Polling cases:
+- 59 rejected;
+- 60 accepted;
+- representative value accepted;
+- 2592000 accepted;
+- 2592001 rejected;
+- zero, negative, noninteger rejected.
+
+Use no live network calls.
+
+LIKELY FILE SCOPE
+Expected:
+- package.json
+- package-lock.json
+- src/publications/configuration.ts
+- src/sources/configuration.ts
+- test/unit/publication-configuration.test.ts
+- test/unit/source-configuration.test.ts
+
+P1 SQL migration should not need modification. Do not create repositories or scripts in P2.
+
+BROADER REGRESSION VALIDATION
+Execute against the final P2 tree:
+- npm run format:check
+- npm run lint
+- npm run typecheck
+- npm test
+- npm run test:unit
+- npm run test:integration
+- npm run check
+- committed-change whitespace/diff validation over the P2 range
+
+`npm run test:db` is not required solely to prove these pure validators if P2 does not modify schema/persistence/database code. If P2 unexpectedly changes P1 schema/database behavior, then run the complete DB suite as part of that expanded blast radius and explain why the scope changed.
+
+REQUIRED EVIDENCE LEVELS
+- Level 1: module/version/static boundary and topic independence.
+- Level 2: all pure configuration, hostname, URL-structure, narrowing, state, type, and polling semantics.
+
+ACCEPTANCE CRITERIA
+- package and lockfile version metadata are synchronized at `0.3.2`.
+- Publication slug and Source/endpoint config-key syntax is deterministic and matches P1.
+- approved-domain rules normalize to DNS hostnames with explicit subdomain semantics and no wildcard-string primitive.
+- exact-host matching and true DNS-label descendant matching are correct.
+- endpoint narrowing cannot widen Source maximum policy.
+- approved endpoint hostname must be allowed by effective policy.
+- endpoint URL structural parsing does not become Phase 4 runtime network safety.
+- polling bounds exactly match P1 and do not use zero as disablement.
+- no persistence, bootstrap, networking, Source-specific logic, or later-phase fields are introduced.
+
+NON-GOALS
+- SQL repositories or queries.
+- Bootstrap engine/config file.
+- Real approved Source data.
+- DNS resolution or IP classification.
+- HTTP/HTTPS request-scheme enforcement, port policy, redirects, SSRF/rebinding defense.
+- Collection eligibility/runtime state transitions.
+- Fetching/parsing.
+- Categories/Relevance/branding/health/scheduling.
+- Admin CRUD/UI.
+
+DELIVERY / REVIEW NOTES
+The highest-risk mistake in P2 is accidentally implementing Phase 4 network safety or using naive string suffix matching for host policy. Keep the functions pure and deterministic, and preserve the distinction between structural configuration validity and runtime request safety. If governing contracts or P1 implementation materially differ from this planned boundary, stop and report the conflict rather than silently inventing a compatibility path.
