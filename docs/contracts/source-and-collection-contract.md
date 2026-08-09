@@ -108,12 +108,13 @@ The Phase 4 reason vocabulary MUST distinguish at least:
 
 Redirect revalidation uses the same destination-safety reason vocabulary with redirect-stage context rather than inventing a weaker second policy.
 
-After parsing/normalization, Article-link acceptance MUST separately:
+After normalization has resolved the Source-provided Article URL, Article-link acceptance MUST separately:
 
-- resolve relative URLs against the approved endpoint;
-- normalize internationalized/case-insensitive hostnames safely;
+- consume the absolute normalized original Article URL produced by normalization rather than independently re-resolving relative input;
+- normalize internationalized/case-insensitive hostnames safely for policy comparison;
 - validate Article-link domains against Source/endpoint policy;
-- record unexpected cross-domain Article links rather than automatically following/accepting them.
+- record unexpected cross-domain Article links rather than automatically following/accepting them;
+- avoid fetching or following the Article URL as part of link acceptance.
 
 Pre-fetch network safety and post-parse Article-link validation are different gates and both are required.
 
@@ -227,15 +228,17 @@ Parser output is untrusted input.
 Before Relevance, identity, duplicate, or public-feed logic, normalization MUST:
 
 - trim/normalize text without changing intended human meaning;
-- resolve relative URLs;
-- remove fragments and recognized tracking parameters from canonical identity URLs;
-- preserve original discovered URL separately;
-- parse dates with confidence/fallback metadata;
+- resolve relative Article URLs against the terminal successfully fetched feed URL after approved redirects; when no redirect occurred, the configured endpoint URL is that terminal base;
+- preserve the resulting absolute Source-provided Article destination as the original discovered URL separately from the canonical identity URL;
+- derive canonical identity URLs conservatively with a standards-based URL representation: remove fragments and strip only the exact recognized tracking-parameter names `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `utm_id`, `gclid`, `dclid`, `fbclid`, `msclkid`, `mc_cid`, and `mc_eid`; preserve all other query names, values, multiplicity, path information, and semantics, and do not invent heuristic query stripping, path rewriting, or trailing-slash normalization;
+- parse recognized credible Source dates to UTC while preserving confidence/reason/fallback metadata and the distinction from missing or invalid Source dates; normalization MUST NOT manufacture `first_seen_at` or substitute a Collection-run timestamp as a Source publication time;
 - sanitize/strip unsafe markup;
 - bound field lengths;
 - normalize title representation for matching while preserving display/source title;
 - attach Publication, Source, endpoint, and Collection-run provenance;
-- validate normalized Article URLs against Article-link domain policy before acceptance.
+- hand the absolute normalized Article URL to the separate Article-link domain-policy gate before acceptance.
+
+The original discovered URL remains the future public destination unless a later explicit Source-derived canonical/public-destination field is governed separately; canonical identity cleanup exists for identity comparison and MUST NOT silently replace the preserved original destination.
 
 ## Relevance evaluation
 
@@ -280,7 +283,14 @@ True duplicate grouping between separately stored Articles is governed by the Ar
 
 A minimal persisted Collection run begins with the first real transport/parser phase. It records the endpoint, start/finish timing, transport/parser status, bounded errors, and stage counts that actually exist.
 
-When normalization is introduced, the same run model gains normalization stage status/counts.
+When normalization is introduced, the same run model gains a normalization stage status plus bounded pre-persistence item counts:
+
+- normalization stage status uses `not_run`, `succeeded`, or `failed`;
+- `normalized_candidate_count` counts Raw items that complete normalization and the separate Article-link policy gate and are safe to hand to the next pipeline stage;
+- `normalization_failure_count` counts Raw items that cannot produce a normalized candidate because normalization fails or required candidate data is malformed/invalid/out of bounds;
+- `article_link_rejection_count` counts otherwise normalized items rejected by the separate Article-link/domain policy gate.
+
+For a parsed content run that completes the Phase 6 batch, `raw_item_count` MUST equal `normalized_candidate_count + normalization_failure_count + article_link_rejection_count`. Item-level normalization failures or link-policy rejections do not by themselves make the normalization stage `failed`; stage-level `failed` is reserved for an execution failure that prevents the normalizer from completing its bounded batch contract. Unrelated Raw items continue processing when safely possible.
 
 After Article persistence is active, every processed candidate has exactly one processing outcome:
 
@@ -301,7 +311,7 @@ Effects do not replace outcomes. For example, a candidate may be `created` and a
 
 Collection runs aggregate processing outcomes and effects separately, plus transport/run-level status.
 
-During pre-persistence collection/normalization, runs record transport, parser, and normalization stage counts/statuses but MUST NOT use post-identity outcome names as though Article persistence exists.
+During pre-persistence collection/normalization, runs record transport, parser, normalization, and Article-link stage counts/statuses defined above but MUST NOT use post-identity outcome names as though Article persistence exists.
 
 Generic terms such as `accepted` or `skipped` require explicit mapping rather than competing counter definitions.
 
