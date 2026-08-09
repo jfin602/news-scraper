@@ -10,14 +10,14 @@ It establishes project identity, canonical terminology, authority, document rout
 - Default branch: `main`
 - Working product/repository name: News Scraper
 - Platform: reusable, topic-independent news aggregation Platform
-- Current phase: **Phase 5 — RSS/Atom transport, parsing, and minimal Collection runs**
+- Current phase: **Phase 6 — Article normalization**
 - Production status: pre-production
 - Initial Publication: publishing-industry news relevant to indie authors
 - Public direction: rolling recent-headline feed sending readers to original publishers
 - Admin direction: Cloudflare Access-protected Publication/Source/endpoint/Relevance/Category/Article/duplicate/health/change-history control plane, built after the tech-demo vertical slice
 - Core constraint: Publication-specific behavior is configuration; shared engine logic remains topic independent
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication/Source configuration, and Phase 4 Collection eligibility and network safety implementation/validation are complete. The repository is ready for Phase 5 implementation planning.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication/Source configuration, Phase 4 Collection eligibility and network safety, and Phase 5 RSS/Atom transport, parsing, and minimal Collection runs implementation/validation are complete. The repository is ready for Phase 6 implementation planning.
 
 ## Delivery priority
 
@@ -158,9 +158,9 @@ If a path does not exist, search for its current equivalent before assuming inte
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 5 — RSS/Atom transport, parsing, and minimal Collection runs**.
+Current phase: **Phase 6 — Article normalization**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration core, and Phase 4 Collection eligibility and network safety are complete with durable closeout validation. Phase 5 is the active implementation phase.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration core, Phase 4 Collection eligibility and network safety, and Phase 5 RSS/Atom transport, parsing, and minimal Collection runs are complete with durable closeout validation. Phase 6 is the active implementation phase.
 
 ### Tech-demo critical path
 
