@@ -14,6 +14,7 @@ describe('package command environment contract', () => {
     const manifest = await readJson<PackageManifest>('package.json');
     const envCommands = [
       'test:db',
+      'test:live-sources',
       'db:migrate',
       'db:bootstrap',
       'collect:endpoint',
