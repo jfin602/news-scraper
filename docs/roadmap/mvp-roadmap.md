@@ -292,7 +292,7 @@ Guarantee that only eligible, approved, safe Source endpoints may reach the outb
 
 ## Phase 5 — RSS/Atom transport, parsing, and minimal Collection runs
 
-**Status:** Current.
+**Status:** Complete with durable validation recorded in `docs/validation/phase-5-rss-atom-transport-parsing-collection-runs.md`.
 
 ### Goal
 
@@ -336,6 +336,8 @@ Fetch real approved structured feeds through the Worker, persist truthful run pr
 - Re-fetching unchanged content is transport-safe and deterministic at the Raw-item boundary.
 
 ## Phase 6 — Article normalization
+
+**Status:** Current.
 
 ### Goal
 
