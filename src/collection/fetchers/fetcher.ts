@@ -21,8 +21,7 @@ export interface ConditionalRequestValidators {
   readonly lastModified?: string;
 }
 
-export interface FetchRequest {
-  readonly destination: ValidatedDestination;
+export interface FetchOptions {
   readonly connectTimeoutMs?: number;
   readonly totalTimeoutMs?: number;
   readonly maxWireBytes?: number;
@@ -31,14 +30,21 @@ export interface FetchRequest {
   readonly validators?: ConditionalRequestValidators;
 }
 
-export interface ResolvedFetchRequest {
+export interface FetchRequest extends FetchOptions {
   readonly destination: ValidatedDestination;
+}
+
+export interface ResolvedFetchOptions {
   readonly connectTimeoutMs: number;
   readonly totalTimeoutMs: number;
   readonly maxWireBytes: number;
   readonly maxDecompressedBytes: number;
   readonly userAgent: string;
   readonly validators: ConditionalRequestValidators;
+}
+
+export interface ResolvedFetchRequest extends ResolvedFetchOptions {
+  readonly destination: ValidatedDestination;
 }
 
 export interface TransportMetrics {
@@ -115,8 +121,16 @@ export interface Fetcher {
 export function resolveFetchRequest(
   request: FetchRequest,
 ): ResolvedFetchRequest {
-  const resolved = {
+  return Object.freeze({
     destination: request.destination,
+    ...resolveFetchOptions(request),
+  });
+}
+
+export function resolveFetchOptions(
+  request: FetchOptions,
+): ResolvedFetchOptions {
+  const resolved = {
     connectTimeoutMs:
       request.connectTimeoutMs ?? HTTP_TRANSPORT_DEFAULTS.connectTimeoutMs,
     totalTimeoutMs:

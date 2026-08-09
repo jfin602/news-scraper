@@ -160,6 +160,49 @@ function route(request: IncomingMessage, response: ServerResponse): void {
       });
       response.end('redirect body');
       return;
+    case '/redirect-relative':
+      redirectResponse(response, '../xml');
+      return;
+    case '/redirect-absolute':
+      redirectResponse(response, 'http://feeds.example.test/xml');
+      return;
+    case '/redirect-two':
+      redirectResponse(response, '/redirect-relative');
+      return;
+    case '/redirect-not-modified':
+      redirectResponse(response, '/not-modified');
+      return;
+    case '/redirect-server-error':
+      redirectResponse(response, '/server-error');
+      return;
+    case '/redirect-oversized':
+      redirectResponse(response, '/content-length-oversize');
+      return;
+    case '/redirect-malformed':
+      redirectResponse(response, 'http://[malformed');
+      return;
+    case '/redirect-blank-location':
+      redirectResponse(response, ' ');
+      return;
+    case '/redirect-loop-a':
+      redirectResponse(response, '/redirect-loop-b');
+      return;
+    case '/redirect-loop-b':
+      redirectResponse(response, '/redirect-loop-a');
+      return;
+    case '/redirect-chain': {
+      const remaining = boundedQueryNumber(
+        url.searchParams.get('remaining'),
+        0,
+      );
+      redirectResponse(
+        response,
+        remaining === 0
+          ? '/xml'
+          : `/redirect-chain?remaining=${String(remaining - 1)}`,
+      );
+      return;
+    }
     case '/redirect-without-location':
       response.writeHead(308);
       response.end();
@@ -223,6 +266,11 @@ function encodedResponse(
     'Content-Encoding': contentEncoding,
   });
   response.end(body);
+}
+
+function redirectResponse(response: ServerResponse, location: string): void {
+  response.writeHead(302, { Location: location });
+  response.end();
 }
 
 function boundedQueryNumber(value: string | null, fallback: number): number {
