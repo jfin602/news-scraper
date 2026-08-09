@@ -178,10 +178,11 @@ A minimal Collection run exists from the first real transport implementation. Be
 Phase 6 pre-persistence accounting uses the normalization stage vocabulary defined by the Source/collection contract:
 
 - normalization status is `not_run`, `succeeded`, or `failed`;
-- `normalized_candidate_count` counts Raw items that complete normalization plus Article-link validation and are safe for the next stage;
-- `normalization_failure_count` counts Raw items that cannot produce a candidate because normalization fails or required candidate data is malformed, invalid, or out of bounds;
-- `article_link_rejection_count` counts otherwise normalized items rejected by the separate Article-link/domain policy gate;
-- when a parsed content batch completes, `raw_item_count = normalized_candidate_count + normalization_failure_count + article_link_rejection_count`;
+- `normalized_candidate_count` counts Raw items that complete normalization into an Article candidate before the separate Article-link policy decision;
+- `normalization_failure_count` counts Raw items that cannot produce an Article candidate because normalization fails or required candidate data is malformed, invalid, or out of bounds;
+- `article_link_rejection_count` counts normalized Article candidates rejected by the separate Article-link/domain policy gate;
+- when a parsed content batch completes, `raw_item_count = normalized_candidate_count + normalization_failure_count`, and `article_link_rejection_count <= normalized_candidate_count`;
+- the candidate count safe for the next stage is `normalized_candidate_count - article_link_rejection_count`;
 - item-level normalization failures or link rejections do not by themselves mean the normalization stage failed; stage-level failure means the bounded batch could not complete.
 
 These Phase 6 values are stage accounting only. They are not aliases for the post-identity processing outcomes introduced when Article persistence exists.
