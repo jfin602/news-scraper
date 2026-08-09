@@ -7,6 +7,11 @@ import type { Socket } from 'node:net';
 import { brotliCompressSync, deflateSync, gzipSync } from 'node:zlib';
 
 const XML = '<rss><channel><title>Fixture</title></channel></rss>';
+const RSS_WITH_ITEM = `<?xml version="1.0"?>
+<rss version="2.0"><channel><title>Fixture</title><item>
+<guid>fixture-1</guid><title>Canonical fixture item</title>
+<link>https://feeds.example.test/articles/fixture-1</link>
+</item></channel></rss>`;
 
 export interface FixtureRequest {
   readonly method: string | undefined;
@@ -108,6 +113,13 @@ function route(request: IncomingMessage, response: ServerResponse): void {
         'application/rss+xml; charset=utf-8',
       );
       return;
+    case '/rss-items':
+      xmlResponse(
+        response,
+        Buffer.from(RSS_WITH_ITEM),
+        'application/rss+xml; charset=utf-8',
+      );
+      return;
     case '/atom':
       xmlResponse(response, Buffer.from(XML), 'application/atom+xml');
       return;
@@ -159,6 +171,9 @@ function route(request: IncomingMessage, response: ServerResponse): void {
         Location: '/xml',
       });
       response.end('redirect body');
+      return;
+    case '/redirect-rss-items':
+      redirectResponse(response, '/rss-items');
       return;
     case '/redirect-relative':
       redirectResponse(response, '../xml');

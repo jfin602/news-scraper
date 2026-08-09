@@ -16,6 +16,7 @@ describe('package command environment contract', () => {
       'test:db',
       'db:migrate',
       'db:bootstrap',
+      'collect:endpoint',
       'start:web',
       'start:worker',
     ];
