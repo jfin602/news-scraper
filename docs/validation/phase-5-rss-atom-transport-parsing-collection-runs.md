@@ -2,9 +2,9 @@
 
 ## Current determination
 
-**PARTIAL — VPS LEVEL 7 EVIDENCE PENDING.**
+**PHASE 5 GREEN — ACCEPTED.**
 
-Stage 1 local validation is green for Levels 0–5 after correction of response-bound defects exposed by two VPS Level 7 attempts. Phase 5 is not complete, the roadmap exit gate is not yet satisfied, and conversational `/closeout` is not authorized. Fresh Level 7 evidence for both approved live Sources must be executed in the repository-owner-designated VPS environment against the corrected candidate implementation tree below.
+Levels 0–5 are green on the accepted candidate implementation tree, and fresh repository-owner VPS Level 7 evidence is green for both approved live Sources after correction of the response-bound defects exposed by the two earlier failed Level 7 attempts. Every P6 acceptance criterion and every Phase 5 roadmap exit-gate item is satisfied. Conversational `/closeout` is now authorized, but was not executed as part of P6.
 
 This artifact records observed evidence; it does not redefine contracts.
 
@@ -15,6 +15,7 @@ This artifact records observed evidence; it does not redefine contracts.
 - Package version: `0.5.6`
 - Validation time: 2026-08-09 14:59:18 -05:00 (America/Chicago)
 - Working-tree relationship: the executable candidate was committed before this documentation artifact. A later docs-only artifact commit does not redefine the candidate executable tree.
+- VPS deployed HEAD: `334cc090ac7806174a5e45ccad80e89aa167ef90`. It is exactly one documentation-only validation-artifact commit on top of the candidate implementation source SHA. The range changes only this canonical artifact; there is no executable source, test, migration, dependency/package metadata, package-script, or committed Publication-configuration drift.
 - Phase 5 committed-change whitespace check: `git diff --check bb63f50..4787b91fcd0f2e1b3ca6042d9790f76cf1726c70` passed.
 
 ## Stage 1 environment and dependency record
@@ -94,49 +95,62 @@ The complete Stage 1 matrix recorded above was rerun against the corrected final
 
 This command was not executed on local Windows because the repository owner designated the VPS as the Phase 5 Level 7 closeout environment. No Level 7 or Level 8 claim is made here.
 
-## VPS handoff
+## Stage 2 VPS Level 7 evidence
 
-Before execution, inspect this artifact and deploy executable tree `4787b91fcd0f2e1b3ca6042d9790f76cf1726c70`. A VPS `HEAD` may include only later documentation-only artifact commits above that candidate. Verify with a commit-range diff that no source, tests, migrations, dependency metadata, package scripts, or committed Publication configuration changed. Any such executable drift invalidates this handoff and requires affected local validation plus a new candidate SHA.
+The repository owner deployed `main` at `334cc090ac7806174a5e45ccad80e89aa167ef90` to host `muffinos`. That deployed SHA is exactly one documentation-only commit on top of accepted implementation source `4787b91fcd0f2e1b3ca6042d9790f76cf1726c70`; the intervening range changes only this validation artifact. The accepted implementation source SHA remains separate from this artifact history.
 
-Required prerequisites, without secret values:
+### Environment and procedure
 
-- Node.js compatible with `>=24.10.0 <25` and npm;
-- PostgreSQL client/server access able to create and force-drop unique disposable test databases;
-- `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` pointing to that safe administrative test boundary;
-- outbound DNS and HTTPS access to the two approved endpoints;
-- repository dependencies installed with `npm install` under the lockfile-disabled policy.
+- Completion time: `2026-08-09T20:06:39+00:00` (UTC).
+- Operating system: Ubuntu 24.04 generation, Linux kernel `6.8.0-117-generic`.
+- Branch: `main`.
+- Node.js: `v24.15.0`.
+- npm: `11.12.1`.
+- PostgreSQL server: `16.14 (Ubuntu 16.14-0ubuntu0.24.04.1)`.
+- PostgreSQL client: `16.14`.
+- Resolved XML parser: `fast-xml-parser@5.10.1`.
+- Package version: `0.5.6`.
+- Exact Level 7 command: `npm run test:live-sources`.
+- Result: 1 test and 1 suite passed; 0 failed, skipped, or todo; exit status `0`; duration approximately 2.995 seconds.
+- Database boundary: disposable PostgreSQL administration used the dedicated `news_scraper_test_admin` boundary, not production application data.
 
-Do **not** point `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` at the production `news_scraper` application database or use production application data as the disposable target.
+Deployment of the corrected tree also ran `npm run check` successfully on the VPS: 166 tests passed with 0 failed, skipped, or todo. The deployment readiness check passed. An immediate curl directly after the PM2 restart briefly received connection refused before the deployment script's retry loop observed readiness and completed; this is deployment timing context, not Level 8 evidence and not a Phase 5 failure.
 
-Run:
+### Approved Source results
 
-```text
-npm install
-npm run test:live-sources
-```
+Author Media — Publication `indie-author-publishing-news`, Source `author_media`, endpoint `site_rss`, `https://www.authormedia.com/feed/`:
 
-The procedure must exercise exactly:
+| Attempt | Outcome | Collection-run ID | Execution ID | Run / transport / parser | HTTP / redirects | Wire / decompressed bytes | Raw items | Elapsed |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| First | `succeeded` / `content` | `0e1defb3-e8de-4399-8267-c6d3aec1c84f` | `a2ad9241-e0a5-481d-877d-f977dcf3ce6d` | `succeeded` / `succeeded` / `succeeded` | `200` / `0` | `21684` / `138079` | `100` | approximately 84.51 ms |
+| Second | `succeeded` / `content` | `f11c795a-ef08-48f9-a130-06c05618e9b0` | `4db01fdd-01f6-4bcd-95e8-5c6b50a89eb5` | `succeeded` / `succeeded` / `succeeded` | `200` / `0` | `21684` / `138079` | `100` | approximately 51.42 ms |
 
-1. Author Media — Publication `indie-author-publishing-news`, Source `author_media`, endpoint `site_rss`, `https://www.authormedia.com/feed/`.
-2. The Creative Penn — Publication `indie-author-publishing-news`, Source `the_creative_penn`, endpoint `podcast_rss`, `https://www.thecreativepenn.com/feed/podcast/`.
+The Creative Penn — Publication `indie-author-publishing-news`, Source `the_creative_penn`, endpoint `podcast_rss`, `https://www.thecreativepenn.com/feed/podcast/`:
 
-Capture and return:
+| Attempt | Outcome | Collection-run ID | Execution ID | Run / transport / parser | HTTP / redirects | Wire / decompressed bytes | Raw items | Elapsed |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| First | `succeeded` / `content` | `55a0e613-a1c7-459b-8c2f-8ddd88a1617b` | `2e75c444-1e1a-4de5-a1cc-d097127621a3` | `succeeded` / `succeeded` / `succeeded` | `200` / `0` | `4722843` / `15807171` | `300` | approximately 363.23 ms |
+| Second | `succeeded` / `content` | `d7295621-44aa-453c-85f2-8d7aeb3bc637` | `72b4af40-9267-4278-82a2-859932aebebf` | `succeeded` / `succeeded` / `succeeded` | `200` / `0` | `4722843` / `15807171` | `300` | approximately 223.21 ms |
 
-- VPS `HEAD`, its relationship to the candidate SHA, branch, timestamp/timezone, OS, Node/npm versions, PostgreSQL client/server versions, and resolved `fast-xml-parser` version;
-- exact command and exit status;
-- for each of both independent attempts and refetches: Source/endpoint identity, outcome, Collection-run ID, run/transport/parser statuses, HTTP status, redirect count, wire/decompressed byte counts, Raw-item count, and elapsed milliseconds;
-- confirmation that every reported attempt has a matching persisted terminal Collection run;
-- bounded Raw-item plausibility metadata if separately inspected, without bodies or credentials;
-- observed refetch behavior and its limitations (304/no parser if validators are used and honored, or repeat content/count behavior if the publisher returns content);
-- confirmation the second Source was attempted independently regardless of the first result;
-- disposable database name pattern and verified cleanup outcome, without credentials.
+The live-source suite verified a matching persisted terminal Collection-run row for every reported attempt before passing. Both approved Sources were executed independently and completed successfully. Earlier failed Level 7 runs also demonstrated that a failure for one Source does not prevent the other from being attempted; deterministic controlled failure-isolation tests remain the authoritative reproducible evidence for broken-feed isolation.
 
-Do not weaken safety/approval rules, substitute publishers, print full publisher content, or claim Level 8. If either approved feed does not successfully fetch and parse, record the failure honestly; the Phase 5 exit gate remains blocked.
+Both publishers returned HTTP 200 content on refetch. Each Source's Raw-item count and wire/decompressed byte counts were identical across its two attempts. No live 304 behavior is claimed; deterministic fixtures remain authoritative for conditional request, no-change, and 304 semantics.
 
-## Exit-gate status and limitations
+There were no `news_scraper_test_%` databases before the successful run and none afterward. Disposable database cleanup therefore completed and was verified.
 
-Levels 0–5 are satisfied on the corrected candidate implementation tree. Both prior VPS attempts exposed the documented response-bound defects and do not satisfy Level 7; the separate complete-feed measurement is diagnostic sizing evidence only. Fresh VPS Level 7 evidence has not yet been supplied for the new 32 MiB candidate, so the requirement for two real approved feeds to fetch/parse successfully through independent Worker executions with persisted truthful runs remains unproven. Fixture evidence is authoritative for deterministic conditional/no-change and broken-feed isolation behavior; the VPS run must record only the live behavior actually observed.
+## Exit-gate determination and limitations
 
-**Current Phase 5 roadmap exit gate: NOT SATISFIED — VPS LEVEL 7 EVIDENCE PENDING.**
+Levels 0–5 are satisfied on accepted implementation source `4787b91fcd0f2e1b3ca6042d9790f76cf1726c70`. Fresh Level 7 evidence against the deployed documentation-only descendant proves that two real approved active enabled feeds fetched and parsed independently through Worker execution and that all four real attempts have persisted truthful Collection runs. The two earlier failed attempts and their response-bound corrections remain recorded above as defect history; they are not substituted for the successful final evidence.
 
-Do not run conversational `/closeout` yet.
+The complete Phase 5 exit gate is satisfied:
+
+- two real approved active enabled feeds fetched and parsed independently through Worker execution;
+- every real fetch attempt has a persisted truthful Collection run;
+- deterministic fixtures cover representative success, malformed input, conditional/no-change, redirects, bounds, and isolated failures;
+- controlled and prior live evidence proves one broken feed does not prevent another endpoint run, with deterministic tests providing the reproducible authority;
+- repeated unchanged live content produced stable Raw-item counts and byte counts, while deterministic fixtures prove transport-safe conditional/no-change behavior at the Raw-item boundary;
+- focused, broader regression, real PostgreSQL Level 4, deterministic fixture Level 5, final-tree static/test/runtime, and durable exact-tree evidence requirements are satisfied without skipped, flaky, or zero-selected required suites.
+
+**Final Phase 5 determination: GREEN — ACCEPTED.**
+
+Every P6 acceptance criterion and every Phase 5 roadmap exit-gate item is satisfied. Conversational `/closeout` is authorized. Level 8 was not executed and is not claimed.
