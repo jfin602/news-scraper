@@ -189,7 +189,8 @@ PostgreSQL connection URL and run `npm run db:migrate` explicitly. Web/API and W
 startup do not apply migrations, including when started with values from `.env`. The
 application URL is separate from
 `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL`; the latter is privileged test administration
-used only by `npm run test:db` and must never point at ordinary development or
+used by database-backed validation commands such as `npm run test:db` and
+`npm run test:live-sources` and must never point at ordinary development or
 production application data.
 
 ## Security and reliability
