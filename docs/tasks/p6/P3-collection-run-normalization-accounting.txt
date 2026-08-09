@@ -1,0 +1,309 @@
+TASK: Phase 6 / P3 — Collection-run normalization accounting
+
+ROADMAP PHASE
+Phase 6 — Article normalization.
+
+MINIMUM MODEL / EFFORT
+- Minimum recommended rating: `Terra Max`.
+- A stronger model/effort tier may be used.
+- Do not lower this rating without explicit repository-owner direction.
+- Rationale: this task is a bounded schema/repository extension, but it introduces durable Phase 6 stage semantics and arithmetic invariants while preserving historical Phase 5 rows. Incorrect constraints or compatibility handling would create persistent provenance/accounting defects and could block later pipeline integration.
+
+VERSIONING
+- This is Phase 6 prompt 3 and its assigned project version is `0.6.3`.
+- On first execution confirm P2 left `package.json` at `0.6.2`, then advance only its top-level `version` to `0.6.3`.
+- If this same P3 prompt is rerun and `package.json` is already `0.6.3`, retain `0.6.3`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` is the sole authoritative current-version source.
+- The repository intentionally does not use `package-lock.json`; do not create, require, regenerate, or validate one.
+
+DEPENDS ON
+- Existing Phase 5 `collection_runs` table/repository and guarded terminal finalization lifecycle.
+- Existing migration framework and disposable PostgreSQL tests.
+- P1/P2 may exist, but P3 does not execute normalization or Article-link policy yet.
+- P4 will later populate Phase 6 counts/statuses through the canonical Worker collection path.
+
+GOAL
+Extend the existing Collection-run model with the exact Phase 6 pre-persistence normalization stage/status/count vocabulary while preserving every Phase 5 transport/parser lifecycle and historical row.
+
+P3 owns durable schema/repository/accounting shape only. Actual normalization execution remains `not_run` in all current collection paths until P4 integrates the stage.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- current `migrations/0002_collection_runs.sql`;
+- `src/collection/runs/repository.ts`;
+- `src/collection/collect-endpoint.ts`;
+- `src/app/worker/collect-main.ts`;
+- current run repository/unit/database/integration tests;
+- current migration-from-zero/history tests.
+
+CURRENT SOURCE / IMPORTANT BASELINE
+At the P3 boundary:
+- `collection_runs` has run status, transport status, parser status, HTTP/byte metadata, `raw_item_count`, bounded error code/detail, endpoint/run identity and timestamps;
+- running runs begin with transport/parser `not_run` and zero Raw items;
+- finalization is guarded to terminalize a running row exactly once;
+- `collectEndpoint()` finalizes immediately after transport/parser behavior and exposes no normalization fields;
+- Worker command JSON mirrors run/transport/parser status and Raw-item count;
+- production migrations are currently `0001_publication_source_configuration.sql` and `0002_collection_runs.sql`;
+- migration contents/checksums are immutable once applied; P3 must add 0003, not edit 0002.
+
+CANONICAL PHASE 6 ACCOUNTING
+The persisted Phase 6 values are:
+
+Normalization stage status:
+- `not_run`
+- `succeeded`
+- `failed`
+
+Counters:
+- `normalized_candidate_count`
+- `normalization_failure_count`
+- `article_link_rejection_count`
+
+Canonical meanings:
+- `normalized_candidate_count` counts Raw items that completed normalization into an Article candidate BEFORE the separate Article-link decision;
+- `normalization_failure_count` counts Raw items that could not produce an Article candidate because normalization failed or required candidate data was malformed/invalid/out of bounds;
+- `article_link_rejection_count` counts normalized candidates rejected by the separate Article-link/domain policy gate;
+- safe candidates for the next stage = `normalized_candidate_count - article_link_rejection_count`.
+
+These are pre-persistence stage counters. Do not add or reuse Phase 7 processing outcomes such as `created`, `updated`, `unchanged`, `rejected`, `excluded`, or candidate-level `failed` outcome counters.
+
+MIGRATION
+Add exactly one additive migration, recommended:
+- `migrations/0003_collection_run_normalization.sql`.
+
+Do NOT alter 0001 or 0002.
+
+Add columns equivalent to:
+- `normalization_status` text NOT NULL DEFAULT `not_run`;
+- `normalized_candidate_count` integer NOT NULL DEFAULT 0;
+- `normalization_failure_count` integer NOT NULL DEFAULT 0;
+- `article_link_rejection_count` integer NOT NULL DEFAULT 0.
+
+Use current snake_case SQL conventions.
+
+DATABASE CONSTRAINTS
+Enforce durable invariants without making valid historical Phase 5 rows impossible.
+
+At minimum:
+- allowed normalization status vocabulary;
+- all three counts are nonnegative;
+- `article_link_rejection_count <= normalized_candidate_count`;
+- `normalization_status = 'not_run'` requires all Phase 6 counters to remain zero;
+- a normalization stage that is not `not_run` requires parser status `succeeded`;
+- when normalization status is `succeeded`, `raw_item_count = normalized_candidate_count + normalization_failure_count`;
+- a terminal run with `normalization_status = 'failed'` cannot report overall run status `succeeded`.
+
+Do NOT require the Phase 6 arithmetic for historical Phase 5 rows where parser status is `succeeded`, Raw-item count may be positive, but normalization status defaults to `not_run` and Phase 6 counts are all zero.
+
+Do not overconstrain future Phase 7+ outcome/effect additions. The DB should enforce timeless Phase 6 stage invariants, not every possible future pipeline combination.
+
+HISTORICAL / UPGRADE COMPATIBILITY
+This is contract critical.
+
+Prove that applying 0003 to a database already migrated through 0002 with representative Phase 5 rows:
+- succeeds without data rewriting/loss;
+- defaults every historical row to normalization `not_run` + zero Phase 6 counts;
+- preserves existing run/transport/parser statuses, Raw-item counts, timestamps, HTTP/byte/error metadata;
+- leaves the migration ledger coherent/current.
+
+Do not rewrite historical positive `raw_item_count` rows to make new arithmetic appear true. The arithmetic applies only when a Phase 6 normalization batch completed.
+
+RUN REPOSITORY TYPES
+Extend `src/collection/runs/repository.ts` with:
+- `CollectionRunNormalizationStatus` or equivalent;
+- persisted object fields for normalization status + all counters;
+- row fields/mapping;
+- terminal finalization input fields;
+- validation of the canonical relationships above;
+- SQL insert/default/read/update columns.
+
+Running runs should begin:
+- normalization `not_run`;
+- all Phase 6 counters zero.
+
+Use immutable mapped objects consistent with existing repository style.
+
+Do not expose generic partial run mutation.
+
+FINALIZATION INPUT
+Once P3 lands, terminal finalization should treat Phase 6 fields as explicit first-class input rather than leaving an indefinite optional compatibility shape.
+
+Therefore update all existing production/test call sites to state their truth explicitly.
+
+Until P4 actually executes normalization, every Phase 5-style attempt must finalize with:
+- `normalizationStatus: 'not_run'`;
+- `normalizedCandidateCount: 0`;
+- `normalizationFailureCount: 0`;
+- `articleLinkRejectionCount: 0`.
+
+This includes:
+- safety-blocked attempts;
+- fetch failures;
+- 304 not-modified;
+- parser failures;
+- parser-success content attempts in the interim P3 tree.
+
+A parser-success content attempt may have `rawItemCount > 0` while normalization remains `not_run` in P3. This is intentionally temporary/truthful until P4.
+
+COLLECTION RESULT / PROCESS-FACING ACCOUNTING
+Extend the current `EndpointCollectionAttemptResult` and Worker command output to expose the persisted Phase 6 fields even though they remain `not_run`/zero during P3.
+
+Why:
+- result and persisted run state should not silently diverge;
+- P4 can later change values without redesigning the process-facing shape;
+- closeout/live validation needs a stable observable accounting surface.
+
+Do NOT expose fake safe-candidate counts or normalized samples in P3. Those require actual P4 execution.
+
+FINALIZATION CONSISTENCY CHECK
+Extend `resultFromFinalized(...)` or equivalent consistency validation so returned successful/failed attempt state must match the persisted normalization status/counts as well as current run/transport/parser/Raw-item values.
+
+A persistence layer returning contradictory Phase 6 values must not be silently accepted.
+
+UNIT TESTS
+Extend focused run repository mapping tests, currently under `test/unit/collection-run-repository.test.ts` or equivalent.
+
+Cover at least:
+- valid mapped `not_run` defaults;
+- valid mapped succeeded normalization counts;
+- PostgreSQL integer/string mapping behavior remains correct;
+- invalid normalization status;
+- negative candidate/failure/rejection counts;
+- link rejection > normalized candidate count;
+- `not_run` with nonzero Phase 6 count rejected;
+- succeeded normalization with arithmetic mismatch rejected;
+- normalization executed while parser is not succeeded rejected;
+- failed normalization with overall succeeded terminal state rejected as applicable at repository validation boundary;
+- mapping result remains frozen.
+
+DATABASE / LEVEL 4 TESTS
+Extend `test/database/collection-runs.test.ts` and migration tests using real disposable PostgreSQL.
+
+Prove at least:
+1. start creates a run with normalization `not_run` and zero Phase 6 counts;
+2. valid completed normalization finalization persists exact counts/status;
+3. zero Raw-item successful normalized batch is valid with succeeded normalization and all zero counts;
+4. mixed normalized/failure/rejection counts satisfying arithmetic persist;
+5. invalid direct SQL negative counts are rejected;
+6. invalid direct SQL link rejection > candidate count is rejected;
+7. invalid direct SQL `not_run` + nonzero counts is rejected;
+8. invalid succeeded normalization arithmetic is rejected;
+9. normalization executed with parser not succeeded is rejected;
+10. overall succeeded + normalization failed is rejected;
+11. existing transport/parser/no-change/failure finalization remains valid with normalization not_run/zero;
+12. terminal guarded finalization remains exactly once;
+13. transaction rollback behavior remains intact.
+
+UPGRADE TEST
+Add a focused real-PostgreSQL migration upgrade test that:
+- applies only production 0001 + 0002 first;
+- inserts/creates representative Phase 5 `collection_runs`, including parser-success positive Raw-item count and failed/not-modified cases;
+- then applies 0003 using the real migration system;
+- proves original values are preserved and new defaults are correct;
+- proves schema status becomes current;
+- proves rerunning migrations is idempotent.
+
+Do not fake this by applying all migrations from zero and merely inspecting defaults; the compatibility claim requires an actual pre-0003 state.
+
+INTEGRATION / COMMAND TEST UPDATES
+Update existing `collect-endpoint` and Worker command tests to expect normalization `not_run` + zero counts in the interim P3 implementation.
+
+Do not invoke P1 normalizer/P2 policy here.
+
+Preserve all existing Phase 5 orchestration outcomes:
+- eligibility/lock no-run behavior;
+- safety block;
+- fetch failure;
+- 304;
+- parser success/failure;
+- run start/finalization failure behavior;
+- lock release/isolation;
+- Raw-item visibility in internal Phase 5 result until P4 replaces the downstream boundary.
+
+BROADER REGRESSION COVERAGE
+Run and record at minimum:
+- focused run repository unit tests;
+- focused Collection-run database tests;
+- migration/history/upgrade tests;
+- `npm run test:unit`;
+- `npm run test:integration`;
+- `npm run test:db` with the safe test-admin prerequisite;
+- `npm run test:collection`;
+- `npm test`;
+- `npm run format:check`;
+- `npm run lint`;
+- `npm run typecheck`;
+- `npm run check`.
+
+Do not require live public Sources in P3.
+
+LIKELY FILE SCOPE
+Expected successful P3 changes:
+- `package.json` — version only;
+- `migrations/0003_collection_run_normalization.sql`;
+- `src/collection/runs/repository.ts`;
+- `src/collection/collect-endpoint.ts` — explicit interim not_run/zero Phase 6 accounting + result consistency only;
+- `src/app/worker/collect-main.ts` — emit new run accounting fields only;
+- `test/unit/collection-run-repository.test.ts`;
+- `test/database/collection-runs.test.ts`;
+- `test/database/migrations.test.ts` and/or a focused migration-upgrade test;
+- `test/integration/collect-endpoint.test.ts`;
+- `test/integration/collect-endpoint-command.test.ts`.
+
+Allowed directly necessary additions:
+- a narrow database migration-upgrade test file if cleaner than expanding existing migration tests.
+
+Do not modify in normal P3:
+- P1 normalization algorithms;
+- P2 Article-link policy algorithms;
+- fetcher/parser safety semantics;
+- Source configuration/bootstrap data;
+- contracts/roadmap/root docs;
+- validation artifacts.
+
+REQUIRED EVIDENCE LEVELS
+- Level 1: migration/file/version/static structure.
+- Level 2: repository mapping/validation.
+- Level 3: existing endpoint/command integration shape after accounting extension.
+- Level 4: production migration from zero, actual 0002->0003 upgrade, DB constraints, run lifecycle/finalization/rollback against disposable PostgreSQL.
+- Level 5+: not required to prove P3 itself, though existing deterministic collection regression must remain green.
+
+ACCEPTANCE CRITERIA
+P3 is complete only when:
+- `package.json` is exactly `0.6.3`;
+- additive production migration 0003 introduces the Phase 6 status/counters without modifying prior migrations;
+- historical Phase 5 runs upgrade without data loss and default to truthful normalization `not_run`/zero state;
+- repository start/map/finalize semantics include the new Phase 6 fields;
+- durable constraints enforce nonnegative/subset/not-run/arithmetic/parser/run-status invariants without invalidating historical rows;
+- current pre-P4 endpoint executions explicitly persist/return normalization not_run + zero counts;
+- Worker output exposes those persisted values;
+- no normalization execution or link-policy execution is introduced yet;
+- no Phase 7 processing outcome counters appear;
+- Level 4 and broader regressions pass on the final tree;
+- no `package-lock.json` is created.
+
+NON-GOALS / DEFERRED
+Do not implement in P3:
+- actual Raw-item normalization execution;
+- Article-link decision execution;
+- candidate samples;
+- Relevance;
+- Article/observation schema or persistence;
+- Article identity/uniqueness;
+- duplicates;
+- scheduler/jobs/health;
+- public/admin UI;
+- endpoint cache state.
+
+IMPLEMENTATION DISCIPLINE
+P3 changes the durable vocabulary before the Worker uses it. Keep the interim state explicit and truthful: parser-success Phase 5 content can still have positive Raw-item count with normalization `not_run` until P4 integrates the stage. Never rewrite history or fabricate post-identity outcomes to make accounting look complete.
