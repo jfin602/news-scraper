@@ -290,7 +290,7 @@ function redirectResponse(response: ServerResponse, location: string): void {
 
 function boundedQueryNumber(value: string | null, fallback: number): number {
   if (value === null || !/^\d{1,7}$/u.test(value)) return fallback;
-  return Math.min(Number(value), 2_000_000);
+  return Math.min(Number(value), 3_000_000);
 }
 
 function redirectStatus(value: string | null): 301 | 302 | 303 | 307 | 308 {

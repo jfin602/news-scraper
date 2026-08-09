@@ -125,6 +125,19 @@ describe('RssAtomParser', () => {
   });
 
   it('enforces input, nesting, item-count, field, and category bounds', () => {
+    for (const bytes of [
+      RSS_ATOM_LIMITS.inputBytes - 1,
+      RSS_ATOM_LIMITS.inputBytes,
+    ]) {
+      const result = parser.parse({ content: rssDocumentWithBytes(bytes) });
+      assert.equal(result.ok, true, `expected ${String(bytes)} bytes to parse`);
+    }
+
+    const aboveOldLimit = parser.parse({
+      content: rssDocumentWithBytes(1_048_576 + 1),
+    });
+    assert.equal(aboveOldLimit.ok, true);
+
     assert.equal(
       failureReason(
         parser.parse({ content: ' '.repeat(RSS_ATOM_LIMITS.inputBytes + 1) }),
@@ -189,4 +202,11 @@ function failureReason(
   result: ReturnType<RssAtomParser['parse']>,
 ): string | undefined {
   return result.ok ? undefined : result.reason;
+}
+
+function rssDocumentWithBytes(bytes: number): string {
+  const prefix = '<rss version="2.0"><channel><!--';
+  const suffix = '--></channel></rss>';
+  assert.ok(bytes >= prefix.length + suffix.length);
+  return `${prefix}${'x'.repeat(bytes - prefix.length - suffix.length)}${suffix}`;
 }

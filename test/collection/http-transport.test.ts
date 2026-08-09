@@ -4,6 +4,7 @@ import type { ClientRequest } from 'node:http';
 import { describe, it } from 'node:test';
 
 import {
+  HTTP_TRANSPORT_DEFAULTS,
   resolveFetchRequest,
   type FetchRequest,
   type FetchResult,
@@ -232,6 +233,24 @@ describe('one-hop HTTP transport', () => {
 
   it('enforces decompressed limits below, at, and above the boundary and rejects compressed bombs', async () => {
     await withServer(async (server) => {
+      for (const [bytes, expected] of [
+        [HTTP_TRANSPORT_DEFAULTS.maxDecompressedBytes - 1, 'content'],
+        [HTTP_TRANSPORT_DEFAULTS.maxDecompressedBytes, 'content'],
+        [HTTP_TRANSPORT_DEFAULTS.maxDecompressedBytes + 1, 'failure'],
+      ] as const) {
+        const result = await fetchPath(server, `/gzip?bytes=${String(bytes)}`);
+        assert.equal(result.outcome, expected);
+        if (bytes === HTTP_TRANSPORT_DEFAULTS.maxDecompressedBytes + 1) {
+          assertFailure(result, 'decompressed_size_limit', 'permanent');
+        }
+      }
+
+      const aboveOldDefault = await fetchPath(
+        server,
+        `/gzip?bytes=${String(1_048_576 + 1)}`,
+      );
+      assert.equal(aboveOldDefault.outcome, 'content');
+
       for (const [bytes, expected] of [
         [9, 'content'],
         [10, 'content'],
