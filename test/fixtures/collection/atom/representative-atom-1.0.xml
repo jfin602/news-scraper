@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en-GB">
+  <title>Generic Atom Source</title>
+  <entry>
+    <id>tag:example.test,2026:one</id>
+    <title type="html">First Atom headline</title>
+    <link rel="self" href="https://feeds.example/entry/one" />
+    <link rel="alternate" href="https://news.example/atom/one?ref=feed#top" />
+    <published>2026-08-05T11:00:00-05:00</published>
+    <updated>2026-08-05T12:00:00-05:00</updated>
+    <author><name>Jordan Example</name></author>
+    <summary><![CDATA[<p>Untrusted Atom summary.</p>]]></summary>
+    <category term="Analysis" />
+    <category term="Updates" />
+  </entry>
+  <entry xml:lang="fr">
+    <id>tag:example.test,2026:two</id>
+    <link href="/atom/two" />
+    <content>Content without a fabricated title.</content>
+    <category term="Single" />
+  </entry>
+</feed>

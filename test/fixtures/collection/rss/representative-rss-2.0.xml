@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:media="http://search.yahoo.com/mrss/">
+  <channel>
+    <title>Generic Source</title>
+    <language>en-US</language>
+    <item>
+      <guid isPermaLink="false">source-item-1</guid>
+      <title>First &amp; unnormalized headline</title>
+      <link>https://news.example/articles/first?utm_source=feed#section</link>
+      <pubDate>Tue, 05 Aug 2026 12:34:56 GMT</pubDate>
+      <dc:creator>Alex Example</dc:creator>
+      <description><![CDATA[<p>Untrusted <strong>summary</strong>.</p>]]></description>
+      <category>Industry</category>
+      <category>Updates</category>
+      <media:content medium="image" url="https://cdn.example/first.jpg" />
+    </item>
+    <item>
+      <guid>source-item-2</guid>
+      <title>Second headline</title>
+      <link>/relative/second</link>
+      <description>Plain summary</description>
+      <category>Single category</category>
+    </item>
+  </channel>
+</rss>

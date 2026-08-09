@@ -23,6 +23,7 @@ describe('package command environment contract', () => {
       'test',
       'test:unit',
       'test:integration',
+      'test:collection',
       'check',
     ];
 
