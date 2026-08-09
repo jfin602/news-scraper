@@ -31,6 +31,69 @@ Perform final-tree Phase 5 validation, fix only defects required to satisfy the 
 
 P6 is primarily a validation/closeout task, not a feature prompt. Do not add new product scope merely to make validation easier.
 
+TWO-STAGE CLOSEOUT / EXTERNAL LIVE-EVIDENCE HANDOFF
+Phase 5 closeout is explicitly allowed to span two environments:
+
+1. Stage 1 — primary Codex/local environment, expected to be the repository owner's Windows development environment.
+2. Stage 2 — repository-owner VPS environment, used for the required approved live-Source evidence when that evidence cannot or should not be executed from the primary Codex environment.
+
+Do not force one environment to stand in for evidence that belongs to the other. Evidence claims remain scoped to the exact environment, command/procedure, source tree, and evidence level actually observed.
+
+STAGE 1 — LOCAL / WINDOWS CANDIDATE VALIDATION
+On the first P6 execution:
+- advance to `0.5.6` as specified above;
+- inspect/finalize the Phase 5 implementation tree;
+- add the substantive explicit `test:live-sources` command/procedure if it does not already exist;
+- run every required static, deterministic, fixture, process, and Level 4 PostgreSQL check that is available in the primary environment;
+- fix only Phase 5 defects discovered by that validation;
+- rerun the complete affected matrix after any implementation/test correction;
+- establish the exact final `0.5.6` candidate implementation source SHA only after all executable source/test/version changes are complete;
+- create or update the one canonical Phase 5 validation artifact even if VPS Level 7 evidence is still outstanding.
+
+If all locally executable requirements pass but required VPS Level 7 evidence has not yet been supplied, the Stage 1 result is NOT Phase 5 green. Record the artifact state explicitly as:
+- `PARTIAL — VPS LEVEL 7 EVIDENCE PENDING`, or equivalent unambiguous wording.
+
+That state means the local candidate is ready for external live validation; it is not a failure of otherwise passing local evidence and it is not permission to run conversational `/closeout`.
+
+The Stage 1 artifact must contain a dedicated `VPS handoff` section recording:
+- exact candidate implementation source SHA;
+- package version `0.5.6`;
+- branch;
+- local environment/tool versions;
+- local commands/procedures actually executed and concise outcomes;
+- evidence levels already satisfied;
+- explicit statement that Level 7 has not yet been claimed;
+- exact remaining live-source command/procedure expected on the VPS;
+- required environment prerequisites for that command, without secrets;
+- the two approved Source/endpoint identities that must be exercised;
+- the bounded result fields that must be captured for final artifact completion;
+- explicit instruction not to use the production application database as the disposable test database.
+
+If the validation artifact is committed after the candidate implementation source SHA, record the candidate implementation SHA separately from the later docs-only artifact commit SHA. A later docs-only artifact commit does not redefine the candidate executable tree.
+
+STAGE 2 — VPS LEVEL 7 VALIDATION
+The repository owner may inspect the Stage 1 artifact, deploy the candidate tree to the VPS, and execute the required live procedure there.
+
+Before accepting VPS evidence:
+- verify the VPS deployment corresponds to the Stage 1 candidate implementation tree;
+- if VPS `HEAD` includes only later docs-only validation-artifact commits on top of the candidate implementation SHA, record that relationship and confirm no executable product/test/migration/configuration drift exists between the candidate SHA and deployed tree;
+- if executable source, tests, migrations, dependency metadata, package scripts, or committed Publication configuration changed after Stage 1 validation, the candidate SHA is stale and affected local validation must be rerun before closeout.
+
+The VPS Level 7 procedure must use a safe disposable PostgreSQL administrative boundary through `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL`; it must not use the production `news_scraper` application database as the disposable test target.
+
+After the repository owner supplies the VPS output/evidence, rerun this same P6 task at `0.5.6`. Do not consume another prompt/version number.
+
+On the Stage 2/finalization rerun:
+- inspect the existing canonical validation artifact first;
+- verify supplied VPS evidence applies to the recorded candidate implementation tree;
+- record the VPS environment/tool versions, commands/procedures, timestamp/timezone, bounded results, evidence level, and limitations;
+- update the same canonical validation artifact; do not create a second Phase 5 validation artifact;
+- if no executable source changes are needed, do not rerun unrelated local suites merely because the artifact changed;
+- if live evidence exposes an implementation defect requiring executable changes, fix the smallest root cause under `0.5.6`, establish a new candidate implementation SHA, rerun all affected local/final-tree evidence, and require fresh VPS Level 7 evidence against that new candidate;
+- only after all final acceptance criteria are satisfied may the artifact state become Phase 5 green/accepted.
+
+Do not substitute local Windows live-network evidence for separately supplied VPS evidence when the repository owner has designated the VPS as the Level 7 closeout environment. Do not claim Level 8 reference-deployment validation unless that separate level was intentionally executed and recorded.
+
 GOVERNING DOCUMENTS
 Read current versions before validation and again if implementation changes materially during defect correction:
 - `BOOT.md`
@@ -70,7 +133,7 @@ If validation exposes a defect:
 - fix the smallest root cause under the same P6 `0.5.6` version;
 - add/adjust focused regression coverage;
 - rerun every affected broader suite plus the complete closeout matrix;
-- the accepted implementation SHA must be established only after the final code/test/version state is complete.
+- establish the accepted implementation SHA only after the final executable code/test/version state is complete.
 
 If validation exposes a material contract ambiguity or architecture decision that cannot be corrected as a clear defect, stop and report the blocker rather than inventing new Phase 5 scope during closeout.
 
@@ -89,14 +152,14 @@ Before running proof, inspect the final tree and confirm it has one coherent imp
 Report unexpected parallel fetch/parser/run paths as a closeout concern even if tests pass.
 
 CLEAN DEPENDENCY / ENVIRONMENT RECORD
-Record at minimum:
-- final implementation commit/source SHA;
+Record at minimum for each environment used:
+- implementation source SHA/deployed relationship;
 - branch;
 - Node version;
 - npm version;
 - PostgreSQL server/client version relevant to DB evidence;
-- operating system/platform where useful;
-- resolved XML parser dependency version;
+- operating system/platform;
+- resolved XML parser dependency version where relevant;
 - relevant environment prerequisites used, without exposing credentials.
 
 Because the repository intentionally has no package lock:
@@ -108,12 +171,12 @@ Because the repository intentionally has no package lock:
 VERSION-FIRST CLOSEOUT SEQUENCE
 P6 owns `0.5.6`.
 
-Before final validation:
+Before candidate validation:
 1. verify expected preceding version `0.5.5` or existing rerun version `0.5.6`;
 2. set top-level `package.json` version to `0.5.6` if needed;
 3. do not alter dependency ranges merely for the version bump;
-4. include the versioned tree in every final validation claim;
-5. if later defect fixes alter source after an earlier test pass, rerun the applicable final matrix against the new final tree.
+4. include the versioned tree in every validation claim;
+5. if later defect fixes alter executable source after an earlier test pass, rerun the applicable matrix and establish a new candidate SHA before collecting/reusing live evidence.
 
 STATIC / STRUCTURAL REVIEW
 Before or alongside execution, inspect final Phase 5 source and confirm:
@@ -136,7 +199,7 @@ Before or alongside execution, inspect final Phase 5 source and confirm:
 - logging/output does not expose credentials, database URLs, authorization headers, raw bodies, or unbounded stack/error content.
 
 ORDINARY STATIC / DETERMINISTIC COMMANDS
-Run against the exact final tree and record exact outcomes:
+Run against the exact candidate tree and record exact outcomes:
 - `npm install`
 - `npm run format:check`
 - `npm run lint`
@@ -172,6 +235,8 @@ Required DB evidence includes:
 - disposable databases are cleaned up and cleanup is verified.
 
 A mocked DB test does not satisfy these claims.
+
+If the primary environment genuinely cannot supply the required Level 4 prerequisite, record that as a real blocking evidence gap; do not silently defer Level 4 merely because Stage 2 exists. The two-stage handoff is primarily for the designated VPS Level 7 evidence.
 
 DETERMINISTIC LEVEL 5 COLLECTION MATRIX
 `npm run test:collection` plus relevant ordinary integration tests must prove representative behavior without live publisher dependencies.
@@ -313,7 +378,7 @@ For each approved endpoint independently:
 7. confirm the second Source executes independently even if the first failed;
 8. record actual observed failure honestly if a publisher is unavailable/changed; do not rewrite contracts or whitelist policy to force green.
 
-The roadmap exit gate requires at least two real approved feeds to fetch/parse successfully. If one/both approved feeds are currently unavailable or changed incompatibly, Phase 5 closeout is BLOCKED until the real issue is resolved through an appropriate follow-up decision/fix. Do not treat a historical or mocked success as substitute evidence.
+The roadmap exit gate requires at least two real approved feeds to fetch/parse successfully. If one/both approved feeds are currently unavailable or changed incompatibly, Phase 5 closeout remains BLOCKED until the real issue is resolved through an appropriate follow-up decision/fix. Do not treat historical or mocked success as substitute evidence.
 
 UNCHANGED / CONDITIONAL LIVE BEHAVIOR
 The exit gate also requires re-fetching unchanged content to be transport-safe and deterministic at the Raw-item boundary.
@@ -332,38 +397,58 @@ The roadmap requires one broken feed not to prevent another run from completing.
 
 Deterministic tests must prove this reliably.
 
-For live validation, do not intentionally break or attack a publisher. It is enough to execute the two approved endpoints as independent operations and establish that one operation’s result/failure does not control whether the other is attempted. If both succeed, deterministic controlled failure tests remain the proof of the broken-feed case.
+For live validation, do not intentionally break or attack a publisher. It is enough to execute the two approved endpoints as independent operations and establish that one operation's result/failure does not control whether the other is attempted. If both succeed, deterministic controlled failure tests remain the proof of the broken-feed case.
 
 DO NOT RUN IN BROWSER
 Phase 5 has no browser-dependent product behavior. `test:browser` / Level 6 is not required.
 
 DO NOT CLAIM REFERENCE DEPLOYMENT
-Phase 5 closeout is not Level 8 deployment proof unless the user separately requests and an actual reference environment exists. Do not imply production readiness from local/fixture/live validation.
+Phase 5 closeout is not Level 8 deployment proof unless the user separately requests it and the corresponding reference-deployment procedure is actually executed. Existing VPS health, PM2, nginx, Cloudflare, backup, or restore observations may be recorded separately for their true scope, but they do not substitute for or automatically elevate P6 Level 7 live-Source evidence to Level 8.
 
 CLOSEOUT VALIDATION ARTIFACT
-Create exactly one durable artifact after final implementation validation succeeds, recommended:
+Maintain exactly one canonical artifact:
 - `docs/validation/phase-5-rss-atom-transport-parsing-collection-runs.md`
 
-The artifact must identify:
+Stage 1 MUST create/update this artifact once the candidate implementation SHA is established and local validation has been executed, even when VPS Level 7 evidence is still outstanding.
+
+Stage 1 artifact state:
+- mark it explicitly `PARTIAL — VPS LEVEL 7 EVIDENCE PENDING` when local required evidence is green but the designated VPS live procedure has not yet been supplied;
+- do not state that Phase 5 is complete;
+- do not state that the roadmap exit gate is satisfied;
+- do not authorize `/closeout`.
+
+Final Stage 2 artifact state:
+- update the same file with verified VPS Level 7 evidence;
+- change the final exit-gate determination to green only if every acceptance criterion is satisfied;
+- do not create a second closeout artifact.
+
+The artifact must identify, as applicable to each stage:
 - validation date/time/timezone;
 - branch;
-- exact accepted Phase 5 implementation source SHA (the final source tree being validated, before/independent of any later docs-only artifact commit if the workflow requires that distinction);
+- exact candidate/accepted Phase 5 implementation source SHA;
+- any later docs-only artifact commit SHA and its relationship to the candidate SHA;
 - package version `0.5.6`;
-- Node/npm/PostgreSQL/XML-parser versions/environment;
+- Node/npm/PostgreSQL/XML-parser versions and operating environment for each evidence source;
 - commands/procedures actually executed;
 - concise result counts/statuses;
 - evidence level for each claim;
-- live Source names/endpoints actually observed;
+- live Source names/endpoints actually observed once Level 7 is supplied;
 - bounded observed live results and timing context;
 - limitations/environmental caveats;
-- explicit Phase 5 roadmap exit-gate determination;
+- explicit current Phase 5 roadmap exit-gate determination;
 - explicit statement that the artifact records evidence and does not redefine contracts.
 
 Do not copy huge terminal logs into the artifact. Preserve enough exact command/result information to prove what was run.
 
-If the artifact itself is committed after the validated source SHA, state both:
-- accepted/validated implementation source SHA;
-- docs artifact commit SHA if known afterward.
+VPS HANDOFF OUTPUT REQUIRED FROM STAGE 1
+The Stage 1 task result shown to the repository owner must prominently report:
+- candidate implementation SHA;
+- validation artifact path;
+- artifact state (`PARTIAL — VPS LEVEL 7 EVIDENCE PENDING` when applicable);
+- whether `test:live-sources` was added/changed and its exact invocation;
+- required VPS environment variable/prerequisite names without secret values;
+- explicit instruction that the repository owner should inspect the validation artifact before executing the VPS phase;
+- explicit statement that conversational `/closeout` must not run yet.
 
 FINAL NO-SCOPE-LEAK INSPECTION
 Before declaring Phase 5 complete, inspect final tree and affirm that Phase 5 did NOT implement:
@@ -387,7 +472,7 @@ Before declaring Phase 5 complete, inspect final tree and affirm that Phase 5 di
 If later-phase code was introduced accidentally, remove it or report the blocker before closeout.
 
 BROADER REGRESSION / PRESERVED BEHAVIOR
-Explicitly confirm earlier behavior remains green on the final P6 tree:
+Explicitly confirm earlier behavior remains green on the final candidate tree:
 - Web/API liveness/readiness;
 - Worker readiness/lifecycle/clean shutdown;
 - runtime/database config validation;
@@ -419,36 +504,55 @@ REQUIRED EVIDENCE LEVELS
 - Level 4: real disposable PostgreSQL migration/run/lock persistence evidence.
 - Level 5: deterministic controlled HTTP/RSS/Atom/redirect/conditional/bounds/failure fixture evidence.
 - Level 6: not applicable.
-- Level 7: both approved live Sources through the production Worker collection execution path.
+- Level 7: both approved live Sources through the production Worker collection execution path, supplied from the designated VPS closeout environment when using the two-stage workflow.
 - Level 8: not required.
 
-ACCEPTANCE CRITERIA
-P6 / Phase 5 is complete only when:
+STAGE 1 ACCEPTANCE / HANDOFF CRITERIA
+Stage 1 is ready to hand to the repository owner for VPS validation only when:
 - `package.json` is exactly `0.5.6`;
-- clean install/static/type/lint/format checks pass on the final tree;
+- all executable P6 changes required for the candidate are complete;
+- clean install/static/type/lint/format checks pass on the candidate tree;
 - complete deterministic ordinary and `test:collection` matrices pass with no required zero-selected/skipped/flaky substitutes;
 - full `test:db` passes against safe disposable PostgreSQL and cleanup is verified;
-- deterministic fixtures prove RSS, Atom, malformed XML, HTTP conditionals/304, redirects, timeouts, size/decompression bounds, content-type/encoding handling, and isolated failures;
+- deterministic fixtures cover the Phase 5 matrix;
 - Phase 4 security/lock regressions remain green;
 - manual Worker collection command/service behavior is validated;
+- substantive `test:live-sources` or equivalent explicit procedure exists and is outside ordinary deterministic commands;
+- no later-phase scope leak remains;
+- no `package-lock.json` exists;
+- candidate implementation SHA is established;
+- the canonical validation artifact exists in `PARTIAL — VPS LEVEL 7 EVIDENCE PENDING` state with a complete VPS handoff section.
+
+If those local requirements do not pass, do not label the result as merely VPS-pending; report the actual local blocker.
+
+FINAL ACCEPTANCE CRITERIA
+P6 / Phase 5 is complete only when:
+- every Stage 1 handoff criterion remains valid for the accepted implementation tree;
 - Author Media and The Creative Penn each successfully fetch/parse through the real canonical Worker execution path under Level 7 evidence;
 - every observed live fetch attempt has truthful persisted Collection-run provenance;
 - unchanged/refetch behavior is supported safely with deterministic fixture proof and live observations recorded without persistent Phase 10 cache state;
 - failure isolation is proven deterministically and independent live attempts are observed;
-- no later-phase scope leak remains;
-- a durable Phase 5 validation artifact records the exact accepted implementation SHA, commands/procedures, environment, results, evidence levels, and limitations;
+- VPS evidence is tied to the same accepted executable tree, allowing only explicitly recorded docs-only artifact commits above the candidate SHA;
+- the canonical durable Phase 5 validation artifact records local and VPS environments separately, commands/procedures, results, evidence levels, limitations, and the exact accepted implementation SHA;
+- the artifact explicitly determines the Phase 5 roadmap exit gate is satisfied;
+- no later executable drift invalidates the recorded evidence;
 - no `package-lock.json` exists.
 
-BLOCKED CLOSEOUT CONDITIONS
-Report Phase 5 closeout as blocked rather than green if any required item is missing, including:
-- one/both approved live feeds cannot successfully fetch/parse and no approved replacement exists;
+BLOCKED / PENDING CLOSEOUT CONDITIONS
+Do not report Phase 5 green while any final requirement is missing.
+
+Use `PARTIAL — VPS LEVEL 7 EVIDENCE PENDING` rather than a generic failure when all Stage 1 criteria pass and the only outstanding requirement is the repository-owner-designated VPS Level 7 procedure.
+
+Report a genuine blocker rather than VPS-pending if, for example:
+- one/both approved live feeds are executed but cannot successfully fetch/parse and no approved resolution exists;
 - live attempt lacks persisted truthful run provenance;
 - safety requires a test/production bypass;
 - transport can independently re-resolve after safety validation;
 - required deterministic collection suite is flaky/skipped/zero-selected;
-- DB prerequisite is unavailable and Level 4 cannot be executed;
+- required Level 4 prerequisite is unavailable and cannot be executed;
 - migration/run/lock constraints fail;
-- final tree changes after the last relevant validation run;
+- executable tree changes after the last applicable validation and required evidence is not rerun;
+- supplied VPS evidence cannot be tied to the candidate implementation tree;
 - validation artifact cannot truthfully tie evidence to the accepted tree;
 - later-phase behavior materially contaminates Phase 5 boundaries.
 
@@ -464,4 +568,6 @@ Do not use P6 to implement:
 - production monitoring/reference-deployment infrastructure.
 
 IMPLEMENTATION DISCIPLINE
-Validation evidence is the product of this prompt. Do not optimize for a green report by weakening tests, safety, bounds, approval policy, or evidence terminology. If the exact final tree cannot satisfy the Phase 5 exit gate at the required evidence levels, report the limitation/blocker explicitly and leave the phase open.
+Validation evidence is the product of this prompt. Do not optimize for a green report by weakening tests, safety, bounds, approval policy, or evidence terminology.
+
+A successful Stage 1 handoff is intentionally not a final closeout. If the exact final tree cannot satisfy the Phase 5 exit gate at the required evidence levels, report the limitation/blocker explicitly and leave the phase open. Conversational `/closeout` may run only after the canonical Phase 5 validation artifact has been finalized green with the required VPS Level 7 evidence.
