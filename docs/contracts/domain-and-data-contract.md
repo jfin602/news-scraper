@@ -175,6 +175,17 @@ Configuration inheritance:
 
 A minimal Collection run exists from the first real transport implementation. Before Article persistence exists it records only the stages that actually exist and MUST NOT pretend post-identity outcomes have occurred.
 
+Phase 6 pre-persistence accounting uses the normalization stage vocabulary defined by the Source/collection contract:
+
+- normalization status is `not_run`, `succeeded`, or `failed`;
+- `normalized_candidate_count` counts Raw items that complete normalization plus Article-link validation and are safe for the next stage;
+- `normalization_failure_count` counts Raw items that cannot produce a candidate because normalization fails or required candidate data is malformed, invalid, or out of bounds;
+- `article_link_rejection_count` counts otherwise normalized items rejected by the separate Article-link/domain policy gate;
+- when a parsed content batch completes, `raw_item_count = normalized_candidate_count + normalization_failure_count + article_link_rejection_count`;
+- item-level normalization failures or link rejections do not by themselves mean the normalization stage failed; stage-level failure means the bounded batch could not complete.
+
+These Phase 6 values are stage accounting only. They are not aliases for the post-identity processing outcomes introduced when Article persistence exists.
+
 Once Article persistence exists, every processed candidate has exactly one **processing outcome**:
 
 - `created` — new Article inserted;
@@ -302,6 +313,8 @@ A visible `non_primary` member is duplicate-suppressed from ordinary rows but re
 - Platform `updated_at` = record-change time, never publication time.
 - Public feed uses trusted `published_at`; otherwise `first_seen_at` with detectable fallback metadata.
 - Persist UTC; render according to Publication/viewer presentation rules.
+
+Phase 6 may parse Source publication/update values into UTC and attach confidence/reason/fallback metadata, but it does not create persistence observation times. Missing or invalid Source publication dates remain distinguishable, and normalization MUST NOT substitute a Collection-run timestamp as `published_at`. Phase 7 Article/observation persistence establishes `first_seen_at`/`last_seen_at` from actual Platform observations.
 
 ## Retention and deletion principles
 
