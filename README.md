@@ -6,11 +6,11 @@ The first configured Publication focuses on publishing-industry news relevant to
 
 ## Current project state
 
-Current phase: **Phase 5 — RSS/Atom transport, parsing, and minimal Collection runs**.
+Current phase: **Phase 6 — Article normalization**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, and Phase 4 Collection eligibility and network safety implementation and closeout validation are complete.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, and Phase 5 RSS/Atom transport, parsing, and minimal Collection runs implementation and closeout validation are complete.
 
-Phase 5 builds on the completed Phase 4 eligibility, shared endpoint-lock, and pre-fetch network-safety boundary. It introduces real approved-feed HTTP transport and redirects through that safety gate, RSS/Atom parsing into Raw items, manual Worker endpoint execution, and minimal persisted Collection runs.
+Phase 6 builds on the accepted Phase 5 Raw-item boundary. It converts untrusted Raw items into safe deterministic Article candidates, resolves and conservatively canonicalizes Article URLs, normalizes dates/text/markup, attaches Publication/Source/endpoint/Collection-run provenance, applies the separate post-normalization Article-link/domain policy gate, and extends existing Collection runs with normalization-stage accounting. Article identity and persistence remain Phase 7 work.
 
 ## Delivery priority
 
@@ -161,7 +161,8 @@ Dependency installation intentionally uses `package.json` without an npm package
 
 Database tests are intentionally separate from the ordinary deterministic suite. A
 root `.env` file is an optional, local, ignored configuration source that must not be
-committed. `npm run test:db`, `npm run db:migrate`, `npm run start:web`, and
+committed. `npm run test:db`, `npm run test:live-sources`, `npm run db:migrate`,
+`npm run db:bootstrap`, `npm run collect:endpoint`, `npm run start:web`, and
 `npm run start:worker` load it when it exists; explicit environment variables take
 precedence. The ordinary `npm test`, unit, integration, and `check` commands do not
 automatically load `.env`.
