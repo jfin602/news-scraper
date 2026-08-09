@@ -1,0 +1,484 @@
+TASK: Phase 6 / P5 — Phase 6 closeout validation
+
+ROADMAP PHASE
+Phase 6 — Article normalization.
+
+MINIMUM MODEL / EFFORT
+- Minimum recommended rating: `Terra Max`.
+- A stronger model/effort tier may be used.
+- Do not lower this rating without explicit repository-owner direction.
+- Rationale: closeout must synthesize deterministic normalization/security-policy evidence, real PostgreSQL run accounting, Worker integration, controlled collection fixtures, and approved live-Source observations without overstating evidence or adding new architecture. It is broad validation/defect triage rather than a new cross-cutting design task.
+
+VERSIONING
+- This is Phase 6 prompt 5 and its assigned project version is `0.6.5`.
+- On first execution confirm P4 left `package.json` at `0.6.4`, then advance only its top-level `version` to `0.6.5` before establishing the final candidate implementation source SHA.
+- If this same P5 prompt is rerun and `package.json` is already `0.6.5`, retain `0.6.5`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` is the sole authoritative current-version source.
+- The repository intentionally does not use `package-lock.json`; do not create, require, regenerate, or validate one.
+- The later conversational `/closeout` command, if Phase 6 is accepted, separately transitions to the Phase 7 baseline `0.7.0`; that transition is NOT part of this P5 task.
+
+DEPENDS ON
+- P1 deterministic Article candidate normalization.
+- P2 separate Article-link domain policy gate.
+- P3 additive Collection-run normalization status/count schema/repository.
+- P4 canonical Worker pipeline integration, deterministic normalization fixtures, DB integrated accounting, bounded candidate inspection, and updated live-source validation surface.
+- Existing accepted Phase 4/5 network-safety/transport/parser/Collection-run behavior.
+- Existing explicitly approved bootstrap configuration for Author Media and The Creative Penn.
+
+GOAL
+Perform final-tree Phase 6 validation, fix only defects required to satisfy the already-approved Phase 6 contracts/roadmap if discovered, rerun the complete required matrix against the exact final candidate tree, and create/update one durable Phase 6 validation artifact.
+
+P5 is primarily a validation/closeout task. Do not add new product scope or future Phase 7 architecture merely to make closeout easier.
+
+GOVERNING DOCUMENTS
+Read current versions before validation:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- `docs/decisions/original-link-and-normalized-metadata.md`
+- P1-P4 Phase 6 task files and final implementation/tests;
+- accepted Phase 5 validation artifact for preserved upstream behavior context.
+
+PHASE 6 EXIT GATE TO PROVE
+Phase 6 is green only when observed evidence proves all roadmap conditions on the exact accepted tree:
+1. the same Raw item/context produces deterministic normalized output;
+2. unsafe/out-of-policy Article destinations are rejected before persistence;
+3. real approved Source entries are inspectable as normalized candidates with endpoint/run provenance;
+4. normalization fixture coverage includes important malformed, boundary, URL, date, markup, and determinism cases.
+
+The inherited testing contract also requires focused + broader regressions, the correct evidence level for persistence/security claims, no required skipped/zero-selected substitute suites, and a durable exact-tree closeout artifact.
+
+TWO-STAGE CLOSEOUT / LIVE-EVIDENCE HANDOFF
+Phase 6 closeout MAY follow the proven Phase 5 two-environment pattern when the primary Codex/local environment is not the designated approved-public-network environment:
+
+Stage 1 — local/primary candidate validation:
+- complete/fix all executable Phase 6 code/tests;
+- establish final `0.6.5` candidate implementation SHA only after executable changes are complete;
+- run clean install/static/deterministic/DB/fixture matrices available locally;
+- create/update the validation artifact as PARTIAL if required approved live-Source Level 7 evidence is still pending.
+
+Stage 2 — repository-owner approved live environment (for example the existing VPS workflow):
+- check out the exact candidate implementation SHA or a tree differing only by the validation artifact/docs-only evidence commits;
+- run the approved live-source procedure against the same Phase 6 implementation;
+- record observed Level 7 results in the same validation artifact;
+- declare Phase 6 green only when all exit-gate conditions are satisfied.
+
+Do not force one environment to impersonate evidence it cannot provide. Claims remain scoped to actual environment/tree/procedure.
+
+STAGE 1 — CANDIDATE VERSION / SOURCE TREE
+On first P5 execution:
+- verify `package.json` is `0.6.4` and update it to `0.6.5`;
+- do not change any other package metadata merely for closeout;
+- ensure no `package-lock.json` exists/is generated;
+- inspect the implementation tree for Phase 6 scope leaks or missing required behavior;
+- fix only actual Phase 6 defects, adding regression tests for reproducible defects when practical;
+- after every executable correction, rerun the affected focused/broader matrix;
+- establish the candidate implementation SHA only when all executable/source/test/version changes are final.
+
+Do not establish a candidate SHA before known source/test fixes are complete.
+
+CLEAN INSTALL / ENVIRONMENT RECORD
+Final-tree validation should include a clean dependency install from `package.json` using repository policy:
+- use `npm install`, not `npm ci`;
+- do not create/commit `package-lock.json`;
+- record actual Node/npm versions and relevant PostgreSQL version/environment;
+- do not claim byte-for-byte dependency reproducibility under the no-lockfile policy.
+
+STATIC / LEVEL 1 VALIDATION
+Run against the exact candidate tree:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run check`
+- committed change-range whitespace/diff validation such as `git diff --check <phase-baseline-or-approved-base>...HEAD` or an equivalent that actually checks the accepted implementation range.
+
+Inspect and record:
+- normalization module is generic/topic independent;
+- Raw parser boundary remains separate from candidate boundary;
+- original Article destination remains separate from canonical identity URL;
+- Article-link policy remains non-network and separate from Phase 4 SSRF safety;
+- no auto-domain widening/source discovery exists;
+- Worker remains the collection owner; Web/API does not fetch inline;
+- no Phase 7 Article/Relevance persistence has leaked in;
+- no full publisher content is emitted by Worker candidate inspection.
+
+P1 NORMALIZATION — LEVEL 2 MATRIX
+Run/inspect the full deterministic normalization unit matrix.
+
+It must directly cover at minimum:
+- required title/URL handling;
+- below/at/above field limits;
+- immutable/deterministic output;
+- no input mutation;
+- safe display title vs conservative normalized title;
+- markup stripping including script/style content;
+- entity decoding/whitespace/unicode behavior;
+- bounded plain-text summary/excerpt;
+- relative Article URL resolution;
+- terminal redirected feed URL as resolution base;
+- original URL preservation;
+- canonical fragment removal;
+- every exact governed tracker parameter removal;
+- preservation of similarly named/semantic/repeated non-tracking query parameters and path/trailing-slash semantics;
+- external ID opacity/case;
+- valid RSS/RFC date;
+- valid Atom/ISO date;
+- missing date;
+- invalid/ambiguous date;
+- no fabricated Collection-run/current timestamp as Source publication/first-seen;
+- optional image/category/language boundary behavior;
+- Publication/Source/endpoint/Collection-run provenance.
+
+The same fixed Raw item/context must produce deeply equal output across repeated executions.
+
+P2 ARTICLE-LINK POLICY — LEVEL 2 SECURITY/POLICY MATRIX
+Validate:
+- exact approved host;
+- include-subdomain behavior;
+- endpoint narrowing;
+- unrelated/sibling rejection;
+- case/IDN normalization;
+- HTTP/HTTPS structural acceptance;
+- unsupported schemes;
+- credentials rejection;
+- malformed URL;
+- original URL is policy target when canonical differs;
+- stable bounded rejection reasons;
+- non-default public Article port is not accidentally treated as Phase 4 server-fetch port policy;
+- no resolver/DNS/socket/HTTP side effect occurs.
+
+Also rerun existing Phase 3/4 domain/safety consumer regressions to prove shared helper behavior was not weakened.
+
+P3 COLLECTION-RUN / LEVEL 4 DATABASE VALIDATION
+Run full `npm run test:db` with safe test admin prerequisite and explicitly inspect Phase 6 DB coverage.
+
+Prove:
+- production migrations apply from zero in correct order including 0003;
+- migration rerun is idempotent;
+- actual 0002 -> 0003 upgrade preserves representative Phase 5 rows;
+- historical parser-success positive Raw-item rows become normalization `not_run` + zero Phase 6 counts without data rewrite;
+- running defaults are truthful;
+- normalization status vocabulary enforced;
+- counters nonnegative;
+- link rejection <= normalized candidate count;
+- `not_run` requires zero Phase 6 counters;
+- executed normalization requires parser success;
+- succeeded normalization requires Raw = normalized + normalization failures;
+- normalization-stage failed cannot coexist with successful overall run;
+- valid mixed counts persist/read correctly;
+- guarded terminal finalization remains exactly once;
+- transaction rollback/cleanup invariants remain green;
+- disposable DB cleanup is verified.
+
+Mocks do not substitute for these claims.
+
+P4 CANONICAL WORKER / LEVEL 3 INTEGRATION VALIDATION
+Exercise canonical service and Worker command regressions.
+
+Prove:
+- exact order eligibility -> lock -> run start -> fetch -> parse -> normalize -> Article-link policy -> finalization -> release;
+- actual persisted run ID enters candidate provenance;
+- fetcher terminal `finalUrl` enters normalizer context;
+- zero Raw items;
+- all valid;
+- mixed valid + normalization failure;
+- all ordinary normalization failures without falsely failing stage;
+- mixed accepted + Article-domain rejected;
+- all Article-domain rejected;
+- fatal normalizer execution failure;
+- fatal Article-policy execution failure distinct from ordinary rejection;
+- stage failure maps truthful run status/counts;
+- safety/fetch/304/parser paths do not call later stages;
+- run creation/finalization failures preserve lock/failure semantics;
+- one failed endpoint attempt does not prevent unrelated/later endpoint execution;
+- returned run accounting matches persistence representation;
+- successful downstream payload contains only link-accepted normalized candidates, not Raw items.
+
+WORKER INSPECTION OUTPUT
+Validate actual command output shape:
+- bounded structured JSON;
+- normalization status + counts;
+- at most 3 accepted normalized candidate samples;
+- sample includes useful title/original/canonical/date status + Publication/Source/endpoint/run provenance;
+- no Raw item bodies;
+- no summary/full content;
+- no DB URL, credential, stack trace, arbitrary remote body, or synthetic secret leakage;
+- output remains predictable for no-change/failure/no-safe-candidate cases.
+
+LEVEL 5 DETERMINISTIC COLLECTION-FIXTURE MATRIX
+Run:
+- `npm run test:collection`
+
+The Phase 6 production-stack fixture corpus must exercise the canonical endpoint service with controlled network/resolver/HTTP fixtures without weakening production whitelist/SSRF policy.
+
+Confirm fixture coverage includes:
+- RSS normalized candidate;
+- Atom normalized candidate;
+- approved feed redirect to another terminal path + relative Article URL proving terminal URL base;
+- fragment/tracker/semantic query canonical behavior;
+- markup/entities in title/summary;
+- valid/missing/invalid date cases;
+- item-level malformed/missing-title alongside valid sibling;
+- cross-domain Article-link rejection alongside valid sibling;
+- zero-item feed;
+- exact Raw/normalized/failure/rejection run accounting;
+- deterministic rerun output;
+- existing Phase 5 redirect/conditional/bounds/parser failure behavior remains green.
+
+Do not replace controlled fixture evidence with live publisher behavior.
+
+LEVEL 4 INTEGRATED RUN ACCOUNTING
+Ensure at least one real disposable PostgreSQL test uses:
+- production migrations;
+- real Source/endpoint ownership;
+- real Collection-run repository;
+- canonical `collectEndpoint()`;
+- controlled deterministic fetch/parser/normalizer/policy inputs as needed.
+
+Prove returned counts/status/provenance exactly equal the persisted run after a mixed Phase 6 batch.
+
+No Article table/persistence is expected in Phase 6.
+
+ORDINARY REGRESSION COMMAND MATRIX
+Against the final candidate implementation tree, run at minimum:
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:collection`
+- `npm run test:db`
+- `npm test`
+- `npm run check`
+
+If `npm run check` already runs ordinary unit/integration/collection tests, still record the named specialized suites explicitly because Phase 6 acceptance depends on them.
+
+Required suites must not silently skip prerequisites or select zero tests.
+
+Do not hide flaky behavior with automatic retries.
+
+NO BROWSER REQUIREMENT
+Phase 6 has no browser-dependent product behavior.
+- Level 6 / `test:browser` is not required.
+
+NO REFERENCE-DEPLOYMENT CLAIM
+Phase 6 closeout does not require Level 8 reference-deployment validation. Do not claim deployment proof merely because live Sources were reached from a VPS.
+
+LIVE-SOURCE COMMAND / LEVEL 7
+Use the substantive existing command:
+- `npm run test:live-sources`
+
+This remains outside ordinary deterministic `npm test` / `npm run check`.
+
+The live procedure must:
+- require the safe test-admin DB prerequisite rather than using development/production application data;
+- create a unique disposable PostgreSQL database;
+- apply production migrations from zero;
+- bootstrap only the existing explicitly approved Publication/Source configuration;
+- execute the production canonical Worker collection path;
+- use production resolver/network-safety/HTTP/redirect/parser/normalizer/Article-link policy/run persistence;
+- contact only explicitly approved configured Source endpoints;
+- clean up and verify disposable DB cleanup;
+- fail clearly rather than silently skip if a required prerequisite is unavailable.
+
+APPROVED LIVE SOURCES
+Use only the currently repository-owner-approved configured Phase 6 live Source endpoints unless the owner explicitly changes configuration:
+
+1. Author Media
+- Publication slug: `indie-author-publishing-news`
+- Source config key: `author_media`
+- endpoint config key: `site_rss`
+- configured approved feed: `https://www.authormedia.com/feed/`
+
+2. The Creative Penn
+- Publication slug: `indie-author-publishing-news`
+- Source config key: `the_creative_penn`
+- endpoint config key: `podcast_rss`
+- configured approved feed: `https://www.thecreativepenn.com/feed/podcast/`
+
+Do not substitute another publisher/source without explicit repository-owner approval.
+
+LEVEL 7 REQUIRED OBSERVATIONS
+For each approved Source independently, record:
+- configured endpoint identity and approved state through the real path;
+- successful real fetch/parse when current live Source behavior permits;
+- terminal transport/parser/normalization statuses;
+- HTTP/redirect/byte/Raw-item counts as available and bounded;
+- `normalized_candidate_count`;
+- `normalization_failure_count`;
+- `article_link_rejection_count`;
+- at least one accepted normalized candidate sample when the approved-domain policy permits a safe candidate;
+- sample original/canonical URL + title/date status as bounded metadata;
+- candidate Publication/Source/endpoint/Collection-run provenance;
+- matching persisted Collection run/accounting;
+- second Source attempted independently regardless of first result.
+
+Do not print/store full publisher feed content merely for evidence.
+
+LIVE ARTICLE-DOMAIN MISMATCH POLICY
+If current live feeds emit Article URLs outside the committed approved-domain policy:
+- the Article-link gate must reject/count them;
+- record the observed mismatch accurately;
+- do not auto-widen configuration, bypass validation, accept canonicalized host aliases, or follow external URLs merely to make Level 7 green.
+
+If legitimate publisher behavior now requires a new approved hostname, Phase 6 closeout remains blocked until the repository owner explicitly approves the configuration change through the appropriate workflow and the affected safety/domain matrix is revalidated.
+
+Historical Phase 5 live success does not substitute for Phase 6 normalized-candidate Level 7 evidence.
+
+LIVE FAILURE ISOLATION
+Do not intentionally break or attack a live publisher.
+
+Execute each approved endpoint as an independent attempt. If one fails, the second must still be attempted. Controlled deterministic tests remain the authoritative proof for intentionally broken-item/Source failure cases.
+
+VALIDATION ARTIFACT
+Maintain exactly one canonical Phase 6 artifact:
+- `docs/validation/phase-6-article-normalization.md`.
+
+Do not create multiple competing Phase 6 closeout files.
+
+The artifact records evidence; it does not redefine contracts.
+
+STAGE 1 PARTIAL ARTIFACT
+If Levels 1–5 are green but required owner-environment Level 7 has not yet been supplied, create/update the artifact with an explicit state:
+`PARTIAL — APPROVED LIVE-SOURCE LEVEL 7 EVIDENCE PENDING`
+
+It MUST NOT:
+- claim Phase 6 complete;
+- claim roadmap exit gate satisfied;
+- authorize conversational `/closeout`.
+
+It SHOULD clearly state exact candidate implementation SHA and the command/environment prerequisites for Stage 2.
+
+FINAL ARTIFACT CONTENT
+When final Level 7 evidence has been observed and every exit-gate item is green, the same artifact must identify:
+- validation date/time/timezone for each environment;
+- branch;
+- exact accepted Phase 6 implementation source SHA;
+- any later docs-only validation artifact commit SHA and relationship to candidate;
+- package version `0.6.5`;
+- Node/npm/PostgreSQL and relevant library/runtime versions actually observed;
+- commands/procedures actually executed;
+- concise results/counts/statuses;
+- evidence levels for each claim;
+- approved live Source names/endpoints actually observed;
+- bounded candidate/provenance/accounting examples sufficient to prove exit gate without copying publisher content;
+- deterministic fixture matrix summary;
+- migration upgrade/DB evidence;
+- limitations/environment caveats;
+- explicit Phase 6 exit-gate conclusion;
+- explicit statement that Level 6 browser and Level 8 deployment were not claimed unless separately actually executed.
+
+Do not paste huge terminal logs into the artifact.
+
+STAGE 1 OWNER HANDOFF OUTPUT
+If Stage 2 is still pending, the P5 result shown to the repository owner must prominently report:
+- exact candidate implementation SHA;
+- validation artifact path;
+- artifact PARTIAL state;
+- exact `npm run test:live-sources` invocation;
+- prerequisite environment variable names without secret values;
+- explicit instruction to inspect the artifact before running Stage 2;
+- explicit statement that conversational `/closeout` must NOT run yet.
+
+FINAL NO-SCOPE-LEAK INSPECTION
+Before green closeout, confirm Phase 6 did NOT implement:
+- configurable/default Relevance execution (Phase 7 owns canonical default-include boundary);
+- Article table/schema/persistence;
+- Article observations;
+- Article identity/uniqueness/concurrency;
+- post-identity processing outcome counters;
+- duplicate review/grouping/Primary selection;
+- public feed/API/UI;
+- admin collection routes/UI;
+- scheduler/durable jobs/retry/backoff/endpoint health;
+- persistent endpoint ETag/Last-Modified cache state unless separately already governed by an earlier accepted phase;
+- HTML/custom/browser collectors;
+- topic-specific engine normalization/relevance/domain exceptions;
+- automatic Source/domain approval/discovery.
+
+If later-phase scope exists accidentally, remove it or report a blocker before accepting Phase 6.
+
+PRESERVED EARLIER BEHAVIOR
+Explicitly confirm the final candidate tree still protects:
+- Web/API liveness/readiness and no inline Source collection;
+- Worker startup/readiness/clean shutdown;
+- runtime/database config safety/redaction;
+- migration ordering/checksum/history behavior;
+- Publication/Source/endpoint ownership/state/bootstrap invariants;
+- Phase 4 eligibility and public-unicast pre-fetch safety;
+- default-port and redirect revalidation for actual Worker fetches;
+- rebinding-resistant validated-address transport;
+- endpoint lock contention/release/reacquisition;
+- Phase 5 connect/total timeout, response/decompression bounds, content-type, compression, redirect, 304, parser behavior;
+- Collection-run per-attempt provenance/finalization;
+- Source/endpoint failure isolation;
+- no public-network dependency in ordinary deterministic suites.
+
+LIKELY FILE SCOPE
+Expected P5 green-path changes when P1-P4 are correct:
+- `package.json` — version only;
+- `docs/validation/phase-6-article-normalization.md`;
+- only focused source/tests necessary to correct defects actually discovered during closeout validation.
+
+Do not perform root/roadmap Phase 7 documentation advancement in P5. That happens after acceptance through conversational `/closeout` -> `/docs-review` -> `/docs-apply`.
+
+REQUIRED EVIDENCE LEVELS
+- Level 0/1: final source/docs/task/scope inspection + static/diff checks.
+- Level 2: complete normalization + Article-link pure behavior matrices.
+- Level 3: canonical collection service and Worker process-facing integration.
+- Level 4: actual migration/upgrade/Collection-run accounting/provenance against disposable PostgreSQL.
+- Level 5: deterministic HTTP/RSS/Atom -> normalize -> Article-link fixture matrix.
+- Level 6: not required.
+- Level 7: both named approved live Sources through production Phase 6 Worker execution in the approved live environment.
+- Level 8: not required.
+
+STAGE 1 ACCEPTANCE / HANDOFF CRITERIA
+Stage 1 is ready for owner live validation only when:
+- `package.json` is exactly `0.6.5`;
+- all executable P5 defect fixes/tests are complete;
+- candidate implementation SHA is established after those executable changes;
+- clean install/static/type/lint/format checks pass;
+- full deterministic `npm test` + explicit unit/integration/collection suites pass;
+- full `npm run test:db` passes with safe disposable PostgreSQL and verified cleanup;
+- 0002->0003 historical-run upgrade evidence passes;
+- Phase 6 normalization/Article-domain/partial-item/determinism fixture matrix passes;
+- integrated Worker/run accounting/provenance is proven;
+- no required suite skipped/zero-selected/flaky substitute is hidden;
+- validation artifact records Levels 1–5 and is marked PARTIAL if Level 7 remains pending.
+
+FINAL PHASE 6 ACCEPTANCE CRITERIA
+Phase 6 is GREEN only when:
+- Stage 1 criteria remain green for the exact accepted implementation tree;
+- both approved live Sources have been actually observed through the production Phase 6 Worker path at Level 7;
+- real normalized candidate(s) with endpoint/run provenance are inspectable for both approved Sources as required by the roadmap, or any live policy mismatch has been explicitly resolved through approved configuration rather than bypassed;
+- unsafe/out-of-policy Article destinations are demonstrably rejected by deterministic policy tests and live behavior where encountered;
+- deterministic normalization output is proven across the required malformed/boundary/URL/date/markup/determinism matrix;
+- persisted normalization stage accounting is truthful and matches Worker results;
+- every Phase 6 roadmap exit-gate item is explicitly mapped to observed evidence in the durable artifact;
+- the artifact final determination states `PHASE 6 GREEN — ACCEPTED` or an equivalently unambiguous accepted state;
+- no known skipped/flaky test hides required behavior;
+- no later-phase scope leak remains;
+- no `package-lock.json` is created.
+
+If any required evidence is unavailable or failing, report Phase 6 BLOCKED/PARTIAL honestly. Do not convert historical Phase 5 evidence, source inspection, mocks, or unexecuted commands into a passing Phase 6 claim.
+
+NON-GOALS / DEFERRED
+Do not add in P5 merely for closeout:
+- Relevance/default-include implementation;
+- Article schema/persistence/observations;
+- Article identity/concurrency;
+- duplicate detection/grouping;
+- feed backend/UI;
+- scheduler/jobs/health;
+- admin UX;
+- HTML collectors;
+- Source auto-discovery/approval;
+- new approved domains without explicit owner decision;
+- browser/deployment work not required by Phase 6.
+
+IMPLEMENTATION DISCIPLINE
+Validation is evidence, not architecture. Fix only real defects necessary to satisfy the established Phase 6 contract, test the defect, rerun the affected complete matrix, and tie every final claim to the exact source tree/environment actually observed. The objective is a trustworthy handoff into Phase 7, not merely a green command transcript.
