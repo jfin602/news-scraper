@@ -174,9 +174,9 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 5 — RSS/Atom transport, parsing, and minimal Collection runs**.
+Current phase: **Phase 6 — Article normalization**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, and Phase 4 Collection eligibility and network safety implementation/validation are complete. Phase 5 is active. Phases 1–9 remain the tech-demo critical path; do not pull later admin/discovery/deduplication work into those phases without a true dependency or explicit decision.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, and Phase 5 RSS/Atom transport, parsing, and minimal Collection runs implementation/validation are complete. Phase 6 is active. Phases 1–9 remain the tech-demo critical path; do not pull later admin/discovery/deduplication work into those phases without a true dependency or explicit decision.
 
 ## Working preferences
 
