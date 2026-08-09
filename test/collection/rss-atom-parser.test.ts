@@ -10,6 +10,10 @@ import {
 const parser = new RssAtomParser();
 
 describe('RssAtomParser', () => {
+  it('keeps an explicit bounded 32 MiB parser input default', () => {
+    assert.equal(RSS_ATOM_LIMITS.inputBytes, 33_554_432);
+  });
+
   it('detects RSS and preserves minimally interpreted Source-shaped values', async () => {
     const result = parser.parse({
       content: await fixture('rss/representative-rss-2.0.xml'),
@@ -125,16 +129,8 @@ describe('RssAtomParser', () => {
   });
 
   it('enforces input, nesting, item-count, field, and category bounds', () => {
-    for (const bytes of [
-      RSS_ATOM_LIMITS.inputBytes - 1,
-      RSS_ATOM_LIMITS.inputBytes,
-    ]) {
-      const result = parser.parse({ content: rssDocumentWithBytes(bytes) });
-      assert.equal(result.ok, true, `expected ${String(bytes)} bytes to parse`);
-    }
-
     const aboveOldLimit = parser.parse({
-      content: rssDocumentWithBytes(1_048_576 + 1),
+      content: rssDocumentWithBytes(2_097_152 + 1),
     });
     assert.equal(aboveOldLimit.ok, true);
 

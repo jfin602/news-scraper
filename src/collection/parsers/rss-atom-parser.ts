@@ -10,7 +10,7 @@ import type {
 } from './parser.ts';
 
 export const RSS_ATOM_LIMITS = Object.freeze({
-  inputBytes: 2_097_152,
+  inputBytes: 33_554_432,
   nestingDepth: 64,
   items: 500,
   externalId: 2_048,

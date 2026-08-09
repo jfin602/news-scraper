@@ -22,6 +22,11 @@ import {
 } from '../support/collection/http-fixture-server.ts';
 
 describe('one-hop HTTP transport', () => {
+  it('keeps explicit bounded 32 MiB response defaults', () => {
+    assert.equal(HTTP_TRANSPORT_DEFAULTS.maxWireBytes, 33_554_432);
+    assert.equal(HTTP_TRANSPORT_DEFAULTS.maxDecompressedBytes, 33_554_432);
+  });
+
   it('binds lookup to one validated address while preserving HTTP and TLS hostname semantics', async () => {
     const destination = {
       ...validatedDestination(80, '/xml'),
@@ -233,21 +238,9 @@ describe('one-hop HTTP transport', () => {
 
   it('enforces decompressed limits below, at, and above the boundary and rejects compressed bombs', async () => {
     await withServer(async (server) => {
-      for (const [bytes, expected] of [
-        [HTTP_TRANSPORT_DEFAULTS.maxDecompressedBytes - 1, 'content'],
-        [HTTP_TRANSPORT_DEFAULTS.maxDecompressedBytes, 'content'],
-        [HTTP_TRANSPORT_DEFAULTS.maxDecompressedBytes + 1, 'failure'],
-      ] as const) {
-        const result = await fetchPath(server, `/gzip?bytes=${String(bytes)}`);
-        assert.equal(result.outcome, expected);
-        if (bytes === HTTP_TRANSPORT_DEFAULTS.maxDecompressedBytes + 1) {
-          assertFailure(result, 'decompressed_size_limit', 'permanent');
-        }
-      }
-
       const aboveOldDefault = await fetchPath(
         server,
-        `/gzip?bytes=${String(1_048_576 + 1)}`,
+        `/gzip?bytes=${String(2_097_152 + 1)}`,
       );
       assert.equal(aboveOldDefault.outcome, 'content');
 

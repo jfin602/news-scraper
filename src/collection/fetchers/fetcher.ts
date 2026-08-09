@@ -3,8 +3,8 @@ import type { ValidatedDestination } from '../safety/destination-safety.ts';
 export const HTTP_TRANSPORT_DEFAULTS = Object.freeze({
   connectTimeoutMs: 5_000,
   totalTimeoutMs: 15_000,
-  maxWireBytes: 1_048_576,
-  maxDecompressedBytes: 2_097_152,
+  maxWireBytes: 33_554_432,
+  maxDecompressedBytes: 33_554_432,
   userAgent: 'NewsScraper feed collector',
 });
 

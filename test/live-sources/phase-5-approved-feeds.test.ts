@@ -5,6 +5,7 @@ import { describe, it } from 'node:test';
 import { Client } from 'pg';
 
 import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { boundedChildProcessFailure } from '../support/process/bounded-child-process-error.ts';
 
 const execFileAsync = promisify(execFile);
 const PUBLICATION_SLUG = 'indie-author-publishing-news';
@@ -184,10 +185,14 @@ async function run(
   args: readonly string[],
   environment: NodeJS.ProcessEnv,
 ): Promise<{ stdout: string; stderr: string }> {
-  return execFileAsync(process.execPath, [entrypoint, ...args], {
-    cwd: process.cwd(),
-    env: environment,
-    timeout: 120_000,
-    maxBuffer: 1024 * 1024,
-  });
+  try {
+    return await execFileAsync(process.execPath, [entrypoint, ...args], {
+      cwd: process.cwd(),
+      env: environment,
+      timeout: 120_000,
+      maxBuffer: 1024 * 1024,
+    });
+  } catch (error) {
+    throw boundedChildProcessFailure(error);
+  }
 }
