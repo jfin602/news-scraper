@@ -286,11 +286,11 @@ A minimal persisted Collection run begins with the first real transport/parser p
 When normalization is introduced, the same run model gains a normalization stage status plus bounded pre-persistence item counts:
 
 - normalization stage status uses `not_run`, `succeeded`, or `failed`;
-- `normalized_candidate_count` counts Raw items that complete normalization and the separate Article-link policy gate and are safe to hand to the next pipeline stage;
-- `normalization_failure_count` counts Raw items that cannot produce a normalized candidate because normalization fails or required candidate data is malformed/invalid/out of bounds;
-- `article_link_rejection_count` counts otherwise normalized items rejected by the separate Article-link/domain policy gate.
+- `normalized_candidate_count` counts Raw items that complete normalization into an Article candidate before the separate Article-link policy decision;
+- `normalization_failure_count` counts Raw items that cannot produce an Article candidate because normalization fails or required candidate data is malformed/invalid/out of bounds;
+- `article_link_rejection_count` counts normalized Article candidates rejected by the separate Article-link/domain policy gate.
 
-For a parsed content run that completes the Phase 6 batch, `raw_item_count` MUST equal `normalized_candidate_count + normalization_failure_count + article_link_rejection_count`. Item-level normalization failures or link-policy rejections do not by themselves make the normalization stage `failed`; stage-level `failed` is reserved for an execution failure that prevents the normalizer from completing its bounded batch contract. Unrelated Raw items continue processing when safely possible.
+For a parsed content run that completes the Phase 6 batch, `raw_item_count` MUST equal `normalized_candidate_count + normalization_failure_count`, and `article_link_rejection_count` MUST NOT exceed `normalized_candidate_count`. The number of candidates safe to hand to the next pipeline stage is therefore `normalized_candidate_count - article_link_rejection_count`. Item-level normalization failures or link-policy rejections do not by themselves make the normalization stage `failed`; stage-level `failed` is reserved for an execution failure that prevents the normalizer from completing its bounded batch contract. Unrelated Raw items continue processing when safely possible.
 
 After Article persistence is active, every processed candidate has exactly one processing outcome:
 
@@ -311,7 +311,7 @@ Effects do not replace outcomes. For example, a candidate may be `created` and a
 
 Collection runs aggregate processing outcomes and effects separately, plus transport/run-level status.
 
-During pre-persistence collection/normalization, runs record transport, parser, normalization, and Article-link stage counts/statuses defined above but MUST NOT use post-identity outcome names as though Article persistence exists.
+During pre-persistence collection/normalization, runs record transport/parser stage status/counts plus the Phase 6 normalization status and normalization/Article-link item counts defined above, but MUST NOT use post-identity outcome names as though Article persistence exists.
 
 Generic terms such as `accepted` or `skipped` require explicit mapping rather than competing counter definitions.
 
