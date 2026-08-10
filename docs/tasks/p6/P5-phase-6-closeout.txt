@@ -3,11 +3,14 @@ TASK: Phase 6 / P5 — Phase 6 closeout validation
 ROADMAP PHASE
 Phase 6 — Article normalization.
 
-MINIMUM MODEL / EFFORT
-- Minimum recommended rating: `Terra Max`.
-- A stronger model/effort tier may be used.
-- Do not lower this rating without explicit repository-owner direction.
-- Rationale: closeout must synthesize deterministic normalization/security-policy evidence, real PostgreSQL run accounting, Worker integration, controlled collection fixtures, and approved live-Source observations without overstating evidence or adding new architecture. It is broad validation/defect triage rather than a new cross-cutting design task.
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `High`.
+- Alternative considered: `Terra Ultra`.
+- Estimate confidence: `Medium`.
+- Efficiency rationale: closeout is broad and context-heavy because it synthesizes deterministic normalization/security-policy evidence, real PostgreSQL accounting, Worker integration, controlled fixtures, and approved live-Source observations, but it should not require new architecture when P1-P4 are correct. Sol Light is preferred for strong evidence/defect-triage judgment while avoiding the likely extra reasoning volume of Terra Ultra. If validation uncovers a genuinely cross-cutting architectural defect rather than a bounded closeout fix, escalate that remediation to Sol High instead of forcing it through the cheaper closeout configuration.
+- If this exact configuration is no longer available in the current Codex picker at execution time, revalidate against `BOOT.md` rather than silently substituting an invented model/effort name.
 
 VERSIONING
 - This is Phase 6 prompt 5 and its assigned project version is `0.6.5`.
