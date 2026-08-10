@@ -6,11 +6,11 @@ The first configured Publication focuses on publishing-industry news relevant to
 
 ## Current project state
 
-Current phase: **Phase 7 — Default Relevance, Article identity, and persistence**.
+Current phase: **Phase 8 — Basic public-feed backend**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, and Phase 6 Article normalization implementation and closeout validation are complete.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, and Phase 7 Default Relevance/Article identity/persistence implementation and closeout validation are complete.
 
-Phase 7 builds on the accepted Phase 6 Article-candidate boundary. Safe normalized candidates pass through the canonical empty-rule/default-include Relevance boundary before identity. The phase adds transactional/idempotent Article identity and persistence, Article-observation endpoint/run provenance, first-seen/last-seen semantics, and canonical `created`/`updated`/`unchanged`/`rejected`/`excluded`/`failed` Collection-run processing outcomes without conflating repeated Source identity with later true-duplicate grouping.
+Phase 8 builds the first database-backed public Article read path through Web/API. It introduces persisted Article visibility, Publication/Source public-row eligibility gates, deterministic effective feed-date ordering, a bounded Publication-scoped feed endpoint, safe minimal output shaping, and the stored Article `original_url` as the headline destination. Before true Duplicate grouping exists, persisted Articles are logically ungrouped; Phase 8 does not pull duplicate grouping, discovery filters, or public UI forward.
 
 ## Delivery priority
 
@@ -37,15 +37,15 @@ Date | Headline | Source
 
 Completed MVP adds:
 
-- reverse-chronological eligibility for visible ungrouped Articles and visible Primary Articles;
-- original/canonical Article destination links;
+- reverse-chronological eligibility for visible ungrouped Articles and visible Primary Articles under a public Publication and approved active Source;
+- stored Article `original_url` destination links;
 - clear Source identity;
 - accessible stacked mobile layout;
 - Category/Source filtering and keyword search;
 - deterministic pagination/load-more;
 - light/dark presentation.
 
-The Phase 9 tech demo intentionally reaches a useful basic feed before discovery/presentation polish is complete.
+Phase 8 establishes the backend read model/API. The Phase 9 tech demo intentionally reaches a useful basic page before discovery/presentation polish is complete.
 
 Pinning/featured-story ordering is deferred beyond MVP.
 
@@ -76,7 +76,7 @@ The contracts deliberately separate:
 - duplicate-group role;
 - derived endpoint health.
 
-An approved Source can therefore be paused without becoming “unhealthy,” and a hidden Article can remain a member of a Duplicate group without duplicate membership forcing it visible again.
+An approved Source can therefore be paused without becoming “unhealthy,” and a hidden Article can remain a member of a Duplicate group without duplicate membership forcing it visible again. Collection operational state does not itself hide retained feed-eligible Articles.
 
 ## Collection architecture
 
@@ -125,7 +125,7 @@ Weak duplicate evidence becomes a persisted review candidate rather than silentl
 
 ## Administration
 
-Initial Publication/Source configuration may be supplied through idempotent operator-maintained bootstrap data. Bootstrap approval is explicit operator approval and never bypasses whitelist/state/network-safety rules.
+Initial Publication/Source configuration may be supplied through idempotent operator-maintained bootstrap data. Bootstrap approval is explicit operator approval and never bypasses whitelist/state/network-safety rules. Ordinary bootstrap remains create-if-absent; Phase 8's pre-admin public-feed work therefore uses an explicit generic operator transition when an existing Publication's `public_status` must change rather than making bootstrap overwrite persisted state.
 
 MVP Source admin UI begins in Phase 14, after the working public vertical slice.
 
