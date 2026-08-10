@@ -390,35 +390,63 @@ Strict order:
 
 Do not silently run missing stages. If unstable requirements, contradictory docs, repository drift, or a material decision blocks progress, return `Planning needed` and stop before the next stage.
 
-## Prompt model/effort rating
+## Prompt model/reasoning and usage selection
 
-Every implementation and closeout task MUST carry a minimum recommended model/effort rating. The rating guides Codex model/effort selection; it does not change task authority, acceptance criteria, or evidence requirements.
+Every implementation and closeout task MUST carry an explicit recommended Codex model/reasoning configuration and a token/credit-usage estimate. Model choice and reasoning effort are separate dimensions; there is no repository-defined linear ladder such as `Terra Max` or `Sol Max`.
 
-Allowed ratings, from lowest to highest, are:
+Use the exact model and reasoning labels actually available in the current Codex surface. Do not invent a model/effort name. Examples such as `Terra High`, `Terra Ultra`, `Sol Light`, `Sol High`, or `Sol Ultra` are valid only when those exact choices are currently available to the repository owner.
 
-1. `Terra High`
-2. `Terra Max`
-3. `Sol High`
-4. `Sol Max`
+### Quality-first selection rule
 
-`Terra High` is the default minimum baseline for roadmap implementation and closeout work. A stronger rating/model may always be used. Do not recommend below `Terra High` for roadmap implementation/closeout prompts. A lower-than-recorded rating may be used only by explicit repository-owner choice; workflow docs and task revisions MUST NOT silently remove or lower a rating.
+Selection order is mandatory:
 
-Escalate based on reasoning, correctness, and regression risk rather than task length or token count alone:
+1. Determine the task's complexity and quality floor from correctness risk, security impact, data-integrity risk, architecture/blast radius, concurrency/transaction ownership, failure handling, and validation difficulty.
+2. Identify the model/reasoning configurations that provide enough reasoning headroom to satisfy that quality floor.
+3. Only among configurations that satisfy the quality floor, prefer the option expected to consume fewer tokens/credits.
+4. Never reduce model capability or reasoning effort solely to save tokens when doing so materially increases implementation or review risk.
 
-| Rating       | Intended task class |
-| ------------ | ------------------- |
-| `Terra High` | Bounded implementation, leaf modules, straightforward migrations/repositories, deterministic tests, and contained refactors. |
-| `Terra Max`  | Security-sensitive logic, subtle validation/state behavior, meaningful persistence concerns, multiple interacting modules, or difficult edge cases. |
-| `Sol High`   | Cross-cutting architecture, concurrency/transaction ownership, shared infrastructure changes, high-risk security boundaries, or integration where subtle regressions are likely. |
-| `Sol Max`    | Exceptional tasks combining several high-risk dimensions such as architecture, security, concurrency/data integrity, and broad blast radius where the strongest reasoning tier is materially justified. |
+Cost is therefore an optimization constraint after quality, not the objective. The repository owner prefers the highest reliable output quality without unnecessary token expenditure.
 
-Workflow ownership:
+Do not assume a cheaper-per-token model at maximum reasoning is cheaper overall than a stronger model at lighter reasoning. Account for both model token rates and expected reasoning/output volume. High/Ultra reasoning can consume materially more tokens, and eligible Ultra runs may use additional agents. Conversely, a stronger model at Light or another lower reasoning setting may be the more efficient choice for a tightly specified task.
 
-- `/prompt-ass` assigns a provisional minimum rating and concise rationale to every proposed implementation/closeout prompt.
-- `/prompt-plan` reassesses that rating after source-level investigation and finalizes or raises it based on the actual implementation boundary and risk. It does not silently lower the assessed minimum.
-- `/prompt-write` writes the finalized minimum rating into every implementation/closeout task file. A stronger model may be used at execution time.
-- If `/prompt-write` revalidation discovers information that materially requires a higher rating and also changes the approved task boundary, return `Planning needed` rather than silently rewriting the plan.
-- `/revalidate` reports when an existing prompt's recorded minimum is no longer adequate for current repository reality.
+### Complexity / quality classes
+
+Use these classes to explain the quality floor; they are not model names and do not form a pricing table:
+
+| Class | Typical task shape |
+| ----- | ------------------ |
+| `Standard` | Bounded implementation, leaf modules, straightforward migrations/repositories, deterministic tests, contained refactors. |
+| `Elevated` | Subtle validation/state behavior, security-sensitive but narrow policy logic, meaningful persistence semantics, difficult edge cases. |
+| `High` | Cross-cutting integration, multiple interacting modules, concurrency/transaction ownership, shared infrastructure, high-risk security boundaries, broad regression surface. |
+| `Critical` | Exceptional work combining several high-risk dimensions where strongest available reasoning is materially justified. |
+
+A higher complexity class may justify a more expensive configuration. Token efficiency MUST NOT override that conclusion.
+
+### Required usage estimate
+
+`/prompt-ass` and `/prompt-plan` MUST provide, for each proposed prompt:
+
+- **Recommended configuration:** exact current model + reasoning choice.
+- **Complexity / quality floor:** `Standard`, `Elevated`, `High`, or `Critical`, with concise risk rationale.
+- **Estimated usage:** `Low`, `Moderate`, `High`, or `Very High`.
+- **Alternative considered:** the most relevant cheaper or differently balanced configuration.
+- **Efficiency rationale:** why the recommendation is expected to provide the best quality/usage balance.
+- **Estimate confidence:** `Low`, `Medium`, or `High` when a meaningful estimate can be made.
+
+When current official OpenAI Codex token/credit rates are available, use them for the estimate and comparison rather than stale repository numbers. A rough credit range MAY be included when the expected context/output/reasoning volume is sufficiently understood. Do not invent precise token or credit counts when uncertainty is high.
+
+Usage estimates are planning estimates, not guarantees. Actual usage depends on prompt/context size, cached versus uncached input, output volume, reasoning effort, tool activity, retries, and any additional agents used by the selected mode.
+
+For an expensive recommendation, explicitly consider whether one reasoning level lower, or a stronger model at lower reasoning, is likely to preserve the required quality. Choose the cheaper alternative only when it remains safely above the task's quality floor. If the more expensive setting materially reduces risk, recommend it and say that the additional cost is intentional.
+
+### Workflow ownership
+
+- `/prompt-ass` assigns a provisional recommended configuration, complexity/quality class, usage estimate, relevant alternative, and concise quality/efficiency rationale to every proposed implementation/closeout prompt.
+- `/prompt-plan` reassesses those fields after source-level investigation. It may raise model/reasoning when actual risk requires it. It may recommend a lower-cost configuration than the assessment only when the source-level plan shows the same quality floor is still satisfied; explain the change rather than treating it as an automatic downgrade.
+- `/prompt-write` writes the finalized `MODEL / REASONING / USAGE` block into every implementation/closeout task file.
+- If `/prompt-write` revalidation discovers information that materially changes the task boundary or quality floor, return `Planning needed` rather than silently changing the approved plan.
+- `/revalidate` compares an existing prompt/stack to current repository reality and current model/usage policy, reporting whether its recommended configuration still satisfies the quality floor and whether a more efficient configuration can do so without meaningful quality loss.
+- Historical completed task prompts may retain the model/effort wording that was in force when they were executed. Unexecuted prompts using obsolete or unsupported model/effort names MUST be revalidated before execution.
 
 ## Versioning and phase-prompt numbering
 
@@ -441,7 +469,7 @@ Project versions use `0.<roadmap phase>.<phase prompt number>` while the project
 
 Determine safe task boundaries from established behavior/contracts/roadmap. No writes.
 
-Return target behavior, constraints, roadmap phase, prompt count/order, goal/summary/dependencies/boundary rationale/deferred behavior, closeout task when needed, and a provisional minimum model/effort rating with concise rationale for every proposed implementation/closeout prompt.
+Return target behavior, constraints, roadmap phase, prompt count/order, goal/summary/dependencies/boundary rationale/deferred behavior, closeout task when needed, and for every proposed implementation/closeout prompt the provisional recommended configuration, complexity/quality floor, estimated usage, relevant alternative, estimate confidence when meaningful, and concise quality/efficiency rationale defined above.
 
 Testing is part of task-boundary assessment: identify whether a prompt can own its focused tests and the required broader regression impact without becoming monolithic.
 
@@ -449,7 +477,7 @@ Testing is part of task-boundary assessment: identify whether a prompt can own i
 
 Requires completed `/prompt-ass` in current conversation. Perform source-level planning for every assessed prompt: contracts/ADRs, implementation, schemas/migrations, process roles, helpers/consumers/tests/recent changes, likely file scope, preserved behavior, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs implications, acceptance criteria, non-goals.
 
-Reassess each provisional minimum model/effort rating against the source-level plan and finalize or raise it. Do not silently lower the assessed minimum.
+Reassess the provisional model/reasoning recommendation, complexity/quality floor, expected usage, alternative, and efficiency rationale against the actual source-level boundary. Complexity and correctness supersede estimated cost. A more expensive configuration is required whenever the cheaper alternative would materially reduce reasoning headroom or increase regression risk.
 
 Material boundary revisions produce `Planning needed`. No writes.
 
@@ -461,9 +489,9 @@ Requires completed unblocked `/prompt-plan`. Revalidate current repo/docs and wr
 docs/tasks/<folder name>/
 ```
 
-Each implementation/closeout task file MUST include its finalized `MINIMUM MODEL / EFFORT` rating. A stronger model may be used at execution time. Do not silently remove or lower the recorded minimum when revising an existing task.
+Each implementation/closeout task file MUST include its finalized `MODEL / REASONING / USAGE` block with recommended configuration, complexity/quality floor, estimated usage, relevant alternative, efficiency rationale, and estimate confidence when meaningful.
 
-If revalidation reveals a materially higher required rating together with a task-boundary change, return `Planning needed` rather than silently changing the approved plan.
+If revalidation reveals a materially changed task boundary or quality floor, return `Planning needed` rather than silently changing the approved plan.
 
 Do not overwrite existing tasks without explicit authorization.
 
@@ -482,7 +510,7 @@ Continue one-based numbering for additional prompts in the same phase.
 - `/prompt <task>` — one prompt in conversation only.
 - `/stack <goal>` — legacy shorthand for `/prompt-ass`.
 - `/split <task>` — narrow assessment shorthand.
-- `/revalidate <task or stack>` — compare existing task(s) to current repo/contracts and report whether their recorded minimum model/effort ratings remain adequate.
+- `/revalidate <task or stack>` — compare existing task(s) to current repo/contracts/model-usage policy and report whether the recorded configuration still satisfies the quality floor and whether a more efficient configuration can preserve the same expected quality.
 
 # Review and validation commands
 
@@ -520,13 +548,13 @@ Recommend the single most logical next task.
 
 # Codex prompt requirements
 
-Finished implementation prompts normally include Task, Context, Current/Required behavior, roadmap phase, assigned project version, finalized minimum model/effort rating, governing contracts/ADRs/laws, inspected source, allowed/forbidden files, constraints, preserved behavior, applicable security/provenance/idempotency/failure-isolation implications, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs updates, acceptance criteria, and non-goals.
+Finished implementation prompts normally include Task, Context, Current/Required behavior, roadmap phase, assigned project version, finalized `MODEL / REASONING / USAGE` block, governing contracts/ADRs/laws, inspected source, allowed/forbidden files, constraints, preserved behavior, applicable security/provenance/idempotency/failure-isolation implications, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs updates, acceptance criteria, and non-goals.
 
 Every implementation prompt inherits `docs/contracts/testing-and-validation-contract.md`. A prompt must not treat tests as optional cleanup, silently accept missing prerequisites, or claim a higher evidence level than its validation procedure can prove.
 
 Every Codex roadmap-phase prompt also inherits the versioning rules above: it owns exactly its assigned `0.<phase>.<prompt>` version, uses `package.json` as the authority, respects the lockfile-disabled npm policy, and does not create duplicate manually maintained version constants.
 
-Every Codex roadmap-phase implementation/closeout prompt also inherits the finalized minimum model/effort rating from the prompt workflow. The rating is a minimum recommendation, not a ceiling; stronger model/effort may be used, and the task must not silently lower or omit its recorded minimum.
+Every Codex roadmap-phase implementation/closeout prompt also inherits the finalized model/reasoning/usage recommendation from the prompt workflow. The recommendation must satisfy the recorded complexity/quality floor; token efficiency may optimize among adequate configurations but must never weaken the quality requirement.
 
 Collection prompts preserve bootstrap/approval/lifecycle/operational boundaries, truthful Collection runs, pre-request network safety, run isolation, retry limits when applicable, Source-domain policy, and controlled deterministic collection tests without production safety bypasses.
 
