@@ -3,11 +3,14 @@ TASK: Phase 6 / P4 — Worker normalization pipeline integration
 ROADMAP PHASE
 Phase 6 — Article normalization.
 
-MINIMUM MODEL / EFFORT
-- Minimum recommended rating: `Sol High`.
-- A stronger model/effort tier may be used.
-- Do not lower this rating without explicit repository-owner direction.
-- Rationale: this task extends the canonical Worker execution unit across several already-security-sensitive boundaries: persisted run identity, redirect-derived terminal feed URL, untrusted parser output, normalization, Article-domain trust policy, per-item failure isolation, process-facing inspection, and durable accounting. Subtle ordering/error-mapping regressions could corrupt provenance or weaken Source/network boundaries.
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol High`.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Alternative considered: `Sol Light`.
+- Estimate confidence: `High`.
+- Efficiency rationale: this task extends the canonical Worker execution unit across persisted run identity, redirect-derived terminal feed URL, untrusted parser output, normalization, Article-domain trust policy, per-item failure isolation, process-facing inspection, durable accounting, deterministic fixtures, and real PostgreSQL integration. Sol Light would likely consume fewer tokens, but the cross-cutting ordering/error-mapping/provenance/security regression risk justifies High reasoning. The additional usage is intentional; complexity and correctness supersede the cheaper alternative here.
+- If this exact configuration is no longer available in the current Codex picker at execution time, revalidate against `BOOT.md` rather than silently substituting an invented model/effort name.
 
 VERSIONING
 - This is Phase 6 prompt 4 and its assigned project version is `0.6.4`.

@@ -3,11 +3,14 @@ TASK: Phase 6 / P3 — Collection-run normalization accounting
 ROADMAP PHASE
 Phase 6 — Article normalization.
 
-MINIMUM MODEL / EFFORT
-- Minimum recommended rating: `Terra Max`.
-- A stronger model/effort tier may be used.
-- Do not lower this rating without explicit repository-owner direction.
-- Rationale: this task is a bounded schema/repository extension, but it introduces durable Phase 6 stage semantics and arithmetic invariants while preserving historical Phase 5 rows. Incorrect constraints or compatibility handling would create persistent provenance/accounting defects and could block later pipeline integration.
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Sol Light`.
+- Estimate confidence: `Medium`.
+- Efficiency rationale: this task introduces durable schema/repository invariants, but the change is tightly bounded and extensively specified. Terra High should provide enough reasoning headroom while benefiting from Terra's lower per-token cost; Sol Light is a viable stronger-model alternative, but it is not expected to materially improve this straightforward migration/repository implementation when the prompt is followed carefully. If execution uncovers ambiguous lifecycle/compatibility behavior beyond this planned boundary, escalate rather than forcing the cheaper setting through scope growth.
+- If this exact configuration is no longer available in the current Codex picker at execution time, revalidate against `BOOT.md` rather than silently substituting an invented model/effort name.
 
 VERSIONING
 - This is Phase 6 prompt 3 and its assigned project version is `0.6.3`.

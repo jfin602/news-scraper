@@ -3,11 +3,14 @@ TASK: Phase 6 / P1 — Deterministic Article candidate normalization
 ROADMAP PHASE
 Phase 6 — Article normalization.
 
-MINIMUM MODEL / EFFORT
-- Minimum recommended rating: `Terra Max`.
-- A stronger model/effort tier may be used.
-- Do not lower this rating without explicit repository-owner direction.
-- Rationale: this is a mostly pure transformation boundary, but its URL/date/text semantics become authoritative input to later Article identity and public presentation. Aggressive canonicalization, unsafe markup handling, locale-dependent dates, or mutable/non-deterministic candidate output would create difficult downstream correctness and data-integrity defects.
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Terra Ultra`.
+- Estimate confidence: `Medium`.
+- Efficiency rationale: this is a tightly specified mostly pure transformation, but URL/date/text semantics become authoritative input to later Article identity and public presentation. Sol Light provides stronger judgment at a constrained reasoning budget; Terra Ultra would add substantial reasoning volume that is not expected to materially improve this bounded implementation. Aggressive canonicalization, unsafe markup handling, locale-dependent dates, or mutable/non-deterministic candidate output remain meaningful correctness/data-integrity risks, so do not reduce reasoning solely to save credits.
+- If this exact configuration is no longer available in the current Codex picker at execution time, revalidate against `BOOT.md` rather than silently substituting an invented model/effort name.
 
 VERSIONING
 - This is Phase 6 prompt 1 and its assigned project version is `0.6.1`.
