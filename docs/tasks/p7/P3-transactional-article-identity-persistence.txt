@@ -1,0 +1,376 @@
+TASK: Phase 7 / P3 — Transactional Article identity and persistence
+
+ROADMAP PHASE
+Phase 7 — Default Relevance, Article identity, and persistence.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol High`.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Alternative considered: `Terra Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: this task owns the highest-risk data-integrity logic in Phase 7: Source-scoped identity precedence, canonical fallback/promotion, deliberate same-URL/different-ID coexistence, transaction-scoped serialization, race behavior, material update semantics, observation atomicity, and rollback. Sol High is intentionally recommended because a subtle identity/race defect can silently corrupt durable state even when happy-path tests pass. The additional usage is justified; do not trade away reasoning headroom merely for lower token cost.
+- If this exact configuration is no longer available in the current Codex picker at execution time, revalidate against `BOOT.md` rather than silently substituting an invented model/effort name.
+
+VERSIONING
+- This is Phase 7 prompt 3 and its assigned project version is `0.7.3`.
+- On first execution confirm P2 left `package.json` at `0.7.2`, then advance only its top-level `version` to `0.7.3`.
+- If this same P3 prompt is rerun and `package.json` is already `0.7.3`, retain `0.7.3`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` is the sole authoritative current-version source.
+- The repository intentionally does not use `package-lock.json`; do not create, require, regenerate, or validate one.
+
+DEPENDS ON
+- P1 canonical default Relevance evaluator exists, but P3 receives only already-included candidates and does not invoke Relevance itself.
+- P2 Article/Article-observation schema, digest-backed identity lookup/indexes, ownership constraints, and real-PostgreSQL migration proof.
+- Existing shared `Database.transaction()` boundary.
+- Existing ArticleCandidate/provenance contract from Phase 6.
+
+GOAL
+Implement one reusable, generic, transactionally idempotent Article persistence boundary for an already normalized, Article-link-safe, Relevance-included `ArticleCandidate`.
+
+One invocation represents one successful Platform observation attempt for one candidate. It MUST:
+1. validate/confirm provenance ownership;
+2. serialize the candidate's logical identity against racing actors;
+3. resolve the correct Article or identify a conservative conflict;
+4. create/update/leave unchanged the Source-derived Article row;
+5. update first/last-seen semantics correctly;
+6. insert the corresponding successful Article observation;
+7. commit Article state + successful observation atomically;
+8. return a bounded typed outcome suitable for later P5 aggregation.
+
+P3 MUST NOT integrate into `collectEndpoint()` or the Worker yet. P3 MUST NOT modify Collection-run processing counters. P5 owns orchestration.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/contracts/article-lifecycle-and-deduplication.md`
+- `docs/architecture/system-architecture.md`
+- `docs/roadmap/mvp-roadmap.md`
+- `docs/decisions/original-link-and-normalized-metadata.md`
+
+INSPECT BEFORE EDITING
+At minimum inspect:
+- P2 migration/schema tests and exact final schema/index names;
+- `src/database/database.ts` transaction semantics;
+- `src/collection/normalization/article-candidate.ts`;
+- `src/collection/normalization/normalizer.ts`;
+- `src/collection/locks/endpoint-run-lock.ts` for key-generation/concurrency style only;
+- `test/database/endpoint-run-lock.test.ts` for independent-actor/deferred-barrier test style;
+- existing repository mapping/error styles under `src/publications/`, `src/sources/`, and `src/collection/runs/`.
+
+ARCHITECTURE / MODULE OWNERSHIP
+Create substantive Article persistence ownership, recommended:
+- `src/articles/repository.ts`
+- `src/articles/identity-lock.ts`
+
+Small focused helper/type files under `src/articles/` are allowed if they isolate meaningful behavior such as row mapping or material Source-derived comparison. Do not create a generic ORM, persistence framework, or cross-domain lock abstraction merely for this task.
+
+PERSISTENCE API
+Expose one high-level operation for an included candidate, recommended conceptually:
+- input: `Database` (or an equivalent object that can own one transaction), `ArticleCandidate`, explicit observation timestamp;
+- output: immutable typed success `{ outcome: 'created' | 'updated' | 'unchanged', article, observation }` OR a bounded expected item-level failure result such as `{ outcome: 'failed', reason: 'identity_conflict' | ... }`.
+
+Exact naming is implementation-owned, but callers MUST NOT need to parse PostgreSQL error strings to distinguish an expected conservative identity conflict from a successful identity outcome.
+
+Unexpected database/transaction infrastructure failures may throw a bounded domain persistence error. Do not collapse an unavailable database, programming defect, and expected identity ambiguity into one undifferentiated normal result.
+
+OBSERVATION TIME INPUT
+The high-level persistence operation MUST receive one explicit validated observation timestamp rather than calling the wall clock repeatedly inside identity logic.
+
+That same observation time drives:
+- new Article `first_seen_at`;
+- new Article `last_seen_at`;
+- later `last_seen_at` advancement when appropriate;
+- Article-observation `observed_at`.
+
+This makes semantics deterministic and testable. Production clock injection belongs to P5. P3 must reject invalid observation timestamps predictably.
+
+ARTICLE IDENTITY LOCKS
+Database uniqueness is a final invariant backstop, but P3 must also serialize identity resolution so canonical fallback/promotion races cannot create divergent logical state.
+
+Implement Article-specific PostgreSQL TRANSACTION advisory locks using a dedicated namespace. Do NOT reuse the Phase 4 endpoint-run lock namespace or its session-level lock lifecycle.
+
+Recommended behavior:
+- derive a deterministic signed 64-bit advisory key from SHA-256 of a domain-separated namespace + Source ID + identity kind + complete identity value;
+- use `pg_advisory_xact_lock` so lock ownership automatically ends with the Article transaction;
+- when `externalId` exists, acquire strong-external-ID lock FIRST, then canonical-URL lock;
+- when no `externalId` exists, acquire only the canonical-URL lock;
+- use one globally consistent order and never conditionally reverse it.
+
+The existing endpoint-run lock SHA-256-to-64-bit pattern is a style/reference, not a helper that Article identity should import if doing so couples unrelated lifecycles.
+
+Unit-test deterministic key generation/namespace separation without pretending unit tests prove PostgreSQL concurrency.
+
+HASH/DIGEST SAFETY
+P2 uses fixed-size digests as lookup/index aids because full identity values can exceed safe B-tree entry sizes.
+
+P3 MUST NEVER resolve identity from digest equality alone.
+- Query by Source/scope + digest for efficiency.
+- Compare the complete stored `external_id` or `canonical_identity_url` against the complete candidate value before declaring an exact match.
+- If a digest query returns different full values, treat them as different identities. Do not merge them.
+- If a database unique digest constraint conservatively rejects a theoretical collision, surface a bounded persistence/identity conflict rather than reassigning identity.
+
+CANONICAL IDENTITY ALGORITHM
+Article identity is Source-instance identity, NOT true-duplicate detection.
+
+Strong external IDs are adapter-designated identity authority. Normalized-title/fuzzy/fingerprint similarity has ZERO identity authority.
+
+For a candidate WITH `externalId`:
+1. Under the strong-ID + canonical transaction locks, query exact Source + external-ID digest and verify full external ID.
+2. If an exact strong external-ID Article exists, it is the resolved Article even if the candidate canonical/original URL changed. Continue to material-field comparison/update.
+3. If no exact strong-ID Article exists, inspect ALL exact full canonical-URL Article matches within the same Source/Publication scope.
+4. If the canonical match set contains exactly one canonical-fallback Article (`external_id IS NULL`) AND contains no Article with a different strong external ID, promote that fallback Article by attaching this candidate's strong external ID; this is a material identity update.
+5. If canonical matches consist only of Articles carrying one or more DIFFERENT strong external IDs, do NOT merge or overwrite them. Create a separate Article for this candidate's new strong external ID, subject to the database invariants.
+6. If a canonical-fallback Article coexists with one or more contradictory strong-ID Articles for that canonical URL, do not silently promote the fallback. Treat the fallback as non-authoritative for this candidate and create this candidate's strong-ID Article if the strong identity itself is new, subject to constraints. Never reassign another Article's strong ID.
+7. A different strong external ID must never be overwritten because canonical URLs match.
+
+For a candidate WITHOUT `externalId`:
+1. Under the canonical transaction lock, inspect ALL exact full canonical-URL matches within the same Source/Publication scope.
+2. Zero exact rows: create one canonical-fallback Article (`external_id IS NULL`).
+3. Exactly one exact row: resolve that row, whether it is fallback or strong-ID-backed. This allows a Source item that temporarily omits its ID to converge on a single existing Article by canonical URL.
+4. Multiple exact rows distinguished by different strong external IDs: explicit conservative identity conflict; choose NONE.
+5. Do not create another fallback Article when the exact canonical identity already resolves uniquely.
+
+Same canonical URL + different strong external IDs is therefore legal storage, while canonical-only identity becomes intentionally ambiguous when multiple strong Articles share that URL.
+
+SOURCE / PUBLICATION SCOPE
+Identity never crosses Source boundaries.
+- Same external ID in different Sources is unrelated identity.
+- Same canonical URL in different Sources is unrelated identity.
+- Never use Publication-wide URL matching to merge separate Sources.
+
+PROVENANCE VALIDATION
+Before mutating Article state, confirm the candidate's provenance is internally consistent with persisted configuration/run ownership.
+
+The P2 schema should already reject contradictory foreign-key combinations. P3 should still fail predictably when given stale/corrupt/mismatched provenance rather than relying on a later arbitrary insert failure.
+
+At minimum ensure:
+- candidate Source belongs to candidate Publication;
+- candidate endpoint belongs to candidate Source;
+- candidate Collection run belongs to candidate endpoint;
+- any resolved Article belongs to candidate Publication/Source.
+
+Do not reinterpret approval/lifecycle/operational state here. Collection eligibility already runs earlier in the canonical pipeline. P3 persists provenance for a candidate that was already collected through the approved pipeline.
+
+SOURCE-DERIVED MATERIAL UPDATE SEMANTICS
+For an existing resolved Article, determine whether the persisted normalized SOURCE-DERIVED Article state materially differs from the candidate.
+
+Material comparison should include every Phase 7-persisted candidate-derived field that can legitimately change, including as applicable:
+- external ID promotion;
+- original URL;
+- canonical identity URL;
+- display title;
+- normalized title;
+- author;
+- summary;
+- image URL;
+- language;
+- Source publication status/timestamp;
+- Source update status/timestamp.
+
+Do not treat as material Source update:
+- `last_seen_at` advancement by itself;
+- insertion of a new observation;
+- platform `updated_at` maintenance by itself.
+
+Outcome rules:
+- new Article => `created`;
+- existing Article with one or more material Source-derived changes => `updated`;
+- existing Article with no material Source-derived change => `unchanged`.
+
+FIRST / LAST SEEN
+For a new Article:
+- `first_seen_at = observationTime`;
+- `last_seen_at = observationTime`.
+
+For later successful observations:
+- `first_seen_at` MUST never move forward;
+- `last_seen_at` should represent the latest successful observation; use monotonic semantics so an older/replayed explicit observation timestamp cannot move `last_seen_at` backward;
+- `updated` versus `unchanged` is decided independently of last-seen advancement.
+
+Do not manufacture `published_at` from observation time.
+
+PLATFORM `updated_at`
+Keep platform record-change semantics distinct from Source update metadata.
+- A material Source-derived Article update should advance platform `updated_at` according to existing repository conventions/database time.
+- An otherwise unchanged observation need not rewrite all Article fields merely to update platform `updated_at`.
+- Do not use platform `updated_at` to decide whether Source content changed.
+
+ATOMIC ARTICLE + OBSERVATION TRANSACTION
+The transaction boundary is PER CANDIDATE.
+
+Within one `Database.transaction()` callback:
+1. acquire Article identity transaction lock(s);
+2. validate/resolve exact identity;
+3. create/update Article as required;
+4. insert one Article observation for `created`, `updated`, or `unchanged` referencing the resolved Article and the actual candidate endpoint/run provenance;
+5. return only after both operations succeed.
+
+If observation insertion fails, Article creation/update MUST roll back.
+If Article mutation fails, no successful observation may commit.
+Do NOT wrap an entire feed batch in one Article transaction.
+
+OBSERVATION CONTENT
+For successful identity outcomes, persist enough observation evidence to audit the actual candidate identity/provenance:
+- actual Article ID;
+- Publication/Source/endpoint/run IDs;
+- observation time;
+- outcome (`created`, `updated`, `unchanged`);
+- observed complete external ID when present;
+- observed canonical identity URL;
+- optional bounded stable reason only if the schema/API already owns such a field.
+
+P3 does not need to persist pre-identity `rejected`, `excluded`, or `failed` observations. Do not invent that runtime requirement merely because the schema permits null Article IDs.
+
+EXPECTED ITEM-LEVEL FAILURE
+At minimum a canonical-only candidate that sees multiple exact canonical rows distinguished by different strong IDs must return a bounded explicit identity conflict without mutating any Article and without committing a successful Article observation.
+
+If P2 digest uniqueness produces a conservative hash-collision conflict, surface a bounded failure rather than merging different full values.
+
+Do not leak SQL, credentials, connection strings, arbitrary database errors, Raw feed content, or stack traces through public-facing result details.
+
+ALLOWED FILES
+Expected scope:
+- new `src/articles/**`
+- new focused `test/unit/article-identity-lock.test.ts` or equivalent
+- new focused `test/database/article-persistence.test.ts` or equivalent
+- narrowly necessary shared test helper changes
+- `package.json`
+
+Do NOT modify Worker/collection orchestration or Collection-run schema/repository in P3 unless a tiny type-only compatibility edit is absolutely required by final P2 state; explain any such deviation.
+
+FORBIDDEN / OUT OF SCOPE
+- `src/collection/collect-endpoint.ts` integration
+- `src/app/worker/collect-main.ts` integration
+- new Collection-run processing counters/status
+- configurable Relevance rules
+- Category persistence
+- true-duplicate review/groups/Primary logic
+- moderation/public feed/admin UI
+- scheduler/jobs/health
+- HTML collection
+- fuzzy-title identity
+- generic stable identity-key framework
+- cross-Source Article merging
+- batch-wide Article transaction
+
+FOCUSED UNIT TESTS — LEVEL 2
+Cover identity-lock helper behavior such as:
+- deterministic key for same namespace/Source/kind/full value;
+- different Source changes key;
+- external-ID versus canonical namespaces differ;
+- Article identity lock namespace does not equal endpoint-run lock namespace/keys for representative data;
+- validation rejects malformed programming input if the helper exposes such a boundary.
+
+Do not claim PostgreSQL lock behavior from unit tests.
+
+FOCUSED REAL-POSTGRESQL TESTS — LEVEL 4
+Use disposable PostgreSQL and production migrations. At minimum prove:
+1. strong external-ID candidate creates exactly one Article and one `created` observation;
+2. unchanged re-observation resolves same Article, returns `unchanged`, advances/retains correct last-seen, and adds one observation without increasing Article cardinality;
+3. same strong external ID with changed URL/title/metadata resolves the existing Article and returns `updated`;
+4. strong external ID remains identity authority when URL changes;
+5. canonical-only candidate creates a fallback Article and re-observation is idempotent;
+6. canonical-only candidate resolves exactly one strong-ID-backed Article sharing its canonical URL;
+7. canonical-fallback Article is promoted when a later strong ID arrives and no contradictory strong identity exists;
+8. different strong external IDs sharing one canonical URL remain separate Articles and are never overwritten/merged;
+9. canonical-only candidate encountering multiple exact strong-ID Articles for one canonical URL returns explicit failure and mutates none;
+10. identity does not cross Source boundaries;
+11. stale/wrong Publication/Source/endpoint/run provenance fails without creating Article/observation state;
+12. observation insertion failure rolls back a new Article;
+13. observation insertion failure rolls back a material update/promotion;
+14. invalid explicit observation time fails predictably;
+15. first-seen never moves forward and last-seen never moves backward under deterministic replayed observation timestamps;
+16. `last_seen_at`/observation insertion alone does not turn an unchanged Source state into `updated`;
+17. near-limit/high-entropy external IDs and canonical URLs resolve using digest lookup plus full-value verification.
+
+CONCURRENCY / RACE TESTS — LEVEL 4
+Use two independent database actors against the SAME disposable PostgreSQL database and deterministic barriers/deferred promises; do not use arbitrary sleeps as proof.
+
+Prove at least:
+A. same strong external ID race:
+- two actors attempt the same Source external identity concurrently;
+- final Article cardinality is one;
+- both operations resolve the same Article;
+- observations are preserved according to committed operations;
+- no uniqueness exception escapes as ordinary expected behavior.
+
+B. same canonical-only race:
+- two actors attempt the same Source canonical-only identity;
+- final Article cardinality is one;
+- no duplicate fallback row exists.
+
+C. strong-ID versus canonical-only race for the same previously unseen canonical URL:
+- whichever actor acquires canonical identity first, final logical Article cardinality is one;
+- the strong external ID ends attached to the resolved Article;
+- no duplicate fallback survives;
+- observations remain transactionally valid.
+
+D. two DIFFERENT strong IDs sharing one canonical URL:
+- concurrent operations may serialize on canonical identity but MUST finish as two distinct Articles, not one merged Article.
+
+If a test cannot deterministically prove that actors overlap/contend, improve the barrier instrumentation rather than relying on timing luck.
+
+BROADER REGRESSION
+Run at minimum:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:db`
+- `npm run check`
+
+No required selected suite may pass with zero tests or silently skipped PostgreSQL prerequisites.
+
+FIXTURE / BROWSER / LIVE VALIDATION
+- No Level 5 Worker/collection fixture integration is required because P3 is not wired into `collectEndpoint()`.
+- No Level 6 browser evidence.
+- No Level 7 live-Source evidence.
+
+PRESERVED BEHAVIOR
+P3 must preserve:
+- topic independence;
+- Source/endpoint approval and safety boundaries upstream;
+- normalized candidate contract;
+- original URL distinct from canonical identity URL;
+- external ID as opaque adapter-designated strong Source identity;
+- Article identity distinct from true-duplicate identity;
+- all Phase 5/6 Worker behavior until P5;
+- existing Collection-run accounting until P4/P5;
+- Source/endpoint/run provenance;
+- one-candidate transaction isolation.
+
+ACCEPTANCE CRITERIA
+P3 is complete only when:
+- a reusable high-level Article persistence boundary exists outside Worker orchestration;
+- identity resolution exactly follows strong external ID -> canonical fallback semantics without fuzzy merging;
+- canonical-fallback promotion and contradictory-strong-ID cases are conservative and deterministic;
+- Article-specific transaction advisory locks serialize the documented races;
+- digest lookup is always verified against complete stored identity values;
+- `created`/`updated`/`unchanged` semantics and first/last-seen behavior are correct;
+- successful Article mutation and successful Article observation are atomic per candidate;
+- expected identity conflict is bounded and does not corrupt unrelated state;
+- real PostgreSQL race/rollback/idempotency tests pass on the exact final tree;
+- `package.json` is exactly `0.7.3` and no npm lockfile exists.
+
+DOCUMENTATION
+Do not rewrite canonical contracts/roadmap for implementation convenience. If schema from P2 cannot implement a governing identity invariant safely, stop and report the conflict rather than creating a compatibility bridge or silently changing semantics.
+
+FINAL RESPONSE
+Report:
+- high-level persistence API/result vocabulary;
+- exact identity/locking strategy implemented;
+- files changed;
+- real-PostgreSQL race/rollback tests actually executed and observed results;
+- broader commands actually executed;
+- evidence levels actually achieved;
+- final package version;
+- any unresolved risk/deviation.
+
+Do not claim Worker integration, Collection-run processing accounting, browser behavior, live-Source behavior, or true-duplicate behavior from P3 evidence.
