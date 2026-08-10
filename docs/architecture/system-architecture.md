@@ -167,11 +167,13 @@ From Phase 10 onward:
 - Runtime processes do not make ad hoc schema changes; Web/API and Worker startup do not automatically apply migrations.
 - The Phase 4 endpoint lock is shared across Worker processes and requires real persistence/concurrency evidence when implemented through PostgreSQL or another shared coordination store.
 - Minimal Collection-run persistence begins with real transport in Phase 5; it does not wait for Article persistence.
-- Article identity resolution and insert/update occur transactionally with critical uniqueness constraints.
-- An Article observation is linked to the Collection run as part of successful identity processing.
+- Article identity resolution plus Article create/update and the corresponding successful identity-resolving observation form one atomic per-candidate transaction with critical uniqueness constraints.
+- `created`, `updated`, and `unchanged` observations reference the resolved Article; pre-identity outcomes such as `rejected` or `excluded` may persist provenance without an Article identifier as governed by the domain contract.
+- An Article observation is linked to the actual Source endpoint and existing Collection run that produced the candidate; endpoint/run and Article Publication/Source ownership must remain consistent.
+- A failed candidate does not roll back unrelated successful candidates from the same Collection run unless integrity requires it; Phase 7 does not wrap an entire feed batch in one all-or-nothing Article transaction.
+- Collection-run finalization occurs after the bounded candidate batch finishes and canonical processing-outcome counters are known.
 - Duplicate-group changes preserve exactly one Primary Article.
 - Duplicate-review decisions persist independently from groups.
-- A failed candidate does not roll back unrelated candidates from the same run unless integrity requires it.
 - Once Article persistence exists, Collection-run accounting uses the canonical post-identity outcome taxonomy from the domain contract.
 - Database constraints are preferred over application-only assumptions for critical identity/uniqueness rules.
 
