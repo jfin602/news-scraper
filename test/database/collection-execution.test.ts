@@ -5,12 +5,14 @@ import {
   collectEndpoint,
   createCollectionRunStore,
 } from '../../src/collection/collect-endpoint.ts';
+import { applyArticleLinkPolicy } from '../../src/collection/article-links/policy.ts';
 import { createEndpointExecutionLockRunner } from '../../src/collection/execution.ts';
 import type {
   HttpFetcher,
   HttpFetcherResult,
 } from '../../src/collection/fetchers/http-fetcher.ts';
 import { RssAtomParser } from '../../src/collection/parsers/rss-atom-parser.ts';
+import { normalizeArticleCandidate } from '../../src/collection/normalization/normalizer.ts';
 import { createDatabase, type Database } from '../../src/database/database.ts';
 import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
@@ -204,6 +206,8 @@ function execute(
     runs: createCollectionRunStore(database),
     fetcher: endpointFetcher,
     rssAtomParser: new RssAtomParser(),
+    normalizeArticleCandidate,
+    applyArticleLinkPolicy,
     executionId: () => executionId,
   });
 }

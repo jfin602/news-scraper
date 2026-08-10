@@ -12,6 +12,34 @@ const RSS_WITH_ITEM = `<?xml version="1.0"?>
 <guid>fixture-1</guid><title>Canonical fixture item</title>
 <link>https://feeds.example.test/articles/fixture-1</link>
 </item></channel></rss>`;
+const PHASE_6_RSS = `<?xml version="1.0"?>
+<rss version="2.0"><channel><title>Phase 6 fixture</title>
+<item><guid>phase6-rss-1</guid>
+<title><![CDATA[Safe <b>Title</b> &amp; Entities]]></title>
+<link>https://feeds.example.test/articles/one?utm_source=fixture&amp;edition=pro#section</link>
+<description><![CDATA[<p>Hello &amp; <strong>world</strong></p><script>SYNTHETIC_SCRIPT_SECRET</script><style>.hidden{display:none}</style>]]></description>
+<pubDate>Mon, 10 Aug 2026 07:00:00 -0500</pubDate></item>
+<item><guid>phase6-rss-2</guid><title>Missing date</title>
+<link>https://feeds.example.test/articles/two</link></item>
+<item><guid>phase6-rss-3</guid><title>Invalid date</title>
+<link>https://feeds.example.test/articles/three</link><pubDate>not-a-date</pubDate></item>
+<item><guid>phase6-rss-4</guid><link>https://feeds.example.test/articles/missing-title</link></item>
+<item><guid>phase6-rss-5</guid><title>Outside policy</title>
+<link>https://outside.example/articles/five</link></item>
+</channel></rss>`;
+const PHASE_6_ATOM = `<?xml version="1.0"?>
+<feed xmlns="http://www.w3.org/2005/Atom"><title>Phase 6 Atom</title>
+<entry><id>phase6-atom-1</id><title>Atom candidate</title>
+<link rel="alternate" href="https://feeds.example.test/articles/atom-one" />
+<published>2026-08-10T12:30:00-05:00</published></entry>
+</feed>`;
+const PHASE_6_RELATIVE_RSS = `<?xml version="1.0"?>
+<rss version="2.0"><channel><title>Redirected fixture</title><item>
+<guid>phase6-relative-1</guid><title>Redirect-relative candidate</title>
+<link>../articles/redirected?utm_medium=fixture&amp;edition=semantic#fragment</link>
+</item></channel></rss>`;
+const PHASE_6_ZERO_RSS = `<?xml version="1.0"?>
+<rss version="2.0"><channel><title>Zero fixture</title></channel></rss>`;
 
 export interface FixtureRequest {
   readonly method: string | undefined;
@@ -117,6 +145,37 @@ function route(request: IncomingMessage, response: ServerResponse): void {
       xmlResponse(
         response,
         Buffer.from(RSS_WITH_ITEM),
+        'application/rss+xml; charset=utf-8',
+      );
+      return;
+    case '/phase6/rss':
+      xmlResponse(
+        response,
+        Buffer.from(PHASE_6_RSS),
+        'application/rss+xml; charset=utf-8',
+      );
+      return;
+    case '/phase6/atom':
+      xmlResponse(
+        response,
+        Buffer.from(PHASE_6_ATOM),
+        'application/atom+xml; charset=utf-8',
+      );
+      return;
+    case '/phase6/redirect':
+      redirectResponse(response, '/phase6/feeds/final.xml');
+      return;
+    case '/phase6/feeds/final.xml':
+      xmlResponse(
+        response,
+        Buffer.from(PHASE_6_RELATIVE_RSS),
+        'application/rss+xml; charset=utf-8',
+      );
+      return;
+    case '/phase6/zero':
+      xmlResponse(
+        response,
+        Buffer.from(PHASE_6_ZERO_RSS),
         'application/rss+xml; charset=utf-8',
       );
       return;

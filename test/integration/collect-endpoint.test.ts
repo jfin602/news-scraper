@@ -5,8 +5,10 @@ import { describe, it } from 'node:test';
 import {
   collectEndpoint,
   CollectionRunFinalizationError,
+  type CollectEndpointDependencies,
   type CollectionRunStore,
 } from '../../src/collection/collect-endpoint.ts';
+import { applyArticleLinkPolicy } from '../../src/collection/article-links/policy.ts';
 import type { EndpointExecutionLockRunner } from '../../src/collection/execution.ts';
 import type {
   HttpFetcher,
@@ -20,6 +22,8 @@ import type {
   ParserResult,
 } from '../../src/collection/parsers/parser.ts';
 import { RssAtomParser } from '../../src/collection/parsers/rss-atom-parser.ts';
+import { normalizeArticleCandidate } from '../../src/collection/normalization/normalizer.ts';
+import type { ArticleNormalizationContext } from '../../src/collection/normalization/article-candidate.ts';
 import type {
   FinalizeCollectionRunInput,
   PersistedCollectionRun,
@@ -43,12 +47,25 @@ describe('canonical endpoint collection service', () => {
         dialect: 'rss',
         items: [
           {
-            title: 'Fixture item',
+            title: 'Fixture item one',
+            url: 'https://feeds.example.test/articles/fixture-item-1',
             categories: ['News'],
             diagnostics: { fixture: 'yes' },
           },
+          {
+            title: 'Fixture item two',
+            url: 'https://feeds.example.test/articles/fixture-item-2',
+          },
         ],
       }),
+      normalizeArticleCandidate(rawItem, context) {
+        events.push('normalize');
+        return normalizeArticleCandidate(rawItem, context);
+      },
+      applyArticleLinkPolicy(candidate, context) {
+        events.push('article-link policy');
+        return applyArticleLinkPolicy(candidate, context);
+      },
       executionId: () => EXECUTION_ID,
     });
 
@@ -58,6 +75,10 @@ describe('canonical endpoint collection service', () => {
       'run.start',
       'fetch',
       'parse',
+      'normalize',
+      'normalize',
+      'article-link policy',
+      'article-link policy',
       'run.finalize',
       'release',
     ]);
@@ -68,16 +89,20 @@ describe('canonical endpoint collection service', () => {
     assert.equal(result.executionId, EXECUTION_ID);
     assert.equal(result.transportStatus, 'succeeded');
     assert.equal(result.parserStatus, 'succeeded');
-    assert.equal(result.rawItemCount, 1);
+    assert.equal(result.rawItemCount, 2);
     assert.equal(result.httpStatusCode, 200);
     assert.equal(result.wireByteCount, 321);
     assert.equal(result.decompressedByteCount, 654);
     assert.equal(result.redirectCount, 1);
     assert.ok(Object.isFrozen(result));
-    assert.ok(Object.isFrozen(result.rawItems));
-    assert.ok(Object.isFrozen(result.rawItems?.[0]));
-    assert.ok(Object.isFrozen(result.rawItems?.[0]?.categories));
-    assert.ok(Object.isFrozen(result.rawItems?.[0]?.diagnostics));
+    assert.equal(result.normalizationStatus, 'succeeded');
+    assert.equal(result.normalizedCandidateCount, 2);
+    assert.equal(result.normalizationFailureCount, 0);
+    assert.equal(result.articleLinkRejectionCount, 0);
+    assert.ok(Object.isFrozen(result.candidates));
+    assert.ok(Object.isFrozen(result.candidates?.[0]));
+    assert.ok(Object.isFrozen(result.candidates?.[0]?.sourceCategories));
+    assert.ok(Object.isFrozen(result.candidates?.[0]?.provenance));
     assert.deepEqual(runs.finalizations, [
       {
         runStatus: 'succeeded',
@@ -86,13 +111,231 @@ describe('canonical endpoint collection service', () => {
         httpStatusCode: 200,
         wireByteCount: 321,
         decompressedByteCount: 654,
-        rawItemCount: 1,
-        normalizationStatus: 'not_run',
-        normalizedCandidateCount: 0,
+        rawItemCount: 2,
+        normalizationStatus: 'succeeded',
+        normalizedCandidateCount: 2,
         normalizationFailureCount: 0,
         articleLinkRejectionCount: 0,
       },
     ]);
+  });
+
+  it('isolates ordinary normalization failures and Article-link rejections with exact batch accounting', async () => {
+    const cases = [
+      {
+        name: 'zero Raw items',
+        items: [],
+        expected: [0, 0, 0, 0, 0],
+      },
+      {
+        name: 'mixed normalization results',
+        items: [
+          { title: 'Accepted', url: 'https://feeds.example.test/accepted' },
+          { url: 'https://feeds.example.test/missing-title' },
+        ],
+        expected: [2, 1, 1, 0, 1],
+      },
+      {
+        name: 'all ordinary normalization failures',
+        items: [{ title: 'Missing URL' }, { url: '/missing-title' }],
+        expected: [2, 0, 2, 0, 0],
+      },
+      {
+        name: 'mixed Article-link decisions',
+        items: [
+          { title: 'Accepted', url: 'https://feeds.example.test/accepted' },
+          { title: 'Rejected', url: 'https://outside.test/rejected' },
+        ],
+        expected: [2, 2, 0, 1, 1],
+      },
+      {
+        name: 'all Article links rejected',
+        items: [
+          { title: 'Rejected one', url: 'https://outside.test/one' },
+          { title: 'Rejected two', url: 'https://outside.test/two' },
+        ],
+        expected: [2, 2, 0, 2, 0],
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      const events: string[] = [];
+      const runs = runStore(events);
+      const result = await executeWith(
+        events,
+        runs,
+        contentResult(),
+        Object.freeze({
+          ok: true,
+          dialect: 'rss',
+          items: Object.freeze(testCase.items),
+        }),
+      );
+      assert.equal(result.status, 'succeeded', testCase.name);
+      if (result.status !== 'succeeded') continue;
+      assert.equal(result.normalizationStatus, 'succeeded', testCase.name);
+      assert.deepEqual(
+        [
+          result.rawItemCount,
+          result.normalizedCandidateCount,
+          result.normalizationFailureCount,
+          result.articleLinkRejectionCount,
+          result.candidates?.length,
+        ],
+        testCase.expected,
+        testCase.name,
+      );
+      assert.equal(
+        result.candidates?.length,
+        result.normalizedCandidateCount - result.articleLinkRejectionCount,
+      );
+      assert.deepEqual(runs.finalizations[0], {
+        runStatus: 'succeeded',
+        transportStatus: 'succeeded',
+        parserStatus: 'succeeded',
+        normalizationStatus: 'succeeded',
+        httpStatusCode: 200,
+        wireByteCount: 321,
+        decompressedByteCount: 654,
+        rawItemCount: testCase.expected[0],
+        normalizedCandidateCount: testCase.expected[1],
+        normalizationFailureCount: testCase.expected[2],
+        articleLinkRejectionCount: testCase.expected[3],
+      });
+    }
+  });
+
+  it('supplies the persisted run identity and redirected terminal feed URL to every normalization call', async () => {
+    const contexts: ArticleNormalizationContext[] = [];
+    const events: string[] = [];
+    const result = await collectEndpoint(aggregate(), {
+      lockRunner: acquiredLock(events),
+      runs: runStore(events),
+      fetcher: fetcher(events, contentResult()),
+      rssAtomParser: parser(events, {
+        ok: true,
+        dialect: 'rss',
+        items: [
+          { title: 'Relative one', url: '../articles/one' },
+          { title: 'Relative two', url: '../articles/two' },
+        ],
+      }),
+      normalizeArticleCandidate(rawItem, context) {
+        contexts.push(context);
+        return normalizeArticleCandidate(rawItem, context);
+      },
+      applyArticleLinkPolicy,
+      executionId: () => EXECUTION_ID,
+    });
+
+    assert.equal(result.status, 'succeeded');
+    assert.equal(contexts.length, 2);
+    for (const context of contexts) {
+      assert.deepEqual(context, {
+        publicationId: aggregate().publication.id,
+        sourceId: aggregate().source.id,
+        sourceEndpointId: aggregate().endpoint.id,
+        collectionRunId: RUN_ID,
+        terminalFeedUrl: 'https://feeds.example.test/final.xml',
+      });
+    }
+    if (result.status === 'succeeded') {
+      assert.equal(
+        result.candidates?.[0]?.originalUrl,
+        'https://feeds.example.test/articles/one',
+      );
+    }
+  });
+
+  it('maps fatal normalizer execution to a bounded failed stage and skips Article-link policy', async () => {
+    const secret = 'SYNTHETIC_RAW_ITEM_SECRET';
+    const events: string[] = [];
+    let policyCalls = 0;
+    const runs = runStore(events);
+    const result = await collectEndpoint(aggregate(), {
+      lockRunner: acquiredLock(events),
+      runs,
+      fetcher: fetcher(events, contentResult()),
+      rssAtomParser: parser(events, {
+        ok: true,
+        dialect: 'rss',
+        items: [{ title: 'Item', url: 'https://feeds.example.test/item' }],
+      }),
+      normalizeArticleCandidate() {
+        throw new Error(secret);
+      },
+      applyArticleLinkPolicy() {
+        policyCalls += 1;
+        throw new Error('unreachable');
+      },
+      executionId: () => EXECUTION_ID,
+    });
+
+    assert.equal(result.status, 'failed');
+    if (result.status !== 'failed') return;
+    assert.equal(result.outcome, 'normalization_failed');
+    assert.equal(result.reason, 'normalization_execution_failed');
+    assert.equal(result.transportStatus, 'succeeded');
+    assert.equal(result.parserStatus, 'succeeded');
+    assert.equal(result.normalizationStatus, 'failed');
+    assert.equal(result.rawItemCount, 1);
+    assert.equal(result.normalizedCandidateCount, 0);
+    assert.equal(result.normalizationFailureCount, 0);
+    assert.equal(policyCalls, 0);
+    assert.doesNotMatch(JSON.stringify(result), new RegExp(secret, 'u'));
+    assert.deepEqual(events.slice(-2), ['run.finalize', 'release']);
+  });
+
+  it('keeps completed normalization accounting when Article-link policy execution fails', async () => {
+    const events: string[] = [];
+    const runs = runStore(events);
+    const result = await collectEndpoint(aggregate(), {
+      lockRunner: acquiredLock(events),
+      runs,
+      fetcher: fetcher(events, contentResult()),
+      rssAtomParser: parser(events, {
+        ok: true,
+        dialect: 'rss',
+        items: [
+          { title: 'Valid', url: 'https://feeds.example.test/valid' },
+          { url: 'https://feeds.example.test/missing-title' },
+        ],
+      }),
+      normalizeArticleCandidate,
+      applyArticleLinkPolicy() {
+        throw new Error('SYNTHETIC_POLICY_SECRET');
+      },
+      executionId: () => EXECUTION_ID,
+    });
+
+    assert.equal(result.status, 'failed');
+    if (result.status !== 'failed') return;
+    assert.equal(result.outcome, 'article_link_policy_failed');
+    assert.equal(result.reason, 'article_link_policy_execution_failed');
+    assert.equal(result.normalizationStatus, 'succeeded');
+    assert.equal(result.rawItemCount, 2);
+    assert.equal(result.normalizedCandidateCount, 1);
+    assert.equal(result.normalizationFailureCount, 1);
+    assert.equal(result.articleLinkRejectionCount, 0);
+    assert.equal(result.candidates, undefined);
+    assert.deepEqual(runs.finalizations[0], {
+      runStatus: 'failed',
+      transportStatus: 'succeeded',
+      parserStatus: 'succeeded',
+      normalizationStatus: 'succeeded',
+      httpStatusCode: 200,
+      wireByteCount: 321,
+      decompressedByteCount: 654,
+      rawItemCount: 2,
+      normalizedCandidateCount: 1,
+      normalizationFailureCount: 1,
+      articleLinkRejectionCount: 0,
+      error: {
+        code: 'article_link_policy_execution_failed',
+        detail:
+          'Article-link policy failed outside its bounded decision contract.',
+      },
+    });
   });
 
   it('blocks ineligible and contended endpoints without run, fetch, or parser work', async () => {
@@ -122,6 +365,7 @@ describe('canonical endpoint collection service', () => {
         runs: runStore(events),
         fetcher: fetcher(events, contentResult()),
         rssAtomParser: parser(events, parserSuccess()),
+        ...phase6Dependencies,
         executionId: () => EXECUTION_ID,
       });
       assert.deepEqual(result, testCase.expected);
@@ -140,6 +384,7 @@ describe('canonical endpoint collection service', () => {
         runs,
         fetcher: fetcher(events, contentResult()),
         rssAtomParser: parser(events, parserSuccess()),
+        ...phase6Dependencies,
         executionId: () => EXECUTION_ID,
       }),
       expected,
@@ -246,11 +491,22 @@ describe('canonical endpoint collection service', () => {
 
     for (const testCase of cases) {
       const events: string[] = [];
+      let phase6Calls = 0;
       const result = await executeWith(
         events,
         runStore(events),
         testCase.fetchResult,
         testCase.parserResult,
+        {
+          normalizeArticleCandidate() {
+            phase6Calls += 1;
+            throw new Error('unreachable');
+          },
+          applyArticleLinkPolicy() {
+            phase6Calls += 1;
+            throw new Error('unreachable');
+          },
+        },
       );
       assert.notEqual(result.status, 'blocked');
       if (result.status === 'blocked') continue;
@@ -265,11 +521,12 @@ describe('canonical endpoint collection service', () => {
         testCase.expected,
       );
       assert.equal(events.includes('parse'), testCase.parserCalled);
+      assert.equal(phase6Calls, 0);
       assert.equal(result.rawItemCount, 0);
     }
   });
 
-  it('surfaces finalization failure with the attempted outcome and releases the lock', async () => {
+  it('surfaces finalization failure with the attempted Phase 6 outcome and releases the lock', async () => {
     const events: string[] = [];
     const persistenceFailure = new Error('synthetic finalization failure');
     const runs = runStore(events, { finalizationFailure: persistenceFailure });
@@ -278,15 +535,25 @@ describe('canonical endpoint collection service', () => {
       collectEndpoint(aggregate(), {
         lockRunner: acquiredLock(events),
         runs,
-        fetcher: fetcher(events, failureResult()),
-        rssAtomParser: parser(events, parserSuccess()),
+        fetcher: fetcher(events, contentResult()),
+        rssAtomParser: parser(events, {
+          ok: true,
+          dialect: 'rss',
+          items: [
+            { title: 'Accepted', url: 'https://feeds.example.test/accepted' },
+          ],
+        }),
+        ...phase6Dependencies,
         executionId: () => EXECUTION_ID,
       }),
       (error: unknown) => {
         assert.ok(error instanceof CollectionRunFinalizationError);
         assert.equal(error.cause, persistenceFailure);
-        assert.equal(error.attemptedResult.status, 'failed');
-        assert.equal(error.attemptedResult.reason, 'connect_timeout');
+        assert.equal(error.attemptedResult.status, 'succeeded');
+        assert.equal(error.attemptedResult.outcome, 'content');
+        assert.equal(error.attemptedResult.normalizationStatus, 'succeeded');
+        assert.equal(error.attemptedResult.normalizedCandidateCount, 1);
+        assert.equal(error.attemptedResult.candidates?.length, 1);
         return true;
       },
     );
@@ -294,6 +561,7 @@ describe('canonical endpoint collection service', () => {
       'lock',
       'run.start',
       'fetch',
+      'parse',
       'run.finalize',
       'release',
     ]);
@@ -307,6 +575,7 @@ describe('canonical endpoint collection service', () => {
         runs: runStore(events, { contradictNormalization: true }),
         fetcher: fetcher(events, contentResult()),
         rssAtomParser: parser(events, parserSuccess()),
+        ...phase6Dependencies,
         executionId: () => EXECUTION_ID,
       }),
       (error: unknown) => {
@@ -331,6 +600,7 @@ describe('canonical endpoint collection service', () => {
       runs: runStore(events),
       fetcher: fetcher(events, contentResult()),
       rssAtomParser: parser(events, parserSuccess()),
+      ...phase6Dependencies,
       executionId: () => EXECUTION_ID,
     });
 
@@ -359,6 +629,7 @@ describe('canonical endpoint collection service', () => {
         }),
         fetcher: fetcher(events, contentResult()),
         rssAtomParser: parser(events, parserSuccess()),
+        ...phase6Dependencies,
         executionId: () => '88888888-8888-4888-8888-888888888888',
       },
     );
@@ -402,6 +673,7 @@ describe('canonical endpoint collection service', () => {
           transport,
         }),
         rssAtomParser: new RssAtomParser(),
+        ...phase6Dependencies,
         executionId: () => EXECUTION_ID,
       });
 
@@ -410,7 +682,10 @@ describe('canonical endpoint collection service', () => {
       assert.equal(result.outcome, 'content');
       assert.equal(result.redirectCount, 1);
       assert.equal(result.rawItemCount, 1);
-      assert.equal(result.rawItems?.[0]?.title, 'Canonical fixture item');
+      assert.equal(
+        result.candidates?.[0]?.displayTitle,
+        'Canonical fixture item',
+      );
       assert.deepEqual(
         server.requests.map((request) => request.url),
         ['/redirect-rss-items', '/rss-items'],
@@ -426,15 +701,25 @@ async function executeWith(
   runs: ReturnType<typeof runStore>,
   fetchResult: HttpFetcherResult,
   parserResult: ParserResult,
+  phase6: Pick<
+    CollectEndpointDependencies,
+    'normalizeArticleCandidate' | 'applyArticleLinkPolicy'
+  > = phase6Dependencies,
 ) {
   return collectEndpoint(aggregate(), {
     lockRunner: acquiredLock(events),
     runs,
     fetcher: fetcher(events, fetchResult),
     rssAtomParser: parser(events, parserResult),
+    ...phase6,
     executionId: () => EXECUTION_ID,
   });
 }
+
+const phase6Dependencies = Object.freeze({
+  normalizeArticleCandidate,
+  applyArticleLinkPolicy,
+});
 
 function acquiredLock(events: string[]): EndpointExecutionLockRunner {
   return {

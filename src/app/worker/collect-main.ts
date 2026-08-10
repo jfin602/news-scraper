@@ -7,11 +7,13 @@ import {
   type CollectEndpointResult,
 } from '../../collection/collect-endpoint.ts';
 import { createEndpointExecutionLockRunner } from '../../collection/execution.ts';
+import { applyArticleLinkPolicy } from '../../collection/article-links/policy.ts';
 import {
   createHttpFetcher,
   type HttpFetcher,
 } from '../../collection/fetchers/http-fetcher.ts';
 import { RssAtomParser } from '../../collection/parsers/rss-atom-parser.ts';
+import { normalizeArticleCandidate } from '../../collection/normalization/normalizer.ts';
 import { createNodeResolver } from '../../collection/safety/resolver.ts';
 import { parseDatabaseConfig } from '../../database/config.ts';
 import { createDatabase, type Database } from '../../database/database.ts';
@@ -145,6 +147,8 @@ async function executeConfiguredEndpoint(
     runs: createCollectionRunStore(database),
     fetcher: dependencies.createFetcher(),
     rssAtomParser: new RssAtomParser(),
+    normalizeArticleCandidate,
+    applyArticleLinkPolicy,
     executionId: dependencies.executionId,
   });
 }
@@ -220,6 +224,25 @@ function commandResult(
     normalizedCandidateCount: result.normalizedCandidateCount,
     normalizationFailureCount: result.normalizationFailureCount,
     articleLinkRejectionCount: result.articleLinkRejectionCount,
+    ...(result.status === 'succeeded' &&
+    result.outcome === 'content' &&
+    result.candidates !== undefined &&
+    result.candidates.length > 0
+      ? {
+          candidateSample: result.candidates.slice(0, 3).map((candidate) =>
+            Object.freeze({
+              displayTitle: candidate.displayTitle,
+              originalUrl: candidate.originalUrl,
+              canonicalIdentityUrl: candidate.canonicalIdentityUrl,
+              publishedAt: candidate.publishedAt,
+              publicationId: candidate.provenance.publicationId,
+              sourceId: candidate.provenance.sourceId,
+              endpointId: candidate.provenance.sourceEndpointId,
+              collectionRunId: candidate.provenance.collectionRunId,
+            }),
+          ),
+        }
+      : {}),
     ...(result.reason === undefined ? {} : { reason: result.reason }),
     ...(result.safetyContext === undefined
       ? {}

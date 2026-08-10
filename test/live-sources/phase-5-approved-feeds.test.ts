@@ -29,10 +29,26 @@ interface CollectionOutput {
   status: string;
   outcome: string;
   collectionRunId: string;
+  publicationId: string;
+  sourceId: string;
+  endpointId: string;
   runStatus: string;
   transportStatus: string;
   parserStatus: string;
+  normalizationStatus: string;
   rawItemCount: number;
+  normalizedCandidateCount: number;
+  normalizationFailureCount: number;
+  articleLinkRejectionCount: number;
+  candidateSample?: readonly {
+    displayTitle: string;
+    originalUrl: string;
+    canonicalIdentityUrl: string;
+    publicationId: string;
+    sourceId: string;
+    endpointId: string;
+    collectionRunId: string;
+  }[];
   httpStatusCode?: number;
   wireByteCount?: number;
   decompressedByteCount?: number;
@@ -40,7 +56,7 @@ interface CollectionOutput {
   elapsedMilliseconds?: number;
 }
 
-describe('Phase 5 approved live feeds', () => {
+describe('approved live feed collection pipeline', () => {
   it('fetches both approved endpoints independently through the manual Worker path with persisted runs', async () => {
     await withDisposableDatabase(async ({ databaseUrl }) => {
       const environment = {
@@ -118,7 +134,24 @@ async function collect(
   assert.equal(output.runStatus, 'succeeded');
   assert.equal(output.transportStatus, 'succeeded');
   assert.equal(output.parserStatus, 'succeeded');
+  assert.equal(output.normalizationStatus, 'succeeded');
   assert.ok(output.rawItemCount > 0);
+  assert.equal(
+    output.rawItemCount,
+    output.normalizedCandidateCount + output.normalizationFailureCount,
+  );
+  assert.ok(output.candidateSample);
+  assert.ok(output.candidateSample.length > 0);
+  assert.ok(output.candidateSample.length <= 3);
+  for (const candidate of output.candidateSample) {
+    assert.ok(candidate.displayTitle.length > 0);
+    assert.match(candidate.originalUrl, /^https?:\/\//u);
+    assert.match(candidate.canonicalIdentityUrl, /^https?:\/\//u);
+    assert.equal(candidate.publicationId, output.publicationId);
+    assert.equal(candidate.sourceId, output.sourceId);
+    assert.equal(candidate.endpointId, output.endpointId);
+    assert.equal(candidate.collectionRunId, output.collectionRunId);
+  }
   assert.equal(output.httpStatusCode, 200);
   return output;
 }
@@ -135,9 +168,15 @@ async function assertPersistedRuns(
       run_status: string;
       transport_status: string;
       parser_status: string;
+      normalization_status: string;
       raw_item_count: number;
+      normalized_candidate_count: number;
+      normalization_failure_count: number;
+      article_link_rejection_count: number;
     }>(
-      `SELECT id, run_status, transport_status, parser_status, raw_item_count
+      `SELECT id, run_status, transport_status, parser_status,
+              normalization_status, raw_item_count, normalized_candidate_count,
+              normalization_failure_count, article_link_rejection_count
        FROM collection_runs WHERE id = ANY($1::uuid[])`,
       [outputs.map((output) => output.collectionRunId)],
     );
@@ -150,7 +189,20 @@ async function assertPersistedRuns(
       assert.equal(row.run_status, output.runStatus);
       assert.equal(row.transport_status, output.transportStatus);
       assert.equal(row.parser_status, output.parserStatus);
+      assert.equal(row.normalization_status, output.normalizationStatus);
       assert.equal(row.raw_item_count, output.rawItemCount);
+      assert.equal(
+        row.normalized_candidate_count,
+        output.normalizedCandidateCount,
+      );
+      assert.equal(
+        row.normalization_failure_count,
+        output.normalizationFailureCount,
+      );
+      assert.equal(
+        row.article_link_rejection_count,
+        output.articleLinkRejectionCount,
+      );
     }
   } finally {
     await client.end();

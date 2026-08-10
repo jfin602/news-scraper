@@ -5,6 +5,7 @@ import { describe, it } from 'node:test';
 
 import { runCollectEndpointCommand } from '../../src/app/worker/collect-main.ts';
 import type { EndpointCollectionAttemptResult } from '../../src/collection/collect-endpoint.ts';
+import type { ArticleCandidate } from '../../src/collection/normalization/article-candidate.ts';
 import type { Database } from '../../src/database/database.ts';
 import type { EndpointConfigurationAggregate } from '../../src/sources/repository.ts';
 
@@ -120,6 +121,11 @@ describe('manual Worker endpoint collection command', () => {
         },
         async execute(_configuration, dependencies) {
           assert.equal(dependencies.executionId(), 'controlled-execution-id');
+          assert.equal(
+            typeof dependencies.normalizeArticleCandidate,
+            'function',
+          );
+          assert.equal(typeof dependencies.applyArticleLinkPolicy, 'function');
           return successfulResult();
         },
         executionId: () => 'controlled-execution-id',
@@ -145,11 +151,25 @@ describe('manual Worker endpoint collection command', () => {
       runStatus: 'succeeded',
       transportStatus: 'succeeded',
       parserStatus: 'succeeded',
-      rawItemCount: 1,
-      normalizationStatus: 'not_run',
-      normalizedCandidateCount: 0,
-      normalizationFailureCount: 0,
+      rawItemCount: 5,
+      normalizationStatus: 'succeeded',
+      normalizedCandidateCount: 4,
+      normalizationFailureCount: 1,
       articleLinkRejectionCount: 0,
+      candidateSample: [0, 1, 2].map((index) => ({
+        displayTitle: `Candidate ${String(index + 1)}`,
+        originalUrl: `https://example.test/articles/${String(index + 1)}?utm_source=fixture`,
+        canonicalIdentityUrl: `https://example.test/articles/${String(index + 1)}`,
+        publishedAt: {
+          status: 'parsed',
+          value: '2026-08-10T12:00:00.000Z',
+          fallback: 'first_seen',
+        },
+        publicationId: configuration.publication.id,
+        sourceId: configuration.source.id,
+        endpointId: configuration.endpoint.id,
+        collectionRunId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+      })),
       httpStatusCode: 200,
       wireByteCount: 100,
       decompressedByteCount: 200,
@@ -157,6 +177,67 @@ describe('manual Worker endpoint collection command', () => {
       elapsedMilliseconds: 10,
     });
     assert.doesNotMatch(output.text, /Raw item body/u);
+    assert.doesNotMatch(output.text, /SYNTHETIC_CANDIDATE_SUMMARY_SECRET/u);
+    const candidateSample = output.events()[0]?.candidateSample as unknown[];
+    assert.equal(candidateSample.length, 3);
+  });
+
+  it('omits candidate samples on failed, no-change, and no-safe-candidate results without leaking details', async () => {
+    const cases: EndpointCollectionAttemptResult[] = [
+      {
+        ...baseAttemptResult(),
+        status: 'failed',
+        outcome: 'normalization_failed',
+        runStatus: 'failed',
+        normalizationStatus: 'failed',
+        rawItemCount: 1,
+        reason: 'normalization_execution_failed',
+        detail: 'SYNTHETIC_NORMALIZATION_FAILURE_SECRET',
+      },
+      {
+        ...baseAttemptResult(),
+        status: 'succeeded',
+        outcome: 'not_modified',
+        transportStatus: 'not_modified',
+        parserStatus: 'not_run',
+      },
+      {
+        ...baseAttemptResult(),
+        status: 'succeeded',
+        outcome: 'content',
+        transportStatus: 'succeeded',
+        parserStatus: 'succeeded',
+        normalizationStatus: 'succeeded',
+        rawItemCount: 1,
+        normalizedCandidateCount: 1,
+        articleLinkRejectionCount: 1,
+        candidates: Object.freeze([]),
+      },
+    ];
+
+    for (const result of cases) {
+      const output = sink();
+      const exitCode = await runCollectEndpointCommand({
+        args: KEYS,
+        environment: validEnvironment(),
+        stdout: output,
+        dependencies: {
+          createDatabase: () => fakeDatabase().database,
+          async findEndpointConfiguration() {
+            return aggregate();
+          },
+          async execute() {
+            return Object.freeze(result);
+          },
+        },
+      });
+      assert.equal(exitCode, result.status === 'succeeded' ? 0 : 1);
+      assert.equal(output.events()[0]?.candidateSample, undefined);
+      assert.doesNotMatch(
+        output.text,
+        /SYNTHETIC_NORMALIZATION_FAILURE_SECRET/u,
+      );
+    }
   });
 
   it('redacts thrown collection details and still closes the database', async () => {
@@ -266,17 +347,58 @@ function successfulResult(): EndpointCollectionAttemptResult {
     runStatus: 'succeeded',
     transportStatus: 'succeeded',
     parserStatus: 'succeeded',
-    rawItemCount: 1,
-    normalizationStatus: 'not_run',
-    normalizedCandidateCount: 0,
-    normalizationFailureCount: 0,
+    rawItemCount: 5,
+    normalizationStatus: 'succeeded',
+    normalizedCandidateCount: 4,
+    normalizationFailureCount: 1,
     articleLinkRejectionCount: 0,
-    rawItems: Object.freeze([{ content: 'Raw item body' }]),
+    candidates: Object.freeze([0, 1, 2, 3].map(candidate)),
     httpStatusCode: 200,
     wireByteCount: 100,
     decompressedByteCount: 200,
     redirectCount: 0,
     elapsedMilliseconds: 10,
+  });
+}
+
+function baseAttemptResult(): EndpointCollectionAttemptResult {
+  return {
+    status: 'succeeded',
+    outcome: 'not_modified',
+    endpointId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    collectionRunId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+    executionId: 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',
+    runStatus: 'succeeded',
+    transportStatus: 'not_modified',
+    parserStatus: 'not_run',
+    normalizationStatus: 'not_run',
+    rawItemCount: 0,
+    normalizedCandidateCount: 0,
+    normalizationFailureCount: 0,
+    articleLinkRejectionCount: 0,
+  };
+}
+
+function candidate(index: number): ArticleCandidate {
+  const number = String(index + 1);
+  return Object.freeze({
+    displayTitle: `Candidate ${number}`,
+    normalizedTitle: `candidate ${number}`,
+    originalUrl: `https://example.test/articles/${number}?utm_source=fixture`,
+    canonicalIdentityUrl: `https://example.test/articles/${number}`,
+    summary: 'SYNTHETIC_CANDIDATE_SUMMARY_SECRET Raw item body',
+    publishedAt: Object.freeze({
+      status: 'parsed',
+      value: '2026-08-10T12:00:00.000Z',
+      fallback: 'first_seen',
+    }),
+    updatedAt: Object.freeze({ status: 'missing' }),
+    provenance: Object.freeze({
+      publicationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      sourceId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      sourceEndpointId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      collectionRunId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
+    }),
   });
 }
 

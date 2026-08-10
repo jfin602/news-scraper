@@ -11,6 +11,15 @@ import type {
   HttpFetcherResult,
 } from './fetchers/http-fetcher.ts';
 import type { EndpointRunLockBlocked } from './locks/endpoint-run-lock.ts';
+import {
+  type ArticleLinkPolicyContext,
+  type ArticleLinkPolicyDecision,
+} from './article-links/policy.ts';
+import type {
+  ArticleCandidate,
+  ArticleNormalizationContext,
+  ArticleNormalizationResult,
+} from './normalization/article-candidate.ts';
 import type { FeedParser, ParserResult } from './parsers/parser.ts';
 import type { RawItem } from './raw-item.ts';
 import {
@@ -36,6 +45,14 @@ export interface CollectEndpointDependencies {
   readonly runs: CollectionRunStore;
   readonly fetcher: HttpFetcher;
   readonly rssAtomParser: FeedParser;
+  readonly normalizeArticleCandidate: (
+    rawItem: RawItem,
+    context: ArticleNormalizationContext,
+  ) => ArticleNormalizationResult;
+  readonly applyArticleLinkPolicy: (
+    candidate: ArticleCandidate,
+    context: ArticleLinkPolicyContext,
+  ) => ArticleLinkPolicyDecision;
   readonly executionId: () => string;
   readonly fetchOptions?: Omit<HttpFetcherRequest, 'configuration'>;
 }
@@ -45,7 +62,9 @@ export type CollectionAttemptOutcome =
   | 'not_modified'
   | 'network_safety_blocked'
   | 'fetch_failed'
-  | 'parser_failed';
+  | 'parser_failed'
+  | 'normalization_failed'
+  | 'article_link_policy_failed';
 
 export interface EndpointCollectionAttemptResult {
   readonly status: 'succeeded' | 'failed';
@@ -61,7 +80,7 @@ export interface EndpointCollectionAttemptResult {
   readonly normalizedCandidateCount: number;
   readonly normalizationFailureCount: number;
   readonly articleLinkRejectionCount: number;
-  readonly rawItems?: readonly RawItem[];
+  readonly candidates?: readonly ArticleCandidate[];
   readonly reason?: string;
   readonly detail?: string;
   readonly safetyContext?: 'initial' | 'redirect';
@@ -127,7 +146,11 @@ export async function collectEndpoint(
         sourceEndpointId: configuration.endpoint.id,
         executionId,
       });
-      const draft = await executeAttempt(configuration, dependencies);
+      const draft = await executeAttempt(
+        configuration,
+        running.id,
+        dependencies,
+      );
       const attemptedResult = resultFromDraft(running, draft);
 
       try {
@@ -147,6 +170,7 @@ export async function collectEndpoint(
 
 async function executeAttempt(
   configuration: EndpointConfigurationAggregate,
+  collectionRunId: string,
   dependencies: CollectEndpointDependencies,
 ): Promise<AttemptDraft> {
   let fetchResult: HttpFetcherResult;
@@ -259,6 +283,59 @@ async function executeAttempt(
   }
 
   const rawItems = immutableRawItems(parserResult.items);
+  const normalizationContext = Object.freeze({
+    publicationId: configuration.publication.id,
+    sourceId: configuration.source.id,
+    sourceEndpointId: configuration.endpoint.id,
+    collectionRunId,
+    terminalFeedUrl: fetchResult.finalUrl,
+  });
+  const normalizedCandidates: ArticleCandidate[] = [];
+  let normalizationFailureCount = 0;
+  try {
+    for (const rawItem of rawItems) {
+      const normalization = dependencies.normalizeArticleCandidate(
+        rawItem,
+        normalizationContext,
+      );
+      if (normalization.ok) normalizedCandidates.push(normalization.candidate);
+      else normalizationFailureCount += 1;
+    }
+  } catch {
+    return normalizationExecutionFailedDraft(
+      configuration.endpoint.id,
+      rawItems.length,
+      metadata,
+    );
+  }
+
+  const policyContext = Object.freeze({
+    sourceDomainRules: configuration.sourceDomainRules,
+    endpointDomainRules: configuration.endpointDomainRules,
+  });
+  const acceptedCandidates: ArticleCandidate[] = [];
+  let articleLinkRejectionCount = 0;
+  try {
+    for (const candidate of normalizedCandidates) {
+      const decision = dependencies.applyArticleLinkPolicy(
+        candidate,
+        policyContext,
+      );
+      if (decision.accepted) acceptedCandidates.push(decision.candidate);
+      else articleLinkRejectionCount += 1;
+    }
+  } catch {
+    return articleLinkPolicyExecutionFailedDraft(
+      configuration.endpoint.id,
+      rawItems.length,
+      normalizedCandidates.length,
+      normalizationFailureCount,
+      articleLinkRejectionCount,
+      metadata,
+    );
+  }
+
+  const candidates = immutableArticleCandidates(acceptedCandidates);
   return Object.freeze({
     result: Object.freeze({
       status: 'succeeded',
@@ -268,8 +345,11 @@ async function executeAttempt(
       transportStatus: 'succeeded',
       parserStatus: 'succeeded',
       rawItemCount: rawItems.length,
-      ...normalizationNotRun,
-      rawItems,
+      normalizationStatus: 'succeeded',
+      normalizedCandidateCount: normalizedCandidates.length,
+      normalizationFailureCount,
+      articleLinkRejectionCount,
+      candidates,
       ...metadata,
     }),
     finalization: Object.freeze({
@@ -277,8 +357,94 @@ async function executeAttempt(
       transportStatus: 'succeeded',
       parserStatus: 'succeeded',
       rawItemCount: rawItems.length,
-      ...normalizationNotRun,
+      normalizationStatus: 'succeeded',
+      normalizedCandidateCount: normalizedCandidates.length,
+      normalizationFailureCount,
+      articleLinkRejectionCount,
       ...persistenceMetadata(metadata),
+    }),
+  });
+}
+
+function normalizationExecutionFailedDraft(
+  endpointId: string,
+  rawItemCount: number,
+  metadata: ReturnType<typeof fetchMetadata>,
+): AttemptDraft {
+  const reason = 'normalization_execution_failed';
+  const detail =
+    'Article normalization failed outside its bounded result contract.';
+  return Object.freeze({
+    result: Object.freeze({
+      status: 'failed',
+      outcome: 'normalization_failed',
+      endpointId,
+      runStatus: 'failed',
+      transportStatus: 'succeeded',
+      parserStatus: 'succeeded',
+      normalizationStatus: 'failed',
+      rawItemCount,
+      normalizedCandidateCount: 0,
+      normalizationFailureCount: 0,
+      articleLinkRejectionCount: 0,
+      reason,
+      detail,
+      ...metadata,
+    }),
+    finalization: Object.freeze({
+      runStatus: 'failed',
+      transportStatus: 'succeeded',
+      parserStatus: 'succeeded',
+      normalizationStatus: 'failed',
+      rawItemCount,
+      normalizedCandidateCount: 0,
+      normalizationFailureCount: 0,
+      articleLinkRejectionCount: 0,
+      ...persistenceMetadata(metadata),
+      error: Object.freeze({ code: reason, detail }),
+    }),
+  });
+}
+
+function articleLinkPolicyExecutionFailedDraft(
+  endpointId: string,
+  rawItemCount: number,
+  normalizedCandidateCount: number,
+  normalizationFailureCount: number,
+  articleLinkRejectionCount: number,
+  metadata: ReturnType<typeof fetchMetadata>,
+): AttemptDraft {
+  const reason = 'article_link_policy_execution_failed';
+  const detail =
+    'Article-link policy failed outside its bounded decision contract.';
+  return Object.freeze({
+    result: Object.freeze({
+      status: 'failed',
+      outcome: 'article_link_policy_failed',
+      endpointId,
+      runStatus: 'failed',
+      transportStatus: 'succeeded',
+      parserStatus: 'succeeded',
+      normalizationStatus: 'succeeded',
+      rawItemCount,
+      normalizedCandidateCount,
+      normalizationFailureCount,
+      articleLinkRejectionCount,
+      reason,
+      detail,
+      ...metadata,
+    }),
+    finalization: Object.freeze({
+      runStatus: 'failed',
+      transportStatus: 'succeeded',
+      parserStatus: 'succeeded',
+      normalizationStatus: 'succeeded',
+      rawItemCount,
+      normalizedCandidateCount,
+      normalizationFailureCount,
+      articleLinkRejectionCount,
+      ...persistenceMetadata(metadata),
+      error: Object.freeze({ code: reason, detail }),
     }),
   });
 }
@@ -461,6 +627,26 @@ function immutableRawItems(items: readonly RawItem[]): readonly RawItem[] {
         ...(item.diagnostics === undefined
           ? {}
           : { diagnostics: Object.freeze({ ...item.diagnostics }) }),
+      }),
+    ),
+  );
+}
+
+function immutableArticleCandidates(
+  candidates: readonly ArticleCandidate[],
+): readonly ArticleCandidate[] {
+  return Object.freeze(
+    candidates.map((candidate) =>
+      Object.freeze({
+        ...candidate,
+        publishedAt: Object.freeze({ ...candidate.publishedAt }),
+        updatedAt: Object.freeze({ ...candidate.updatedAt }),
+        provenance: Object.freeze({ ...candidate.provenance }),
+        ...(candidate.sourceCategories === undefined
+          ? {}
+          : {
+              sourceCategories: Object.freeze([...candidate.sourceCategories]),
+            }),
       }),
     ),
   );
