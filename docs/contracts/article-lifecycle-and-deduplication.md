@@ -16,6 +16,10 @@ Duplicate roles:
 
 Joining/leaving a Duplicate group does not inherently change visibility. Hiding/restoring an Article does not inherently change group membership.
 
+Phase 7 establishes Article identity/persistence before public-feed visibility is consumed. Phase 8, the first phase that reads Articles for public output, introduces persisted Article visibility using the canonical states above. Existing Phase 7 Articles migrate to `visible`, and newly persisted Articles use `visible` as the baseline unless a separately implemented policy deliberately produces another visibility state. Phase 8 does not introduce moderation controls; those remain owned by the Article-moderation roadmap phase.
+
+Before Duplicate-group persistence exists, persisted Articles are logically `ungrouped`. Phase 8 MUST NOT create speculative duplicate-role columns, groups, or memberships merely to evaluate the baseline public feed. The same eligibility law later applies once true Duplicate groups exist.
+
 ## Candidate processing outcomes
 
 Once Article persistence exists, every normalized candidate ends with exactly one processing outcome:
@@ -131,6 +135,8 @@ Ordinary feed rows include Articles that are:
 Visible `non_primary` members are duplicate-suppressed from ordinary rows but remain administratively available.
 
 Related coverage remains separate.
+
+The owning Publication/Source trust and exposure gates are defined by `docs/contracts/public-feed-and-admin-contract.md`; Article visibility/duplicate role do not replace those gates.
 
 The MVP may show a non-interactive “also reported by” count derived from group membership, but must not emit redundant rows.
 
