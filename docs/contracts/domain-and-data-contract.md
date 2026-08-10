@@ -68,7 +68,7 @@ Required concepts:
 - `public_status`: whether its public feed is exposed;
 - branding/feed configuration.
 
-A Publication may collect while its public feed is not exposed.
+A Publication may collect while its public feed is not exposed. Public feed reads require `public_status = public`; `active_for_collection` is a collection-state control and does not independently expose or suppress already-persisted feed rows.
 
 ### Source
 Required concepts:
@@ -106,6 +106,10 @@ Duplicate role:
 - `non_primary` member of a Duplicate group.
 
 Joining/leaving a Duplicate group does not inherently change Article visibility. Hiding/restoring does not inherently change group membership.
+
+Phase 7 persists Articles before a public read path consumes Article visibility. Phase 8 introduces persisted Article visibility with the canonical states above, migrates existing Phase 7 Articles to `visible`, and uses `visible` as the baseline for newly persisted Articles unless a separately implemented policy deliberately produces another state. Phase 8 does not introduce moderation controls.
+
+Before Duplicate-group persistence exists, Articles are logically `ungrouped`. Duplicate groups/roles are not persisted speculatively in Phase 8 merely to implement the baseline feed.
 
 ## Logical entities
 
@@ -225,7 +229,11 @@ Before Article persistence exists, Collection runs may report transport/parser/n
 - visibility/moderation state;
 - normalization/Relevance reasons.
 
+`original_url` is the preserved absolute Source-provided Article destination and is the public headline destination in the Phase 8 read model. `canonical_identity_url` exists for identity comparison/cleanup and MUST NOT silently replace `original_url` as a public destination. A different Source-derived public/canonical destination field requires a separately governed future contract.
+
 Source-derived normalized values remain distinct from optional administrator display overrides. Later Source observations update Source-derived values without clobbering an active override. Clearing an override reveals the latest normalized Source value.
+
+Phase 8 first persists the Article visibility field needed by public-feed behavior. Existing Phase 7 Articles transition to `visible`; the later Article-moderation phase owns operator hide/restore/archive controls.
 
 ### `article_observations`
 - Article identifier when identity resolves;
@@ -308,7 +316,7 @@ Persistence MUST enforce or transactionally guarantee:
 - one Primary Article per Duplicate group;
 - no cross-Publication Duplicate membership/review pair;
 - one canonical unresolved/reviewed Duplicate-candidate relationship per Article pair/method as appropriate;
-- every public feed row resolves to an approved active Source and eligible stored Article;
+- every public feed row resolves to a public Publication, an approved active Source, and an eligible stored Article;
 - pausing/disabling/archiving Source configuration never erases retained Article provenance.
 
 For Article identity, an `ArticleCandidate.externalId` that is present is an adapter-designated strong Source identity signal; downstream identity code MUST NOT infer or downgrade its reliability by applying title, summary, date, or fuzzy-fingerprint heuristics. The current RSS/Atom adapter designates RSS `guid` and Atom `id` as that field.
@@ -326,12 +334,18 @@ An additional configured stable endpoint identity key is introduced only when a 
 
 ## Public-feed eligibility
 
-A feed row is eligible only when the Article is `visible` and either:
+A feed row is eligible only when all of the following are true:
 
-1. `ungrouped`, or
-2. the `primary` member of its Duplicate group.
+- the owning Publication has `public_status = public`;
+- the owning Source is `approved` and lifecycle `active`;
+- the Article is `visible`; and
+- the Article is either logically/persistently `ungrouped` or the `primary` member of its Duplicate group.
 
-A visible `non_primary` member is duplicate-suppressed from ordinary rows but remains administratively available. Hidden/archived Articles are not restored merely because duplicate membership changes.
+Before Duplicate groups exist, all persisted Articles are logically `ungrouped`; Phase 8 uses that baseline without inventing duplicate-group persistence. A visible `non_primary` member is duplicate-suppressed from ordinary rows but remains administratively available once grouping exists. Hidden/archived Articles are not restored merely because duplicate membership changes.
+
+Collection and presentation state remain separate. Publication `active_for_collection`, Source operational state, and endpoint approval/lifecycle/operational/health state govern whether collection work runs; they do not by themselves suppress retained Articles that otherwise satisfy the public-row rule. Source approval/lifecycle and Publication public exposure remain explicit public-row gates.
+
+The public headline destination is `articles.original_url`; `canonical_identity_url` is not substituted merely because it is the identity-normalized URL.
 
 ## Time semantics
 
@@ -352,6 +366,8 @@ For Phase 7 processing semantics:
 - `unchanged` means no material normalized Source-derived Article field changed;
 - both `updated` and `unchanged` advance `last_seen_at` to the successful observation time;
 - advancing `last_seen_at`, adding an observation, or changing only persistence-maintenance timestamps does not by itself convert an otherwise unchanged observation into `updated`.
+
+For Phase 8 public-feed ordering, the effective feed date is trusted parsed `published_at` when available and otherwise `first_seen_at`. The read model identifies that source explicitly. Reverse-chronological ordering is deterministic: effective feed date descending, then `first_seen_at` descending, then stable Article identifier as the final tie-breaker.
 
 ## Retention and deletion principles
 

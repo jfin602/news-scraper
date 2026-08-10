@@ -6,14 +6,62 @@ The public experience is a fast, readable index of recent relevant headlines. It
 
 ## Feed eligibility
 
-Ordinary public rows contain Articles that are:
+Ordinary public rows require all of the following:
 
-- `visible`, and
-- either `ungrouped` or the `primary` member of a Duplicate group.
+- the owning Publication has `public_status = public`;
+- the owning Source has approval state `approved` and lifecycle state `active`;
+- the Article is `visible`; and
+- the Article is either `ungrouped` or the `primary` member of a Duplicate group.
 
 Visible `non_primary` members remain stored and administratively accessible but are duplicate-suppressed from ordinary rows. Hidden/archived Articles are not feed-eligible.
 
-Before duplicate grouping exists, visible persisted Articles are `ungrouped` and therefore use the same eligibility rule rather than a temporary feed-only exception.
+Before duplicate grouping exists, visible persisted Articles are logically `ungrouped` and therefore use the same eligibility rule rather than a temporary feed-only exception. Phase 8 MUST NOT invent duplicate-group/role persistence before the duplicate-grouping roadmap phase.
+
+Collection eligibility and public-feed eligibility are separate. `active_for_collection`, Source operational state (`enabled`/`paused`/`disabled`), endpoint operational/lifecycle/health state, and the success/failure of current collection attempts do not by themselves suppress an already-persisted otherwise-eligible Article. Retained provenance remains readable while collection is paused or failing. Source approval and Source lifecycle remain public-row trust/lifecycle gates as stated above.
+
+## Phase 8 basic public-feed backend
+
+Phase 8 introduces the first public Article read path through the Web/API process. The canonical basic endpoint is:
+
+`GET /api/publications/:publicationSlug/feed`
+
+The endpoint MUST:
+
+- resolve one Publication by its stable slug;
+- expose rows only when that Publication has `public_status = public`;
+- apply the canonical feed-eligibility rule above in the database-backed read path;
+- return a bounded server-defined recent window rather than an unbounded Article set;
+- use deterministic effective-feed-date ordering;
+- return `200` with an empty item list when a public Publication exists but has no eligible Articles;
+- treat a missing Publication and a non-public Publication equivalently as `404` on the public surface;
+- return bounded generic dependency/read failures without SQL, stack traces, database connection details, or other secrets;
+- require no reader authentication.
+
+The Phase 8 item read model is intentionally small. Each item exposes only the fields needed by the basic feed:
+
+- stable Article identifier;
+- effective feed date;
+- feed-date source: `published_at` or fallback `first_seen_at`;
+- Article `display_title` as the headline;
+- Source display name;
+- stored Article `original_url` as the external destination.
+
+The response MAY include minimal Publication identity needed by the Phase 9 basic UI, such as stable Publication identifier, slug, and name. It MUST NOT expose Raw items, Article observations, internal identity digests, normalized-title matching fields, database internals, unbounded summaries/content, or other fields merely because they are stored.
+
+Keyword search, Source/Category filters, client-controlled cursor/load-more behavior, ranking, and presentation/theme behavior are not part of this Phase 8 endpoint. Phase 12 adds deterministic discovery/pagination behavior without changing the eligibility rule.
+
+## Feed date and ordering
+
+The canonical effective feed date is:
+
+1. trusted parsed `published_at` when present;
+2. otherwise `first_seen_at`.
+
+The read model MUST expose which source produced the effective date so fallback use is detectable. Missing or invalid Source publication dates do not become fabricated `published_at` values.
+
+Ordinary rolling-feed ordering is deterministic and reverse chronological by effective feed date. For equal effective dates, Phase 8 orders by `first_seen_at` descending and then stable Article identifier as the final deterministic tie-breaker. Later discovery/pagination work MUST preserve a documented stable ordering compatible with this baseline.
+
+Pinning/featured-story ordering is deferred beyond MVP. MVP chronological ordering therefore has no pin exception.
 
 ## Desktop feed
 
@@ -27,12 +75,10 @@ Requirements:
 
 - reverse-chronological ordering by effective feed date;
 - headline is dominant interactive element;
-- headline links directly to stored original/canonical public destination;
+- headline links directly to the Article's stored `original_url`;
 - Source identity is clear;
-- date formatting follows Publication settings;
+- date formatting follows Publication settings once those presentation settings exist;
 - loading, empty, and error states are explicit.
-
-Pinning/featured-story ordering is deferred beyond MVP. MVP chronological ordering therefore has no pin exception.
 
 ## Mobile feed
 
@@ -73,7 +119,9 @@ Final theme/branding polish follows the basic public-feed tech-demo milestone as
 
 ## External destination behavior
 
-- Original Article URL is the primary destination.
+- The Article's stored `original_url` is the primary public destination.
+- `canonical_identity_url` is an identity-comparison field and MUST NOT silently replace `original_url` as the public headline destination.
+- A future separately governed Source-derived public/canonical destination field may change this only through an explicit contract decision; none exists in Phase 8.
 - UI must not imply Platform authorship of linked content.
 - External navigation is visually/accessibly understandable.
 - Redirector/tracking links are not MVP behavior unless separately approved/documented.
@@ -81,13 +129,15 @@ Final theme/branding polish follows the basic public-feed tech-demo milestone as
 
 ## Public Article detail pages
 
-A Platform-hosted detail page is optional in MVP. If implemented, it may show normalized metadata, Source attribution, Categories, and duplicate provenance, but the primary read action remains the original Article link. Full Article content is not reproduced without a separate rights contract.
+A Platform-hosted detail page is optional in MVP. If implemented, it may show normalized metadata, Source attribution, Categories, and duplicate provenance, but the primary read action remains the Article's stored `original_url`. Full Article content is not reproduced without a separate rights contract.
 
 ## Admin delivery model
 
 The aggregation vertical slice and basic public feed are implemented before the full administrative control plane.
 
 Initial Publication/Source configuration MAY be supplied through approved operator-maintained bootstrap/seed tooling until the corresponding admin screens exist. That mechanism does not bypass Source approval or other collection eligibility rules.
+
+Ordinary bootstrap remains create-if-absent and MUST NOT overwrite existing operator-managed Publication state. Before Publication administration exists, the tech-demo path therefore requires an explicit operator-controlled, topic-independent way to change an existing Publication's `public_status` deliberately. Changing committed bootstrap input alone is not a state-transition mechanism for an already-created Publication. Phase 8 may provide the smallest safe operator mechanism needed for this transition; it does not create the later full Publication-admin surface.
 
 When administrative UI/API routes are introduced, they are protected by Cloudflare Access under `docs/decisions/cloudflare-access-admin-perimeter.md`.
 
