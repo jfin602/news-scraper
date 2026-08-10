@@ -377,7 +377,7 @@ Convert untrusted Source-shaped Raw items into safe deterministic Article candid
 
 ## Phase 7 — Default Relevance, Article identity, and persistence
 
-**Status:** Current.
+**Status:** Complete with durable validation recorded in `docs/validation/phase-7-default-relevance-article-identity-persistence.md`.
 
 ### Goal
 
@@ -417,9 +417,11 @@ Preserve canonical pipeline order and persist normalized Source instances transa
 
 ## Phase 8 — Basic public-feed backend
 
+**Status:** Current.
+
 ### Goal
 
-Expose the smallest useful Publication-scoped rolling feed from real stored Articles.
+Expose the smallest useful Publication-scoped rolling feed from real stored Articles through the Web/API process without pulling Phase 9 presentation or later discovery/deduplication features forward.
 
 ### Depends on
 
@@ -427,27 +429,52 @@ Expose the smallest useful Publication-scoped rolling feed from real stored Arti
 
 ### Deliverables
 
-- Publication-scoped read model/endpoint;
-- reverse-chronological canonical feed-date ordering;
-- visible ungrouped Article eligibility baseline;
-- date/headline/Source/original destination data;
-- safe output shaping;
-- explicit error-compatible API behavior.
+- persisted Article `visibility_state` using `visible` / `hidden` / `archived`, with existing Phase 7 Articles migrated to `visible` and `visible` as the baseline for newly persisted Articles;
+- Publication-scoped database read model behind `GET /api/publications/:publicationSlug/feed`;
+- public-exposure gate requiring Publication `public_status = public`;
+- Source trust/lifecycle gate requiring Source `approved` + `active` for ordinary public rows;
+- baseline Article eligibility requiring `visible`; before Phase 16 Articles are logically `ungrouped` and no speculative duplicate-group persistence is added;
+- canonical effective feed date using trusted parsed `published_at`, otherwise `first_seen_at`, with the date source exposed explicitly;
+- deterministic reverse-chronological ordering by effective feed date, then `first_seen_at` descending, then stable Article identifier;
+- bounded server-defined recent result window;
+- minimal safe item shaping: stable Article identifier, effective feed date/date source, `display_title`, Source display name, and stored `original_url`;
+- `original_url` as the headline destination; `canonical_identity_url` remains an identity field and is not substituted as the public destination;
+- explicit public error behavior: public Publication with zero eligible rows returns `200` + empty list; missing and non-public Publications are indistinguishable as `404`; dependency/read failures are bounded and secret-safe;
+- smallest explicit topic-independent operator mechanism needed to transition an existing pre-admin Publication's `public_status` deliberately for the tech demo while preserving ordinary create-if-absent bootstrap semantics;
+- fresh initial Publication configuration may be aligned to the intended public tech-demo state without making ordinary bootstrap overwrite existing persisted state.
+
+### Boundary clarification
+
+- Publication collection activity and public exposure are separate: `active_for_collection` does not substitute for `public_status`.
+- Source operational state and endpoint approval/lifecycle/operational/health state govern collection execution, not historical public-row eligibility; paused/disabled/failing collection does not by itself hide an already-persisted otherwise-eligible Article.
+- Source approval and Source lifecycle remain public trust/lifecycle gates.
+- Phase 8 introduces visibility persistence because public-feed behavior first consumes it, but it does not introduce Article moderation controls.
+- Before true Duplicate grouping exists, Articles are logically `ungrouped`; Phase 8 does not add duplicate groups, memberships, Primary selection, or duplicate roles merely to implement feed reads.
+- The pre-admin Publication public-status transition must be explicit and generic. Changing committed bootstrap JSON alone is insufficient for an already-created Publication and MUST NOT weaken create-if-absent bootstrap behavior.
+- Collection remains Worker-owned; the Web/API endpoint is read-only with respect to Source collection and MUST NOT fetch publishers inline.
 
 ### Out of scope
 
+- public feed page/UI;
 - keyword search;
 - Source/Category filters;
-- elaborate pagination UX;
-- duplicate grouping;
+- client-controlled pagination/load-more cursors or elaborate pagination UX;
+- duplicate detection/grouping/Primary selection;
+- Article moderation controls;
+- full Publication administration UI/API;
 - public theme/branding polish.
 
 ### Exit gate
 
-- Public HTTP request returns real persisted Articles deterministically.
-- Every row traces to approved active Source and normalized stored Article.
-- Headline destination is the original/canonical publisher URL.
-- Feed eligibility/order/read-model regressions pass against the final tree.
+- A public HTTP request for a public Publication returns real persisted eligible Articles deterministically through the Web/API process.
+- Every returned row resolves to the requested public Publication, an approved active Source, and a visible stored normalized Article; before duplicate grouping that Article is logically ungrouped.
+- Private and missing Publications do not expose feed data and have the same public `404` behavior.
+- A public Publication with no eligible Articles returns a successful empty feed.
+- Feed date uses parsed `published_at` when available and `first_seen_at` otherwise, exposes the fallback source, and preserves deterministic tie ordering.
+- Every headline destination is the Article's stored `original_url`; `canonical_identity_url` is not silently exposed as the replacement destination.
+- Existing Phase 7 Articles migrate to `visible`, new Article persistence remains idempotent, and visibility/schema behavior passes against real disposable PostgreSQL.
+- Feed eligibility/order/read-model/error-shaping regressions and relevant Web/API + database regression suites pass against the final tree.
+- The operator-controlled Publication exposure transition is explicit, topic independent, and does not make ordinary bootstrap overwrite existing state.
 
 ## Phase 9 — Basic public-feed UI and tech demo
 
