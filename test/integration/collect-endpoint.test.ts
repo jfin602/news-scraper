@@ -9,6 +9,7 @@ import {
   type CollectionRunStore,
 } from '../../src/collection/collect-endpoint.ts';
 import { applyArticleLinkPolicy } from '../../src/collection/article-links/policy.ts';
+import type { ArticlePersistenceResult } from '../../src/articles/repository.ts';
 import type { EndpointExecutionLockRunner } from '../../src/collection/execution.ts';
 import type {
   HttpFetcher,
@@ -23,6 +24,7 @@ import type {
 } from '../../src/collection/parsers/parser.ts';
 import { RssAtomParser } from '../../src/collection/parsers/rss-atom-parser.ts';
 import { normalizeArticleCandidate } from '../../src/collection/normalization/normalizer.ts';
+import { evaluateRelevance } from '../../src/collection/relevance/evaluator.ts';
 import type { ArticleNormalizationContext } from '../../src/collection/normalization/article-candidate.ts';
 import type {
   FinalizeCollectionRunInput,
@@ -66,6 +68,18 @@ describe('canonical endpoint collection service', () => {
         events.push('article-link policy');
         return applyArticleLinkPolicy(candidate, context);
       },
+      evaluateRelevance(candidate) {
+        events.push('relevance');
+        return evaluateRelevance(candidate);
+      },
+      async persistArticle() {
+        events.push('persist');
+        return persistenceSuccess('created');
+      },
+      observationTime() {
+        events.push('observation clock');
+        return new Date('2026-08-08T12:00:00.000Z');
+      },
       executionId: () => EXECUTION_ID,
     });
 
@@ -79,6 +93,12 @@ describe('canonical endpoint collection service', () => {
       'normalize',
       'article-link policy',
       'article-link policy',
+      'relevance',
+      'observation clock',
+      'persist',
+      'relevance',
+      'observation clock',
+      'persist',
       'run.finalize',
       'release',
     ]);
@@ -99,7 +119,7 @@ describe('canonical endpoint collection service', () => {
     assert.equal(result.normalizedCandidateCount, 2);
     assert.equal(result.normalizationFailureCount, 0);
     assert.equal(result.articleLinkRejectionCount, 0);
-    assertProcessingNotRun(result);
+    assert.deepEqual(processingTuple(result), ['succeeded', 2, 0, 0, 0, 0, 0]);
     assert.ok(Object.isFrozen(result.candidates));
     assert.ok(Object.isFrozen(result.candidates?.[0]));
     assert.ok(Object.isFrozen(result.candidates?.[0]?.sourceCategories));
@@ -117,7 +137,13 @@ describe('canonical endpoint collection service', () => {
         normalizedCandidateCount: 2,
         normalizationFailureCount: 0,
         articleLinkRejectionCount: 0,
-        ...processingNotRun,
+        processingStatus: 'succeeded',
+        createdCount: 2,
+        updatedCount: 0,
+        unchangedCount: 0,
+        rejectedCount: 0,
+        excludedCount: 0,
+        failedCount: 0,
       },
     ]);
   });
@@ -191,7 +217,16 @@ describe('canonical endpoint collection service', () => {
         result.candidates?.length,
         result.normalizedCandidateCount - result.articleLinkRejectionCount,
       );
-      assertProcessingNotRun(result);
+      const processing = {
+        processingStatus: 'succeeded' as const,
+        createdCount: testCase.expected[4],
+        updatedCount: 0,
+        unchangedCount: 0,
+        rejectedCount: testCase.expected[3],
+        excludedCount: 0,
+        failedCount: 0,
+      };
+      assert.deepEqual(processingTuple(result), processingTuple(processing));
       assert.deepEqual(runs.finalizations[0], {
         runStatus: 'succeeded',
         transportStatus: 'succeeded',
@@ -204,8 +239,155 @@ describe('canonical endpoint collection service', () => {
         normalizedCandidateCount: testCase.expected[1],
         normalizationFailureCount: testCase.expected[2],
         articleLinkRejectionCount: testCase.expected[3],
-        ...processingNotRun,
+        ...processing,
       });
+    }
+  });
+
+  it('maps Relevance and persistence outcomes in canonical order with item isolation', async () => {
+    const events: string[] = [];
+    const result = await collectEndpoint(aggregate(), {
+      lockRunner: acquiredLock(events),
+      runs: runStore(events),
+      fetcher: fetcher(events, contentResult()),
+      rssAtomParser: parser(events, {
+        ok: true,
+        dialect: 'rss',
+        items: [
+          { title: 'Rejected', url: 'https://outside.test/rejected' },
+          { title: 'Created', url: 'https://feeds.example.test/created' },
+          { title: 'Expected failure', url: 'https://feeds.example.test/fail' },
+          { title: 'Updated', url: 'https://feeds.example.test/updated' },
+          { title: 'Unchanged', url: 'https://feeds.example.test/unchanged' },
+          { title: 'Excluded', url: 'https://feeds.example.test/excluded' },
+        ],
+      }),
+      normalizeArticleCandidate,
+      applyArticleLinkPolicy(candidate, context) {
+        events.push(`policy:${candidate.displayTitle}`);
+        return applyArticleLinkPolicy(candidate, context);
+      },
+      evaluateRelevance(candidate) {
+        events.push(`relevance:${candidate.displayTitle}`);
+        return candidate.displayTitle === 'Excluded'
+          ? Object.freeze({ included: false as const })
+          : Object.freeze({ included: true as const, candidate });
+      },
+      async persistArticle(candidate) {
+        events.push(`persist:${candidate.displayTitle}`);
+        if (candidate.displayTitle === 'Expected failure') {
+          return Object.freeze({
+            outcome: 'failed' as const,
+            reason: 'identity_conflict' as const,
+          });
+        }
+        return persistenceSuccess(
+          candidate.displayTitle.toLowerCase() as
+            'created' | 'updated' | 'unchanged',
+        );
+      },
+      observationTime() {
+        events.push('clock');
+        return new Date('2026-08-08T12:00:00.000Z');
+      },
+      executionId: () => EXECUTION_ID,
+    });
+
+    assert.equal(result.status, 'succeeded');
+    if (result.status !== 'succeeded') return;
+    assert.deepEqual(processingTuple(result), ['succeeded', 1, 1, 1, 1, 1, 1]);
+    assert.equal(
+      events.some((event) => event === 'relevance:Rejected'),
+      false,
+    );
+    assert.equal(
+      events.some((event) => event === 'persist:Rejected'),
+      false,
+    );
+    assert.equal(
+      events.some((event) => event === 'persist:Excluded'),
+      false,
+    );
+    assert.ok(
+      events.indexOf('relevance:Created') < events.indexOf('persist:Created'),
+    );
+    assert.ok(
+      events.lastIndexOf('policy:Excluded') <
+        events.indexOf('relevance:Created'),
+    );
+    assert.ok(events.indexOf('persist:Expected failure') >= 0);
+    assert.ok(events.indexOf('persist:Updated') >= 0);
+  });
+
+  it('fully accounts a fatal processing stage and stops remaining persistence', async () => {
+    const stages = [
+      'relevance_execution_failed',
+      'observation_clock_execution_failed',
+      'article_persistence_execution_failed',
+    ] as const;
+
+    for (const stage of stages) {
+      const events: string[] = [];
+      let relevanceCalls = 0;
+      let clockCalls = 0;
+      let persistenceCalls = 0;
+      const runs = runStore(events);
+      const result = await collectEndpoint(aggregate(), {
+        lockRunner: acquiredLock(events),
+        runs,
+        fetcher: fetcher(events, contentResult()),
+        rssAtomParser: parser(events, {
+          ok: true,
+          dialect: 'rss',
+          items: [
+            { title: 'Committed', url: 'https://feeds.example.test/one' },
+            { title: 'Fatal', url: 'https://feeds.example.test/two' },
+            { title: 'Unattempted', url: 'https://feeds.example.test/three' },
+            { title: 'Rejected', url: 'https://outside.test/rejected' },
+          ],
+        }),
+        ...phase6Dependencies,
+        evaluateRelevance(candidate) {
+          relevanceCalls += 1;
+          if (stage === 'relevance_execution_failed' && relevanceCalls === 2) {
+            throw new Error('SYNTHETIC_RELEVANCE_SECRET');
+          }
+          return evaluateRelevance(candidate);
+        },
+        observationTime() {
+          clockCalls += 1;
+          if (
+            stage === 'observation_clock_execution_failed' &&
+            clockCalls === 2
+          ) {
+            throw new Error('SYNTHETIC_CLOCK_SECRET');
+          }
+          return new Date('2026-08-08T12:00:00.000Z');
+        },
+        async persistArticle() {
+          persistenceCalls += 1;
+          if (
+            stage === 'article_persistence_execution_failed' &&
+            persistenceCalls === 2
+          ) {
+            throw new Error('SYNTHETIC_DATABASE_SECRET');
+          }
+          return persistenceSuccess('created');
+        },
+        executionId: () => EXECUTION_ID,
+      });
+
+      assert.equal(result.status, 'failed', stage);
+      if (result.status !== 'failed') continue;
+      assert.equal(result.outcome, 'processing_failed');
+      assert.equal(result.reason, stage);
+      assert.equal(result.detail?.includes('SECRET'), false);
+      assert.deepEqual(processingTuple(result), ['failed', 1, 0, 0, 1, 0, 2]);
+      assert.equal(runs.finalizations[0]?.error?.code, stage);
+      assert.equal(
+        persistenceCalls,
+        stage === 'article_persistence_execution_failed' ? 2 : 1,
+      );
     }
   });
 
@@ -229,6 +411,7 @@ describe('canonical endpoint collection service', () => {
         return normalizeArticleCandidate(rawItem, context);
       },
       applyArticleLinkPolicy,
+      ...phase7Dependencies,
       executionId: () => EXECUTION_ID,
     });
 
@@ -272,6 +455,7 @@ describe('canonical endpoint collection service', () => {
         policyCalls += 1;
         throw new Error('unreachable');
       },
+      ...phase7Dependencies,
       executionId: () => EXECUTION_ID,
     });
 
@@ -310,6 +494,7 @@ describe('canonical endpoint collection service', () => {
       applyArticleLinkPolicy() {
         throw new Error('SYNTHETIC_POLICY_SECRET');
       },
+      ...phase7Dependencies,
       executionId: () => EXECUTION_ID,
     });
 
@@ -373,6 +558,7 @@ describe('canonical endpoint collection service', () => {
         fetcher: fetcher(events, contentResult()),
         rssAtomParser: parser(events, parserSuccess()),
         ...phase6Dependencies,
+        ...phase7Dependencies,
         executionId: () => EXECUTION_ID,
       });
       assert.deepEqual(result, testCase.expected);
@@ -392,6 +578,7 @@ describe('canonical endpoint collection service', () => {
         fetcher: fetcher(events, contentResult()),
         rssAtomParser: parser(events, parserSuccess()),
         ...phase6Dependencies,
+        ...phase7Dependencies,
         executionId: () => EXECUTION_ID,
       }),
       expected,
@@ -553,6 +740,7 @@ describe('canonical endpoint collection service', () => {
           ],
         }),
         ...phase6Dependencies,
+        ...phase7Dependencies,
         executionId: () => EXECUTION_ID,
       }),
       (error: unknown) => {
@@ -562,7 +750,15 @@ describe('canonical endpoint collection service', () => {
         assert.equal(error.attemptedResult.outcome, 'content');
         assert.equal(error.attemptedResult.normalizationStatus, 'succeeded');
         assert.equal(error.attemptedResult.normalizedCandidateCount, 1);
-        assertProcessingNotRun(error.attemptedResult);
+        assert.deepEqual(processingTuple(error.attemptedResult), [
+          'succeeded',
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+        ]);
         assert.equal(error.attemptedResult.candidates?.length, 1);
         return true;
       },
@@ -586,6 +782,7 @@ describe('canonical endpoint collection service', () => {
         fetcher: fetcher(events, contentResult()),
         rssAtomParser: parser(events, parserSuccess()),
         ...phase6Dependencies,
+        ...phase7Dependencies,
         executionId: () => EXECUTION_ID,
       }),
       (error: unknown) => {
@@ -605,6 +802,7 @@ describe('canonical endpoint collection service', () => {
         fetcher: fetcher(events, contentResult()),
         rssAtomParser: parser(events, parserSuccess()),
         ...phase6Dependencies,
+        ...phase7Dependencies,
         executionId: () => EXECUTION_ID,
       }),
       (error: unknown) => {
@@ -630,6 +828,7 @@ describe('canonical endpoint collection service', () => {
       fetcher: fetcher(events, contentResult()),
       rssAtomParser: parser(events, parserSuccess()),
       ...phase6Dependencies,
+      ...phase7Dependencies,
       executionId: () => EXECUTION_ID,
     });
 
@@ -659,6 +858,7 @@ describe('canonical endpoint collection service', () => {
         fetcher: fetcher(events, contentResult()),
         rssAtomParser: parser(events, parserSuccess()),
         ...phase6Dependencies,
+        ...phase7Dependencies,
         executionId: () => '88888888-8888-4888-8888-888888888888',
       },
     );
@@ -703,6 +903,7 @@ describe('canonical endpoint collection service', () => {
         }),
         rssAtomParser: new RssAtomParser(),
         ...phase6Dependencies,
+        ...phase7Dependencies,
         executionId: () => EXECUTION_ID,
       });
 
@@ -741,6 +942,7 @@ async function executeWith(
     fetcher: fetcher(events, fetchResult),
     rssAtomParser: parser(events, parserResult),
     ...phase6,
+    ...phase7Dependencies,
     executionId: () => EXECUTION_ID,
   });
 }
@@ -749,6 +951,20 @@ const phase6Dependencies = Object.freeze({
   normalizeArticleCandidate,
   applyArticleLinkPolicy,
 });
+
+const phase7Dependencies = Object.freeze({
+  evaluateRelevance,
+  async persistArticle() {
+    return persistenceSuccess('created');
+  },
+  observationTime: () => new Date('2026-08-08T12:00:00.000Z'),
+});
+
+function persistenceSuccess(
+  outcome: 'created' | 'updated' | 'unchanged',
+): ArticlePersistenceResult {
+  return { outcome } as ArticlePersistenceResult;
+}
 
 function acquiredLock(events: string[]): EndpointExecutionLockRunner {
   return {
@@ -913,6 +1129,26 @@ function assertProcessingNotRun(result: {
     ],
     ['not_run', 0, 0, 0, 0, 0, 0],
   );
+}
+
+function processingTuple(result: {
+  readonly processingStatus: string;
+  readonly createdCount: number;
+  readonly updatedCount: number;
+  readonly unchangedCount: number;
+  readonly rejectedCount: number;
+  readonly excludedCount: number;
+  readonly failedCount: number;
+}): readonly [string, number, number, number, number, number, number] {
+  return [
+    result.processingStatus,
+    result.createdCount,
+    result.updatedCount,
+    result.unchangedCount,
+    result.rejectedCount,
+    result.excludedCount,
+    result.failedCount,
+  ];
 }
 
 function parserSuccess(): ParserResult {

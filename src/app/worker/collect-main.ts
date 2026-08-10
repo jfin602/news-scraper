@@ -6,6 +6,7 @@ import {
   createCollectionRunStore,
   type CollectEndpointResult,
 } from '../../collection/collect-endpoint.ts';
+import { persistIncludedArticle } from '../../articles/repository.ts';
 import { createEndpointExecutionLockRunner } from '../../collection/execution.ts';
 import { applyArticleLinkPolicy } from '../../collection/article-links/policy.ts';
 import {
@@ -14,6 +15,7 @@ import {
 } from '../../collection/fetchers/http-fetcher.ts';
 import { RssAtomParser } from '../../collection/parsers/rss-atom-parser.ts';
 import { normalizeArticleCandidate } from '../../collection/normalization/normalizer.ts';
+import { evaluateRelevance } from '../../collection/relevance/evaluator.ts';
 import { createNodeResolver } from '../../collection/safety/resolver.ts';
 import { parseDatabaseConfig } from '../../database/config.ts';
 import { createDatabase, type Database } from '../../database/database.ts';
@@ -149,6 +151,10 @@ async function executeConfiguredEndpoint(
     rssAtomParser: new RssAtomParser(),
     normalizeArticleCandidate,
     applyArticleLinkPolicy,
+    evaluateRelevance,
+    persistArticle: (candidate, observationTime) =>
+      persistIncludedArticle(database, candidate, observationTime),
+    observationTime: () => new Date(),
     executionId: dependencies.executionId,
   });
 }

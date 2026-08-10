@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { applyArticleLinkPolicy } from '../../src/collection/article-links/policy.ts';
+import type { ArticlePersistenceResult } from '../../src/articles/repository.ts';
 import {
   collectEndpoint,
   createCollectionRunStore,
@@ -12,6 +13,7 @@ import type {
   HttpFetcherResult,
 } from '../../src/collection/fetchers/http-fetcher.ts';
 import { normalizeArticleCandidate } from '../../src/collection/normalization/normalizer.ts';
+import { evaluateRelevance } from '../../src/collection/relevance/evaluator.ts';
 import type { FeedParser } from '../../src/collection/parsers/parser.ts';
 import { findCollectionRunById } from '../../src/collection/runs/repository.ts';
 import { createDatabase } from '../../src/database/database.ts';
@@ -41,6 +43,7 @@ test('canonical normalization persists truthful accounting and real run provenan
         ]),
         normalizeArticleCandidate,
         applyArticleLinkPolicy,
+        ...processingDependencies,
         executionId: () => 'phase-6-accounting-success',
       });
 
@@ -107,6 +110,7 @@ test('canonical normalization persists truthful accounting and real run provenan
           throw new Error('SYNTHETIC_UNTRUSTED_SOURCE_SECRET');
         },
         applyArticleLinkPolicy,
+        ...processingDependencies,
         executionId: () => 'phase-6-accounting-failure',
       });
       assert.equal(failed.status, 'failed');
@@ -158,6 +162,14 @@ test('canonical normalization persists truthful accounting and real run provenan
       await database.close();
     }
   });
+});
+
+const processingDependencies = Object.freeze({
+  evaluateRelevance,
+  async persistArticle() {
+    return { outcome: 'created' } as ArticlePersistenceResult;
+  },
+  observationTime: () => new Date('2026-08-10T12:00:00.000Z'),
 });
 
 function contentFetcher(): HttpFetcher {

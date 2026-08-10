@@ -3,6 +3,7 @@ import { request as requestHttp } from 'node:http';
 import { test } from 'node:test';
 
 import { applyArticleLinkPolicy } from '../../src/collection/article-links/policy.ts';
+import type { ArticlePersistenceResult } from '../../src/articles/repository.ts';
 import {
   collectEndpoint,
   type CollectionRunStore,
@@ -13,6 +14,7 @@ import { createHttpFetcher } from '../../src/collection/fetchers/http-fetcher.ts
 import { createHttpTransport } from '../../src/collection/fetchers/http-transport.ts';
 import type { EndpointRunLockResult } from '../../src/collection/locks/endpoint-run-lock.ts';
 import { normalizeArticleCandidate } from '../../src/collection/normalization/normalizer.ts';
+import { evaluateRelevance } from '../../src/collection/relevance/evaluator.ts';
 import { RssAtomParser } from '../../src/collection/parsers/rss-atom-parser.ts';
 import type {
   FinalizeCollectionRunInput,
@@ -122,6 +124,11 @@ async function collect(
     rssAtomParser: new RssAtomParser(),
     normalizeArticleCandidate,
     applyArticleLinkPolicy,
+    evaluateRelevance,
+    async persistArticle() {
+      return { outcome: 'created' } as ArticlePersistenceResult;
+    },
+    observationTime: () => new Date('2026-08-10T12:00:00.000Z'),
     executionId: () => EXECUTION_ID,
   });
 }
@@ -146,7 +153,7 @@ function assertContentAccounting(
       result.excludedCount,
       result.failedCount,
     ],
-    ['not_run', 0, 0, 0, 0, 0, 0],
+    ['succeeded', expected[4], 0, 0, expected[3], 0, 0],
   );
   assert.deepEqual(
     [

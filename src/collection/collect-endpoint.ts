@@ -1,4 +1,5 @@
 import type { QueryExecutor } from '../database/database.ts';
+import type { ArticlePersistenceResult } from '../articles/repository.ts';
 import type { EndpointConfigurationAggregate } from '../sources/repository.ts';
 import type { CollectionBlockedDecision } from './decision.ts';
 import {
@@ -54,9 +55,21 @@ export interface CollectEndpointDependencies {
     candidate: ArticleCandidate,
     context: ArticleLinkPolicyContext,
   ) => ArticleLinkPolicyDecision;
+  readonly evaluateRelevance: (
+    candidate: ArticleCandidate,
+  ) => CollectionRelevanceDecision;
+  readonly persistArticle: (
+    candidate: ArticleCandidate,
+    observationTime: Date,
+  ) => Promise<ArticlePersistenceResult>;
+  readonly observationTime: () => Date;
   readonly executionId: () => string;
   readonly fetchOptions?: Omit<HttpFetcherRequest, 'configuration'>;
 }
+
+export type CollectionRelevanceDecision =
+  | Readonly<{ included: true; candidate: ArticleCandidate }>
+  | Readonly<{ included: false }>;
 
 export type CollectionAttemptOutcome =
   | 'content'
@@ -65,7 +78,8 @@ export type CollectionAttemptOutcome =
   | 'fetch_failed'
   | 'parser_failed'
   | 'normalization_failed'
-  | 'article_link_policy_failed';
+  | 'article_link_policy_failed'
+  | 'processing_failed';
 
 export interface EndpointCollectionAttemptResult {
   readonly status: 'succeeded' | 'failed';
@@ -346,12 +360,18 @@ async function executeAttempt(
   }
 
   const candidates = immutableArticleCandidates(acceptedCandidates);
+  const processing = await processCandidates(
+    candidates,
+    articleLinkRejectionCount,
+    dependencies,
+  );
+  const processingFailed = processing.failure !== undefined;
   return Object.freeze({
     result: Object.freeze({
-      status: 'succeeded',
-      outcome: 'content',
+      status: processingFailed ? 'failed' : 'succeeded',
+      outcome: processingFailed ? 'processing_failed' : 'content',
       endpointId: configuration.endpoint.id,
-      runStatus: 'succeeded',
+      runStatus: processingFailed ? 'failed' : 'succeeded',
       transportStatus: 'succeeded',
       parserStatus: 'succeeded',
       rawItemCount: rawItems.length,
@@ -359,12 +379,13 @@ async function executeAttempt(
       normalizedCandidateCount: normalizedCandidates.length,
       normalizationFailureCount,
       articleLinkRejectionCount,
-      ...processingNotRun,
+      ...processing.accounting,
       candidates,
+      ...(processing.failure === undefined ? {} : processing.failure),
       ...metadata,
     }),
     finalization: Object.freeze({
-      runStatus: 'succeeded',
+      runStatus: processingFailed ? 'failed' : 'succeeded',
       transportStatus: 'succeeded',
       parserStatus: 'succeeded',
       rawItemCount: rawItems.length,
@@ -372,9 +393,155 @@ async function executeAttempt(
       normalizedCandidateCount: normalizedCandidates.length,
       normalizationFailureCount,
       articleLinkRejectionCount,
-      ...processingNotRun,
+      ...processing.accounting,
       ...persistenceMetadata(metadata),
+      ...(processing.failure === undefined
+        ? {}
+        : { error: processing.failureError }),
     }),
+  });
+}
+
+interface ProcessingAccounting {
+  readonly processingStatus: 'succeeded' | 'failed';
+  readonly createdCount: number;
+  readonly updatedCount: number;
+  readonly unchangedCount: number;
+  readonly rejectedCount: number;
+  readonly excludedCount: number;
+  readonly failedCount: number;
+}
+
+interface ProcessingResult {
+  readonly accounting: ProcessingAccounting;
+  readonly failure?: Readonly<{ reason: string; detail: string }>;
+  readonly failureError?: Readonly<{ code: string; detail: string }>;
+}
+
+async function processCandidates(
+  candidates: readonly ArticleCandidate[],
+  articleLinkRejectionCount: number,
+  dependencies: CollectEndpointDependencies,
+): Promise<ProcessingResult> {
+  const counters = {
+    createdCount: 0,
+    updatedCount: 0,
+    unchangedCount: 0,
+    rejectedCount: articleLinkRejectionCount,
+    excludedCount: 0,
+    failedCount: 0,
+  };
+
+  for (let index = 0; index < candidates.length; index += 1) {
+    const candidate = candidates[index]!;
+    let relevance: CollectionRelevanceDecision;
+    try {
+      relevance = dependencies.evaluateRelevance(candidate);
+      if (
+        relevance === null ||
+        typeof relevance !== 'object' ||
+        typeof relevance.included !== 'boolean'
+      ) {
+        throw new TypeError('Invalid Relevance decision.');
+      }
+    } catch {
+      return processingFailure(
+        counters,
+        candidates.length - index,
+        'relevance_execution_failed',
+        'Relevance evaluation failed outside its bounded decision contract.',
+      );
+    }
+
+    if (!relevance.included) {
+      counters.excludedCount += 1;
+      continue;
+    }
+
+    let observationTime: Date;
+    try {
+      observationTime = dependencies.observationTime();
+      if (
+        !(observationTime instanceof Date) ||
+        Number.isNaN(observationTime.getTime())
+      ) {
+        throw new TypeError('Invalid Article observation time.');
+      }
+    } catch {
+      return processingFailure(
+        counters,
+        candidates.length - index,
+        'observation_clock_execution_failed',
+        'Article observation clock failed outside its bounded contract.',
+      );
+    }
+
+    let persistence: ArticlePersistenceResult;
+    try {
+      persistence = await dependencies.persistArticle(
+        relevance.candidate,
+        observationTime,
+      );
+      if (!isArticlePersistenceResult(persistence)) {
+        throw new TypeError('Invalid Article persistence result.');
+      }
+    } catch {
+      return processingFailure(
+        counters,
+        candidates.length - index,
+        'article_persistence_execution_failed',
+        'Article persistence failed outside its bounded result contract.',
+      );
+    }
+
+    if (persistence.outcome === 'failed') {
+      counters.failedCount += 1;
+    } else if (persistence.outcome === 'created') {
+      counters.createdCount += 1;
+    } else if (persistence.outcome === 'updated') {
+      counters.updatedCount += 1;
+    } else {
+      counters.unchangedCount += 1;
+    }
+  }
+
+  return Object.freeze({
+    accounting: Object.freeze({ processingStatus: 'succeeded', ...counters }),
+  });
+}
+
+function isArticlePersistenceResult(
+  value: unknown,
+): value is ArticlePersistenceResult {
+  if (value === null || typeof value !== 'object') return false;
+  const outcome = Reflect.get(value, 'outcome');
+  if (
+    outcome === 'created' ||
+    outcome === 'updated' ||
+    outcome === 'unchanged'
+  ) {
+    return true;
+  }
+  if (outcome !== 'failed') return false;
+  const reason = Reflect.get(value, 'reason');
+  return reason === 'identity_conflict' || reason === 'provenance_mismatch';
+}
+
+function processingFailure(
+  counters: Omit<ProcessingAccounting, 'processingStatus'>,
+  unaccountedCandidateCount: number,
+  reason: string,
+  detail: string,
+): ProcessingResult {
+  const failure = Object.freeze({ reason, detail });
+  return Object.freeze({
+    accounting: Object.freeze({
+      processingStatus: 'failed',
+      ...counters,
+      failedCount: counters.failedCount + unaccountedCandidateCount,
+    }),
+    failure,
+    failureError: Object.freeze({ code: reason, detail }),
   });
 }
 

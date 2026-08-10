@@ -6,6 +6,7 @@ import {
   createCollectionRunStore,
 } from '../../src/collection/collect-endpoint.ts';
 import { applyArticleLinkPolicy } from '../../src/collection/article-links/policy.ts';
+import type { ArticlePersistenceResult } from '../../src/articles/repository.ts';
 import { createEndpointExecutionLockRunner } from '../../src/collection/execution.ts';
 import type {
   HttpFetcher,
@@ -13,6 +14,7 @@ import type {
 } from '../../src/collection/fetchers/http-fetcher.ts';
 import { RssAtomParser } from '../../src/collection/parsers/rss-atom-parser.ts';
 import { normalizeArticleCandidate } from '../../src/collection/normalization/normalizer.ts';
+import { evaluateRelevance } from '../../src/collection/relevance/evaluator.ts';
 import { createDatabase, type Database } from '../../src/database/database.ts';
 import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
@@ -208,6 +210,11 @@ function execute(
     rssAtomParser: new RssAtomParser(),
     normalizeArticleCandidate,
     applyArticleLinkPolicy,
+    evaluateRelevance,
+    async persistArticle() {
+      return { outcome: 'created' } as ArticlePersistenceResult;
+    },
+    observationTime: () => new Date('2026-08-10T12:00:00.000Z'),
     executionId: () => executionId,
   });
 }

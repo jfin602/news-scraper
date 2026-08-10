@@ -126,6 +126,9 @@ describe('manual Worker endpoint collection command', () => {
             'function',
           );
           assert.equal(typeof dependencies.applyArticleLinkPolicy, 'function');
+          assert.equal(typeof dependencies.evaluateRelevance, 'function');
+          assert.equal(typeof dependencies.persistArticle, 'function');
+          assert.ok(dependencies.observationTime() instanceof Date);
           return successfulResult();
         },
         executionId: () => 'controlled-execution-id',
@@ -155,12 +158,12 @@ describe('manual Worker endpoint collection command', () => {
       normalizationStatus: 'succeeded',
       normalizedCandidateCount: 4,
       normalizationFailureCount: 1,
-      articleLinkRejectionCount: 0,
-      processingStatus: 'not_run',
-      createdCount: 0,
-      updatedCount: 0,
-      unchangedCount: 0,
-      rejectedCount: 0,
+      articleLinkRejectionCount: 1,
+      processingStatus: 'succeeded',
+      createdCount: 1,
+      updatedCount: 1,
+      unchangedCount: 1,
+      rejectedCount: 1,
       excludedCount: 0,
       failedCount: 0,
       candidateSample: [0, 1, 2].map((index) => ({
@@ -358,15 +361,15 @@ function successfulResult(): EndpointCollectionAttemptResult {
     normalizationStatus: 'succeeded',
     normalizedCandidateCount: 4,
     normalizationFailureCount: 1,
-    articleLinkRejectionCount: 0,
-    processingStatus: 'not_run',
-    createdCount: 0,
-    updatedCount: 0,
-    unchangedCount: 0,
-    rejectedCount: 0,
+    articleLinkRejectionCount: 1,
+    processingStatus: 'succeeded',
+    createdCount: 1,
+    updatedCount: 1,
+    unchangedCount: 1,
+    rejectedCount: 1,
     excludedCount: 0,
     failedCount: 0,
-    candidates: Object.freeze([0, 1, 2, 3].map(candidate)),
+    candidates: Object.freeze([0, 1, 2].map(candidate)),
     httpStatusCode: 200,
     wireByteCount: 100,
     decompressedByteCount: 200,
