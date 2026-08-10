@@ -20,6 +20,7 @@ test('production configuration schema migrates from zero and reruns safely', asy
     assert.deepEqual(await migrateDatabase({ connectionString: databaseUrl }), [
       '0001_publication_source_configuration.sql',
       '0002_collection_runs.sql',
+      '0003_collection_run_normalization.sql',
     ]);
     assert.deepEqual(
       await migrateDatabase({ connectionString: databaseUrl }),
@@ -57,7 +58,7 @@ test('production configuration schema migrates from zero and reruns safely', asy
       const history = await client.query<{ count: string }>(
         'SELECT count(*) FROM news_scraper_schema_migrations',
       );
-      assert.equal(history.rows[0]?.count, '2');
+      assert.equal(history.rows[0]?.count, '3');
     } finally {
       await client.end();
     }

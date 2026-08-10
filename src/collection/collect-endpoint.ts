@@ -56,7 +56,11 @@ export interface EndpointCollectionAttemptResult {
   readonly runStatus: 'succeeded' | 'failed';
   readonly transportStatus: 'not_run' | 'succeeded' | 'not_modified' | 'failed';
   readonly parserStatus: 'not_run' | 'succeeded' | 'failed';
+  readonly normalizationStatus: 'not_run' | 'succeeded' | 'failed';
   readonly rawItemCount: number;
+  readonly normalizedCandidateCount: number;
+  readonly normalizationFailureCount: number;
+  readonly articleLinkRejectionCount: number;
   readonly rawItems?: readonly RawItem[];
   readonly reason?: string;
   readonly detail?: string;
@@ -196,6 +200,7 @@ async function executeAttempt(
         transportStatus: 'not_modified',
         parserStatus: 'not_run',
         rawItemCount: 0,
+        ...normalizationNotRun,
         ...metadata,
       }),
       finalization: Object.freeze({
@@ -203,6 +208,7 @@ async function executeAttempt(
         transportStatus: 'not_modified',
         parserStatus: 'not_run',
         rawItemCount: 0,
+        ...normalizationNotRun,
         ...persistenceMetadata(metadata),
       }),
     });
@@ -262,6 +268,7 @@ async function executeAttempt(
       transportStatus: 'succeeded',
       parserStatus: 'succeeded',
       rawItemCount: rawItems.length,
+      ...normalizationNotRun,
       rawItems,
       ...metadata,
     }),
@@ -270,6 +277,7 @@ async function executeAttempt(
       transportStatus: 'succeeded',
       parserStatus: 'succeeded',
       rawItemCount: rawItems.length,
+      ...normalizationNotRun,
       ...persistenceMetadata(metadata),
     }),
   });
@@ -306,6 +314,7 @@ function failedDraft(
       transportStatus,
       parserStatus,
       rawItemCount: 0,
+      ...normalizationNotRun,
       reason,
       detail,
       ...metadata,
@@ -315,6 +324,7 @@ function failedDraft(
       transportStatus,
       parserStatus,
       rawItemCount: 0,
+      ...normalizationNotRun,
       ...persistenceMetadata(metadata),
       error: Object.freeze({ code: reason, detail }),
     }),
@@ -344,7 +354,12 @@ function resultFromFinalized(
     finalized.runStatus !== attempted.runStatus ||
     finalized.transportStatus !== attempted.transportStatus ||
     finalized.parserStatus !== attempted.parserStatus ||
-    finalized.rawItemCount !== attempted.rawItemCount
+    finalized.rawItemCount !== attempted.rawItemCount ||
+    finalized.normalizationStatus !== attempted.normalizationStatus ||
+    finalized.normalizedCandidateCount !== attempted.normalizedCandidateCount ||
+    finalized.normalizationFailureCount !==
+      attempted.normalizationFailureCount ||
+    finalized.articleLinkRejectionCount !== attempted.articleLinkRejectionCount
   ) {
     throw new Error('Collection run finalization returned inconsistent state.');
   }
@@ -356,6 +371,10 @@ function resultFromFinalized(
     transportStatus: finalized.transportStatus,
     parserStatus: finalized.parserStatus,
     rawItemCount: finalized.rawItemCount,
+    normalizationStatus: finalized.normalizationStatus,
+    normalizedCandidateCount: finalized.normalizedCandidateCount,
+    normalizationFailureCount: finalized.normalizationFailureCount,
+    articleLinkRejectionCount: finalized.articleLinkRejectionCount,
     ...(finalized.httpStatusCode === undefined
       ? {}
       : { httpStatusCode: finalized.httpStatusCode }),
@@ -367,6 +386,13 @@ function resultFromFinalized(
       : { decompressedByteCount: finalized.decompressedByteCount }),
   });
 }
+
+const normalizationNotRun = Object.freeze({
+  normalizationStatus: 'not_run' as const,
+  normalizedCandidateCount: 0,
+  normalizationFailureCount: 0,
+  articleLinkRejectionCount: 0,
+});
 
 function parserForEndpoint(
   endpointType: string,

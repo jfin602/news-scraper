@@ -12,6 +12,8 @@ export type CollectionRunStatus = 'running' | 'succeeded' | 'failed';
 export type CollectionRunTransportStatus =
   'not_run' | 'succeeded' | 'not_modified' | 'failed';
 export type CollectionRunParserStatus = 'not_run' | 'succeeded' | 'failed';
+export type CollectionRunNormalizationStatus =
+  'not_run' | 'succeeded' | 'failed';
 
 export interface PersistedCollectionRun {
   readonly id: string;
@@ -22,10 +24,14 @@ export interface PersistedCollectionRun {
   readonly runStatus: CollectionRunStatus;
   readonly transportStatus: CollectionRunTransportStatus;
   readonly parserStatus: CollectionRunParserStatus;
+  readonly normalizationStatus: CollectionRunNormalizationStatus;
   readonly httpStatusCode: number | undefined;
   readonly wireByteCount: number | undefined;
   readonly decompressedByteCount: number | undefined;
   readonly rawItemCount: number;
+  readonly normalizedCandidateCount: number;
+  readonly normalizationFailureCount: number;
+  readonly articleLinkRejectionCount: number;
   readonly errorCode: string | undefined;
   readonly errorDetail: string | undefined;
 }
@@ -39,10 +45,14 @@ export interface FinalizeCollectionRunInput {
   readonly runStatus: 'succeeded' | 'failed';
   readonly transportStatus: CollectionRunTransportStatus;
   readonly parserStatus: CollectionRunParserStatus;
+  readonly normalizationStatus: CollectionRunNormalizationStatus;
   readonly httpStatusCode?: number;
   readonly wireByteCount?: number;
   readonly decompressedByteCount?: number;
   readonly rawItemCount: number;
+  readonly normalizedCandidateCount: number;
+  readonly normalizationFailureCount: number;
+  readonly articleLinkRejectionCount: number;
   readonly error?: {
     readonly code: string;
     readonly detail: string;
@@ -58,10 +68,14 @@ export interface CollectionRunRow {
   readonly run_status: unknown;
   readonly transport_status: unknown;
   readonly parser_status: unknown;
+  readonly normalization_status: unknown;
   readonly http_status_code: unknown;
   readonly wire_byte_count: unknown;
   readonly decompressed_byte_count: unknown;
   readonly raw_item_count: unknown;
+  readonly normalized_candidate_count: unknown;
+  readonly normalization_failure_count: unknown;
+  readonly article_link_rejection_count: unknown;
   readonly error_code: unknown;
   readonly error_detail: unknown;
 }
@@ -70,18 +84,24 @@ interface ValidatedFinalization {
   readonly runStatus: 'succeeded' | 'failed';
   readonly transportStatus: CollectionRunTransportStatus;
   readonly parserStatus: CollectionRunParserStatus;
+  readonly normalizationStatus: CollectionRunNormalizationStatus;
   readonly httpStatusCode: number | null;
   readonly wireByteCount: number | null;
   readonly decompressedByteCount: number | null;
   readonly rawItemCount: number;
+  readonly normalizedCandidateCount: number;
+  readonly normalizationFailureCount: number;
+  readonly articleLinkRejectionCount: number;
   readonly errorCode: string | null;
   readonly errorDetail: string | null;
 }
 
 const COLLECTION_RUN_COLUMNS = `
   id, source_endpoint_id, execution_id, started_at, finished_at, run_status,
-  transport_status, parser_status, http_status_code, wire_byte_count,
-  decompressed_byte_count, raw_item_count, error_code, error_detail`;
+  transport_status, parser_status, normalization_status, http_status_code,
+  wire_byte_count, decompressed_byte_count, raw_item_count,
+  normalized_candidate_count, normalization_failure_count,
+  article_link_rejection_count, error_code, error_detail`;
 
 export class CollectionRunPersistenceError extends Error {
   constructor(reason: string) {
@@ -106,8 +126,10 @@ export async function startCollectionRun(
   const result = await executor.query<CollectionRunRow>(
     `INSERT INTO collection_runs (
        id, source_endpoint_id, execution_id, run_status, transport_status,
-       parser_status, raw_item_count
-     ) VALUES ($1, $2, $3, 'running', 'not_run', 'not_run', 0)
+       parser_status, normalization_status, raw_item_count,
+       normalized_candidate_count, normalization_failure_count,
+       article_link_rejection_count
+     ) VALUES ($1, $2, $3, 'running', 'not_run', 'not_run', 'not_run', 0, 0, 0, 0)
      RETURNING ${COLLECTION_RUN_COLUMNS}`,
     [randomUUID(), sourceEndpointId, executionId],
   );
@@ -127,12 +149,16 @@ export async function finalizeCollectionRun(
          run_status = $2,
          transport_status = $3,
          parser_status = $4,
-         http_status_code = $5,
-         wire_byte_count = $6,
-         decompressed_byte_count = $7,
-         raw_item_count = $8,
-         error_code = $9,
-         error_detail = $10
+         normalization_status = $5,
+         http_status_code = $6,
+         wire_byte_count = $7,
+         decompressed_byte_count = $8,
+         raw_item_count = $9,
+         normalized_candidate_count = $10,
+         normalization_failure_count = $11,
+         article_link_rejection_count = $12,
+         error_code = $13,
+         error_detail = $14
      WHERE id = $1 AND run_status = 'running'
      RETURNING ${COLLECTION_RUN_COLUMNS}`,
     [
@@ -140,10 +166,14 @@ export async function finalizeCollectionRun(
       finalization.runStatus,
       finalization.transportStatus,
       finalization.parserStatus,
+      finalization.normalizationStatus,
       finalization.httpStatusCode,
       finalization.wireByteCount,
       finalization.decompressedByteCount,
       finalization.rawItemCount,
+      finalization.normalizedCandidateCount,
+      finalization.normalizationFailureCount,
+      finalization.articleLinkRejectionCount,
       finalization.errorCode,
       finalization.errorDetail,
     ],
@@ -177,7 +207,7 @@ export function mapCollectionRunRow(
   row: CollectionRunRow,
 ): PersistedCollectionRun {
   try {
-    return Object.freeze({
+    const mapped = {
       id: requiredUuid(row.id, 'database collection run id'),
       sourceEndpointId: requiredUuid(
         row.source_endpoint_id,
@@ -193,18 +223,32 @@ export function mapCollectionRunRow(
       runStatus: normalizeRunStatus(row.run_status),
       transportStatus: normalizeTransportStatus(row.transport_status),
       parserStatus: normalizeParserStatus(row.parser_status),
+      normalizationStatus: normalizeNormalizationStatus(
+        row.normalization_status,
+      ),
       httpStatusCode: nullableIntegerInRange(row.http_status_code, 100, 599),
       wireByteCount: nullableNonnegativeInteger(row.wire_byte_count),
       decompressedByteCount: nullableNonnegativeInteger(
         row.decompressed_byte_count,
       ),
       rawItemCount: requiredNonnegativeInteger(row.raw_item_count),
+      normalizedCandidateCount: requiredNonnegativeInteger(
+        row.normalized_candidate_count,
+      ),
+      normalizationFailureCount: requiredNonnegativeInteger(
+        row.normalization_failure_count,
+      ),
+      articleLinkRejectionCount: requiredNonnegativeInteger(
+        row.article_link_rejection_count,
+      ),
       errorCode: nullableErrorCode(row.error_code),
       errorDetail: nullableTrimmedString(
         row.error_detail,
         ERROR_DETAIL_MAX_LENGTH,
       ),
-    });
+    };
+    validateNormalizationAccounting(mapped);
+    return Object.freeze(mapped);
   } catch {
     throw new CollectionRunPersistenceError(
       'database returned invalid collection run',
@@ -223,10 +267,13 @@ function validateFinalization(
     throw new CollectionRunPersistenceError('invalid finalization error');
   }
   try {
-    return Object.freeze({
+    const validated = {
       runStatus: normalizeTerminalRunStatus(input.runStatus),
       transportStatus: normalizeTransportStatus(input.transportStatus),
       parserStatus: normalizeParserStatus(input.parserStatus),
+      normalizationStatus: normalizeNormalizationStatus(
+        input.normalizationStatus,
+      ),
       httpStatusCode:
         input.httpStatusCode === undefined
           ? null
@@ -240,6 +287,15 @@ function validateFinalization(
           ? null
           : nonnegativeInteger(input.decompressedByteCount),
       rawItemCount: nonnegativeInteger(input.rawItemCount),
+      normalizedCandidateCount: nonnegativeInteger(
+        input.normalizedCandidateCount,
+      ),
+      normalizationFailureCount: nonnegativeInteger(
+        input.normalizationFailureCount,
+      ),
+      articleLinkRejectionCount: nonnegativeInteger(
+        input.articleLinkRejectionCount,
+      ),
       errorCode:
         error === undefined
           ? null
@@ -252,7 +308,9 @@ function validateFinalization(
               ERROR_DETAIL_MAX_LENGTH,
               'error detail',
             ),
-    });
+    };
+    validateNormalizationAccounting(validated);
+    return Object.freeze(validated);
   } catch (error) {
     if (error instanceof CollectionRunPersistenceError) throw error;
     throw new CollectionRunPersistenceError('invalid finalization input');
@@ -290,6 +348,41 @@ function normalizeParserStatus(value: unknown): CollectionRunParserStatus {
     return value;
   }
   throw new Error();
+}
+
+function normalizeNormalizationStatus(
+  value: unknown,
+): CollectionRunNormalizationStatus {
+  if (value === 'not_run' || value === 'succeeded' || value === 'failed') {
+    return value;
+  }
+  throw new Error();
+}
+
+function validateNormalizationAccounting(value: {
+  readonly runStatus: CollectionRunStatus;
+  readonly parserStatus: CollectionRunParserStatus;
+  readonly normalizationStatus: CollectionRunNormalizationStatus;
+  readonly rawItemCount: number;
+  readonly normalizedCandidateCount: number;
+  readonly normalizationFailureCount: number;
+  readonly articleLinkRejectionCount: number;
+}): void {
+  if (
+    value.articleLinkRejectionCount > value.normalizedCandidateCount ||
+    (value.normalizationStatus === 'not_run' &&
+      (value.normalizedCandidateCount !== 0 ||
+        value.normalizationFailureCount !== 0 ||
+        value.articleLinkRejectionCount !== 0)) ||
+    (value.normalizationStatus !== 'not_run' &&
+      value.parserStatus !== 'succeeded') ||
+    (value.normalizationStatus === 'succeeded' &&
+      value.rawItemCount !==
+        value.normalizedCandidateCount + value.normalizationFailureCount) ||
+    (value.normalizationStatus === 'failed' && value.runStatus === 'succeeded')
+  ) {
+    throw new Error();
+  }
 }
 
 function requiredUuid(value: unknown, field: string): string {

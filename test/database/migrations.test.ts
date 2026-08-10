@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
@@ -11,6 +11,11 @@ import {
   migrateDatabase,
 } from '../../src/database/migrations.ts';
 import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { insertPublication } from '../../src/publications/repository.ts';
+import {
+  insertSource,
+  insertSourceEndpoint,
+} from '../../src/sources/repository.ts';
 
 async function withMigrationDirectory(
   files: Readonly<Record<string, string>>,
@@ -122,6 +127,170 @@ test('reports pending migrations without applying them', async () => {
         );
       },
     );
+  });
+});
+
+test('upgrades representative Phase 5 collection runs from 0002 to 0003 without rewriting history', async () => {
+  await withDisposableDatabase(async ({ databaseUrl }) => {
+    const productionDirectory = path.join(process.cwd(), 'migrations');
+    const migrationFiles = {
+      '0001_publication_source_configuration.sql': await readFile(
+        path.join(
+          productionDirectory,
+          '0001_publication_source_configuration.sql',
+        ),
+        'utf8',
+      ),
+      '0002_collection_runs.sql': await readFile(
+        path.join(productionDirectory, '0002_collection_runs.sql'),
+        'utf8',
+      ),
+    };
+    await withMigrationDirectory(migrationFiles, async (directory) => {
+      assert.deepEqual(
+        await migrateDatabase({ connectionString: databaseUrl }, directory),
+        Object.keys(migrationFiles),
+      );
+      const database = createDatabase({ connectionString: databaseUrl });
+      try {
+        const publication = await insertPublication(database, {
+          name: 'Upgrade publication',
+          slug: 'upgrade-publication',
+          activeForCollection: true,
+          publicStatus: 'private',
+        });
+        const source = await insertSource(database, publication.id, {
+          configKey: 'upgrade_source',
+          displayName: 'Upgrade Source',
+          siteUrl: 'https://example.com/',
+          approvalState: 'approved',
+          lifecycleState: 'active',
+          operationalState: 'enabled',
+          domainRules: [{ hostname: 'example.com', includeSubdomains: true }],
+        });
+        const endpoint = await insertSourceEndpoint(database, source.id, {
+          configKey: 'upgrade_feed',
+          endpointUrl: 'https://example.com/feed.xml',
+          endpointType: 'rss_atom',
+          approvalState: 'approved',
+          lifecycleState: 'active',
+          operationalState: 'enabled',
+          pollIntervalSeconds: 300,
+        });
+        await database.query(
+          `INSERT INTO collection_runs (
+             id, source_endpoint_id, execution_id, started_at, finished_at,
+             run_status, transport_status, parser_status, http_status_code,
+             wire_byte_count, decompressed_byte_count, raw_item_count,
+             error_code, error_detail
+           ) VALUES
+             ('10000000-0000-4000-8000-000000000001', $1, 'content', '2026-08-08T10:00:00Z', '2026-08-08T10:00:01Z', 'succeeded', 'succeeded', 'succeeded', 200, 123, 456, 3, NULL, NULL),
+             ('10000000-0000-4000-8000-000000000002', $1, 'unchanged', '2026-08-08T11:00:00Z', '2026-08-08T11:00:01Z', 'succeeded', 'not_modified', 'not_run', 304, 20, 0, 0, NULL, NULL),
+             ('10000000-0000-4000-8000-000000000003', $1, 'failed', '2026-08-08T12:00:00Z', '2026-08-08T12:00:01Z', 'failed', 'failed', 'not_run', NULL, 0, 0, 0, 'transport_timeout', 'Timed out.')`,
+          [endpoint.id],
+        );
+      } finally {
+        await database.close();
+      }
+
+      await writeFile(
+        path.join(directory, '0003_collection_run_normalization.sql'),
+        await readFile(
+          path.join(
+            productionDirectory,
+            '0003_collection_run_normalization.sql',
+          ),
+          'utf8',
+        ),
+        'utf8',
+      );
+      assert.deepEqual(
+        await migrateDatabase({ connectionString: databaseUrl }, directory),
+        ['0003_collection_run_normalization.sql'],
+      );
+      assert.deepEqual(
+        await migrateDatabase({ connectionString: databaseUrl }, directory),
+        [],
+      );
+
+      const upgraded = createDatabase({ connectionString: databaseUrl });
+      try {
+        const rows = await upgraded.query(
+          `SELECT execution_id, run_status, transport_status, parser_status,
+                  http_status_code, wire_byte_count, decompressed_byte_count,
+                  raw_item_count, error_code, error_detail,
+                  normalization_status, normalized_candidate_count,
+                  normalization_failure_count, article_link_rejection_count
+             FROM collection_runs ORDER BY execution_id`,
+        );
+        assert.deepEqual(
+          rows.rows.map((row) => ({
+            ...row,
+            wire_byte_count: Number(row.wire_byte_count),
+            decompressed_byte_count: Number(row.decompressed_byte_count),
+          })),
+          [
+            {
+              execution_id: 'content',
+              run_status: 'succeeded',
+              transport_status: 'succeeded',
+              parser_status: 'succeeded',
+              http_status_code: 200,
+              wire_byte_count: 123,
+              decompressed_byte_count: 456,
+              raw_item_count: 3,
+              error_code: null,
+              error_detail: null,
+              normalization_status: 'not_run',
+              normalized_candidate_count: 0,
+              normalization_failure_count: 0,
+              article_link_rejection_count: 0,
+            },
+            {
+              execution_id: 'failed',
+              run_status: 'failed',
+              transport_status: 'failed',
+              parser_status: 'not_run',
+              http_status_code: null,
+              wire_byte_count: 0,
+              decompressed_byte_count: 0,
+              raw_item_count: 0,
+              error_code: 'transport_timeout',
+              error_detail: 'Timed out.',
+              normalization_status: 'not_run',
+              normalized_candidate_count: 0,
+              normalization_failure_count: 0,
+              article_link_rejection_count: 0,
+            },
+            {
+              execution_id: 'unchanged',
+              run_status: 'succeeded',
+              transport_status: 'not_modified',
+              parser_status: 'not_run',
+              http_status_code: 304,
+              wire_byte_count: 20,
+              decompressed_byte_count: 0,
+              raw_item_count: 0,
+              error_code: null,
+              error_detail: null,
+              normalization_status: 'not_run',
+              normalized_candidate_count: 0,
+              normalization_failure_count: 0,
+              article_link_rejection_count: 0,
+            },
+          ],
+        );
+        assert.deepEqual(
+          await inspectSchemaStatus(
+            upgraded,
+            await discoverMigrations(directory),
+          ),
+          { state: 'current' },
+        );
+      } finally {
+        await upgraded.close();
+      }
+    });
   });
 });
 

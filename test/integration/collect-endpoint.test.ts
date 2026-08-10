@@ -87,6 +87,10 @@ describe('canonical endpoint collection service', () => {
         wireByteCount: 321,
         decompressedByteCount: 654,
         rawItemCount: 1,
+        normalizationStatus: 'not_run',
+        normalizedCandidateCount: 0,
+        normalizationFailureCount: 0,
+        articleLinkRejectionCount: 0,
       },
     ]);
   });
@@ -171,6 +175,10 @@ describe('canonical endpoint collection service', () => {
         transportStatus: 'not_run',
         parserStatus: 'not_run',
         rawItemCount: 0,
+        normalizationStatus: 'not_run',
+        normalizedCandidateCount: 0,
+        normalizationFailureCount: 0,
+        articleLinkRejectionCount: 0,
         error: {
           code: 'domain_not_approved',
           detail:
@@ -289,6 +297,24 @@ describe('canonical endpoint collection service', () => {
       'run.finalize',
       'release',
     ]);
+  });
+
+  it('rejects persisted normalization accounting that contradicts the attempted result', async () => {
+    const events: string[] = [];
+    await assert.rejects(
+      collectEndpoint(aggregate(), {
+        lockRunner: acquiredLock(events),
+        runs: runStore(events, { contradictNormalization: true }),
+        fetcher: fetcher(events, contentResult()),
+        rssAtomParser: parser(events, parserSuccess()),
+        executionId: () => EXECUTION_ID,
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof CollectionRunFinalizationError);
+        assert.match(String(error.cause), /inconsistent state/u);
+        return true;
+      },
+    );
   });
 
   it('fails predictably when corrupted mapped state contains an unsupported endpoint type', async () => {
@@ -440,6 +466,7 @@ function runStore(
     readonly startFailure?: Error;
     readonly finalizationFailure?: Error;
     readonly runId?: string;
+    readonly contradictNormalization?: boolean;
   } = {},
 ): CollectionRunStore & {
   readonly finalizations: FinalizeCollectionRunInput[];
@@ -466,12 +493,15 @@ function runStore(
       finalizations.push(input);
       if (options.finalizationFailure !== undefined)
         throw options.finalizationFailure;
-      return persistedRun({
+      const persisted = persistedRun({
         id: runId,
         endpointId,
         executionId,
         finalization: input,
       });
+      return options.contradictNormalization
+        ? Object.freeze({ ...persisted, normalizedCandidateCount: 1 })
+        : persisted;
     },
   };
 }
@@ -513,10 +543,14 @@ function persistedRun(input: {
     runStatus: finalization?.runStatus ?? 'running',
     transportStatus: finalization?.transportStatus ?? 'not_run',
     parserStatus: finalization?.parserStatus ?? 'not_run',
+    normalizationStatus: finalization?.normalizationStatus ?? 'not_run',
     httpStatusCode: finalization?.httpStatusCode,
     wireByteCount: finalization?.wireByteCount,
     decompressedByteCount: finalization?.decompressedByteCount,
     rawItemCount: finalization?.rawItemCount ?? 0,
+    normalizedCandidateCount: finalization?.normalizedCandidateCount ?? 0,
+    normalizationFailureCount: finalization?.normalizationFailureCount ?? 0,
+    articleLinkRejectionCount: finalization?.articleLinkRejectionCount ?? 0,
     errorCode: finalization?.error?.code,
     errorDetail: finalization?.error?.detail,
   });

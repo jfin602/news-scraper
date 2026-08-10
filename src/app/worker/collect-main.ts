@@ -216,6 +216,10 @@ function commandResult(
     transportStatus: result.transportStatus,
     parserStatus: result.parserStatus,
     rawItemCount: result.rawItemCount,
+    normalizationStatus: result.normalizationStatus,
+    normalizedCandidateCount: result.normalizedCandidateCount,
+    normalizationFailureCount: result.normalizationFailureCount,
+    articleLinkRejectionCount: result.articleLinkRejectionCount,
     ...(result.reason === undefined ? {} : { reason: result.reason }),
     ...(result.safetyContext === undefined
       ? {}
