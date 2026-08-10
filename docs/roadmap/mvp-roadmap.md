@@ -337,7 +337,7 @@ Fetch real approved structured feeds through the Worker, persist truthful run pr
 
 ## Phase 6 — Article normalization
 
-**Status:** Current.
+**Status:** Complete with durable validation recorded in `docs/validation/phase-6-article-normalization.md`.
 
 ### Goal
 
@@ -377,6 +377,8 @@ Convert untrusted Source-shaped Raw items into safe deterministic Article candid
 
 ## Phase 7 — Default Relevance, Article identity, and persistence
 
+**Status:** Current.
+
 ### Goal
 
 Preserve canonical pipeline order and persist normalized Source instances transactionally/idempotently without conflating Article identity with true duplicates.
@@ -392,7 +394,7 @@ Preserve canonical pipeline order and persist normalized Source instances transa
 - Article-observation provenance schema;
 - reliable Source external-ID identity;
 - canonical-URL identity within Publication/Source scope;
-- configured stable identity-key support where required;
+- explicit stable identity-key support only when a concrete approved adapter/endpoint requires it; Phase 7 does not invent a speculative generic identity-key configuration system;
 - transactional uniqueness constraints;
 - idempotent create/update/unchanged behavior;
 - Article observation linked to endpoint and existing Collection run;
