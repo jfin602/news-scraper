@@ -90,7 +90,12 @@ High-risk distinctions:
 - Duplicate review candidate persists uncertain/dismissed duplicate decisions.
 - Duplicate group contains separately stored true-duplicate Articles with exactly one Primary.
 - Article visibility (`visible/hidden/archived`) is separate from duplicate role (`ungrouped/primary/non_primary`).
-- Ordinary feed eligibility is visible + (`ungrouped` or `primary`).
+- Phase 8 first persists Article visibility because public-feed behavior consumes it; existing Phase 7 Articles become `visible`, while moderation controls remain later work.
+- Before Duplicate groups exist, persisted Articles are logically `ungrouped`; Phase 8 does not invent duplicate-group persistence.
+- Ordinary feed eligibility requires a public Publication, an approved active Source, and a visible Article that is `ungrouped` or `primary` once grouping exists.
+- Collection operational state is separate from public-row eligibility; pausing/failing collection does not by itself hide retained otherwise-eligible Articles.
+- Public feed date uses parsed `published_at` when available and otherwise `first_seen_at`, with the fallback source detectable.
+- The public headline destination is stored Article `original_url`; `canonical_identity_url` remains an identity field.
 
 ## Collection law
 
@@ -131,17 +136,28 @@ Governed by `docs/contracts/article-lifecycle-and-deduplication.md`.
 
 Governed by `docs/contracts/public-feed-and-admin-contract.md` and `docs/decisions/cloudflare-access-admin-perimeter.md`.
 
+Phase 8 backend baseline:
+
+- public readers require no authentication;
+- canonical endpoint is `GET /api/publications/:publicationSlug/feed`;
+- non-public and missing Publications are indistinguishable as public `404` responses;
+- a public Publication with no eligible Articles returns `200` with an empty list;
+- results are a bounded server-defined recent window with deterministic effective-feed-date ordering;
+- each basic item exposes stable Article identity, effective feed date/date source, display headline, Source display name, and stored `original_url` only as needed by the basic feed;
+- safe dependency errors do not expose SQL, stack traces, credentials, or database detail;
+- search/filters/client-controlled pagination and public presentation remain later phases.
+
 Public completed MVP:
 
 - reverse chronological rolling feed;
 - desktop `Date | Headline | Source`;
 - accessible stacked mobile layout;
-- original Article destination;
+- stored `original_url` Article destination;
 - Category/Source filters, keyword search, deterministic pagination;
 - light/dark modes;
 - no MVP pinning/featured ordering.
 
-Phase 9 intentionally reaches a basic real-data feed before discovery/presentation polish.
+Phase 9 intentionally reaches a basic real-data feed page before discovery/presentation polish.
 
 Admin MVP:
 
@@ -152,6 +168,8 @@ Admin MVP:
 - application commands validate Publication/resource ownership;
 - native application accounts/sessions/roles/account recovery/per-user Publication authorization/identity-linked audit attribution are deferred beyond MVP;
 - Source/endpoint management, Publication/Relevance administration, Article moderation, duplicate review, and bounded change history arrive in their roadmap phases.
+
+Before the full Publication-admin phase exists, Phase 8 may add only the smallest explicit topic-independent operator mechanism required to change an existing Publication's `public_status` for the tech demo. Ordinary bootstrap remains create-if-absent and does not overwrite existing persisted state.
 
 ## Validation law
 
@@ -174,9 +192,9 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 7 — Default Relevance, Article identity, and persistence**.
+Current phase: **Phase 8 — Basic public-feed backend**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, and Phase 6 Article normalization implementation/validation are complete. Phase 7 is active. Phases 1–9 remain the tech-demo critical path; do not pull later admin/discovery/deduplication work into those phases without a true dependency or explicit decision.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, and Phase 7 Default Relevance/Article identity/persistence implementation/validation are complete. Phase 8 is active. Phases 1–9 remain the tech-demo critical path; do not pull later admin/discovery/deduplication work into those phases without a true dependency or explicit decision.
 
 ## Working preferences
 
