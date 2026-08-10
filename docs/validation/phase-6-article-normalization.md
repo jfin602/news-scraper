@@ -8,19 +8,19 @@ Levels 1–5 are green for the Phase 6 candidate implementation. Level 7 produce
 
 ## Candidate identity and environments
 
-- Validation date/time: 2026-08-10, approximately 09:55–10:18 CDT (UTC-05:00).
+- Validation date/time: 2026-08-10, approximately 09:55–10:27 CDT (UTC-05:00), including the full owner-requested rerun with the root `.env` prerequisite.
 - Branch: `main`.
 - Candidate implementation source SHA: `33e052d78a0293abacbd69c1f928cf741bd3135f`.
 - Package version: `0.6.5`.
 - Candidate change: the P5-authorized top-level `package.json` version transition from `0.6.4`; no executable defect or source/test change was required.
 - Local runtime: Node.js `v24.11.1`; npm `11.6.2`; PostgreSQL client and server `18.3`.
 - Dependency installation: `npm install` completed successfully (`189` packages audited, `0` vulnerabilities). The repository's no-lockfile policy was preserved; no `package-lock.json` or `npm-shrinkwrap.json` was created. This is not a byte-for-byte dependency-reproducibility claim.
-- Database prerequisite present: `ARGUS_TEST_DATABASE_ADMIN_URL`. No secret value is recorded here.
+- Database prerequisite loaded from the root `.env`: `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL`. No secret value is recorded here. An unrelated inherited process variable named `ARGUS_TEST_DATABASE_ADMIN_URL` was not used by the npm database/live commands.
 - The same local environment performed deterministic, disposable-PostgreSQL, and approved-public-network validation.
 
 ## Executed validation
 
-All passing deterministic commands below ran against source content identical to candidate SHA `33e052d78a0293abacbd69c1f928cf741bd3135f`; the aggregate final-tree reruns ran after that commit was established.
+All passing deterministic commands below ran against source content identical to candidate SHA `33e052d78a0293abacbd69c1f928cf741bd3135f`; the aggregate final-tree reruns ran after that commit was established. On the owner-requested rerun, every named deterministic/DB command was executed again with the root `.env` available.
 
 | Evidence | Command/procedure | Result |
 | --- | --- | --- |
@@ -78,16 +78,16 @@ The live suite used a unique disposable PostgreSQL database, production migratio
 ### Author Media — observed green
 
 - Configuration: Publication `indie-author-publishing-news`; Source `author_media`; endpoint `site_rss`; approved URL `https://www.authormedia.com/feed/`.
-- Two independent Worker executions succeeded with HTTP `200`, transport/parser/normalization `succeeded`, `0` redirects, `21,684` wire bytes, and `138,079` decompressed bytes.
+- Two independent Worker executions in the latest run succeeded with HTTP `200`, transport/parser/normalization `succeeded`, `0` redirects, `21,684` wire bytes, and `138,079` decompressed bytes.
 - Each run produced `100` Raw items, `100` normalized candidates, `0` normalization failures, and `0` Article-link rejections.
-- First persisted Collection run: `297671fe-b320-453b-9ba1-c48ec02f4419`; second: `018d7a11-845a-41f5-a95c-093a626050b1`.
+- Latest persisted Collection runs: `4ca6f617-afab-4d37-9ad0-bd78b76a8ea7` and `3b6fef30-e4c2-4ac7-b240-a5837e0ba23e`.
 - Bounded sample evidence included the title `SEO for Author Websites: The Only Guide You Need in 2026`, original/canonical destination `https://www.authormedia.com/seo-for-author-websites-the-only-guide-you-need-in-2026/`, parsed date `2026-08-05T07:02:00.000Z`, and matching Publication/Source/endpoint/run provenance.
 
 ### The Creative Penn — attempted, pending successful evidence
 
 - Configuration: Publication `indie-author-publishing-news`; Source `the_creative_penn`; endpoint `podcast_rss`; approved URL `https://www.thecreativepenn.com/feed/podcast/`.
-- The independent production Worker attempt received HTTP `200` and read `1,056,557` wire bytes / `3,499,067` decompressed bytes, then ended at approximately `15,038 ms` with bounded reason `total_timeout`.
-- Persisted Collection run: `d97d360d-3f60-4fff-8ae5-68e0ec065b43`.
+- The latest independent production Worker attempt received HTTP `200` and read `981,784` wire bytes / `3,256,424` decompressed bytes, then ended at approximately `15,032 ms` with bounded reason `total_timeout`.
+- Latest persisted Collection run: `14759807-2a11-4494-8efe-f8faae2403b2`.
 - Truthful terminal state: overall/transport `failed`; parser and normalization `not_run`; Raw, normalized, normalization-failure, and Article-link-rejection counts all `0`.
 - No accepted normalized candidate can be claimed for this Source from this run. Production timeout policy was not weakened, configuration was not widened, and the failure was not hidden by an automatic retry.
 
@@ -110,7 +110,7 @@ To complete Stage 2, inspect this artifact and then run exactly:
 npm run test:live-sources
 ```
 
-Required prerequisite variable: `ARGUS_TEST_DATABASE_ADMIN_URL` (safe test-admin PostgreSQL only; never substitute application development/production data). Run against candidate implementation SHA `33e052d78a0293abacbd69c1f928cf741bd3135f`, or a tree differing only by this validation artifact/docs-only evidence commits. A successful run must provide accepted normalized candidates with matching persisted provenance for both named approved Sources. If Creative Penn continues to exceed the governed production timeout, treat that as a blocker requiring deliberate owner-directed follow-up; do not silently raise limits, widen domains, or bypass safety.
+Required prerequisite variable in the root `.env`: `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` (safe test-admin PostgreSQL only; never substitute application development/production data). Run against candidate implementation SHA `33e052d78a0293abacbd69c1f928cf741bd3135f`, or a tree differing only by this validation artifact/docs-only evidence commits. A successful run must provide accepted normalized candidates with matching persisted provenance for both named approved Sources. If Creative Penn continues to exceed the governed production timeout, treat that as a blocker requiring deliberate owner-directed follow-up; do not silently raise limits, widen domains, or bypass safety.
 
 Level 6 browser validation was not required or claimed. Level 8 reference-deployment validation was not required or claimed.
 
