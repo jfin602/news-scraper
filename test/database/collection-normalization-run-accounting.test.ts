@@ -145,7 +145,11 @@ test('canonical normalization persists truthful accounting and real run provenan
       const articleSchema = await database.query<{ relation: string | null }>(
         "SELECT to_regclass('public.articles')::text AS relation",
       );
-      assert.equal(articleSchema.rows[0]?.relation, null);
+      assert.equal(articleSchema.rows[0]?.relation, 'articles');
+      const articleCount = await database.query<{ count: string }>(
+        'SELECT count(*) FROM articles',
+      );
+      assert.equal(Number(articleCount.rows[0]?.count), 0);
       const runCount = await database.query<{ count: string }>(
         'SELECT count(*) FROM collection_runs',
       );

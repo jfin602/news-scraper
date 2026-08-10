@@ -294,6 +294,130 @@ test('upgrades representative Phase 5 collection runs from 0002 to 0003 without 
   });
 });
 
+test('upgrades representative Phase 6 history from 0003 to 0004 without rewriting history', async () => {
+  await withDisposableDatabase(async ({ databaseUrl }) => {
+    const productionDirectory = path.join(process.cwd(), 'migrations');
+    const migrationNames = [
+      '0001_publication_source_configuration.sql',
+      '0002_collection_runs.sql',
+      '0003_collection_run_normalization.sql',
+    ];
+    const migrationFiles = Object.fromEntries(
+      await Promise.all(
+        migrationNames.map(async (filename) => [
+          filename,
+          await readFile(path.join(productionDirectory, filename), 'utf8'),
+        ]),
+      ),
+    );
+    await withMigrationDirectory(migrationFiles, async (directory) => {
+      assert.deepEqual(
+        await migrateDatabase({ connectionString: databaseUrl }, directory),
+        migrationNames,
+      );
+      const database = createDatabase({ connectionString: databaseUrl });
+      let publicationId: string;
+      let sourceId: string;
+      let endpointId: string;
+      try {
+        const publication = await insertPublication(database, {
+          name: 'Phase 6 upgrade publication',
+          slug: 'phase-6-upgrade',
+          activeForCollection: true,
+          publicStatus: 'private',
+        });
+        publicationId = publication.id;
+        const source = await insertSource(database, publication.id, {
+          configKey: 'upgrade_source',
+          displayName: 'Upgrade Source',
+          siteUrl: 'https://upgrade.example/',
+          approvalState: 'approved',
+          lifecycleState: 'active',
+          operationalState: 'enabled',
+          domainRules: [
+            { hostname: 'upgrade.example', includeSubdomains: false },
+          ],
+        });
+        sourceId = source.id;
+        const endpoint = await insertSourceEndpoint(database, source.id, {
+          configKey: 'upgrade_feed',
+          endpointUrl: 'https://upgrade.example/feed.xml',
+          endpointType: 'rss_atom',
+          approvalState: 'approved',
+          lifecycleState: 'active',
+          operationalState: 'enabled',
+          pollIntervalSeconds: 300,
+        });
+        endpointId = endpoint.id;
+        await database.query(
+          `INSERT INTO collection_runs (
+             id, source_endpoint_id, execution_id, started_at, finished_at,
+             run_status, transport_status, parser_status, raw_item_count,
+             normalization_status, normalized_candidate_count,
+             normalization_failure_count, article_link_rejection_count
+           ) VALUES (
+             '10000000-0000-4000-8000-000000000010', $1, 'phase-6-history',
+             '2026-08-09T10:00:00Z', '2026-08-09T10:00:01Z', 'succeeded',
+             'succeeded', 'succeeded', 1, 'succeeded', 1, 0, 0
+           )`,
+          [endpoint.id],
+        );
+      } finally {
+        await database.close();
+      }
+
+      await writeFile(
+        path.join(directory, '0004_articles_and_observations.sql'),
+        await readFile(
+          path.join(productionDirectory, '0004_articles_and_observations.sql'),
+          'utf8',
+        ),
+        'utf8',
+      );
+      assert.deepEqual(
+        await migrateDatabase({ connectionString: databaseUrl }, directory),
+        ['0004_articles_and_observations.sql'],
+      );
+      assert.deepEqual(
+        await migrateDatabase({ connectionString: databaseUrl }, directory),
+        [],
+      );
+
+      const upgraded = createDatabase({ connectionString: databaseUrl });
+      try {
+        const history = await upgraded.query(
+          `SELECT p.id AS publication_id, s.id AS source_id, e.id AS endpoint_id,
+                  r.execution_id, r.normalization_status, r.normalized_candidate_count
+             FROM publications p
+             JOIN sources s ON s.publication_id = p.id
+             JOIN source_endpoints e ON e.source_id = s.id
+             JOIN collection_runs r ON r.source_endpoint_id = e.id`,
+        );
+        assert.deepEqual(history.rows, [
+          {
+            publication_id: publicationId,
+            source_id: sourceId,
+            endpoint_id: endpointId,
+            execution_id: 'phase-6-history',
+            normalization_status: 'succeeded',
+            normalized_candidate_count: 1,
+          },
+        ]);
+        const counts = await upgraded.query<{
+          articles: string;
+          observations: string;
+        }>(
+          `SELECT (SELECT count(*) FROM articles) AS articles,
+                  (SELECT count(*) FROM article_observations) AS observations`,
+        );
+        assert.deepEqual(counts.rows, [{ articles: '0', observations: '0' }]);
+      } finally {
+        await upgraded.close();
+      }
+    });
+  });
+});
+
 test('rolls back a failed migration and stops later migrations', async () => {
   await withDisposableDatabase(async ({ databaseUrl }) => {
     await withMigrationDirectory(
