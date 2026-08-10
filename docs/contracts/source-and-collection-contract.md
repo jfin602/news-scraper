@@ -223,6 +223,8 @@ Raw items SHOULD expose, when available:
 
 Parser output is untrusted input.
 
+When an adapter emits `RawItem.externalId`, it designates that field as the adapter's strong Source-item identity signal for downstream Article identity. Downstream identity logic MUST NOT invent reliability heuristics from title, summary, dates, or fuzzy fingerprints to reinterpret that field. For the current RSS/Atom adapter, RSS `guid` and Atom `id` are the designated `externalId` inputs.
+
 ## Normalization contract
 
 Before Relevance, identity, duplicate, or public-feed logic, normalization MUST:
@@ -266,14 +268,18 @@ Generic `boost` ranking is deferred until a ranking/scoring contract exists.
 
 Reprocessing the same Source item MUST converge on the same logical Article identity.
 
-Identity resolution combines:
+Identity resolution order is:
 
-1. reliable immutable Source external identifiers within the same Source;
-2. normalized/canonical URL identity within Publication/Source scope;
-3. explicitly configured stable endpoint identity keys;
-4. conservative fingerprints only as secondary corroboration.
+1. adapter-designated reliable immutable Source external identifier within the same Source;
+2. normalized/canonical URL identity within Publication/Source scope when a strong external identifier does not resolve the candidate;
+3. an explicitly configured stable endpoint identity key only when a concrete approved adapter/endpoint actually requires one;
+4. conservative fingerprints only as secondary corroboration, never as a primary resolver.
 
-Fuzzy-title similarity alone never overwrites an existing Article.
+A matching strong external identifier resolves the existing Article even when its Source-derived URL changes. A candidate without a strong external identifier falls back to canonical URL identity. If an Article was originally created through canonical-URL fallback and a later observation supplies a strong external identifier with no contradictory strong identity, the existing Article MAY be promoted by attaching that identifier rather than creating a second Article.
+
+Two different strong external identifiers MUST NOT be silently merged, overwritten, or reassigned solely because their canonical URLs match. Canonical-only fallback that encounters multiple Articles distinguished by different strong external identifiers is an explicit identity conflict and MUST NOT choose one arbitrarily. Fuzzy-title similarity or fingerprint evidence alone never overwrites or resolves an Article.
+
+Phase 7 MUST NOT invent a speculative generic stable-identity-key configuration mechanism merely because future adapters may require one. Such configuration is introduced only with a concrete adapter/endpoint requirement.
 
 Transactional uniqueness constraints are required where practical. Repeated observation may add/update Article observations and run counters, but Article cardinality must not increase for the same Source identity.
 
@@ -292,7 +298,7 @@ When normalization is introduced, the same run model gains a normalization stage
 
 For a parsed content run that completes the Phase 6 batch, `raw_item_count` MUST equal `normalized_candidate_count + normalization_failure_count`, and `article_link_rejection_count` MUST NOT exceed `normalized_candidate_count`. The number of candidates safe to hand to the next pipeline stage is therefore `normalized_candidate_count - article_link_rejection_count`. Item-level normalization failures or link-policy rejections do not by themselves make the normalization stage `failed`; stage-level `failed` is reserved for an execution failure that prevents the normalizer from completing its bounded batch contract. Unrelated Raw items continue processing when safely possible.
 
-After Article persistence is active, every processed candidate has exactly one processing outcome:
+After Article persistence is active, every successfully normalized candidate has exactly one processing outcome:
 
 - `created`;
 - `updated`;
@@ -300,6 +306,12 @@ After Article persistence is active, every processed candidate has exactly one p
 - `rejected`;
 - `excluded`;
 - `failed`.
+
+The post-normalization outcome counters MUST therefore satisfy:
+
+`created + updated + unchanged + rejected + excluded + failed = normalized_candidate_count`.
+
+Normalization failures do not receive a processing outcome because no Article candidate exists. Article-link-policy rejection remains counted in `article_link_rejection_count` and maps that same candidate to processing outcome `rejected`. Link-accepted candidates then pass Relevance before identity. Until configurable Relevance rules exist, the empty-rule decision is deterministic `include`, so Phase 7 has `excluded = 0`; included candidates end as `created`, `updated`, `unchanged`, or `failed`.
 
 Accepted Article processing may additionally produce zero or more orthogonal effects:
 
@@ -309,7 +321,7 @@ Accepted Article processing may additionally produce zero or more orthogonal eff
 
 Effects do not replace outcomes. For example, a candidate may be `created` and also cause `duplicate_grouped` in the same run.
 
-Collection runs aggregate processing outcomes and effects separately, plus transport/run-level status.
+Collection runs aggregate processing outcomes and effects separately, plus transport/run-level status. Run finalization occurs after the bounded candidate batch has completed and the canonical outcome counters are known; item-level persistence failures do not erase successful unrelated candidate work when integrity permits isolation.
 
 During pre-persistence collection/normalization, runs record transport/parser stage status/counts plus the Phase 6 normalization status and normalization/Article-link item counts defined above, but MUST NOT use post-identity outcome names as though Article persistence exists.
 
