@@ -10,14 +10,14 @@ It establishes project identity, canonical terminology, authority, document rout
 - Default branch: `main`
 - Working product/repository name: News Scraper
 - Platform: reusable, topic-independent news aggregation Platform
-- Current phase: **Phase 7 — Default Relevance, Article identity, and persistence**
+- Current phase: **Phase 8 — Basic public-feed backend**
 - Production status: pre-production
 - Initial Publication: publishing-industry news relevant to indie authors
 - Public direction: rolling recent-headline feed sending readers to original publishers
 - Admin direction: Cloudflare Access-protected Publication/Source/endpoint/Relevance/Category/Article/duplicate/health/change-history control plane, built after the tech-demo vertical slice
 - Core constraint: Publication-specific behavior is configuration; shared engine logic remains topic independent
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication/Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, and Phase 6 Article normalization implementation/validation are complete. The repository is ready for Phase 7 implementation planning.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication/Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, and Phase 7 Default Relevance/Article identity/persistence implementation/validation are complete. The repository is ready for Phase 8 implementation planning.
 
 ## Delivery priority
 
@@ -139,8 +139,12 @@ If a path does not exist, search for its current equivalent before assuming inte
 - During Phases 5–9, collection is manually invoked through the Worker; Web/API never fetches Sources inline.
 - Phase 10 adds durable scheduling/jobs around the same endpoint execution unit.
 - True-duplicate grouping applies to separately stored Articles.
-- Article visibility is independent from duplicate role.
-- Ordinary feed eligibility = visible + (`ungrouped` or `primary`).
+- Article visibility is independent from duplicate role; Phase 8 first persists visibility because public-feed behavior consumes it.
+- Before Duplicate groups exist, Articles are logically `ungrouped`; Phase 8 does not invent group/role persistence.
+- Ordinary public-feed eligibility requires a Publication with `public_status = public`, an approved active Source, and a visible Article that is `ungrouped` or the `primary` member once grouping exists.
+- Publication collection activity, Source operational state, and endpoint approval/lifecycle/operational/health state govern collection and do not by themselves suppress retained otherwise-eligible public rows.
+- Public feed effective date uses parsed `published_at` when available and otherwise `first_seen_at`, with fallback provenance detectable and deterministic tie ordering.
+- Public headline destination is the stored Article `original_url`; `canonical_identity_url` remains an identity-comparison field and is not substituted silently.
 - Weak duplicate evidence persists as review state; unchanged dismissed evidence does not recur indefinitely.
 - Source runs/jobs fail independently and public-feed reads remain readable during collection failures.
 - MVP admin UI/API routes are behind Cloudflare Access and supported deployments prevent direct-origin bypass.
@@ -158,9 +162,9 @@ If a path does not exist, search for its current equivalent before assuming inte
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 7 — Default Relevance, Article identity, and persistence**.
+Current phase: **Phase 8 — Basic public-feed backend**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration core, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, and Phase 6 Article normalization are complete with durable closeout validation. Phase 7 is the active implementation phase.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration core, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, and Phase 7 Default Relevance/Article identity/persistence are complete with durable closeout validation. Phase 8 is the active implementation phase.
 
 ### Tech-demo critical path
 
@@ -564,7 +568,7 @@ Duplicate prompts preserve every Article/observation, exactly one Primary/group,
 
 Publication/Relevance prompts preserve topic independence, deterministic rule precedence, prospective-by-default rule edits, and full precedence-matrix tests.
 
-Public-feed prompts preserve original-publisher destination and visible ungrouped-or-Primary eligibility; browser-dependent claims require browser evidence.
+Public-feed prompts preserve Publication public exposure, Source approval/lifecycle trust, Article visibility + ungrouped-or-Primary eligibility, deterministic published-at/first-seen feed-date semantics, bounded safe output, and the stored Article `original_url` as the public destination; they do not use collection operational/endpoint health state as an implicit historical feed-suppression rule. Browser-dependent claims require browser evidence.
 
 Admin prompts preserve Cloudflare Access/origin protection, request integrity, Publication/resource ownership validation, and the MVP prohibition on unnecessary native identity/account work.
 
