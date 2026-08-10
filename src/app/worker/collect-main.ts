@@ -221,9 +221,16 @@ function commandResult(
     parserStatus: result.parserStatus,
     rawItemCount: result.rawItemCount,
     normalizationStatus: result.normalizationStatus,
+    processingStatus: result.processingStatus,
     normalizedCandidateCount: result.normalizedCandidateCount,
     normalizationFailureCount: result.normalizationFailureCount,
     articleLinkRejectionCount: result.articleLinkRejectionCount,
+    createdCount: result.createdCount,
+    updatedCount: result.updatedCount,
+    unchangedCount: result.unchangedCount,
+    rejectedCount: result.rejectedCount,
+    excludedCount: result.excludedCount,
+    failedCount: result.failedCount,
     ...(result.status === 'succeeded' &&
     result.outcome === 'content' &&
     result.candidates !== undefined &&

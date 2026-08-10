@@ -8,12 +8,14 @@ import {
   type CollectionRunRow,
 } from '../../src/collection/runs/repository.ts';
 
-test('maps truthful not-run normalization defaults', () => {
+test('maps truthful not-run normalization and processing defaults', () => {
   const run = mapCollectionRunRow(validRow());
   assert.equal(run.normalizationStatus, 'not_run');
   assert.equal(run.normalizedCandidateCount, 0);
   assert.equal(run.normalizationFailureCount, 0);
   assert.equal(run.articleLinkRejectionCount, 0);
+  assert.equal(run.processingStatus, 'not_run');
+  assert.deepEqual(processingCounts(run), [0, 0, 0, 0, 0, 0]);
   assert.ok(Object.isFrozen(run));
 });
 
@@ -53,6 +55,7 @@ test('rejects malformed Collection-run rows at mapping boundaries', () => {
     validRow({ wire_byte_count: '-1' }),
     validRow({ raw_item_count: -1 }),
     validRow({ normalization_status: 'invalid' }),
+    validRow({ processing_status: 'invalid' }),
     validRow({ normalized_candidate_count: -1 }),
     validRow({ normalization_failure_count: -1 }),
     validRow({ article_link_rejection_count: -1 }),
@@ -61,6 +64,31 @@ test('rejects malformed Collection-run rows at mapping boundaries', () => {
       article_link_rejection_count: 2,
     }),
     validRow({ normalized_candidate_count: 1 }),
+    validRow({ created_count: 1 }),
+    validRow({
+      processing_status: 'succeeded',
+      normalization_status: 'not_run',
+    }),
+    validRow({
+      processing_status: 'succeeded',
+      normalization_status: 'succeeded',
+      parser_status: 'succeeded',
+      normalized_candidate_count: 1,
+    }),
+    validRow({
+      processing_status: 'failed',
+      normalization_status: 'succeeded',
+      parser_status: 'succeeded',
+      run_status: 'succeeded',
+    }),
+    validRow({
+      processing_status: 'succeeded',
+      normalization_status: 'succeeded',
+      parser_status: 'succeeded',
+      normalized_candidate_count: 1,
+      article_link_rejection_count: 1,
+      created_count: 1,
+    }),
     validRow({ normalization_status: 'succeeded', parser_status: 'not_run' }),
     validRow({
       normalization_status: 'succeeded',
@@ -97,6 +125,13 @@ test('rejects invalid terminal normalization accounting before querying', async 
     normalizedCandidateCount: 1,
     normalizationFailureCount: 1,
     articleLinkRejectionCount: 0,
+    processingStatus: 'not_run',
+    createdCount: 0,
+    updatedCount: 0,
+    unchangedCount: 0,
+    rejectedCount: 0,
+    excludedCount: 0,
+    failedCount: 0,
   } as const;
   for (const input of [
     { ...valid, normalizationStatus: 'invalid' },
@@ -108,6 +143,21 @@ test('rejects invalid terminal normalization accounting before querying', async 
     { ...valid, rawItemCount: 3 },
     { ...valid, parserStatus: 'failed' },
     { ...valid, runStatus: 'succeeded', normalizationStatus: 'failed' },
+    { ...valid, processingStatus: 'invalid' },
+    { ...valid, createdCount: -1 },
+    { ...valid, createdCount: 1 },
+    {
+      ...valid,
+      processingStatus: 'succeeded',
+      normalizedCandidateCount: 1,
+      rawItemCount: 2,
+      rejectedCount: 0,
+    },
+    {
+      ...valid,
+      processingStatus: 'failed',
+      runStatus: 'succeeded',
+    },
   ]) {
     await assert.rejects(
       finalizeCollectionRun(
@@ -131,6 +181,7 @@ function validRow(overrides: Partial<CollectionRunRow> = {}): CollectionRunRow {
     transport_status: 'not_run',
     parser_status: 'not_run',
     normalization_status: 'not_run',
+    processing_status: 'not_run',
     http_status_code: null,
     wire_byte_count: null,
     decompressed_byte_count: null,
@@ -138,8 +189,32 @@ function validRow(overrides: Partial<CollectionRunRow> = {}): CollectionRunRow {
     normalized_candidate_count: 0,
     normalization_failure_count: 0,
     article_link_rejection_count: 0,
+    created_count: 0,
+    updated_count: 0,
+    unchanged_count: 0,
+    rejected_count: 0,
+    excluded_count: 0,
+    failed_count: 0,
     error_code: null,
     error_detail: null,
     ...overrides,
   };
+}
+
+function processingCounts(run: {
+  readonly createdCount: number;
+  readonly updatedCount: number;
+  readonly unchangedCount: number;
+  readonly rejectedCount: number;
+  readonly excludedCount: number;
+  readonly failedCount: number;
+}): readonly number[] {
+  return [
+    run.createdCount,
+    run.updatedCount,
+    run.unchangedCount,
+    run.rejectedCount,
+    run.excludedCount,
+    run.failedCount,
+  ];
 }

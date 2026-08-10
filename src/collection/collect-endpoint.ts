@@ -27,6 +27,7 @@ import {
   startCollectionRun,
   type FinalizeCollectionRunInput,
   type PersistedCollectionRun,
+  type CollectionRunProcessingStatus,
 } from './runs/repository.ts';
 
 export interface CollectionRunStore {
@@ -76,10 +77,17 @@ export interface EndpointCollectionAttemptResult {
   readonly transportStatus: 'not_run' | 'succeeded' | 'not_modified' | 'failed';
   readonly parserStatus: 'not_run' | 'succeeded' | 'failed';
   readonly normalizationStatus: 'not_run' | 'succeeded' | 'failed';
+  readonly processingStatus: CollectionRunProcessingStatus;
   readonly rawItemCount: number;
   readonly normalizedCandidateCount: number;
   readonly normalizationFailureCount: number;
   readonly articleLinkRejectionCount: number;
+  readonly createdCount: number;
+  readonly updatedCount: number;
+  readonly unchangedCount: number;
+  readonly rejectedCount: number;
+  readonly excludedCount: number;
+  readonly failedCount: number;
   readonly candidates?: readonly ArticleCandidate[];
   readonly reason?: string;
   readonly detail?: string;
@@ -225,6 +233,7 @@ async function executeAttempt(
         parserStatus: 'not_run',
         rawItemCount: 0,
         ...normalizationNotRun,
+        ...processingNotRun,
         ...metadata,
       }),
       finalization: Object.freeze({
@@ -233,6 +242,7 @@ async function executeAttempt(
         parserStatus: 'not_run',
         rawItemCount: 0,
         ...normalizationNotRun,
+        ...processingNotRun,
         ...persistenceMetadata(metadata),
       }),
     });
@@ -349,6 +359,7 @@ async function executeAttempt(
       normalizedCandidateCount: normalizedCandidates.length,
       normalizationFailureCount,
       articleLinkRejectionCount,
+      ...processingNotRun,
       candidates,
       ...metadata,
     }),
@@ -361,6 +372,7 @@ async function executeAttempt(
       normalizedCandidateCount: normalizedCandidates.length,
       normalizationFailureCount,
       articleLinkRejectionCount,
+      ...processingNotRun,
       ...persistenceMetadata(metadata),
     }),
   });
@@ -387,6 +399,7 @@ function normalizationExecutionFailedDraft(
       normalizedCandidateCount: 0,
       normalizationFailureCount: 0,
       articleLinkRejectionCount: 0,
+      ...processingNotRun,
       reason,
       detail,
       ...metadata,
@@ -400,6 +413,7 @@ function normalizationExecutionFailedDraft(
       normalizedCandidateCount: 0,
       normalizationFailureCount: 0,
       articleLinkRejectionCount: 0,
+      ...processingNotRun,
       ...persistenceMetadata(metadata),
       error: Object.freeze({ code: reason, detail }),
     }),
@@ -430,6 +444,7 @@ function articleLinkPolicyExecutionFailedDraft(
       normalizedCandidateCount,
       normalizationFailureCount,
       articleLinkRejectionCount,
+      ...processingNotRun,
       reason,
       detail,
       ...metadata,
@@ -443,6 +458,7 @@ function articleLinkPolicyExecutionFailedDraft(
       normalizedCandidateCount,
       normalizationFailureCount,
       articleLinkRejectionCount,
+      ...processingNotRun,
       ...persistenceMetadata(metadata),
       error: Object.freeze({ code: reason, detail }),
     }),
@@ -481,6 +497,7 @@ function failedDraft(
       parserStatus,
       rawItemCount: 0,
       ...normalizationNotRun,
+      ...processingNotRun,
       reason,
       detail,
       ...metadata,
@@ -491,6 +508,7 @@ function failedDraft(
       parserStatus,
       rawItemCount: 0,
       ...normalizationNotRun,
+      ...processingNotRun,
       ...persistenceMetadata(metadata),
       error: Object.freeze({ code: reason, detail }),
     }),
@@ -522,10 +540,18 @@ function resultFromFinalized(
     finalized.parserStatus !== attempted.parserStatus ||
     finalized.rawItemCount !== attempted.rawItemCount ||
     finalized.normalizationStatus !== attempted.normalizationStatus ||
+    finalized.processingStatus !== attempted.processingStatus ||
     finalized.normalizedCandidateCount !== attempted.normalizedCandidateCount ||
     finalized.normalizationFailureCount !==
       attempted.normalizationFailureCount ||
-    finalized.articleLinkRejectionCount !== attempted.articleLinkRejectionCount
+    finalized.articleLinkRejectionCount !==
+      attempted.articleLinkRejectionCount ||
+    finalized.createdCount !== attempted.createdCount ||
+    finalized.updatedCount !== attempted.updatedCount ||
+    finalized.unchangedCount !== attempted.unchangedCount ||
+    finalized.rejectedCount !== attempted.rejectedCount ||
+    finalized.excludedCount !== attempted.excludedCount ||
+    finalized.failedCount !== attempted.failedCount
   ) {
     throw new Error('Collection run finalization returned inconsistent state.');
   }
@@ -538,9 +564,16 @@ function resultFromFinalized(
     parserStatus: finalized.parserStatus,
     rawItemCount: finalized.rawItemCount,
     normalizationStatus: finalized.normalizationStatus,
+    processingStatus: finalized.processingStatus,
     normalizedCandidateCount: finalized.normalizedCandidateCount,
     normalizationFailureCount: finalized.normalizationFailureCount,
     articleLinkRejectionCount: finalized.articleLinkRejectionCount,
+    createdCount: finalized.createdCount,
+    updatedCount: finalized.updatedCount,
+    unchangedCount: finalized.unchangedCount,
+    rejectedCount: finalized.rejectedCount,
+    excludedCount: finalized.excludedCount,
+    failedCount: finalized.failedCount,
     ...(finalized.httpStatusCode === undefined
       ? {}
       : { httpStatusCode: finalized.httpStatusCode }),
@@ -558,6 +591,16 @@ const normalizationNotRun = Object.freeze({
   normalizedCandidateCount: 0,
   normalizationFailureCount: 0,
   articleLinkRejectionCount: 0,
+});
+
+const processingNotRun = Object.freeze({
+  processingStatus: 'not_run' as const,
+  createdCount: 0,
+  updatedCount: 0,
+  unchangedCount: 0,
+  rejectedCount: 0,
+  excludedCount: 0,
+  failedCount: 0,
 });
 
 function parserForEndpoint(

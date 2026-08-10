@@ -418,6 +418,150 @@ test('upgrades representative Phase 6 history from 0003 to 0004 without rewritin
   });
 });
 
+test('upgrades representative Phase 7 history from 0004 to 0005 without rewriting records', async () => {
+  await withDisposableDatabase(async ({ databaseUrl }) => {
+    const productionDirectory = path.join(process.cwd(), 'migrations');
+    const migrationNames = [
+      '0001_publication_source_configuration.sql',
+      '0002_collection_runs.sql',
+      '0003_collection_run_normalization.sql',
+      '0004_articles_and_observations.sql',
+    ];
+    const migrationFiles = Object.fromEntries(
+      await Promise.all(
+        migrationNames.map(async (filename) => [
+          filename,
+          await readFile(path.join(productionDirectory, filename), 'utf8'),
+        ]),
+      ),
+    );
+    await withMigrationDirectory(migrationFiles, async (directory) => {
+      assert.deepEqual(
+        await migrateDatabase({ connectionString: databaseUrl }, directory),
+        migrationNames,
+      );
+      const database = createDatabase({ connectionString: databaseUrl });
+      try {
+        const publication = await insertPublication(database, {
+          name: 'Phase 7 upgrade publication',
+          slug: 'phase-7-upgrade',
+          activeForCollection: true,
+          publicStatus: 'private',
+        });
+        const source = await insertSource(database, publication.id, {
+          configKey: 'phase_7_source',
+          displayName: 'Phase 7 Source',
+          siteUrl: 'https://phase-7.example/',
+          approvalState: 'approved',
+          lifecycleState: 'active',
+          operationalState: 'enabled',
+          domainRules: [
+            { hostname: 'phase-7.example', includeSubdomains: false },
+          ],
+        });
+        const endpoint = await insertSourceEndpoint(database, source.id, {
+          configKey: 'phase_7_feed',
+          endpointUrl: 'https://phase-7.example/feed.xml',
+          endpointType: 'rss_atom',
+          approvalState: 'approved',
+          lifecycleState: 'active',
+          operationalState: 'enabled',
+          pollIntervalSeconds: 300,
+        });
+        await database.query(
+          `INSERT INTO collection_runs (
+             id, source_endpoint_id, execution_id, started_at, finished_at,
+             run_status, transport_status, parser_status, raw_item_count,
+             normalization_status, normalized_candidate_count,
+             normalization_failure_count, article_link_rejection_count
+           ) VALUES (
+             '10000000-0000-4000-8000-000000000020', $1, 'phase-7-history',
+             '2026-08-10T10:00:00Z', '2026-08-10T10:00:01Z', 'succeeded',
+             'succeeded', 'succeeded', 2, 'succeeded', 2, 0, 1
+           )`,
+          [endpoint.id],
+        );
+        await database.query(
+          `INSERT INTO articles (
+             id, publication_id, source_id, original_url, canonical_identity_url,
+             display_title, normalized_title, published_at_status,
+             source_updated_at_status, first_seen_at, last_seen_at
+           ) VALUES (
+             '20000000-0000-4000-8000-000000000020', $1, $2,
+             'https://phase-7.example/article', 'https://phase-7.example/article',
+             'Phase 7 article', 'phase 7 article', 'missing', 'missing',
+             '2026-08-10T10:00:00Z', '2026-08-10T10:00:00Z'
+           )`,
+          [publication.id, source.id],
+        );
+        await database.query(
+          `INSERT INTO article_observations (
+             id, publication_id, source_id, source_endpoint_id, collection_run_id,
+             article_id, processing_outcome, observed_canonical_identity_url
+           ) VALUES (
+             '30000000-0000-4000-8000-000000000020', $1, $2, $3,
+             '10000000-0000-4000-8000-000000000020',
+             '20000000-0000-4000-8000-000000000020', 'created',
+             'https://phase-7.example/article'
+           )`,
+          [publication.id, source.id, endpoint.id],
+        );
+      } finally {
+        await database.close();
+      }
+
+      await writeFile(
+        path.join(directory, '0005_collection_run_processing.sql'),
+        await readFile(
+          path.join(productionDirectory, '0005_collection_run_processing.sql'),
+          'utf8',
+        ),
+        'utf8',
+      );
+      assert.deepEqual(
+        await migrateDatabase({ connectionString: databaseUrl }, directory),
+        ['0005_collection_run_processing.sql'],
+      );
+      assert.deepEqual(
+        await migrateDatabase({ connectionString: databaseUrl }, directory),
+        [],
+      );
+
+      const upgraded = createDatabase({ connectionString: databaseUrl });
+      try {
+        const rows = await upgraded.query(
+          `SELECT r.execution_id, r.normalized_candidate_count,
+                  r.article_link_rejection_count, r.processing_status,
+                  r.created_count, r.updated_count, r.unchanged_count,
+                  r.rejected_count, r.excluded_count, r.failed_count,
+                  a.id AS article_id, o.id AS observation_id
+             FROM collection_runs r
+             JOIN article_observations o ON o.collection_run_id = r.id
+             JOIN articles a ON a.id = o.article_id`,
+        );
+        assert.deepEqual(rows.rows, [
+          {
+            execution_id: 'phase-7-history',
+            normalized_candidate_count: 2,
+            article_link_rejection_count: 1,
+            processing_status: 'not_run',
+            created_count: 0,
+            updated_count: 0,
+            unchanged_count: 0,
+            rejected_count: 0,
+            excluded_count: 0,
+            failed_count: 0,
+            article_id: '20000000-0000-4000-8000-000000000020',
+            observation_id: '30000000-0000-4000-8000-000000000020',
+          },
+        ]);
+      } finally {
+        await upgraded.close();
+      }
+    });
+  });
+});
+
 test('rolls back a failed migration and stops later migrations', async () => {
   await withDisposableDatabase(async ({ databaseUrl }) => {
     await withMigrationDirectory(

@@ -30,10 +30,12 @@ test('starts, finds, and finalizes a successful collection run exactly once', as
     assert.equal(run.transportStatus, 'not_run');
     assert.equal(run.parserStatus, 'not_run');
     assert.equal(run.normalizationStatus, 'not_run');
+    assert.equal(run.processingStatus, 'not_run');
     assert.equal(run.rawItemCount, 0);
     assert.equal(run.normalizedCandidateCount, 0);
     assert.equal(run.normalizationFailureCount, 0);
     assert.equal(run.articleLinkRejectionCount, 0);
+    assert.deepEqual(processingCounts(run), [0, 0, 0, 0, 0, 0]);
     assert.equal(run.finishedAt, undefined);
     assert.ok(run.startedAt instanceof Date);
     assert.ok(Object.isFrozen(run));
@@ -51,6 +53,7 @@ test('starts, finds, and finalizes a successful collection run exactly once', as
       normalizedCandidateCount: 1,
       normalizationFailureCount: 1,
       articleLinkRejectionCount: 1,
+      ...processingNotRun,
     } as const;
     const finalized = await finalizeCollectionRun(
       database,
@@ -68,6 +71,7 @@ test('starts, finds, and finalizes a successful collection run exactly once', as
     assert.equal(finalized.normalizedCandidateCount, 1);
     assert.equal(finalized.normalizationFailureCount, 1);
     assert.equal(finalized.articleLinkRejectionCount, 1);
+    assert.equal(finalized.processingStatus, 'not_run');
     assert.ok(finalized.finishedAt instanceof Date);
     assert.ok(finalized.finishedAt.getTime() >= finalized.startedAt.getTime());
 
@@ -93,6 +97,7 @@ test('persists truthful no-change and failed collection-run stage outcomes', asy
       httpStatusCode: 304,
       rawItemCount: 0,
       ...normalizationNotRun,
+      ...processingNotRun,
     });
     assert.equal(noChange.transportStatus, 'not_modified');
     assert.equal(noChange.parserStatus, 'not_run');
@@ -108,6 +113,7 @@ test('persists truthful no-change and failed collection-run stage outcomes', asy
       parserStatus: 'not_run',
       rawItemCount: 0,
       ...normalizationNotRun,
+      ...processingNotRun,
       error: {
         code: 'transport_timeout',
         detail: 'The approved endpoint did not respond before the deadline.',
@@ -148,6 +154,7 @@ test('persists valid zero and mixed completed normalization batches', async () =
         normalizedCandidateCount,
         normalizationFailureCount,
         articleLinkRejectionCount,
+        ...processingNotRun,
       });
       assert.deepEqual(
         [
@@ -175,6 +182,73 @@ const normalizationNotRun = {
   normalizationFailureCount: 0,
   articleLinkRejectionCount: 0,
 } as const;
+
+const processingNotRun = {
+  processingStatus: 'not_run',
+  createdCount: 0,
+  updatedCount: 0,
+  unchangedCount: 0,
+  rejectedCount: 0,
+  excludedCount: 0,
+  failedCount: 0,
+} as const;
+
+test('persists complete processing outcomes for succeeded and failed stages', async () => {
+  await withMigratedDatabase(async (database) => {
+    const endpoint = await createEndpoint(database);
+    const succeeded = await startCollectionRun(database, {
+      sourceEndpointId: endpoint.id,
+      executionId: 'processing_succeeded',
+    });
+    const completed = await finalizeCollectionRun(database, succeeded.id, {
+      runStatus: 'succeeded',
+      transportStatus: 'succeeded',
+      parserStatus: 'succeeded',
+      normalizationStatus: 'succeeded',
+      processingStatus: 'succeeded',
+      rawItemCount: 7,
+      normalizedCandidateCount: 6,
+      normalizationFailureCount: 1,
+      articleLinkRejectionCount: 1,
+      createdCount: 1,
+      updatedCount: 1,
+      unchangedCount: 1,
+      rejectedCount: 1,
+      excludedCount: 0,
+      failedCount: 2,
+    });
+    assert.equal(completed.processingStatus, 'succeeded');
+    assert.deepEqual(processingCounts(completed), [1, 1, 1, 1, 0, 2]);
+
+    const failed = await startCollectionRun(database, {
+      sourceEndpointId: endpoint.id,
+      executionId: 'processing_failed',
+    });
+    const failedCompleted = await finalizeCollectionRun(database, failed.id, {
+      runStatus: 'failed',
+      transportStatus: 'succeeded',
+      parserStatus: 'succeeded',
+      normalizationStatus: 'succeeded',
+      processingStatus: 'failed',
+      rawItemCount: 2,
+      normalizedCandidateCount: 2,
+      normalizationFailureCount: 0,
+      articleLinkRejectionCount: 0,
+      createdCount: 1,
+      updatedCount: 0,
+      unchangedCount: 0,
+      rejectedCount: 0,
+      excludedCount: 0,
+      failedCount: 1,
+      error: {
+        code: 'processing_execution_failed',
+        detail: 'Bounded batch failed.',
+      },
+    });
+    assert.equal(failedCompleted.processingStatus, 'failed');
+    assert.equal(failedCompleted.runStatus, 'failed');
+  });
+});
 
 test('rejects invalid collection-run repository inputs and nonexistent endpoint ownership', async () => {
   await withMigratedDatabase(async (database) => {
@@ -286,6 +360,13 @@ test('database constraints preserve collection-run lifecycle and caller transact
       'UPDATE collection_runs SET normalized_candidate_count = -1 WHERE id = $1',
       'UPDATE collection_runs SET normalization_failure_count = -1 WHERE id = $1',
       'UPDATE collection_runs SET article_link_rejection_count = -1 WHERE id = $1',
+      'UPDATE collection_runs SET created_count = -1 WHERE id = $1',
+      "UPDATE collection_runs SET processing_status = 'invalid' WHERE id = $1",
+      'UPDATE collection_runs SET created_count = 1 WHERE id = $1',
+      "UPDATE collection_runs SET processing_status = 'succeeded' WHERE id = $1",
+      "UPDATE collection_runs SET normalization_status = 'succeeded', parser_status = 'succeeded', raw_item_count = 1, normalized_candidate_count = 1, created_count = 2, processing_status = 'succeeded' WHERE id = $1",
+      "UPDATE collection_runs SET normalization_status = 'succeeded', parser_status = 'succeeded', raw_item_count = 1, normalized_candidate_count = 1, article_link_rejection_count = 1, processing_status = 'succeeded', created_count = 1 WHERE id = $1",
+      "UPDATE collection_runs SET normalization_status = 'succeeded', parser_status = 'succeeded', raw_item_count = 1, normalized_candidate_count = 1, failed_count = 1, processing_status = 'failed', run_status = 'succeeded', finished_at = now() WHERE id = $1",
       'UPDATE collection_runs SET normalized_candidate_count = 1, article_link_rejection_count = 2 WHERE id = $1',
       'UPDATE collection_runs SET normalized_candidate_count = 1 WHERE id = $1',
       "UPDATE collection_runs SET normalization_status = 'succeeded', parser_status = 'succeeded', raw_item_count = 1 WHERE id = $1",
@@ -345,6 +426,24 @@ async function withMigratedDatabase(
       await database.close();
     }
   });
+}
+
+function processingCounts(run: {
+  readonly createdCount: number;
+  readonly updatedCount: number;
+  readonly unchangedCount: number;
+  readonly rejectedCount: number;
+  readonly excludedCount: number;
+  readonly failedCount: number;
+}): readonly number[] {
+  return [
+    run.createdCount,
+    run.updatedCount,
+    run.unchangedCount,
+    run.rejectedCount,
+    run.excludedCount,
+    run.failedCount,
+  ];
 }
 
 async function createEndpoint(database: ReturnType<typeof createDatabase>) {

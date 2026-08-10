@@ -138,6 +138,18 @@ function assertContentAccounting(
   assert.equal(result.normalizationStatus, 'succeeded');
   assert.deepEqual(
     [
+      result.processingStatus,
+      result.createdCount,
+      result.updatedCount,
+      result.unchangedCount,
+      result.rejectedCount,
+      result.excludedCount,
+      result.failedCount,
+    ],
+    ['not_run', 0, 0, 0, 0, 0, 0],
+  );
+  assert.deepEqual(
+    [
       result.rawItemCount,
       result.normalizedCandidateCount,
       result.normalizationFailureCount,
@@ -197,6 +209,7 @@ function persistedRun(
     transportStatus: finalization?.transportStatus ?? 'not_run',
     parserStatus: finalization?.parserStatus ?? 'not_run',
     normalizationStatus: finalization?.normalizationStatus ?? 'not_run',
+    processingStatus: finalization?.processingStatus ?? 'not_run',
     httpStatusCode: finalization?.httpStatusCode,
     wireByteCount: finalization?.wireByteCount,
     decompressedByteCount: finalization?.decompressedByteCount,
@@ -204,6 +217,12 @@ function persistedRun(
     normalizedCandidateCount: finalization?.normalizedCandidateCount ?? 0,
     normalizationFailureCount: finalization?.normalizationFailureCount ?? 0,
     articleLinkRejectionCount: finalization?.articleLinkRejectionCount ?? 0,
+    createdCount: finalization?.createdCount ?? 0,
+    updatedCount: finalization?.updatedCount ?? 0,
+    unchangedCount: finalization?.unchangedCount ?? 0,
+    rejectedCount: finalization?.rejectedCount ?? 0,
+    excludedCount: finalization?.excludedCount ?? 0,
+    failedCount: finalization?.failedCount ?? 0,
     errorCode: finalization?.error?.code,
     errorDetail: finalization?.error?.detail,
   });

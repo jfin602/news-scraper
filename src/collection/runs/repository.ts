@@ -14,6 +14,7 @@ export type CollectionRunTransportStatus =
 export type CollectionRunParserStatus = 'not_run' | 'succeeded' | 'failed';
 export type CollectionRunNormalizationStatus =
   'not_run' | 'succeeded' | 'failed';
+export type CollectionRunProcessingStatus = 'not_run' | 'succeeded' | 'failed';
 
 export interface PersistedCollectionRun {
   readonly id: string;
@@ -25,6 +26,7 @@ export interface PersistedCollectionRun {
   readonly transportStatus: CollectionRunTransportStatus;
   readonly parserStatus: CollectionRunParserStatus;
   readonly normalizationStatus: CollectionRunNormalizationStatus;
+  readonly processingStatus: CollectionRunProcessingStatus;
   readonly httpStatusCode: number | undefined;
   readonly wireByteCount: number | undefined;
   readonly decompressedByteCount: number | undefined;
@@ -32,6 +34,12 @@ export interface PersistedCollectionRun {
   readonly normalizedCandidateCount: number;
   readonly normalizationFailureCount: number;
   readonly articleLinkRejectionCount: number;
+  readonly createdCount: number;
+  readonly updatedCount: number;
+  readonly unchangedCount: number;
+  readonly rejectedCount: number;
+  readonly excludedCount: number;
+  readonly failedCount: number;
   readonly errorCode: string | undefined;
   readonly errorDetail: string | undefined;
 }
@@ -46,6 +54,7 @@ export interface FinalizeCollectionRunInput {
   readonly transportStatus: CollectionRunTransportStatus;
   readonly parserStatus: CollectionRunParserStatus;
   readonly normalizationStatus: CollectionRunNormalizationStatus;
+  readonly processingStatus: CollectionRunProcessingStatus;
   readonly httpStatusCode?: number;
   readonly wireByteCount?: number;
   readonly decompressedByteCount?: number;
@@ -53,6 +62,12 @@ export interface FinalizeCollectionRunInput {
   readonly normalizedCandidateCount: number;
   readonly normalizationFailureCount: number;
   readonly articleLinkRejectionCount: number;
+  readonly createdCount: number;
+  readonly updatedCount: number;
+  readonly unchangedCount: number;
+  readonly rejectedCount: number;
+  readonly excludedCount: number;
+  readonly failedCount: number;
   readonly error?: {
     readonly code: string;
     readonly detail: string;
@@ -69,6 +84,7 @@ export interface CollectionRunRow {
   readonly transport_status: unknown;
   readonly parser_status: unknown;
   readonly normalization_status: unknown;
+  readonly processing_status: unknown;
   readonly http_status_code: unknown;
   readonly wire_byte_count: unknown;
   readonly decompressed_byte_count: unknown;
@@ -76,6 +92,12 @@ export interface CollectionRunRow {
   readonly normalized_candidate_count: unknown;
   readonly normalization_failure_count: unknown;
   readonly article_link_rejection_count: unknown;
+  readonly created_count: unknown;
+  readonly updated_count: unknown;
+  readonly unchanged_count: unknown;
+  readonly rejected_count: unknown;
+  readonly excluded_count: unknown;
+  readonly failed_count: unknown;
   readonly error_code: unknown;
   readonly error_detail: unknown;
 }
@@ -85,6 +107,7 @@ interface ValidatedFinalization {
   readonly transportStatus: CollectionRunTransportStatus;
   readonly parserStatus: CollectionRunParserStatus;
   readonly normalizationStatus: CollectionRunNormalizationStatus;
+  readonly processingStatus: CollectionRunProcessingStatus;
   readonly httpStatusCode: number | null;
   readonly wireByteCount: number | null;
   readonly decompressedByteCount: number | null;
@@ -92,16 +115,23 @@ interface ValidatedFinalization {
   readonly normalizedCandidateCount: number;
   readonly normalizationFailureCount: number;
   readonly articleLinkRejectionCount: number;
+  readonly createdCount: number;
+  readonly updatedCount: number;
+  readonly unchangedCount: number;
+  readonly rejectedCount: number;
+  readonly excludedCount: number;
+  readonly failedCount: number;
   readonly errorCode: string | null;
   readonly errorDetail: string | null;
 }
 
 const COLLECTION_RUN_COLUMNS = `
   id, source_endpoint_id, execution_id, started_at, finished_at, run_status,
-  transport_status, parser_status, normalization_status, http_status_code,
+  transport_status, parser_status, normalization_status, processing_status, http_status_code,
   wire_byte_count, decompressed_byte_count, raw_item_count,
   normalized_candidate_count, normalization_failure_count,
-  article_link_rejection_count, error_code, error_detail`;
+  article_link_rejection_count, created_count, updated_count, unchanged_count,
+  rejected_count, excluded_count, failed_count, error_code, error_detail`;
 
 export class CollectionRunPersistenceError extends Error {
   constructor(reason: string) {
@@ -126,10 +156,11 @@ export async function startCollectionRun(
   const result = await executor.query<CollectionRunRow>(
     `INSERT INTO collection_runs (
        id, source_endpoint_id, execution_id, run_status, transport_status,
-       parser_status, normalization_status, raw_item_count,
+       parser_status, normalization_status, processing_status, raw_item_count,
        normalized_candidate_count, normalization_failure_count,
-       article_link_rejection_count
-     ) VALUES ($1, $2, $3, 'running', 'not_run', 'not_run', 'not_run', 0, 0, 0, 0)
+       article_link_rejection_count, created_count, updated_count, unchanged_count,
+       rejected_count, excluded_count, failed_count
+     ) VALUES ($1, $2, $3, 'running', 'not_run', 'not_run', 'not_run', 'not_run', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
      RETURNING ${COLLECTION_RUN_COLUMNS}`,
     [randomUUID(), sourceEndpointId, executionId],
   );
@@ -150,15 +181,22 @@ export async function finalizeCollectionRun(
          transport_status = $3,
          parser_status = $4,
          normalization_status = $5,
-         http_status_code = $6,
-         wire_byte_count = $7,
-         decompressed_byte_count = $8,
-         raw_item_count = $9,
-         normalized_candidate_count = $10,
-         normalization_failure_count = $11,
-         article_link_rejection_count = $12,
-         error_code = $13,
-         error_detail = $14
+         processing_status = $6,
+         http_status_code = $7,
+         wire_byte_count = $8,
+         decompressed_byte_count = $9,
+         raw_item_count = $10,
+         normalized_candidate_count = $11,
+         normalization_failure_count = $12,
+         article_link_rejection_count = $13,
+         created_count = $14,
+         updated_count = $15,
+         unchanged_count = $16,
+         rejected_count = $17,
+         excluded_count = $18,
+         failed_count = $19,
+         error_code = $20,
+         error_detail = $21
      WHERE id = $1 AND run_status = 'running'
      RETURNING ${COLLECTION_RUN_COLUMNS}`,
     [
@@ -167,6 +205,7 @@ export async function finalizeCollectionRun(
       finalization.transportStatus,
       finalization.parserStatus,
       finalization.normalizationStatus,
+      finalization.processingStatus,
       finalization.httpStatusCode,
       finalization.wireByteCount,
       finalization.decompressedByteCount,
@@ -174,6 +213,12 @@ export async function finalizeCollectionRun(
       finalization.normalizedCandidateCount,
       finalization.normalizationFailureCount,
       finalization.articleLinkRejectionCount,
+      finalization.createdCount,
+      finalization.updatedCount,
+      finalization.unchangedCount,
+      finalization.rejectedCount,
+      finalization.excludedCount,
+      finalization.failedCount,
       finalization.errorCode,
       finalization.errorDetail,
     ],
@@ -226,6 +271,7 @@ export function mapCollectionRunRow(
       normalizationStatus: normalizeNormalizationStatus(
         row.normalization_status,
       ),
+      processingStatus: normalizeProcessingStatus(row.processing_status),
       httpStatusCode: nullableIntegerInRange(row.http_status_code, 100, 599),
       wireByteCount: nullableNonnegativeInteger(row.wire_byte_count),
       decompressedByteCount: nullableNonnegativeInteger(
@@ -241,13 +287,19 @@ export function mapCollectionRunRow(
       articleLinkRejectionCount: requiredNonnegativeInteger(
         row.article_link_rejection_count,
       ),
+      createdCount: requiredNonnegativeInteger(row.created_count),
+      updatedCount: requiredNonnegativeInteger(row.updated_count),
+      unchangedCount: requiredNonnegativeInteger(row.unchanged_count),
+      rejectedCount: requiredNonnegativeInteger(row.rejected_count),
+      excludedCount: requiredNonnegativeInteger(row.excluded_count),
+      failedCount: requiredNonnegativeInteger(row.failed_count),
       errorCode: nullableErrorCode(row.error_code),
       errorDetail: nullableTrimmedString(
         row.error_detail,
         ERROR_DETAIL_MAX_LENGTH,
       ),
     };
-    validateNormalizationAccounting(mapped);
+    validateRunAccounting(mapped);
     return Object.freeze(mapped);
   } catch {
     throw new CollectionRunPersistenceError(
@@ -274,6 +326,7 @@ function validateFinalization(
       normalizationStatus: normalizeNormalizationStatus(
         input.normalizationStatus,
       ),
+      processingStatus: normalizeProcessingStatus(input.processingStatus),
       httpStatusCode:
         input.httpStatusCode === undefined
           ? null
@@ -296,6 +349,12 @@ function validateFinalization(
       articleLinkRejectionCount: nonnegativeInteger(
         input.articleLinkRejectionCount,
       ),
+      createdCount: nonnegativeInteger(input.createdCount),
+      updatedCount: nonnegativeInteger(input.updatedCount),
+      unchangedCount: nonnegativeInteger(input.unchangedCount),
+      rejectedCount: nonnegativeInteger(input.rejectedCount),
+      excludedCount: nonnegativeInteger(input.excludedCount),
+      failedCount: nonnegativeInteger(input.failedCount),
       errorCode:
         error === undefined
           ? null
@@ -309,7 +368,7 @@ function validateFinalization(
               'error detail',
             ),
     };
-    validateNormalizationAccounting(validated);
+    validateRunAccounting(validated);
     return Object.freeze(validated);
   } catch (error) {
     if (error instanceof CollectionRunPersistenceError) throw error;
@@ -359,14 +418,30 @@ function normalizeNormalizationStatus(
   throw new Error();
 }
 
-function validateNormalizationAccounting(value: {
+function normalizeProcessingStatus(
+  value: unknown,
+): CollectionRunProcessingStatus {
+  if (value === 'not_run' || value === 'succeeded' || value === 'failed') {
+    return value;
+  }
+  throw new Error();
+}
+
+function validateRunAccounting(value: {
   readonly runStatus: CollectionRunStatus;
   readonly parserStatus: CollectionRunParserStatus;
   readonly normalizationStatus: CollectionRunNormalizationStatus;
+  readonly processingStatus: CollectionRunProcessingStatus;
   readonly rawItemCount: number;
   readonly normalizedCandidateCount: number;
   readonly normalizationFailureCount: number;
   readonly articleLinkRejectionCount: number;
+  readonly createdCount: number;
+  readonly updatedCount: number;
+  readonly unchangedCount: number;
+  readonly rejectedCount: number;
+  readonly excludedCount: number;
+  readonly failedCount: number;
 }): void {
   if (
     value.articleLinkRejectionCount > value.normalizedCandidateCount ||
@@ -379,7 +454,26 @@ function validateNormalizationAccounting(value: {
     (value.normalizationStatus === 'succeeded' &&
       value.rawItemCount !==
         value.normalizedCandidateCount + value.normalizationFailureCount) ||
-    (value.normalizationStatus === 'failed' && value.runStatus === 'succeeded')
+    (value.normalizationStatus === 'failed' &&
+      value.runStatus === 'succeeded') ||
+    (value.processingStatus === 'not_run' &&
+      (value.createdCount !== 0 ||
+        value.updatedCount !== 0 ||
+        value.unchangedCount !== 0 ||
+        value.rejectedCount !== 0 ||
+        value.excludedCount !== 0 ||
+        value.failedCount !== 0)) ||
+    (value.processingStatus !== 'not_run' &&
+      (value.normalizationStatus !== 'succeeded' ||
+        value.createdCount +
+          value.updatedCount +
+          value.unchangedCount +
+          value.rejectedCount +
+          value.excludedCount +
+          value.failedCount !==
+          value.normalizedCandidateCount ||
+        value.rejectedCount < value.articleLinkRejectionCount)) ||
+    (value.processingStatus === 'failed' && value.runStatus !== 'failed')
   ) {
     throw new Error();
   }

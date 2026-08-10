@@ -99,6 +99,7 @@ describe('canonical endpoint collection service', () => {
     assert.equal(result.normalizedCandidateCount, 2);
     assert.equal(result.normalizationFailureCount, 0);
     assert.equal(result.articleLinkRejectionCount, 0);
+    assertProcessingNotRun(result);
     assert.ok(Object.isFrozen(result.candidates));
     assert.ok(Object.isFrozen(result.candidates?.[0]));
     assert.ok(Object.isFrozen(result.candidates?.[0]?.sourceCategories));
@@ -116,6 +117,7 @@ describe('canonical endpoint collection service', () => {
         normalizedCandidateCount: 2,
         normalizationFailureCount: 0,
         articleLinkRejectionCount: 0,
+        ...processingNotRun,
       },
     ]);
   });
@@ -189,6 +191,7 @@ describe('canonical endpoint collection service', () => {
         result.candidates?.length,
         result.normalizedCandidateCount - result.articleLinkRejectionCount,
       );
+      assertProcessingNotRun(result);
       assert.deepEqual(runs.finalizations[0], {
         runStatus: 'succeeded',
         transportStatus: 'succeeded',
@@ -201,6 +204,7 @@ describe('canonical endpoint collection service', () => {
         normalizedCandidateCount: testCase.expected[1],
         normalizationFailureCount: testCase.expected[2],
         articleLinkRejectionCount: testCase.expected[3],
+        ...processingNotRun,
       });
     }
   });
@@ -278,6 +282,7 @@ describe('canonical endpoint collection service', () => {
     assert.equal(result.transportStatus, 'succeeded');
     assert.equal(result.parserStatus, 'succeeded');
     assert.equal(result.normalizationStatus, 'failed');
+    assertProcessingNotRun(result);
     assert.equal(result.rawItemCount, 1);
     assert.equal(result.normalizedCandidateCount, 0);
     assert.equal(result.normalizationFailureCount, 0);
@@ -317,6 +322,7 @@ describe('canonical endpoint collection service', () => {
     assert.equal(result.normalizedCandidateCount, 1);
     assert.equal(result.normalizationFailureCount, 1);
     assert.equal(result.articleLinkRejectionCount, 0);
+    assertProcessingNotRun(result);
     assert.equal(result.candidates, undefined);
     assert.deepEqual(runs.finalizations[0], {
       runStatus: 'failed',
@@ -330,6 +336,7 @@ describe('canonical endpoint collection service', () => {
       normalizedCandidateCount: 1,
       normalizationFailureCount: 1,
       articleLinkRejectionCount: 0,
+      ...processingNotRun,
       error: {
         code: 'article_link_policy_execution_failed',
         detail:
@@ -424,6 +431,7 @@ describe('canonical endpoint collection service', () => {
         normalizedCandidateCount: 0,
         normalizationFailureCount: 0,
         articleLinkRejectionCount: 0,
+        ...processingNotRun,
         error: {
           code: 'domain_not_approved',
           detail:
@@ -523,6 +531,7 @@ describe('canonical endpoint collection service', () => {
       assert.equal(events.includes('parse'), testCase.parserCalled);
       assert.equal(phase6Calls, 0);
       assert.equal(result.rawItemCount, 0);
+      assertProcessingNotRun(result);
     }
   });
 
@@ -553,6 +562,7 @@ describe('canonical endpoint collection service', () => {
         assert.equal(error.attemptedResult.outcome, 'content');
         assert.equal(error.attemptedResult.normalizationStatus, 'succeeded');
         assert.equal(error.attemptedResult.normalizedCandidateCount, 1);
+        assertProcessingNotRun(error.attemptedResult);
         assert.equal(error.attemptedResult.candidates?.length, 1);
         return true;
       },
@@ -573,6 +583,25 @@ describe('canonical endpoint collection service', () => {
       collectEndpoint(aggregate(), {
         lockRunner: acquiredLock(events),
         runs: runStore(events, { contradictNormalization: true }),
+        fetcher: fetcher(events, contentResult()),
+        rssAtomParser: parser(events, parserSuccess()),
+        ...phase6Dependencies,
+        executionId: () => EXECUTION_ID,
+      }),
+      (error: unknown) => {
+        assert.ok(error instanceof CollectionRunFinalizationError);
+        assert.match(String(error.cause), /inconsistent state/u);
+        return true;
+      },
+    );
+  });
+
+  it('rejects persisted processing accounting that contradicts the attempted result', async () => {
+    const events: string[] = [];
+    await assert.rejects(
+      collectEndpoint(aggregate(), {
+        lockRunner: acquiredLock(events),
+        runs: runStore(events, { contradictProcessing: true }),
         fetcher: fetcher(events, contentResult()),
         rssAtomParser: parser(events, parserSuccess()),
         ...phase6Dependencies,
@@ -752,6 +781,7 @@ function runStore(
     readonly finalizationFailure?: Error;
     readonly runId?: string;
     readonly contradictNormalization?: boolean;
+    readonly contradictProcessing?: boolean;
   } = {},
 ): CollectionRunStore & {
   readonly finalizations: FinalizeCollectionRunInput[];
@@ -784,9 +814,13 @@ function runStore(
         executionId,
         finalization: input,
       });
-      return options.contradictNormalization
-        ? Object.freeze({ ...persisted, normalizedCandidateCount: 1 })
-        : persisted;
+      if (options.contradictNormalization) {
+        return Object.freeze({ ...persisted, normalizedCandidateCount: 1 });
+      }
+      if (options.contradictProcessing) {
+        return Object.freeze({ ...persisted, createdCount: 1 });
+      }
+      return persisted;
     },
   };
 }
@@ -829,6 +863,7 @@ function persistedRun(input: {
     transportStatus: finalization?.transportStatus ?? 'not_run',
     parserStatus: finalization?.parserStatus ?? 'not_run',
     normalizationStatus: finalization?.normalizationStatus ?? 'not_run',
+    processingStatus: finalization?.processingStatus ?? 'not_run',
     httpStatusCode: finalization?.httpStatusCode,
     wireByteCount: finalization?.wireByteCount,
     decompressedByteCount: finalization?.decompressedByteCount,
@@ -836,9 +871,48 @@ function persistedRun(input: {
     normalizedCandidateCount: finalization?.normalizedCandidateCount ?? 0,
     normalizationFailureCount: finalization?.normalizationFailureCount ?? 0,
     articleLinkRejectionCount: finalization?.articleLinkRejectionCount ?? 0,
+    createdCount: finalization?.createdCount ?? 0,
+    updatedCount: finalization?.updatedCount ?? 0,
+    unchangedCount: finalization?.unchangedCount ?? 0,
+    rejectedCount: finalization?.rejectedCount ?? 0,
+    excludedCount: finalization?.excludedCount ?? 0,
+    failedCount: finalization?.failedCount ?? 0,
     errorCode: finalization?.error?.code,
     errorDetail: finalization?.error?.detail,
   });
+}
+
+const processingNotRun = {
+  processingStatus: 'not_run',
+  createdCount: 0,
+  updatedCount: 0,
+  unchangedCount: 0,
+  rejectedCount: 0,
+  excludedCount: 0,
+  failedCount: 0,
+} as const;
+
+function assertProcessingNotRun(result: {
+  readonly processingStatus: string;
+  readonly createdCount: number;
+  readonly updatedCount: number;
+  readonly unchangedCount: number;
+  readonly rejectedCount: number;
+  readonly excludedCount: number;
+  readonly failedCount: number;
+}): void {
+  assert.deepEqual(
+    [
+      result.processingStatus,
+      result.createdCount,
+      result.updatedCount,
+      result.unchangedCount,
+      result.rejectedCount,
+      result.excludedCount,
+      result.failedCount,
+    ],
+    ['not_run', 0, 0, 0, 0, 0, 0],
+  );
 }
 
 function parserSuccess(): ParserResult {
