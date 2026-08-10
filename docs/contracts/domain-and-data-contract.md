@@ -196,6 +196,12 @@ Once Article persistence exists, every processed candidate has exactly one **pro
 - `excluded` — deterministically excluded by Relevance policy;
 - `failed` — item-level processing failed.
 
+For every successfully normalized candidate after Article-persistence accounting exists, exactly one of those processing outcomes is recorded. Therefore:
+
+`created + updated + unchanged + rejected + excluded + failed = normalized_candidate_count`.
+
+Normalization failures remain pre-candidate stage failures and do not receive a post-normalization processing outcome. A separate Article-link-policy rejection is both retained in `article_link_rejection_count` and mapped to the candidate processing outcome `rejected`; the two values describe different accounting dimensions rather than two candidates. Before configurable Relevance rules exist, safe link-accepted candidates pass the empty-rule boundary and `excluded` is therefore zero.
+
 Accepted Article processing may also produce zero or more **orthogonal effects**, which do not replace the processing outcome:
 
 - `visibility_hidden` — resulting Article is hidden by policy/moderation;
@@ -229,6 +235,14 @@ Source-derived normalized values remain distinct from optional administrator dis
 - observation time;
 - processing outcome/reason;
 - Source-updated metadata/fingerprint where useful.
+
+Observation invariants:
+
+- `created`, `updated`, and `unchanged` observations MUST reference the resolved Article;
+- pre-identity terminal outcomes such as `rejected` or `excluded` MAY have no Article identifier because identity was intentionally not reached;
+- every observation MUST reference the Source endpoint and the existing Collection run that actually produced that candidate outcome, and that Collection run MUST belong to that endpoint;
+- when an Article is referenced, its Publication/Source ownership MUST match the candidate and endpoint provenance;
+- Article identity resolution plus any Article create/update and its successful identity-resolving observation are atomic for that candidate.
 
 ### `categories` and `article_categories`
 Categories belong to one Publication. Articles may have multiple Categories; a Publication may define a preferred display Category.
@@ -297,6 +311,19 @@ Persistence MUST enforce or transactionally guarantee:
 - every public feed row resolves to an approved active Source and eligible stored Article;
 - pausing/disabling/archiving Source configuration never erases retained Article provenance.
 
+For Article identity, an `ArticleCandidate.externalId` that is present is an adapter-designated strong Source identity signal; downstream identity code MUST NOT infer or downgrade its reliability by applying title, summary, date, or fuzzy-fingerprint heuristics. The current RSS/Atom adapter designates RSS `guid` and Atom `id` as that field.
+
+Identity resolution uses that strong external identifier first and canonical URL fallback second within the same Source/Publication scope:
+
+- a matching strong external identifier resolves the existing Article even when its Source-derived URL changes;
+- a candidate without a strong external identifier falls back to canonical identity URL;
+- when an Article previously created through canonical-URL fallback is later observed with a strong external identifier and no contradictory strong identity exists, the existing Article MAY be promoted by attaching that external identifier rather than creating a second Article;
+- two different strong external identifiers MUST NOT be silently merged, overwritten, or reassigned solely because their canonical URLs match;
+- canonical-only fallback that encounters multiple Articles distinguished by different strong external identifiers is an explicit identity conflict and MUST NOT choose one arbitrarily;
+- fuzzy title/fingerprint evidence is secondary corroboration only and MUST NOT resolve Article identity by itself.
+
+An additional configured stable endpoint identity key is introduced only when a concrete approved adapter/endpoint requires one. Phase 7 MUST NOT invent a speculative generic identity-key configuration system merely because the completed logical model permits future adapters to provide stable identity keys.
+
 ## Public-feed eligibility
 
 A feed row is eligible only when the Article is `visible` and either:
@@ -316,6 +343,15 @@ A visible `non_primary` member is duplicate-suppressed from ordinary rows but re
 - Persist UTC; render according to Publication/viewer presentation rules.
 
 Phase 6 may parse Source publication/update values into UTC and attach confidence/reason/fallback metadata, but it does not create persistence observation times. Missing or invalid Source publication dates remain distinguishable, and normalization MUST NOT substitute a Collection-run timestamp as `published_at`. Phase 7 Article/observation persistence establishes `first_seen_at`/`last_seen_at` from actual Platform observations.
+
+For Phase 7 processing semantics:
+
+- a newly `created` Article sets `first_seen_at` and `last_seen_at` from the successful observation time;
+- `first_seen_at` never moves forward on later observations;
+- `updated` means at least one material normalized Source-derived Article field changed;
+- `unchanged` means no material normalized Source-derived Article field changed;
+- both `updated` and `unchanged` advance `last_seen_at` to the successful observation time;
+- advancing `last_seen_at`, adding an observation, or changing only persistence-maintenance timestamps does not by itself convert an otherwise unchanged observation into `updated`.
 
 ## Retention and deletion principles
 
