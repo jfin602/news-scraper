@@ -6,11 +6,11 @@ The first configured Publication focuses on publishing-industry news relevant to
 
 ## Current project state
 
-Current phase: **Phase 6 — Article normalization**.
+Current phase: **Phase 7 — Default Relevance, Article identity, and persistence**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, and Phase 5 RSS/Atom transport, parsing, and minimal Collection runs implementation and closeout validation are complete.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, and Phase 6 Article normalization implementation and closeout validation are complete.
 
-Phase 6 builds on the accepted Phase 5 Raw-item boundary. It converts untrusted Raw items into safe deterministic Article candidates, resolves and conservatively canonicalizes Article URLs, normalizes dates/text/markup, attaches Publication/Source/endpoint/Collection-run provenance, applies the separate post-normalization Article-link/domain policy gate, and extends existing Collection runs with normalization-stage accounting. Article identity and persistence remain Phase 7 work.
+Phase 7 builds on the accepted Phase 6 Article-candidate boundary. Safe normalized candidates pass through the canonical empty-rule/default-include Relevance boundary before identity. The phase adds transactional/idempotent Article identity and persistence, Article-observation endpoint/run provenance, first-seen/last-seen semantics, and canonical `created`/`updated`/`unchanged`/`rejected`/`excluded`/`failed` Collection-run processing outcomes without conflating repeated Source identity with later true-duplicate grouping.
 
 ## Delivery priority
 
