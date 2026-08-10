@@ -3,11 +3,14 @@ TASK: Phase 6 / P2 — Article-link domain policy gate
 ROADMAP PHASE
 Phase 6 — Article normalization.
 
-MINIMUM MODEL / EFFORT
-- Minimum recommended rating: `Terra Max`.
-- A stronger model/effort tier may be used.
-- Do not lower this rating without explicit repository-owner direction.
-- Rationale: the implementation surface is intentionally small, but it is a trust/policy boundary between normalized Source data and later persistence. It must reuse approved-domain authority without accidentally becoming a second SSRF/network-safety implementation or widening endpoint policy.
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Terra High`.
+- Estimate confidence: `Medium`.
+- Efficiency rationale: the implementation is narrow, but it is a security/trust policy boundary between normalized Source data and later persistence. Sol Light is preferred for stronger policy judgment without the token volume of an Ultra reasoning run. Terra High is cheaper per token and may succeed, but the quality gain from Sol is worthwhile here because accidental policy widening or reuse of fetch-only SSRF semantics would be disproportionately costly. Do not lower the recommendation solely for credit savings.
+- If this exact configuration is no longer available in the current Codex picker at execution time, revalidate against `BOOT.md` rather than silently substituting an invented model/effort name.
 
 VERSIONING
 - This is Phase 6 prompt 2 and its assigned project version is `0.6.2`.
