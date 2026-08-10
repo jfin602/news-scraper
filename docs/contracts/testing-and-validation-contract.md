@@ -292,7 +292,7 @@ At minimum:
 - Phase 4: deterministic eligibility/domain/scheme/port/DNS/address/redirect/rebinding negatives through injected boundaries, plus real-disposable-PostgreSQL evidence for cross-process endpoint-lock contention and release;
 - Phase 5: deterministic HTTP/RSS/Atom/Collection-run fixture coverage;
 - Phase 6: normalization fixture matrix;
-- Phase 7: real-PostgreSQL identity/idempotency/concurrency/provenance coverage;
+- Phase 7: deterministic proof that every safe candidate passes the empty-rule/default-include Relevance boundary before identity, plus real-disposable-PostgreSQL coverage for strong-external-ID and canonical-URL identity/fallback/promotion/conflict behavior, idempotent create/update/unchanged semantics, concurrent/racing uniqueness, endpoint/run observation provenance and ownership consistency, first-seen/last-seen behavior, Article/observation transaction rollback, unrelated-candidate isolation, and exact Collection-run processing-outcome accounting;
 - Phase 8: feed eligibility/order/read-model/API coverage;
 - Phase 9: browser validation for the public tech-demo workflow;
 - Phase 10: scheduler/retry/overlap/recovery coverage;
