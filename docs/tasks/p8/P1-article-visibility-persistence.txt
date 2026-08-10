@@ -1,0 +1,193 @@
+TASK: Phase 8 / P1 — Article visibility persistence
+
+ROADMAP PHASE
+Phase 8 — Basic public-feed backend.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Sol Light`.
+- Estimate confidence: `High`.
+- Efficiency rationale: this is a bounded migration/repository lifecycle change, but visibility becomes durable authority-bearing Article state and must never be clobbered by later Source observations. Terra High provides enough reasoning headroom for migration/history/persistence invariants while avoiding the higher per-token cost of Sol for a narrowly scoped persistence task.
+- If this exact configuration is no longer available in the current Codex picker at execution time, revalidate against `BOOT.md` rather than silently substituting an invented model/effort name.
+
+VERSIONING
+- This is Phase 8 prompt 1 and its assigned project version is `0.8.1`.
+- On first execution confirm the authorized Phase 8 baseline left `package.json` at `0.8.0`, then advance only its top-level `version` to `0.8.1`.
+- If this same P1 prompt is rerun and `package.json` is already `0.8.1`, retain `0.8.1`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` is the sole authoritative current-version source.
+- The repository intentionally does not use `package-lock.json`; do not create, require, regenerate, or validate one.
+
+DEPENDS ON
+- Accepted Phase 7 Article identity/persistence and Article-observation provenance behavior.
+- Current migration history through `0005_collection_run_processing.sql`.
+- Phase 8 contracts establishing Article visibility as the first persisted public-presentation state.
+
+GOAL
+Introduce durable Article `visibility_state` with exactly the canonical states `visible`, `hidden`, and `archived`, migrate all existing Phase 7 Articles to `visible`, make `visible` the baseline for newly persisted Articles, and preserve visibility independently from all later Source-derived Article observations/updates.
+
+P1 is schema + Article persistence work only. It MUST NOT add moderation commands/UI, duplicate groups/roles, public-feed queries, HTTP routes, Publication exposure tooling, search/filtering, or other later-phase behavior.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/article-lifecycle-and-deduplication.md`
+- `docs/contracts/public-feed-and-admin-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/roadmap/mvp-roadmap.md`
+- `docs/decisions/original-link-and-normalized-metadata.md`
+- accepted Phase 7 validation artifact for preserved Article identity/provenance context.
+
+INSPECT / TRACE BEFORE EDITING
+Inspect all important writers/readers of the Article row before changing the shared model:
+- `migrations/0004_articles_and_observations.sql`
+- `migrations/0005_collection_run_processing.sql`
+- `src/database/migrations.ts`
+- `src/articles/repository.ts`
+- `test/database/article-schema.test.ts`
+- `test/database/article-persistence.test.ts`
+- `test/database/migrations.test.ts`
+- `test/unit/article-persistence.test.ts`
+- Collection/Worker tests that consume `PersistedArticle` typing.
+
+CURRENT SOURCE / IMPORTANT BASELINE
+At the expected P1 start:
+- production migration history ends at `0005_collection_run_processing.sql`;
+- `articles` has no persisted visibility field;
+- `PersistedArticle`, `ArticleRow`, `ARTICLE_COLUMNS`, insert/update RETURNING clauses, and `mapArticleRow()` centrally define the Article persistence/read model;
+- Article updates enumerate Source-derived fields explicitly rather than replacing whole rows;
+- Phase 7 identity resolution, first/last-seen updates, and successful observation persistence are already transactionally established and must remain unchanged.
+
+MIGRATION
+Add one new migration, expected as:
+- `migrations/0006_article_visibility.sql`
+
+Do NOT edit any previously committed migration file. Applied migration checksums are immutable history.
+
+The migration should add `articles.visibility_state` with:
+- `text NOT NULL`;
+- baseline/default value `visible` so existing Phase 7 rows become `visible` and ordinary new inserts have a safe baseline;
+- a database CHECK constraint allowing exactly `visible`, `hidden`, `archived`.
+
+Use one canonical schema design. Do not add parallel booleans such as `is_visible`, compatibility aliases, duplicate-role fields, moderation audit tables, or speculative future state.
+
+ARTICLE MODEL
+Extend the production Article model with a typed visibility state, e.g.:
+- `type ArticleVisibilityState = 'visible' | 'hidden' | 'archived'`
+- `PersistedArticle.visibilityState`
+
+Exact naming may follow repository conventions, but there must be one canonical representation.
+
+Update as needed:
+- `ArticleRow`;
+- `ARTICLE_COLUMNS`;
+- row mapping/validation;
+- insert/update RETURNING shapes;
+- test builders/fixtures whose typed shape legitimately includes persisted Article state.
+
+SOURCE-DERIVED PERSISTENCE MUST NOT OWN VISIBILITY
+This invariant is critical:
+- new Article creation gets the baseline `visible` state;
+- later unchanged observations MUST NOT reset a hidden/archived Article to visible;
+- later material Source-derived Article updates MUST NOT reset a hidden/archived Article to visible;
+- fallback promotion/strong-ID updates MUST NOT reset visibility;
+- visibility is NOT part of the Source-derived `materialChange` comparison used to decide `updated` versus `unchanged`.
+
+Do not add a P1 API to change visibility merely to test this. Database tests may deliberately set a valid non-visible state directly as fixture setup, then exercise the production persistence path and prove preservation.
+
+PRESERVE ARTICLE IDENTITY / PROVENANCE
+Do not change:
+- external-ID identity semantics;
+- canonical-URL fallback/promotion/conflict semantics;
+- digest indexes;
+- identity locks;
+- one Article + successful observation atomic transaction boundary;
+- endpoint/run provenance ownership constraints;
+- first-seen/last-seen semantics;
+- processing-outcome accounting.
+
+FOCUSED DATABASE TESTS — LEVEL 4
+Use the established disposable PostgreSQL harness and prove at minimum:
+1. an existing representative Phase 7 Article upgraded through the new migration has `visibility_state = visible`;
+2. a newly persisted Article returns/maps `visibilityState = visible`;
+3. all three canonical values are accepted by PostgreSQL;
+4. an unsupported visibility value is rejected by the schema constraint;
+5. after fixture setup changes an Article to `hidden`, reprocessing the same unchanged Source item preserves `hidden` and still produces canonical `unchanged` behavior;
+6. after fixture setup changes an Article to `archived`, a material Source-derived update preserves `archived` while retaining canonical `updated` behavior;
+7. Article cardinality/identity and successful observation provenance remain correct.
+
+MIGRATION REGRESSION — LEVEL 4
+Extend the existing historical migration pattern in `test/database/migrations.test.ts` rather than creating an unrelated migration harness.
+
+Prove:
+- migrations from zero include `0006` and rerun without repeated effects;
+- representative pre-`0006` Phase 7 Article/observation history survives the upgrade;
+- the historical Article becomes visible;
+- prior migration files/checksums are untouched.
+
+UNIT / TYPE REGRESSION
+Update only narrowly necessary unit/type assertions caused by the new persisted field. Do not replace real PostgreSQL evidence with mocks.
+
+EXPECTED PRIMARY WRITE SCOPE
+Expected files:
+- new `migrations/0006_article_visibility.sql`;
+- `src/articles/repository.ts`;
+- `test/database/article-schema.test.ts`;
+- `test/database/article-persistence.test.ts`;
+- `test/database/migrations.test.ts`;
+- narrowly necessary Article type/test consumers;
+- `package.json` version only.
+
+If implementation seems to require public-feed modules, Publication mutation, Worker orchestration changes, duplicate persistence, or moderation APIs, stop and report planning drift rather than expanding scope.
+
+REQUIRED VALIDATION
+Against the final P1 tree run at minimum:
+- focused Article/schema/migration database tests;
+- `npm run format:check`;
+- `npm run lint`;
+- `npm run typecheck`;
+- `npm run test:unit`;
+- `npm run test:db`;
+- `npm run check`;
+- committed-range `git diff --check` for the P1 change range.
+
+`npm run test:db` MUST use the established safe disposable PostgreSQL boundary. If `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` is unavailable or unsafe, report the required Level 4 validation as blocked; do not silently skip/downgrade it.
+
+No browser or approved live-Source validation is required for P1.
+
+SECURITY / DATA-INTEGRITY IMPLICATIONS
+- Visibility is durable application state; PostgreSQL must reject unsupported states.
+- Source ingestion must not silently overwrite operator/moderation state.
+- Do not expose SQL, credentials, stack traces, or raw Article content in new errors/tests/output.
+- Preserve Article provenance and all idempotency guarantees.
+
+DOCUMENTATION
+Governing Phase 8 docs are already aligned. Do not rewrite contracts/roadmap/root docs from this implementation prompt unless a true contradiction is discovered; if one is discovered, stop and report it.
+
+ACCEPTANCE CRITERIA
+P1 is complete only when:
+- the new migration is additive and checksum-safe;
+- existing Articles upgrade to visible;
+- new Articles have visible baseline state;
+- valid hidden/archived state survives both unchanged and material subsequent Source observations;
+- visibility does not alter identity or Source-derived outcome classification;
+- required real-PostgreSQL and regression validation passes against the exact `0.8.1` tree;
+- no package lock is created;
+- no Phase 8 P2+ or later-roadmap functionality is introduced.
+
+NON-GOALS
+- visibility mutation command/API;
+- Article moderation UI;
+- duplicate groups/roles/Primary selection;
+- feed query/HTTP endpoint;
+- Publication public-status changes;
+- search/filter/pagination;
+- scheduler/jobs;
+- HTML collection;
+- topic-specific logic.
