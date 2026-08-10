@@ -1,0 +1,339 @@
+TASK: Phase 8 / P5 — Phase 8 closeout validation
+
+ROADMAP PHASE
+Phase 8 — Basic public-feed backend.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `High`.
+- Alternative considered: `Terra Ultra`.
+- Estimate confidence: `Medium`.
+- Efficiency rationale: closeout is broad and evidence-heavy across migration history, durable visibility, explicit Publication exposure, the PostgreSQL feed eligibility/order matrix, Web/API response semantics, and one real persisted DB-to-HTTP path, but it should require no new architecture if P1-P4 are correct. Sol Light is preferred for strong final-tree synthesis/defect triage without the potentially much larger reasoning volume of an Ultra run. If validation uncovers a genuinely architectural SQL/disclosure/schema defect, escalate that remediation to `Sol High` rather than forcing redesign through the cheaper closeout configuration.
+- If this exact configuration is no longer available in the current Codex picker at execution time, revalidate against `BOOT.md` rather than silently substituting an invented model/effort name.
+
+VERSIONING
+- This is Phase 8 prompt 5 and its assigned project version is `0.8.5`.
+- On first execution confirm P4 left `package.json` at `0.8.4`, then advance only its top-level `version` to `0.8.5` BEFORE establishing the final Phase 8 candidate implementation SHA.
+- If this same P5 prompt is rerun and `package.json` is already `0.8.5`, retain `0.8.5`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` is the sole authoritative current-version source.
+- The repository intentionally does not use `package-lock.json`; do not create, require, regenerate, or validate one.
+- The later conversational `/closeout` command, if Phase 8 is accepted, separately transitions to the Phase 9 baseline `0.9.0`; that transition is NOT part of P5.
+
+DEPENDS ON
+- P1 Article visibility migration/persistence.
+- P2 explicit Publication public-status operator mechanism and fresh public tech-demo configuration.
+- P3 canonical public-feed PostgreSQL read model/eligibility/order/bounds.
+- P4 public HTTP endpoint/Web process integration and real DB-to-HTTP vertical test.
+- Accepted Phase 1-7 behavior that Phase 8 must preserve.
+
+GOAL
+Perform exact-final-tree Phase 8 validation, fix only defects required to satisfy the already-approved Phase 8 contracts/roadmap if discovered, rerun the complete required validation matrix after every executable correction, and create/update one durable Phase 8 validation artifact tied to the exact accepted executable source tree.
+
+P5 is primarily validation/closeout. Do not add Phase 9 HTML/UI, search/filter/pagination, duplicate grouping, Article moderation controls, scheduler/jobs, admin UI/API, HTML collection, or speculative architecture merely to make closeout easier.
+
+GOVERNING DOCUMENTS
+Read current versions before validation:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/article-lifecycle-and-deduplication.md`
+- `docs/contracts/public-feed-and-admin-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- `docs/decisions/original-link-and-normalized-metadata.md`
+- P1-P4 Phase 8 task files and their final implementation/tests;
+- accepted Phase 7 validation artifact for inherited Article identity/provenance behavior.
+
+PHASE 8 EXIT GATE TO PROVE
+Phase 8 is green only when observed evidence against the exact accepted tree proves:
+1. Article visibility is durable with canonical `visible` / `hidden` / `archived` states;
+2. existing Phase 7 Articles migrate to `visible` and new Articles default/baseline to `visible`;
+3. later unchanged/material Source observations preserve non-visible state and do not reinterpret visibility as Source-derived material change;
+4. an existing Publication can be deliberately transitioned `private <-> public` through the generic operator mechanism while ordinary bootstrap remains create-if-absent/no-overwrite;
+5. public-feed reads expose only a public Publication's approved active Sources and visible Articles;
+6. Publication collection activity, Source operational state, and endpoint/run operational/health state are not incorrectly used as historical feed suppression gates;
+7. feed effective date uses parsed `published_at` else `first_seen_at`, exposes the source branch, and orders deterministically by effective date DESC, first_seen DESC, Article id ASC;
+8. the Phase 8 feed is bounded to the defined 100 newest eligible rows after canonical ordering;
+9. every returned item uses `display_title`, Source display name and stored `original_url`, never silently substituting `canonical_identity_url`;
+10. public empty Publication returns HTTP 200 with empty items;
+11. missing and private Publications are indistinguishable as public HTTP 404;
+12. dependency/read failures are bounded secret-safe HTTP 503;
+13. a real public HTTP request through the Web/API process returns a real persisted eligible Article from disposable PostgreSQL deterministically;
+14. Web/API remains read-only for Source collection and existing health/process behavior remains intact.
+
+The inherited testing contract also requires focused + broader regressions, actual Level 4 PostgreSQL evidence for persistence/feed claims, no required skipped/zero-selected substitute suites, and a durable exact-tree closeout artifact.
+
+CANDIDATE VERSION / SOURCE TREE
+On first P5 execution:
+- verify `package.json` is `0.8.4`;
+- change only top-level `version` to `0.8.5`;
+- do not create a lockfile;
+- include the versioned executable tree in all final validation.
+
+If P5 finds an executable Phase 8 defect:
+- fix only the smallest contract-required defect;
+- keep version `0.8.5`;
+- commit/finalize executable changes before establishing the accepted implementation candidate SHA;
+- rerun the COMPLETE required matrix against the corrected exact tree;
+- do not reuse pre-fix passing evidence as proof for the corrected tree.
+
+The durable validation artifact may be committed after the accepted executable candidate SHA as a docs-only evidence commit, but it MUST identify the exact accepted executable implementation SHA.
+
+EXPECTED PRIMARY WRITE SCOPE
+If P1-P4 are correct, expected P5 writes are:
+- `package.json` version `0.8.4 -> 0.8.5`;
+- new/update `docs/validation/phase-8-basic-public-feed-backend.md`.
+
+Source/test/migration files may be modified only to repair an actually discovered Phase 8 contract defect. Do not perform unrelated cleanup/refactors during closeout.
+
+IMPLEMENTATION RANGE / COMMITTED-DIFF VALIDATION
+Do NOT blindly treat the `0.8.0` baseline commit as the beginning of the executable Phase 8 implementation range because approved documentation alignment and separate owner-approved phase-runner tooling changes occurred before P1.
+
+At execution time derive the actual P1 parent from repository history/task version sequence and record it explicitly.
+
+For the committed Phase 8 implementation range:
+- base = actual parent of the first P1 implementation commit;
+- head = final accepted `0.8.5` executable candidate SHA;
+- run `git diff --check <base>...<head>` (or equivalent committed-range whitespace validation);
+- inspect changed-file set for accidental later-phase or unrelated scope.
+
+Do not hard-code a historical SHA from the planning conversation if current repository history provides the authoritative boundary.
+
+NO REQUIRED LIVE-SOURCE STAGE
+Approved live public-Source validation is NOT required to close Phase 8.
+
+Reason:
+- Phase 8 is a persistence/read-model/API phase;
+- public publisher fetch success does not prove Article visibility preservation, Publication exposure authority, SQL eligibility/order, migration upgrades, or safe HTTP behavior;
+- ordinary deterministic validation should remain free of uncontrolled public-network dependencies.
+
+Optional live Source observations may be recorded only if actually executed and must not gate acceptance.
+
+NO REQUIRED BROWSER STAGE
+Level 6 browser evidence is NOT required for Phase 8 because the phase exposes a JSON backend only.
+
+Phase 9 owns the database-backed public feed page and representative desktop/mobile browser evidence.
+
+REQUIRED ENVIRONMENT / TOOL EVIDENCE
+Record, when available/used:
+- `node --version`;
+- `npm --version`;
+- PostgreSQL client version (`psql --version`) if available;
+- PostgreSQL server version actually used by disposable DB tests if readily available through the safe harness;
+- presence/use of `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` without recording its secret value;
+- relevant operating environment/platform.
+
+Do not expose connection strings or credentials in the artifact.
+
+DEPENDENCY INSTALLATION
+Perform a normal clean repository dependency installation using:
+- `npm install`
+
+Do not use `npm ci`; the repository intentionally has no package lock.
+
+Record the observed install/dependency/vulnerability summary accurately. Do not claim byte-for-byte dependency reproducibility.
+
+Immediately verify no `package-lock.json` or `npm-shrinkwrap.json` was generated/committed. If repository npm configuration is broken and generates prohibited lock metadata, treat it as a blocker/defect rather than committing it.
+
+REQUIRED STATIC / DETERMINISTIC COMMAND MATRIX
+Against the final candidate tree execute and record at minimum:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:collection`
+- `npm run test:db`
+- `npm test`
+- `npm run check`
+
+Some commands overlap by design. Record actual observed results/totals rather than merely saying “tests passed.”
+
+Required suites must not:
+- select zero tests and report success;
+- silently skip a required DB prerequisite;
+- substitute mocked persistence for Level 4 claims;
+- use automatic retries to mask flaky failures.
+
+REAL POSTGRESQL REQUIREMENT — LEVEL 4
+`npm run test:db` is mandatory for Phase 8 closeout.
+
+It must execute against safe disposable PostgreSQL through `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` and prove cleanup through the established harness.
+
+If the required safe DB prerequisite is unavailable, Phase 8 closeout remains BLOCKED/PARTIAL. Do not downgrade persistence/feed claims to unit/integration evidence and do not mark Phase 8 green.
+
+PHASE 8 BEHAVIOR EVIDENCE MATRIX
+The durable closeout artifact must identify concrete tests/commands proving each area below.
+
+A. ARTICLE VISIBILITY / MIGRATION — LEVEL 4
+Prove:
+- production migrations from zero include the visibility migration;
+- representative Phase 7 Article history upgrades to `visible`;
+- new Articles have `visible` baseline;
+- PostgreSQL accepts only `visible`, `hidden`, `archived`;
+- hidden/archived state survives later unchanged/material Source persistence;
+- Source-derived `updated`/`unchanged` semantics remain truthful;
+- Article identity/cardinality/observation provenance remains intact.
+
+B. PUBLICATION EXPOSURE AUTHORITY — LEVELS 3/4
+Prove:
+- explicit generic local operator transition `private -> public`;
+- explicit transition `public -> private`;
+- invalid/missing input does not mutate/create unrelated state;
+- fresh initial Publication configuration uses intended public tech-demo state;
+- ordinary bootstrap after an operator change does NOT overwrite persisted `public_status`;
+- command/database failures do not leak credentials/connection detail.
+
+C. PUBLIC FEED ELIGIBILITY — LEVEL 4
+Prove:
+- requested Publication must be public;
+- Source must be approved + active;
+- Article must be visible;
+- another Publication's rows cannot bleed in;
+- public `active_for_collection = false` remains readable;
+- approved active paused/disabled Source remains readable;
+- endpoint operational/lifecycle/health and latest-run state do not silently hide otherwise eligible retained Articles;
+- no duplicate-group/role persistence exists merely for Phase 8.
+
+D. FEED DATE / ORDER / BOUNDS — LEVEL 4
+Prove:
+- parsed `published_at` is effective date;
+- missing/invalid date falls back to `first_seen_at`;
+- read model exposes `published_at` versus `first_seen_at` source;
+- ordering is effective date DESC, first_seen DESC, Article id ASC;
+- repeated reads are deterministic;
+- 101+ eligible rows return exactly canonical newest 100;
+- public zero-eligible rows return Publication identity + empty items.
+
+E. SAFE READ MODEL / ORIGINAL DESTINATION — LEVEL 4
+Prove:
+- stable Article id, effective date/source, display headline, Source display name and original URL are returned;
+- stored `original_url` is returned even when `canonical_identity_url` deliberately differs;
+- no normalized title, canonical identity URL/digest, external ID, summary/content, observation/run/endpoint IDs or other internal fields are exposed.
+
+F. HTTP CONTRACT — LEVEL 3
+Prove with injected deterministic route dependencies:
+- success exact minimal JSON;
+- explicit ISO timestamp serialization;
+- empty public feed = 200;
+- `undefined` = canonical 404;
+- private/missing cannot be distinguished at route level;
+- synthetic read failure with secret-like detail = bounded 503 with no leak;
+- health routes remain unchanged.
+
+G. REAL POSTGRESQL -> WEB/API -> HTTP — LEVEL 4
+Prove through actual migrated disposable PostgreSQL + production reader + Express listener + real local HTTP request:
+- a persisted visible Article under public Publication/approved active Source is returned;
+- headline/Source/date/source/original destination match stored state;
+- public empty returns 200 empty list;
+- private returns the same 404 behavior as missing.
+
+H. WEB PROCESS / FAILURE BOUNDARIES — LEVEL 3
+Prove:
+- unavailable DB still permits Web listener/liveness;
+- readiness returns 503;
+- feed returns bounded 503;
+- database secret is absent from stdout/stderr/HTTP;
+- shutdown remains clean;
+- Web/API does not invoke Worker Source-fetch/parsing/collection paths.
+
+I. PRESERVED UPSTREAM BEHAVIOR
+Prove relevant existing suites remain green for:
+- Publication/Source configuration/bootstrap;
+- Article identity/idempotency/observations;
+- Worker collection pipeline and network-safety boundaries;
+- collection fixtures;
+- process health/readiness.
+
+MIGRATION EVIDENCE — LEVEL 4
+Confirm production migrations:
+- apply from zero in order through the final Phase 8 migration;
+- rerun without repeated effects;
+- representative Phase 7 -> Phase 8 upgrade preserves Article/observation/configuration history and establishes truthful visibility baseline;
+- no previous migration checksum was rewritten.
+
+PUBLIC-FEED SQL REVIEW
+In addition to automated tests, inspect the final production query and record that ordinary eligibility does not accidentally depend on:
+- endpoint joins;
+- Collection-run joins;
+- Source operational state;
+- Publication collection-active state.
+
+This inspection is Level 0/1 support only; it does not replace Level 4 tests.
+
+COMMITTED CHANGED-FILE SCOPE
+Inspect the P1-parent -> final P5 candidate changed-file set and ensure Phase 8 did not accidentally introduce:
+- `package-lock.json` / `npm-shrinkwrap.json`;
+- Phase 9 HTML/UI/browser presentation;
+- search/filter/client pagination;
+- duplicate groups/memberships/Primary roles;
+- Article moderation controls;
+- full Publication admin API/UI or native admin accounts/sessions/roles;
+- scheduler/jobs;
+- HTML collection adapter;
+- Web/API Source fetching;
+- topic-specific engine conditionals.
+
+DEFECT HANDLING DURING P5
+If a deterministic/DB/integration regression fails:
+1. classify it as Phase 8 implementation defect, stale test, environment prerequisite failure, or unrelated pre-existing issue;
+2. fix only genuine Phase 8 implementation defects within the approved contracts;
+3. keep version `0.8.5`;
+4. establish a new final executable candidate SHA after the fix;
+5. rerun the complete required matrix against that corrected tree;
+6. record only final-tree evidence as acceptance evidence.
+
+If validation reveals a governing contract contradiction rather than an implementation defect, STOP and report the contradiction. P5 is not authorized to rewrite contracts/roadmap to make implementation pass.
+
+DURABLE VALIDATION ARTIFACT
+Create/update exactly one Phase 8 artifact expected at:
+- `docs/validation/phase-8-basic-public-feed-backend.md`
+
+It must record at minimum:
+- accepted executable candidate SHA;
+- P1-parent / implementation range used for committed-range validation;
+- final package version `0.8.5`;
+- Node/npm/PostgreSQL environment evidence actually observed;
+- dependency-install result;
+- every required command/procedure and actual result/test totals where available;
+- evidence-level mapping for the Phase 8 exit-gate matrix;
+- migration-from-zero + upgrade evidence;
+- DB->HTTP vertical evidence;
+- limitations (including no required browser/live-Source stage);
+- explicit conclusion whether Phase 8 exit gate is satisfied;
+- next roadmap phase identifiable as Phase 9 — Basic public-feed UI and tech demo.
+
+The artifact records evidence only; it MUST NOT redefine contracts.
+
+DOCUMENTATION
+Do not change roadmap/root phase state from P5. The conversational `/closeout` and subsequent `/docs-review -> /docs-apply` workflow own the Phase 8 -> Phase 9 handoff/status alignment after the user accepts validation.
+
+ACCEPTANCE CRITERIA
+P5 is complete only when:
+- package version is exactly `0.8.5`;
+- exact final executable candidate passes all required static/unit/integration/collection/database/ordinary regression commands;
+- mandatory Level 4 PostgreSQL evidence is observed;
+- the real persisted Article -> public HTTP vertical path is observed;
+- all Phase 8 exit-gate semantics are mapped to concrete evidence;
+- committed implementation range is validated from the actual P1 parent;
+- no prohibited lockfile/later-phase/topic-specific scope is present;
+- durable Phase 8 validation artifact identifies the exact accepted executable SHA and gives a truthful green/blocked conclusion.
+
+NON-GOALS
+- Phase 9 public feed page/UI;
+- browser validation;
+- live publisher validation as an acceptance gate;
+- search/filter/client pagination;
+- duplicate grouping/Primary selection;
+- Article moderation UI/commands;
+- full admin UI/API;
+- scheduler/jobs;
+- HTML collection;
+- deployment/reference-environment validation;
+- topic-specific shared-engine behavior.
