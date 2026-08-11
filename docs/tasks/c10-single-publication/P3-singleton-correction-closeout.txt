@@ -1,0 +1,373 @@
+TASK: Correction 10 / P3 — Singleton correction closeout
+
+ROADMAP PHASE
+Phase 10 — Automated polling, durable jobs, and endpoint health.
+
+STACK TYPE
+Final manual closeout for the non-versioned Phase 10 entry singleton correction. The automated correction runner must stop before this prompt; run it manually after P1 and P2 are committed and the working tree is clean.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol High`.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Alternative considered: `Terra Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P3 is a cross-cutting final gate over a destructive schema rewrite, Source-scoped identity/provenance, Worker/API cleanup, root-page routing, browser behavior, and active-tree deletion policy. It needs strong review judgment and evidence discipline, but should not require the implementation exploration volume of P1, so Sol High is the appropriate quality/cost balance.
+- If this exact configuration is no longer available in the current Codex picker at execution time, revalidate against `BOOT.md` rather than silently substituting an invented model/effort name.
+
+VERSIONING
+- Required unchanged project version: `0.10.0`.
+- Confirm P1 and P2 left `package.json` exactly `0.10.0` and preserve that exact version through closeout.
+- This correction closeout does not transition package version and is not followed by roadmap `/closeout`.
+- `package.json` remains the sole authoritative current-version source.
+- The repository intentionally does not use npm package locks; do not create, require, regenerate, or validate `package-lock.json` or `npm-shrinkwrap.json`.
+
+DEPENDS ON
+- P1 canonical singleton data/runtime reset complete.
+- P2 canonical root/config/legacy cleanup complete.
+- Clean working tree before manual closeout begins.
+- Current contracts/ADR/roadmap correction gate unchanged.
+
+GOAL
+Prove that the final P1+P2 tree is the smallest coherent supported one-Publication-per-installation implementation and is safe to use as the foundation for ordinary Phase 10 scheduler/job work.
+
+P3 is a verification/evidence task, not a feature task. It must inspect the complete correction range, run the required deterministic/database/browser validation at the appropriate evidence levels, verify legacy-only Publication tenancy/selector/migration/config/test artifacts are absent from the active tree, and create a durable correction validation artifact tied to the exact accepted source SHA.
+
+Do not add scheduler/jobs, compatibility code, new architecture, or version changes during closeout. If a blocking defect is discovered, repair only the smallest correction-scoped defect necessary to satisfy the already-approved contracts, rerun affected validation, and document the repair accurately.
+
+GOVERNING DOCUMENTS
+Read current versions before closeout:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/article-lifecycle-and-deduplication.md`
+- `docs/contracts/public-feed-and-admin-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- `docs/decisions/single-publication-simplified-data-model.md`
+- P1 and P2 task files;
+- final P1/P2 source/tests.
+
+PRE-CLOSEOUT REPOSITORY CHECK
+Before making any closeout write:
+1. confirm the working tree is clean;
+2. identify the exact P1/P2 committed range and current HEAD SHA;
+3. confirm `package.json` is `0.10.0`;
+4. confirm no unexpected commits changed the governing correction contracts after P2;
+5. inspect the actual final migration/config/module/public-route layout rather than assuming P1/P2 used every suggested filename.
+
+If the governing contracts materially changed after P2, stop and report planning drift rather than certifying stale assumptions.
+
+FULL CORRECTION REVIEW
+Review the complete P1/P2 implementation against the contracts, not only the happy path.
+
+Verify the final tree actually implements:
+- exactly one singleton Publication editorial/settings record per installation;
+- no relational Publication tenancy identity;
+- installation-wide Source keys;
+- Source-scoped endpoint identity;
+- Source → endpoint → Collection run ownership;
+- Source-scoped Article identity;
+- Source/endpoint/run/Article observation provenance consistency;
+- singleton global collection-active gate;
+- approved Source/endpoint and network-safety boundaries;
+- selector-free Worker invocation;
+- selector-free canonical feed repository/API;
+- canonical root public page;
+- destructive pre-production rebuild-from-zero policy rather than old-schema compatibility.
+
+Do not approve merely because the UI loads or the schema exists.
+
+CANONICAL MIGRATION TREE CHECK
+Inspect `migrations/` and prove it is the smallest coherent current baseline, expected to be one canonical initial schema unless P1 documented a concrete current reason for multiple files.
+
+Confirm:
+- obsolete Phase 3–8 evolutionary migration files are gone from the active migration directory;
+- migration-from-zero deterministically creates all current tables/constraints needed by implemented behavior;
+- the generic migration ledger/checksum/transaction machinery remains sound;
+- no compatibility migration exists solely to transform superseded pre-production Publication tenancy;
+- no test/fixture remains whose only purpose is to preserve unsupported old-schema upgrades.
+
+FRESH DATABASE PROOF — LEVEL 4
+Use the repository's safe disposable PostgreSQL harness and current production migration/bootstrap paths.
+
+Prove from a fresh database:
+1. migration from zero succeeds;
+2. rerunning migrations has no repeated effects;
+3. singleton Publication settings are database-enforced;
+4. Source `config_key` is installation-wide unique;
+5. endpoint key/URL uniqueness remains Source-scoped;
+6. Source/domain/state constraints remain;
+7. Collection-run state/count/accounting constraints remain;
+8. Articles contain no Publication tenant scope;
+9. Article strong external-ID uniqueness is Source-scoped;
+10. canonical fallback uniqueness is Source-scoped;
+11. Article metadata/date/visibility constraints remain;
+12. observations cannot cross Source/endpoint/run/Article provenance boundaries;
+13. transaction rollback behavior remains correct.
+
+Do not create an old populated schema and test upgrading it. That is explicitly outside the pre-production compatibility contract.
+
+ARTICLE IDENTITY / IDEMPOTENCY PROOF
+Run the real PostgreSQL Article identity/persistence coverage and verify it still proves:
+- create;
+- update;
+- unchanged;
+- strong external-ID identity;
+- canonical fallback identity;
+- fallback→strong promotion;
+- contradictory strong identity conflict;
+- hash/digest exact-value collision defense where implemented;
+- concurrent/racing uniqueness;
+- first-seen/last-seen semantics;
+- per-candidate transaction rollback;
+- unrelated-candidate isolation;
+- successful observation linkage;
+- Source ownership is the actual identity/provenance boundary.
+
+No Publication UUID/slug should be required to make any identity proof succeed.
+
+COLLECTION / WORKER PROOF
+Verify current manual Worker selection is exactly Source key + endpoint key and does not accept or ignore a Publication selector.
+
+Run deterministic collection/Worker coverage proving:
+- argument validation before unnecessary DB/network work;
+- endpoint lookup by Source/endpoint keys;
+- singleton `activeForCollection` global gate;
+- Source/endpoint approval/lifecycle/operational gates;
+- endpoint shared lock behavior;
+- scheme/port/domain/DNS/address/redirect safety;
+- parser → normalization → Article-link policy → Relevance → identity ordering;
+- candidate provenance Source + endpoint + Collection run;
+- truthful Collection-run final statuses/counters;
+- per-endpoint failure isolation;
+- bounded/redacted failures;
+- result output has no Publication UUID/slug identity.
+
+Do not weaken whitelist/SSRF policy to make tests pass.
+
+PUBLIC FEED / API PROOF
+Verify `readPublicFeed` or the final equivalent is selector-free and uses singleton settings.
+
+Run deterministic repository/API coverage proving:
+- public singleton settings + eligible Articles return feed rows;
+- public settings with no eligible rows returns an empty feed at `200`;
+- absent/private singleton settings remain the same generic unavailable/not-found result;
+- Source approval + active lifecycle remain public-row trust gates;
+- Article visibility remains a feed gate;
+- current ungrouped-before-duplicate semantics remain;
+- effective date is parsed `published_at` or fallback `first_seen_at`;
+- deterministic ordering/tie breakers remain;
+- result is bounded;
+- headline destination is exact stored `original_url`;
+- canonical identity URL is not substituted;
+- `GET /api/feed` is canonical;
+- old slug-addressed API route is absent.
+
+ROOT PAGE / BROWSER PROOF — LEVEL 6
+Run the final Playwright/Chromium suite against the P2 root page and prove:
+- direct `GET /` navigation;
+- refresh at `/`;
+- loading state;
+- populated state;
+- empty public state;
+- generic unavailable/private/absent state;
+- generic dependency-error state;
+- exact external publisher href;
+- untrusted feed text is inert;
+- UTC date rendering under a non-UTC browser timezone;
+- keyboard/focus behavior;
+- desktop three-column presentation;
+- representative mobile stacked presentation;
+- no feed-caused horizontal overflow;
+- old slug-addressed page route is unsupported;
+- same-origin static assets/security headers still function.
+
+Do not claim Level 6 evidence unless Chromium actually ran.
+
+ACTIVE-TREE LEGACY STRUCTURAL SWEEP
+Perform explicit searches over current active implementation/config/migration/test source for legacy-only artifacts.
+
+Search patterns should include, as appropriate:
+- `publication_id`;
+- `publicationId`;
+- `publicationSlug`;
+- `/api/publications/`;
+- `/publications/:`;
+- `config/publications/`;
+- `findPublicationBySlug`;
+- Publication-scoped Source uniqueness/lookups;
+- old `src/publications/` compatibility wrappers if singularized;
+- deleted old migration filenames;
+- old-schema upgrade fixtures/tests;
+- ignored/deprecated Publication selector parameters.
+
+Do not treat historical documentation as active implementation drift. Exclude:
+- `docs/tasks/p1/**` through `docs/tasks/p9/**`;
+- historical `docs/validation/**`;
+- superseded ADR historical text.
+
+Interpret results carefully. Current singleton Publication terminology is valid where it represents editorial/settings behavior such as name, public status, collection-active state, or stable machine reason `publication_inactive`.
+
+The closeout fails if any active implementation artifact exists solely to preserve the superseded tenant/slug model without an independent current purpose.
+
+CONFIG / MODULE CANONICALIZATION CHECK
+Confirm:
+- checked-in config is the canonical singular path (expected `config/publication.json`);
+- old plural config path is absent;
+- ordinary bootstrap uses the canonical file;
+- bootstrap still accepts/validates operator configuration generically rather than hard-coding the indie-author topic into shared source;
+- singleton Publication module naming/API does not preserve plural selector-oriented wrappers solely for compatibility;
+- Source-specific configuration remains at the deployment edge rather than becoming shared engine conditionals.
+
+PRE-PRODUCTION DATABASE OPERATION NOTE
+Do not blindly destroy any database discovered through environment variables during closeout.
+
+The correction contract says old development/pre-production application databases are disposable, but automated closeout proof uses the safe disposable test harness.
+
+If an operator has an existing local project database from the superseded source tree, document that it must be deliberately destroyed/recreated and then rebuilt with current:
+- migration command;
+- bootstrap command.
+
+Do not claim an arbitrary external development database was rebuilt unless that was actually and safely performed.
+
+LIVE-SOURCE VALIDATION POLICY
+`npm run test:live-sources` is not required for deterministic correction closeout.
+
+The correction changes schema, internal provenance/selectors, API/root routing, and active-tree structure. Its required gate is deterministic PostgreSQL/regression/browser evidence.
+
+The current live-source tests must compile/use current APIs, but public-network success remains environment-dependent and is not required to certify this correction unless the repository owner separately asks to run Level 7 validation.
+
+Do not alter historical Phase 5/9 validation artifacts to imply new live observations.
+
+REQUIRED FINAL COMMAND MATRIX
+Against the exact final source tree intended for acceptance, run and record at minimum:
+- `npm install`
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:collection`
+- `npm run test:db`
+- `npm test`
+- `npm run check`
+- `npm run test:browser`
+
+If repository command composition makes some commands redundant, still record the explicit required commands above because the correction contract calls out specialized DB/browser evidence separately.
+
+Do not use `npm ci`. Confirm no package lock was created.
+
+Required selected suites must not pass by silently skipping prerequisites or matching zero tests.
+
+If safe test-admin PostgreSQL or Playwright Chromium is unavailable, the closeout is not fully green. Report the blocker; do not create a validation artifact claiming acceptance that was not observed.
+
+DIFF / RANGE VALIDATION
+Validate the committed P1/P2 range and any closeout-fix commit for:
+- expected files only;
+- no accidental package-version change;
+- no package lock;
+- no whitespace/diff errors;
+- no governing-doc drift unrelated to the correction;
+- no accidental deletion of historical prompts/validation artifacts;
+- no ordinary Phase 10 scheduler/job implementation.
+
+Do not rely on an empty working-tree diff as proof of what changed; inspect the committed range.
+
+DURABLE VALIDATION ARTIFACT
+When and only when the correction is fully green, create:
+
+`docs/validation/single-publication-simplification-correction.md`
+
+The artifact must record:
+- exact accepted source/HEAD SHA;
+- date;
+- Node/npm/PostgreSQL/Playwright/Chromium environment versions relevant to claims;
+- correction scope;
+- migration baseline actually accepted;
+- commands/procedures actually executed;
+- concise observed results;
+- evidence levels;
+- structural legacy-artifact searches and conclusions;
+- confirmation package version remained `0.10.0`;
+- limitations, including that no old populated DB upgrade is supported/required;
+- live-source validation status accurately, without implying it ran if it did not.
+
+The artifact records evidence; it must not redefine contracts.
+
+Do not edit historical Phase 1–9 validation artifacts.
+
+CLOSEOUT REPAIR POLICY
+If validation exposes a correction-scoped defect, fix only the smallest root cause necessary to satisfy existing contracts.
+
+Examples of allowed closeout repairs:
+- stale Publication ID parameter missed by P1/P2;
+- broken Source/observation FK uncovered by real PostgreSQL;
+- stale old page route;
+- browser client still parsing slug;
+- obsolete config/test path missed by cleanup;
+- regression test that still encodes unsupported tenancy instead of current behavior.
+
+After any repair:
+1. rerun focused tests for the defect;
+2. rerun every broader suite whose accepted claim could have changed;
+3. rerun the final required command matrix before writing/updating the durable artifact.
+
+Do not use closeout to add scheduler/jobs or redesign unrelated code.
+
+ACCEPTANCE CRITERIA
+The correction is green only when all are true:
+1. `package.json` remains exactly `0.10.0`;
+2. no package lock exists;
+3. active migration tree is the smallest coherent canonical schema-from-zero baseline;
+4. old pre-production migration compatibility/history is absent from active migrations/tests/fixtures where it has no current purpose;
+5. singleton Publication settings are database-enforced and contain no tenant UUID/slug requirement;
+6. Sources are installation-wide and Source keys are installation-wide unique;
+7. endpoint ownership/identity remains Source-scoped;
+8. Collection runs remain endpoint-owned with truthful accounting constraints;
+9. Articles are Source-owned with Source-scoped strong/fallback identity and concurrency/idempotency preserved;
+10. observations preserve Source/endpoint/run/Article provenance consistency;
+11. candidate provenance is Source + endpoint + Collection run only;
+12. Worker selection is Source key + endpoint key only and outputs no Publication identity;
+13. collection whitelist/network safety and failure isolation remain intact;
+14. public feed repository/API is selector-free and `GET /api/feed` is canonical;
+15. public page is canonical at `GET /` and old slug API/page paths are absent without aliases;
+16. canonical checked-in config path is singular and old selector-shaped config path is absent;
+17. active-tree structural sweep finds no legacy-only Publication tenancy/slug compatibility artifacts;
+18. deterministic static/unit/integration/collection/database regression matrix is green;
+19. Level 4 real PostgreSQL evidence is green;
+20. Level 6 Chromium root-page evidence is green;
+21. durable validation artifact exists and accurately records the exact accepted tree/evidence;
+22. no ordinary Phase 10 scheduler/job work was added;
+23. repository is clean after the final accepted commit.
+
+NON-GOALS
+- Preserving or upgrading old pre-production application database contents.
+- Running live public publishers as a mandatory deterministic correction gate.
+- Advancing package version.
+- Running roadmap `/closeout`.
+- Scheduler/jobs/retries/health implementation.
+- Search/filter/pagination/theme polish.
+- Admin UI/native accounts.
+- Duplicate grouping/review.
+- HTML collection.
+
+FINAL REPORT
+Report:
+- final accepted SHA;
+- commits/range reviewed;
+- any closeout fixes made;
+- final migration/config/module/public-route shape;
+- structural legacy-artifact search results;
+- complete commands actually executed and observed results;
+- evidence levels actually achieved;
+- durable validation artifact path;
+- package version confirmation;
+- any remaining limitations;
+- explicit statement whether the Phase 10 entry correction gate is GREEN or BLOCKED.
+
+If GREEN, state that ordinary Phase 10 implementation planning may begin while package version remains `0.10.0`.
