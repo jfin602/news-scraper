@@ -1,0 +1,330 @@
+TASK: Phase 9 / P2 — Public feed UI, states, and responsive presentation
+
+ROADMAP PHASE
+Phase 9 — Basic public-feed UI and tech demo.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `High`.
+- Alternative considered: `Sol Light`.
+- Estimate confidence: `Medium`.
+- Efficiency rationale: source-level planning confirmed that Phase 8 already owns the sensitive PostgreSQL eligibility, ordering, safe read model, HTTP semantics, and process lifecycle. P2 is therefore a contained browser/UI task over a mature JSON contract, albeit one that still carries untrusted-content, responsive-state, UTC-date, external-navigation, CSP, and accessibility risk. Terra High preserves adequate reasoning headroom at substantially lower expected token cost than Sol Light.
+- If this exact configuration is no longer available in the current Codex picker at execution time, revalidate against `BOOT.md` rather than silently substituting an invented model/effort name.
+
+VERSIONING
+- This is Phase 9 prompt 2 and its assigned project version is `0.9.2`.
+- On first execution confirm P1 left `package.json` at `0.9.1`, then advance only its top-level `version` to `0.9.2`.
+- If this same P2 prompt is rerun and `package.json` is already `0.9.2`, retain `0.9.2`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` is the sole authoritative current-version source.
+- The repository intentionally does not use npm package locks; do not create, require, regenerate, or validate `package-lock.json` or `npm-shrinkwrap.json`.
+
+DEPENDS ON
+- P1 canonical public page shell at `GET /publications/:publicationSlug`.
+- P1 same-origin static asset/security boundary.
+- P1 Playwright-library + `node:test` browser harness and substantive `test:browser` command.
+- Accepted Phase 8 canonical JSON endpoint `GET /api/publications/:publicationSlug/feed` and its exact public-feed semantics.
+
+GOAL
+Turn the P1 generic shell into the complete basic Phase 9 customer-facing rolling feed using only the canonical Phase 8 public-feed API.
+
+P2 owns:
+- client-side fetch of the canonical same-origin public-feed endpoint;
+- Publication identity from API response data;
+- explicit loading, populated, empty, unavailable/not-found, and dependency/error states;
+- safe rendering of untrusted headline/Source/Publication strings;
+- exact original-publisher headline destinations;
+- UTC calendar-date rendering from `effectiveFeedDate`;
+- desktop `Date | Headline | Source` presentation;
+- sane stacked mobile presentation;
+- browser regression coverage for the complete deterministic Phase 9 UI behavior.
+
+P2 MUST NOT duplicate feed SQL/eligibility/order logic, query PostgreSQL directly from page code, collect Sources inline, add search/filter/pagination, add Publication presentation schema, or pull later presentation/admin/duplicate phases forward.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/public-feed-and-admin-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- `docs/decisions/original-link-and-normalized-metadata.md`
+- P1 task and final implementation/tests.
+
+INSPECT / TRACE BEFORE EDITING
+At minimum trace:
+- final P1 `src/app/web/create-app.ts`
+- final P1 page/template/static helper(s)
+- final P1 CSS/static resource(s)
+- final P1 browser support and browser test(s)
+- `src/public-feed/repository.ts`
+- `test/integration/public-feed-http.test.ts`
+- `test/database/public-feed-http.test.ts`
+- `test/database/public-feed-repository.test.ts`
+- existing API serialization/error behavior in `src/app/web/create-app.ts`
+- current `package.json` scripts/dependencies.
+
+Confirm before editing that the current API already returns the complete P2 data contract:
+- Publication id/slug/name;
+- stable Article id;
+- ISO `effectiveFeedDate`;
+- `feedDateSource`;
+- headline;
+- Source display name;
+- stored `originalUrl`.
+
+Do not add another endpoint merely to make rendering convenient.
+
+CLIENT ARCHITECTURE
+Use a small same-origin JavaScript client served by the existing Express/static-resource boundary. Prefer one straightforward file such as:
+
+`src/app/web/public/public-feed.js`
+
+No bundler/transpiler/framework is required.
+
+The client should derive the Publication slug from the canonical page URL and request:
+
+`/api/publications/<encoded-publication-slug>/feed`
+
+Use the existing API as the only authoritative data boundary. The client MUST NOT:
+- duplicate public eligibility predicates;
+- sort/re-rank feed rows differently from the server;
+- infer Source trust/operational state;
+- attempt Source collection;
+- use another database/read path;
+- substitute identity/canonical URLs for the supplied `originalUrl`.
+
+PRESENTATION STATE MACHINE
+Implement explicit observable states:
+
+`loading -> populated | empty | unavailable | error`
+
+Required semantics:
+- loading is visible while the API request is unresolved;
+- HTTP 200 + non-empty items -> populated;
+- HTTP 200 + empty items -> empty, while still showing successful Publication identity;
+- HTTP 404 -> generic unavailable/not-found state;
+- any missing Publication and any non-public Publication MUST remain indistinguishable on the public page;
+- HTTP 503/network/parse/unexpected response failure -> bounded generic dependency/error state;
+- backend error text, stack traces, connection strings, and synthetic secret-like details must never be surfaced.
+
+Do not invent automatic retry loops, offline persistence, stale cache fallback, or a second hidden fetch path in Phase 9.
+
+PUBLICATION IDENTITY
+On successful 200 responses:
+- use the API-returned Publication name as the visible page identity;
+- use API data rather than the URL slug as the display name;
+- update the document title from successful Publication identity where appropriate;
+- never hard-code the initial Publication/topic in shared UI source or tests except where a test is deliberately proving configuration-specific data remains data.
+
+UNTRUSTED TEXT RENDERING
+Publication name, headline, and Source display name are untrusted presentation data.
+
+Render them with safe DOM text operations such as `textContent`/created text nodes. Do not use `innerHTML`, string-built HTML, script execution, or unsafe attribute interpolation for Source-provided content.
+
+Browser tests MUST include markup-looking strings and prove they remain inert visible text rather than executable/interpreted markup.
+
+ORIGINAL HEADLINE DESTINATION
+Every populated headline link MUST use exactly the API-supplied stored `originalUrl` as the reader destination.
+
+The Accepted ADR requires `original_url` as the primary public destination. Never substitute `canonical_identity_url`, a cleaned URL, a Platform-hosted redirector, or a reconstructed URL.
+
+A defensive client presentation check that a link is an absolute `http:` or `https:` URL is acceptable, but it must not become a parallel Source-domain/eligibility policy engine. If an impossible/malformed API item is encountered, fail safely/generically rather than widening policy or navigating to an unsafe scheme.
+
+External navigation must be understandable to keyboard/screen-reader users. If opening in a new tab is chosen, use the appropriate rel/security/accessibility behavior; opening in the same tab is also valid if implemented consistently. Do not contact external publishers from deterministic browser tests.
+
+UTC DATE RULE
+Until Publication presentation timezone/settings exist, derive the displayed calendar date from `effectiveFeedDate` in UTC.
+
+Do not allow browser locale timezone defaults to shift the calendar date.
+
+Implement a small explicit date formatter using UTC semantics. Locale may control textual month styling only if timezone is fixed to UTC and deterministic assertions do not depend on the test machine's local zone.
+
+Browser coverage MUST include a timestamp near a UTC day boundary and execute the browser under a deliberately non-UTC timezone/context so viewer-local time would produce a different calendar day if the implementation were wrong.
+
+Do not add a Publication timezone field or migration in Phase 9.
+
+DESKTOP PRESENTATION
+At representative desktop width the visible core feed must support the customer's concept:
+
+`Date | Headline | Source`
+
+Requirements:
+- reverse chronological order remains exactly the server-returned order;
+- headline is the dominant interactive element;
+- Source identity is clear;
+- dates are readable and UTC-stable;
+- rows wrap rather than truncating important headline/source text into unusability;
+- semantic structure is understandable without relying solely on visual column position.
+
+A semantic list/grid is acceptable and may be preferable to a literal `<table>` if it enables accessible responsive transformation. Do not re-sort rows in CSS/JS.
+
+MOBILE PRESENTATION
+At representative mobile width do NOT compress the desktop three-column layout into an unreadable table.
+
+Use a stacked item concept such as:
+
+`AUG 6 · SOURCE NAME`
+`Linked article headline`
+
+Requirements:
+- no horizontal page overflow caused by the feed layout;
+- headline text wraps;
+- Source/date identity remains visible;
+- links remain usable/tappable;
+- keyboard focus remains visible;
+- the mobile layout represents the same item ordering/data as desktop.
+
+Phase 9 requires sane basic mobile rendering, not final Phase 13 accessibility/responsive/theme polish.
+
+ACCESSIBILITY BASELINE
+Within Phase 9 scope provide basic semantic/accessibility behavior sufficient for the tech demo:
+- one sensible primary heading;
+- state changes exposed appropriately to assistive technology without noisy duplicate announcements;
+- meaningful link text (the headline itself);
+- visible keyboard focus;
+- logical tab order;
+- no pointer-only interaction;
+- reasonable tap target/padding;
+- accessible contrast for the chosen simple baseline palette.
+
+Do not build a full design system or claim final WCAG/presentation completion.
+
+EXPECTED PRIMARY WRITE SCOPE
+Expected files are narrowly:
+- `package.json`
+- final P1 page/template helper, if needed to reference the client script/state regions;
+- `src/app/web/public/public-feed.css`
+- new `src/app/web/public/public-feed.js`
+- `src/app/web/create-app.ts` only if needed to expose the new same-origin JS resource through the P1-established narrow static boundary;
+- `test/browser/public-feed-page.test.ts`
+- `test/integration/public-feed-page-http.test.ts`
+- reusable `test/support/browser.ts` only as needed.
+
+Files that should normally remain untouched:
+- all migrations;
+- Publication/Source schema and bootstrap configuration;
+- `src/public-feed/repository.ts` and its SQL;
+- Worker/collection/Article persistence code;
+- scheduler/jobs/admin/deduplication code.
+
+If the UI appears to require those changes, stop and identify the contract/source mismatch instead of silently widening scope.
+
+BROWSER TEST COMPOSITION
+Expand the P1 browser suite using the actual production Express app on an ephemeral local port with controlled injected `publicFeed.read` outcomes.
+
+The browser suite must remain deterministic and must not require PostgreSQL or public internet access.
+
+Required controlled cases include:
+1. pending read promise -> loading state visibly persists;
+2. successful populated feed -> Publication identity and ordered items render;
+3. successful empty feed -> explicit empty state with Publication identity;
+4. `undefined` for a missing-looking slug -> generic unavailable state;
+5. `undefined` for a private-looking slug -> same generic unavailable state/text/structure as missing;
+6. thrown error containing synthetic secret-like text -> generic error and no secret leak;
+7. publication/headline/source strings containing markup-looking payloads -> inert text only;
+8. `effectiveFeedDate` near UTC boundary under non-UTC browser timezone -> expected UTC calendar date;
+9. original headline link href equals supplied `originalUrl` exactly;
+10. clicking/interacting with the external link is observed through interception without sending a request to the real publisher;
+11. keyboard tab reaches headline links with visible focus;
+12. representative desktop viewport, approximately `1440x900`, shows usable Date/Headline/Source columns;
+13. representative mobile viewport, approximately `390x844`, shows stacked items with no horizontal layout overflow.
+
+Use resilient behavioral assertions. Avoid pixel-perfect screenshot baselines or implementation-private selectors unless no stable accessible selector exists.
+
+FOCUSED HTTP / INTEGRATION TESTS
+Update/add Level 3 coverage only where needed for the final page/static contract:
+- page HTML references the same-origin JS/CSS resources expected by the browser;
+- CSP remains compatible with only the approved same-origin resources and blocks unsafe inline/remote executable content;
+- JS/CSS content types are correct;
+- existing API success/empty/404/503 semantics remain unchanged.
+
+Do not attempt to prove responsive/browser behavior with HTML source assertions; those claims belong to Level 6 tests.
+
+BROADER REGRESSION / VALIDATION
+Against the final P2 tree run and record at minimum:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm test`
+- `npm run check`
+- `npm run test:browser`
+
+Ensure the required Playwright-managed Chromium is installed/usable first. A missing browser prerequisite must fail clearly rather than being skipped green.
+
+P2 does not change PostgreSQL/public-feed SQL semantics, so `npm run test:db` is not required solely for the expected P2 scope. If an actual fix changes the DB/read-model boundary, rerun the appropriate Level 4 suites and explain why the scope changed.
+
+Do not require `test:live-sources` for P2. P3 owns the live tech-demo vertical-slice capability.
+
+PRESERVED BEHAVIOR / INVARIANTS
+P2 MUST preserve:
+- topic independence;
+- existing public-feed eligibility/order/bounds at the server boundary;
+- Publication public exposure and missing/private indistinguishability;
+- Source approval/lifecycle trust semantics;
+- Article visibility semantics;
+- `effectiveFeedDate` ordering supplied by the server;
+- stored `originalUrl` as exact public destination;
+- Worker-only Source collection;
+- health/readiness/process behavior;
+- restrictive P1 content-security boundary;
+- ordinary deterministic regression independence from live publishers.
+
+DOCUMENTATION
+Do not alter governing contracts, roadmap/current-phase state, ADRs, or BOOT phase state. If implementation reveals a genuine conflict in the approved Phase 9 UI contract, stop and report it instead of rewriting authority documents from P2.
+
+ACCEPTANCE CRITERIA
+P2 is complete only when:
+- `package.json` is exactly `0.9.2`;
+- no npm lockfile exists;
+- the canonical public page loads the canonical Phase 8 API and no second feed query/read path exists;
+- successful API response provides visible Publication identity;
+- loading/populated/empty/unavailable/error states are explicit and deterministic;
+- missing and private Publications are customer-visible indistinguishable;
+- untrusted strings render as inert text;
+- every headline uses exactly the supplied stored `originalUrl`;
+- UTC calendar date is stable under a non-UTC browser context;
+- desktop presents Date | Headline | Source clearly;
+- mobile uses a sane stacked layout with no compressed table/horizontal overflow;
+- basic keyboard/focus/accessibility behavior is usable;
+- deterministic real-Chromium browser tests cover the required state/viewport matrix;
+- required focused and broader regression commands pass against the final tree;
+- existing API/health/Worker boundaries remain intact.
+
+NON-GOALS
+Do NOT add in P2:
+- Source or Category filters;
+- keyword search;
+- pagination/load-more/cursors;
+- ranking/pinning;
+- full dark-mode implementation;
+- final branding/theme configuration;
+- final accessibility/responsive polish;
+- Publication timezone/presentation persistence;
+- duplicate detection/grouping/moderation;
+- admin UI/API/auth;
+- scheduler/jobs/automatic polling;
+- HTML collection;
+- Platform-hosted Article detail pages unless separately approved;
+- frontend framework/build pipeline;
+- Web/API Source fetching.
+
+FINAL REPORT
+Report:
+- final commit/tree SHA and package version;
+- exact changed files;
+- focused integration/browser test results;
+- named Chromium/browser evidence and viewport/timezone cases actually observed;
+- broader regression commands/results;
+- any safely handled edge case or limitation;
+- confirmation that P3 remains responsible for real approved-Source tech-demo evidence.
+
+Do not claim Level 7 live-Source validation or complete Phase 9 closeout from P2.
