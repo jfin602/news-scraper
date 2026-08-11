@@ -47,9 +47,9 @@ Durable presentation decisions belong in design documents under `docs/design/`, 
 
 Design guidance is subordinate to higher-authority product/domain contracts, ADRs, roadmap requirements, and the testing contract. It may define how supported behavior is presented but MUST NOT redefine the supported behavior itself.
 
-Use `/ui-review` → explicit approval → `/ui-apply` when durable design guidance needs to be created, changed, reconciled, or clarified. This review/apply pair is not a mandatory precondition for every UI implementation task. When existing design guidance already governs the requested presentation change, proceed directly to `/ui-plan`.
+The normal implementation entry point is `/ui-plan <task>`. `/ui-review` → explicit approval → `/ui-apply` is a conditional prerequisite, not a mandatory preflight for every UI task. `/ui-plan` determines whether the existing durable design guidance is sufficient. If it is sufficient, planning proceeds directly toward `/ui-write`. If it is missing, contradictory, materially ambiguous, or the requested task requires changing durable design guidance, `/ui-plan` MUST return `Planning needed` and require `/ui-review` → explicit approval → `/ui-apply` before planning resumes.
 
-`/ui-plan` and `/ui-write` consume approved design guidance. They MUST NOT silently create, revise, or weaken durable design rules to make an implementation task easier. If planning or prompt writing discovers missing, contradictory, or materially ambiguous design authority, return `Planning needed` and route the design decision through `/ui-review` before implementation proceeds.
+`/ui-plan` and `/ui-write` consume approved design guidance. They MUST NOT silently create, revise, or weaken durable design rules to make an implementation task easier. After a required `/ui-apply`, return to `/ui-plan` so the implementation boundary is reassessed against the newly approved design guidance before `/ui-write` is allowed.
 
 ## Version and roadmap rules
 
@@ -65,15 +65,7 @@ UI prompts under `docs/design/tasks/` are single targeted prompts and are not su
 
 ## Workflow
 
-When durable design guidance needs work, use:
-
-```text
-/ui-review <area>
-→ explicit approval
-→ /ui-apply
-```
-
-For implementation, use:
+The normal implementation path is:
 
 ```text
 /ui-plan <task>
@@ -83,10 +75,12 @@ For implementation, use:
 → commit/integrate when accepted
 ```
 
-A full design-to-implementation sequence may therefore be:
+If `/ui-plan` determines durable design guidance must first be created or changed, the path becomes:
 
 ```text
-/ui-review <area>
+/ui-plan <task>
+→ Planning needed: UI design guidance required
+→ /ui-review <area>
 → explicit approval
 → /ui-apply
 → /ui-plan <task>
@@ -94,11 +88,13 @@ A full design-to-implementation sequence may therefore be:
 → execute/review/validate
 ```
 
+`/ui-review` may also be invoked directly when the user explicitly wants to establish or revise design guidance before discussing a specific implementation task.
+
 Most UI implementation work should be one focused prompt. If the requested change is too broad for one safe task, `/ui-plan` should return `Planning needed` and recommend a smaller UI task sequence or route cross-cutting work into the normal roadmap/correction planning pipeline. Do not manufacture a multi-prompt phase stack merely to fit UI work into existing automation.
 
 ### `/ui-review <area>`
 
-`/ui-review` is a read-only design-guidance review. It is the UI counterpart to `/docs-review`, but its default scope is deliberately narrower.
+`/ui-review` is a read-only design-guidance review. It is the UI counterpart to `/docs-review`, but unlike the normal documentation phase-handoff workflow it is only required when durable UI guidance needs creation/change or when `/ui-plan` requires it.
 
 Review the relevant non-task design documents under `docs/design/`, the narrowest higher-authority product/domain/testing documents, and the current UI implementation or observable presentation when needed to identify design drift or missing guidance. Do not perform an indiscriminate full-repository documentation review.
 
@@ -130,11 +126,11 @@ Before editing, re-read the approved target design documents and relevant higher
 - change package version or roadmap/correction state;
 - merge branches or invoke `codex:phase`.
 
-After applying, report changed design files, addressed and unapplied approved findings, newly discovered conflicts, and any remaining design decisions or validation needed.
+After applying, report changed design files, addressed and unapplied approved findings, newly discovered conflicts, and any remaining design decisions or validation needed. When `/ui-review`/`/ui-apply` was required by an implementation attempt, the next implementation command is `/ui-plan` again, not `/ui-write`.
 
 ### `/ui-plan <task>`
 
-`/ui-plan` is read-only and combines task-boundary assessment with source-level planning for one targeted UI task.
+`/ui-plan` is the normal read-only entry point for one targeted UI implementation task. It combines task-boundary assessment with source-level planning and decides whether durable design review/application is required first.
 
 Before planning:
 
@@ -149,6 +145,7 @@ Return at minimum:
 - task goal and why it belongs in the UI workstream;
 - current relevant behavior and desired presentation behavior;
 - governing approved design guidance;
+- whether existing durable design guidance is sufficient or `/ui-review` → `/ui-apply` is required first;
 - likely/allowed file scope and any shared-file boundary;
 - behavior/contracts that must remain unchanged;
 - explicit forbidden backend/domain changes;
@@ -159,13 +156,15 @@ Return at minimum:
 - one recommended lower-kebab task slug;
 - recommended model/reasoning configuration, complexity/quality floor, estimated usage, alternative considered, efficiency rationale, and estimate confidence using the repository quality-first policy.
 
-If branch/source drift, missing or conflicting design authority, or a required behavior change makes the proposed boundary unsafe, return `Planning needed` rather than silently widening the UI task. Missing or conflicting durable design guidance routes through `/ui-review` before implementation planning resumes.
+If existing approved design guidance is sufficient, `/ui-plan` may complete normally and enable `/ui-write`. If design guidance is missing, conflicting, materially ambiguous, or must be changed to support the request, return `Planning needed: UI design guidance required`, identify the required `/ui-review` area, and stop. `/ui-write` remains blocked until `/ui-review` → explicit approval → `/ui-apply` completes and `/ui-plan` is rerun successfully.
+
+Branch/source drift or a required backend/domain behavior change may also produce `Planning needed`; route those cases appropriately rather than silently widening the UI task.
 
 `/ui-plan` never writes files, modifies branches, changes version, implements source, or changes durable design guidance.
 
 ### `/ui-write <lower-kebab-slug>`
 
-`/ui-write` requires a completed, unblocked `/ui-plan` in the current conversation.
+`/ui-write` requires a completed, unblocked `/ui-plan` in the current conversation. A previous `/ui-plan` that required `/ui-review`/`/ui-apply` does not satisfy this prerequisite until `/ui-plan` has been rerun after the approved design changes and completes without that blocker.
 
 Before writing, re-read the relevant `ui-polish` source/docs/tests and check whether relevant `main` drift has invalidated the plan. If the approved boundary, quality floor, or governing design guidance materially changed, return `Planning needed`.
 
@@ -190,7 +189,7 @@ The prompt must include:
 - focused tests plus relevant broader/browser regression validation;
 - prohibition on roadmap advancement, phase/correction closeout, and unrelated cleanup.
 
-`/ui-write` writes only the approved prompt file. It does not execute Codex, implement source, invoke `codex:phase`, change package version, advance roadmap state, merge branches, or create/modify durable design guidance. If missing or contradictory design guidance is discovered during prompt revalidation, return `Planning needed` and route through `/ui-review`.
+`/ui-write` writes only the approved prompt file. It does not execute Codex, implement source, invoke `codex:phase`, change package version, advance roadmap state, merge branches, or create/modify durable design guidance. If missing or contradictory design guidance is discovered during prompt revalidation, return `Planning needed` and route through `/ui-review` → explicit approval → `/ui-apply` → rerun `/ui-plan`.
 
 ## UI prompt execution and review
 
