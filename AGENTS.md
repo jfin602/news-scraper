@@ -218,9 +218,9 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 9 — Basic public-feed UI and tech demo**.
+Current phase: **Phase 10 — Automated polling, durable jobs, and endpoint health**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete. Phase 9 is active. Phases 1–9 remain the tech-demo critical path; do not pull later admin/discovery/deduplication work into Phase 9 without a true dependency or explicit decision.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; owner acceptance advances roadmap state without rewriting that evidence. Phase 10 is active. Phases 1–9 remain the tech-demo critical path historically; do not pull later admin/discovery/deduplication work into Phase 10 without a true dependency or explicit decision.
 
 ## Working preferences
 
