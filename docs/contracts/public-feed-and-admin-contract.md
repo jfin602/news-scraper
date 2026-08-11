@@ -50,6 +50,31 @@ The response MAY include minimal Publication identity needed by the Phase 9 basi
 
 Keyword search, Source/Category filters, client-controlled cursor/load-more behavior, ranking, and presentation/theme behavior are not part of this Phase 8 endpoint. Phase 12 adds deterministic discovery/pagination behavior without changing the eligibility rule.
 
+## Phase 9 basic public-feed UI
+
+Phase 9 introduces the first customer-visible page over the Phase 8 public-feed boundary. The canonical basic page route is:
+
+`GET /publications/:publicationSlug`
+
+The Phase 9 page MUST:
+
+- remain Publication-scoped and topic independent;
+- consume the canonical Phase 8 public-feed read model/semantics rather than introducing a second Article-eligibility, ordering, or database-query path;
+- preserve the same Publication public-exposure, Source trust/lifecycle, Article visibility, bounded-window, effective-date, ordering, and `original_url` destination rules as the Phase 8 endpoint;
+- use the Publication identity returned by the canonical public-feed boundary rather than hard-coding the initial Publication's topic/name into shared UI behavior;
+- require no reader authentication;
+- render explicit loading, empty, unavailable/not-found, and dependency/error states without leaking private Publication identity or backend details;
+- treat a missing Publication and a non-public Publication as the same generic unavailable/not-found public-page state, consistent with the API's indistinguishable `404` behavior;
+- link each headline directly to the stored Article `original_url` supplied by the public-feed read model;
+- provide the core desktop `Date | Headline | Source` presentation and a sane stacked mobile presentation without pulling Phase 13 presentation polish forward;
+- avoid Source collection in Web/API page handling; collection remains Worker-owned.
+
+A lightweight same-origin client that fetches `GET /api/publications/:publicationSlug/feed` is a valid Phase 9 implementation. Server rendering is also valid only when it reuses the same canonical public-feed read-model boundary rather than duplicating feed eligibility/query logic.
+
+Publication presentation timezone/settings are not persisted yet. Until that later presentation configuration exists, the Phase 9 basic UI MUST render the calendar date from `effectiveFeedDate` in UTC so the same feed item does not shift dates according to the viewer/test machine timezone. A later presentation phase may deliberately replace this fallback with Publication-configured date/time rendering.
+
+Phase 9 does not add keyword search, Source/Category filters, client-controlled pagination, final accessibility/responsive polish, completed light/dark theming, duplicate moderation, or admin UI.
+
 ## Feed date and ordering
 
 The canonical effective feed date is:
@@ -77,7 +102,7 @@ Requirements:
 - headline is dominant interactive element;
 - headline links directly to the Article's stored `original_url`;
 - Source identity is clear;
-- date formatting follows Publication settings once those presentation settings exist;
+- Phase 9 uses the UTC calendar-date fallback defined above; date formatting follows Publication settings once those presentation settings exist;
 - loading, empty, and error states are explicit.
 
 ## Mobile feed
