@@ -270,7 +270,23 @@ Implementation prompt workflow:
 → /prompt-write <folder name>
 ```
 
-`BOOT.md` defines exact workflow gates, source-of-truth routing, validation expectations, versioning behavior, and repository modification rules.
+Phase prompt folders are machine-parsed. Before starting automation, validate the exact written folder without launching Codex:
+
+```text
+npm run codex:phase:validate -- p9
+```
+
+A valid folder has contiguous `P1...Pn` `.txt` prompts, exact supported recommendation labels and `0.<phase>.<prompt>` version metadata, and exactly one final manual closeout whose filename and `TASK:` title both contain `closeout`. Free-form body prose does not determine closeout kind. The complete grammar is authoritative in `BOOT.md` and executable in `scripts/codex-phase-core.mjs`.
+
+After validation, run implementation prompts automatically with:
+
+```text
+npm run codex:phase -- p9
+```
+
+The runner executes implementation prompts in order, uses each prompt's parsed model/reasoning configuration, validates version/working-tree boundaries, commits each successful prompt, and stops before the final closeout prompt so that closeout remains manual.
+
+`BOOT.md` defines exact workflow gates, source-of-truth routing, validation expectations, versioning behavior, phase-runner prompt grammar, and repository modification rules.
 
 ## Roadmap
 
