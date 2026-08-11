@@ -36,7 +36,7 @@ export function parsePrompt(filename, text) {
   );
   if (!fileMatch) {
     throw new Error(
-      `Prompt filename must have the form P<number>-<lower-kebab-slug>.txt with no leading zero: ${filename}`,
+      `Prompt filename must have the form P<number>-<lower-kebab-slug>.txt; numbering is one-based with no leading zero: ${filename}`,
     );
   }
   const number = Number(fileMatch[1]);
