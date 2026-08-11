@@ -25,7 +25,7 @@ Cloudflare identity/access logs may provide operational evidence but are not the
 
 Administrative errors must not expose secrets, stack traces, or raw database details.
 
-The singleton Publication is an installation/editorial configuration boundary, not an application tenant key. Administrative security therefore validates actual Source/endpoint/run/Article/observation/duplicate relationships and invariants rather than obsolete cross-Publication ownership.
+The singleton Publication is an installation/editorial configuration boundary, not an application tenant key. Administrative security therefore validates actual Source/endpoint/run/Article/observation/duplicate relationships and invariants rather than cross-Publication ownership.
 
 ## Fetching and SSRF defenses
 
@@ -145,13 +145,16 @@ Recovery claims require observed or injected recovery validation under the testi
 ## Deployment configuration
 
 - Secrets and environment-specific settings, including database connection details, live outside committed source.
-- Git-tracked migrations and migration infrastructure are authoritative for database schema structure and schema evolution; PostgreSQL is authoritative for persisted runtime data and applied database state.
-- The same versioned migration history is used across local development, disposable test, and deployed environments.
-- The post-Phase-9 singleton correction adds a new migration rather than rewriting accepted historical migrations; migration-from-zero and supported existing one-Publication state must converge on the corrected schema.
-- Web/API and Worker versions are compatible with active schema.
+- Git-tracked migrations and migration infrastructure are authoritative for the supported database schema.
+- Before production upgrade compatibility is established, deployments use a fresh database created from the current migration chain and bootstrap/configuration workflow.
+- Foundational pre-production schema corrections may rewrite/consolidate current migrations; databases created by older pre-production source trees are recreated rather than treated as supported in-place upgrade inputs.
+- The same current migration chain is used across local development, disposable test, and deployed pre-production environments.
+- Web/API and Worker versions are compatible with the active schema.
 - Graceful shutdown lets jobs finish or become safely retryable.
 - Readiness fails when critical dependencies are unavailable.
 - MVP deployments with admin routes prevent direct-origin bypass of the Cloudflare Access perimeter.
+
+Once production database compatibility is established, backup/restore and schema-upgrade procedures must explicitly define preservation and rollback expectations.
 
 ## Phase 19 hardening boundary
 
@@ -160,8 +163,8 @@ Baseline controls above are implemented and tested alongside the features they p
 - dashboards/alert integrations;
 - tuned unhealthy/delayed detection;
 - concurrency/rate-limit tuning;
-- backup/restore verification;
 - security/abuse regression testing;
+- backup/restore verification;
 - retention jobs;
 - deployment/rollback runbooks and observed validation;
 - production monitoring ownership;
