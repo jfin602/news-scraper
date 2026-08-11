@@ -147,7 +147,9 @@ Recovery claims require observed or injected recovery validation under the testi
 - Secrets and environment-specific settings, including database connection details, live outside committed source.
 - Git-tracked migrations and migration infrastructure are authoritative for the supported database schema.
 - Before production upgrade compatibility is established, deployments use a fresh database created from the current migration chain and bootstrap/configuration workflow.
-- Foundational pre-production schema corrections may rewrite/consolidate current migrations; databases created by older pre-production source trees are recreated rather than treated as supported in-place upgrade inputs.
+- Foundational pre-production schema corrections are destructive resets: obsolete migration steps and compatibility-only implementation artifacts are removed/squashed/replaced when that yields the smaller canonical system, and databases created by older source trees are destroyed/recreated rather than treated as supported upgrade inputs.
+- Historical schema/implementation rationale belongs in Git history, superseded ADRs, historical prompts, and validation artifacts rather than in active migration or runtime compatibility code.
+- The runtime retention/deletion rules for current Source/endpoint/Article provenance do not restrict whole-database destruction/recreation under this pre-production reset policy.
 - The same current migration chain is used across local development, disposable test, and deployed pre-production environments.
 - Web/API and Worker versions are compatible with the active schema.
 - Graceful shutdown lets jobs finish or become safely retryable.

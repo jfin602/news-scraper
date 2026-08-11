@@ -16,7 +16,7 @@ It establishes project identity, canonical terminology, authority, document rout
 - Current phase: **Phase 10 — Automated polling, durable jobs, and endpoint health**
 - Current implementation gate: complete and validate the singleton implementation correction before ordinary Phase 10 scheduler/job implementation
 - Production status: pre-production
-- Pre-production database policy: fresh rebuild from the repository's current migration chain and bootstrap/configuration; no in-place compatibility guarantee for databases created by older source trees
+- Pre-production database policy: destructive fresh rebuild from the repository's smallest current canonical migration chain and bootstrap/configuration; databases from older source trees are disposable and legacy-only migration/runtime/test/config structure is removed rather than preserved for compatibility
 - Initial Publication: publishing-industry news relevant to indie authors
 - Public direction: canonical root `/` rolling recent-headline feed plus canonical basic API `/api/feed`, sending readers to original publishers
 - Admin direction: Cloudflare Access-protected singleton Publication/Source/endpoint/Relevance/Category/Article/duplicate/health/change-history control plane, built after the tech-demo vertical slice
@@ -36,7 +36,7 @@ Do not front-load admin convenience, native authentication, feed discovery polis
 
 Before ordinary Phase 10 implementation, execute the singleton implementation correction. It must remove obsolete Publication tenancy/scoping and selectors from the current source/schema, preserve genuine Source/endpoint/run/Article/observation integrity/provenance, remove Publication selectors from bootstrap/Worker/public supported paths, make `/api/feed` and `/` canonical, establish the canonical singleton schema from a fresh migration-from-zero database, and satisfy the database/regression/browser correction gate in the testing contract.
 
-Because the project is pre-production, the correction may rewrite or consolidate current migration files and rebuild/bootstrap application databases from zero. It does not need to preserve data created by older pre-production source trees or add compatibility schema solely for that data.
+Because the project is pre-production, the correction MUST destroy/recreate affected development/pre-production databases as needed and MUST delete, squash, replace, or consolidate legacy-only migration files and remove compatibility-only source/API/type/test/fixture/config paths when the canonical system has no independent use for them. It does not preserve data or active implementation history from older pre-production source trees; Git history, superseded ADRs, historical prompts, and validation artifacts preserve that history.
 
 Every implementation phase and correction inherits `docs/contracts/testing-and-validation-contract.md`. Fast delivery does not permit regression protection, persistence proof, network-safety tests, or final-tree validation to be deferred when the corresponding behavior is introduced or changed.
 
@@ -143,7 +143,7 @@ If a path does not exist, search for its current equivalent before assuming inte
 - Source owns endpoints and Articles; endpoints own Collection runs; observations preserve endpoint/run and Article/Source consistency. Simplification MUST NOT weaken these real relationships.
 - Article candidate provenance excludes Publication identity and retains Source + endpoint + Collection run.
 - Article identity is Source-scoped: strong external ID first, canonical URL fallback second, explicit adapter key only when concrete need exists.
-- Before production database compatibility is established, the current migration chain is the supported schema-from-zero authority and may be rewritten/consolidated by an explicitly scoped implementation correction. Older pre-production database contents are disposable and do not require in-place preservation.
+- Before production database compatibility is established, the active migration chain is the smallest supported schema-from-zero authority. Legacy-only pre-production migration steps and compatibility-only source/API/type/test/fixture/config paths MUST be removed when the canonical current system no longer needs them; older pre-production database contents are disposable and are rebuilt rather than migrated.
 - Canonical public page is `GET /`; canonical basic public feed API is `GET /api/feed`.
 - Accepted Phase 8/9 slug-addressed route evidence remains historical truth for its recorded SHAs and is not rewritten to claim root-route validation.
 - Phase 10 implementation is gated until the singleton implementation correction receives required PostgreSQL/regression/browser evidence and a durable correction validation artifact.
@@ -207,9 +207,9 @@ Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Databas
 
 ### Current implementation gate
 
-- **Phase 10 entry singleton implementation correction** — remove obsolete Publication tenancy/scoping/selectors from current schema/runtime paths; rewrite/consolidate current pre-production migrations as needed so migration-from-zero yields the canonical singleton schema; preserve Source/endpoint/run/Article/observation integrity; make `/api/feed` and `/` canonical; execute required database/regression/browser validation; write a durable correction validation artifact.
+- **Phase 10 entry singleton implementation correction** — destructively reset pre-production database state; delete/squash/replace legacy-only migrations so migration-from-zero yields the smallest canonical singleton schema; remove obsolete Publication tenancy/scoping/selectors and compatibility-only source/API/type/test/fixture/config paths; preserve Source/endpoint/run/Article/observation integrity; make `/api/feed` and `/` canonical; execute required database/regression/browser validation; write a durable correction validation artifact.
 
-This is a non-versioned correction stack, not a new roadmap phase. It preserves the current package version and returns directly to Phase 10 when green. Databases created by older pre-production source trees are rebuilt/bootstrapped rather than preserved through compatibility migration code.
+This is a non-versioned correction stack, not a new roadmap phase. It preserves the current package version and returns directly to Phase 10 when green. Databases created by older pre-production source trees are destroyed/rebuilt/bootstrapped rather than preserved through compatibility migration code.
 
 ### Current implementation phase after gate
 
@@ -239,6 +239,7 @@ Do not advance by assumption. Verify each phase/correction exit gate plus the in
 - Require focused + broader regression tests and identify evidence levels needed for acceptance.
 - Do not claim runtime/browser/database/live-Source behavior unless observed at the corresponding evidence level.
 - Prefer smallest correct incremental change and simplest supported architecture over speculative future-proofing.
+- For pre-production canonicalization, prefer deletion over wrappers/aliases: remove legacy-only migrations, code, types, APIs, tests, fixtures, and configuration paths instead of preserving superseded behavior in the active tree.
 - Trace shared helpers/consumers before changes.
 - Before singleton-correction changes trace current migrations/schema → singleton Publication/bootstrap repositories → Source/endpoint repositories → Worker/manual selectors → candidate provenance → Article identity/observations → feed read model/routes/page → fixtures/tests/browser.
 - Before collection changes trace singleton `active_for_collection` → Source/endpoint approval/lifecycle/operational state → execution → lock → Collection run → network safety → fetch/redirect → parse → normalize → Article-link validation → Relevance → Source-scoped identity → observation → run accounting → health → tests.
@@ -598,7 +599,7 @@ Public-feed prompts preserve singleton public exposure, Source approval/lifecycl
 
 Admin prompts preserve Cloudflare Access/origin protection, request integrity, real resource-relationship/domain-invariant validation, singleton Publication configuration, and prohibition on unnecessary native identity/account work, multi-Publication selectors, or Publication tenant authorization.
 
-The Phase 10 entry singleton correction prompts additionally establish the canonical migration-from-zero schema, may rewrite/consolidate current pre-production migrations, remove Publication tenancy/selectors throughout existing code/tests, and must prove database/regression/browser behavior before correction closeout. They MUST NOT add compatibility/data-preservation machinery solely for databases created by older disposable pre-production source trees.
+The Phase 10 entry singleton correction prompts additionally establish the smallest canonical migration-from-zero schema, delete/squash/replace superseded pre-production migrations, remove Publication tenancy/selectors and legacy-only compatibility source/API/type/test/fixture/config paths throughout the active tree, and must prove database/regression/browser behavior before correction closeout. They MUST NOT add compatibility/data-preservation machinery solely for databases created by older disposable pre-production source trees.
 
 # Repository modification rules
 
@@ -612,6 +613,7 @@ The Phase 10 entry singleton correction prompts additionally establish the canon
 - Documentation/prompt/review activity does not change package version except explicit `/closeout` baseline transition; correction execution is non-versioned.
 - No task writes while `Planning needed` remains unresolved.
 - No speculative compatibility bridges or permanent dual schemas.
+- Before production compatibility is established, delete legacy-only migration/code/API/type/test/fixture/configuration artifacts rather than preserving superseded pre-production behavior in the active tree.
 - No topic conditionals in shared engine code.
 - No concurrent multi-topic/multi-Publication hosting behavior inside one installation unless later explicit locked contract/ADR authorizes it.
 - Do not introduce relational Publication tenancy, IDs, slugs, FKs, uniqueness scopes, selector parameters, or authorization scopes solely because concurrent hosting might be useful someday.
@@ -632,7 +634,7 @@ The Phase 10 entry singleton correction prompts additionally establish the canon
 
 # Pre-production compatibility rule
 
-Prefer one canonical design. Do not add old/new aliases, duplicate synchronized fields, fallback paths, dormant tenant columns, or speculative migration compatibility. Before production database compatibility is established, the current migration chain may be rewritten/consolidated by an explicitly scoped implementation task and databases created by older source trees may be rebuilt from zero. Do not preserve slug-addressed public/runtime routing, Publication-scoped repository APIs, or legacy database shapes solely because they existed in an earlier pre-production tree.
+Prefer one canonical design. Do not add old/new aliases, duplicate synchronized fields, fallback paths, dormant tenant columns, or speculative migration compatibility. Before production database compatibility is established, databases created by older source trees are disposable and the active migration/runtime/test/config tree MUST be reduced to the smallest current canonical design. Delete/squash/replace legacy-only migrations, compatibility wrappers/APIs/types, obsolete tests/fixtures, slug-addressed public/runtime routing, Publication-scoped repository APIs, and obsolete configuration paths when they have no independent current purpose. Historical implementation detail remains available in Git history, superseded ADRs, historical task prompts, and validation artifacts instead of active compatibility machinery.
 
 # Boot maintenance
 

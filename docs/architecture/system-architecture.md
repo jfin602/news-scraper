@@ -114,7 +114,7 @@ src/
   shared/
 ```
 
-The exact implementation may keep or rename an existing module only when that choice produces the smallest coherent canonical design. It MUST NOT retain plural/selector-oriented APIs solely as a compatibility bridge.
+The exact implementation may keep or rename an existing module only when that choice produces the smallest coherent canonical design. It MUST NOT retain plural/selector-oriented APIs solely as a compatibility bridge. Legacy-only source modules, wrappers, types, tests, fixtures, configuration paths, and other artifacts from superseded pre-production architecture MUST be deleted when the canonical implementation no longer has an independent use for them.
 
 Native application authentication/account modules are deferred beyond MVP unless a later decision promotes them.
 
@@ -197,7 +197,8 @@ From Phase 10 onward:
 - Git-tracked migrations and migration infrastructure are authoritative for the supported database schema.
 - Runtime processes do not make ad hoc schema changes; Web/API and Worker startup do not automatically apply migrations.
 - Before production upgrade compatibility is established, supported databases are created fresh from the repository's current migration chain and bootstrap/configuration workflow.
-- Foundational pre-production schema corrections MAY rewrite or consolidate current migrations rather than carry compatibility transformations for disposable older databases.
+- Foundational pre-production schema corrections MUST remove, squash, replace, or consolidate superseded migration steps when doing so yields the smaller canonical migration-from-zero model. The active migration tree is not retained as a historical record of disposable schemas; Git history and documentation serve that purpose.
+- Existing development/pre-production databases created by superseded source trees are destroyed/recreated and bootstrapped rather than migrated through compatibility transformations.
 - Migration-from-zero MUST deterministically create the complete canonical singleton schema.
 - Publication tenancy/scoping is absent; Source/endpoint/run/Article/observation relationships and critical uniqueness remain explicit.
 - The Phase 4 endpoint lock is shared across Worker processes and requires real persistence/concurrency evidence when implemented through PostgreSQL or another shared coordination store.

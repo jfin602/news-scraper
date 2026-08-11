@@ -14,7 +14,7 @@ Phases are intentionally narrow. Each phase represents one cohesive implementati
 - The canonical customer-visible feed route is the deployment root `/`; public readers and ordinary runtime flows do not select a Publication by slug.
 - Publication is a singleton editorial/configuration concept, not a relational tenancy key. Do not introduce Publication IDs, slugs, foreign keys, joins, uniqueness scopes, or compatibility plumbing solely for hypothetical concurrent hosting.
 - Real Source/endpoint/run/Article/observation relationships remain explicit where they protect identity, provenance, safety, lifecycle, or data integrity.
-- Before production database compatibility is established, the supported persistence setup is a fresh database built from the repository's current migration chain and bootstrap/configuration. Pre-production schema corrections may rewrite that chain rather than preserve disposable older database contents.
+- Before production database compatibility is established, the supported persistence setup is a fresh database built from the repository's current migration chain and bootstrap/configuration. Pre-production schema corrections are destructive resets: legacy-only migrations, compatibility code, selector APIs, tests/fixtures, and obsolete configuration paths are removed when the current canonical system no longer needs them, and databases created by older source trees are rebuilt rather than preserved.
 - Network safety, Source approval boundaries, Collection-run provenance, normalization, Relevance ordering, and idempotent Article identity are not deferred for the tech demo because they are expensive and risky to retrofit.
 - Before configurable Relevance rules exist, the canonical Relevance boundary runs with an empty rule set and deterministically includes safe candidates by default.
 - Native application-managed administrator accounts, passwords/passkeys, sessions, roles, account recovery, Publication-scoped user authorization, and identity-linked audit attribution are outside MVP.
@@ -484,7 +484,7 @@ Bring the current pre-production implementation into exact alignment with the ca
 ### Deliverables
 
 - singleton persisted Publication/settings configuration for name, `active_for_collection`, `public_status`, and later editorial/presentation settings without a tenant UUID/slug in other domain records;
-- current migration chain rewritten/consolidated as needed so fresh migration-from-zero directly creates the canonical singleton schema;
+- obsolete pre-production migration files deleted/squashed/replaced so the smallest coherent current migration baseline creates the canonical singleton schema directly from zero;
 - installation-wide immutable Source `config_key` uniqueness;
 - Source-scoped endpoint `config_key` and Source-scoped Article identity;
 - normalized candidate provenance using Source + endpoint + Collection run without redundant Publication identity;
@@ -494,16 +494,17 @@ Bring the current pre-production implementation into exact alignment with the ca
 - canonical database-backed basic feed API at `GET /api/feed` with no Publication selector/scoping argument;
 - canonical customer-visible page at `GET /` consuming the same feed boundary;
 - removal of pre-production slug-addressed public/runtime compatibility aliases;
-- updated fixtures/tests/helpers that remove obsolete Publication tenancy assumptions while preserving whitelist, network-safety, run accounting, idempotency, visibility, feed ordering/date, and original-link behavior;
+- deletion of legacy-only source modules, wrappers, types, tests, fixtures, helpers, and obsolete Publication-oriented configuration paths rather than retaining compatibility structure for superseded pre-production behavior;
+- updated current-behavior tests/fixtures/helpers that preserve whitelist, network-safety, run accounting, idempotency, visibility, feed ordering/date, and original-link behavior;
 - durable correction closeout validation artifact under `docs/validation/` tied to the exact corrected source tree.
 
 ### Boundary clarification
 
 - This correction removes only the obsolete Publication tenancy/selectors. It MUST NOT flatten Source/endpoint/run/Article/observation relationships that enforce real provenance or integrity.
-- Existing databases created by earlier pre-production source trees are disposable and are recreated/bootstrapped; no in-place data-preservation or compatibility migration is required.
-- Current migration files may be rewritten where needed to make the migration-from-zero schema canonical and simple.
+- Existing databases created by earlier pre-production source trees are disposable and are destroyed/recreated/bootstrapped; no in-place data-preservation or compatibility migration is required.
+- The active migration tree MUST represent only the current canonical schema evolution needed by the supported source tree. Legacy migration steps whose only purpose is superseded pre-production history are removed rather than retained; Git history provides that record.
 - Historical task prompts and validation artifacts remain evidence for their recorded source SHAs; they are not rewritten to claim corrected behavior was already observed.
-- The correction may remove/rename obsolete Publication-oriented source/config paths when doing so produces the smallest canonical model; it does not preserve plural/slug APIs solely for compatibility.
+- Obsolete Publication-oriented source/config paths, APIs, wrappers, tests, and fixtures MUST be removed when they have no independent role in the canonical singleton system. Do not preserve plural/slug APIs or ignored compatibility parameters solely for continuity.
 - The correction does not add Categories/Relevance persistence, durable scheduling, admin UI, duplicate grouping, or later-phase features.
 - The correction does not change `package.json` version; its P-numbers are local ordering only under the non-versioned correction-stack workflow.
 
@@ -511,7 +512,7 @@ Bring the current pre-production implementation into exact alignment with the ca
 
 Before ordinary Phase 10 implementation begins, the corrected final tree MUST have executed evidence required by `docs/contracts/testing-and-validation-contract.md`, including:
 
-- real disposable PostgreSQL migration from zero to the canonical singleton schema;
+- real disposable PostgreSQL migration from zero to the canonical singleton schema using the smallest current migration baseline;
 - singleton Publication enforcement and installation-wide Source uniqueness;
 - Source/endpoint/run/Article/observation relationship constraints;
 - Source-scoped external-ID/canonical-URL identity, fallback/promotion/conflict, idempotency, transaction rollback, and concurrency/race coverage;
@@ -520,6 +521,7 @@ Before ordinary Phase 10 implementation begins, the corrected final tree MUST ha
 - Level 6 browser evidence for direct navigation/refresh at `/`, loading/empty/unavailable/error states, external links, and representative desktop/mobile behavior;
 - no reader/Worker/bootstrap/runtime Publication selector remaining in the canonical supported path;
 - no compatibility schema/path retained solely for older disposable pre-production databases;
+- no legacy-only migration/code/API/type/test/fixture/configuration artifact retained solely to preserve superseded pre-production implementation history;
 - a durable correction validation artifact tied to the exact accepted corrected source tree.
 
 Clearing this gate returns directly to Phase 10 planning; it does not invoke `/closeout`, advance the roadmap phase, or change the package version.

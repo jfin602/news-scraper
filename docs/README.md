@@ -8,7 +8,7 @@ Publication is an editorial/configuration concept, not a relational tenancy key.
 
 The canonical customer-visible feed route is `/`; the canonical basic feed API is `/api/feed`. Public readers and ordinary runtime flows do not select a Publication by slug.
 
-Before production database compatibility is established, the supported persistence setup is a fresh database built from the repository's current migration chain and bootstrap/configuration. Pre-production schema corrections may rewrite/consolidate that chain instead of carrying compatibility paths for disposable older database contents.
+Before production database compatibility is established, the supported persistence setup is a fresh database built from the repository's current migration chain and bootstrap/configuration. Pre-production schema corrections are allowed to destroy/recreate databases and MUST remove legacy-only migration/runtime/config/test structure when retaining it would serve only superseded compatibility. Git history, superseded ADRs, historical prompts, and validation artifacts preserve the history instead.
 
 ## Folder structure
 
@@ -81,6 +81,7 @@ Use root `BOOT.md` as the session router; it points to the narrowest authoritati
 - New Sources, Categories, or separately deployed Publication configurations must not silently redefine Platform-wide behavior.
 - Concurrent multi-Publication hosting inside one installation is not inferred from Publication configuration and requires a new explicit locked contract/ADR decision plus deliberate data-model work if ever promoted.
 - Do not introduce Publication tenant IDs/slugs/FKs/scopes solely as speculative future compatibility.
+- Before production compatibility exists, do not retain migration/code/API/type/test/fixture/configuration artifacts solely to preserve superseded pre-production behavior; delete them when the current canonical system no longer needs them.
 - Foundational architecture changes require an Accepted/superseding ADR where appropriate.
 
 ## Phase completion discipline

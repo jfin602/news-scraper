@@ -43,7 +43,7 @@ The indie-author Publication is the first configuration of the Platform, not the
 - Topic-specific settings are data/configuration, not topic conditionals in shared engine code.
 - Polling-only Sources are not described as literally real-time.
 - Network-safety validation occurs before each outbound request/redirect; Article-link validation occurs after parsing/normalization before acceptance.
-- Pre-production architecture favors the smallest canonical model for supported behavior. Speculative tenancy, compatibility aliases, synchronized duplicate fields, or future-proofing abstractions require a concrete current need or an explicit later architecture decision.
+- Before production database compatibility is established, pre-production architecture favors the smallest canonical model for supported behavior. Migration files, source files, APIs, types, tests, fixtures, configuration paths, and compatibility layers that exist only to support superseded pre-production architecture MUST be removed rather than retained for historical compatibility or speculative future use. Git history, superseded ADRs, historical task prompts, and validation artifacts preserve that history.
 - Before production database compatibility is established, the supported persistence setup is a fresh database built from the repository's current migration chain and bootstrap/configuration data. In-place preservation of data created by older pre-production source trees is not a product requirement.
 
 ## Authority order

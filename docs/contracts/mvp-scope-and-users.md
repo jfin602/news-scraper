@@ -21,7 +21,7 @@ A reader wants to answer quickly: “What relevant stories were published recent
 ### Publication administrator/operator
 An authorized operator controls:
 
-- singleton Publication identity/branding/public and collection state;
+- singleton Publication name, branding, public state, and collection state;
 - approved Sources/endpoints and their operational states;
 - collection frequency;
 - Categories and deterministic Relevance rules;

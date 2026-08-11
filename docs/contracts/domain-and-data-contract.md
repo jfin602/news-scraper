@@ -112,7 +112,7 @@ Duplicate role:
 
 Joining/leaving a Duplicate group does not inherently change Article visibility. Hiding/restoring does not inherently change group membership.
 
-Phase 7 persisted Articles before a public read path consumed Article visibility. Phase 8 introduced persisted Article visibility with the canonical states above, migrated existing Phase 7 Articles to `visible`, and used `visible` as the baseline for newly persisted Articles unless a separately implemented policy deliberately produced another state. Phase 8 did not introduce moderation controls.
+Phase 7 persisted Articles before a public read path consumed Article visibility. Phase 8 introduced persisted Article visibility with the canonical states above, migrated existing Phase 7 Articles to `visible`, and used `visible` as the baseline for newly persisted Articles unless a separately implemented policy deliberately produces another visibility state. Phase 8 did not introduce moderation controls.
 
 Before Duplicate-group persistence exists, Articles are logically `ungrouped`. Duplicate groups/roles are not persisted speculatively merely to implement the baseline feed.
 
@@ -376,15 +376,17 @@ For public-feed ordering, the effective feed date is trusted parsed `published_a
 Before production database compatibility is established:
 
 - the repository's current migration chain defines the complete supported schema from zero;
-- foundational schema corrections MAY rewrite or consolidate current migration files when that yields the smallest canonical model;
+- the active migration chain MUST be the smallest coherent representation of the current canonical schema. Foundational corrections delete, squash, replace, or consolidate superseded pre-production migration steps instead of retaining them solely as evolution history;
 - fresh disposable PostgreSQL migrated from zero is the required persistence baseline for validation;
-- databases created by older pre-production source trees are not supported in-place upgrade inputs and may be recreated and bootstrapped from current configuration;
-- no compatibility columns, dual schemas, data-copy bridges, or migration transformations are required solely to preserve disposable pre-production database contents;
+- databases created by older pre-production source trees are unsupported upgrade inputs and are destroyed/recreated and bootstrapped from current configuration;
+- compatibility columns, dual schemas, data-copy bridges, transformation migrations, upgrade fixtures/tests, or other compatibility machinery MUST NOT be retained solely to preserve disposable pre-production database contents;
 - migration-from-zero MUST establish singleton Publication semantics, installation-wide Source uniqueness, Source-scoped Article identity, and all Source/endpoint/run/Article/observation integrity constraints required by implemented behavior.
 
 When production compatibility is later established, schema evolution and data-preservation guarantees MUST be governed explicitly rather than inferred from this pre-production rebuild rule.
 
 ## Retention and deletion principles
+
+These rules govern data managed inside a supported current database. They do not restrict destroying/recreating an entire development or pre-production database under the pre-production rebuild-from-zero policy above.
 
 - Provenance needed for change history, identity, or duplicate handling is not discarded because an Article is hidden/suppressed.
 - Source/endpoint administration uses create/update, approval, enable/pause/disable, and archive lifecycle management rather than unconstrained physical deletion.

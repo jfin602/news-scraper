@@ -135,7 +135,7 @@ High-risk distinctions:
 - Collection operational state is separate from public-row eligibility; pausing/failing collection does not by itself hide retained otherwise-eligible Articles.
 - Public feed date uses parsed `published_at` when available and otherwise `first_seen_at`, with the fallback source detectable.
 - The public headline destination is stored Article `original_url`; `canonical_identity_url` remains an identity field.
-- Before production compatibility is established, databases are created fresh from the current migration chain; old pre-production database contents are not a supported in-place upgrade surface.
+- Before production compatibility is established, databases are created fresh from the smallest current canonical migration chain; old pre-production database contents are disposable, and legacy-only migration/code/API/type/test/fixture/configuration artifacts are not retained merely as an upgrade/history surface.
 
 ## Collection law
 
@@ -231,8 +231,8 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 - Every reproducible defect should receive regression coverage when technically practical.
 - Every implementation roadmap phase and gating correction inherits the testing contract.
 - Phase 9's accepted validation artifact remains historical evidence for its exact source tree.
-- The Phase 10 entry singleton correction requires migration-from-zero, singleton/Source-scoped identity/integrity, unchanged collection safety/accounting, `/api/feed`, `/`, and Level 6 browser coverage before ordinary Phase 10 implementation proceeds.
-- The singleton correction does not require preservation/migration of databases created by older pre-production source trees.
+- The Phase 10 entry singleton correction requires migration-from-zero, singleton/Source-scoped identity/integrity, unchanged collection safety/accounting, `/api/feed`, `/`, Level 6 browser coverage, and structural proof that legacy-only migration/compatibility/test/config artifacts were removed before ordinary Phase 10 implementation proceeds.
+- The singleton correction does not require preservation/migration of databases created by older pre-production source trees or tests that exist only to exercise those unsupported upgrades.
 - The gating correction closeout requires executed local terminal evidence and a durable `docs/validation/` artifact tied to the exact accepted corrected source tree.
 
 ## Roadmap law
@@ -243,7 +243,7 @@ Current phase: **Phase 10 — Automated polling, durable jobs, and endpoint heal
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; owner acceptance advances roadmap state without rewriting that evidence.
 
-Phase 10 is active, but implementation is gated on the **singleton implementation correction**: remove obsolete Publication tenancy/selectors from the current source/schema, make `/api/feed` and `/` canonical, rebuild the pre-production database from the corrected migration chain, and validate database/regression/browser behavior. This gate is not a new numbered roadmap phase and must execute as a non-versioned correction stack before ordinary Phase 10 prompts begin.
+Phase 10 is active, but implementation is gated on the **singleton implementation correction**: destructively rebuild pre-production database state from the smallest canonical migration baseline, remove obsolete Publication tenancy/selectors and legacy-only migration/code/API/type/test/fixture/config paths, make `/api/feed` and `/` canonical, and validate database/regression/browser behavior. This gate is not a new numbered roadmap phase and must execute as a non-versioned correction stack before ordinary Phase 10 prompts begin.
 
 Phases 1–9 remain the tech-demo critical path historically; do not pull later admin/discovery/deduplication work into the correction or Phase 10 without a true dependency or explicit decision.
 
@@ -255,6 +255,7 @@ Phases 1–9 remain the tech-demo critical path historically; do not pull later 
 - Require focused + broader regression tests and name the evidence level needed to prove acceptance.
 - Do not claim runtime/browser/database/live-Source behavior unless actually observed at the corresponding evidence level.
 - Prefer smallest correct changes over speculative abstractions or compatibility bridges.
+- For pre-production canonicalization, prefer deletion over wrappers/aliases: remove legacy-only migrations, code, types, APIs, tests, fixtures, and configuration paths instead of preserving superseded behavior in the active tree.
 - Trace shared helpers/consumers before changing data or collection semantics.
 - Before singleton-correction work trace current migrations/schema → singleton Publication/bootstrap repositories → Sources/endpoints → Worker/manual selection → candidate provenance → Article identity/observations → public-feed repository/routes/page → fixtures/tests/browser evidence.
 - Before public-route work trace singleton Publication settings → canonical read model → `/api/feed` → `/` page/client → unavailable/error behavior → external links → browser tests.
@@ -267,7 +268,7 @@ Phases 1–9 remain the tech-demo critical path historically; do not pull later 
 
 ## Pre-production compatibility rule
 
-Use one canonical design. Do not add old/new aliases, synchronized duplicate fields, fallback compatibility paths, dormant Publication tenant fields, or speculative migration bridges. Before production database compatibility is established, prefer rewriting the current migration chain and rebuilding disposable databases over carrying an obsolete schema forward. In particular, do not preserve slug-addressed public/runtime routing or Publication-scoped repository APIs solely because they existed in an earlier pre-production tree.
+Use one canonical design. Do not add old/new aliases, synchronized duplicate fields, fallback compatibility paths, dormant Publication tenant fields, or speculative migration bridges. Before production database compatibility is established, databases from older source trees are disposable and the active migration/runtime/test/config tree MUST be reduced to the smallest current canonical system. Delete/squash/replace legacy-only migrations, compatibility wrappers/APIs/types, obsolete tests/fixtures, slug-addressed public/runtime routing, Publication-scoped repository APIs, and obsolete configuration paths when they have no independent current purpose. Historical detail belongs in Git history, superseded ADRs, historical prompts, and validation artifacts instead of active compatibility machinery.
 
 ## Repository identity
 

@@ -14,7 +14,7 @@ Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Databas
 
 Before ordinary Phase 10 scheduler/job work, the repository has one implementation correction gate: remove obsolete Publication tenancy/selector plumbing still present in the current pre-production implementation so the source tree matches the canonical singleton model, root `/` page, and `/api/feed` API.
 
-Because the project is pre-production, databases created by older source trees are disposable. The correction may rewrite/consolidate the current migration chain and then rebuild/bootstrap the database from zero; it does not need an in-place data-preservation compatibility path.
+Because the project is pre-production, databases created by older source trees are disposable. The correction destructively rebuilds from the smallest canonical current migration baseline and removes legacy-only migrations, compatibility code/APIs/types, tests/fixtures, and obsolete configuration paths rather than preserving an in-place data or implementation-history compatibility path.
 
 Phase 10 then turns the proven manual endpoint execution unit into automated polling through durable jobs, due-endpoint scheduling, bounded retry/recovery behavior, conditional-fetch state persistence, and baseline endpoint health without creating a second collection path or a multi-Publication scheduler.
 
@@ -194,7 +194,7 @@ Core rules:
 
 Every implementation roadmap phase and gating correction inherits that contract even when its roadmap entry does not repeat the complete test matrix.
 
-The Phase 10 entry singleton implementation correction specifically requires real PostgreSQL migration-from-zero proof for the canonical singleton schema, Source-scoped identity/integrity regressions, unchanged collection safety/accounting, canonical `/api/feed` behavior, and Level 6 browser validation of `/`. It does **not** require preservation/migration of databases created by earlier pre-production source trees.
+The Phase 10 entry singleton implementation correction specifically requires real PostgreSQL migration-from-zero proof for the canonical singleton schema, structural proof that legacy-only migration/compatibility/test/config artifacts are gone, Source-scoped identity/integrity regressions, unchanged collection safety/accounting, canonical `/api/feed` behavior, and Level 6 browser validation of `/`. It does **not** require preservation/migration of databases created by earlier pre-production source trees.
 
 Dependency installation intentionally uses `package.json` without an npm package lock. Repository npm configuration disables `package-lock.json` generation, so clean installs use `npm install` rather than `npm ci`. Because declared dependency ranges may resolve to different compatible versions over time, validation applies to the exact source tree and recorded Node/npm environment that was actually tested rather than claiming byte-for-byte dependency reproducibility.
 
@@ -341,7 +341,7 @@ Tech-demo critical path:
 
 Then:
 
-- **Phase 10 entry correction — singleton implementation alignment**: remove obsolete Publication tenancy/selectors, make the current migration-from-zero schema canonical, and establish `/api/feed` plus `/` with required regression/browser evidence. This is non-versioned and not a numbered roadmap phase.
+- **Phase 10 entry correction — singleton implementation alignment**: destructively rebuild disposable pre-production database state from the smallest canonical migration baseline; remove obsolete Publication tenancy/selectors and legacy-only migration/code/API/type/test/fixture/configuration paths; establish `/api/feed` plus `/`; and obtain required database/regression/browser evidence. This is non-versioned and not a numbered roadmap phase.
 - Phase 10 — Automated polling, durable jobs, and endpoint health
 - Phase 11 — Categories and configurable Relevance execution
 - Phase 12 — Feed discovery features

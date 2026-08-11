@@ -1,7 +1,8 @@
 # ADR: Single-Publication Simplified Data Model
 
 **Status:** Accepted  
-**Date:** 2026-08-11
+**Date:** 2026-08-11  
+**Supersedes:** [`topic-independent-publication-model.md`](./topic-independent-publication-model.md)
 
 ## Context
 
@@ -32,11 +33,15 @@ The canonical data model:
 
 ## Pre-production database rule
 
-Before production compatibility is established, the supported database setup path is **rebuild from zero** using the current repository migration chain and bootstrap/configuration workflow.
+Before production compatibility is established, the supported database setup path is **destructive rebuild from zero** using the current repository migration chain and bootstrap/configuration workflow.
 
-The repository does not guarantee an in-place upgrade path for databases created by earlier pre-production source trees. Foundational schema corrections may therefore update the current migration chain directly when that produces the smallest correct canonical schema.
+Databases created by earlier pre-production source trees are disposable. The correction is expected to destroy/recreate those databases rather than preserve or transform their contents. The repository does not guarantee an in-place upgrade path for them.
 
-Migration-from-zero must deterministically produce the complete supported schema. Tests must prove the final constraints, transactions, identity, provenance, and runtime behavior against fresh disposable PostgreSQL. Compatibility columns, dual schemas, data-copy bridges, or transformation code are not added solely to preserve disposable pre-production database contents.
+The active migration tree MUST describe the smallest coherent canonical schema for the current source tree. Superseded pre-production migration steps SHOULD be deleted, squashed, or replaced rather than retained merely to replay schema states the product no longer supports. A single baseline migration is preferred when it is the clearest representation; multiple migration files are justified only when they improve the current canonical design or migration infrastructure rather than preserve obsolete evolution history.
+
+Migration-from-zero must deterministically produce the complete supported schema. Tests must prove the final constraints, transactions, identity, provenance, and runtime behavior against fresh disposable PostgreSQL. Compatibility columns, dual schemas, data-copy bridges, transformation code, upgrade fixtures, or compatibility tests are not added solely to preserve disposable pre-production database contents.
+
+The same cleanup rule applies outside SQL: source files, APIs, types, wrappers, fixtures, tests, configuration paths, and other artifacts that exist only to support the superseded Publication-tenancy/slug-selection model MUST be removed rather than retained for historical compatibility. Historical rationale remains available through Git history, superseded ADRs, historical task prompts, and validation artifacts.
 
 ## Consequences
 
@@ -47,11 +52,13 @@ Migration-from-zero must deterministically produce the complete supported schema
 - Provenance remains explicit through Source, endpoint, Collection run, Article, and observation relationships.
 - Topic independence is preserved because editorial behavior remains data/configuration and another topic uses another deployment of the same codebase.
 - Pre-production schema corrections do not accumulate compatibility machinery for disposable data.
+- The active repository remains a description of the supported system rather than a museum of superseded pre-production implementation paths.
 
 ### Costs
 
-- Existing implementation and tests that carry Publication IDs/slugs/scopes must be corrected.
-- Databases created by older pre-production source trees may need to be recreated and bootstrapped.
+- Existing implementation and tests that carry Publication IDs/slugs/scopes must be corrected or deleted.
+- Databases created by older pre-production source trees must be recreated and bootstrapped.
+- Superseded migration files and legacy-only implementation artifacts may be removed from the active tree even though they remain visible in Git history.
 - A future requirement to host multiple Publications concurrently would require a new architecture/data-model project.
 - Production upgrade compatibility, when required, needs its own explicit migration contract.
 
@@ -73,6 +80,10 @@ Rejected. Those relationships encode real ownership, identity, safety, and prove
 
 Rejected. Before production, rebuilding from the canonical migration chain is simpler than carrying compatibility schema or transformation paths for data that does not require preservation.
 
+### Keep obsolete migration/code/test files only as historical documentation
+
+Rejected. Git history, superseded ADRs, task prompts, and validation artifacts already preserve history without imposing legacy structure on the active implementation.
+
 ## Compliance check
 
 A change violates this ADR when it:
@@ -81,7 +92,8 @@ A change violates this ADR when it:
 - requires readers or ordinary runtime flows to select a Publication;
 - adds or preserves a Publication ID/slug/foreign-key/scope solely for hypothetical concurrent Publication hosting;
 - creates Publication-scoped Source, Category, Relevance, Article, duplicate, scheduler, or admin behavior where installation scope is sufficient;
-- removes genuine Source/endpoint/run/Article/observation integrity or provenance; or
-- adds pre-production database compatibility machinery without a concrete supported-data requirement.
+- removes genuine Source/endpoint/run/Article/observation integrity or provenance;
+- adds pre-production database compatibility machinery without a concrete supported-data requirement; or
+- preserves legacy-only migration/source/API/type/test/fixture/configuration structure when deletion produces the smaller canonical supported implementation.
 
 Any future proposal for concurrent multi-Publication hosting inside one installation or durable production upgrade compatibility requires an explicit contract/ADR change and deliberate data-model work.
