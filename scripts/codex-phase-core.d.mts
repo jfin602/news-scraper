@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-export interface ParsedPrompt {
+export interface BaseParsedPrompt {
   readonly number: number;
   readonly filename: string;
   readonly task: string;
@@ -9,18 +9,43 @@ export interface ParsedPrompt {
   readonly recommendation: string;
   readonly model: string;
   readonly reasoning: string;
-  readonly targetVersion: string;
   readonly kind: 'implementation' | 'closeout';
   readonly text: string;
 }
 
+export interface PhasePrompt extends BaseParsedPrompt {
+  readonly mode: 'phase';
+  readonly targetVersion: string;
+}
+
+export interface CorrectionPrompt extends BaseParsedPrompt {
+  readonly mode: 'correction';
+  readonly unchangedVersion: string;
+}
+
+export type ParsedPrompt = PhasePrompt | CorrectionPrompt;
+
 export interface PhasePlan {
+  readonly mode: 'phase';
   readonly phase: number;
   readonly folderName: string;
-  readonly prompts: readonly [ParsedPrompt, ...ParsedPrompt[]];
-  readonly implementations: readonly ParsedPrompt[];
-  readonly closeout: ParsedPrompt;
+  readonly prompts: readonly [PhasePrompt, ...PhasePrompt[]];
+  readonly implementations: readonly PhasePrompt[];
+  readonly closeout: PhasePrompt;
 }
+
+export interface CorrectionPlan {
+  readonly mode: 'correction';
+  readonly phase: number;
+  readonly folderName: string;
+  readonly correctionSlug: string;
+  readonly unchangedVersion: string;
+  readonly prompts: readonly [CorrectionPrompt, ...CorrectionPrompt[]];
+  readonly implementations: readonly CorrectionPrompt[];
+  readonly closeout: CorrectionPrompt;
+}
+
+export type TaskStackPlan = PhasePlan | CorrectionPlan;
 
 export const MODEL_CONFIGS: Readonly<
   Record<string, Readonly<{ model: string; reasoning: string }>>
@@ -34,9 +59,24 @@ export function parsePrompt(filename: string, text: string): ParsedPrompt;
 export function buildPlan(
   entries: readonly { filename: string; text: string }[],
   folderName: string,
-): PhasePlan;
-export function assertVersionCompatible(...arguments_: any[]): any;
-export function assertPostPrompt(...arguments_: any[]): any;
+): TaskStackPlan;
+export function assertVersionCompatible(
+  actual: string,
+  prompt: PhasePrompt,
+  previousVersion: string,
+): void;
+export function assertVersionCompatible(
+  actual: string,
+  prompt: CorrectionPrompt,
+  previousVersion?: string,
+): void;
+export function assertPostPrompt(arguments_: {
+  readonly exitCode: number | null;
+  readonly version: string;
+  readonly prompt: ParsedPrompt;
+  readonly packageLockExists: boolean;
+  readonly coherent?: boolean;
+}): void;
 export function interpretEvent(...arguments_: any[]): any;
 export function createEventTracker(...arguments_: any[]): any;
 export function applyEventObservation(...arguments_: any[]): any;

@@ -42,15 +42,17 @@ export function parsePrompt(filename, text) {
   const number = Number(fileMatch[1]);
   const filenameSlug = fileMatch[2];
   const task = oneMatch(text, /^TASK:\s*(.+)$/gm, 'TASK title');
-  const taskMatch = /^Phase ([1-9]\d*) \/ P([1-9]\d*) — (.+)$/u.exec(task);
-  if (!taskMatch || !taskMatch[3].trim()) {
+  const taskMatch =
+    /^(Phase|Correction) ([1-9]\d*) \/ P([1-9]\d*) — (.+)$/u.exec(task);
+  if (!taskMatch || !taskMatch[4].trim()) {
     throw new Error(
-      `TASK title must have the form "Phase <phase> / P<number> — <title>": ${filename}`,
+      `TASK title must have the form "Phase <phase> / P<number> — <title>" or "Correction <phase> / P<number> — <title>": ${filename}`,
     );
   }
-  const taskPhase = Number(taskMatch[1]);
-  const taskNumber = Number(taskMatch[2]);
-  const title = taskMatch[3].trim();
+  const mode = taskMatch[1] === 'Phase' ? 'phase' : 'correction';
+  const taskPhase = Number(taskMatch[2]);
+  const taskNumber = Number(taskMatch[3]);
+  const title = taskMatch[4].trim();
   if (taskNumber !== number) {
     throw new Error(
       `TASK prompt number P${taskNumber} does not match filename P${number}: ${filename}`,
@@ -63,11 +65,51 @@ export function parsePrompt(filename, text) {
     'recommended configuration',
   );
   const config = resolveModelConfig(recommendation);
-  const targetVersion = oneMatch(
-    text,
-    /assigned project version is\s*`(\d+\.\d+\.\d+)`/gi,
-    'assigned project version',
-  );
+  const assignedVersionPhrases = [
+    ...text.matchAll(/assigned project version is/gi),
+  ];
+  const unchangedVersionFields = [
+    ...text.matchAll(/^- Required unchanged project version: `([^`]+)`\.$/gm),
+  ];
+  let versionPolicy;
+  if (mode === 'phase') {
+    if (unchangedVersionFields.length > 0) {
+      throw new Error(
+        `Phase prompt must not contain correction unchanged-version metadata: ${filename}`,
+      );
+    }
+    if (assignedVersionPhrases.length !== 1) {
+      throw new Error(
+        `Expected exactly one assigned project version; found ${assignedVersionPhrases.length}.`,
+      );
+    }
+    const targetVersion = oneMatch(
+      text,
+      /assigned project version is\s*`(\d+\.\d+\.\d+)`/gi,
+      'assigned project version',
+    );
+    versionPolicy = { mode, targetVersion };
+  } else {
+    if (assignedVersionPhrases.length > 0) {
+      throw new Error(
+        `Correction prompt must not contain assigned project version metadata: ${filename}`,
+      );
+    }
+    if (unchangedVersionFields.length !== 1) {
+      throw new Error(
+        `Expected exactly one required unchanged project version; found ${unchangedVersionFields.length}.`,
+      );
+    }
+    const unchangedVersion = unchangedVersionFields[0][1].trim();
+    if (
+      !/^(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)$/.test(unchangedVersion)
+    ) {
+      throw new Error(
+        `Required unchanged project version must be a semantic version: ${filename}`,
+      );
+    }
+    versionPolicy = { mode, unchangedVersion };
+  }
 
   const filenameSignal = /(?:^|-)closeout(?:-|$)/.test(filenameSlug);
   const titleSignal = /\bcloseout\b/i.test(title);
@@ -84,19 +126,27 @@ export function parsePrompt(filename, text) {
     title,
     recommendation,
     ...config,
-    targetVersion,
+    ...versionPolicy,
     kind,
     text,
   });
 }
 
 export function buildPlan(entries, folderName) {
-  const folderMatch = /^p([1-9]\d*)$/.exec(folderName);
-  if (!folderMatch) {
-    throw new Error('Task folder must have the form p<number>.');
+  const phaseFolderMatch = /^p([1-9]\d*)$/.exec(folderName);
+  const correctionFolderMatch = /^c([1-9]\d*)-([a-z0-9]+(?:-[a-z0-9]+)*)$/.exec(
+    folderName,
+  );
+  if (!phaseFolderMatch && !correctionFolderMatch) {
+    throw new Error(
+      'Task folder must have the form p<number> or c<phase>-<lower-kebab-slug>.',
+    );
   }
   if (entries.length === 0) throw new Error('No prompt files were found.');
+  const mode = phaseFolderMatch ? 'phase' : 'correction';
+  const folderMatch = phaseFolderMatch ?? correctionFolderMatch;
   const phase = Number(folderMatch[1]);
+  const correctionSlug = correctionFolderMatch?.[2];
   const prompts = entries.map(({ filename, text }) =>
     parsePrompt(filename, text),
   );
@@ -116,6 +166,11 @@ export function buildPlan(entries, folderName) {
         `P${prompt.number} TASK phase ${prompt.taskPhase} does not match folder phase ${phase}.`,
       );
     }
+    if (prompt.mode !== mode) {
+      throw new Error(
+        `P${prompt.number} TASK stack mode ${prompt.mode} does not match folder stack mode ${mode}.`,
+      );
+    }
   }
   const closeouts = prompts.filter((prompt) => prompt.kind === 'closeout');
   if (closeouts.length !== 1 || prompts.at(-1).kind !== 'closeout') {
@@ -123,18 +178,32 @@ export function buildPlan(entries, folderName) {
       'Exactly one unambiguous final closeout prompt is required.',
     );
   }
-  for (const prompt of prompts) {
-    const expected = `0.${phase}.${prompt.number}`;
-    if (prompt.targetVersion !== expected) {
-      throw new Error(
-        `P${prompt.number} target ${prompt.targetVersion} does not match ${expected}.`,
-      );
+  let unchangedVersion;
+  if (mode === 'phase') {
+    for (const prompt of prompts) {
+      const expected = `0.${phase}.${prompt.number}`;
+      if (prompt.targetVersion !== expected) {
+        throw new Error(
+          `P${prompt.number} target ${prompt.targetVersion} does not match ${expected}.`,
+        );
+      }
+    }
+  } else {
+    unchangedVersion = prompts[0].unchangedVersion;
+    for (const prompt of prompts) {
+      if (prompt.unchangedVersion !== unchangedVersion) {
+        throw new Error(
+          `P${prompt.number} unchanged version ${prompt.unchangedVersion} does not match stack version ${unchangedVersion}.`,
+        );
+      }
     }
   }
   const immutablePrompts = Object.freeze(prompts);
   return Object.freeze({
+    mode,
     phase,
     folderName,
+    ...(mode === 'correction' ? { correctionSlug, unchangedVersion } : {}),
     prompts: immutablePrompts,
     implementations: Object.freeze(immutablePrompts.slice(0, -1)),
     closeout: immutablePrompts.at(-1),
@@ -142,6 +211,14 @@ export function buildPlan(entries, folderName) {
 }
 
 export function assertVersionCompatible(actual, prompt, previousVersion) {
+  if (prompt.mode === 'correction') {
+    if (actual !== prompt.unchangedVersion) {
+      throw new Error(
+        `P${prompt.number} expected unchanged package version ${prompt.unchangedVersion}; found ${actual}.`,
+      );
+    }
+    return;
+  }
   if (actual !== previousVersion && actual !== prompt.targetVersion) {
     throw new Error(
       `P${prompt.number} expected package version ${previousVersion} (or ${prompt.targetVersion} for a rerun); found ${actual}.`,
@@ -157,9 +234,13 @@ export function assertPostPrompt({
   coherent = true,
 }) {
   if (exitCode !== 0) throw new Error(`Codex exited with status ${exitCode}.`);
-  if (version !== prompt.targetVersion) {
+  const expectedVersion =
+    prompt.mode === 'correction'
+      ? prompt.unchangedVersion
+      : prompt.targetVersion;
+  if (version !== expectedVersion) {
     throw new Error(
-      `Expected package version ${prompt.targetVersion}; found ${version}.`,
+      `Expected ${prompt.mode === 'correction' ? 'unchanged ' : ''}package version ${expectedVersion}; found ${version}.`,
     );
   }
   if (packageLockExists) throw new Error('package-lock.json was created.');
@@ -358,7 +439,7 @@ export function stripAnsi(value) {
 }
 
 function colorizeDashboardLine(line) {
-  if (line === 'NEWS SCRAPER - CODEX PHASE RUNNER')
+  if (line === 'NEWS SCRAPER - CODEX TASK STACK RUNNER')
     return style(line, ANSI.boldCyan);
   if (/^[-=]+$/.test(line)) return style(line, ANSI.dim);
   if (line.startsWith('Agent:')) return style(line, ANSI.magenta);
@@ -440,6 +521,12 @@ function stateLabel(prompt, state) {
   return '[ ] WAITING';
 }
 
+function promptVersionLabel(prompt) {
+  return prompt.mode === 'correction'
+    ? `${prompt.unchangedVersion} (UNCHANGED)`
+    : prompt.targetVersion;
+}
+
 export function renderDashboard({
   plan,
   states,
@@ -452,10 +539,17 @@ export function renderDashboard({
   colorEnabled = false,
 }) {
   const lines = [
-    'NEWS SCRAPER - CODEX PHASE RUNNER',
+    'NEWS SCRAPER - CODEX TASK STACK RUNNER',
     '-'.repeat(60),
     '',
-    `Phase:        ${plan.phase}`,
+    ...(plan.mode === 'correction'
+      ? [
+          'Stack mode:   Correction',
+          `Correction:   ${plan.folderName}`,
+          `Roadmap phase:${String(plan.phase).padStart(3, ' ')}`,
+          `Version:      ${plan.unchangedVersion} (UNCHANGED)`,
+        ]
+      : [`Phase:        ${plan.phase}`]),
     `Task folder:  docs/tasks/${plan.folderName}`,
     'Mode:         Implementation prompts only',
     'Closeout:     MANUAL',
@@ -469,7 +563,7 @@ export function renderDashboard({
         ? `  ${formatElapsed(state.durationMs)}`
         : '';
     lines.push(
-      `  ${stateLabel(prompt, state)} P${prompt.number}  ${prompt.title}  ${prompt.recommendation}  ${prompt.kind === 'closeout' ? 'MANUAL' : prompt.targetVersion}${duration}`,
+      `  ${stateLabel(prompt, state)} P${prompt.number}  ${prompt.title}  ${prompt.recommendation}  ${prompt.kind === 'closeout' ? 'MANUAL' : promptVersionLabel(prompt)}${duration}`,
     );
     if (state?.status === 'passed') {
       if (state.commitSha)
@@ -496,7 +590,7 @@ export function renderDashboard({
       '',
       `Model:         ${current.recommendation.split(' ')[0]}`,
       `Reasoning:     ${current.recommendation.split(' ')[1]}`,
-      `Target:        ${current.targetVersion}`,
+      `${current.mode === 'correction' ? 'Version:' : 'Target:'}        ${promptVersionLabel(current)}`,
       `Elapsed:       ${formatElapsed(now - startedAt)}`,
       '',
     );
@@ -615,7 +709,15 @@ export function startElapsedRedraw(
 }
 
 export function renderFailureSummary({ plan, states, failedPrompt, reason }) {
-  const lines = ['', '='.repeat(60), 'PHASE RUN STOPPED', '='.repeat(60), ''];
+  const lines = [
+    '',
+    '='.repeat(60),
+    plan?.mode === 'correction'
+      ? `CORRECTION STACK ${plan.folderName} STOPPED`
+      : 'PHASE RUN STOPPED',
+    '='.repeat(60),
+    '',
+  ];
   if (failedPrompt)
     lines.push(`[X] P${failedPrompt.number} - ${failedPrompt.title}`, '');
   lines.push('Reason:', `  ${reason}`, '', 'Completed:');
@@ -647,6 +749,11 @@ export function renderFailureSummary({ plan, states, failedPrompt, reason }) {
 }
 
 export function renderSuccessHandoff(plan, runDirectory) {
+  if (plan.mode === 'correction') {
+    return printableAscii(
+      `\n${'='.repeat(60)}\nCORRECTION STACK ${plan.folderName} IMPLEMENTATION PROMPTS COMPLETE\n${'='.repeat(60)}\n\nAutomation stopped by design.\nVersion: ${plan.unchangedVersion} (UNCHANGED)\n[M] P${plan.closeout.number} - ${plan.closeout.title}\n    Recommended: ${plan.closeout.recommendation}\n    Version:     ${plan.closeout.unchangedVersion} (UNCHANGED)\n    Execution:   MANUAL\n\nRun this correction stack's closeout prompt manually when ready.\nIt clears only the correction gate; it does not run /closeout, advance the roadmap phase, or change package.json.\nLogs: ${runDirectory}\n`,
+    );
+  }
   return printableAscii(
     `\n${'='.repeat(60)}\nPHASE ${plan.phase} IMPLEMENTATION PROMPTS COMPLETE\n${'='.repeat(60)}\n\nAutomation stopped by design.\n[M] P${plan.closeout.number} - ${plan.closeout.title}\n    Recommended: ${plan.closeout.recommendation}\n    Target:      ${plan.closeout.targetVersion}\n    Execution:   MANUAL\n\nRun the closeout prompt manually when ready.\nLogs: ${runDirectory}\n`,
   );

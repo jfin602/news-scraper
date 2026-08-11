@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { EventEmitter } from 'node:events';
+import { writeFileSync } from 'node:fs';
 import {
   mkdir,
   mkdtemp,
@@ -110,6 +111,21 @@ const prompt = (
   text: `TASK: Phase 8 / P${number} — ${title}\n\nMODEL / REASONING / USAGE\n- Recommended configuration: \`${config}\`.\n\nVERSIONING\n- This prompt's assigned project version is \`${version}\`.\n\nGOAL\n${closeout ? 'Perform Phase 8 closeout.' : 'Implement the task.'}\n`,
 });
 
+const correctionPrompt = (
+  number: number,
+  {
+    config = 'Terra High',
+    version = '0.10.0',
+    closeout = false,
+    title = closeout
+      ? 'Single-Publication correction closeout'
+      : `Correction ${number}`,
+  }: PromptOptions = {},
+) => ({
+  filename: `P${number}-${closeout ? 'correction-closeout' : `correction-${number}`}.txt`,
+  text: `TASK: Correction 10 / P${number} — ${title}\n\nMODEL / REASONING / USAGE\n- Recommended configuration: \`${config}\`.\n\nVERSIONING\n- Required unchanged project version: \`${version}\`.\n\nGOAL\n${closeout ? 'Close only the correction gate.' : 'Implement the correction.'}\n`,
+});
+
 const gitResult = (rootDirectory: string, arguments_: string[]) => {
   const result = spawnSync('git', arguments_, {
     cwd: rootDirectory,
@@ -160,6 +176,44 @@ const createPhaseRepository = async (implementationCount = 2) => {
   const closeout = prompt(implementationCount + 1, { closeout: true });
   await writeFile(
     path.join(rootDirectory, 'docs', 'tasks', 'p8', closeout.filename),
+    closeout.text,
+  );
+  gitResult(rootDirectory, ['init', '--quiet']);
+  gitResult(rootDirectory, ['config', 'user.name', 'Runner Test']);
+  gitResult(rootDirectory, ['config', 'user.email', 'runner@example.invalid']);
+  gitResult(rootDirectory, ['add', '-A']);
+  gitResult(rootDirectory, ['commit', '--quiet', '-m', 'baseline']);
+  return rootDirectory;
+};
+
+const createCorrectionRepository = async (implementationCount = 2) => {
+  const rootDirectory = await mkdtemp(
+    path.join(tmpdir(), 'news-scraper-correction-git-test-'),
+  );
+  const folderName = 'c10-single-publication';
+  await mkdir(path.join(rootDirectory, 'docs', 'tasks', folderName), {
+    recursive: true,
+  });
+  await writeFile(
+    path.join(rootDirectory, 'package.json'),
+    `${JSON.stringify({ name: 'correction-test', version: '0.10.0' }, null, 2)}\n`,
+  );
+  await writeFile(
+    path.join(rootDirectory, '.gitignore'),
+    '.codex-runs/\npackage-lock.json\n.env*\n',
+  );
+  for (let number = 1; number <= implementationCount; number += 1) {
+    const entry = correctionPrompt(number);
+    await writeFile(
+      path.join(rootDirectory, 'docs', 'tasks', folderName, entry.filename),
+      entry.text,
+    );
+  }
+  const closeout = correctionPrompt(implementationCount + 1, {
+    closeout: true,
+  });
+  await writeFile(
+    path.join(rootDirectory, 'docs', 'tasks', folderName, closeout.filename),
     closeout.text,
   );
   gitResult(rootDirectory, ['init', '--quiet']);
@@ -428,6 +482,10 @@ test('requires exactly one unambiguous final closeout', () => {
 
 test('version and package-lock invariants fail closed', () => {
   const parsed = parsePrompt(prompt(1).filename, prompt(1).text);
+  assert.equal(parsed.mode, 'phase');
+  if (parsed.mode !== 'phase') {
+    throw new Error('Expected a phase prompt.');
+  }
   assert.throws(
     () => assertVersionCompatible('0.8.9', parsed, '0.8.0'),
     /expected package version/i,
@@ -451,6 +509,29 @@ test('version and package-lock invariants fail closed', () => {
         packageLockExists: false,
       }),
     /Expected package version/,
+  );
+
+  const correction = parsePrompt(
+    correctionPrompt(1).filename,
+    correctionPrompt(1).text,
+  );
+  assert.equal(correction.mode, 'correction');
+  if (correction.mode !== 'correction') {
+    throw new Error('Expected a correction prompt.');
+  }
+  assert.throws(
+    () => assertVersionCompatible('0.10.1', correction, '0.10.0'),
+    /expected unchanged package version 0\.10\.0/,
+  );
+  assert.throws(
+    () =>
+      assertPostPrompt({
+        exitCode: 0,
+        version: '0.10.1',
+        prompt: correction,
+        packageLockExists: false,
+      }),
+    /Expected unchanged package version 0\.10\.0/,
   );
 });
 
@@ -1005,6 +1086,86 @@ test('failure summary names failed, completed, not executed, and manual closeout
   assert.equal(isAscii(output), true);
 });
 
+test('correction dashboard, failure, and handoff use fixed-version correction semantics', () => {
+  const plan = buildPlan(
+    [correctionPrompt(1), correctionPrompt(2, { closeout: true })],
+    'c10-single-publication',
+  );
+  assert.equal(plan.mode, 'correction');
+  const dashboard = renderDashboard({
+    plan,
+    states: new Map([[1, { status: 'running' }]]),
+    current: plan.implementations[0],
+    activity: '[.] Working',
+    tracker: createEventTracker(),
+    startedAt: 0,
+    now: 1_000,
+  });
+  const failure = renderFailureSummary({
+    plan,
+    states: new Map([[1, { status: 'failed' }]]),
+    failedPrompt: plan.implementations[0],
+    reason: 'Expected unchanged package version 0.10.0; found 0.10.1.',
+  });
+  const handoff = renderSuccessHandoff(
+    plan,
+    '.codex-runs/c10-single-publication/test',
+  );
+
+  assert.match(dashboard, /Stack mode:\s+Correction/);
+  assert.match(dashboard, /Correction:\s+c10-single-publication/);
+  assert.match(dashboard, /Version:\s+0\.10\.0 \(UNCHANGED\)/);
+  assert.doesNotMatch(dashboard, /Target:\s+0\.10\.1/);
+  assert.match(failure, /CORRECTION STACK c10-single-publication STOPPED/);
+  assert.match(
+    handoff,
+    /CORRECTION STACK c10-single-publication IMPLEMENTATION PROMPTS COMPLETE/,
+  );
+  assert.match(handoff, /Version: 0\.10\.0 \(UNCHANGED\)/);
+  assert.match(handoff, /does not run \/closeout/);
+  assert.match(handoff, /does not .*change package\.json/);
+  assert.doesNotMatch(handoff, /Target:/);
+});
+
+test('parse-only validator reports correction identity and unchanged version without writes', async () => {
+  const rootDirectory = await createCorrectionRepository(1);
+  const validator = path.resolve('scripts', 'validate-codex-phase.mjs');
+  try {
+    const baselineHead = gitResult(rootDirectory, ['rev-parse', 'HEAD']);
+    const result = spawnSync(
+      process.execPath,
+      [validator, 'c10-single-publication'],
+      {
+        cwd: rootDirectory,
+        encoding: 'utf8',
+        shell: false,
+      },
+    );
+
+    assert.equal(result.status, 0, String(result.stderr));
+    assert.match(
+      String(result.stdout),
+      /Correction stack c10-single-publication \(roadmap phase 10\) prompt grammar: VALID/,
+    );
+    assert.match(String(result.stdout), /Required unchanged version: 0\.10\.0/);
+    assert.match(
+      String(result.stdout),
+      /P1 \| implementation \| Terra High \| 0\.10\.0 \(UNCHANGED\)/,
+    );
+    assert.doesNotMatch(String(result.stdout), /0\.10\.1/);
+    assert.equal(gitResult(rootDirectory, ['rev-parse', 'HEAD']), baselineHead);
+    assert.equal(gitResult(rootDirectory, ['status', '--porcelain=v1']), '');
+    assert.equal(
+      JSON.parse(
+        await readFile(path.join(rootDirectory, 'package.json'), 'utf8'),
+      ).version,
+      '0.10.0',
+    );
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
 test('runner-owned metadata, activity, errors, and paths are ASCII-safe', () => {
   const plan = buildPlan(
     [
@@ -1240,6 +1401,278 @@ test('phase loop commits each prompt before the next starts with exact multiline
     assert.match(output.read(), /P1 passed - commit [0-9a-f]{7}/);
     assert.match(output.read(), /P2 passed - commit [0-9a-f]{7}/);
     assert.doesNotMatch(output.read(), /NEWS SCRAPER - CODEX PHASE RUNNER/);
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('correction loop commits multiple prompts at one unchanged version and leaves closeout manual', async () => {
+  const rootDirectory = await createCorrectionRepository(2);
+  const output = testOutput(false);
+  const codexCalls: number[] = [];
+  const responses = new Map([
+    [1, 'First correction response\nwith `code` and Unicode café.\n'],
+    [2, 'Second correction response\n\nExact trailing newline.\n'],
+  ]);
+  try {
+    const result = await runCli(['c10-single-publication'], {
+      rootDirectory,
+      stdout: output,
+      resolveLauncher: async () => ({
+        launcher: directTestLauncher,
+        version: 'codex-test 1.0.0',
+      }),
+      runCodexProcess: async (parsedPrompt: { number: number }) => {
+        codexCalls.push(parsedPrompt.number);
+        const manifest = JSON.parse(
+          await readFile(path.join(rootDirectory, 'package.json'), 'utf8'),
+        );
+        assert.equal(manifest.version, '0.10.0');
+        await writeFile(
+          path.join(rootDirectory, `correction-${parsedPrompt.number}.txt`),
+          `change ${parsedPrompt.number}\n`,
+        );
+        return {
+          code: 0,
+          signal: null,
+          finalResponse: responses.get(parsedPrompt.number),
+          stderr: '',
+          childArgs: [],
+        };
+      },
+    });
+
+    assert.equal(result, 0);
+    assert.deepEqual(codexCalls, [1, 2]);
+    assert.deepEqual(
+      gitResult(rootDirectory, ['log', '-2', '--format=%s']).split('\n'),
+      [
+        'c10-single-publication/P2: Correction 2',
+        'c10-single-publication/P1: Correction 1',
+      ],
+    );
+    assert.equal(
+      commitMessage(rootDirectory, 'HEAD~1'),
+      `c10-single-publication/P1: Correction 1\n\n${responses.get(1)}`,
+    );
+    assert.equal(
+      commitMessage(rootDirectory, 'HEAD'),
+      `c10-single-publication/P2: Correction 2\n\n${responses.get(2)}`,
+    );
+    assert.equal(
+      JSON.parse(
+        await readFile(path.join(rootDirectory, 'package.json'), 'utf8'),
+      ).version,
+      '0.10.0',
+    );
+    assert.equal(gitResult(rootDirectory, ['status', '--porcelain=v1']), '');
+
+    const runFolders = await readdir(
+      path.join(rootDirectory, '.codex-runs', 'c10-single-publication'),
+    );
+    assert.equal(runFolders.length, 1);
+    const runDirectory = path.join(
+      rootDirectory,
+      '.codex-runs',
+      'c10-single-publication',
+      runFolders[0]!,
+    );
+    const run = JSON.parse(
+      await readFile(path.join(runDirectory, 'run.json'), 'utf8'),
+    );
+    assert.equal(run.stackMode, 'correction');
+    assert.equal(run.phase, 10);
+    assert.deepEqual(run.correction, {
+      folder: 'c10-single-publication',
+      slug: 'single-publication',
+    });
+    assert.equal(run.unchangedVersion, '0.10.0');
+    assert.equal(run.status, 'implementation_complete');
+    assert.equal(run.prompts[0].mode, 'correction');
+    assert.equal(run.prompts[0].unchangedVersion, '0.10.0');
+    assert.match(run.prompts[0].commitSha, /^[0-9a-f]{40,64}$/);
+    assert.equal(run.prompts[2].status, 'manual');
+    assert.equal(
+      await readFile(path.join(runDirectory, 'P1.commit-message.txt'), 'utf8'),
+      `c10-single-publication/P1: Correction 1\n\n${responses.get(1)}`,
+    );
+    assert.match(
+      output.read(),
+      /Correction stack c10-single-publication started/,
+    );
+    assert.match(output.read(), /P1 started - 0\.10\.0 \(UNCHANGED\)/);
+    assert.match(
+      output.read(),
+      /CORRECTION STACK c10-single-publication IMPLEMENTATION PROMPTS COMPLETE/,
+    );
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('correction version mutation fails before commit and blocks every later prompt', async () => {
+  const rootDirectory = await createCorrectionRepository(2);
+  const codexCalls: number[] = [];
+  try {
+    await assert.rejects(
+      runCli(['c10-single-publication'], {
+        rootDirectory,
+        stdout: testOutput(false),
+        resolveLauncher: async () => ({
+          launcher: directTestLauncher,
+          version: 'codex-test 1.0.0',
+        }),
+        runCodexProcess: async (parsedPrompt: { number: number }) => {
+          codexCalls.push(parsedPrompt.number);
+          await writeFile(
+            path.join(rootDirectory, 'package.json'),
+            `${JSON.stringify({ version: '0.10.1' })}\n`,
+          );
+          await writeFile(path.join(rootDirectory, 'change.txt'), 'change\n');
+          return {
+            code: 0,
+            signal: null,
+            finalResponse: 'must not commit',
+            stderr: '',
+            childArgs: [],
+          };
+        },
+      }),
+      /Expected unchanged package version 0\.10\.0; found 0\.10\.1/,
+    );
+    assert.deepEqual(codexCalls, [1]);
+    assert.equal(
+      gitResult(rootDirectory, ['log', '-1', '--format=%s']),
+      'baseline',
+    );
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('correction run refuses a mismatched starting version before Codex starts', async () => {
+  const rootDirectory = await createCorrectionRepository(2);
+  const codexCalls: number[] = [];
+  try {
+    await writeFile(
+      path.join(rootDirectory, 'package.json'),
+      `${JSON.stringify({ version: '0.10.1' })}\n`,
+    );
+    gitResult(rootDirectory, ['add', 'package.json']);
+    gitResult(rootDirectory, [
+      'commit',
+      '--quiet',
+      '-m',
+      'wrong version baseline',
+    ]);
+    await assert.rejects(
+      runCli(['c10-single-publication'], {
+        rootDirectory,
+        stdout: testOutput(false),
+        resolveLauncher: async () => ({
+          launcher: directTestLauncher,
+          version: 'codex-test 1.0.0',
+        }),
+        runCodexProcess: async (parsedPrompt: { number: number }) => {
+          codexCalls.push(parsedPrompt.number);
+          throw new Error('must not start');
+        },
+      }),
+      /expected unchanged package version 0\.10\.0; found 0\.10\.1/,
+    );
+    assert.deepEqual(codexCalls, []);
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('correction post-commit version mismatch fails closed before the next prompt', async () => {
+  const rootDirectory = await createCorrectionRepository(2);
+  const codexCalls: number[] = [];
+  let mutatedAfterCommit = false;
+  try {
+    await assert.rejects(
+      runCli(['c10-single-publication'], {
+        rootDirectory,
+        stdout: testOutput(false),
+        resolveLauncher: async () => ({
+          launcher: directTestLauncher,
+          version: 'codex-test 1.0.0',
+        }),
+        spawnSyncProcess: (
+          command: string,
+          arguments_: string[],
+          options: { shell: boolean },
+        ) => {
+          const result = spawnSync(command, arguments_, {
+            ...options,
+            cwd: rootDirectory,
+            encoding: 'utf8',
+          });
+          if (
+            !mutatedAfterCommit &&
+            arguments_[0] === 'cat-file' &&
+            arguments_[1] === 'commit'
+          ) {
+            mutatedAfterCommit = true;
+            writeFileSync(
+              path.join(rootDirectory, 'package.json'),
+              `${JSON.stringify({ version: '0.10.1' })}\n`,
+            );
+          }
+          return result;
+        },
+        runCodexProcess: async (parsedPrompt: { number: number }) => {
+          codexCalls.push(parsedPrompt.number);
+          await writeFile(path.join(rootDirectory, 'change.txt'), 'change\n');
+          return {
+            code: 0,
+            signal: null,
+            finalResponse: 'committed response\n',
+            stderr: '',
+            childArgs: [],
+          };
+        },
+      }),
+      /Package version changed during commit verification; expected 0\.10\.0/,
+    );
+    assert.equal(mutatedAfterCommit, true);
+    assert.deepEqual(codexCalls, [1]);
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('a failed correction Codex process prevents every later implementation prompt', async () => {
+  const rootDirectory = await createCorrectionRepository(2);
+  const codexCalls: number[] = [];
+  try {
+    await assert.rejects(
+      runCli(['c10-single-publication'], {
+        rootDirectory,
+        stdout: testOutput(false),
+        resolveLauncher: async () => ({
+          launcher: directTestLauncher,
+          version: 'codex-test 1.0.0',
+        }),
+        runCodexProcess: async (parsedPrompt: { number: number }) => {
+          codexCalls.push(parsedPrompt.number);
+          return {
+            code: 23,
+            signal: null,
+            finalResponse: '',
+            stderr: 'failed',
+            childArgs: [],
+          };
+        },
+      }),
+      /Codex exited with status 23/,
+    );
+    assert.deepEqual(codexCalls, [1]);
+    assert.equal(
+      gitResult(rootDirectory, ['log', '-1', '--format=%s']),
+      'baseline',
+    );
   } finally {
     await rm(rootDirectory, { recursive: true, force: true });
   }

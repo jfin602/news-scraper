@@ -353,7 +353,7 @@ export async function runCodex(
 }
 
 export async function commitPromptChanges(
-  { prompt, finalResponse, runDirectory, prePromptHead },
+  { plan, prompt, finalResponse, runDirectory, prePromptHead },
   {
     rootDirectory = root,
     spawnSyncProcess = spawnSync,
@@ -362,8 +362,12 @@ export async function commitPromptChanges(
 ) {
   const runGit = (arguments_) =>
     invokeGit(arguments_, { rootDirectory, spawnSyncProcess });
+  const interruptionMessage =
+    plan?.mode === 'correction'
+      ? 'Correction stack run was interrupted.'
+      : 'Phase run was interrupted.';
   const assertNotInterrupted = () => {
-    if (isInterrupted()) throw new Error('Phase run was interrupted.');
+    if (isInterrupted()) throw new Error(interruptionMessage);
   };
   const boundaryFailure = (error) => {
     throw new Error(
@@ -373,6 +377,11 @@ export async function commitPromptChanges(
   };
 
   try {
+    if (prompt.mode === 'correction' && plan?.mode !== 'correction') {
+      throw new Error(
+        'A correction prompt commit requires its normalized correction plan.',
+      );
+    }
     assertNotInterrupted();
     const currentHead = successfulGit(
       runGit(['rev-parse', 'HEAD']),
@@ -393,7 +402,15 @@ export async function commitPromptChanges(
       runDirectory,
       `P${prompt.number}.commit-message.txt`,
     );
-    const expectedMessage = `${prompt.targetVersion}\n\n${finalResponse}`;
+    const expectedSubject =
+      prompt.mode === 'correction'
+        ? `${plan.folderName}/P${prompt.number}: ${prompt.title}`
+        : prompt.targetVersion;
+    const expectedVersion =
+      prompt.mode === 'correction'
+        ? prompt.unchangedVersion
+        : prompt.targetVersion;
+    const expectedMessage = `${expectedSubject}\n\n${finalResponse}`;
     await writeFile(messageFile, expectedMessage, 'utf8');
 
     assertNotInterrupted();
@@ -462,9 +479,9 @@ export async function commitPromptChanges(
       runGit(['log', '-1', '--format=%s']),
       'Unable to verify commit subject',
     );
-    if (subject !== prompt.targetVersion) {
+    if (subject !== expectedSubject) {
       throw new Error(
-        `Commit subject ${JSON.stringify(subject)} does not equal ${prompt.targetVersion}.`,
+        `Commit subject ${JSON.stringify(subject)} does not equal ${expectedSubject}.`,
       );
     }
     const commitObject = successfulGit(
@@ -480,9 +497,9 @@ export async function commitPromptChanges(
         'Commit body does not preserve the captured final response.',
       );
     }
-    if ((await packageVersion(rootDirectory)) !== prompt.targetVersion) {
+    if ((await packageVersion(rootDirectory)) !== expectedVersion) {
       throw new Error(
-        `Package version changed during commit verification; expected ${prompt.targetVersion}.`,
+        `Package version changed during commit verification; expected ${expectedVersion}.`,
       );
     }
     if (await exists(path.join(rootDirectory, 'package-lock.json'))) {
@@ -535,6 +552,10 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
     })),
   );
   const plan = buildPlan(entries, folderName);
+  const interruptionMessage =
+    plan.mode === 'correction'
+      ? 'Correction stack run was interrupted.'
+      : 'Phase run was interrupted.';
   const states = new Map();
   activePlan = plan;
   activeStates = states;
@@ -563,8 +584,18 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
   );
   await mkdir(runDirectory, { recursive: true });
   const run = {
+    stackMode: plan.mode,
     phase: plan.phase,
     taskFolder: folderName,
+    ...(plan.mode === 'correction'
+      ? {
+          correction: {
+            folder: plan.folderName,
+            slug: plan.correctionSlug,
+          },
+          unchangedVersion: plan.unchangedVersion,
+        }
+      : {}),
     startedAt: new Date().toISOString(),
     codexVersion,
     status: 'running',
@@ -590,12 +621,13 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
   });
   activeDisplay = display;
   display.progress(
-    `[.] Phase ${plan.phase} started - ${plan.implementations.length} implementation prompts`,
+    `[.] ${plan.mode === 'correction' ? `Correction stack ${plan.folderName}` : `Phase ${plan.phase}`} started - ${plan.implementations.length} implementation prompts`,
   );
 
-  let previousVersion = `0.${plan.phase}.0`;
+  let previousVersion =
+    plan.mode === 'phase' ? `0.${plan.phase}.0` : plan.unchangedVersion;
   for (const prompt of plan.implementations) {
-    if (interrupted) throw new Error('Phase run was interrupted.');
+    if (interrupted) throw new Error(interruptionMessage);
     activePrompt = prompt;
     assertVersionCompatible(
       await packageVersion(rootDirectory),
@@ -627,7 +659,9 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
       });
     const redraw = () => display.render(dashboard());
     activeDashboard = dashboard;
-    display.progress(`[>] P${prompt.number} started - ${prompt.targetVersion}`);
+    display.progress(
+      `[>] P${prompt.number} started - ${prompt.mode === 'correction' ? `${prompt.unchangedVersion} (UNCHANGED)` : prompt.targetVersion}`,
+    );
     redraw();
     if (display.interactive) {
       stopActiveRedraw = startElapsedRedraw(redraw);
@@ -659,8 +693,7 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
       stopActiveRedraw?.();
       stopActiveRedraw = undefined;
     }
-    if (interrupted || result.signal)
-      throw new Error('Phase run was interrupted.');
+    if (interrupted || result.signal) throw new Error(interruptionMessage);
     const conflicts = runGit(['diff', '--check']);
     assertPostPrompt({
       exitCode: result.code,
@@ -671,9 +704,10 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
       ),
       coherent: conflicts.status === 0,
     });
-    if (interrupted) throw new Error('Phase run was interrupted.');
+    if (interrupted) throw new Error(interruptionMessage);
     const commit = await commitPromptChanges(
       {
+        plan,
         prompt,
         finalResponse: result.finalResponse,
         runDirectory,
@@ -701,7 +735,8 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
     );
     activePrompt = undefined;
     activeDashboard = undefined;
-    previousVersion = prompt.targetVersion;
+    previousVersion =
+      prompt.mode === 'phase' ? prompt.targetVersion : prompt.unchangedVersion;
     await saveRun();
   }
   run.status = 'implementation_complete';

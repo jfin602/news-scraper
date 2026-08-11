@@ -19,10 +19,17 @@ const entries = await Promise.all(
 );
 const plan = buildPlan(entries, folderName);
 
-console.log(`Phase ${plan.phase} prompt grammar: VALID`);
+console.log(
+  plan.mode === 'correction'
+    ? `Correction stack ${plan.folderName} (roadmap phase ${plan.phase}) prompt grammar: VALID`
+    : `Phase ${plan.phase} prompt grammar: VALID`,
+);
+if (plan.mode === 'correction') {
+  console.log(`Required unchanged version: ${plan.unchangedVersion}`);
+}
 for (const prompt of plan.prompts) {
   console.log(
-    `P${prompt.number} | ${prompt.kind} | ${prompt.recommendation} | ${prompt.targetVersion} | ${prompt.filename}`,
+    `P${prompt.number} | ${prompt.kind} | ${prompt.recommendation} | ${prompt.mode === 'correction' ? `${prompt.unchangedVersion} (UNCHANGED)` : prompt.targetVersion} | ${prompt.filename}`,
   );
 }
 console.log(`Manual closeout: P${plan.closeout.number}`);
