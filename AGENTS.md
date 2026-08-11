@@ -17,6 +17,7 @@ The canonical customer-visible feed is the deployment root `/`. Publication iden
 Follow `BOOT.md`.
 
 - `/closeout` is the phase-handoff command after a roadmap phase has formally closed. It performs a quick closeout/evidence check and, only when green, advances `package.json` to `0.<next phase>.0`.
+- A correction stack may also contain a final manual closeout prompt, but that correction closeout is not `/closeout`; it clears only the correction/gate and preserves the active roadmap phase/package version.
 - `/docs-review` is always a read-only first pass.
 - Do not modify documentation during review/cleanup/alignment until findings are approved or `/docs-apply` is invoked.
 - `/docs-apply` authorizes only approved documentation changes and may commit them directly to `main` unless the user requests otherwise.
@@ -27,28 +28,45 @@ Follow `BOOT.md`.
 
 Follow the canonical versioning and prompt-numbering rules in `BOOT.md`.
 
-- Phase prompt filenames are one-based: `P1`, `P2`, `P3`, and so on; do not create `P0` tasks.
-- Project versions use `0.<roadmap phase>.<phase prompt number>` while pre-1.0.
-- `0.<phase>.0` is the phase baseline. After a roadmap phase formally closes, `/closeout` is the canonical handoff: it verifies the closeout and, on a green result, performs the next `0.<new phase>.0` transition. That transition consumes no prompt number; P1 still maps to `.1`, P2 to `.2`, and so on.
+- Roadmap phase stack prompt filenames are one-based: `P1`, `P2`, `P3`, and so on; do not create `P0` tasks.
+- Roadmap phase project versions use `0.<roadmap phase>.<phase prompt number>` while pre-1.0.
+- `0.<phase>.0` is the roadmap phase baseline. After a roadmap phase formally closes, `/closeout` is the canonical handoff: it verifies the closeout and, on a green result, performs the next `0.<new phase>.0` transition. That transition consumes no prompt number; P1 still maps to `.1`, P2 to `.2`, and so on.
 - Invoking `/closeout` constitutes explicit repository-owner authorization for its green-path version-only transition. The baseline never changes merely because a phase appears complete.
-- `package.json` is the sole authoritative current-version source; do not duplicate the current version in docs or source constants.
+- `package.json` is the sole authoritative current-version source; do not duplicate the current version in root docs or source constants. Task prompts may declare a target/unchanged version because runner execution validates that metadata against `package.json`.
 - The project intentionally does not use npm package locks. Repository npm configuration disables `package-lock.json` generation; dependency installation uses `package.json` rather than lockfile metadata.
 - Project version changes occur only through execution of a new Codex roadmap-phase prompt, a green `/closeout` transition, or another explicit owner-authorized `.0` transition after the prior phase closes. Other documentation/prompt/review workflow activity does not increment the version.
-- Re-running or correcting the same prompt keeps that prompt's assigned version rather than consuming a new number.
-- The post-Phase-9 single-Publication correction is a Phase 10 entry correction, not a new numbered roadmap phase; implementation prompt(s) use the existing `0.10.x` version family.
+- Non-versioned correction stacks do not change `package.json` version. Their P-numbers are local ordering only and do not consume/reserve roadmap phase patch numbers.
+- Roadmap prompt reruns keep their assigned version. Correction prompt reruns keep their declared unchanged version.
+- The post-Phase-9 single-Publication correction is a Phase 10 entry correction, not a new numbered roadmap phase, and should use a non-versioned correction stack rather than consuming Phase 10 patch numbers.
 
-## Codex Phase Prompt Grammar
+## Codex Task Stack Grammar
 
 Follow the machine-parsed prompt-file grammar in `BOOT.md`; `scripts/codex-phase-core.mjs` is the executable parser and parser changes must update BOOT plus focused regression tests in the same change.
 
-- Task folders use canonical lowercase `p<number>` with no leading zero; every `.txt` file in the folder is treated as a prompt.
-- Prompt files use canonical `P<number>-<lower-kebab-slug>.txt`; the number has no leading zero and prompt numbering is unique and contiguous from P1.
-- Each prompt has exactly one canonical task header: `TASK: Phase <phase> / P<number> — <title>`. Its phase must match the task folder, its prompt number must match the filename, and its title must be non-empty.
+Common rules:
+
+- Prompt files use canonical `P<number>-<lower-kebab-slug>.txt`; numbering is one-based, unique, and contiguous from P1.
 - Each prompt has exactly one recommendation line using the literal prefix `- Recommended configuration:` followed by one backtick-delimited label and a final period. The label must exist in the runner's current `MODEL_CONFIGS`; never invent a label such as `Terra Max`.
-- Each prompt has exactly one `assigned project version is` phrase followed by one backtick-delimited semantic version. The parsed target must be `0.<folder phase>.<prompt number>`.
 - Exactly one final prompt is the manual closeout. Closeout identity is determined only when the filename slug contains a `closeout` segment and the parsed `TASK:` title contains the word `closeout`; if only one contains it, parsing fails. Prompt body prose may mention closeout without changing prompt kind.
 - Before reporting `/prompt-write` complete, validate the written folder against the current parser. When local execution is available run `npm run codex:phase:validate -- <task-folder>`; connector-only work must perform the equivalent source-level parser check explicitly.
 - `npm run codex:phase -- <task-folder>` runs implementation prompts only and stops before the parsed closeout prompt.
+
+Roadmap phase stacks:
+
+- Folder is canonical lowercase `p<number>` with no leading zero.
+- Task header is exactly `TASK: Phase <phase> / P<number> — <title>` and must agree with folder/filename.
+- Each prompt has exactly one `assigned project version is` phrase followed by one backtick-delimited semantic version; target is `0.<folder phase>.<prompt number>`.
+- Roadmap prompts must not contain correction unchanged-version metadata.
+
+Non-versioned correction stacks:
+
+- Folder is canonical `c<roadmap-phase>-<lower-kebab-slug>`, for example `c10-single-publication`.
+- Task header is exactly `TASK: Correction <phase> / P<number> — <title>` and the phase must match the folder numeric component.
+- Each prompt has exactly one `- Required unchanged project version: `<version>`.` line, every prompt in the stack declares the same version, and that version must equal `package.json` throughout execution.
+- Correction prompts must not contain `assigned project version is` metadata.
+- Correction P-numbers do not consume roadmap patch numbers.
+- Correction commit subjects identify the correction stack/prompt instead of impersonating package-version commits.
+- Correction closeout validates only that correction and does not invoke/substitute for `/closeout` or advance the package version.
 
 ## Canonical documents
 
@@ -231,7 +249,7 @@ Current phase: **Phase 10 — Automated polling, durable jobs, and endpoint heal
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; owner acceptance advances roadmap state without rewriting that evidence.
 
-Phase 10 is active, but implementation is currently gated on the owner-approved single-Publication correction: make `/` canonical, use installation-scoped feed semantics, remove public/runtime topic-selection assumptions, preserve internal Publication ownership/scoping, and validate the corrected behavior with focused automated/browser regression evidence. This gate is not a new numbered roadmap phase and remains in the `0.10.x` version family.
+Phase 10 is active, but implementation is currently gated on the owner-approved single-Publication correction: make `/` canonical, use installation-scoped feed semantics, remove public/runtime topic-selection assumptions, preserve internal Publication ownership/scoping, and validate the corrected behavior with focused automated/browser regression evidence. This gate is not a new numbered roadmap phase and should be executed as a non-versioned correction stack before ordinary Phase 10 prompts begin.
 
 Phases 1–9 remain the tech-demo critical path historically; do not pull later admin/discovery/deduplication work into Phase 10 without a true dependency or explicit decision.
 
@@ -246,9 +264,9 @@ Phases 1–9 remain the tech-demo critical path historically; do not pull later 
 - Trace shared helpers/consumers before changing data or collection semantics.
 - Before public-route work trace installation Publication resolution → canonical read model → `/api/feed` → `/` page/client → unavailable/error behavior → external links → browser tests.
 - Confirm applicable local validation commands/suites were actually executed against the final tree before approval.
-- Confirm each Codex phase prompt uses its assigned one-based prompt number/version and that `package.json` remains the authoritative version source.
-- Before declaring a task folder automation-ready, validate its exact machine-parsed grammar against the current phase runner; do not infer parser compatibility from visual similarity to historical prompts.
-- Every roadmap implementation/closeout prompt follows the `BOOT.md` quality-first model/reasoning/usage policy: record the exact recommended current Codex configuration, complexity/quality floor, estimated usage, relevant alternative, and efficiency rationale. Complexity/correctness/security/data-integrity risk sets the floor first; token/credit efficiency may optimize only among configurations that still satisfy that floor.
+- Confirm each Codex roadmap phase prompt uses its assigned one-based prompt number/version; confirm each correction prompt preserves its declared unchanged version; `package.json` remains authoritative in both modes.
+- Before declaring a task folder automation-ready, validate its exact machine-parsed grammar against the current runner; do not infer parser compatibility from visual similarity to historical prompts.
+- Every roadmap or correction implementation/closeout prompt follows the `BOOT.md` quality-first model/reasoning/usage policy: record the exact recommended current Codex configuration, complexity/quality floor, estimated usage, relevant alternative, and efficiency rationale. Complexity/correctness/security/data-integrity risk sets the floor first; token/credit efficiency may optimize only among configurations that still satisfy that floor.
 - Make a concrete recommendation when asked for the recommended option.
 - Never invent repository state, test results, Source behavior, or history.
 
