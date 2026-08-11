@@ -480,7 +480,9 @@ Expose the smallest useful Publication-scoped rolling feed from real stored Arti
 
 ## Phase 9 — Basic public-feed UI and tech demo
 
-**Status:** Current.
+**Status:** Complete by explicit repository-owner acceptance on August 11, 2026, with the recorded live-source limitation preserved in `docs/validation/phase-9-basic-public-feed-ui-tech-demo.md`.
+
+The Phase 9 durable validation artifact records that the deterministic/static/database/browser matrix passed but the required two-Source Level 7 live-source gate was not observed because The Creative Penn exceeded the unchanged production fetch deadline in the recorded environment. The repository owner attributed that timeout to the slow phone-hotspot Internet connection, explicitly accepted Phase 9, and directed the Phase 10 handoff to continue. This roadmap acceptance does not convert the failed Level 7 observation into passing evidence or alter the validation artifact's original determination.
 
 ### Goal
 
@@ -529,6 +531,8 @@ Produce the first customer-visible working product using real collected data.
 - The applicable automated deterministic regression matrix passes independently of live public publishers.
 
 ## Phase 10 — Automated polling, durable jobs, and endpoint health
+
+**Status:** Current.
 
 ### Goal
 
