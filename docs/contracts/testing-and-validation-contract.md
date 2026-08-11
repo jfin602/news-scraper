@@ -112,7 +112,7 @@ Uses real disposable PostgreSQL where database behavior is part of the claim.
 Examples:
 
 - migrations from zero;
-- migration of existing supported pre-production state;
+- migration of existing supported state when a production/compatibility contract actually requires it;
 - uniqueness constraints;
 - Article identity/idempotency;
 - Article observations and Collection-run accounting;
@@ -218,7 +218,7 @@ Durable validation records SHOULD identify:
 
 An implementation-roadmap phase closeout validation artifact MUST identify those items for the exact commit/source tree being accepted. A correction-stack closeout that gates further roadmap implementation MUST do the same when its governing correction entry requires a durable artifact.
 
-Historical passing evidence remains historical after later source changes until the applicable matrix is rerun. Later architecture corrections MUST NOT rewrite historical validation artifacts to claim behavior that was not observed at their accepted source tree.
+Historical passing evidence remains historical after later source changes until the applicable matrix is rerun. Later source corrections do not retroactively change what earlier validation artifacts observed.
 
 ## Test naming and ownership
 
@@ -289,14 +289,14 @@ At minimum:
 
 - Phase 1: startup/config/static/test-runner/local-validation foundation;
 - Phase 2: disposable PostgreSQL, migration-from-zero, cleanup verification;
-- Phase 3 historical implementation: Publication/Source/endpoint migrations from zero plus real-PostgreSQL state/uniqueness/bootstrap-idempotency/no-overwrite/rollback evidence; the later singleton correction supersedes Publication tenancy forward without rewriting this historical requirement/evidence;
+- Phase 3: singleton Publication/Source/endpoint schema from zero plus real-PostgreSQL state/uniqueness/bootstrap-idempotency/no-overwrite/rollback evidence;
 - Phase 4: deterministic eligibility/domain/scheme/port/DNS/address/redirect/rebinding negatives through injected boundaries, plus real-disposable-PostgreSQL evidence for cross-process endpoint-lock contention and release;
 - Phase 5: deterministic HTTP/RSS/Atom/Collection-run fixture coverage;
 - Phase 6: normalization fixture matrix;
-- Phase 7 historical implementation: deterministic proof that every safe candidate passes the empty-rule/default-include Relevance boundary before identity, plus real-disposable-PostgreSQL coverage for strong-external-ID and canonical-URL identity/fallback/promotion/conflict behavior, idempotent create/update/unchanged semantics, concurrent/racing uniqueness, endpoint/run observation provenance and ownership consistency, first-seen/last-seen behavior, Article/observation transaction rollback, unrelated-candidate isolation, and exact Collection-run processing-outcome accounting;
+- Phase 7: deterministic proof that every safe candidate passes the empty-rule/default-include Relevance boundary before identity, plus real-disposable-PostgreSQL coverage for Source-scoped strong-external-ID and canonical-URL identity/fallback/promotion/conflict behavior, idempotent create/update/unchanged semantics, concurrent/racing uniqueness, endpoint/run observation provenance and ownership consistency, first-seen/last-seen behavior, Article/observation transaction rollback, unrelated-candidate isolation, and exact Collection-run processing-outcome accounting;
 - Phase 8: feed eligibility/order/read-model/API coverage;
 - Phase 9: Level 6 browser validation for the public tech-demo workflow at representative desktop/mobile viewports plus Level 7 approved live-Source validation demonstrating at least two real approved RSS/Atom Sources through the Worker; ordinary deterministic regression remains independent of live publishers;
-- **Post-Phase-9 single-Publication simplification correction:** migration-from-zero to the corrected schema; migration of representative existing one-Publication Phase 9 state; clear rejection of ambiguous multi-Publication pre-correction state; removal of Publication tenancy columns/scopes/slug-selection plumbing; installation-wide Source uniqueness; preserved Source/endpoint/run/Article/observation referential integrity; Source-scoped Article identity/idempotency including race/conflict coverage; preserved Collection-run accounting and network-safety/whitelist behavior; canonical `/api/feed` and `/` semantics; and Level 6 browser evidence for direct navigation/refresh, loading/empty/unavailable/error, external-link, desktop, and mobile behavior. The correction closeout MUST create a durable validation artifact under `docs/validation/` tied to the exact accepted corrected source tree before ordinary Phase 10 implementation begins;
+- **Phase 10 entry singleton implementation correction:** fresh migration-from-zero to the canonical singleton schema using the current migration chain; absence of Publication tenancy columns/scopes/slug-selection plumbing; singleton Publication enforcement; installation-wide Source uniqueness; preserved Source/endpoint/run/Article/observation referential integrity; Source-scoped Article identity/idempotency including race/conflict coverage; preserved Collection-run accounting and network-safety/whitelist behavior; canonical `/api/feed` and `/` semantics; and Level 6 browser evidence for direct navigation/refresh, loading/empty/unavailable/error, external-link, desktop, and mobile behavior. No populated legacy-database upgrade/preservation test is required because earlier pre-production database contents are not a supported compatibility surface. The correction closeout MUST create a durable validation artifact under `docs/validation/` tied to the exact accepted corrected source tree before ordinary Phase 10 implementation begins;
 - Phase 10: scheduler/retry/overlap/recovery coverage;
 - Phase 11: complete deterministic Relevance precedence matrix using installation-wide plus Source-scoped precedence;
 - Phases 12–13: search/filter/pagination and responsive/accessibility/browser regressions;
@@ -329,7 +329,7 @@ Database suites SHOULD:
 4. clean up the disposable database;
 5. verify cleanup.
 
-Migration corrections that transform already-populated supported state MUST additionally exercise representative pre-correction fixtures/state through the real migration path rather than relying only on fresh-schema tests.
+Migration work that transforms already-populated **supported** state MUST additionally exercise representative fixtures through the real migration path. The current pre-production singleton correction has no such supported old-data input; its contract is fresh rebuild from zero.
 
 Parallel database tests MUST NOT share mutable schemas/databases unless concurrency between those actors is the behavior under test. Phase 4 endpoint-lock validation is such an intentional concurrency case: independent clients/process-equivalent actors MUST contend for the same endpoint lock against the same disposable PostgreSQL database, prove that only one owner succeeds at a time, prove unrelated endpoint locks can proceed independently, and prove release/reacquisition on relevant success/failure paths.
 
@@ -405,7 +405,7 @@ As the relevant phases arrive, tests MUST cover realistic failures such as:
 - item-level normalization/persistence failure;
 - transaction rollback;
 - duplicate/race insert attempts;
-- ambiguous/unsupported migration state;
+- unsupported migration state where an upgrade contract exists;
 - lost/failed job execution;
 - overlapping-run prevention;
 - PostgreSQL interruption/recovery;
