@@ -1,0 +1,321 @@
+TASK: Phase 9 / P3 — Approved live-Source tech-demo vertical slice
+
+ROADMAP PHASE
+Phase 9 — Basic public-feed UI and tech demo.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Alternative considered: `Terra Ultra`.
+- Estimate confidence: `Medium`.
+- Efficiency rationale: P3 crosses the real approved public network, production Worker composition, SSRF/whitelist enforcement, real PostgreSQL identity/provenance, canonical public-feed reads, the production Express app, and Chromium. That breadth and live variability justify Sol's stronger cross-boundary synthesis even though the implementation should remain test-focused. Light is preferred over Terra Ultra because the governing pipeline semantics already exist and the task should not need architectural invention if Phases 5-8 are sound.
+- If this exact configuration is no longer available in the current Codex picker at execution time, revalidate against `BOOT.md` rather than silently substituting an invented model/effort name.
+
+VERSIONING
+- This is Phase 9 prompt 3 and its assigned project version is `0.9.3`.
+- On first execution confirm P2 left `package.json` at `0.9.2`, then advance only its top-level `version` to `0.9.3`.
+- If this same P3 prompt is rerun and `package.json` is already `0.9.3`, retain `0.9.3`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` is the sole authoritative current-version source.
+- The repository intentionally does not use npm package locks; do not create, require, regenerate, or validate `package-lock.json` or `npm-shrinkwrap.json`.
+
+DEPENDS ON
+- P1 public page/static/security/browser foundation.
+- P2 completed deterministic public-feed UI and browser state/viewport coverage.
+- Accepted Phase 5 approved live-Source collection path and historical live test.
+- Accepted Phase 6 normalization and Article-link validation.
+- Accepted Phase 7 default Relevance, Article identity/persistence, Article observations, and processing accounting.
+- Accepted Phase 8 canonical public-feed reader/API and explicit Publication public exposure.
+- Existing committed initial Publication configuration with at least two approved RSS/Atom Sources.
+
+GOAL
+Add a Phase 9-specific repeatable approved-live-Source vertical-slice validation that proves the actual customer tech-demo path using the production Worker, real disposable PostgreSQL, the canonical public-feed boundary, the production Web app, and Chromium.
+
+P3 should make the live Phase 9 exit-gate behavior executable before closeout so P4 can consume a known repeatable capability rather than discovering live-network/persistence/browser integration defects for the first time during final certification.
+
+P3 is primarily a specialized validation/test implementation task. It MUST NOT redesign the collection pipeline, add scheduling/jobs, alter Source approval policy, weaken network safety, create a second collection path, or make ordinary deterministic regression depend on public publishers.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/public-feed-and-admin-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- `docs/decisions/whitelist-and-structured-feed-first.md`
+- `docs/decisions/original-link-and-normalized-metadata.md`
+- P1/P2 task files and final implementation/tests.
+
+INSPECT / TRACE BEFORE EDITING
+Trace the complete current production path and existing evidence before writing the Phase 9 live test:
+- `config/publications/indie-author-publishing-news.json`
+- `src/app/worker/collect-main.ts`
+- `src/collection/collect-endpoint.ts`
+- eligibility / endpoint lock / network-safety / fetcher / parser / normalization / Article-link / Relevance boundaries used by that command
+- `src/articles/repository.ts`
+- `src/collection/runs/repository.ts`
+- `src/public-feed/repository.ts`
+- final P2 Web app/page/client/static files
+- final P2 browser support helper(s)
+- `test/live-sources/phase-5-approved-feeds.test.ts`
+- `test/database/collection-article-processing.test.ts`
+- `test/database/article-persistence.test.ts`
+- `test/database/public-feed-repository.test.ts`
+- `test/database/public-feed-http.test.ts`
+- disposable database support.
+
+Confirm current configured Source/endpoint names and URLs from committed operator configuration at execution time. Do not silently replace or broaden them inside the test.
+
+HISTORICAL LIVE TEST OWNERSHIP
+Do NOT rewrite `test/live-sources/phase-5-approved-feeds.test.ts` to pretend it always proved later Article/public-page behavior.
+
+That historical test should retain its Phase 5 meaning. Add a new Phase 9 test, preferably:
+
+`test/live-sources/phase-9-public-tech-demo.test.ts`
+
+The existing `test:live-sources` glob should discover both tests without a second live-test command.
+
+If small reusable live/browser support extraction is justified, keep it under `test/support/`; do not move production behavior into test-only compatibility layers.
+
+APPROVED SOURCE BOUNDARY
+The test may contact only Source endpoints that are explicitly present and approved in the committed initial Publication configuration at execution time.
+
+The expected Phase 9 tech-demo configuration currently includes Author Media and The Creative Penn RSS/Atom endpoints. Re-read the configuration before execution and assert the exact configured Source/endpoint identities/URLs before making live contact.
+
+Do not:
+- discover new feeds;
+- auto-approve Sources/endpoints;
+- widen approved domains;
+- bypass SSRF/network safety for test convenience;
+- fetch arbitrary URL arguments supplied outside approved configuration;
+- contact Article destination URLs during validation.
+
+LIVE TEST DATABASE PROCEDURE
+Use one fresh disposable PostgreSQL database created through the existing safe test-admin harness.
+
+The test must:
+1. migrate the disposable database from zero using production migration code;
+2. bootstrap the committed initial Publication configuration using the production bootstrap path;
+3. verify the Publication is public and the expected two Sources/endpoints are approved/active/enabled before live contact;
+4. invoke the production manual Worker command for each approved endpoint;
+5. verify each attempted Source independently records its Collection run and processing result;
+6. inspect persisted Articles and Article observations attributable to each Source/run;
+7. capture the first-run persisted Article identities for later idempotency comparison;
+8. invoke each approved endpoint a second time through the same production Worker command;
+9. prove every Source identity observed on the first run still resolves to exactly one Article after the second run;
+10. allow genuinely new Source identities published between requests to create new Articles rather than treating normal publisher change as a test failure;
+11. read the canonical public feed through production `readPublicFeed` against that same database;
+12. start the final P2 production Express app against that same real database;
+13. launch Chromium and navigate to the canonical public page;
+14. prove real collected current feed data is visibly rendered and its headline anchor href matches the stored `original_url` exactly.
+
+PRODUCTION WORKER REQUIREMENT
+Do not reconstruct the collection pipeline in the live test.
+
+Invoke the same manual Worker command/entry point an operator uses before Phase 10 scheduling. That path already owns:
+- configuration lookup;
+- collection eligibility;
+- shared endpoint lock;
+- network safety;
+- HTTP fetch/redirect handling;
+- RSS/Atom parsing;
+- normalization;
+- Article-link Source policy;
+- default Relevance;
+- Article identity/persistence;
+- Article observations;
+- Collection-run processing accounting.
+
+The live test may inspect resulting persistence/read models, but it must not substitute mocks for any of those production stages while claiming Level 7 evidence.
+
+SOURCE FAILURE ISOLATION
+Preserve the established per-endpoint isolation principle.
+
+Attempt both approved endpoints even if one fails, collect bounded failure information, and report failures distinctly. A failure of one publisher must not suppress evidence/result reporting for the other.
+
+However, the Phase 9 exit gate requires at least two real approved RSS/Atom Sources. If either required named Source cannot satisfy the live gate, the P3 specialized suite must fail rather than silently reducing the count and reporting green.
+
+PROCESSING / PERSISTENCE EVIDENCE
+For each successful first content run, prove from actual output/persistence that:
+- a Collection run exists;
+- transport/parser/normalization succeeded as applicable;
+- Raw item count is non-zero;
+- normalized candidate accounting is internally coherent;
+- safe candidates pass the canonical default-include Relevance boundary before identity;
+- at least one Article attributable to that Source is persisted;
+- Article observations retain Source endpoint/run provenance;
+- Article identity/persistence outcomes are represented truthfully by the current processing counters.
+
+Do not infer persistence solely from the Worker's candidate sample. Query/read persisted state.
+
+REPEATED-COLLECTION IDEMPOTENCY — IMPORTANT LIVE RULE
+Do NOT assert that total Article cardinality can never increase between two live public requests.
+
+A publisher may legitimately publish a new item between requests. The live invariant is identity convergence for identities already observed.
+
+For every Article observed after the first run, record enough persisted identity evidence to prove after the second run that the same Source identity still maps to exactly one Article. Follow the current Article identity contract:
+- where a strong Source external id exists, uniqueness is Source + external id;
+- otherwise use the current canonical URL identity branch/evidence actually persisted by the production path.
+
+Prefer checking actual persisted identity keys/Article ids rather than duplicating the full identity resolver algorithm in the test.
+
+If the second run returns a legitimate transport no-change/conditional outcome, accept that canonical path while still proving no duplicate was introduced for first-run identities.
+
+The deterministic real-PostgreSQL suite already proves stronger fixed-input cardinality/observation behavior. P3 supplements that proof with real live-Source convergence; it does not replace deterministic identity tests.
+
+PUBLIC FEED EVIDENCE
+Against the same real database after collection, prove the canonical public-feed reader exposes current eligible Articles from both required Sources when those Articles satisfy the existing Phase 8 visibility/trust rules.
+
+For representative returned items prove:
+- Publication identity is the configured Publication;
+- Source display name matches persisted Source;
+- headline is the persisted display title;
+- feed date/source are populated through the canonical reader;
+- `originalUrl` equals persisted Article `original_url`;
+- identity/canonical URL is not silently substituted as the reader destination.
+
+Do not add endpoint operational/run-state predicates to the feed to make the live test pass. Phase 8 feed semantics remain authoritative.
+
+REAL PAGE / BROWSER EVIDENCE
+Start the production Web app with the production public-feed reader against the same disposable database, then use the existing Playwright/Chromium support to visit:
+
+`/publications/indie-author-publishing-news`
+
+The P3 browser assertion is intentionally narrow because P2 already owns the deterministic state/responsive matrix.
+
+Prove in Chromium:
+- successful direct navigation;
+- configured Publication identity is visible;
+- at least one actually persisted/feed-returned headline from each required Source is visible when the feed contains it;
+- the corresponding headline href equals the stored `original_url` exactly.
+
+Do not click through/contact the publishers' Article pages. Reading/interacting with the local page is enough for the Phase 9 vertical-slice proof.
+
+If live feed ordering/windowing legitimately excludes a collected Article because more than the bounded window exists, the test must reason from the canonical feed result rather than inventing a bypass. With the fresh disposable test database, this should not normally occur.
+
+EVIDENCE LEVELS
+P3 intentionally combines:
+- Level 4: disposable PostgreSQL state/identity/provenance/feed evidence;
+- Level 6: real Chromium rendering of actual collected persisted data through the production Web app;
+- Level 7: the named approved real Source endpoints through the production Worker.
+
+Be precise in reporting which observation proves which claim.
+
+EXPECTED PRIMARY WRITE SCOPE
+Expected P3 writes are:
+- `package.json` version only;
+- new `test/live-sources/phase-9-public-tech-demo.test.ts`;
+- final P1/P2 `test/support/browser.ts` only if a small reusable lifecycle improvement is necessary.
+
+Production source should normally remain unchanged.
+
+Source/test-support changes outside that expected set are permitted only to repair an actual Phase 9 contract defect exposed by the live vertical slice. Keep any repair minimal, explain it, and run the newly applicable focused/broader regressions.
+
+Do not modify:
+- committed approved Source configuration merely to avoid a live failure;
+- production whitelist/network-safety policy merely to make tests easier;
+- migrations/schema unless a genuine previously-unrecognized Phase 9 blocker is proven;
+- roadmap/root phase state or governing contracts.
+
+PREREQUISITES / FAILURE MODE
+`npm run test:live-sources` is a specialized environment-requiring command and must fail clearly if a required prerequisite is unavailable.
+
+Required P3 prerequisites include:
+- safe `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` pointing only to a test-capable PostgreSQL admin role;
+- public network/DNS access needed for the two approved publisher endpoints;
+- Playwright-managed Chromium installed and launchable.
+
+Never silently skip and report a passing result because one prerequisite is absent.
+
+Do not print database credentials, environment secrets, authorization values, unbounded publisher response bodies, or private connection details in failures/logs.
+
+FOCUSED / BROADER VALIDATION
+Against the final P3 tree run and record at minimum:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:collection`
+- `npm run test:db`
+- `npm test`
+- `npm run check`
+- `npm run test:browser`
+- `npm run test:live-sources`
+
+The live-source command remains separate from `npm test`/`check`; do not make ordinary deterministic development regression depend on public publishers.
+
+The P2 deterministic browser suite must remain independent of PostgreSQL/live Source access even though P3's new live suite intentionally combines those prerequisites.
+
+DEPENDENCY / LOCKFILE VALIDATION
+Use repository-standard `npm install` when dependency installation is needed. Do not use `npm ci` and do not create an npm lockfile.
+
+PRESERVED BEHAVIOR / INVARIANTS
+P3 MUST preserve:
+- only administrator-approved configured Sources are contacted;
+- Web/API never fetches Sources inline;
+- all collection uses the production Worker path;
+- every request/redirect retains production network-safety validation;
+- normalization precedes Relevance/identity/feed use;
+- default Relevance is not bypassed;
+- Article identity remains idempotent and observations preserve provenance;
+- one Source failure does not cancel the other endpoint attempt;
+- public feed continues to use Phase 8 trust/visibility/date/order/bounds semantics;
+- public destination remains stored `original_url`;
+- deterministic ordinary tests remain free of live public-network dependency.
+
+DOCUMENTATION
+Do not alter contracts, ADRs, roadmap/current-phase state, BOOT phase state, or validation artifacts in P3. P4 owns the durable Phase 9 closeout artifact after exact-final-tree validation.
+
+If the live run reveals a publisher/configuration reality that contradicts an approved governing Source decision rather than an implementation defect, stop and report the contradiction. Do not silently rewrite operator-approved configuration from this task.
+
+ACCEPTANCE CRITERIA
+P3 is complete only when:
+- `package.json` is exactly `0.9.3`;
+- no npm lockfile exists;
+- a new Phase 9-specific live test exists without rewriting the historical Phase 5 test's meaning;
+- the test contacts exactly the required approved configured RSS/Atom endpoints through the production Worker path;
+- both required Sources independently record successful qualifying live evidence;
+- current pipeline accounting demonstrates real Raw item -> normalization -> default Relevance -> persistence behavior;
+- real Articles and Article observations from both Sources are present with truthful provenance;
+- second collection proves first-run Source identities remain one-Article identities while allowing legitimate newly published identities;
+- the production public-feed reader exposes the resulting eligible Articles/original destinations;
+- the production public page renders real collected data in Chromium from that same disposable DB;
+- the specialized suite fails clearly rather than skips green when DB/network/browser prerequisites are unavailable;
+- deterministic browser/DB/collection/ordinary regression suites remain green;
+- no whitelist/network-safety/collection/process boundary is weakened.
+
+NON-GOALS
+Do NOT add in P3:
+- scheduler/jobs/automatic polling;
+- Source discovery or approval changes;
+- additional publisher Sources merely to increase test count;
+- search/filter/pagination;
+- final presentation polish/dark mode;
+- admin UI/API/auth;
+- duplicate grouping/moderation;
+- HTML collection;
+- a second collection implementation;
+- public publisher Article-page navigation;
+- live Source dependency inside ordinary `npm test`/`check`.
+
+FINAL REPORT
+Report:
+- final commit/tree SHA and package version;
+- exact changed files;
+- named approved Source/endpoint identities contacted;
+- Level 4 database evidence observed;
+- Level 6 browser evidence observed;
+- Level 7 live-Source evidence observed;
+- first/second-run identity-convergence findings;
+- public-feed/page evidence and original destination checks;
+- focused/broader command results;
+- any publisher/environment limitation.
+
+Do not create the durable Phase 9 closeout artifact or claim the phase is fully accepted; P4 owns exact-final-tree closeout.
