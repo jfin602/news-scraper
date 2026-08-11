@@ -8,7 +8,7 @@ For public-feed behavior, `docs/contracts/public-feed-and-admin-contract.md` rem
 
 ## Files
 
-- `ui-workflow.md` — permanent `ui-polish` branch/worktree rules, UI task boundaries, design-guidance review/apply rules, integration/synchronization rules, and `/ui-review` → `/ui-apply` plus `/ui-plan` → `/ui-write` workflows.
+- `ui-workflow.md` — permanent `ui-polish` branch/worktree rules, UI task boundaries, conditional design-guidance review/apply rules, integration/synchronization rules, and `/ui-plan` → `/ui-write` workflow.
 - `tasks/` — created only when `/ui-write` emits targeted single-task Codex prompts. These are non-roadmap, non-versioned UI implementation instructions and are not parsed or executed by `codex:phase`.
 
 Additional durable design specifications may be added here as presentation decisions become concrete. Do not create speculative design contracts or placeholder files.
@@ -26,19 +26,31 @@ Use:
 
 ## UI workflow
 
-When durable design guidance itself needs to be created or changed:
+For a targeted UI implementation, start with:
 
 ```text
-/ui-review <area>
-→ explicit approval
-→ /ui-apply
+/ui-plan <task>
 ```
 
-When approved design guidance already exists and implementation work is ready to plan:
+If existing durable design guidance is sufficient, continue directly:
 
 ```text
 /ui-plan <task>
 → /ui-write <lower-kebab-slug>
 ```
 
-`/ui-plan` and `/ui-write` must not silently revise durable design guidance. If they discover missing or conflicting design authority, they return `Planning needed` and route the design decision through `/ui-review`.
+If `/ui-plan` determines that durable design guidance is missing, contradictory, materially ambiguous, or must be changed, it blocks implementation and requires:
+
+```text
+/ui-plan <task>
+→ Planning needed: UI design guidance required
+→ /ui-review <area>
+→ explicit approval
+→ /ui-apply
+→ /ui-plan <task>
+→ /ui-write <lower-kebab-slug>
+```
+
+`/ui-review` may also be invoked directly when the user wants to establish or revise design guidance independently of a specific implementation task.
+
+`/ui-plan` and `/ui-write` must not silently revise durable design guidance. After `/ui-apply`, `/ui-plan` must be rerun before `/ui-write` so implementation is planned against the newly approved guidance.
