@@ -1,8 +1,8 @@
 # News Scraper
 
-Reusable, topic-independent news aggregation Platform for collecting Article metadata from administrator-approved Sources, normalizing it, preserving Source/run provenance, suppressing true duplicates, and publishing rolling headline feeds that send readers to original publishers.
+Reusable, topic-independent news aggregation Platform for collecting Article metadata from administrator-approved Sources, normalizing it, preserving Source/run provenance, suppressing true duplicates, and publishing a rolling headline feed that sends readers to original publishers.
 
-The first configured Publication focuses on publishing-industry news relevant to indie authors. That topic is configuration, not shared Platform logic.
+Each deployed installation hosts exactly one Publication/topic. The first deployment focuses on publishing-industry news relevant to indie authors. That topic is configuration, not shared Platform logic. A different topic reuses the same codebase through a separately configured deployment rather than being added as another live Publication in the same installation.
 
 ## Current project state
 
@@ -10,7 +10,9 @@ Current phase: **Phase 10 — Automated polling, durable jobs, and endpoint heal
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation and closeout validation are complete. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; that accepted limitation is not rewritten as passing evidence.
 
-Phase 8 established persisted Article visibility, Publication/Source public-row eligibility gates, deterministic effective feed-date ordering, the bounded Publication-scoped `GET /api/publications/:publicationSlug/feed` endpoint, safe minimal output shaping, and stored Article `original_url` headline destinations. Phase 9 added the first customer-visible page at `GET /publications/:publicationSlug`, reusing that canonical public-feed boundary rather than creating a parallel feed query path. The basic tech-demo page provides the core desktop `Date | Headline | Source` view, a sane stacked mobile view, Publication identity, original-publisher headline links, explicit loading/empty/error states, and deterministic UTC calendar-date rendering until later Publication presentation settings exist. Phase 10 now turns the proven manual endpoint execution unit into automated polling through durable jobs, due-endpoint scheduling, bounded retry/recovery behavior, conditional-fetch state persistence, and baseline endpoint health without creating a second collection path.
+On August 11, 2026 the repository owner tightened the deployment model before Phase 10 implementation: one deployed installation hosts one Publication/topic, the root `/` is the canonical customer-visible feed, and topic reuse occurs through separate configured deployments of the same topic-independent codebase. Publication identity/slugs remain valid internal configuration/persistence scoping fields. The historical Phase 8/9 slug-addressed routes remain accurately recorded in their validation artifacts, but the implementation must be corrected and browser/regression validated before Phase 10 scheduler/job implementation proceeds.
+
+Phase 10 then turns the proven manual endpoint execution unit into automated polling through durable jobs, due-endpoint scheduling, bounded retry/recovery behavior, conditional-fetch state persistence, and baseline endpoint health without creating a second collection path or a multi-Publication scheduler.
 
 ## Delivery priority
 
@@ -25,9 +27,23 @@ Full admin UX follows after that vertical slice is working.
 Prove both:
 
 1. The initial indie-author Publication is useful as a rolling industry-news feed.
-2. A second unrelated topic can be configured without changing aggregation-engine business logic.
+2. A second unrelated topic can be configured and deployed from the same codebase without changing aggregation-engine business logic.
+
+The MVP does **not** require one installation to concurrently host multiple topic Publications.
 
 ## Public feed
+
+Canonical public page:
+
+```text
+GET /
+```
+
+Canonical basic feed API after the single-Publication correction:
+
+```text
+GET /api/feed
+```
 
 Core desktop concept:
 
@@ -37,7 +53,7 @@ Date | Headline | Source
 
 Completed MVP adds:
 
-- reverse-chronological eligibility for visible ungrouped Articles and visible Primary Articles under a public Publication and approved active Source;
+- reverse-chronological eligibility for visible ungrouped Articles and visible Primary Articles under the installation's public Publication and approved active Source;
 - stored Article `original_url` destination links;
 - clear Source identity;
 - accessible stacked mobile layout;
@@ -45,7 +61,7 @@ Completed MVP adds:
 - deterministic pagination/load-more;
 - light/dark presentation.
 
-Phase 8 establishes the backend read model/API. Phase 9 builds the canonical basic Publication page over that same boundary and intentionally reaches a useful real-data tech demo before discovery/presentation polish is complete.
+The earlier Phase 8 backend and Phase 9 page were originally validated through Publication-slug routes. Those artifacts remain historical evidence. The forward product contract removes reader-supplied Publication selection and makes the installation root the actual publication feed.
 
 Pinning/featured-story ordering is deferred beyond MVP.
 
@@ -63,6 +79,7 @@ See `docs/contracts/project-contract.md`.
 8. Categories, Relevance rules, branding, and Sources belong to Publication configuration.
 9. Source failures are isolated.
 10. Near-real-time means configurable polling unless a Source explicitly supports push; push adapters are deferred beyond MVP unless promoted.
+11. Each deployed installation hosts exactly one Publication/topic; `/` is its canonical public feed surface, and different topics reuse the codebase through separate configured deployments.
 
 ## Canonical state model
 
@@ -78,10 +95,12 @@ The contracts deliberately separate:
 
 An approved Source can therefore be paused without becoming “unhealthy,” and a hidden Article can remain a member of a Duplicate group without duplicate membership forcing it visible again. Collection operational state does not itself hide retained feed-eligible Articles.
 
+Publication remains the topic/configuration ownership boundary even though deployment cardinality is one. Stable Publication identifiers/slugs may remain in persistence and configuration for identity/scoping without becoming a public topic selector.
+
 ## Collection architecture
 
 ```text
-Cloudflare Access-protected Admin UI/API       Public Feed
+Cloudflare Access-protected Admin UI/API       Root Public Feed
                     \                           /
                      -------- Web/API ----------
                               |
@@ -114,6 +133,8 @@ Cloudflare Access-protected Admin UI/API       Public Feed
 
 During Phases 5–9 the Worker was invoked manually for configured endpoints. Phase 10 places that same proven endpoint execution unit behind durable jobs/scheduling; Web/API never performs Source collection inline.
 
+The scheduler operates on due endpoints owned by the installation Publication. There is no supported Phase 10 requirement to schedule or switch among multiple topic Publications inside one deployment.
+
 Minimal Collection runs begin with the first real fetch in Phase 5. Before configurable Relevance rules exist, safe candidates pass through the canonical empty-rule/default-include decision before identity.
 
 ## Identity versus duplicates
@@ -125,9 +146,9 @@ Weak duplicate evidence becomes a persisted review candidate rather than silentl
 
 ## Administration
 
-Initial Publication/Source configuration may be supplied through idempotent operator-maintained bootstrap data. Bootstrap approval is explicit operator approval and never bypasses whitelist/state/network-safety rules. Ordinary bootstrap remains create-if-absent; Phase 8's pre-admin public-feed work therefore uses an explicit generic operator transition when an existing Publication's `public_status` must change rather than making bootstrap overwrite persisted state.
+Initial Publication/Source configuration may be supplied through idempotent operator-maintained bootstrap data. Bootstrap approval is explicit operator approval and never bypasses whitelist/state/network-safety rules. Ordinary bootstrap remains create-if-absent; the pre-admin public-feed work therefore uses an explicit generic operator transition when the installation Publication's `public_status` must change rather than making bootstrap overwrite persisted state.
 
-MVP Source admin UI begins in Phase 14, after the working public vertical slice.
+MVP Source admin UI begins in Phase 14, after the working public vertical slice. Admin navigation/configuration is for the installation's one Publication rather than a multi-Publication selector.
 
 MVP admin UI/API routes:
 
@@ -155,7 +176,9 @@ Core rules:
 - flaky/skipped tests do not satisfy phase exit gates;
 - implementation-roadmap phase closeout uses executed local terminal evidence and a durable `docs/validation/` record tied to the exact accepted commit/source tree.
 
-Every implementation roadmap phase inherits that contract even when its phase entry does not repeat the complete test matrix. Phase 9 additionally requires Level 6 browser evidence for the public tech-demo flow and Level 7 evidence against the named approved live Sources required by its exit gate.
+Every implementation roadmap phase inherits that contract even when its phase entry does not repeat the complete test matrix. Phase 9 additionally required Level 6 browser evidence for the public tech-demo flow and Level 7 evidence against the named approved live Sources required by its historical exit gate.
+
+The single-Publication root-route correction introduced after Phase 9 requires new focused browser/regression evidence; the historical Phase 9 artifact must not be rewritten to imply that `/` was previously tested.
 
 Dependency installation intentionally uses `package.json` without an npm package lock. Repository npm configuration disables `package-lock.json` generation, so clean installs use `npm install` rather than `npm ci`. Because declared dependency ranges may resolve to different compatible versions over time, validation applies to the exact source tree and recorded Node/npm environment that was actually tested rather than claiming byte-for-byte dependency reproducibility.
 
@@ -306,19 +329,22 @@ Tech-demo critical path:
 
 Then:
 
-10. Phase 10 — Automated polling, durable jobs, and endpoint health
-11. Phase 11 — Categories and configurable Relevance execution
-12. Phase 12 — Feed discovery features
-13. Phase 13 — Public presentation polish
-14. Phase 14 — Source administration
-15. Phase 15 — Publication and Relevance administration
-16. Phase 16 — True duplicate detection and grouping
-17. Phase 17 — Article and duplicate moderation
-18. Phase 18 — Configurable HTML collection
-19. Phase 19 — Reliability, observability, and production operations
-20. Phase 20 — Customer launch validation
+10. **Pre-Phase-10 correction gate — single-Publication root routing/runtime alignment**
+11. Phase 10 — Automated polling, durable jobs, and endpoint health
+12. Phase 11 — Categories and configurable Relevance execution
+13. Phase 12 — Feed discovery features
+14. Phase 13 — Public presentation polish
+15. Phase 14 — Source administration
+16. Phase 15 — Publication and Relevance administration
+17. Phase 16 — True duplicate detection and grouping
+18. Phase 17 — Article and duplicate moderation
+19. Phase 18 — Configurable HTML collection
+20. Phase 19 — Reliability, observability, and production operations
+21. Phase 20 — Customer launch validation
 
-Deferred: native administrator identity/accounts, historical Relevance bulk reprocessing, push/webhook adapters, AI summaries, related-story clustering, public personalization, outbound publishing, self-service tenancy, generic ranking/boost scoring, pinning/featured ordering, API access, multilingual feeds.
+The correction gate is not a new numbered roadmap phase and does not change the `0.10.x` version family. It must land before ordinary Phase 10 scheduler/job implementation prompts proceed.
+
+Deferred: native administrator identity/accounts, historical Relevance bulk reprocessing, push/webhook adapters, AI summaries, related-story clustering, public personalization, outbound publishing, self-service tenancy, generic ranking/boost scoring, pinning/featured ordering, API access, multilingual feeds. Concurrent multi-Publication hosting inside one installation is not deferred-by-default behavior; it would require an explicit future contract/ADR change.
 
 ## Repository
 
