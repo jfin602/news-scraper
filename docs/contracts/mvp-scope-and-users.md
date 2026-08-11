@@ -54,7 +54,7 @@ MVP MUST provide:
 - light/dark presentation;
 - accessible external-link behavior.
 
-The earlier tech-demo milestone may expose the core `Date | Headline | Source` feed before search, filters, final responsive polish, theming, duplicate grouping, or admin UI are complete; the roadmap defines the exact staged boundary. Phase 8 established the database-backed public read model/API, persisted the Article visibility state first consumed by public output, respected Publication `public_status` and Source trust/lifecycle gates, and used the canonical effective feed date (`published_at` with `first_seen_at` fallback) before Phase 9 added the basic customer-visible page. The post-Phase-9 single-Publication correction makes `/` canonical and removes obsolete Publication tenancy before Phase 10 implementation proceeds.
+The earlier tech-demo milestone may expose the core `Date | Headline | Source` feed before search, filters, final responsive polish, theming, duplicate grouping, or admin UI are complete; the roadmap defines the exact staged boundary. The canonical backend is the database-backed singleton public read model/API with persisted Article visibility, Publication `public_status` and Source trust/lifecycle gates, and the canonical effective feed date (`published_at` with `first_seen_at` fallback). The canonical customer-visible page is `/` and no public Publication selector exists.
 
 ### Administration
 MVP MUST provide, after the tech-demo vertical slice:
@@ -109,11 +109,13 @@ Suggested initial Categories:
 - Tools and Technology
 - General
 
-These are not global Platform Categories. They are installation-specific configuration for the first deployment and are not shared-engine behavior. Phase 3 bootstrap was limited to the minimum Publication/Source/endpoint configuration required by its historical roadmap boundary; later branding/feed, Category, and Relevance data are introduced in the phases that use them.
+These are not global Platform Categories. They are installation-specific configuration for the first deployment and are not shared-engine behavior. Bootstrap contains only configuration needed by implemented behavior; later branding/feed, Category, and Relevance data are introduced in the phases that use them.
 
 Initial singleton Publication/Source/endpoint configuration may be created through operator-maintained seed/bootstrap tooling before admin UI exists. Bootstrap approval is explicit operator approval, not an eligibility bypass or auto-discovery mechanism. Ordinary bootstrap remains create-if-absent and does not overwrite existing operator-managed state; before full Publication administration exists, the tech-demo path therefore uses the smallest explicit operator-controlled generic state transition needed to expose the Publication deliberately.
 
-Forward bootstrap/deployment/runtime configuration does not resolve or select among Publication slugs. It supplies one singleton Publication configuration for the installation. Source `config_key` is installation-wide; endpoint `config_key` is Source-scoped. A different topic uses a different deployment/configuration of the same codebase.
+Bootstrap/deployment/runtime configuration does not resolve or select among Publication slugs. It supplies one singleton Publication configuration for the installation. Source `config_key` is installation-wide; endpoint `config_key` is Source-scoped. A different topic uses a different deployment/configuration of the same codebase.
+
+Before production database compatibility is established, databases are built fresh from the current migration chain and bootstrap/configuration. Older pre-production database contents are not an MVP compatibility requirement.
 
 ## Explicitly outside MVP
 
