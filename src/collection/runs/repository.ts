@@ -30,6 +30,8 @@ export interface PersistedCollectionRun {
   readonly httpStatusCode: number | undefined;
   readonly wireByteCount: number | undefined;
   readonly decompressedByteCount: number | undefined;
+  readonly redirectCount?: number | undefined;
+  readonly transportElapsedMilliseconds?: number | undefined;
   readonly rawItemCount: number;
   readonly normalizedCandidateCount: number;
   readonly normalizationFailureCount: number;
@@ -58,6 +60,8 @@ export interface FinalizeCollectionRunInput {
   readonly httpStatusCode?: number;
   readonly wireByteCount?: number;
   readonly decompressedByteCount?: number;
+  readonly redirectCount?: number;
+  readonly transportElapsedMilliseconds?: number;
   readonly rawItemCount: number;
   readonly normalizedCandidateCount: number;
   readonly normalizationFailureCount: number;
@@ -88,6 +92,8 @@ export interface CollectionRunRow {
   readonly http_status_code: unknown;
   readonly wire_byte_count: unknown;
   readonly decompressed_byte_count: unknown;
+  readonly redirect_count?: unknown;
+  readonly transport_elapsed_milliseconds?: unknown;
   readonly raw_item_count: unknown;
   readonly normalized_candidate_count: unknown;
   readonly normalization_failure_count: unknown;
@@ -111,6 +117,8 @@ interface ValidatedFinalization {
   readonly httpStatusCode: number | null;
   readonly wireByteCount: number | null;
   readonly decompressedByteCount: number | null;
+  readonly redirectCount: number | null;
+  readonly transportElapsedMilliseconds: number | null;
   readonly rawItemCount: number;
   readonly normalizedCandidateCount: number;
   readonly normalizationFailureCount: number;
@@ -128,7 +136,8 @@ interface ValidatedFinalization {
 const COLLECTION_RUN_COLUMNS = `
   id, source_endpoint_id, execution_id, started_at, finished_at, run_status,
   transport_status, parser_status, normalization_status, processing_status, http_status_code,
-  wire_byte_count, decompressed_byte_count, raw_item_count,
+  wire_byte_count, decompressed_byte_count, redirect_count,
+  transport_elapsed_milliseconds, raw_item_count,
   normalized_candidate_count, normalization_failure_count,
   article_link_rejection_count, created_count, updated_count, unchanged_count,
   rejected_count, excluded_count, failed_count, error_code, error_detail`;
@@ -185,18 +194,20 @@ export async function finalizeCollectionRun(
          http_status_code = $7,
          wire_byte_count = $8,
          decompressed_byte_count = $9,
-         raw_item_count = $10,
-         normalized_candidate_count = $11,
-         normalization_failure_count = $12,
-         article_link_rejection_count = $13,
-         created_count = $14,
-         updated_count = $15,
-         unchanged_count = $16,
-         rejected_count = $17,
-         excluded_count = $18,
-         failed_count = $19,
-         error_code = $20,
-         error_detail = $21
+         redirect_count = $10,
+         transport_elapsed_milliseconds = $11,
+         raw_item_count = $12,
+         normalized_candidate_count = $13,
+         normalization_failure_count = $14,
+         article_link_rejection_count = $15,
+         created_count = $16,
+         updated_count = $17,
+         unchanged_count = $18,
+         rejected_count = $19,
+         excluded_count = $20,
+         failed_count = $21,
+         error_code = $22,
+         error_detail = $23
      WHERE id = $1 AND run_status = 'running'
      RETURNING ${COLLECTION_RUN_COLUMNS}`,
     [
@@ -209,6 +220,8 @@ export async function finalizeCollectionRun(
       finalization.httpStatusCode,
       finalization.wireByteCount,
       finalization.decompressedByteCount,
+      finalization.redirectCount,
+      finalization.transportElapsedMilliseconds,
       finalization.rawItemCount,
       finalization.normalizedCandidateCount,
       finalization.normalizationFailureCount,
@@ -277,6 +290,10 @@ export function mapCollectionRunRow(
       decompressedByteCount: nullableNonnegativeInteger(
         row.decompressed_byte_count,
       ),
+      redirectCount: nullableNonnegativeInteger(row.redirect_count),
+      transportElapsedMilliseconds: nullableNonnegativeNumber(
+        row.transport_elapsed_milliseconds,
+      ),
       rawItemCount: requiredNonnegativeInteger(row.raw_item_count),
       normalizedCandidateCount: requiredNonnegativeInteger(
         row.normalized_candidate_count,
@@ -339,6 +356,14 @@ function validateFinalization(
         input.decompressedByteCount === undefined
           ? null
           : nonnegativeInteger(input.decompressedByteCount),
+      redirectCount:
+        input.redirectCount === undefined
+          ? null
+          : nonnegativeInteger(input.redirectCount),
+      transportElapsedMilliseconds:
+        input.transportElapsedMilliseconds === undefined
+          ? null
+          : nonnegativeNumber(input.transportElapsedMilliseconds),
       rawItemCount: nonnegativeInteger(input.rawItemCount),
       normalizedCandidateCount: nonnegativeInteger(
         input.normalizedCandidateCount,
@@ -536,6 +561,13 @@ function nonnegativeInteger(value: unknown): number {
   return value;
 }
 
+function nonnegativeNumber(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    throw new Error();
+  }
+  return value;
+}
+
 function integerInRange(
   value: unknown,
   minimum: number,
@@ -555,12 +587,17 @@ function nullableIntegerInRange(
 }
 
 function nullableNonnegativeInteger(value: unknown): number | undefined {
-  if (value === null) return undefined;
+  if (value === null || value === undefined) return undefined;
   if (typeof value === 'string' && /^\d+$/u.test(value)) {
     const parsed = Number(value);
     if (Number.isSafeInteger(parsed)) return parsed;
   }
   return nonnegativeInteger(value);
+}
+
+function nullableNonnegativeNumber(value: unknown): number | undefined {
+  if (value === null || value === undefined) return undefined;
+  return nonnegativeNumber(value);
 }
 
 function nullableErrorCode(value: unknown): string | undefined {

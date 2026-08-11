@@ -49,6 +49,8 @@ test('starts, finds, and finalizes a successful collection run exactly once', as
       httpStatusCode: 200,
       wireByteCount: 1234,
       decompressedByteCount: 4321,
+      redirectCount: 2,
+      transportElapsedMilliseconds: 12.5,
       rawItemCount: 2,
       normalizedCandidateCount: 1,
       normalizationFailureCount: 1,
@@ -66,6 +68,8 @@ test('starts, finds, and finalizes a successful collection run exactly once', as
     assert.equal(finalized.httpStatusCode, 200);
     assert.equal(finalized.wireByteCount, 1234);
     assert.equal(finalized.decompressedByteCount, 4321);
+    assert.equal(finalized.redirectCount, 2);
+    assert.equal(finalized.transportElapsedMilliseconds, 12.5);
     assert.equal(finalized.rawItemCount, 2);
     assert.equal(finalized.normalizationStatus, 'succeeded');
     assert.equal(finalized.normalizedCandidateCount, 1);
@@ -353,6 +357,18 @@ test('database constraints preserve collection-run lifecycle and caller transact
     await assert.rejects(
       database.query(
         'UPDATE collection_runs SET wire_byte_count = -1 WHERE id = $1',
+        [run.id],
+      ),
+    );
+    await assert.rejects(
+      database.query(
+        'UPDATE collection_runs SET redirect_count = -1 WHERE id = $1',
+        [run.id],
+      ),
+    );
+    await assert.rejects(
+      database.query(
+        'UPDATE collection_runs SET transport_elapsed_milliseconds = -1 WHERE id = $1',
         [run.id],
       ),
     );

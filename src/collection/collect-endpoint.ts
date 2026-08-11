@@ -805,7 +805,11 @@ function persistenceMetadata(
   metadata: Partial<
     Pick<
       EndpointCollectionAttemptResult,
-      'httpStatusCode' | 'wireByteCount' | 'decompressedByteCount'
+      | 'httpStatusCode'
+      | 'wireByteCount'
+      | 'decompressedByteCount'
+      | 'redirectCount'
+      | 'elapsedMilliseconds'
     >
   >,
 ): Pick<
@@ -822,6 +826,12 @@ function persistenceMetadata(
     ...(metadata.decompressedByteCount === undefined
       ? {}
       : { decompressedByteCount: metadata.decompressedByteCount }),
+    ...(metadata.redirectCount === undefined
+      ? {}
+      : { redirectCount: metadata.redirectCount }),
+    ...(metadata.elapsedMilliseconds === undefined
+      ? {}
+      : { transportElapsedMilliseconds: metadata.elapsedMilliseconds }),
   };
 }
 

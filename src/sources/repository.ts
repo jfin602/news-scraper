@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { QueryExecutor } from '../database/database.ts';
+import { HTTP_TRANSPORT_HEADER_LIMITS } from '../collection/fetchers/fetcher.ts';
 import {
   ConfigurationPersistenceError,
   mapPublicationSettingsRow,
@@ -52,6 +53,14 @@ export interface PersistedSourceEndpoint {
   readonly lifecycleState: LifecycleState;
   readonly operationalState: OperationalState;
   readonly pollIntervalSeconds: number;
+  readonly nextDueAt?: Date | undefined;
+  readonly lastAttemptAt?: Date | undefined;
+  readonly lastSuccessAt?: Date | undefined;
+  readonly lastFailureAt?: Date | undefined;
+  readonly consecutiveFailureCount?: number | undefined;
+  readonly cooldownUntil?: Date | undefined;
+  readonly etag?: string | undefined;
+  readonly lastModified?: string | undefined;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -86,6 +95,14 @@ interface EndpointRow {
   readonly lifecycle_state: unknown;
   readonly operational_state: unknown;
   readonly poll_interval_seconds: unknown;
+  readonly next_due_at: unknown;
+  readonly last_attempt_at: unknown;
+  readonly last_success_at: unknown;
+  readonly last_failure_at: unknown;
+  readonly consecutive_failure_count: unknown;
+  readonly cooldown_until: unknown;
+  readonly etag: unknown;
+  readonly last_modified: unknown;
   readonly created_at: unknown;
   readonly updated_at: unknown;
 }
@@ -110,6 +127,14 @@ interface AggregateRow extends SourceRow {
   readonly endpoint_lifecycle_state: unknown;
   readonly endpoint_operational_state: unknown;
   readonly poll_interval_seconds: unknown;
+  readonly next_due_at: unknown;
+  readonly last_attempt_at: unknown;
+  readonly last_success_at: unknown;
+  readonly last_failure_at: unknown;
+  readonly consecutive_failure_count: unknown;
+  readonly cooldown_until: unknown;
+  readonly etag: unknown;
+  readonly last_modified: unknown;
   readonly endpoint_created_at: unknown;
   readonly endpoint_updated_at: unknown;
 }
@@ -120,7 +145,30 @@ const SOURCE_COLUMNS = `
 const ENDPOINT_COLUMNS = `
   id, source_id, config_key, endpoint_url, endpoint_type,
   approval_state, lifecycle_state, operational_state, poll_interval_seconds,
+  next_due_at, last_attempt_at, last_success_at, last_failure_at,
+  consecutive_failure_count, cooldown_until, etag, last_modified,
   created_at, updated_at`;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+
+export interface EndpointConditionalValidators {
+  readonly etag?: string;
+  readonly lastModified?: string;
+}
+
+export interface EndpointRuntimeStateUpdate {
+  readonly completion?: Readonly<{
+    readonly at: Date;
+    readonly outcome: 'attempted' | 'succeeded' | 'failed';
+  }>;
+  readonly consecutiveFailureCount?: number;
+  readonly nextDueAt?: Date | null;
+  readonly cooldownUntil?: Date | null;
+  readonly validators?: Readonly<{
+    readonly mode: 'replace' | 'merge';
+    readonly values: EndpointConditionalValidators;
+  }>;
+}
 
 export async function insertSource(
   executor: QueryExecutor,
@@ -337,6 +385,66 @@ export async function findSourceEndpointBySourceAndConfigKey(
   return row === undefined ? undefined : mapEndpointRow(row);
 }
 
+export async function updateEndpointRuntimeState(
+  executor: QueryExecutor,
+  sourceEndpointId: string,
+  input: EndpointRuntimeStateUpdate,
+): Promise<PersistedSourceEndpoint> {
+  const endpointId = requiredUuid(sourceEndpointId, 'source endpoint id');
+  const update = validateEndpointRuntimeStateUpdate(input);
+  const assignments: string[] = [];
+  const values: unknown[] = [];
+  const parameter = (value: unknown): string => {
+    values.push(value);
+    return `$${values.length}`;
+  };
+
+  if (update.completion !== undefined) {
+    const completedAt = parameter(update.completion.at);
+    assignments.push(`last_attempt_at = ${completedAt}`);
+    if (update.completion.outcome === 'succeeded') {
+      assignments.push(`last_success_at = ${completedAt}`);
+    }
+    if (update.completion.outcome === 'failed') {
+      assignments.push(`last_failure_at = ${completedAt}`);
+    }
+  }
+  if (update.consecutiveFailureCount !== undefined) {
+    assignments.push(
+      `consecutive_failure_count = ${parameter(update.consecutiveFailureCount)}`,
+    );
+  }
+  if ('nextDueAt' in update) {
+    assignments.push(`next_due_at = ${parameter(update.nextDueAt)}`);
+  }
+  if ('cooldownUntil' in update) {
+    assignments.push(`cooldown_until = ${parameter(update.cooldownUntil)}`);
+  }
+  if (update.validators !== undefined) {
+    const etag = parameter(update.validators.values.etag ?? null);
+    const lastModified = parameter(
+      update.validators.values.lastModified ?? null,
+    );
+    if (update.validators.mode === 'replace') {
+      assignments.push(`etag = ${etag}`, `last_modified = ${lastModified}`);
+    } else {
+      assignments.push(
+        `etag = COALESCE(${etag}, etag)`,
+        `last_modified = COALESCE(${lastModified}, last_modified)`,
+      );
+    }
+  }
+
+  const result = await executor.query<EndpointRow>(
+    `UPDATE source_endpoints
+     SET ${assignments.join(', ')}
+     WHERE id = ${parameter(endpointId)}
+     RETURNING ${ENDPOINT_COLUMNS}`,
+    values,
+  );
+  return mapEndpointRow(requiredRow(result.rows, 'endpoint runtime update'));
+}
+
 export async function loadEndpointDomainRules(
   executor: QueryExecutor,
   endpointId: string,
@@ -381,6 +489,14 @@ export async function findEndpointConfigurationByKeys(
        e.lifecycle_state AS endpoint_lifecycle_state,
        e.operational_state AS endpoint_operational_state,
        e.poll_interval_seconds AS poll_interval_seconds,
+       e.next_due_at AS next_due_at,
+       e.last_attempt_at AS last_attempt_at,
+       e.last_success_at AS last_success_at,
+       e.last_failure_at AS last_failure_at,
+       e.consecutive_failure_count AS consecutive_failure_count,
+       e.cooldown_until AS cooldown_until,
+       e.etag AS etag,
+       e.last_modified AS last_modified,
        e.created_at AS endpoint_created_at,
        e.updated_at AS endpoint_updated_at
      FROM sources s
@@ -403,6 +519,14 @@ export async function findEndpointConfigurationByKeys(
     lifecycle_state: row.endpoint_lifecycle_state,
     operational_state: row.endpoint_operational_state,
     poll_interval_seconds: row.poll_interval_seconds,
+    next_due_at: row.next_due_at,
+    last_attempt_at: row.last_attempt_at,
+    last_success_at: row.last_success_at,
+    last_failure_at: row.last_failure_at,
+    consecutive_failure_count: row.consecutive_failure_count,
+    cooldown_until: row.cooldown_until,
+    etag: row.etag,
+    last_modified: row.last_modified,
     created_at: row.endpoint_created_at,
     updated_at: row.endpoint_updated_at,
   });
@@ -463,6 +587,16 @@ export function mapEndpointRow(row: EndpointRow): PersistedSourceEndpoint {
       lifecycleState: normalizeLifecycleState(row.lifecycle_state),
       operationalState: normalizeOperationalState(row.operational_state),
       pollIntervalSeconds,
+      nextDueAt: nullableTimestamp(row.next_due_at),
+      lastAttemptAt: nullableTimestamp(row.last_attempt_at),
+      lastSuccessAt: nullableTimestamp(row.last_success_at),
+      lastFailureAt: nullableTimestamp(row.last_failure_at),
+      consecutiveFailureCount: requiredNonnegativeInteger(
+        row.consecutive_failure_count,
+      ),
+      cooldownUntil: nullableTimestamp(row.cooldown_until),
+      etag: nullableValidator(row.etag, 'etag'),
+      lastModified: nullableValidator(row.last_modified, 'last modified'),
       createdAt: requiredTimestamp(row.created_at),
       updatedAt: requiredTimestamp(row.updated_at),
     });
@@ -516,6 +650,98 @@ function mapDomainRules(rows: readonly DomainRuleRow[]): readonly DomainRule[] {
       'database returned invalid domain rule',
     );
   }
+}
+
+function validateEndpointRuntimeStateUpdate(
+  input: EndpointRuntimeStateUpdate,
+): EndpointRuntimeStateUpdate {
+  if (input === null || typeof input !== 'object') {
+    throw new ConfigurationPersistenceError('invalid endpoint runtime update');
+  }
+  try {
+    const completion = input.completion;
+    if (completion !== undefined) {
+      if (
+        completion === null ||
+        typeof completion !== 'object' ||
+        (completion.outcome !== 'attempted' &&
+          completion.outcome !== 'succeeded' &&
+          completion.outcome !== 'failed')
+      ) {
+        throw new Error();
+      }
+      requiredTimestamp(completion.at);
+    }
+    if (input.consecutiveFailureCount !== undefined) {
+      requiredNonnegativeInteger(input.consecutiveFailureCount);
+    }
+    if ('nextDueAt' in input) nullableTimestamp(input.nextDueAt);
+    if ('cooldownUntil' in input) nullableTimestamp(input.cooldownUntil);
+    if (input.validators !== undefined) {
+      const validators = input.validators;
+      if (
+        validators === null ||
+        typeof validators !== 'object' ||
+        (validators.mode !== 'replace' && validators.mode !== 'merge') ||
+        validators.values === null ||
+        typeof validators.values !== 'object'
+      ) {
+        throw new Error();
+      }
+      if (validators.values.etag !== undefined) {
+        requiredValidator(validators.values.etag, 'etag');
+      }
+      if (validators.values.lastModified !== undefined) {
+        requiredValidator(validators.values.lastModified, 'last modified');
+      }
+    }
+    if (
+      completion === undefined &&
+      input.consecutiveFailureCount === undefined &&
+      !('nextDueAt' in input) &&
+      !('cooldownUntil' in input) &&
+      input.validators === undefined
+    ) {
+      throw new Error();
+    }
+    return input;
+  } catch {
+    throw new ConfigurationPersistenceError('invalid endpoint runtime update');
+  }
+}
+
+function requiredUuid(value: unknown, field: string): string {
+  if (typeof value !== 'string' || !UUID_PATTERN.test(value)) {
+    throw new ConfigurationPersistenceError(`invalid ${field}`);
+  }
+  return value;
+}
+
+function requiredNonnegativeInteger(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error();
+  }
+  return value;
+}
+
+function nullableTimestamp(value: unknown): Date | undefined {
+  return value === null ? undefined : requiredTimestamp(value);
+}
+
+function requiredValidator(value: unknown, field: string): string {
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value.length > HTTP_TRANSPORT_HEADER_LIMITS.responseValidator ||
+    /[\r\n\0]/u.test(value)
+  ) {
+    throw new Error(`invalid ${field}`);
+  }
+  return value;
+}
+
+function nullableValidator(value: unknown, field: string): string | undefined {
+  return value === null ? undefined : requiredValidator(value, field);
 }
 
 function requiredRow<T>(rows: readonly T[], operation: string): T {

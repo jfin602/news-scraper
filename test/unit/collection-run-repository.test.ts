@@ -29,6 +29,8 @@ test('maps a bounded persisted Collection run and PostgreSQL bigint byte counts'
       http_status_code: 200,
       wire_byte_count: '1234',
       decompressed_byte_count: '5678',
+      redirect_count: 2,
+      transport_elapsed_milliseconds: 12.5,
       raw_item_count: 2,
       normalization_status: 'succeeded',
       normalized_candidate_count: '1',
@@ -39,6 +41,8 @@ test('maps a bounded persisted Collection run and PostgreSQL bigint byte counts'
 
   assert.equal(run.wireByteCount, 1234);
   assert.equal(run.decompressedByteCount, 5678);
+  assert.equal(run.redirectCount, 2);
+  assert.equal(run.transportElapsedMilliseconds, 12.5);
   assert.equal(run.rawItemCount, 2);
   assert.equal(run.normalizedCandidateCount, 1);
   assert.equal(run.normalizationFailureCount, 1);
@@ -53,6 +57,8 @@ test('rejects malformed Collection-run rows at mapping boundaries', () => {
     validRow({ execution_id: ' padded_execution' }),
     validRow({ http_status_code: 600 }),
     validRow({ wire_byte_count: '-1' }),
+    validRow({ redirect_count: -1 }),
+    validRow({ transport_elapsed_milliseconds: -1 }),
     validRow({ raw_item_count: -1 }),
     validRow({ normalization_status: 'invalid' }),
     validRow({ processing_status: 'invalid' }),
@@ -185,6 +191,8 @@ function validRow(overrides: Partial<CollectionRunRow> = {}): CollectionRunRow {
     http_status_code: null,
     wire_byte_count: null,
     decompressed_byte_count: null,
+    redirect_count: null,
+    transport_elapsed_milliseconds: null,
     raw_item_count: 0,
     normalized_candidate_count: 0,
     normalization_failure_count: 0,
