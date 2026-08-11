@@ -6,11 +6,11 @@ The first configured Publication focuses on publishing-industry news relevant to
 
 ## Current project state
 
-Current phase: **Phase 9 — Basic public-feed UI and tech demo**.
+Current phase: **Phase 10 — Automated polling, durable jobs, and endpoint health**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation and closeout validation are complete.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation and closeout validation are complete. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; that accepted limitation is not rewritten as passing evidence.
 
-Phase 8 established persisted Article visibility, Publication/Source public-row eligibility gates, deterministic effective feed-date ordering, the bounded Publication-scoped `GET /api/publications/:publicationSlug/feed` endpoint, safe minimal output shaping, and stored Article `original_url` headline destinations. Phase 9 builds the first customer-visible page at `GET /publications/:publicationSlug`, reusing that canonical public-feed boundary rather than creating a parallel feed query path. The tech-demo page provides the core desktop `Date | Headline | Source` view, a sane stacked mobile view, Publication identity, original-publisher headline links, explicit loading/empty/error states, and deterministic UTC calendar-date rendering until later Publication presentation settings exist.
+Phase 8 established persisted Article visibility, Publication/Source public-row eligibility gates, deterministic effective feed-date ordering, the bounded Publication-scoped `GET /api/publications/:publicationSlug/feed` endpoint, safe minimal output shaping, and stored Article `original_url` headline destinations. Phase 9 added the first customer-visible page at `GET /publications/:publicationSlug`, reusing that canonical public-feed boundary rather than creating a parallel feed query path. The basic tech-demo page provides the core desktop `Date | Headline | Source` view, a sane stacked mobile view, Publication identity, original-publisher headline links, explicit loading/empty/error states, and deterministic UTC calendar-date rendering until later Publication presentation settings exist. Phase 10 now turns the proven manual endpoint execution unit into automated polling through durable jobs, due-endpoint scheduling, bounded retry/recovery behavior, conditional-fetch state persistence, and baseline endpoint health without creating a second collection path.
 
 ## Delivery priority
 
@@ -112,7 +112,7 @@ Cloudflare Access-protected Admin UI/API       Public Feed
              public-feed read model -> publisher
 ```
 
-During Phases 5–9 the Worker is invoked manually for configured endpoints. Phase 10 places the same proven endpoint execution unit behind durable jobs/scheduling; Web/API never performs Source collection inline.
+During Phases 5–9 the Worker was invoked manually for configured endpoints. Phase 10 places that same proven endpoint execution unit behind durable jobs/scheduling; Web/API never performs Source collection inline.
 
 Minimal Collection runs begin with the first real fetch in Phase 5. Before configurable Relevance rules exist, safe candidates pass through the canonical empty-rule/default-include decision before identity.
 
@@ -276,7 +276,7 @@ Phase prompt folders are machine-parsed. Before starting automation, validate th
 npm run codex:phase:validate -- p9
 ```
 
-A valid folder has contiguous `P1...Pn` `.txt` prompts, exact supported recommendation labels and `0.<phase>.<prompt>` version metadata, and exactly one final manual closeout whose filename and `TASK:` title both contain `closeout`. Free-form body prose does not determine closeout kind. The complete grammar is authoritative in `BOOT.md` and executable in `scripts/codex-phase-core.mjs`.
+A valid folder has contiguous `P1...Pn` `.txt` prompts, exact supported recommendation labels and `0.<phase>.<prompt>` version metadata, and exactly one final manual closeout whose filename and TASK title both contain `closeout`. Free-form body prose does not determine closeout kind. The complete grammar is authoritative in `BOOT.md` and executable in `scripts/codex-phase-core.mjs`.
 
 After validation, run implementation prompts automatically with:
 
