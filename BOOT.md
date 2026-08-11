@@ -406,15 +406,15 @@ Use `npm run codex:phase:validate -- <task-folder>` to validate the folder gramm
 
 The parser currently requires all of the following:
 
-- the task folder name has the form `p<number>` with a non-zero phase number; use lowercase by convention;
+- the task folder name is canonical lowercase `p<number>`, the phase number is one-based with no leading zero, and no alternate capitalization such as `P9` is accepted;
 - every `.txt` file in that folder is treated as a task prompt, so do not place notes or other non-prompt `.txt` files alongside the prompt stack;
-- prompt filenames have the form `P<number>-<slug>.txt`, prompt numbers are one-based, unique, and contiguous from `P1`;
-- every prompt contains exactly one `TASK:` line;
-- every prompt contains exactly one machine-parsed recommendation line in the form `- Recommended configuration: `<label>`.` where `<label>` must be one of the runner's current `MODEL_CONFIGS`; the currently executable labels are `Terra High`, `Terra Ultra`, `Sol Light`, `Sol High`, and `Sol Ultra`;
-- every prompt contains exactly one phrase matching `assigned project version is `<semver>``; the parsed target MUST equal `0.<folder phase>.<prompt number>`;
+- prompt filenames are canonical `P<number>-<lower-kebab-slug>.txt`; the prompt number is one-based with no leading zero, and numbers are unique and contiguous from `P1`;
+- every prompt contains exactly one canonical task header: `TASK: Phase <phase> / P<number> — <title>`; the phase must match the folder, the prompt number must match the filename, and the title must be non-empty;
+- every prompt contains exactly one recommendation line whose literal form is `- Recommended configuration: ` followed by one backtick-delimited current runner label and a final period; supported labels are exactly the current keys of `MODEL_CONFIGS` in `scripts/codex-phase-core.mjs` (currently `Terra High`, `Terra Ultra`, `Sol Light`, `Sol High`, and `Sol Ultra`);
+- every prompt contains exactly one literal phrase `assigned project version is` followed by one backtick-delimited semantic version; the parsed target MUST equal `0.<folder phase>.<prompt number>`;
 - exactly one prompt in the folder is the closeout, and it MUST be the final/highest-numbered prompt;
-- closeout classification depends only on **both** the filename and the `TASK:` title containing `closeout` (case-insensitive); if only one contains it, parsing fails as ambiguous;
-- implementation prompts therefore MUST NOT put `closeout` in their filename or `TASK:` title, while ordinary body prose MAY refer to closeout/P4/final validation freely because narrative prose is not a classification signal;
+- closeout classification depends only on two agreeing metadata signals: the filename's lower-kebab slug contains a `closeout` segment and the parsed `TASK:` title contains the word `closeout` (case-insensitive); if only one signal is present, parsing fails as ambiguous;
+- implementation prompts therefore MUST NOT put a `closeout` segment in the filename or the word `closeout` in the `TASK:` title, while ordinary body prose MAY refer to closeout/P4/final validation freely because narrative prose is not a classification signal;
 - the closeout prompt is parsed into the plan but is never executed by `codex:phase`; automation stops after the implementation prompts and hands the closeout back to the user for manual execution.
 
 The parser intentionally does **not** infer model, version, ordering, or closeout kind from free-form narrative prose. Keep machine-significant metadata in the explicit parsed fields above.
@@ -591,7 +591,7 @@ Recommend the single most logical next task.
 
 Finished implementation prompts normally include Task, Context, Current/Required behavior, roadmap phase, assigned project version, finalized `MODEL / REASONING / USAGE` block, governing contracts/ADRs/laws, inspected source, allowed/forbidden files, constraints, preserved behavior, applicable security/provenance/idempotency/failure-isolation implications, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs updates, acceptance criteria, and non-goals.
 
-The phase-runner machine-significant fields are stricter than the rest of the prompt template: filename/number, the single `TASK:` line, the single exact recommended-configuration line, the single `assigned project version is ...` phrase, and the filename-plus-`TASK:` closeout convention MUST satisfy the Phase-runner prompt-file grammar above. Free-form prose must not be relied upon to supply parsed metadata.
+The phase-runner machine-significant fields are stricter than the rest of the prompt template: canonical folder/filename numbering, the single canonical `TASK:` header, the single exact recommended-configuration line, the single `assigned project version is ...` phrase, and the filename-plus-`TASK:` closeout convention MUST satisfy the Phase-runner prompt-file grammar above. Free-form prose must not be relied upon to supply parsed metadata.
 
 Every implementation prompt inherits `docs/contracts/testing-and-validation-contract.md`. A prompt must not treat tests as optional cleanup, silently accept missing prerequisites, or claim a higher evidence level than its validation procedure can prove.
 
