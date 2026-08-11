@@ -8,7 +8,7 @@ The reusable software system that hosts collection, normalization, identity reso
 ### Publication
 The one configured news product for a deployed installation. Publication owns topic-specific editorial configuration such as name, collection/public state, branding, timezone/presentation settings, Categories, Relevance rules, Sources, Source priority, and public-feed settings.
 
-A supported installation has exactly one Publication configuration. Publication is an editorial/configuration boundary, **not** a tenancy or relational ownership key in the forward data model.
+A supported installation has exactly one Publication configuration. Publication is an editorial/configuration boundary, **not** a tenancy or relational ownership key.
 
 ### Source
 A configured publisher or outlet in the installation. Approval state determines whether the Platform trusts/collects it. A Source owns one or more Source endpoints and defines public Source identity for accepted Articles.
@@ -59,7 +59,7 @@ An installation-wide deterministic rule used to include, exclude, or categorize 
 - Duplicate groups and Duplicate review candidates relate Articles within the one installation; cross-Publication checks are structurally unnecessary because the installation cannot contain another Publication domain.
 - Administrative commands validate real resource relationships and domain invariants even though MVP does not implement per-user authorization.
 
-Do not preserve or introduce Publication UUIDs, slugs, foreign keys, composite uniqueness scopes, repository arguments, or compatibility aliases solely to model concurrent Publications that the supported product does not host.
+Do not introduce Publication UUIDs, slugs, foreign keys, composite uniqueness scopes, repository arguments, or compatibility aliases solely to model concurrent Publications that the supported product does not host.
 
 ## State model
 
@@ -73,7 +73,7 @@ Required concepts:
 
 The singleton Publication may collect while its public feed is not exposed. Public feed reads require `public_status = public`; `active_for_collection` is a collection-state control and does not independently expose or suppress already-persisted feed rows.
 
-The persisted representation MUST enforce singleton semantics. It need not expose a dynamic Publication identifier or slug to other domain records.
+The persisted representation MUST enforce singleton semantics. It does not expose a dynamic Publication identifier or slug to other domain records merely for scoping.
 
 ### Source
 Required concepts:
@@ -122,7 +122,7 @@ Names below define logical concepts, not final SQL. Roadmap phases introduce onl
 
 ### Singleton Publication configuration
 
-Forward behavior requires one persisted Publication/settings record with only the fields actually used by implemented phases, including:
+One persisted Publication/settings record contains only the fields actually used by implemented phases, including:
 
 - name;
 - `active_for_collection`;
@@ -130,7 +130,7 @@ Forward behavior requires one persisted Publication/settings record with only th
 - later description/default timezone/branding/feed/presentation configuration;
 - created/updated timestamps where useful.
 
-The implementation MAY retain the historical `publications` table name during the correction migration, but it MUST enforce singleton semantics and MUST NOT require a Publication UUID or slug for relational scoping.
+The concrete table name is an implementation detail. The schema MUST enforce singleton semantics and MUST NOT require a Publication UUID or slug for relational scoping.
 
 ### `sources`
 
@@ -371,21 +371,18 @@ Processing semantics:
 
 For public-feed ordering, the effective feed date is trusted parsed `published_at` when available and otherwise `first_seen_at`. The read model identifies that source explicitly. Reverse-chronological ordering is deterministic: effective feed date descending, then `first_seen_at` descending, then stable Article identifier as the final tie-breaker.
 
-## Post-Phase-9 singleton migration contract
+## Pre-production database schema contract
 
-The historical Phase 3–9 schema and validation artifacts accurately record Publication identifiers/slugs and Publication-scoped relationships that existed at those accepted source trees. They are not rewritten.
+Before production database compatibility is established:
 
-The correction migration MUST:
+- the repository's current migration chain defines the complete supported schema from zero;
+- foundational schema corrections MAY rewrite or consolidate current migration files when that yields the smallest canonical model;
+- fresh disposable PostgreSQL migrated from zero is the required persistence baseline for validation;
+- databases created by older pre-production source trees are not supported in-place upgrade inputs and may be recreated and bootstrapped from current configuration;
+- no compatibility columns, dual schemas, data-copy bridges, or migration transformations are required solely to preserve disposable pre-production database contents;
+- migration-from-zero MUST establish singleton Publication semantics, installation-wide Source uniqueness, Source-scoped Article identity, and all Source/endpoint/run/Article/observation integrity constraints required by implemented behavior.
 
-- build on existing migration history rather than editing migrations already used for accepted phases;
-- migrate a valid existing one-Publication pre-production database to the singleton model without losing Source, endpoint, Collection-run, Article, observation, or visibility/provenance data;
-- remove Publication tenancy keys/scopes that are no longer required by the forward model;
-- establish installation-wide uniqueness where Publication previously supplied the only extra scope, including Source `config_key`;
-- preserve Source/endpoint/run/Article/observation referential integrity and Article identity behavior;
-- make fresh migration-from-zero end at the same corrected schema;
-- fail clearly if pre-correction data contains more than one Publication rather than choosing, merging, or deleting records implicitly.
-
-The correction is pre-production and SHOULD prefer one canonical schema over permanent compatibility columns, aliases, duplicated values, or fallback query paths.
+When production compatibility is later established, schema evolution and data-preservation guarantees MUST be governed explicitly rather than inferred from this pre-production rebuild rule.
 
 ## Retention and deletion principles
 
