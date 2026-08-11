@@ -4,7 +4,7 @@ Reusable, topic-independent news aggregation Platform for collecting Article met
 
 Each deployed installation hosts exactly one Publication/topic. The first deployment focuses on publishing-industry news relevant to indie authors. That topic is configuration, not shared Platform logic. A different topic reuses the same codebase through a separately configured deployment rather than being added as another live Publication in the same installation.
 
-Publication remains the singleton editorial/configuration concept for the installed news product, but it is **not** a relational tenancy key in the forward data model. The codebase does not retain Publication IDs/slugs/foreign-key scoping merely to support hypothetical concurrent topics.
+Publication is the singleton editorial/configuration concept for the installed news product, but it is **not** a relational tenancy key. The canonical code/data model does not use Publication IDs/slugs/foreign-key scoping merely to support hypothetical concurrent topics.
 
 ## Current project state
 
@@ -12,7 +12,9 @@ Current phase: **Phase 10 — Automated polling, durable jobs, and endpoint heal
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation and closeout validation are complete. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; that accepted limitation is not rewritten as passing evidence.
 
-On August 11, 2026 the repository owner tightened the deployment/data model before Phase 10 implementation: one deployed installation hosts one Publication/topic, topic reuse occurs through separate deployments, relational Publication tenancy is removed from the forward model, and `/` plus `/api/feed` are the canonical public surfaces. Historical Phase 3–9 Publication-scoped schema/routes remain accurately recorded in migrations/tasks/validation evidence, but the implementation must complete the dedicated post-Phase-9 singleton simplification correction before Phase 10 scheduler/job work proceeds.
+Before ordinary Phase 10 scheduler/job work, the repository has one implementation correction gate: remove obsolete Publication tenancy/selector plumbing still present in the current pre-production implementation so the source tree matches the canonical singleton model, root `/` page, and `/api/feed` API.
+
+Because the project is pre-production, databases created by older source trees are disposable. The correction may rewrite/consolidate the current migration chain and then rebuild/bootstrap the database from zero; it does not need an in-place data-preservation compatibility path.
 
 Phase 10 then turns the proven manual endpoint execution unit into automated polling through durable jobs, due-endpoint scheduling, bounded retry/recovery behavior, conditional-fetch state persistence, and baseline endpoint health without creating a second collection path or a multi-Publication scheduler.
 
@@ -41,7 +43,7 @@ Canonical public page:
 GET /
 ```
 
-Canonical basic feed API after the singleton correction:
+Canonical basic feed API:
 
 ```text
 GET /api/feed
@@ -63,7 +65,7 @@ Completed MVP adds:
 - deterministic pagination/load-more;
 - light/dark presentation.
 
-The earlier Phase 8 backend and Phase 9 page were originally validated through Publication-slug routes. Those artifacts remain historical evidence. The forward product contract removes reader-supplied Publication selection and Publication tenancy from the supported feed model.
+The accepted Phase 8/9 validation artifacts record the slug-addressed implementation that existed at their accepted source SHAs. Those artifacts remain historical evidence; the current implementation correction establishes the canonical selector-free routes.
 
 Pinning/featured-story ordering is deferred beyond MVP.
 
@@ -97,7 +99,7 @@ The contracts deliberately separate:
 
 An approved Source can therefore be paused without becoming “unhealthy,” and a hidden Article can remain a member of a Duplicate group without duplicate membership forcing it visible again. Collection operational state does not itself hide retained feed-eligible Articles.
 
-The forward relational model keeps only meaningful relationships:
+The relational model keeps only meaningful relationships:
 
 ```text
 singleton Publication settings
@@ -162,7 +164,7 @@ Weak duplicate evidence becomes a persisted review candidate rather than silentl
 
 Initial singleton Publication/Source configuration may be supplied through idempotent operator-maintained bootstrap data. Bootstrap approval is explicit operator approval and never bypasses whitelist/state/network-safety rules. Ordinary bootstrap remains create-if-absent; the pre-admin public-feed work therefore uses an explicit generic operator transition when `public_status` must change rather than making bootstrap overwrite persisted state.
 
-Forward bootstrap/runtime selection does not use a Publication slug. MVP Source admin UI begins in Phase 14, after the working public vertical slice. Admin navigation/configuration operates on the installation's one configured news product rather than a multi-Publication selector.
+Bootstrap/runtime selection does not use a Publication slug. MVP Source admin UI begins in Phase 14, after the working public vertical slice. Admin navigation/configuration operates on the installation's one configured news product rather than a multi-Publication selector.
 
 MVP admin UI/API routes:
 
@@ -192,7 +194,7 @@ Core rules:
 
 Every implementation roadmap phase and gating correction inherits that contract even when its roadmap entry does not repeat the complete test matrix.
 
-The post-Phase-9 singleton simplification correction specifically requires real PostgreSQL proof for fresh migration and existing one-Publication migration, rejection of ambiguous multi-Publication state, Source-scoped identity/integrity regressions, canonical `/api/feed` behavior, and Level 6 browser validation of `/`. Historical Phase 3–9 validation artifacts are not rewritten to imply those corrected behaviors were previously observed.
+The Phase 10 entry singleton implementation correction specifically requires real PostgreSQL migration-from-zero proof for the canonical singleton schema, Source-scoped identity/integrity regressions, unchanged collection safety/accounting, canonical `/api/feed` behavior, and Level 6 browser validation of `/`. It does **not** require preservation/migration of databases created by earlier pre-production source trees.
 
 Dependency installation intentionally uses `package.json` without an npm package lock. Repository npm configuration disables `package-lock.json` generation, so clean installs use `npm install` rather than `npm ci`. Because declared dependency ranges may resolve to different compatible versions over time, validation applies to the exact source tree and recorded Node/npm environment that was actually tested rather than claiming byte-for-byte dependency reproducibility.
 
@@ -246,7 +248,7 @@ docs/
 │   └── mvp-roadmap.md
 └── decisions/
     ├── single-publication-simplified-data-model.md
-    ├── topic-independent-publication-model.md  # superseded historical ADR
+    ├── topic-independent-publication-model.md  # historical superseded ADR
     ├── whitelist-and-structured-feed-first.md
     ├── original-link-and-normalized-metadata.md
     └── cloudflare-access-admin-perimeter.md
@@ -339,7 +341,7 @@ Tech-demo critical path:
 
 Then:
 
-- **Phase 10 entry correction — single-Publication simplification**: flatten obsolete Publication tenancy, preserve real provenance, make `/api/feed` and `/` canonical, validate migration/regression/browser behavior. This is non-versioned and not a numbered roadmap phase.
+- **Phase 10 entry correction — singleton implementation alignment**: remove obsolete Publication tenancy/selectors, make the current migration-from-zero schema canonical, and establish `/api/feed` plus `/` with required regression/browser evidence. This is non-versioned and not a numbered roadmap phase.
 - Phase 10 — Automated polling, durable jobs, and endpoint health
 - Phase 11 — Categories and configurable Relevance execution
 - Phase 12 — Feed discovery features
@@ -354,7 +356,7 @@ Then:
 
 The correction gate does not change the `0.10.x` version family. It must close before ordinary Phase 10 scheduler/job implementation prompts proceed.
 
-Deferred: native administrator identity/accounts, historical Relevance bulk reprocessing, push/webhook adapters, AI summaries, related-story clustering, public personalization, outbound publishing, self-service tenancy, generic relevance ranking/boost scoring, pinning/featured ordering, API access, multilingual feeds. Concurrent multi-Publication hosting inside one installation is not deferred-by-default behavior; it would require an explicit future contract/ADR and deliberate data-model migration.
+Deferred: native administrator identity/accounts, historical Relevance bulk reprocessing, push/webhook adapters, AI summaries, related-story clustering, public personalization, outbound publishing, self-service tenancy, generic relevance ranking/boost scoring, pinning/featured ordering, API access, multilingual feeds. Concurrent multi-Publication hosting inside one installation is not deferred-by-default behavior; it would require an explicit future contract/ADR and deliberate data-model work.
 
 ## Repository
 
