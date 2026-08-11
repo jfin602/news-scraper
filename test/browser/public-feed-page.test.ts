@@ -1,15 +1,52 @@
 import assert from 'node:assert/strict';
 import { after, before, describe, it } from 'node:test';
 
-import { chromium, type Browser } from 'playwright';
+import {
+  chromium,
+  type Browser,
+  type BrowserContext,
+  type Page,
+} from 'playwright';
 
 import { createWebApp } from '../../src/app/web/create-app.ts';
 import { startWebServer, type WebServer } from '../../src/app/web/server.ts';
+import type { PublicFeed } from '../../src/public-feed/repository.ts';
 
-describe('Public feed page browser delivery', () => {
+const publication = Object.freeze({
+  id: '10000000-0000-4000-8000-000000000001',
+  slug: 'example-publication',
+  name: 'Example Publication',
+});
+
+function populatedFeed(overrides: Partial<PublicFeed> = {}): PublicFeed {
+  return Object.freeze({
+    publication,
+    items: Object.freeze([
+      Object.freeze({
+        articleId: '20000000-0000-4000-8000-000000000001',
+        effectiveFeedDate: new Date('2026-08-06T00:30:00.000Z'),
+        feedDateSource: 'published_at' as const,
+        headline: 'Newest headline',
+        sourceName: 'First Source',
+        originalUrl: 'https://publisher.example.test/newest',
+      }),
+      Object.freeze({
+        articleId: '30000000-0000-4000-8000-000000000001',
+        effectiveFeedDate: new Date('2026-08-05T12:00:00.000Z'),
+        feedDateSource: 'first_seen_at' as const,
+        headline: 'Older headline',
+        sourceName: 'Second Source',
+        originalUrl: 'https://publisher.example.test/older',
+      }),
+    ]),
+    ...overrides,
+  });
+}
+
+describe('Public feed page browser behavior', () => {
   let browser: Browser;
   let webServer: WebServer;
-  let publicFeedReads = 0;
+  let outcome: PublicFeed | undefined | Error | Promise<PublicFeed | undefined>;
 
   before(async () => {
     try {
@@ -25,8 +62,9 @@ describe('Public feed page browser delivery', () => {
         readiness: { checkReady: async () => true },
         publicFeed: {
           async read() {
-            publicFeedReads += 1;
-            throw new Error('The public page shell must not read the feed.');
+            const current = outcome;
+            if (current instanceof Error) throw current;
+            return await current;
           },
         },
       }),
@@ -39,38 +77,263 @@ describe('Public feed page browser delivery', () => {
     await browser?.close();
   });
 
-  it('supports direct navigation and refresh without feed reads or topic hard-coding', async () => {
-    const page = await browser.newPage();
-    const stylesheetRequests: string[] = [];
-    page.on('request', (request) => {
-      if (new URL(request.url()).pathname === '/public-feed.css') {
-        stylesheetRequests.push(request.url());
-      }
+  it('keeps loading visible until the canonical API response resolves', async () => {
+    let resolveFeed: ((feed: PublicFeed | undefined) => void) | undefined;
+    outcome = new Promise<PublicFeed | undefined>((resolve) => {
+      resolveFeed = resolve;
     });
+    const { context, page } = await openPage();
+    try {
+      await waitForState(page, 'loading');
+      assert.equal(
+        await page.locator('[data-feed-status]').innerText(),
+        'Loading the latest headlines.',
+      );
+      assert.equal(await page.locator('.feed-row').count(), 0);
 
-    const url = `http://${webServer.host}:${webServer.port}/publications/arbitrary-generic-slug`;
-    const navigation = await page.goto(url);
-    assert.equal(navigation?.status(), 200);
-    assert.equal(await page.title(), 'News feed');
-    assert.equal(await page.locator('h1').innerText(), 'News feed');
-    assert.doesNotMatch(
-      await page.locator('body').innerText(),
-      /indie|author|publishing/u,
-    );
-    assert.equal(
-      await page
-        .locator('body')
-        .evaluate((element) => getComputedStyle(element).backgroundColor),
-      'rgb(250, 250, 250)',
-    );
-    assert.equal(stylesheetRequests.length, 1);
-
-    const refresh = await page.reload();
-    assert.equal(refresh?.status(), 200);
-    assert.equal(await page.locator('h1').innerText(), 'News feed');
-    assert.equal(stylesheetRequests.length, 2);
-    assert.equal(publicFeedReads, 0);
-
-    await page.close();
+      resolveFeed?.(populatedFeed());
+      await waitForState(page, 'populated');
+      assert.equal(await page.locator('.feed-row').count(), 2);
+    } finally {
+      await context.close();
+    }
   });
+
+  it('renders API identity and server ordering into usable desktop Date, Headline, Source columns', async () => {
+    outcome = populatedFeed();
+    const { context, page } = await openPage({
+      viewport: { width: 1440, height: 900 },
+    });
+    try {
+      await waitForState(page, 'populated');
+      assert.equal(await page.title(), 'Example Publication | News feed');
+      assert.equal(await page.locator('h1').innerText(), 'Example Publication');
+      assert.deepEqual(
+        await page.locator('.feed-headline-link').allTextContents(),
+        ['Newest headline', 'Older headline'],
+      );
+      assert.deepEqual(
+        await page.locator('.feed-column-headings span').allTextContents(),
+        ['Date', 'Headline', 'Source'],
+      );
+      assert.equal(
+        await page
+          .locator('.feed-row')
+          .first()
+          .evaluate((element) => getComputedStyle(element).display),
+        'grid',
+      );
+      assert.equal(
+        await page.locator('.feed-date time').first().innerText(),
+        'AUG 6, 2026',
+      );
+      assert.equal(
+        await page
+          .locator('.feed-source > span:not(.feed-field-label)')
+          .first()
+          .innerText(),
+        'First Source',
+      );
+    } finally {
+      await context.close();
+    }
+  });
+
+  it('renders an empty public Publication with its successful API identity', async () => {
+    outcome = Object.freeze({ publication, items: Object.freeze([]) });
+    const { context, page } = await openPage();
+    try {
+      await waitForState(page, 'empty');
+      assert.equal(await page.locator('h1').innerText(), 'Example Publication');
+      assert.equal(
+        await page.locator('[data-feed-status]').innerText(),
+        'There are no recent headlines yet.',
+      );
+      assert.equal(await page.locator('.feed-row').count(), 0);
+    } finally {
+      await context.close();
+    }
+  });
+
+  it('uses one generic unavailable page state for missing and private-looking slugs', async () => {
+    outcome = undefined;
+    const unavailableStates: Array<{
+      readonly text: string;
+      readonly markup: string;
+    }> = [];
+    for (const slug of ['missing-publication', 'private-publication']) {
+      const { context, page } = await openPage({ slug });
+      try {
+        await waitForState(page, 'unavailable');
+        unavailableStates.push({
+          text: await page.locator('main').innerText(),
+          markup: await page.locator('main').innerHTML(),
+        });
+      } finally {
+        await context.close();
+      }
+    }
+    assert.deepEqual(unavailableStates[0], unavailableStates[1]);
+    assert.match(unavailableStates[0]?.text ?? '', /News feed/u);
+    assert.match(
+      unavailableStates[0]?.text ?? '',
+      /This publication is unavailable\./u,
+    );
+  });
+
+  it('shows a bounded generic error without backend details', async () => {
+    const secret = 'postgresql://user:PAGE_SECRET@database/private';
+    outcome = new Error(`Database failure ${secret}`);
+    const { context, page } = await openPage();
+    try {
+      await waitForState(page, 'error');
+      const text = await page.locator('main').innerText();
+      assert.match(text, /temporarily unavailable/u);
+      assert.doesNotMatch(text, /PAGE_SECRET|postgresql|database/u);
+    } finally {
+      await context.close();
+    }
+  });
+
+  it('renders untrusted text inertly and uses the exact original publisher URL', async () => {
+    const markup = '<img src=x onerror="globalThis.feedXss = true">';
+    const originalUrl =
+      'https://publisher.example.test/original?preserve=exact';
+    outcome = populatedFeed({
+      publication: { ...publication, name: markup },
+      items: Object.freeze([
+        Object.freeze({
+          ...populatedFeed().items[0]!,
+          headline: markup,
+          sourceName: markup,
+          originalUrl,
+        }),
+      ]),
+    });
+    const { context, page } = await openPage();
+    try {
+      await waitForState(page, 'populated');
+      assert.equal(await page.locator('h1').innerText(), markup);
+      assert.equal(
+        await page.locator('.feed-headline-link').innerText(),
+        markup,
+      );
+      assert.equal(
+        await page
+          .locator('.feed-source > span:not(.feed-field-label)')
+          .innerText(),
+        markup,
+      );
+      assert.equal(await page.locator('img').count(), 0);
+      assert.equal(await page.evaluate(() => 'feedXss' in globalThis), false);
+      assert.equal(
+        await page.locator('.feed-headline-link').getAttribute('href'),
+        originalUrl,
+      );
+    } finally {
+      await context.close();
+    }
+  });
+
+  it('uses UTC date rendering, safely intercepts external navigation, and preserves keyboard focus', async () => {
+    outcome = populatedFeed();
+    const { context, page } = await openPage({
+      timezoneId: 'America/Los_Angeles',
+    });
+    try {
+      await waitForState(page, 'populated');
+      assert.equal(
+        await page.locator('.feed-date time').first().innerText(),
+        'AUG 6, 2026',
+      );
+
+      const link = page.locator('.feed-headline-link').first();
+      await page.keyboard.press('Tab');
+      assert.equal(
+        await link.evaluate((element) => document.activeElement === element),
+        true,
+      );
+      assert.notEqual(
+        await link.evaluate(
+          (element) => getComputedStyle(element).outlineStyle,
+        ),
+        'none',
+      );
+
+      const originalUrl = populatedFeed().items[0]!.originalUrl;
+      let resolveIntercepted: ((url: string) => void) | undefined;
+      const intercepted = new Promise<string>((resolve) => {
+        resolveIntercepted = resolve;
+      });
+      await page.route('https://publisher.example.test/**', async (route) => {
+        resolveIntercepted?.(route.request().url());
+        await route.abort();
+      });
+      await link.click({ noWaitAfter: true });
+      assert.equal(await intercepted, originalUrl);
+    } finally {
+      await context.close();
+    }
+  });
+
+  it('uses a stacked mobile item layout without feed-caused horizontal overflow', async () => {
+    outcome = populatedFeed();
+    const { context, page } = await openPage({
+      viewport: { width: 390, height: 844 },
+    });
+    try {
+      await waitForState(page, 'populated');
+      assert.equal(
+        await page
+          .locator('.feed-column-headings')
+          .evaluate((element) => getComputedStyle(element).display),
+        'none',
+      );
+      assert.equal(
+        await page
+          .locator('.feed-row')
+          .first()
+          .evaluate((element) => getComputedStyle(element).display),
+        'block',
+      );
+      assert.equal(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+        true,
+      );
+      const rowText = await page.locator('.feed-row').first().innerText();
+      assert.match(rowText, /AUG 6, 2026/u);
+      assert.match(rowText, /First Source/iu);
+      assert.match(rowText, /Newest headline/u);
+    } finally {
+      await context.close();
+    }
+  });
+
+  async function openPage(
+    options: Readonly<{
+      slug?: string;
+      timezoneId?: string;
+      viewport?: { readonly width: number; readonly height: number };
+    }> = {},
+  ): Promise<{ readonly context: BrowserContext; readonly page: Page }> {
+    const context = await browser.newContext({
+      ...(options.timezoneId === undefined
+        ? {}
+        : { timezoneId: options.timezoneId }),
+      ...(options.viewport === undefined ? {} : { viewport: options.viewport }),
+    });
+    const page = await context.newPage();
+    const slug = options.slug ?? publication.slug;
+    const response = await page.goto(
+      `http://${webServer.host}:${webServer.port}/publications/${slug}`,
+    );
+    assert.equal(response?.status(), 200);
+    return { context, page };
+  }
 });
+
+function waitForState(page: Page, state: string): Promise<unknown> {
+  return page.waitForSelector(`[data-feed-content][data-state="${state}"]`);
+}

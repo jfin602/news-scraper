@@ -10,11 +10,13 @@ const publicFeedPage = `<!doctype html>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>News feed</title>
     <link rel="stylesheet" href="/public-feed.css">
+    <script src="/public-feed.js" defer></script>
   </head>
   <body>
     <main class="public-feed-shell">
-      <h1>News feed</h1>
-      <p>Preparing the latest headlines.</p>
+      <h1 data-publication-name>News feed</h1>
+      <p data-feed-status role="status" aria-live="polite">Loading the latest headlines.</p>
+      <section data-feed-content aria-label="Latest headlines"></section>
     </main>
   </body>
 </html>`;

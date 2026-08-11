@@ -9,6 +9,10 @@ const publicFeedStylesheet = readFileSync(
   new URL('./public/public-feed.css', import.meta.url),
   'utf8',
 );
+const publicFeedClient = readFileSync(
+  new URL('./public/public-feed.js', import.meta.url),
+  'utf8',
+);
 
 export interface ReadinessDependency {
   checkReady(): Promise<boolean>;
@@ -83,6 +87,14 @@ export function createWebApp(dependencies: WebDependencies): Express {
       .status(200)
       .type('css')
       .send(publicFeedStylesheet);
+  });
+
+  app.get('/public-feed.js', (_request, response) => {
+    response
+      .set('Cache-Control', 'no-store')
+      .status(200)
+      .type('js')
+      .send(publicFeedClient);
   });
 
   app.get('/publications/:publicationSlug', (_request, response) => {

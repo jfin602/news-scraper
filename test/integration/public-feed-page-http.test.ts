@@ -42,19 +42,30 @@ describe('Public feed page HTTP delivery', () => {
     );
     assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
     assert.match(body, /<link rel="stylesheet" href="\/public-feed\.css">/u);
-    assert.match(body, /<h1>News feed<\/h1>/u);
+    assert.match(body, /<script src="\/public-feed\.js" defer><\/script>/u);
+    assert.match(body, /<h1 data-publication-name>News feed<\/h1>/u);
     assert.doesNotMatch(body, new RegExp(slug, 'u'));
     assert.doesNotMatch(body, /indie|author|publishing/u);
     assert.equal(publicFeedReads, 0);
   });
 
-  it('delivers only the explicit same-origin stylesheet resource', async () => {
+  it('delivers only the explicit same-origin page resources', async () => {
     const stylesheet = await request('/public-feed.css');
     assert.equal(stylesheet.status, 200);
     assert.match(stylesheet.headers.get('content-type') ?? '', /^text\/css/u);
     assert.equal(stylesheet.headers.get('cache-control'), 'no-store');
     assert.equal(stylesheet.headers.get('x-content-type-options'), 'nosniff');
     assert.match(await stylesheet.text(), /\.public-feed-shell/u);
+
+    const client = await request('/public-feed.js');
+    assert.equal(client.status, 200);
+    assert.match(
+      client.headers.get('content-type') ?? '',
+      /^(application|text)\/javascript/u,
+    );
+    assert.equal(client.headers.get('cache-control'), 'no-store');
+    assert.equal(client.headers.get('x-content-type-options'), 'nosniff');
+    assert.match(await client.text(), /api\/publications/u);
 
     const unknown = await request('/public/private-source-file.ts');
     assert.equal(unknown.status, 404);
