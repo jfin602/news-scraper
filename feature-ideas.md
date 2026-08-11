@@ -4,6 +4,14 @@ This file is the running feature idea log for ideas proposed in this chat.
 
 ## Proposed Ideas
 
+### +7KQW — 2026-08-11 — UI worktree helper commands
+
+- **Status:** Proposed
+- Add two lightweight local operator helpers for the permanent `ui-polish` worktree workflow:
+  - `ui-sync` — verify the command is running in the UI worktree on `ui-polish`, require a clean working tree, fetch remote state, incorporate current `origin/main` with the repository-approved non-destructive synchronization strategy, and finish by showing the resulting branch/status summary. It should fail safely rather than syncing from the wrong repository/branch or over local changes.
+  - `ui-status` — print a compact UI-workstream status summary including current branch, working-tree cleanliness, and how many commits `ui-polish` is ahead of or behind `main`/`origin/main` so the operator can immediately see whether synchronization or integration is needed.
+- These are operator conveniences for moving safely between the main roadmap worktree and the parallel UI worktree. They should not become part of `codex:phase`, change project versioning, advance roadmap state, or automate merging UI work into `main`.
+
 ## Shipped Ideas
 
 ## Maintenance Notes
