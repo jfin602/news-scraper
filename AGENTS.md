@@ -38,12 +38,12 @@ Follow the canonical versioning and prompt-numbering rules in `BOOT.md`.
 
 Follow the machine-parsed prompt-file grammar in `BOOT.md`; `scripts/codex-phase-core.mjs` is the executable parser and parser changes must update BOOT plus focused regression tests in the same change.
 
-- Task folders use `p<number>`; every `.txt` file in the folder is treated as a prompt.
-- Prompt files use `P<number>-<slug>.txt`; numbering is unique and contiguous from P1.
-- Each prompt has exactly one `TASK:` line, exactly one machine-parsed `- Recommended configuration: `<label>`.` line, and exactly one `assigned project version is `<semver>`` phrase.
-- The recommendation label must exist in the runner's current `MODEL_CONFIGS`; never invent a label such as `Terra Max`.
-- Parsed target version must be `0.<folder phase>.<prompt number>`.
-- Exactly one final prompt is the manual closeout. Closeout identity is determined only when both its filename and `TASK:` title contain `closeout`; if only one contains it, parsing fails. Prompt body prose may mention closeout without changing prompt kind.
+- Task folders use canonical lowercase `p<number>` with no leading zero; every `.txt` file in the folder is treated as a prompt.
+- Prompt files use canonical `P<number>-<lower-kebab-slug>.txt`; the number has no leading zero and prompt numbering is unique and contiguous from P1.
+- Each prompt has exactly one canonical task header: `TASK: Phase <phase> / P<number> — <title>`. Its phase must match the task folder, its prompt number must match the filename, and its title must be non-empty.
+- Each prompt has exactly one recommendation line using the literal prefix `- Recommended configuration:` followed by one backtick-delimited label and a final period. The label must exist in the runner's current `MODEL_CONFIGS`; never invent a label such as `Terra Max`.
+- Each prompt has exactly one `assigned project version is` phrase followed by one backtick-delimited semantic version. The parsed target must be `0.<folder phase>.<prompt number>`.
+- Exactly one final prompt is the manual closeout. Closeout identity is determined only when the filename slug contains a `closeout` segment and the parsed `TASK:` title contains the word `closeout`; if only one contains it, parsing fails. Prompt body prose may mention closeout without changing prompt kind.
 - Before reporting `/prompt-write` complete, validate the written folder against the current parser. When local execution is available run `npm run codex:phase:validate -- <task-folder>`; connector-only work must perform the equivalent source-level parser check explicitly.
 - `npm run codex:phase -- <task-folder>` runs implementation prompts only and stops before the parsed closeout prompt.
 
