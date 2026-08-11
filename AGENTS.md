@@ -34,6 +34,19 @@ Follow the canonical versioning and prompt-numbering rules in `BOOT.md`.
 - Project version changes occur only through execution of a new Codex roadmap-phase prompt, a green `/closeout` transition, or another explicit owner-authorized `.0` transition after the prior phase closes. Other documentation/prompt/review workflow activity does not increment the version.
 - Re-running or correcting the same prompt keeps that prompt's assigned version rather than consuming a new number.
 
+## Codex Phase Prompt Grammar
+
+Follow the machine-parsed prompt-file grammar in `BOOT.md`; `scripts/codex-phase-core.mjs` is the executable parser and parser changes must update BOOT plus focused regression tests in the same change.
+
+- Task folders use `p<number>`; every `.txt` file in the folder is treated as a prompt.
+- Prompt files use `P<number>-<slug>.txt`; numbering is unique and contiguous from P1.
+- Each prompt has exactly one `TASK:` line, exactly one machine-parsed `- Recommended configuration: `<label>`.` line, and exactly one `assigned project version is `<semver>`` phrase.
+- The recommendation label must exist in the runner's current `MODEL_CONFIGS`; never invent a label such as `Terra Max`.
+- Parsed target version must be `0.<folder phase>.<prompt number>`.
+- Exactly one final prompt is the manual closeout. Closeout identity is determined only when both its filename and `TASK:` title contain `closeout`; if only one contains it, parsing fails. Prompt body prose may mention closeout without changing prompt kind.
+- Before reporting `/prompt-write` complete, validate the written folder against the current parser. When local execution is available run `npm run codex:phase:validate -- <task-folder>`; connector-only work must perform the equivalent source-level parser check explicitly.
+- `npm run codex:phase -- <task-folder>` runs implementation prompts only and stops before the parsed closeout prompt.
+
 ## Canonical documents
 
 Use `BOOT.md` as router and read the narrowest governing document.
@@ -220,6 +233,7 @@ Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Databas
 - Trace shared helpers/consumers before changing data or collection semantics.
 - Confirm applicable local validation commands/suites were actually executed against the final tree before approval.
 - Confirm each Codex phase prompt uses its assigned one-based prompt number/version and that `package.json` remains the authoritative version source.
+- Before declaring a task folder automation-ready, validate its exact machine-parsed grammar against the current phase runner; do not infer parser compatibility from visual similarity to historical prompts.
 - Every roadmap implementation/closeout prompt follows the `BOOT.md` quality-first model/reasoning/usage policy: record the exact recommended current Codex configuration, complexity/quality floor, estimated usage, relevant alternative, and efficiency rationale. Complexity/correctness/security/data-integrity risk sets the floor first; token/credit efficiency may optimize only among configurations that still satisfy that floor.
 - Make a concrete recommendation when asked for the recommended option.
 - Never invent repository state, test results, Source behavior, or history.
