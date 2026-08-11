@@ -52,6 +52,201 @@ const withoutPromptText = (prompt) => {
   return copy;
 };
 
+const WINDOWS_NPM_ENTRYPOINT = 'node_modules/@openai/codex/bin/codex.js';
+
+function codexLauncher(command, prefixArguments, type, identity) {
+  return Object.freeze({
+    command,
+    prefixArguments: Object.freeze([...prefixArguments]),
+    type,
+    identity,
+  });
+}
+
+function launcherArguments(launcher, arguments_) {
+  return [...launcher.prefixArguments, ...arguments_];
+}
+
+function invocationFailure(launcher, result) {
+  if (result.error) return result.error.message;
+  const detail = String(result.stderr ?? '').trim();
+  return detail || `exited with status ${result.status}`;
+}
+
+export function checkCodexLauncher(
+  launcher,
+  { spawnSyncProcess = spawnSync, rootDirectory = root } = {},
+) {
+  const result = spawnSyncProcess(
+    launcher.command,
+    launcherArguments(launcher, ['--version']),
+    {
+      cwd: rootDirectory,
+      encoding: 'utf8',
+      shell: false,
+    },
+  );
+  if (result.error || result.status !== 0) {
+    throw new Error(
+      `Codex launcher ${launcher.identity} cannot be invoked: ${invocationFailure(launcher, result)}`,
+    );
+  }
+  const version = String(result.stdout ?? '').trim();
+  if (!version) {
+    throw new Error(
+      `Codex launcher ${launcher.identity} returned no version output.`,
+    );
+  }
+  return version;
+}
+
+function windowsCommandPaths(spawnSyncProcess) {
+  const result = spawnSyncProcess('where.exe', ['codex'], {
+    encoding: 'utf8',
+    shell: false,
+  });
+  if (result.error || result.status !== 0) return [];
+  return String(result.stdout ?? '')
+    .split(/\r?\n/)
+    .map((entry) => entry.trim())
+    .filter((entry) => path.win32.isAbsolute(entry));
+}
+
+async function npmEntrypointForRoot(
+  shimRoot,
+  shimPaths,
+  { fileExists, readTextFile },
+) {
+  const entrypoint = path.win32.join(
+    shimRoot,
+    'node_modules',
+    '@openai',
+    'codex',
+    'bin',
+    'codex.js',
+  );
+  const normalizedReference = WINDOWS_NPM_ENTRYPOINT.toLowerCase();
+  let referencesEntrypoint = false;
+  for (const shimPath of shimPaths) {
+    try {
+      const content = (await readTextFile(shimPath))
+        .replaceAll('\\', '/')
+        .toLowerCase();
+      referencesEntrypoint ||= content.includes(normalizedReference);
+    } catch {
+      // A second shim variant may still provide readable association evidence.
+    }
+  }
+  if (!referencesEntrypoint) {
+    throw new Error(
+      `npm Codex shims under ${shimRoot} do not identify the @openai/codex entrypoint.`,
+    );
+  }
+  if (!(await fileExists(entrypoint))) {
+    throw new Error(`npm Codex entrypoint does not exist: ${entrypoint}`);
+  }
+
+  const packageFile = path.win32.resolve(
+    path.win32.dirname(entrypoint),
+    '..',
+    'package.json',
+  );
+  let manifest;
+  try {
+    manifest = JSON.parse(await readTextFile(packageFile));
+  } catch (error) {
+    throw new Error(
+      `npm Codex package metadata is unusable at ${packageFile}: ${error.message}`,
+      { cause: error },
+    );
+  }
+  if (
+    manifest.name !== '@openai/codex' ||
+    manifest.bin?.codex?.replaceAll('\\', '/') !== 'bin/codex.js'
+  ) {
+    throw new Error(
+      `npm Codex package metadata does not unambiguously map codex to bin/codex.js: ${packageFile}`,
+    );
+  }
+  return entrypoint;
+}
+
+export async function resolveCodexLauncher({
+  platform = process.platform,
+  nodeExecutable = process.execPath,
+  spawnSyncProcess = spawnSync,
+  findWindowsCommands = () => windowsCommandPaths(spawnSyncProcess),
+  fileExists = exists,
+  readTextFile = (file) => readFile(file, 'utf8'),
+  checkLauncher = (launcher) =>
+    checkCodexLauncher(launcher, { spawnSyncProcess }),
+} = {}) {
+  if (platform !== 'win32') {
+    const launcher = codexLauncher('codex', [], 'unix-path', 'codex via PATH');
+    return Object.freeze({ launcher, version: checkLauncher(launcher) });
+  }
+
+  const commandPaths = [...new Set(findWindowsCommands())];
+  const failures = [];
+  for (const executable of commandPaths.filter(
+    (candidate) => path.win32.basename(candidate).toLowerCase() === 'codex.exe',
+  )) {
+    const launcher = codexLauncher(
+      executable,
+      [],
+      'windows-native',
+      `native executable ${executable}`,
+    );
+    try {
+      return Object.freeze({ launcher, version: checkLauncher(launcher) });
+    } catch (error) {
+      failures.push(error.message);
+    }
+  }
+
+  const shimPaths = commandPaths.filter((candidate) =>
+    ['codex.cmd', 'codex.ps1'].includes(
+      path.win32.basename(candidate).toLowerCase(),
+    ),
+  );
+  const roots = new Map();
+  for (const shimPath of shimPaths) {
+    const shimRoot = path.win32.dirname(shimPath);
+    const key = shimRoot.toLowerCase();
+    const group = roots.get(key) ?? { shimRoot, shimPaths: [] };
+    group.shimPaths.push(shimPath);
+    roots.set(key, group);
+  }
+  if (roots.size > 1) {
+    throw new Error(
+      `Codex CLI cannot be resolved unambiguously: npm shims were found in ${[...roots.values()].map(({ shimRoot }) => shimRoot).join(', ')}.`,
+    );
+  }
+  if (roots.size === 1) {
+    const [{ shimRoot, shimPaths: rootShimPaths }] = [...roots.values()];
+    try {
+      const entrypoint = await npmEntrypointForRoot(shimRoot, rootShimPaths, {
+        fileExists,
+        readTextFile,
+      });
+      const launcher = codexLauncher(
+        nodeExecutable,
+        [entrypoint],
+        'windows-npm',
+        `npm @openai/codex entrypoint ${entrypoint}`,
+      );
+      return Object.freeze({ launcher, version: checkLauncher(launcher) });
+    } catch (error) {
+      failures.push(error.message);
+    }
+  }
+
+  const detail = failures.length > 0 ? ` ${failures.join(' ')}` : '';
+  throw new Error(
+    `Codex CLI cannot be resolved on Windows. Install @openai/codex or make an invocable codex.exe available on PATH.${detail}`,
+  );
+}
+
 function writeDashboard(options, verbose) {
   const output = renderDashboard(options);
   process.stdout.write(
@@ -79,17 +274,27 @@ export async function runCodex(
   prompt,
   runDirectory,
   onEvent,
-  { rootDirectory = root, spawnProcess = spawn, verbose = false } = {},
+  {
+    launcher,
+    rootDirectory = root,
+    spawnProcess = spawn,
+    verbose = false,
+  } = {},
 ) {
+  if (!launcher) throw new Error('A resolved Codex launcher is required.');
   const eventsFile = path.join(runDirectory, `P${prompt.number}.events.jsonl`);
   const finalFile = path.join(runDirectory, `P${prompt.number}.final.txt`);
   await Promise.all([writeFile(eventsFile, ''), writeFile(finalFile, '')]);
   const childArgs = buildCodexArguments(prompt, rootDirectory, finalFile);
-  const child = spawnProcess('codex', childArgs, {
-    cwd: rootDirectory,
-    stdio: ['pipe', 'pipe', 'pipe'],
-    shell: false,
-  });
+  const child = spawnProcess(
+    launcher.command,
+    launcherArguments(launcher, childArgs),
+    {
+      cwd: rootDirectory,
+      stdio: ['pipe', 'pipe', 'pipe'],
+      shell: false,
+    },
+  );
   activeChild = child;
 
   const processor = createStructuredEventProcessor({
@@ -171,15 +376,7 @@ export async function runCli(argv = process.argv.slice(2)) {
     throw new Error(
       'Repository has uncommitted changes; start from an intentional clean phase baseline.',
     );
-  const cli = spawnSync('codex', ['--version'], {
-    cwd: root,
-    encoding: 'utf8',
-    shell: false,
-  });
-  if (cli.error || cli.status !== 0)
-    throw new Error(
-      `Codex CLI cannot be invoked${cli.error ? `: ${cli.error.message}` : '.'}`,
-    );
+  const { launcher, version: codexVersion } = await resolveCodexLauncher();
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const runDirectory = path.join(root, '.codex-runs', folderName, stamp);
@@ -188,7 +385,7 @@ export async function runCli(argv = process.argv.slice(2)) {
     phase: plan.phase,
     taskFolder: folderName,
     startedAt: new Date().toISOString(),
-    codexVersion: cli.stdout.trim(),
+    codexVersion,
     status: 'running',
     prompts: plan.prompts.map((prompt) => ({
       ...withoutPromptText(prompt),
@@ -252,7 +449,7 @@ export async function runCli(argv = process.argv.slice(2)) {
             else redraw();
           }
         },
-        { verbose },
+        { launcher, verbose },
       );
     } finally {
       stopActiveRedraw?.();

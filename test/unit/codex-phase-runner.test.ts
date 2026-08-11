@@ -31,7 +31,52 @@ const {
   startElapsedRedraw,
   terminalDashboardOutput,
 } = core;
-const { buildCodexArguments, runCodex } = cli;
+const {
+  buildCodexArguments,
+  checkCodexLauncher,
+  resolveCodexLauncher,
+  runCodex,
+} = cli;
+
+const directTestLauncher = Object.freeze({
+  command: 'codex-test',
+  prefixArguments: Object.freeze([]),
+  type: 'test',
+  identity: 'injected test launcher',
+});
+
+const resolveTestNpmLauncher = (
+  checkLauncher: (launcher: {
+    command: string;
+    prefixArguments: readonly string[];
+    type: string;
+  }) => string = () => 'codex-cli 0.147.0',
+) => {
+  const shimRoot = 'C:\\npm';
+  const shim = `${shimRoot}\\codex.cmd`;
+  const entrypoint = `${shimRoot}\\node_modules\\@openai\\codex\\bin\\codex.js`;
+  const packageFile = `${shimRoot}\\node_modules\\@openai\\codex\\package.json`;
+  const normalized = (value: string) => value.toLowerCase();
+  return resolveCodexLauncher({
+    platform: 'win32',
+    findWindowsCommands: () => [shim],
+    fileExists: async (file: string) =>
+      normalized(file) === normalized(entrypoint),
+    readTextFile: async (file: string) => {
+      if (normalized(file) === normalized(shim)) {
+        return '"%dp0%\\node_modules\\@openai\\codex\\bin\\codex.js" %*';
+      }
+      if (normalized(file) === normalized(packageFile)) {
+        return JSON.stringify({
+          name: '@openai/codex',
+          bin: { codex: 'bin/codex.js' },
+        });
+      }
+      throw new Error(`Unexpected test read: ${file}`);
+    },
+    checkLauncher,
+  });
+};
 
 interface PromptOptions {
   closeout?: boolean;
@@ -74,6 +119,172 @@ test('unknown recommendations still fail closed', () => {
   assert.throws(
     () => parsePrompt('P1-task.txt', prompt(1, { config: 'Terra Max' }).text),
     /Unknown/,
+  );
+});
+
+test('resolves an invocable Windows native codex.exe before npm shims', async () => {
+  const nativeExecutable = 'C:\\Tools\\Codex\\codex.exe';
+  const checked: unknown[] = [];
+  const resolution = await resolveCodexLauncher({
+    platform: 'win32',
+    findWindowsCommands: () => ['C:\\npm\\codex.cmd', nativeExecutable],
+    checkLauncher: (launcher: unknown) => {
+      checked.push(launcher);
+      return 'codex-cli 0.147.0';
+    },
+  });
+
+  assert.equal(resolution.launcher.command, nativeExecutable);
+  assert.deepEqual(resolution.launcher.prefixArguments, []);
+  assert.equal(resolution.launcher.type, 'windows-native');
+  assert.equal(resolution.version, 'codex-cli 0.147.0');
+  assert.equal(checked[0], resolution.launcher);
+});
+
+test('resolves a Windows npm shim to Node plus its verified package entrypoint', async () => {
+  const resolution = await resolveTestNpmLauncher();
+
+  assert.equal(resolution.launcher.command, process.execPath);
+  assert.deepEqual(resolution.launcher.prefixArguments, [
+    'C:\\npm\\node_modules\\@openai\\codex\\bin\\codex.js',
+  ]);
+  assert.equal(resolution.launcher.type, 'windows-npm');
+  assert.equal(Object.isFrozen(resolution.launcher), true);
+  assert.equal(Object.isFrozen(resolution.launcher.prefixArguments), true);
+
+  let invocation:
+    { command: string; arguments: string[]; shell: boolean } | undefined;
+  assert.equal(
+    checkCodexLauncher(resolution.launcher, {
+      spawnSyncProcess: (
+        command: string,
+        arguments_: string[],
+        options: { shell: boolean },
+      ) => {
+        invocation = { command, arguments: arguments_, shell: options.shell };
+        return { status: 0, stdout: 'codex-cli 0.147.0\n', stderr: '' };
+      },
+    }),
+    'codex-cli 0.147.0',
+  );
+  assert.deepEqual(invocation, {
+    command: process.execPath,
+    arguments: [
+      'C:\\npm\\node_modules\\@openai\\codex\\bin\\codex.js',
+      '--version',
+    ],
+    shell: false,
+  });
+});
+
+test('native and Unix preflight invocations remain direct and shell-free', async () => {
+  const invocations: Array<{
+    command: string;
+    arguments: string[];
+    shell: boolean;
+  }> = [];
+  const spawnSyncProcess = (
+    command: string,
+    arguments_: string[],
+    options: { shell: boolean },
+  ) => {
+    invocations.push({ command, arguments: arguments_, shell: options.shell });
+    return { status: 0, stdout: 'codex-cli 0.147.0\n', stderr: '' };
+  };
+  const native = await resolveCodexLauncher({
+    platform: 'win32',
+    findWindowsCommands: () => ['C:\\Tools\\codex.exe'],
+    spawnSyncProcess,
+  });
+  const unix = await resolveCodexLauncher({
+    platform: 'linux',
+    spawnSyncProcess,
+  });
+
+  assert.equal(native.version, 'codex-cli 0.147.0');
+  assert.equal(unix.version, 'codex-cli 0.147.0');
+  assert.deepEqual(invocations, [
+    {
+      command: 'C:\\Tools\\codex.exe',
+      arguments: ['--version'],
+      shell: false,
+    },
+    { command: 'codex', arguments: ['--version'], shell: false },
+  ]);
+});
+
+test('missing, ambiguous, and unusable Windows launchers fail closed', async () => {
+  await assert.rejects(
+    resolveCodexLauncher({
+      platform: 'win32',
+      findWindowsCommands: () => [],
+    }),
+    /cannot be resolved on Windows/,
+  );
+  await assert.rejects(
+    resolveCodexLauncher({
+      platform: 'win32',
+      findWindowsCommands: () => [
+        'C:\\first\\codex.cmd',
+        'C:\\second\\codex.cmd',
+      ],
+    }),
+    /cannot be resolved unambiguously/,
+  );
+  await assert.rejects(
+    resolveCodexLauncher({
+      platform: 'win32',
+      findWindowsCommands: () => ['C:\\npm\\codex.cmd'],
+      readTextFile: async () => '@ECHO off',
+      fileExists: async () => false,
+    }),
+    /do not identify the @openai\/codex entrypoint/,
+  );
+});
+
+test('failed native discovery falls back to one usable npm launcher', async () => {
+  const checkedTypes: string[] = [];
+  const resolution = await resolveCodexLauncher({
+    platform: 'win32',
+    nodeExecutable: 'C:\\node\\node.exe',
+    findWindowsCommands: () => [
+      'C:\\desktop\\codex',
+      'C:\\desktop\\codex.exe',
+      'C:\\npm\\codex.cmd',
+    ],
+    fileExists: async (file: string) => file.endsWith('codex.js'),
+    readTextFile: async (file: string) =>
+      file.endsWith('package.json')
+        ? JSON.stringify({
+            name: '@openai/codex',
+            bin: { codex: 'bin/codex.js' },
+          })
+        : 'node_modules\\@openai\\codex\\bin\\codex.js',
+    checkLauncher: (launcher: { type: string }) => {
+      checkedTypes.push(launcher.type);
+      if (launcher.type === 'windows-native') throw new Error('access denied');
+      return 'codex-cli 0.147.0';
+    },
+  });
+
+  assert.deepEqual(checkedTypes, ['windows-native', 'windows-npm']);
+  assert.equal(resolution.launcher.type, 'windows-npm');
+});
+
+test('preflight reports failed shell-free launcher invocation actionably', () => {
+  assert.throws(
+    () =>
+      checkCodexLauncher(directTestLauncher, {
+        spawnSyncProcess: () => ({
+          status: null,
+          stdout: '',
+          stderr: '',
+          error: Object.assign(new Error('spawn codex-test ENOENT'), {
+            code: 'ENOENT',
+          }),
+        }),
+      }),
+    /cannot be invoked: spawn codex-test ENOENT/,
   );
 });
 
@@ -237,10 +448,23 @@ test('runCodex sends the preflight snapshot and uses native final-response captu
     };
     await writeFile(taskFile, 'mutated after preflight');
 
+    let preflightLauncher: unknown;
+    const resolution = await resolveTestNpmLauncher((launcher) => {
+      preflightLauncher = launcher;
+      return 'codex-cli 0.147.0';
+    });
     let stdinText = '';
+    let invocationCommand = '';
     let invocationArguments: string[] = [];
-    const spawnProcess = (_command: string, childArguments: string[]) => {
+    let shell: boolean | undefined;
+    const spawnProcess = (
+      command: string,
+      childArguments: string[],
+      options: { shell: boolean },
+    ) => {
+      invocationCommand = command;
       invocationArguments = childArguments;
+      shell = options.shell;
       const child = new EventEmitter() as EventEmitter & {
         stdin: { end(value: string): void };
         stdout: PassThrough;
@@ -273,9 +497,20 @@ test('runCodex sends the preflight snapshot and uses native final-response captu
       async (event: unknown) => {
         seen.push(event);
       },
-      { rootDirectory: temporaryDirectory, spawnProcess },
+      {
+        launcher: resolution.launcher,
+        rootDirectory: temporaryDirectory,
+        spawnProcess,
+      },
     );
 
+    assert.equal(preflightLauncher, resolution.launcher);
+    assert.equal(invocationCommand, resolution.launcher.command);
+    assert.equal(
+      invocationArguments[0],
+      resolution.launcher.prefixArguments[0],
+    );
+    assert.equal(shell, false);
     assert.equal(stdinText, originalText);
     assert.notEqual(stdinText, await readFile(taskFile, 'utf8'));
     assert.equal(result.finalResponse, 'native final');
@@ -325,6 +560,7 @@ test('runCodex rejects malformed output emitted immediately before child close',
 
     await assert.rejects(
       runCodex(parsedPrompt, temporaryDirectory, async () => undefined, {
+        launcher: directTestLauncher,
         rootDirectory: temporaryDirectory,
         spawnProcess,
       }),
