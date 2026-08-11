@@ -10,6 +10,9 @@ Phases are intentionally narrow. Each phase represents one cohesive implementati
 - Initial Publication/Source configuration may be bootstrapped through operator-maintained seed/configuration tooling so collection can be proven before full admin UX exists.
 - Bootstrap approval is explicit operator approval; it never bypasses whitelist eligibility or silently expands approved domains.
 - The aggregation engine remains topic independent; the initial indie-author Publication is configuration only.
+- Each deployed installation hosts exactly one Publication/topic. Reuse for another topic means another configured deployment of the same codebase, not concurrently hosting multiple topic Publications in one installation.
+- The canonical customer-visible feed route is the deployment root `/`; public readers do not select a Publication by slug.
+- Publication identifiers/slugs may remain internal configuration/persistence identity and scoping fields without implying multi-Publication hosting.
 - Network safety, Source approval boundaries, Collection-run provenance, normalization, Relevance ordering, and idempotent Article identity are not deferred for the tech demo because they are expensive and risky to retrofit.
 - Before configurable Relevance rules exist, the canonical Relevance boundary runs with an empty rule set and deterministically includes safe candidates by default.
 - Native application-managed administrator accounts, passwords/passkeys, sessions, roles, account recovery, Publication-scoped user authorization, and identity-linked audit attribution are outside MVP.
@@ -214,6 +217,7 @@ Represent the minimum trusted configuration required to collect approved feeds w
 
 - Phase 3 performs structural/configuration validation only for endpoint URL/domain relationships; DNS/address/port/redirect/runtime SSRF enforcement begins in Phase 4.
 - The complete logical domain model contains later parser/cache/health/scheduling/Category/Relevance/branding fields, but Phase 3 persists only fields required by its current behavior.
+- The later single-Publication deployment decision does not erase Publication persistence/scoping introduced here; it constrains supported installation cardinality and routing.
 
 ### Out of scope
 
@@ -423,16 +427,19 @@ Preserve canonical pipeline order and persist normalized Source instances transa
 
 ### Goal
 
-Expose the smallest useful Publication-scoped rolling feed from real stored Articles through the Web/API process without pulling Phase 9 presentation or later discovery/deduplication features forward.
+Expose the smallest useful Publication-backed rolling feed from real stored Articles through the Web/API process without pulling Phase 9 presentation or later discovery/deduplication features forward.
 
 ### Depends on
 
 - Phase 7.
 
-### Deliverables
+### Historical deliverables and forward correction
+
+Phase 8 originally introduced a Publication-scoped database read model behind `GET /api/publications/:publicationSlug/feed`. That historical route remains accurately recorded in the Phase 8 validation artifact. The August 11, 2026 single-Publication deployment decision supersedes the public routing contract before Phase 10 implementation continues: the same canonical read model/eligibility semantics must be exposed as installation-scoped `GET /api/feed`, resolving the installation's one Publication internally rather than accepting a reader-supplied slug.
+
+The underlying Phase 8 behavior remains:
 
 - persisted Article `visibility_state` using `visible` / `hidden` / `archived`, with existing Phase 7 Articles migrated to `visible` and `visible` as the baseline for newly persisted Articles;
-- Publication-scoped database read model behind `GET /api/publications/:publicationSlug/feed`;
 - public-exposure gate requiring Publication `public_status = public`;
 - Source trust/lifecycle gate requiring Source `approved` + `active` for ordinary public rows;
 - baseline Article eligibility requiring `visible`; before Phase 16 Articles are logically `ungrouped` and no speculative duplicate-group persistence is added;
@@ -441,7 +448,7 @@ Expose the smallest useful Publication-scoped rolling feed from real stored Arti
 - bounded server-defined recent result window;
 - minimal safe item shaping: stable Article identifier, effective feed date/date source, `display_title`, Source display name, and stored `original_url`;
 - `original_url` as the headline destination; `canonical_identity_url` remains an identity field and is not substituted as the public destination;
-- explicit public error behavior: public Publication with zero eligible rows returns `200` + empty list; missing and non-public Publications are indistinguishable as `404`; dependency/read failures are bounded and secret-safe;
+- explicit public error behavior: public Publication with zero eligible rows returns `200` + empty list; absent/non-public installation Publication yields the same generic `404`; dependency/read failures are bounded and secret-safe;
 - smallest explicit topic-independent operator mechanism needed to transition an existing pre-admin Publication's `public_status` deliberately for the tech demo while preserving ordinary create-if-absent bootstrap semantics;
 - fresh initial Publication configuration may be aligned to the intended public tech-demo state without making ordinary bootstrap overwrite existing persisted state.
 
@@ -454,6 +461,7 @@ Expose the smallest useful Publication-scoped rolling feed from real stored Arti
 - Before true Duplicate grouping exists, Articles are logically `ungrouped`; Phase 8 does not add duplicate groups, memberships, Primary selection, or duplicate roles merely to implement feed reads.
 - The pre-admin Publication public-status transition must be explicit and generic. Changing committed bootstrap JSON alone is insufficient for an already-created Publication and MUST NOT weaken create-if-absent bootstrap behavior.
 - Collection remains Worker-owned; the Web/API endpoint is read-only with respect to Source collection and MUST NOT fetch publishers inline.
+- Publication slug remains valid configuration/persistence identity but is not a public topic selector.
 
 ### Out of scope
 
@@ -468,9 +476,9 @@ Expose the smallest useful Publication-scoped rolling feed from real stored Arti
 
 ### Exit gate
 
-- A public HTTP request for a public Publication returns real persisted eligible Articles deterministically through the Web/API process.
-- Every returned row resolves to the requested public Publication, an approved active Source, and a visible stored normalized Article; before duplicate grouping that Article is logically ungrouped.
-- Private and missing Publications do not expose feed data and have the same public `404` behavior.
+- A public HTTP request for the installation's public Publication returns real persisted eligible Articles deterministically through the Web/API process.
+- Every returned row resolves to the installation Publication, an approved active Source, and a visible stored normalized Article; before duplicate grouping that Article is logically ungrouped.
+- An absent/non-public installation Publication does not expose feed data and uses generic `404` behavior.
 - A public Publication with no eligible Articles returns a successful empty feed.
 - Feed date uses parsed `published_at` when available and `first_seen_at` otherwise, exposes the fallback source, and preserves deterministic tie ordering.
 - Every headline destination is the Article's stored `original_url`; `canonical_identity_url` is not silently exposed as the replacement destination.
@@ -492,24 +500,19 @@ Produce the first customer-visible working product using real collected data.
 
 - Phase 8.
 
-### Deliverables
+### Historical deliverables and forward correction
 
-- database-backed public feed page at canonical route `GET /publications/:publicationSlug`;
-- page consumption of the canonical Phase 8 public-feed read model/API semantics without a parallel Article-eligibility, ordering, or database-query path;
-- core desktop `Date | Headline | Source` presentation;
-- sane basic stacked mobile rendering;
-- Publication name/identity from the canonical public-feed boundary;
-- linked original-publisher headlines using stored Article `original_url`;
-- deterministic UTC calendar-date rendering from `effectiveFeedDate` until Publication presentation timezone/settings exist;
-- loading, empty, generic unavailable/not-found, and dependency/error states.
+Phase 9 originally delivered and browser-validated the database-backed public feed page at `GET /publications/:publicationSlug`. That route and its evidence remain historical truth.
 
-### Boundary clarification
+Before Phase 10 implementation proceeds, the accepted single-Publication deployment model requires a focused correction so that:
 
-- Missing and non-public Publications remain indistinguishable on the customer-visible page and use the same generic unavailable/not-found state; the UI does not reveal private Publication identity.
-- The Phase 9 page may fetch `GET /api/publications/:publicationSlug/feed` from a lightweight same-origin client or server-render through the same shared read model, but it MUST NOT duplicate feed eligibility/order/query semantics.
-- Collection remains Worker-owned; page requests MUST NOT fetch Source endpoints inline.
-- Shared UI behavior remains topic independent and MUST NOT hard-code the initial indie-author Publication identity.
-- Phase 9 owns a useful basic desktop/mobile tech-demo surface, not the final responsive/accessibility/theming pass reserved for Phase 13.
+- the database-backed public feed page is canonical at `GET /`;
+- the page consumes the same canonical feed read model through installation-scoped semantics, with lightweight clients using `GET /api/feed` rather than extracting a Publication slug from the URL;
+- the installation resolves its one configured Publication internally;
+- public readers are not exposed to a Publication/topic selector;
+- shared UI remains topic independent and Publication identity still comes from configuration/read-model data rather than hard-coded indie-author values;
+- the core desktop `Date | Headline | Source` presentation, sane stacked mobile rendering, stored-`original_url` links, deterministic UTC calendar-date rendering, and loading/empty/unavailable/error behavior are preserved;
+- historical Phase 8/9 validation artifacts are not rewritten to claim root-route behavior that was not observed.
 
 ### Out of scope
 
@@ -518,34 +521,36 @@ Produce the first customer-visible working product using real collected data.
 - filters/search;
 - client-controlled pagination/load-more;
 - duplicate moderation;
-- admin UI.
+- admin UI;
+- multi-Publication routing or compatibility aliases whose only purpose is supporting the superseded hosting model.
 
 ### Exit gate — tech-demo milestone
 
-- At least two real approved RSS/Atom Sources collect through the Worker, with Level 7 approved live-Source evidence for the named Sources/endpoints and observed procedure.
-- Collection runs record the attempts.
-- Raw items normalize, pass default Relevance, and persist idempotently with observations.
-- Current Articles appear in the canonical public page with intended stored-`original_url` publisher links.
-- Re-running collection does not create duplicate Article records for one Source identity.
-- Direct navigation/refresh plus loading, empty, error/unavailable, external-link, desktop, and mobile behavior receive Level 6 browser evidence at representative viewports.
-- The applicable automated deterministic regression matrix passes independently of live public publishers.
+The historical Phase 9 milestone remains accepted with its recorded limitation. The root-route correction must additionally receive focused automated/browser regression evidence before Phase 10 implementation starts, proving that:
+
+- direct navigation/refresh at `/` renders the installation Publication's current Articles through the canonical feed boundary;
+- loading, empty, error/unavailable, external-link, desktop, and mobile behavior remain intact;
+- topic-independent shared behavior is preserved;
+- reader-supplied Publication selection is no longer required;
+- the applicable deterministic regression matrix remains green.
 
 ## Phase 10 — Automated polling, durable jobs, and endpoint health
 
-**Status:** Current.
+**Status:** Current, implementation gated on the post-Phase-9 single-Publication routing/runtime correction above.
 
 ### Goal
 
-Turn the manually proven endpoint execution unit into a continuously updating aggregator without creating a second collection path.
+Turn the manually proven endpoint execution unit into a continuously updating single-Publication installation without creating a second collection path.
 
 ### Depends on
 
-- Phase 9.
+- accepted Phase 9;
+- completed and validated single-Publication correction making `/` the canonical public page and removing reader/runtime topic-selection assumptions that Phase 10 scheduling would otherwise reinforce.
 
 ### Deliverables
 
 - durable job mechanism;
-- due-endpoint scheduler;
+- due-endpoint scheduler for the installation Publication;
 - independent endpoint jobs reusing the canonical Worker execution path;
 - locking integrated with jobs;
 - polling intervals;
@@ -557,6 +562,7 @@ Turn the manually proven endpoint execution unit into a continuously updating ag
 
 ### Out of scope
 
+- multi-Publication scheduling within one installation;
 - admin Source screens;
 - production alert dashboards;
 - HTML collection;
@@ -564,7 +570,7 @@ Turn the manually proven endpoint execution unit into a continuously updating ag
 
 ### Exit gate
 
-- Due approved endpoints collect automatically.
+- Due approved endpoints for the installation Publication collect automatically.
 - One failing endpoint does not interrupt unrelated collection.
 - Overlapping runs are prevented.
 - Retry/recovery tests are deterministic and verify preserved state, not merely thrown errors.
@@ -610,7 +616,7 @@ Add deterministic Publication-specific inclusion/exclusion/categorization withou
 
 - Identical candidate + configuration produces identical Relevance result/reasons.
 - The complete documented priority/scope/tie-break/default/category matrix has deterministic automated coverage.
-- A second unrelated Publication can use unrelated Categories/rules without engine-topic conditionals.
+- A separately deployed unrelated Publication can use unrelated Categories/rules without engine-topic conditionals.
 - Relevance changes do not redefine Article identity.
 
 ## Phase 12 — Feed discovery features
@@ -726,7 +732,7 @@ Replace bootstrap/manual Source configuration with a practical control surface p
 
 ### Goal
 
-Expose Publication editorial configuration through the Cloudflare-protected control plane.
+Expose the installation Publication's editorial configuration through the Cloudflare-protected control plane.
 
 ### Depends on
 
@@ -744,6 +750,7 @@ Expose Publication editorial configuration through the Cloudflare-protected cont
 
 ### Out of scope
 
+- switching among multiple Publications in one installation;
 - native administrator identity;
 - per-user Publication permissions;
 - automatic historical Relevance reprocessing;
@@ -754,7 +761,7 @@ Expose Publication editorial configuration through the Cloudflare-protected cont
 
 - Authorized operator configures branding/Categories/Relevance without code changes.
 - Admin browser/API validation preserves ownership/request-integrity boundaries.
-- Second unrelated Publication remains generic.
+- A separately deployed unrelated Publication remains generic and requires no aggregation-engine topic changes.
 
 ## Phase 16 — True duplicate detection and grouping
 
@@ -955,4 +962,4 @@ After MVP evidence supports them:
 - API access;
 - multilingual feeds.
 
-Deferred features reuse normalized Articles and Publication boundaries rather than bypassing them.
+Deferred features reuse normalized Articles and Publication boundaries rather than bypassing them. Any future proposal for concurrent multi-Publication hosting within one installation requires an explicit contract/ADR change rather than being inferred from the reusable Publication abstraction.
