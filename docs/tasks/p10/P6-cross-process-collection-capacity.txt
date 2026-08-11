@@ -1,0 +1,287 @@
+TASK: Phase 10 / P6 — Cross-process collection capacity and failure-isolated dispatch
+
+ROADMAP PHASE
+Phase 10 — Automated polling, durable jobs, and endpoint health.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Ultra`.
+- Complexity / quality floor: `Critical`.
+- Estimated usage: `Very High`.
+- Alternative considered: `Sol High`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P6 is the hardest distributed boundary in Phase 10. It must enforce installation-wide global/per-Source/per-host capacity across multiple Worker processes, coexist safely with the existing endpoint advisory lock, release automatically on crashes/failures, and preserve unrelated-job progress. Sol Ultra is justified because a subtle lock/session bug here can create either unsafe concurrency or systemic starvation; correctness takes priority over token savings.
+- If this configuration is unavailable at execution time, revalidate against current `BOOT.md`/runner labels rather than inventing one.
+
+VERSIONING
+- This is Phase 10 prompt 6 and its assigned project version is `0.10.6`.
+- Confirm P5 left `package.json` at `0.10.5`, or retain `0.10.6` only for a rerun of this same P6.
+- Update only the top-level package version to `0.10.6`; do not create an npm lockfile.
+
+MANDATORY HANDOFF
+Before editing:
+- require the green singleton correction artifact;
+- re-read `BOOT.md`, Phase 10 architecture/operations contracts, P1-P5 tasks, and actual final P1-P5 code/tests;
+- confirm endpoint advisory locking, P5 contention deferral, and canonical shared execution are present;
+- stop if material drift makes this capacity design unsafe.
+
+GOAL
+Enforce bounded collection execution capacity across all Worker processes for the installation at three independent scopes:
+- global installation capacity;
+- per Source capacity;
+- per destination host capacity.
+
+Integrate that capacity boundary with the shared manual/scheduled endpoint execution path and durable job deferral so one noisy/slow Source or host cannot monopolize the Worker fleet, while preserving the existing Phase 4 per-endpoint advisory lock as the same-endpoint overlap authority.
+
+P6 does not start the background Worker loop; P7 owns runtime orchestration.
+
+GOVERNING DOCUMENTS
+Read current:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- P1-P5 final implementation/tests;
+- endpoint run-lock implementation/tests.
+
+INSPECT / TRACE BEFORE EDITING
+Trace:
+- `Database.withSession` session/discard behavior;
+- existing endpoint advisory-lock key/release implementation;
+- P4 shared endpoint execution service and where current endpoint/source/host identity is available before fetch;
+- P5 same-job contention deferral policy;
+- P2 claim lease behavior;
+- Worker/manual command consumers;
+- current database pool assumptions/tests;
+- Source endpoint URL parser/normalized hostname representation.
+
+CAPACITY COORDINATION MODEL
+Use PostgreSQL session-level advisory locks as fixed concurrency slots, not a new durable capacity-lease table.
+
+Rationale/invariants:
+- all Worker processes already share PostgreSQL;
+- advisory locks are cross-process for the installation;
+- a dropped/crashed database session releases its capacity automatically;
+- capacity is ephemeral coordination, unlike durable job ownership/state;
+- this avoids a second stale-lease/recovery state machine solely for concurrency.
+
+Do not replace the durable P2 job lease with advisory capacity. They solve different problems:
+- durable job lease = who owns the queued attempt;
+- capacity advisory slots = whether that owner may execute collection now;
+- endpoint advisory lock = whether this exact endpoint may overlap another execution.
+
+BASELINE CAPACITY LIMITS
+Use one explicit small installation baseline, kept in a named module/constants for Phase 19 tuning later:
+- global collection executions: 4;
+- per Source: 2;
+- per destination host: 2.
+
+Do not add admin/runtime environment configuration in P6 merely to make the numbers configurable. Multiple Worker processes must share the same effective limits, and fixed Phase 10 constants make that invariant deterministic. Phase 19 may deliberately introduce tuning/configuration later.
+
+If current contracts/source reveal a concrete reason these exact baseline values are unsafe, choose equally conservative documented fixed values while preserving all three scopes and explain the deviation.
+
+ADVISORY SLOT KEYS
+Create deterministic 64-bit advisory-lock keys using a namespaced hash strategy equivalent to the existing endpoint lock.
+
+Use separate namespaces for:
+- global slot index;
+- Source id + slot index;
+- normalized host + slot index.
+
+The same Source/host across different Worker processes must resolve to the same slot key set.
+
+Host keying must use the canonical normalized hostname already parsed from the configured endpoint URL. Do not key by full URL/path/query, raw unnormalized text, IP selected after DNS, or Publication identity.
+
+ACQUIRE ALL SCOPES OR NONE
+A collection execution may proceed only after one slot is acquired in each required scope: global, Source, and host.
+
+Use one dedicated database session to hold all acquired capacity locks for the duration of the wrapped collection work.
+
+Acquisition should be nonblocking (`pg_try_advisory_lock` or equivalent) and deterministic:
+1. global slot;
+2. Source slot;
+3. host slot.
+
+For each scope, try slots in deterministic index order unless a tested fairness strategy is simpler.
+
+If any scope cannot acquire a slot:
+- release every slot already acquired in reverse order;
+- return a bounded blocked result identifying the limiting scope (`global`, `source`, or `host`);
+- do not invoke the collection pipeline;
+- do not create a Collection run;
+- do not update endpoint attempt/failure state;
+- do not consume a retry attempt.
+
+No partial capacity ownership may leak after a failed acquisition.
+
+RELEASE SAFETY
+Release every acquired advisory lock on success, ordinary collection failure, thrown work error, and cancellation/shutdown paths where the session remains available.
+
+Reuse the endpoint lock's defensive pattern:
+- validate release result;
+- discard the database session when lock state becomes uncertain;
+- if work and release both fail, preserve both failures coherently rather than hiding lock-release failure;
+- never return a pooled connection with uncertain advisory-lock ownership.
+
+A process/database-session crash must be proven to release capacity from the perspective of another connection when practical in Level 4 tests.
+
+INTEGRATION WITH CANONICAL EXECUTION
+Place the capacity wrapper around the same shared endpoint collection service used by manual and scheduled work.
+
+The required order is conceptually:
+1. load/revalidate current endpoint aggregate and current Source/host identity;
+2. acquire global/Source/host capacity;
+3. invoke the canonical endpoint service;
+4. canonical service rechecks eligibility and acquires the existing per-endpoint advisory lock before any Collection run/fetch;
+5. release capacity when the service returns/throws.
+
+Do not move network safety out of the canonical service. Capacity acquisition is not destination approval.
+
+Do not remove or merge away the endpoint lock. Capacity >1 means two jobs could still target the same endpoint, and the Phase 4 endpoint lock remains the contractually established overlap authority.
+
+MANUAL PATH
+The manual Worker command must use the same capacity wrapper so manual/check-now style execution obeys the same baseline concurrency/rate-limit boundary as scheduled work.
+
+For a manual command that cannot acquire capacity, return a bounded machine-readable blocked/error result without pretending a Collection run occurred.
+
+Do not automatically retry the CLI.
+
+SCHEDULED JOB PATH
+When a claimed scheduled job cannot acquire capacity:
+- use P5's same-job contention deferral operation;
+- return that SAME job to queued with a short future `available_at`;
+- preserve attempt number and retry-chain linkage;
+- do not terminalize as a failed attempt;
+- do not create a successor retry job;
+- clear current claim ownership safely.
+
+When it later becomes available, P4's `no_longer_due` logic must still be able to skip obsolete root scheduled work if another run already satisfied the due endpoint.
+
+FAILURE ISOLATION
+Capacity enforcement must not serialize the entire installation unnecessarily.
+
+Prove behavior such as:
+- two jobs for Source A may run up to the per-Source limit;
+- an additional Source A job is blocked/deferred even when global capacity remains;
+- Source B on another host may still proceed while Source A is at its Source cap;
+- two Sources sharing one host are jointly bounded by the host cap;
+- other hosts can proceed while one host is saturated;
+- global cap eventually limits the aggregate across otherwise independent Sources/hosts.
+
+One slow/failing Source must not prevent unrelated work except where the explicit global cap is legitimately exhausted.
+
+No in-process semaphore alone satisfies this requirement because the architecture supports multiple Worker processes.
+
+FAIRNESS / STARVATION BOUNDARY
+Phase 10 requires bounded concurrency and failure isolation, not a sophisticated fair-queuing scheduler.
+
+Use short durable deferral for capacity-blocked jobs so they re-enter the P2 queue rather than spinning in process.
+
+Do not busy-loop trying advisory slots and do not hold a job claim while sleeping for capacity.
+
+P7 will repeatedly claim available work, allowing unrelated jobs to proceed between deferrals.
+
+LEVEL 2 TESTS
+Cover deterministic key/slot behavior:
+- same scope identity/index -> same key;
+- different namespaces/scopes -> distinct keys for representative values;
+- normalized host identity behavior;
+- invalid Source/host/slot inputs rejected;
+- configured slot counts/ordering are bounded.
+
+LEVEL 4 CROSS-PROCESS TESTS
+Use independent database sessions/process-equivalent actors and barriers, not process-local mocks, to prove:
+- global slots permit exactly the configured number and block the next actor;
+- per-Source slots apply across independent database clients;
+- per-host slots apply across different Sources sharing a host;
+- unrelated Source/host work can proceed while one scope is saturated;
+- failed acquisition releases previously acquired slots;
+- success releases all slots and allows reacquisition;
+- thrown collection work releases all slots;
+- release failure discards the session/does not leak an uncertain pooled connection;
+- closing/crashing the holder session makes its advisory capacity available to another client;
+- existing endpoint lock still prevents same-endpoint overlap inside available capacity;
+- capacity-blocked scheduled job is durably deferred without attempt increment or Collection run;
+- a separate ready endpoint job remains claimable/executable while another is deferred.
+
+Use controlled barriers/events. Avoid arbitrary sleeps.
+
+POOL / CONNECTION PRESSURE
+This design holds one capacity-lock session plus the existing endpoint-lock session while an endpoint executes. Inspect the current PostgreSQL pool defaults and test/runtime composition.
+
+Do not silently introduce a pool deadlock where the global capacity exceeds usable connections needed by the endpoint lock/Article persistence path.
+
+If necessary, choose the smallest safe implementation adjustment:
+- lower fixed global capacity; or
+- explicitly size the application pool through the existing database config boundary if that capability already belongs there.
+
+Do not create a broad database-pool tuning subsystem in P6. Document/test the chosen bound so capacity cannot self-deadlock the Worker.
+
+SECURITY / NETWORK PRESERVATION
+Capacity code must never:
+- resolve/fetch a hostname itself;
+- weaken SSRF or approved-domain policy;
+- use a selected IP as a host-rate identity instead of configured normalized host;
+- log secrets/query strings;
+- bypass Source/endpoint eligibility.
+
+BROADER REGRESSION
+Run:
+- endpoint lock DB tests;
+- P2 queue lease/concurrency tests;
+- P4 shared execution/recovery tests;
+- P5 deferral/retry/health tests;
+- collection/network safety suites;
+- manual Worker integration tests;
+- full database suite and ordinary deterministic suite.
+
+EXPECTED PRIMARY WRITE SCOPE
+Likely:
+- new `src/collection/concurrency/**` or equivalent focused capacity module;
+- small shared execution wrapper integration;
+- P5 scheduled-job deferral integration;
+- manual command result mapping for capacity block;
+- Level 2 + Level 4 tests.
+
+A schema migration should not be necessary for advisory capacity. If one appears necessary, stop and prove why the ephemeral coordination requirement cannot be met with the agreed shared PostgreSQL primitive before adding durable state.
+
+FORBIDDEN / DEFERRED
+Do not:
+- add a durable capacity/semaphore table without a newly discovered blocker;
+- replace P2 job leases;
+- replace the endpoint run lock;
+- add Worker scheduler/consumer loops;
+- add admin/runtime concurrency configuration;
+- add Publication tenancy;
+- add Phase 11+ behavior.
+
+REQUIRED VALIDATION
+Run and record at minimum:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- focused capacity unit tests;
+- `npm run test:integration`
+- `npm run test:collection`
+- `npm run test:db`
+- `npm test`
+- `npm run check`
+
+ACCEPTANCE CRITERIA
+P6 is complete only when:
+1. package version is exactly `0.10.6`;
+2. installation-wide global/per-Source/per-host execution capacity is enforced across independent PostgreSQL clients;
+3. capacity uses ephemeral advisory slot locks with safe release/crash behavior and no second durable lease table;
+4. endpoint advisory locking remains intact and authoritative for same-endpoint overlap;
+5. capacity block creates no Collection run/failure count/retry attempt and scheduled jobs are durably deferred;
+6. manual and scheduled execution use the same capacity boundary;
+7. one saturated Source/host does not block unrelated work except at the explicit global cap;
+8. database pool usage cannot self-deadlock under the chosen fixed capacity;
+9. focused + broader + real PostgreSQL cross-process evidence is green;
+10. no Worker background orchestration was pulled forward.
+
+FINAL REPORT
+Report slot-key/limit design, pool-safety decision, cross-process evidence, deferral/failure-isolation results, commands/limitations, and confirmation `package.json` is `0.10.6`.
