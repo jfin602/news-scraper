@@ -103,3 +103,11 @@ Deterministic exit conditions 1–11 and inherited deterministic condition 18 ar
 Phase 9 therefore remains blocked and must not be labeled accepted. The live observation is time-bound publisher behavior, not a universal reproducibility claim. No Level 8 reference-deployment or Cloudflare validation was required or performed; that remains later roadmap work.
 
 Once the approved live-Source gate is resolved and the complete final-tree matrix is rerun successfully, the next roadmap phase is Phase 10 — Automated polling, durable jobs, and endpoint health. The later conversational `/closeout` command, not this P4 run, owns any transition to the Phase 10 `0.10.0` baseline.
+
+## Repository-owner acceptance and Phase 10 handoff
+
+On August 11, 2026, after reviewing this recorded limitation, the repository owner explicitly accepted Phase 9 and attributed the Creative Penn timeout to the slow Internet connection provided by the phone-hotspot execution environment. The owner then explicitly directed `/closeout` to continue.
+
+This owner acceptance is a project-management handoff decision; it does **not** alter the validation evidence above, convert the failed Level 7 run into a passing run, or claim that the required two-Source live vertical slice was observed. The original determination and all recorded limitations remain intact as evidence of what was actually executed.
+
+The owner-authorized handoff established the Phase 10 package baseline `0.10.0` in commit `c176c0dec5a718443aa0230370d9f3fba0b90f9c`. Phase 9 is therefore treated as complete for roadmap progression with this explicit accepted limitation, and Phase 10 — Automated polling, durable jobs, and endpoint health — is the active roadmap phase.
