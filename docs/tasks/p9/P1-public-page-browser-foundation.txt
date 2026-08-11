@@ -1,0 +1,273 @@
+TASK: Phase 9 / P1 — Public page delivery and browser-validation foundation
+
+ROADMAP PHASE
+Phase 9 — Basic public-feed UI and tech demo.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Sol Light`.
+- Estimate confidence: `High`.
+- Efficiency rationale: this is a bounded Web/UI-foundation task over an already-proven Phase 8 public-feed backend. It crosses Express routing, static-resource delivery, CSP/content-safety headers, and the first real-browser harness, but it does not own SQL, persistence, collection, or live-Source behavior. Terra High provides sufficient reasoning headroom at materially lower expected token cost than Sol Light while remaining safely above the quality floor.
+- If this exact configuration is no longer available in the current Codex picker at execution time, revalidate against `BOOT.md` rather than silently substituting an invented model/effort name.
+
+VERSIONING
+- This is Phase 9 prompt 1 and its assigned project version is `0.9.1`.
+- On first execution confirm the authorized Phase 9 baseline left `package.json` at `0.9.0`, then advance only its top-level `version` to `0.9.1`.
+- If this same P1 prompt is rerun and `package.json` is already `0.9.1`, retain `0.9.1`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` is the sole authoritative current-version source.
+- The repository intentionally does not use npm package locks; do not create, require, regenerate, or validate `package-lock.json` or `npm-shrinkwrap.json`.
+
+DEPENDS ON
+- Accepted Phase 8 canonical public-feed PostgreSQL reader/read model.
+- Accepted Phase 8 unauthenticated `GET /api/publications/:publicationSlug/feed` HTTP endpoint.
+- Existing Express Web/API process lifecycle, health/readiness, and dependency injection.
+- Phase 9 contracts locking `GET /publications/:publicationSlug` as the canonical public page and Level 6 browser evidence as part of the phase exit gate.
+
+GOAL
+Establish the canonical customer-facing public page route and the first substantive real-browser validation capability without yet implementing the actual feed-fetch/rendering state machine.
+
+P1 owns:
+- generic Publication-scoped HTML page delivery at `GET /publications/:publicationSlug`;
+- same-origin static resource delivery needed by that shell;
+- the basic HTML/content-security boundary required before untrusted collected content is rendered;
+- a substantive `npm run test:browser` capability using a real Chromium browser;
+- browser proof that the real production Express app can be directly navigated to and refreshed.
+
+P1 MUST NOT implement the Phase 9 feed client, duplicate feed eligibility/query logic, perform Source collection, add search/filter/pagination, add Publication presentation settings, or pull Phase 13 presentation polish forward.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/public-feed-and-admin-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- `docs/decisions/original-link-and-normalized-metadata.md`
+
+INSPECT / TRACE BEFORE EDITING
+At minimum inspect and trace:
+- `package.json`
+- `.npmrc`
+- `tsconfig.json`
+- `eslint.config.mjs`
+- `scripts/run-tests.mjs`
+- `src/app/web/create-app.ts`
+- `src/app/web/main.ts`
+- `src/app/web/server.ts`
+- `src/app/web/web-config.ts`
+- `src/public-feed/repository.ts`
+- `test/integration/web-health.test.ts`
+- `test/integration/web-process.test.ts`
+- `test/integration/public-feed-http.test.ts`
+- `test/database/public-feed-http.test.ts`
+- `test/unit/package-scripts.test.ts`
+- existing test-support process/server helpers that may be reusable.
+
+Confirm before editing that:
+- the Web process is already the sole public HTTP process;
+- the page route does not exist yet;
+- the existing JSON feed route already owns public-feed semantics;
+- there is no browser suite or `test:browser` script yet;
+- no frontend build tool/framework exists or is needed for this phase.
+
+REQUIRED ARCHITECTURE
+Use the existing Express Web/API process. Do not introduce a second frontend process or build server.
+
+The preferred Phase 9 shape is a tiny server-delivered HTML/CSS/JS surface beside the existing JSON API. P1 should establish only the HTML/CSS/static-delivery foundation; P2 will add the feed client and rendering behavior.
+
+The canonical page route is exactly:
+
+`GET /publications/:publicationSlug`
+
+The HTML shell MUST:
+- be topic independent;
+- work for an arbitrary syntactically valid slug without hard-coding the initial Publication;
+- not query PostgreSQL merely to deliver the shell;
+- not call `publicFeed.read()` merely to deliver the shell;
+- not reveal whether the requested Publication exists or is private before the P2 client consumes the canonical API;
+- preserve the existing JSON feed and health endpoints unchanged.
+
+A fixed generic shell is intentional. Publication identity comes from the canonical public-feed API in P2.
+
+STATIC RESOURCE BOUNDARY
+Prefer a small explicit Web-owned resource surface such as:
+- `src/app/web/public-feed-page.ts` for page response/template/header helpers;
+- `src/app/web/public/public-feed.css` for the initial shell styling.
+
+Do not add a bundler, transpiler, React, Vue, Svelte, Vite, Next.js, or another application framework.
+
+Avoid inline script/style so the page can operate under a restrictive CSP. P1 does not need to create a placeholder/no-op JavaScript file solely because P2 will later add client behavior.
+
+Static-resource routing MUST be narrowly scoped. Do not expose arbitrary repository paths or use a catch-all static directory that could serve source/config/test files.
+
+CONTENT / SECURITY BASELINE
+Collected content is untrusted even though P1 does not render feed items yet. Establish the page security boundary now so P2 does not need to weaken it.
+
+At minimum the HTML response MUST use an appropriate restrictive Content-Security-Policy compatible with the planned same-origin CSS/JS/API client and external headline navigation. It should not permit arbitrary remote scripts, inline executable script, framing, form submission, plugin/object content, or base-URI rewriting unless a specific current requirement proves otherwise.
+
+Also establish appropriate MIME-sniffing protection and explicit content types. Do not leak filesystem paths, stack traces, database details, or internal configuration in page/static failures.
+
+Choose a simple explicit cache policy for the unversioned shell/static assets and test it. Do not invent a CDN/cache architecture in Phase 9.
+
+BROWSER TOOLING DECISION
+Add the Playwright library as a development dependency and keep the repository's existing `node:test` runner.
+
+Do NOT introduce `@playwright/test` or a second test-runner architecture. Browser tests should be ordinary `node:test` files selected by the existing `scripts/run-tests.mjs` harness.
+
+Add a substantive root script:
+
+`test:browser`
+
+following the established runner pattern over `test/browser/**/*.test.ts`.
+
+The command MUST:
+- select at least one substantive test;
+- fail if no browser tests match through the existing runner behavior;
+- fail clearly if the required Chromium executable/browser prerequisite is unavailable;
+- never silently skip browser coverage and report green.
+
+Chromium installation is an environment prerequisite, not a committed binary. Use the installed Playwright package's supported browser-install command during validation when needed (for example the equivalent of `playwright install chromium`); do not commit browser binaries or caches.
+
+BROWSER TEST COMPOSITION
+Browser tests should start the actual production Express application on an ephemeral local port using existing Web construction/server helpers.
+
+For P1, inject a `publicFeed.read` dependency that would fail the test if called by page-shell delivery. This proves the shell is not a hidden second feed-query path.
+
+The first browser suite must substantively prove at least:
+- Chromium launches;
+- direct navigation to `/publications/<generic-slug>` succeeds;
+- the response renders the generic HTML shell;
+- refreshing that page succeeds;
+- the expected same-origin CSS is requested/applied;
+- there is no initial-Publication/topic hard-coding in the visible shell;
+- page navigation does not invoke the public-feed reader.
+
+This is Level 6 foundation evidence only. It does not satisfy the complete Phase 9 browser exit gate; P2 expands the suite.
+
+EXPECTED PRIMARY WRITE SCOPE
+Expected files are narrowly:
+- `package.json`
+- `src/app/web/create-app.ts`
+- new `src/app/web/public-feed-page.ts`
+- new `src/app/web/public/public-feed.css`
+- new `test/integration/public-feed-page-http.test.ts`
+- new `test/browser/public-feed-page.test.ts`
+- new `test/support/browser.ts` only if substantive reusable browser lifecycle support is justified
+- `test/unit/package-scripts.test.ts` only if its script-contract coverage must change with the new command.
+
+A narrow `README.md` testing-command inventory update is allowed only if adding `test:browser` would otherwise leave the existing developer command documentation demonstrably stale. Do not change roadmap/current-phase status or governing contracts from this implementation prompt.
+
+Files that should normally remain untouched:
+- migrations;
+- Publication/Source schema/configuration;
+- `src/public-feed/repository.ts`;
+- Worker/collection modules;
+- Article persistence/identity modules;
+- scheduler/jobs/admin/deduplication modules.
+
+If implementation appears to require changing those boundaries, stop and report why instead of widening scope silently.
+
+FOCUSED AUTOMATED TESTS
+Add focused Level 3 HTTP/integration protection for:
+- canonical `GET /publications/:publicationSlug` returns HTML;
+- arbitrary generic slug is accepted as page routing input without Publication lookup;
+- the page route does not call the public-feed reader;
+- CSS/static route returns the intended resource/content type;
+- unknown/unapproved static paths are not exposed;
+- CSP/MIME/cache headers match the chosen safe policy;
+- existing `/api/publications/:publicationSlug/feed` behavior remains unchanged;
+- existing health routes remain unchanged.
+
+Add Level 6 Chromium coverage described above.
+
+Avoid brittle whole-document string snapshots. Assert stable observable semantics, resource references, headers, and browser behavior.
+
+BROADER REGRESSION / VALIDATION
+Against the final P1 tree run and record at minimum:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm test`
+- `npm run check`
+- `npm run test:browser`
+
+Install/use Chromium before the browser suite if the environment does not already have the Playwright-managed browser.
+
+P1 does not change persistence semantics, so `npm run test:db` is not required solely for this prompt unless an actual P1 change unexpectedly touches the DB/read-model boundary. If it does, the prompt has exceeded its expected scope and must justify/rerun the appropriate Level 4 coverage.
+
+Do not run `test:live-sources` as a P1 acceptance requirement. Live publishers do not prove page-shell delivery.
+
+DEPENDENCY / LOCKFILE VALIDATION
+If adding Playwright requires dependency installation:
+- use normal `npm install`, not `npm ci`;
+- verify no `package-lock.json` or `npm-shrinkwrap.json` is generated/committed;
+- preserve `.npmrc` lockfile-disabled policy;
+- report the actually resolved environment/package behavior rather than claiming byte-for-byte reproducibility.
+
+PRESERVED BEHAVIOR / INVARIANTS
+P1 MUST preserve:
+- topic independence;
+- the approved-Source and Worker-only collection boundary;
+- existing public-feed eligibility/read-model ownership;
+- missing/private indistinguishability at the API boundary;
+- stored `original_url` as the eventual public destination;
+- Web liveness/readiness behavior and graceful shutdown;
+- existing secret-safe error handling;
+- ordinary deterministic tests remaining independent from public publishers.
+
+DOCUMENTATION
+Do not rewrite contracts, roadmap phase state, BOOT phase state, or ADRs. If implementation uncovers a genuine governing contradiction, stop and report it rather than changing authority documents from P1.
+
+ACCEPTANCE CRITERIA
+P1 is complete only when:
+- `package.json` is exactly `0.9.1`;
+- no npm lockfile exists;
+- canonical public page route exists in the production Express app;
+- the shell is generic/topic independent and does not query the feed/DB to render;
+- same-origin CSS/static delivery is narrow and safe;
+- CSP/content-type/MIME/cache behavior is explicit and tested;
+- Playwright library + `node:test` browser harness exists without adding a second test framework;
+- `npm run test:browser` is substantive and fails rather than silently skipping when Chromium is unavailable;
+- real Chromium direct navigation and refresh of the production Express page are observed;
+- focused integration/browser tests pass;
+- all required broader deterministic regressions above pass against the final tree;
+- existing JSON feed, health, process lifecycle, and Worker-only collection behavior remain unchanged.
+
+NON-GOALS
+Do NOT add in P1:
+- API-driven feed item rendering;
+- Publication name from database/API in the page;
+- populated/empty/unavailable/error feed states beyond a generic shell;
+- client-side date formatting;
+- search, Category/Source filters, pagination/load-more;
+- completed accessibility/responsive polish;
+- dark-mode completion or final branding;
+- Publication timezone/presentation schema;
+- scheduler/jobs/health automation;
+- admin UI/API/auth;
+- duplicate grouping/moderation;
+- HTML collection;
+- Web/API Source fetching;
+- a frontend framework/build pipeline.
+
+FINAL REPORT
+Report:
+- final commit/tree SHA and package version;
+- exact changed files;
+- Playwright/browser version or installation evidence actually observed;
+- focused test results;
+- broader regression commands/results;
+- what was observed at Level 6 versus only inspected/tested at lower levels;
+- any environment limitation or deferred P2 behavior.
+
+Do not claim the complete Phase 9 tech-demo/browser exit gate is satisfied by P1 alone.
