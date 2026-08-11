@@ -2,14 +2,16 @@
 
 ## Architectural goal
 
-Keep Publication-specific configuration at the edges while the core collection, identity, Article, and duplicate pipeline remains reusable across topics.
+Keep Publication-specific configuration at the edges while the core collection, identity, Article, and duplicate pipeline remains reusable across topics and deployments.
+
+Each deployed installation hosts exactly one Publication. The reusable unit is the codebase: a different topic is configured and deployed as another installation rather than added as another concurrently hosted Publication.
 
 ## Logical components
 
 ```mermaid
 flowchart LR
     A[Cloudflare Access-protected Admin UI/API] --> B[Web/API Application]
-    P[Public Feed] --> B
+    P[Root Public Feed] --> B
     B --> D[(PostgreSQL)]
     B --> Q[Durable Job Queue / Scheduler - Phase 10+]
     Q --> W[Collection Worker]
@@ -28,16 +30,28 @@ flowchart LR
     B --> O
 ```
 
+## Deployment boundary
+
+One installation contains one configured Publication and its owned Sources/endpoints/Articles/configuration. Publication identifiers/slugs remain valid internal identity and ownership fields, but they are not public topic selectors and do not imply multi-Publication hosting.
+
+Deployment/bootstrap/runtime configuration MUST resolve one Publication unambiguously. If an installation cannot establish exactly one configured Publication, startup/operator workflows that require the installation Publication must fail clearly rather than choose one implicitly.
+
+The canonical public page is `GET /`. The canonical basic public feed API is `GET /api/feed`. Both resolve the installation Publication internally rather than accepting a reader-supplied Publication slug.
+
+A second topic uses another configured deployment of the same codebase and therefore has separate deployment/runtime state unless a later explicit architecture decision defines shared infrastructure without changing the one-Publication-per-installation product boundary.
+
 ## Process boundaries
 
 The initial deployment may use one repository/database, but it MUST support at least two independently runnable process roles:
 
-- **Web/API process:** serves public/admin interfaces, validates commands, reads normalized data, and later requests/enqueues jobs. It does not perform Source collection inline.
+- **Web/API process:** serves the installation's public/admin interfaces, validates commands, reads normalized data, and later requests/enqueues jobs. It does not perform Source collection inline.
 - **Worker process:** performs collection execution, eligibility/network-safety checks, parsing, normalization, validation, Relevance, identity resolution, duplicate evaluation where implemented, and persistence.
 
 A slow/crashed Source request in the Worker must not block normal public-feed requests.
 
 During the tech-demo critical path before durable jobs/scheduling exist, collection is invoked manually through the Worker process once transport exists. Phase 10 adds durable scheduling around the same endpoint execution unit; it does not create a second collection path.
+
+After the single-Publication contract correction, operator/Worker entry points MUST NOT require Publication selection merely to choose among topics in one installation. Stable Publication identity may still be carried internally where required for ownership/provenance.
 
 ### Phase 1 process bootstrap contract
 
@@ -55,7 +69,7 @@ Phase 1 establishes the process/lifecycle boundary without implementing collecti
 
 Phase 4 introduces the reusable pre-transport gate without introducing transport itself.
 
-- Eligibility reads the persisted Publication/Source/endpoint state and approved-domain policy established in Phase 3.
+- Eligibility reads the persisted installation Publication/Source/endpoint state and approved-domain policy established in Phase 3.
 - A shared cross-process per-endpoint run lock prevents overlapping ownership for one endpoint and is available to every Worker process. PostgreSQL or an equivalently shared coordination mechanism is required; process-local locking alone is insufficient.
 - Network safety may resolve DNS and classifies the concrete destination before transport. Eligible results carry validated destination/address information forward so later transport cannot silently make a second unchecked DNS decision.
 - Eligible execution stops at an injected/controlled outbound-fetch boundary in Phase 4. No publisher HTTP request, real HTTP redirect following, persisted Collection run, or manual endpoint collection command exists yet.
@@ -91,7 +105,7 @@ Native application authentication/account modules are deferred beyond MVP unless
 
 The layout above is a target ownership map, not a requirement to create empty directories or placeholder modules before substantive code exists.
 
-Phase 1 Publication-awareness is structural only: generic naming, dependency direction, and module placement must preserve Publication as the future topic/configuration scoping boundary. Phase 1 does not implement Publication persistence, Source configuration, bootstrap/seed data, Categories, Relevance rules, or the initial indie-author Publication.
+Phase 1 Publication-awareness is structural only: generic naming, dependency direction, and module placement preserve Publication as the topic/configuration scoping boundary. Single-Publication deployment cardinality does not justify hard-coding the initial topic or removing Publication ownership from shared engine/domain code.
 
 Rules:
 
@@ -107,7 +121,7 @@ Rules:
 
 ```mermaid
 flowchart TD
-    A[Manual Worker invocation or due endpoint] --> B{Publication collection-active + Source/endpoint approved, active, enabled?}
+    A[Manual Worker invocation or due endpoint] --> B{Installation Publication collection-active + Source/endpoint approved, active, enabled?}
     B -- No --> Z[Skip with reason]
     B -- Yes --> C[Acquire endpoint run lock]
     C --> R0[Create Collection run]
@@ -150,21 +164,25 @@ During Phases 5–9 before durable scheduling exists:
 
 Phase 4 itself stops at the controlled outbound-fetch boundary and does not yet create endpoint Collection runs.
 
+The historical Phase 5–9 manual command included a Publication slug. That remains historical behavior until the post-Phase-9 single-Publication implementation correction lands; it is not the forward operational contract.
+
 ### Automated polling
 
 From Phase 10 onward:
 
-- polling is endpoint-specific;
-- scheduler identifies due approved + active + enabled endpoints under collection-active Publications and enqueues independent jobs;
+- polling is endpoint-specific within the installation's one Publication;
+- scheduler identifies due approved + active + enabled endpoints under the collection-active installation Publication and enqueues independent jobs;
 - jobs reuse the Phase 4 shared/database-backed endpoint lock to prevent overlapping runs for one endpoint;
 - bounded jitter avoids synchronized spikes;
 - manual `check now` uses the same approval, lifecycle, operational, locking, network-safety, timeout, concurrency, and rate-limit rules and requests the same endpoint execution unit;
+- no scheduler/job design is needed for choosing among multiple topic Publications in one installation;
 - push/webhook adapters are not MVP work; a future push ingress must reuse the normalized downstream pipeline.
 
 ## Persistence and transactions
 
 - Git-tracked migrations and migration infrastructure are authoritative for database schema structure and schema evolution.
 - Runtime processes do not make ad hoc schema changes; Web/API and Worker startup do not automatically apply migrations.
+- Publication ownership/scoping remains explicit in persisted domain relationships even though deployment cardinality is one.
 - The Phase 4 endpoint lock is shared across Worker processes and requires real persistence/concurrency evidence when implemented through PostgreSQL or another shared coordination store.
 - Minimal Collection-run persistence begins with real transport in Phase 5; it does not wait for Article persistence.
 - Article identity resolution plus Article create/update and the corresponding successful identity-resolving observation form one atomic per-candidate transaction with critical uniqueness constraints.
@@ -185,6 +203,7 @@ MVP administrative UI/API routes are protected by Cloudflare Access according to
 - Application-managed accounts/sessions/roles are not part of MVP architecture.
 - State-changing admin browser actions still require applicable CSRF/equivalent request-integrity protection.
 - Admin commands validate Publication/resource ownership regardless of external access control.
+- Admin navigation/commands operate on the installation Publication rather than exposing a multi-Publication topic selector.
 
 ## Initial technical baseline
 
@@ -193,6 +212,8 @@ Unless superseded by an Accepted ADR:
 - Node.js with TypeScript;
 - Express-compatible HTTP structure;
 - PostgreSQL as system of record;
+- one Publication/topic per deployed installation;
+- root `/` as the canonical customer-visible feed route;
 - manual Worker collection during the tech-demo critical path;
 - durable scheduler/job mechanism suitable for retries and separate Workers from Phase 10 onward;
 - server-rendered or lightweight client-rendered web UI;
@@ -204,9 +225,11 @@ The architecture contract matters more than a specific library choice.
 
 MVP does not require microservices, but must not prevent:
 
-- multiple Worker processes;
+- multiple Worker processes for the same installation Publication;
 - bounded global/per-host/per-Source concurrency;
 - public-feed read caching;
 - moving collection execution away from the web host;
-- adding Publications without duplicating the application;
+- deploying additional topic instances from the same codebase without duplicating or topic-forking engine logic;
 - evolving durable jobs/object storage where justified.
+
+Scaling infrastructure across deployments in the future MUST preserve the product boundary that one installation presents one Publication/topic unless a new explicit contract/ADR changes that decision.
