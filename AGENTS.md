@@ -147,6 +147,18 @@ Phase 8 backend baseline:
 - safe dependency errors do not expose SQL, stack traces, credentials, or database detail;
 - search/filters/client-controlled pagination and public presentation remain later phases.
 
+Phase 9 basic public-page baseline:
+
+- canonical page is `GET /publications/:publicationSlug`;
+- the page reuses the canonical Phase 8 public-feed read model/API semantics and MUST NOT introduce a parallel Article-eligibility, ordering, or database-query path;
+- Publication identity comes from the canonical public-feed boundary rather than topic-specific shared UI constants;
+- headlines link directly to the stored `original_url` supplied by that boundary;
+- missing and non-public Publications use the same generic unavailable/not-found page state and do not reveal private Publication identity;
+- loading, empty, dependency/error, direct-navigation, and refresh behavior are explicit;
+- until Publication presentation timezone/settings exist, the basic UI renders calendar dates from `effectiveFeedDate` in UTC;
+- desktop uses the core `Date | Headline | Source` view and mobile uses a sane stacked layout without pulling Phase 13 presentation polish forward;
+- Web/API page handling does not collect Sources inline.
+
 Public completed MVP:
 
 - reverse chronological rolling feed;
@@ -186,15 +198,16 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 - Flaky/skipped tests do not satisfy implementation-roadmap exit gates for the behavior they would have proved.
 - Every reproducible defect should receive regression coverage when technically practical.
 - Every implementation roadmap phase inherits the testing contract even when its phase entry does not repeat the entire matrix.
+- Phase 9 closeout requires both Level 6 browser evidence for the public tech-demo workflow and Level 7 approved live-Source evidence for the named real Sources required by its exit gate; the ordinary deterministic regression matrix remains independent of live publishers.
 - Implementation-roadmap phase closeout requires executed local terminal evidence and a durable `docs/validation/` artifact tied to the exact accepted commit/source tree.
 
 ## Roadmap law
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 8 — Basic public-feed backend**.
+Current phase: **Phase 9 — Basic public-feed UI and tech demo**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, and Phase 7 Default Relevance/Article identity/persistence implementation/validation are complete. Phase 8 is active. Phases 1–9 remain the tech-demo critical path; do not pull later admin/discovery/deduplication work into those phases without a true dependency or explicit decision.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete. Phase 9 is active. Phases 1–9 remain the tech-demo critical path; do not pull later admin/discovery/deduplication work into Phase 9 without a true dependency or explicit decision.
 
 ## Working preferences
 
