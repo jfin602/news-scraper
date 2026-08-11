@@ -4,8 +4,7 @@
 **Platform:** Reusable News Aggregation Platform  
 **Repository:** `jfin602/news-scraper`  
 **Initial Publication:** Indie-author publishing industry news  
-**Established:** 2026-08-06  
-**Architecture amended:** 2026-08-11
+**Established:** 2026-08-06
 
 ## Product definition
 
@@ -31,7 +30,7 @@ The indie-author Publication is the first configuration of the Platform, not the
 
 - Collector code operates on generic Sources, endpoints, candidates, Articles, observations, Duplicate groups, and singleton Publication configuration.
 - A deployed installation has one Publication configuration as its application-level editorial/topic boundary; public readers and ordinary runtime flows do not select a Publication.
-- Publication is not a tenancy or relational ownership key in the forward data model. Publication UUIDs, slugs, foreign keys, joins, uniqueness scopes, API parameters, or compatibility paths MUST NOT be retained solely for hypothetical concurrent multi-Publication hosting.
+- Publication is not a tenancy or relational ownership key. Publication UUIDs, slugs, foreign keys, joins, uniqueness scopes, API parameters, or compatibility paths MUST NOT be retained solely for hypothetical concurrent multi-Publication hosting.
 - The singleton Publication configuration owns installation-wide editorial settings such as name, collection/public state, branding, Categories, Relevance rules, Sources, Source priority, and presentation settings without requiring those resources to carry a Publication foreign key.
 - Real domain relationships remain explicit: a Source owns endpoints and Articles; an endpoint owns Collection runs; observations preserve the endpoint/run and Article/Source provenance needed for integrity.
 - A Source or endpoint cannot be collected while unapproved, archived, paused, or disabled, and global collection is disabled when the singleton Publication configuration is not active for collection.
@@ -45,6 +44,7 @@ The indie-author Publication is the first configuration of the Platform, not the
 - Polling-only Sources are not described as literally real-time.
 - Network-safety validation occurs before each outbound request/redirect; Article-link validation occurs after parsing/normalization before acceptance.
 - Pre-production architecture favors the smallest canonical model for supported behavior. Speculative tenancy, compatibility aliases, synchronized duplicate fields, or future-proofing abstractions require a concrete current need or an explicit later architecture decision.
+- Before production database compatibility is established, the supported persistence setup is a fresh database built from the repository's current migration chain and bootstrap/configuration data. In-place preservation of data created by older pre-production source trees is not a product requirement.
 
 ## Authority order
 
