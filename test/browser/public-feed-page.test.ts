@@ -98,6 +98,22 @@ describe('Public feed page browser behavior', () => {
     }
   });
 
+  it('supports direct navigation and refresh at the canonical root route', async () => {
+    outcome = populatedFeed();
+    const { context, page } = await openPage();
+    try {
+      await waitForState(page, 'populated');
+      assert.equal(new URL(page.url()).pathname, '/');
+
+      const response = await page.reload();
+      assert.equal(response?.status(), 200);
+      await waitForState(page, 'populated');
+      assert.equal(new URL(page.url()).pathname, '/');
+    } finally {
+      await context.close();
+    }
+  });
+
   it('renders Publication name and server ordering into usable desktop Date, Headline, Source columns', async () => {
     outcome = populatedFeed();
     const { context, page } = await openPage({
@@ -154,30 +170,18 @@ describe('Public feed page browser behavior', () => {
     }
   });
 
-  it('uses one generic unavailable page state regardless of the temporary shell path segment', async () => {
+  it('uses a generic unavailable page state without configuration leakage', async () => {
     outcome = undefined;
-    const unavailableStates: Array<{
-      readonly text: string;
-      readonly markup: string;
-    }> = [];
-    for (const shellSegment of ['first-shell', 'second-shell']) {
-      const { context, page } = await openPage({ shellSegment });
-      try {
-        await waitForState(page, 'unavailable');
-        unavailableStates.push({
-          text: await page.locator('main').innerText(),
-          markup: await page.locator('main').innerHTML(),
-        });
-      } finally {
-        await context.close();
-      }
+    const { context, page } = await openPage();
+    try {
+      await waitForState(page, 'unavailable');
+      const text = await page.locator('main').innerText();
+      assert.match(text, /News feed/u);
+      assert.match(text, /This publication is unavailable\./u);
+      assert.doesNotMatch(text, /private|postgresql|database/u);
+    } finally {
+      await context.close();
     }
-    assert.deepEqual(unavailableStates[0], unavailableStates[1]);
-    assert.match(unavailableStates[0]?.text ?? '', /News feed/u);
-    assert.match(
-      unavailableStates[0]?.text ?? '',
-      /This publication is unavailable\./u,
-    );
   });
 
   it('shows a bounded generic error without backend details', async () => {
@@ -312,7 +316,6 @@ describe('Public feed page browser behavior', () => {
 
   async function openPage(
     options: Readonly<{
-      shellSegment?: string;
       timezoneId?: string;
       viewport?: { readonly width: number; readonly height: number };
     }> = {},
@@ -333,9 +336,8 @@ describe('Public feed page browser behavior', () => {
       const pathname = new URL(request.url()).pathname;
       if (pathname.startsWith('/api/')) apiRequestPaths.push(pathname);
     });
-    const shellSegment = options.shellSegment ?? 'current';
     const response = await page.goto(
-      `http://${webServer.host}:${webServer.port}/publications/${shellSegment}`,
+      `http://${webServer.host}:${webServer.port}/`,
     );
     assert.equal(response?.status(), 200);
     return { context, page, apiRequestPaths };

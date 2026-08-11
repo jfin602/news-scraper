@@ -19,7 +19,7 @@
     "test:db": "node --env-file-if-exists=.env scripts/run-tests.mjs --test-global-setup=test/support/database/database-test-global-setup.ts \"test/database/**/*.test.ts\"",
     "test:live-sources": "node --env-file-if-exists=.env scripts/run-tests.mjs \"test/live-sources/**/*.test.ts\"",
     "db:migrate": "node --env-file-if-exists=.env scripts/migrate-database.ts",
-    "db:bootstrap": "node --env-file-if-exists=.env scripts/bootstrap-database.ts config/publications/indie-author-publishing-news.json",
+    "db:bootstrap": "node --env-file-if-exists=.env scripts/bootstrap-database.ts config/publication.json",
     "publication:set-public-status": "node --env-file-if-exists=.env scripts/set-publication-public-status.ts",
     "collect:endpoint": "node --env-file-if-exists=.env src/app/worker/collect-main.ts",
     "codex:phase": "node scripts/codex-phase.mjs",

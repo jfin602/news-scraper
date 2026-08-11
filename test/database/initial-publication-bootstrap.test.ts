@@ -25,7 +25,7 @@ import { withDisposableDatabase } from '../support/database/disposable-database.
 
 const execFileAsync = promisify(execFile);
 const bootstrapConfigUrl = new URL(
-  '../../config/publications/indie-author-publishing-news.json',
+  '../../config/publication.json',
   import.meta.url,
 );
 

@@ -28,9 +28,8 @@ describe('Public feed page HTTP delivery', () => {
 
   after(async () => webServer.close());
 
-  it('returns a generic HTML shell without looking up the Publication', async () => {
-    const slug = 'unrelated-generic-publication';
-    const response = await request(`/publications/${slug}`);
+  it('returns the canonical root HTML shell without looking up the Publication', async () => {
+    const response = await request('/');
     const body = await response.text();
 
     assert.equal(response.status, 200);
@@ -44,8 +43,13 @@ describe('Public feed page HTTP delivery', () => {
     assert.match(body, /<link rel="stylesheet" href="\/public-feed\.css">/u);
     assert.match(body, /<script src="\/public-feed\.js" defer><\/script>/u);
     assert.match(body, /<h1 data-publication-name>News feed<\/h1>/u);
-    assert.doesNotMatch(body, new RegExp(slug, 'u'));
     assert.doesNotMatch(body, /indie|author|publishing/u);
+    assert.equal(publicFeedReads, 0);
+  });
+
+  it('does not retain the obsolete slug-addressed page route', async () => {
+    const response = await request('/publications/obsolete');
+    assert.equal(response.status, 404);
     assert.equal(publicFeedReads, 0);
   });
 

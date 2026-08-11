@@ -65,7 +65,7 @@ describe('approved live feed collection pipeline', () => {
       await run('scripts/migrate-database.ts', [], environment);
       await run(
         'scripts/bootstrap-database.ts',
-        ['config/publications/indie-author-publishing-news.json'],
+        ['config/publication.json'],
         environment,
       );
 

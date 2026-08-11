@@ -92,7 +92,7 @@ export function createWebApp(dependencies: WebDependencies): Express {
       .send(publicFeedClient);
   });
 
-  app.get('/publications/:publicationSlug', (_request, response) => {
+  app.get('/', (_request, response) => {
     sendPublicFeedPage(response);
   });
 

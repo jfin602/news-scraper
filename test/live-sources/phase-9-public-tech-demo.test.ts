@@ -94,7 +94,7 @@ describe('Phase 9 approved live-Source public tech demo', () => {
         await run('scripts/migrate-database.ts', [], environment);
         await run(
           'scripts/bootstrap-database.ts',
-          ['config/publications/indie-author-publishing-news.json'],
+          ['config/publication.json'],
           environment,
         );
         await assertApprovedConfiguration(databaseUrl);
@@ -202,7 +202,7 @@ describe('Phase 9 approved live-Source public tech demo', () => {
           const page = await browser.newPage();
           try {
             const response = await page.goto(
-              `http://127.0.0.1:${String(listening.port)}/publications/current`,
+              `http://127.0.0.1:${String(listening.port)}/`,
             );
             assert.equal(response?.status(), 200);
             await page.waitForSelector(

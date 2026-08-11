@@ -54,6 +54,15 @@ describe('package command environment contract', () => {
     );
   });
 
+  it('boots the singleton deployment from the canonical config path', async () => {
+    const manifest = await readJson<PackageManifest>('package.json');
+
+    assert.equal(
+      manifest.scripts['db:bootstrap'],
+      'node --env-file-if-exists=.env scripts/bootstrap-database.ts config/publication.json',
+    );
+  });
+
   it('keeps package.json as the sole version source under lockfile-disabled npm policy', async () => {
     const manifest = await readJson<PackageManifest>('package.json');
 
