@@ -31,17 +31,35 @@ function oneMatch(text, expression, label) {
 }
 
 export function parsePrompt(filename, text) {
-  const fileMatch = /^P(\d+)-.+\.txt$/i.exec(filename);
-  if (!fileMatch || Number(fileMatch[1]) < 1) {
+  const fileMatch = /^P([1-9]\d*)-([a-z0-9]+(?:-[a-z0-9]+)*)\.txt$/.exec(
+    filename,
+  );
+  if (!fileMatch) {
     throw new Error(
-      `Prompt filename is not one-based P<number>-*.txt: ${filename}`,
+      `Prompt filename must have the form P<number>-<lower-kebab-slug>.txt with no leading zero: ${filename}`,
     );
   }
   const number = Number(fileMatch[1]);
-  const task = oneMatch(text, /^TASK:\s*(.+)$/gim, 'TASK title');
+  const filenameSlug = fileMatch[2];
+  const task = oneMatch(text, /^TASK:\s*(.+)$/gm, 'TASK title');
+  const taskMatch = /^Phase ([1-9]\d*) \/ P([1-9]\d*) — (.+)$/u.exec(task);
+  if (!taskMatch || !taskMatch[3].trim()) {
+    throw new Error(
+      `TASK title must have the form "Phase <phase> / P<number> — <title>": ${filename}`,
+    );
+  }
+  const taskPhase = Number(taskMatch[1]);
+  const taskNumber = Number(taskMatch[2]);
+  const title = taskMatch[3].trim();
+  if (taskNumber !== number) {
+    throw new Error(
+      `TASK prompt number P${taskNumber} does not match filename P${number}: ${filename}`,
+    );
+  }
+
   const recommendation = oneMatch(
     text,
-    /^\s*-\s*Recommended configuration:\s*`([^`]+)`\.?\s*$/gim,
+    /^- Recommended configuration: `([^`]+)`\.$/gm,
     'recommended configuration',
   );
   const config = resolveModelConfig(recommendation);
@@ -51,8 +69,8 @@ export function parsePrompt(filename, text) {
     'assigned project version',
   );
 
-  const filenameSignal = /closeout/i.test(filename);
-  const titleSignal = /closeout/i.test(task);
+  const filenameSignal = /(?:^|-)closeout(?:-|$)/.test(filenameSlug);
+  const titleSignal = /\bcloseout\b/i.test(title);
   if (filenameSignal !== titleSignal) {
     throw new Error(`Ambiguous closeout classification for ${filename}.`);
   }
@@ -62,7 +80,8 @@ export function parsePrompt(filename, text) {
     number,
     filename,
     task,
-    title: task.replace(/^Phase\s+\d+\s*\/\s*P\d+\s*[—-]\s*/i, ''),
+    taskPhase,
+    title,
     recommendation,
     ...config,
     targetVersion,
@@ -72,10 +91,12 @@ export function parsePrompt(filename, text) {
 }
 
 export function buildPlan(entries, folderName) {
-  if (!/^p[1-9]\d*$/i.test(folderName)) {
+  const folderMatch = /^p([1-9]\d*)$/.exec(folderName);
+  if (!folderMatch) {
     throw new Error('Task folder must have the form p<number>.');
   }
   if (entries.length === 0) throw new Error('No prompt files were found.');
+  const phase = Number(folderMatch[1]);
   const prompts = entries.map(({ filename, text }) =>
     parsePrompt(filename, text),
   );
@@ -90,6 +111,11 @@ export function buildPlan(entries, folderName) {
         `Prompt numbering must be contiguous from P1; expected P${index + 1}.`,
       );
     }
+    if (prompt.taskPhase !== phase) {
+      throw new Error(
+        `P${prompt.number} TASK phase ${prompt.taskPhase} does not match folder phase ${phase}.`,
+      );
+    }
   }
   const closeouts = prompts.filter((prompt) => prompt.kind === 'closeout');
   if (closeouts.length !== 1 || prompts.at(-1).kind !== 'closeout') {
@@ -97,7 +123,6 @@ export function buildPlan(entries, folderName) {
       'Exactly one unambiguous final closeout prompt is required.',
     );
   }
-  const phase = Number(folderName.slice(1));
   for (const prompt of prompts) {
     const expected = `0.${phase}.${prompt.number}`;
     if (prompt.targetVersion !== expected) {
@@ -344,6 +369,7 @@ function colorizeDashboardLine(line) {
   if (/^\s*\[M\]/.test(line) || line.startsWith('Closeout:'))
     return style(line, ANSI.yellow);
   if (/^\s*\[ \]/.test(line)) return style(line, ANSI.dim);
+  if (/^\s*Commit:/.test(line)) return style(line, ANSI.dimGreen);
   if (line.startsWith('Target:')) return style(line, ANSI.yellow);
   if (
     line.startsWith('Usage:') ||
