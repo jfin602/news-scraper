@@ -1,0 +1,332 @@
+TASK: Phase 10 / P7 — Automated Worker orchestration, shutdown, and durable diagnostics
+
+ROADMAP PHASE
+Phase 10 — Automated polling, durable jobs, and endpoint health.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol High`.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Alternative considered: `Terra Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P7 integrates every Phase 10 primitive into the long-running Worker lifecycle: concurrent scheduler passes, durable claims/leases, execution, recovery, lease renewal, graceful shutdown, and structured diagnostics. The design is now fixed by P1-P6, so Sol High is enough to wire and validate the runtime without Ultra-level exploratory cost.
+- If this configuration is unavailable at execution time, revalidate against current `BOOT.md` and runner labels rather than inventing one.
+
+VERSIONING
+- This is Phase 10 prompt 7 and its assigned project version is `0.10.7`.
+- Confirm P6 left `package.json` at `0.10.6`, or retain `0.10.7` only for a rerun of this same P7.
+- Update only the top-level package version to `0.10.7`; do not create an npm lockfile.
+
+MANDATORY HANDOFF
+Before editing:
+- require the green singleton correction artifact;
+- re-read `BOOT.md`, Phase 10 contracts/roadmap, all P1-P6 tasks, and actual final P1-P6 source/tests;
+- confirm scheduler-pass, durable queue/recovery, shared execution, retry/health policy, and advisory capacity are individually green;
+- stop on material boundary drift rather than hiding it in runtime wiring.
+
+GOAL
+Turn the existing independently runnable Worker process into the continuously updating Phase 10 runtime by composing:
+- repeated due-endpoint scheduler passes;
+- durable job claiming with leases;
+- cross-process execution capacity;
+- canonical endpoint collection;
+- retry/cooldown/health policy;
+- stale-job/run recovery;
+- graceful shutdown;
+- structured runtime diagnostics.
+
+P7 should contain as little new domain logic as possible. It is orchestration around tested P1-P6 services, not another implementation of their rules.
+
+GOVERNING DOCUMENTS
+Read current:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- singleton correction validation artifact;
+- P1-P6 final implementation/tests.
+
+INSPECT / TRACE BEFORE EDITING
+Trace:
+- `src/app/worker/main.ts` and `runtime.ts` current startup/shutdown/ready/stopped contract;
+- database creation/readiness/close ownership;
+- `src/shared/runtime-config.ts` and existing configuration tests;
+- P3 one-pass scheduler;
+- P2 claim/lease/renew/recovery APIs;
+- P4 execution/reconciliation APIs;
+- P5 retry/terminal/defer policy;
+- P6 capacity wrapper/constants;
+- Worker process/integration tests;
+- Web/API process/readiness/public-feed tests to protect process isolation;
+- existing structured log conventions.
+
+WORKER RUNTIME OWNERSHIP
+Refactor the current Worker runtime from a keep-alive shell into an explicit orchestrator with independently testable dependencies.
+
+The Worker process remains separate from Web/API. Web/API must not start scheduler loops or collect Sources inline.
+
+The runtime should own:
+- one scheduler loop;
+- one durable-job dispatcher/consumer loop;
+- bounded local in-flight task tracking;
+- job lease renewal for in-flight jobs;
+- periodic stale-job recovery;
+- shutdown coordination;
+- final database close after work ownership is resolved as far as practical.
+
+Preserve current `worker.ready`, `worker.stopped`, startup-failure behavior unless a small documented structured extension is needed.
+
+Do not add a Worker HTTP server merely for health probes.
+
+RUNTIME TIMING CONSTANTS
+Use explicit small internal defaults rather than a broad configuration subsystem unless the existing runtime-config contract already provides the cleanest home.
+
+Suitable Phase 10 baselines:
+- scheduler pass interval: 15 seconds;
+- idle job-poll interval: 1 second;
+- job lease duration: 2 minutes;
+- lease renewal interval: 30 seconds;
+- stale-recovery pass interval: 30 seconds.
+
+These are process mechanics, not endpoint polling intervals. Endpoint `poll_interval_seconds` remains the configured collection cadence.
+
+Keep timing values in one module and make clock/sleep/timer behavior injectable for tests. If implementation constraints justify modestly different fixed values, preserve the same relationships: renewal comfortably before lease expiry, bounded scheduler cadence, no busy loop.
+
+Do not add admin UI/configuration for these mechanics in P7.
+
+SCHEDULER LOOP
+Repeatedly invoke the P3 scheduler pass.
+
+Requirements:
+- run once promptly after Worker becomes ready, then on bounded cadence;
+- multiple Worker processes may run scheduler loops concurrently; P2/P3 database uniqueness/races make this safe;
+- one scheduler-pass failure is logged safely and does not permanently stop job consumption or future scheduler passes;
+- do not spawn overlapping scheduler passes within one Worker if a prior pass is still running;
+- stopping the Worker prevents new scheduler passes.
+
+Do not contact publishers from scheduler code.
+
+DISPATCH LOOP
+Maintain a bounded set of locally in-flight jobs, never exceeding P6's global fixed execution capacity.
+
+The durable queue remains the authority; local in-flight tracking is only process orchestration.
+
+Behavior:
+1. while not stopping and local capacity exists, call P2 claim-next for available jobs;
+2. if no job is available, sleep/wait through the injectable bounded idle mechanism;
+3. for each claimed job, start one isolated async task;
+4. execute through P6 capacity + P4 canonical job execution + P5 finalization/retry/defer policy;
+5. catch per-job failures so one job task cannot terminate the dispatcher or unrelated jobs;
+6. remove settled work from local in-flight tracking;
+7. continue claiming when capacity returns.
+
+Do not use unbounded `Promise.all` over the queue.
+
+CAPACITY-BLOCKED JOBS
+A job blocked by P6 capacity is immediately handed to P5 same-job deferral, releasing durable claim ownership. Do not hold claimed jobs sleeping while waiting for advisory capacity.
+
+This lets other endpoints be claimed and preserves failure isolation/fairness.
+
+LEASE RENEWAL
+While a claimed job remains legitimately in-flight, renew its durable P2 lease before expiry.
+
+Use the current claim token. A renewal failure/ownership loss must not be ignored.
+
+If renewal fails:
+- record a bounded structured diagnostic;
+- do not later force terminal job mutation with a stale token;
+- allow the current canonical endpoint execution/endpoint advisory lock to unwind safely if already running;
+- let durable recovery reconcile the job/run state from P2/P4 rather than fabricating success.
+
+Do not cancel network safety or release the endpoint lock incorrectly merely because queue ownership became uncertain.
+
+STALE RECOVERY LOOP
+Periodically inspect a bounded batch of expired running jobs and use the tested recovery chain:
+- unstarted expired job -> P2 safe requeue;
+- linked terminal run -> P4 synthesize/reconcile without rerunning;
+- linked still-running run from dead owner -> P4 interrupt/reconcile as transient;
+- recovered execution result -> P5 terminal/retry policy.
+
+Recovery failures are isolated per job. One malformed/unrecoverable job must not stop later recovery passes or normal unrelated dispatch.
+
+Never run the same job's collection again when an existing execution-id-correlated run already represents that attempt.
+
+FAILURE ISOLATION
+Explicitly preserve:
+- one Source fetch timeout does not abort another job;
+- one parser/persistence/job-finalization error does not stop scheduler/dispatcher loops;
+- one capacity-saturated Source/host does not block unrelated jobs except under the real global cap;
+- Web/API/public feed remains independently runnable/readable during Worker collection failures;
+- a database-wide outage may make Worker work unavailable/readiness fail, but failures are bounded/redacted and recoverable state remains durable where already committed.
+
+GRACEFUL SHUTDOWN
+On SIGINT/SIGTERM or explicit runtime `shutdown()`:
+1. transition runtime to stopping exactly once;
+2. stop initiating scheduler passes;
+3. stop claiming new jobs;
+4. stop starting new recovery work;
+5. continue necessary lease renewal for jobs already in-flight while they finish;
+6. await existing in-flight job tasks and any active scheduler/recovery pass;
+7. if a task cannot safely complete because dependency/ownership failed, leave durable job/run state recoverable rather than forging terminal success;
+8. stop timers/listeners;
+9. close the database once;
+10. resolve `runtime.stopped` and emit existing stopped event.
+
+Repeated/concurrent shutdown calls must be safe/idempotent.
+
+Because actual fetch transport is bounded and durable stale recovery exists, do not add a complicated forced-cancellation protocol in Phase 10 unless required by a proven blocking case.
+
+Remove the current `MessageChannel` keep-alive if timers/loops/in-flight work now naturally own process liveness. Do not retain it without an independent purpose.
+
+STRUCTURED DIAGNOSTICS
+Emit bounded structured events sufficient to correlate runtime activity without making logs the only durable authority.
+
+Useful event classes include:
+- scheduler pass completed/failed with counts;
+- job claimed/started;
+- job succeeded/failed/skipped/deferred/retry-scheduled;
+- stale job recovered;
+- lease renewal/ownership failure;
+- shutdown begin/complete;
+- worker ready/stopped.
+
+Include safe identifiers such as endpoint/job/Collection-run ids where useful. Do not log:
+- credentials/database URLs;
+- authorization headers;
+- Raw response bodies;
+- unbounded parser content;
+- secret query strings.
+
+Persisted endpoint/job/run state remains the diagnostic source of truth for recent outcomes/failures.
+
+DIAGNOSTIC READABILITY
+By the end of P7, a repository/service consumer must be able to inspect durable recent state for:
+- queued/running/terminal jobs and bounded reasons;
+- endpoint last attempt/success/next due/cooldown/failure count/derived health;
+- correlated Collection run statuses/counters/errors/transport telemetry.
+
+Do not build the later admin screens. Tests may call repository read APIs directly to prove the data is available without console logs.
+
+WORKER STARTUP / READINESS
+Preserve current startup sequence:
+- parse runtime/database config;
+- create DB;
+- prove database readiness before reporting Worker ready;
+- start orchestration only after dependencies are usable.
+
+If any new runtime timing/config validation is introduced, invalid values must fail predictably before partial background loops begin.
+
+Do not apply migrations or bootstrap automatically on Worker startup.
+
+CONTROLLED TESTABILITY
+Design the runtime so unit/integration tests can inject:
+- clock/current time;
+- sleep/timer scheduler;
+- random/jitter providers indirectly through existing services;
+- scheduler pass;
+- claim/execute/finalize/recovery functions;
+- structured output sink where current tests already inject output.
+
+Avoid real 15/30/120-second waits in automated tests.
+
+UNIT / COMPONENT TEST MATRIX
+Prove with controlled time/events:
+- scheduler runs promptly and then at cadence without overlap;
+- scheduler failure does not kill dispatcher/future scheduler pass;
+- dispatcher never exceeds local bound;
+- no-job path waits rather than spins;
+- one job failure does not stop another;
+- lease renewal occurs before expiry for long-running controlled work;
+- ownership-loss path does not terminalize with stale token;
+- shutdown stops new scheduling/claiming while allowing in-flight work to settle;
+- repeated shutdown is safe;
+- database close occurs once after in-flight work;
+- runtime stopped resolves only after cleanup.
+
+REAL POSTGRESQL / RECOVERY MATRIX
+Use disposable PostgreSQL for integrated Worker service tests proving:
+- due endpoint -> scheduler creates job -> dispatcher claims -> canonical collection executes against deterministic controlled fetch boundaries -> run/job/endpoint state terminalizes coherently;
+- transient failure creates a durable future retry and unrelated ready endpoint proceeds;
+- one Source failure does not interrupt unrelated queued work;
+- endpoint overlap remains prevented;
+- capacity deferral preserves attempt count and unrelated work proceeds;
+- expired unstarted claim recovers;
+- simulated dead worker after run creation is reconciled without duplicate run and receives correct retry policy;
+- terminal persisted job/run/endpoint state survives a new Worker runtime instance;
+- shutdown during controlled in-flight work leaves no falsely successful job and the state is either completed or later recoverable.
+
+DETERMINISTIC COLLECTION BOUNDARY
+Do not make ordinary P7 tests depend on live publishers/public DNS. Reuse controlled fixtures/injected resolver/fetcher boundaries without weakening production SSRF/whitelist policy.
+
+PROCESS TESTS
+Update existing Worker process tests to verify the actual executable process:
+- starts and emits `worker.ready` when database prerequisite is available;
+- remains running because the scheduler/consumer runtime is active, not a dummy keepalive;
+- responds to SIGTERM/SIGINT with graceful shutdown and `worker.stopped`;
+- emits bounded startup failure when DB/config is unavailable;
+- does not start Web/API or an extra Worker HTTP listener.
+
+PUBLIC-FEED REGRESSION
+Run Web/API/public-feed HTTP regressions to demonstrate Worker failures/background activity did not couple Source collection into the public request path.
+
+A browser rerun is not mandatory for P7 unless the implementation unexpectedly touches public UI behavior; HTTP/database regressions are sufficient for the Phase 10 process-isolation claim.
+
+EXPECTED PRIMARY WRITE SCOPE
+Likely:
+- `src/app/worker/runtime.ts` and `main.ts`;
+- small Worker runtime orchestration modules under `src/app/worker/**` if needed;
+- shared runtime timing constants/config only when required;
+- integration/process/recovery/database tests;
+- small diagnostic read repository additions if P2/P5 did not already expose them.
+
+Do not change public-feed UI/source unless a genuine regression requires a minimal fix.
+
+FORBIDDEN / DEFERRED
+Do not:
+- add admin dashboard/API;
+- add production alert integrations;
+- add new Source types/HTML collection;
+- add duplicate grouping;
+- add Phase 11 Categories/Relevance configuration;
+- add multi-Publication scheduling;
+- make Web/API fetch Sources;
+- turn runtime timing into a large configuration surface;
+- create a second job/execution/retry path.
+
+REQUIRED VALIDATION
+Against the final P7 tree run and record at minimum:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:collection`
+- `npm run test:db`
+- `npm test`
+- `npm run check`
+
+Run targeted Worker process/runtime tests explicitly if the broad commands do not clearly surface their results.
+
+No required suite may silently skip a safe PostgreSQL prerequisite or select zero tests.
+
+ACCEPTANCE CRITERIA
+P7 is complete only when:
+1. package version is exactly `0.10.7`;
+2. the real Worker automatically performs repeated due scheduling and durable job consumption;
+3. multiple Worker processes remain safe because scheduling/enqueue/claim/capacity/endpoint locks are shared PostgreSQL boundaries;
+4. local dispatch is bounded and one job failure does not stop unrelated work;
+5. job leases renew while legitimately in flight and stale ownership cannot terminalize jobs;
+6. stale job/run recovery executes periodically and does not duplicate Collection runs;
+7. graceful shutdown stops new work, lets in-flight work finish/recover safely, and closes DB once;
+8. persisted endpoint/job/run state plus derived health makes recent outcomes/failures diagnosable without console-only output;
+9. Worker startup/ready/stopped/process behavior remains predictable;
+10. Web/API/public-feed reads remain independent from Worker collection failures;
+11. focused + broader + real PostgreSQL recovery evidence is green.
+
+FINAL REPORT
+Report runtime topology/cadences, shutdown/lease behavior, integrated scheduler->job->collection evidence, recovery/failure-isolation tests, durable diagnostics, commands/limitations, and confirmation `package.json` is `0.10.7`.

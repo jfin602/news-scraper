@@ -1,0 +1,247 @@
+TASK: Phase 10 / P2 — Durable endpoint collection job queue and recovery primitives
+
+ROADMAP PHASE
+Phase 10 — Automated polling, durable jobs, and endpoint health.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol High`.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Alternative considered: `Terra Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P2 introduces the first durable multi-Worker queue state machine, claim ownership, leases, stale-claim recovery, and database race guarantees. These are correctness-critical concurrency semantics; Sol High is warranted without defaulting to Ultra because the task is bounded to one endpoint-collection job type and explicitly avoids a generic workflow engine.
+- If this exact configuration is unavailable at execution time, revalidate against current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 10 prompt 2 and its assigned project version is `0.10.2`.
+- Before editing, confirm P1 left `package.json` at `0.10.1`, or retain `0.10.2` only for a rerun of this same P2.
+- Update only the top-level package version to `0.10.2`; do not create an npm lockfile.
+- `package.json` remains the sole current-version authority.
+
+MANDATORY HANDOFF
+Before any edit:
+- re-read `BOOT.md`, the Phase 10 roadmap entry, P1 task, and final P1 implementation/tests;
+- require the green singleton correction artifact `docs/validation/single-publication-simplification-correction.md`;
+- confirm the current tree is the corrected singleton implementation and P1 endpoint runtime state is present;
+- confirm no material executable drift invalidates this queue boundary.
+
+If the correction gate is not green or P1 is incomplete/incoherent, stop and report sequence drift.
+
+GOAL
+Create a durable PostgreSQL-backed queue specifically for endpoint collection attempts, with safe concurrent enqueue/claim/lease/ownership/terminal transitions and recovery primitives suitable for multiple Worker processes.
+
+One `endpoint_collection_job` represents one collection attempt. A later retry is a new successor job, not another hidden attempt inside the same job record. This keeps job/Collection-run provenance auditable and follows the operations contract that each endpoint Collection run is an independent job.
+
+P2 does not execute collection, schedule due endpoints, calculate retry policy, derive health, or start Worker loops.
+
+GOVERNING DOCUMENTS
+Read current versions:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- singleton correction validation artifact;
+- P1 implementation/tests.
+
+INSPECT / TRACE BEFORE EDITING
+Trace:
+- final migration directory and migration numbering after P1;
+- `src/database/database.ts` transaction/session behavior;
+- final endpoint/Collection-run schema and repositories;
+- endpoint run-lock implementation and database concurrency tests for patterns worth reusing;
+- existing test database helpers;
+- Worker runtime/process tests only to understand later consumers;
+- package test scripts and zero-match safeguards.
+
+DURABLE JOB MODEL
+Create the first substantive `src/jobs/` capability and a dedicated durable table such as `endpoint_collection_jobs`.
+
+Do not build a generic arbitrary job/workflow/plugin framework. The current job type is endpoint collection and its schema/API may say so directly.
+
+Each job must persist enough state for deterministic diagnostics/recovery:
+- stable UUID job id;
+- `source_endpoint_id` foreign key;
+- status;
+- enqueue/availability timestamps;
+- attempt number starting at 1;
+- optional `previous_job_id` linking retry successors;
+- claim owner/worker identifier;
+- opaque claim token;
+- claimed timestamp;
+- lease expiration timestamp;
+- optional linked Collection-run id, to be populated by P4;
+- terminal timestamp;
+- bounded terminal outcome/reason/error code/detail fields needed for diagnostics;
+- created/updated timestamps if consistent with repository conventions.
+
+Keep the schema minimal. Do not add Publication IDs, topic scopes, arbitrary payload JSON, priority/routing systems, cron expressions, or future job types.
+
+STATUS MODEL
+Use one clear state machine equivalent to:
+- `queued` — durable, unclaimed, not terminal;
+- `running` — owned by one active claim/lease;
+- `succeeded` — terminal successful attempt;
+- `failed` — terminal failed attempt;
+- `skipped` — terminal non-attempt/blocked outcome where no Collection run occurred;
+- `abandoned` — terminal interrupted attempt used by later crash reconciliation.
+
+Exact names may follow existing conventions, but preserve the semantic distinction between a failed executed attempt, a blocked/skipped job, and a crash-interrupted/abandoned attempt.
+
+Enforce status-dependent nullability/ownership invariants at the database boundary where practical:
+- queued jobs have no active claim ownership or terminal timestamp;
+- running jobs have claim token, worker id, claimed time, lease expiry, and no terminal timestamp;
+- terminal jobs have a terminal timestamp and no active claim ownership;
+- attempt number is a positive integer;
+- `previous_job_id` cannot self-reference;
+- a linked Collection run, when present, belongs to the same endpoint through the existing FK relationships and is unique to one job.
+
+OUTSTANDING-JOB UNIQUENESS
+Enforce at most one nonterminal queued/running job for a Source endpoint at a time with a real PostgreSQL uniqueness mechanism, preferably a partial unique index over the endpoint id for nonterminal statuses.
+
+This is the race-safety backstop for competing schedulers and retries. Do not rely only on a pre-insert SELECT.
+
+A terminal job must no longer block a later job for that endpoint.
+
+ENQUEUE PRIMITIVE
+Provide an idempotent/race-safe enqueue operation with caller-supplied `availableAt`, attempt number, and optional previous job id.
+
+It should return whether a new job was created or an existing outstanding job prevented creation, without surfacing a normal duplicate-enqueue race as an unhandled exception.
+
+Validate endpoint identity and timestamps. Do not contact Sources.
+
+CLAIM PRIMITIVE
+Provide an atomic `claimNext...` operation that:
+- considers only `queued` jobs whose `available_at <= now`;
+- orders deterministically by availability/enqueue time/stable id;
+- safely supports multiple Worker processes using transaction row locking such as `FOR UPDATE SKIP LOCKED` or an equivalent PostgreSQL pattern;
+- atomically changes exactly one selected job to `running` with worker id, fresh opaque claim token, claimed time, and lease expiry;
+- returns no job when none is available;
+- never allows the same job to be successfully owned by two workers.
+
+Prefer claiming one job per call for a simple, reviewable API; later dispatch can repeat bounded claims as capacity permits.
+
+CLAIM OWNERSHIP
+All mutation of a running job after claim must be guarded by both job id and claim token, not job id alone.
+
+Provide primitives for:
+- renewing an active lease;
+- attaching the actual Collection-run id once execution starts;
+- terminalizing the current attempt;
+- deferring/requeueing an unstarted claimed job safely when allowed by a later policy.
+
+A stale/incorrect token must not renew, attach, complete, or otherwise steal ownership.
+
+LEASE / RECOVERY PRIMITIVES
+P2 establishes durable claim recovery but does not reconcile interrupted Collection runs yet.
+
+Provide repository operations that let later P4/P7 recovery code:
+- list expired `running` jobs in deterministic bounded batches;
+- requeue an expired job only when no Collection run has been attached/started;
+- distinguish expired jobs that already have a Collection run and therefore require execution-aware reconciliation rather than blind requeue;
+- prevent a stale former owner from completing a job after its claim was recovered/reassigned.
+
+Do NOT blindly requeue an expired job with an attached Collection run. P4 owns run-aware crash reconciliation so a single job cannot silently produce multiple Collection runs.
+
+TERMINAL RESULT STORAGE
+Persist bounded machine-readable outcome/reason/error information on terminal jobs so recent queue behavior is diagnosable without console logs.
+
+Do not copy full HTTP bodies, Raw items, secrets, database messages, or unbounded exception strings into job rows.
+
+Collection-run stage/counter detail remains owned by `collection_runs`; job rows are queue/retry/ownership diagnostics, not a duplicate run-accounting table.
+
+RETRY CHAIN SUPPORT WITHOUT RETRY POLICY
+Schema/API must support a later retry successor by storing:
+- `attempt_number`;
+- optional `previous_job_id`.
+
+P2 must not choose retryability, max attempts, backoff, or jitter and must not enqueue automatic retries itself.
+
+Later P5 will terminalize the current job and insert its successor in one transaction so the outstanding-job uniqueness constraint remains race-safe.
+
+TRANSACTION BOUNDARIES
+Queue state transitions must be atomic and fail closed.
+
+Use `Database.transaction` for multi-statement transitions where necessary. Do not hold a database transaction open while collection HTTP work executes.
+
+Job claim ownership is a durable lease, not an open transaction or process-local mutex.
+
+REAL POSTGRESQL TEST MATRIX
+Level 4 coverage is mandatory and should prove at minimum:
+- migration from zero including P1 + P2;
+- job FK to a real endpoint;
+- enqueue creates one queued job;
+- repeated/concurrent enqueue for one endpoint produces at most one outstanding job;
+- different endpoints can each have an outstanding job;
+- future `available_at` jobs are not claimable;
+- deterministic claim ordering;
+- concurrent independent claimers cannot own the same job;
+- unrelated jobs can be claimed by separate workers;
+- claim token is required for renew/attach/terminal transitions;
+- lease renewal extends only the current owner;
+- terminal job permits a later enqueue for the endpoint;
+- retry linkage/attempt constraints reject invalid values;
+- expired unstarted running job can be safely requeued;
+- expired job with a linked run is not blindly requeued;
+- former stale owner cannot mutate a recovered claim;
+- transaction rollback leaves coherent queue state;
+- bounded error/outcome fields reject unsafe/unbounded values.
+
+Use controlled timestamps/barriers; avoid arbitrary sleeps.
+
+BROADER REGRESSION
+Run existing database migration, endpoint/Collection-run, endpoint-lock, Worker startup, and ordinary deterministic suites relevant to shared database behavior.
+
+P2 must preserve the Phase 4 endpoint run lock unchanged. Durable job ownership does not replace the endpoint lock; the lock remains the execution overlap authority when collection actually runs.
+
+EXPECTED PRIMARY WRITE SCOPE
+Likely:
+- next additive migration under `migrations/`;
+- new substantive `src/jobs/**` endpoint-collection job model/repository;
+- database tests for queue concurrency/recovery;
+- small unit tests for validation/state normalization if useful.
+
+Do not wire `src/app/worker/runtime.ts` or create the scheduler yet.
+
+FORBIDDEN / DEFERRED
+Do not:
+- execute `collectEndpoint` from jobs;
+- add due-endpoint scheduler code;
+- add retry/backoff/jitter decisions;
+- derive health/cooldown policy;
+- add global/per-host/per-Source concurrency slots;
+- add Worker polling loops;
+- add Publication scopes/job payload tenancy;
+- add admin queue screens or APIs;
+- add generic arbitrary job types/frameworks.
+
+REQUIRED VALIDATION
+Run and record at minimum:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- focused queue unit/integration tests;
+- `npm run test:db`
+- `npm test`
+- `npm run check`
+
+ACCEPTANCE CRITERIA
+P2 is complete only when:
+1. package version is exactly `0.10.2`;
+2. one durable endpoint job equals one attempt;
+3. one endpoint has at most one queued/running job at a time;
+4. enqueue/claim behavior is race-safe under real PostgreSQL;
+5. claim ownership/lease mutation requires the current opaque token;
+6. expired unstarted claims can be recovered while started jobs are explicitly left for run-aware reconciliation;
+7. terminal job diagnostics are bounded and persisted;
+8. retry-chain metadata exists without automated retry policy;
+9. existing endpoint advisory lock remains the execution overlap primitive;
+10. no scheduler/executor/retry/health/Worker-loop behavior was pulled forward;
+11. focused + broader + Level 4 regression evidence is green.
+
+FINAL REPORT
+Report schema/state-machine choices, queue APIs, concurrency/recovery tests executed, observed results/limitations, and confirmation `package.json` is `0.10.2`.
