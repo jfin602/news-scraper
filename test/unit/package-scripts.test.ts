@@ -27,6 +27,8 @@ describe('package command environment contract', () => {
       'test:unit',
       'test:integration',
       'test:collection',
+      'codex:phase',
+      'codex:phase:validate',
       'check',
     ];
 
@@ -40,6 +42,15 @@ describe('package command environment contract', () => {
 
     assert.equal(manifest.dependencies?.dotenv, undefined);
     assert.equal(manifest.devDependencies?.dotenv, undefined);
+  });
+
+  it('exposes a parse-only Codex phase prompt validator', async () => {
+    const manifest = await readJson<PackageManifest>('package.json');
+
+    assert.equal(
+      manifest.scripts['codex:phase:validate'],
+      'node scripts/validate-codex-phase.mjs',
+    );
   });
 
   it('keeps package.json as the sole version source under lockfile-disabled npm policy', async () => {
