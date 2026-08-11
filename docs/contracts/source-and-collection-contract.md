@@ -44,7 +44,7 @@ Bootstrap tooling:
 
 Once admin UI becomes the normal management surface, bootstrap data is initialization input rather than competing runtime authority.
 
-The post-Phase-9 singleton correction removes Publication slug selection from bootstrap/runtime commands. Historical Phase 3–9 bootstrap behavior remains accurately described by historical tasks/validation artifacts.
+Bootstrap/runtime commands operate on the installation's singleton Publication configuration and MUST NOT require a Publication slug or selector.
 
 ## Approved-domain policy
 
@@ -200,7 +200,7 @@ During this pre-scheduler period:
 
 Phase 4 establishes eligibility, the shared endpoint lock, and network-safety primitives only. Manual Worker endpoint execution and Collection-run creation begin in Phase 5. Phase 10 later places the already-proven endpoint execution unit behind durable jobs and due-endpoint scheduling while reusing the Phase 4 lock.
 
-Forward Worker/manual/scheduler execution selects the Source/endpoint directly. It MUST NOT require a Publication slug or identifier to choose among topics in one installation.
+Worker/manual/scheduler execution selects the Source/endpoint directly. It MUST NOT require a Publication slug or identifier to choose among topics in one installation.
 
 ## Retry and backoff
 
@@ -248,7 +248,7 @@ Before Relevance, identity, duplicate, or public-feed logic, normalization MUST:
 - sanitize/strip unsafe markup;
 - bound field lengths;
 - normalize title representation for matching while preserving display/source title;
-- attach Source, endpoint, and Collection-run provenance; Publication tenancy provenance is not part of the forward candidate contract;
+- attach Source, endpoint, and Collection-run provenance; Publication tenancy is not part of the candidate contract;
 - hand the absolute normalized Article URL to the separate Article-link domain-policy gate before acceptance.
 
 The original discovered URL remains the future public destination unless a later explicit Source-derived canonical/public-destination field is governed separately; canonical identity cleanup exists for identity comparison and MUST NOT silently replace the preserved original destination.
