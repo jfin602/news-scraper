@@ -17,6 +17,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
     assert.deepEqual(await migrateDatabase({ connectionString: databaseUrl }), [
       '0001_initial_schema.sql',
       '0002_endpoint_runtime_and_run_transport_telemetry.sql',
+      '0003_endpoint_collection_jobs.sql',
     ]);
     assert.deepEqual(
       await migrateDatabase({ connectionString: databaseUrl }),
@@ -64,6 +65,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
       assert.deepEqual(history.rows, [
         { filename: '0001_initial_schema.sql' },
         { filename: '0002_endpoint_runtime_and_run_transport_telemetry.sql' },
+        { filename: '0003_endpoint_collection_jobs.sql' },
       ]);
 
       const removedTenancy = await client.query<{
