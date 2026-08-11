@@ -418,7 +418,7 @@ test('upgrades representative Phase 6 history from 0003 to 0004 without rewritin
   });
 });
 
-test('upgrades representative Phase 7 history from 0004 to 0005 without rewriting records', async () => {
+test('upgrades representative Phase 7 history from 0004 through 0006 without rewriting records', async () => {
   await withDisposableDatabase(async ({ databaseUrl }) => {
     const productionDirectory = path.join(process.cwd(), 'migrations');
     const migrationNames = [
@@ -522,6 +522,18 @@ test('upgrades representative Phase 7 history from 0004 to 0005 without rewritin
         await migrateDatabase({ connectionString: databaseUrl }, directory),
         ['0005_collection_run_processing.sql'],
       );
+      await writeFile(
+        path.join(directory, '0006_article_visibility.sql'),
+        await readFile(
+          path.join(productionDirectory, '0006_article_visibility.sql'),
+          'utf8',
+        ),
+        'utf8',
+      );
+      assert.deepEqual(
+        await migrateDatabase({ connectionString: databaseUrl }, directory),
+        ['0006_article_visibility.sql'],
+      );
       assert.deepEqual(
         await migrateDatabase({ connectionString: databaseUrl }, directory),
         [],
@@ -534,7 +546,7 @@ test('upgrades representative Phase 7 history from 0004 to 0005 without rewritin
                   r.article_link_rejection_count, r.processing_status,
                   r.created_count, r.updated_count, r.unchanged_count,
                   r.rejected_count, r.excluded_count, r.failed_count,
-                  a.id AS article_id, o.id AS observation_id
+                  a.id AS article_id, a.visibility_state, o.id AS observation_id
              FROM collection_runs r
              JOIN article_observations o ON o.collection_run_id = r.id
              JOIN articles a ON a.id = o.article_id`,
@@ -552,6 +564,7 @@ test('upgrades representative Phase 7 history from 0004 to 0005 without rewritin
             excluded_count: 0,
             failed_count: 0,
             article_id: '20000000-0000-4000-8000-000000000020',
+            visibility_state: 'visible',
             observation_id: '30000000-0000-4000-8000-000000000020',
           },
         ]);

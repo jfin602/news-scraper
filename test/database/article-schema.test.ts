@@ -46,6 +46,38 @@ test('article schema stores valid Article and terminal observation provenance', 
   });
 });
 
+test('article visibility accepts only canonical states', async () => {
+  await withArticleDatabase(async (client, fixture) => {
+    const articleIds: string[] = [];
+    for (const visibilityState of ['visible', 'hidden', 'archived']) {
+      const articleId = await insertArticle(client, fixture);
+      await client.query(
+        'UPDATE articles SET visibility_state = $2 WHERE id = $1',
+        [articleId, visibilityState],
+      );
+      articleIds.push(articleId);
+    }
+    const states = await client.query<{ visibility_state: string }>(
+      `SELECT visibility_state
+       FROM articles
+       WHERE id = ANY($1::uuid[])
+       ORDER BY visibility_state`,
+      [articleIds],
+    );
+    assert.deepEqual(states.rows, [
+      { visibility_state: 'archived' },
+      { visibility_state: 'hidden' },
+      { visibility_state: 'visible' },
+    ]);
+    await rejects(() =>
+      client.query(
+        "UPDATE articles SET visibility_state = 'unsupported' WHERE id = $1",
+        [articleIds[0]],
+      ),
+    );
+  });
+});
+
 test('article and observation ownership constraints reject false provenance', async () => {
   await withArticleDatabase(async (client, fixture) => {
     await rejects(() =>

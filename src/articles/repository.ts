@@ -16,6 +16,7 @@ export type ArticlePersistenceSuccessOutcome =
   'created' | 'updated' | 'unchanged';
 export type ArticlePersistenceFailureReason =
   'identity_conflict' | 'provenance_mismatch';
+export type ArticleVisibilityState = 'visible' | 'hidden' | 'archived';
 
 export interface PersistedArticle {
   readonly id: string;
@@ -34,6 +35,7 @@ export interface PersistedArticle {
   readonly publishedAt: Date | undefined;
   readonly sourceUpdatedAtStatus: 'parsed' | 'missing' | 'invalid';
   readonly sourceUpdatedAt: Date | undefined;
+  readonly visibilityState: ArticleVisibilityState;
   readonly firstSeenAt: Date;
   readonly lastSeenAt: Date;
   readonly createdAt: Date;
@@ -97,6 +99,7 @@ interface ArticleRow {
   readonly published_at: unknown;
   readonly source_updated_at_status: unknown;
   readonly source_updated_at: unknown;
+  readonly visibility_state: unknown;
   readonly first_seen_at: unknown;
   readonly last_seen_at: unknown;
   readonly created_at: unknown;
@@ -145,7 +148,7 @@ const ARTICLE_COLUMNS = `
   id, publication_id, source_id, external_id, original_url,
   canonical_identity_url, display_title, normalized_title, author, summary,
   image_url, language, published_at_status, published_at,
-  source_updated_at_status, source_updated_at, first_seen_at, last_seen_at,
+  source_updated_at_status, source_updated_at, visibility_state, first_seen_at, last_seen_at,
   created_at, updated_at`;
 const OBSERVATION_COLUMNS = `
   id, publication_id, source_id, source_endpoint_id, collection_run_id,
@@ -697,6 +700,7 @@ function mapArticleRow(row: ArticleRow): PersistedArticle {
       publishedAt: nullableTimestamp(row.published_at),
       sourceUpdatedAtStatus: requiredDateStatus(row.source_updated_at_status),
       sourceUpdatedAt: nullableTimestamp(row.source_updated_at),
+      visibilityState: requiredVisibilityState(row.visibility_state),
       firstSeenAt: requiredTimestamp(row.first_seen_at),
       lastSeenAt: requiredTimestamp(row.last_seen_at),
       createdAt: requiredTimestamp(row.created_at),
@@ -733,6 +737,13 @@ function mapObservationRow(row: ObservationRow): PersistedArticleObservation {
 
 function requiredDateStatus(value: unknown): 'parsed' | 'missing' | 'invalid' {
   if (value === 'parsed' || value === 'missing' || value === 'invalid') {
+    return value;
+  }
+  throw new Error();
+}
+
+function requiredVisibilityState(value: unknown): ArticleVisibilityState {
+  if (value === 'visible' || value === 'hidden' || value === 'archived') {
     return value;
   }
   throw new Error();

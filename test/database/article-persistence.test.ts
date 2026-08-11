@@ -48,6 +48,7 @@ test('strong identity creates, re-observes, and materially updates one Article',
       OBSERVED_AT,
     );
     assertSuccess(created, 'created');
+    assert.equal(created.article.visibilityState, 'visible');
     assert.equal(created.article.externalId, 'publisher-item-1');
     assert.equal(created.article.originalUrl, initial.originalUrl);
     assert.equal(
@@ -154,6 +155,61 @@ test('strong identity creates, re-observes, and materially updates one Article',
   });
 });
 
+test('Source observations preserve durable visibility without changing Article outcomes or provenance', async () => {
+  await withPersistenceDatabase(async ({ database, inspector, fixture }) => {
+    const initial = candidate(fixture, {
+      externalId: 'visibility-item',
+      canonicalIdentityUrl: 'https://one.example/articles/visibility',
+      originalUrl: 'https://one.example/articles/visibility',
+    });
+    const created = await persistIncludedArticle(
+      database,
+      initial,
+      OBSERVED_AT,
+    );
+    assertSuccess(created, 'created');
+    assert.equal(created.article.visibilityState, 'visible');
+
+    await inspector.query(
+      "UPDATE articles SET visibility_state = 'hidden' WHERE id = $1",
+      [created.article.id],
+    );
+    const unchanged = await persistIncludedArticle(
+      database,
+      initial,
+      new Date('2026-08-10T13:00:00.000Z'),
+    );
+    assertSuccess(unchanged, 'unchanged');
+    assert.equal(unchanged.article.id, created.article.id);
+    assert.equal(unchanged.article.visibilityState, 'hidden');
+
+    await inspector.query(
+      "UPDATE articles SET visibility_state = 'archived' WHERE id = $1",
+      [created.article.id],
+    );
+    const materialUpdate = candidate(fixture, {
+      externalId: 'visibility-item',
+      canonicalIdentityUrl: initial.canonicalIdentityUrl,
+      originalUrl: initial.originalUrl,
+      displayTitle: 'Updated visibility title',
+      normalizedTitle: 'updated visibility title',
+    });
+    const updated = await persistIncludedArticle(
+      database,
+      materialUpdate,
+      new Date('2026-08-10T14:00:00.000Z'),
+    );
+    assertSuccess(updated, 'updated');
+    assert.equal(updated.article.id, created.article.id);
+    assert.equal(updated.article.visibilityState, 'archived');
+    assert.equal(updated.observation.articleId, created.article.id);
+    assert.deepEqual(await cardinality(inspector), {
+      articles: 1,
+      observations: 3,
+    });
+  });
+});
+
 test('canonical fallback is idempotent, resolves one strong Article, and promotes safely', async () => {
   await withPersistenceDatabase(async ({ database, inspector, fixture }) => {
     const canonicalUrl = 'https://one.example/articles/canonical-fallback';
@@ -178,6 +234,11 @@ test('canonical fallback is idempotent, resolves one strong Article, and promote
     assertSuccess(unchanged, 'unchanged');
     assert.equal(unchanged.article.id, created.article.id);
 
+    await inspector.query(
+      "UPDATE articles SET visibility_state = 'hidden' WHERE id = $1",
+      [created.article.id],
+    );
+
     const strongCandidate = candidate(fixture, {
       externalId: 'later-strong-id',
       originalUrl: canonicalUrl,
@@ -191,6 +252,7 @@ test('canonical fallback is idempotent, resolves one strong Article, and promote
     assertSuccess(promoted, 'updated');
     assert.equal(promoted.article.id, created.article.id);
     assert.equal(promoted.article.externalId, 'later-strong-id');
+    assert.equal(promoted.article.visibilityState, 'hidden');
 
     const canonicalAfterPromotion = await persistIncludedArticle(
       database,
@@ -200,6 +262,7 @@ test('canonical fallback is idempotent, resolves one strong Article, and promote
     assertSuccess(canonicalAfterPromotion, 'unchanged');
     assert.equal(canonicalAfterPromotion.article.id, created.article.id);
     assert.equal(canonicalAfterPromotion.article.externalId, 'later-strong-id');
+    assert.equal(canonicalAfterPromotion.article.visibilityState, 'hidden');
     assert.deepEqual(await cardinality(inspector), {
       articles: 1,
       observations: 4,
@@ -929,8 +992,8 @@ async function articleState(client: Client): Promise<readonly unknown[]> {
     `SELECT id, publication_id, source_id, external_id, original_url,
             canonical_identity_url, display_title, normalized_title, author,
             summary, image_url, language, published_at_status, published_at,
-            source_updated_at_status, source_updated_at, first_seen_at,
-            last_seen_at, created_at, updated_at
+            source_updated_at_status, source_updated_at, visibility_state,
+            first_seen_at, last_seen_at, created_at, updated_at
      FROM articles
      ORDER BY id`,
   );
