@@ -6,11 +6,11 @@ The first configured Publication focuses on publishing-industry news relevant to
 
 ## Current project state
 
-Current phase: **Phase 8 — Basic public-feed backend**.
+Current phase: **Phase 9 — Basic public-feed UI and tech demo**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, and Phase 7 Default Relevance/Article identity/persistence implementation and closeout validation are complete.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation and closeout validation are complete.
 
-Phase 8 builds the first database-backed public Article read path through Web/API. It introduces persisted Article visibility, Publication/Source public-row eligibility gates, deterministic effective feed-date ordering, a bounded Publication-scoped feed endpoint, safe minimal output shaping, and the stored Article `original_url` as the headline destination. Before true Duplicate grouping exists, persisted Articles are logically ungrouped; Phase 8 does not pull duplicate grouping, discovery filters, or public UI forward.
+Phase 8 established persisted Article visibility, Publication/Source public-row eligibility gates, deterministic effective feed-date ordering, the bounded Publication-scoped `GET /api/publications/:publicationSlug/feed` endpoint, safe minimal output shaping, and stored Article `original_url` headline destinations. Phase 9 builds the first customer-visible page at `GET /publications/:publicationSlug`, reusing that canonical public-feed boundary rather than creating a parallel feed query path. The tech-demo page provides the core desktop `Date | Headline | Source` view, a sane stacked mobile view, Publication identity, original-publisher headline links, explicit loading/empty/error states, and deterministic UTC calendar-date rendering until later Publication presentation settings exist.
 
 ## Delivery priority
 
@@ -45,7 +45,7 @@ Completed MVP adds:
 - deterministic pagination/load-more;
 - light/dark presentation.
 
-Phase 8 establishes the backend read model/API. The Phase 9 tech demo intentionally reaches a useful basic page before discovery/presentation polish is complete.
+Phase 8 establishes the backend read model/API. Phase 9 builds the canonical basic Publication page over that same boundary and intentionally reaches a useful real-data tech demo before discovery/presentation polish is complete.
 
 Pinning/featured-story ordering is deferred beyond MVP.
 
@@ -155,7 +155,7 @@ Core rules:
 - flaky/skipped tests do not satisfy phase exit gates;
 - implementation-roadmap phase closeout uses executed local terminal evidence and a durable `docs/validation/` record tied to the exact accepted commit/source tree.
 
-Every implementation roadmap phase inherits that contract even when its phase entry does not repeat the complete test matrix.
+Every implementation roadmap phase inherits that contract even when its phase entry does not repeat the complete test matrix. Phase 9 additionally requires Level 6 browser evidence for the public tech-demo flow and Level 7 evidence against the named approved live Sources required by its exit gate.
 
 Dependency installation intentionally uses `package.json` without an npm package lock. Repository npm configuration disables `package-lock.json` generation, so clean installs use `npm install` rather than `npm ci`. Because declared dependency ranges may resolve to different compatible versions over time, validation applies to the exact source tree and recorded Node/npm environment that was actually tested rather than claiming byte-for-byte dependency reproducibility.
 
