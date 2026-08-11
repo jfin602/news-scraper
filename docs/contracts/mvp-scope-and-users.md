@@ -2,19 +2,21 @@
 
 ## MVP objective
 
-Deliver a dependable publication website and administrative control plane that continuously collects recent headlines from a whitelist of approved Sources, persists Source instances idempotently, suppresses true duplicates, and sends readers to the original Article.
+Deliver a dependable single-Publication website and administrative control plane that continuously collects recent headlines from a whitelist of approved Sources, persists Source instances idempotently, suppresses true duplicates, and sends readers to the original Article.
 
 Delivery is demo-first. The first implementation milestone is a real vertical slice that collects approved RSS/Atom Sources, normalizes and persists Articles idempotently with provenance, and displays them in the public rolling feed. Full admin UX follows after that vertical slice is working.
 
 The MVP must prove:
 
 1. The initial indie-author Publication is useful as a rolling industry-news feed.
-2. A second unrelated topic can be configured without changing aggregation-engine business logic.
+2. A second unrelated topic can be configured and deployed from the same codebase without changing aggregation-engine business logic.
+
+A deployed installation hosts exactly one Publication/topic. Topic independence is a reusable-code/configuration property, not a requirement for one live installation to host multiple selectable Publications.
 
 ## Primary users
 
 ### Public reader
-A reader wants to answer quickly: “What relevant stories were published recently, where did they come from, and where can I read the original?” No account is required in MVP.
+A reader wants to answer quickly: “What relevant stories were published recently, where did they come from, and where can I read the original?” No account is required in MVP. The reader enters the site at the deployment root `/`; there is no public Publication/topic selector.
 
 ### Publication administrator/operator
 An authorized operator controls:
@@ -38,6 +40,7 @@ An operator needs telemetry to diagnose Source failures, parser changes, delayed
 ### Public feed
 MVP MUST provide:
 
+- a canonical public feed at the deployment root `/` for the installation's one configured Publication;
 - reverse-chronological rolling list of feed-eligible Articles;
 - feed eligibility for visible ungrouped Articles and visible Primary Articles;
 - publication date or clearly defined fallback date;
@@ -51,13 +54,13 @@ MVP MUST provide:
 - light/dark presentation;
 - accessible external-link behavior.
 
-The earlier tech-demo milestone may expose the core `Date | Headline | Source` feed before search, filters, final responsive polish, theming, duplicate grouping, or admin UI are complete; the roadmap defines the exact staged boundary. Phase 8 establishes the database-backed public read model/API, persists the Article visibility state first consumed by public output, respects Publication `public_status` and Source trust/lifecycle gates, and uses the canonical effective feed date (`published_at` with `first_seen_at` fallback) before Phase 9 adds the basic customer-visible page.
+The earlier tech-demo milestone may expose the core `Date | Headline | Source` feed before search, filters, final responsive polish, theming, duplicate grouping, or admin UI are complete; the roadmap defines the exact staged boundary. Phase 8 establishes the database-backed public read model/API, persists the Article visibility state first consumed by public output, respects Publication `public_status` and Source trust/lifecycle gates, and uses the canonical effective feed date (`published_at` with `first_seen_at` fallback) before Phase 9 adds the basic customer-visible page. The post-Phase-9 single-Publication contract correction makes `/` the canonical public page before Phase 10 implementation proceeds.
 
 ### Administration
 MVP MUST provide, after the tech-demo vertical slice:
 
 - Cloudflare Access-protected administrative UI/API routes with direct-origin bypass prevented by the supported deployment;
-- Publication configuration;
+- configuration for the installation's one Publication;
 - Source/endpoint create, update, approve/unapprove, enable/pause/disable, archive/state management, and manual-check operations;
 - Source priority and approved-domain policy;
 - Source-type/polling configuration;
@@ -92,7 +95,7 @@ Configurable HTML-listing extraction is an MVP capability only after structured-
 
 ## Initial Publication configuration
 
-The first Publication targets publishing-industry developments relevant to independent authors. Its Source list, Categories, Relevance rules, branding, and editorial settings are configuration data.
+The first deployment's Publication targets publishing-industry developments relevant to independent authors. Its Source list, Categories, Relevance rules, branding, and editorial settings are configuration data.
 
 Suggested initial Categories:
 
@@ -108,12 +111,15 @@ Suggested initial Categories:
 
 These are not global Platform Categories. They are future Publication configuration for the Category/Relevance phases and are not part of the Phase 3 bootstrap schema/data. Phase 3 bootstrap is limited to the minimum Publication/Source/endpoint configuration required by its roadmap boundary; later branding/feed, Category, and Relevance data are introduced in the phases that use them.
 
-Initial Source/endpoint configuration may be created through operator-maintained seed/bootstrap tooling before admin UI exists. Bootstrap approval is explicit operator approval, not an eligibility bypass or auto-discovery mechanism. Ordinary bootstrap remains create-if-absent and does not overwrite an already-created Publication's `public_status`; before full Publication administration exists, the tech-demo path therefore uses the smallest explicit operator-controlled generic state transition needed to expose a Publication deliberately.
+Initial Source/endpoint configuration may be created through operator-maintained seed/bootstrap tooling before admin UI exists. Bootstrap approval is explicit operator approval, not an eligibility bypass or auto-discovery mechanism. Ordinary bootstrap remains create-if-absent and does not overwrite an already-created Publication's `public_status`; before full Publication administration exists, the tech-demo path therefore uses the smallest explicit operator-controlled generic state transition needed to expose the installation Publication deliberately.
+
+Deployment/bootstrap/runtime configuration MUST resolve exactly one Publication for an installation. Stable Publication identity/slugs may remain in persistence and configuration, but no supported public or administrative workflow treats the installation as a host for multiple topic Publications.
 
 ## Explicitly outside MVP
 
 Unless separately promoted:
 
+- concurrent multi-topic/multi-Publication hosting within one deployed installation;
 - native application-managed administrator accounts/identity;
 - application passwords/passkeys, login/logout sessions, account recovery, and administrator roles;
 - Publication-aware per-user authorization and identity-linked audit attribution;
@@ -143,6 +149,6 @@ MVP SHOULD be judged by:
 - frequency of operator intervention;
 - percentage of public links resolving to intended original Article;
 - ability to add an ordinary RSS/Atom Source without code changes once Source administration exists;
-- ability to configure a non-publishing Publication without engine changes.
+- ability to deploy a non-publishing Publication from the same codebase without aggregation-engine changes.
 
 No numerical service-level objective is locked before production hardening; instrumentation precedes target-setting.
