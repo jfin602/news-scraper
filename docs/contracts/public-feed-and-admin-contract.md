@@ -26,14 +26,14 @@ Collection eligibility and public-feed eligibility are separate. `active_for_col
 Each deployed installation contains one singleton Publication configuration as its topic/editorial boundary.
 
 - Publication configuration owns installation-wide name, collection/public state, branding/feed settings, Categories, Relevance rules, Sources, Source priority, and presentation settings.
-- Publication is not a relational tenant/ownership key in the forward data model. Public-feed, Source, Article, Category, Relevance, duplicate, scheduler, and admin behavior MUST NOT require a Publication UUID/slug/foreign key merely to scope the one installation.
+- Publication is not a relational tenant/ownership key. Public-feed, Source, Article, Category, Relevance, duplicate, scheduler, and admin behavior MUST NOT require a Publication UUID/slug/foreign key merely to scope the one installation.
 - Public routing MUST NOT require a Publication slug or expose a topic-selection surface.
 - Concurrent multi-Publication/topic hosting inside one installation is not supported MVP behavior.
 - A different topic is served by another configured deployment of the same topic-independent codebase.
 
 ## Basic public-feed backend
 
-Phase 8 introduced the first public Article read path through the Web/API process. Under the corrected single-Publication contract, the canonical public endpoint is:
+The canonical public endpoint is:
 
 `GET /api/feed`
 
@@ -62,11 +62,11 @@ The response MAY include minimal descriptive Publication configuration needed by
 
 Keyword search, Source/Category filters, client-controlled cursor/load-more behavior, ranking, and presentation/theme behavior are not part of the basic endpoint. Phase 12 adds deterministic discovery/pagination behavior without changing the eligibility rule.
 
-The earlier Phase 8 validation artifact remains historical evidence for the slug-scoped endpoint that existed when Phase 8 closed. The post-Phase-9 singleton correction supersedes that public route and persistence-scoping contract before Phase 10 implementation continues; historical validation evidence is not rewritten.
+The accepted Phase 8 validation artifact remains evidence for the slug-scoped endpoint that existed at its accepted source SHA. The Phase 10 entry singleton implementation correction removes that implementation drift and supplies new evidence for this canonical endpoint; the historical artifact is not rewritten.
 
 ## Basic public-feed UI
 
-Phase 9 introduced the first customer-visible page over the public-feed boundary. Under the corrected single-Publication contract, the canonical customer-visible route is:
+The canonical customer-visible route is:
 
 `GET /`
 
@@ -85,13 +85,13 @@ The page MUST:
 
 A lightweight same-origin client that fetches `GET /api/feed` is a valid implementation. Server rendering is also valid only when it reuses the same canonical public-feed read-model boundary rather than duplicating feed eligibility/query logic.
 
-The former pre-production route `GET /publications/:publicationSlug` is not the canonical public product surface. The correction removes reader-supplied Publication selection rather than preserving a compatibility alias without an explicit requirement.
+The obsolete pre-production route `GET /publications/:publicationSlug` is not a supported public product surface. The Phase 10 entry correction removes that implementation path rather than preserving a compatibility alias without an explicit requirement.
 
 Publication presentation timezone/settings are not persisted yet. Until that later presentation configuration exists, the basic UI MUST render the calendar date from `effectiveFeedDate` in UTC so the same feed item does not shift dates according to the viewer/test machine timezone. A later presentation phase may deliberately replace this fallback with singleton Publication-configured date/time rendering.
 
 The basic public page does not add keyword search, Source/Category filters, client-controlled pagination, final accessibility/responsive polish, completed light/dark theming, duplicate moderation, or admin UI.
 
-The Phase 9 validation artifact remains authoritative historical evidence for the slug-addressed route that was actually tested before this contract correction. It MUST NOT be edited to claim root-route evidence that was not observed.
+The accepted Phase 9 validation artifact remains authoritative evidence for the slug-addressed route that was actually tested at its source SHA. It MUST NOT be edited to claim root-route evidence that was not observed; the singleton implementation correction owns the new root-route evidence.
 
 ## Feed date and ordering
 
@@ -182,7 +182,7 @@ Initial singleton Publication/Source configuration MAY be supplied through appro
 
 Ordinary bootstrap remains create-if-absent and MUST NOT overwrite existing operator-managed Publication state. Before Publication administration exists, the tech-demo path therefore requires an explicit operator-controlled, topic-independent way to change `public_status` deliberately. Changing committed bootstrap input alone is not a state-transition mechanism for already-created state.
 
-Bootstrap/deployment configuration supplies one singleton Publication configuration; it MUST NOT require a slug selector or silently choose among multiple Publication records. The correction migration itself fails clearly if ambiguous pre-correction multi-Publication data exists.
+Bootstrap/deployment configuration supplies one singleton Publication configuration; it MUST NOT require a slug selector or choose among multiple Publication records. Before production database compatibility is established, older pre-production databases may be recreated and bootstrapped rather than supported through an in-place upgrade path.
 
 When administrative UI/API routes are introduced, they are protected by Cloudflare Access under `docs/decisions/cloudflare-access-admin-perimeter.md`.
 
@@ -200,7 +200,7 @@ Administrative area SHOULD eventually contain:
 - change/audit history;
 - Settings.
 
-Navigation is single-Publication and does not expose a topic switcher. Application commands validate actual Source/endpoint/run/Article/observation/duplicate relationships and domain invariants rather than an obsolete Publication tenancy boundary.
+Navigation is single-Publication and does not expose a topic switcher. Application commands validate actual Source/endpoint/run/Article/observation/duplicate relationships and domain invariants rather than a Publication tenancy boundary.
 
 ## Source management UI
 
