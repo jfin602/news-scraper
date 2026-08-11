@@ -10,14 +10,14 @@ It establishes project identity, canonical terminology, authority, document rout
 - Default branch: `main`
 - Working product/repository name: News Scraper
 - Platform: reusable, topic-independent news aggregation Platform
-- Current phase: **Phase 9 — Basic public-feed UI and tech demo**
+- Current phase: **Phase 10 — Automated polling, durable jobs, and endpoint health**
 - Production status: pre-production
 - Initial Publication: publishing-industry news relevant to indie authors
 - Public direction: rolling recent-headline feed sending readers to original publishers
 - Admin direction: Cloudflare Access-protected Publication/Source/endpoint/Relevance/Category/Article/duplicate/health/change-history control plane, built after the tech-demo vertical slice
 - Core constraint: Publication-specific behavior is configuration; shared engine logic remains topic independent
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication/Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete. The repository is ready for Phase 9 implementation planning.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication/Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; owner acceptance advances roadmap state without rewriting that evidence. The repository is ready for Phase 10 implementation planning.
 
 ## Delivery priority
 
@@ -160,15 +160,16 @@ If a path does not exist, search for its current equivalent before assuming inte
 - Required suites do not pass by silently skipping prerequisites or selecting zero tests.
 - Validation claims apply to the exact final source tree tested; previous passing evidence does not automatically transfer to later source changes.
 - Phase 9 closeout requires both Level 6 browser evidence for the public tech-demo workflow and Level 7 approved live-Source evidence for the named real Sources required by its tech-demo exit gate.
+- Phase 9 roadmap progression was explicitly accepted by the repository owner on August 11, 2026 despite the durable artifact recording that the required two-Source Level 7 observation was not completed under the phone-hotspot execution environment; this owner exception does not rewrite the validation requirement or the recorded evidence.
 - Implementation-roadmap phase closeout requires a durable `docs/validation/` artifact tied to the exact accepted commit/source tree and the commands/procedures actually executed.
 
 ## Roadmap state
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 9 — Basic public-feed UI and tech demo**.
+Current phase: **Phase 10 — Automated polling, durable jobs, and endpoint health**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration core, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend are complete with durable closeout validation. Phase 9 is the active implementation phase.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration core, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend are complete with durable closeout validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with the recorded live-source limitation preserved. Phase 10 is the active implementation phase.
 
 ### Tech-demo critical path
 
@@ -182,9 +183,12 @@ Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Databas
 8. Phase 8 — Basic public-feed backend
 9. Phase 9 — Basic public-feed UI and tech demo
 
-### Remaining MVP order
+### Current implementation phase
 
 10. Phase 10 — Automated polling, durable jobs, and endpoint health
+
+### Remaining MVP order
+
 11. Phase 11 — Categories and configurable Relevance execution
 12. Phase 12 — Feed discovery features
 13. Phase 13 — Public presentation polish
