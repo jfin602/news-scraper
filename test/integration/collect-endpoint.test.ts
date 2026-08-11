@@ -134,6 +134,7 @@ describe('canonical endpoint collection service', () => {
         decompressedByteCount: 654,
         redirectCount: 1,
         transportElapsedMilliseconds: 12,
+        outcomeCode: 'content',
         rawItemCount: 2,
         normalizationStatus: 'succeeded',
         normalizedCandidateCount: 2,
@@ -239,6 +240,7 @@ describe('canonical endpoint collection service', () => {
         decompressedByteCount: 654,
         redirectCount: 1,
         transportElapsedMilliseconds: 12,
+        outcomeCode: 'content',
         rawItemCount: testCase.expected[0],
         normalizedCandidateCount: testCase.expected[1],
         normalizationFailureCount: testCase.expected[2],
@@ -522,6 +524,8 @@ describe('canonical endpoint collection service', () => {
       decompressedByteCount: 654,
       redirectCount: 1,
       transportElapsedMilliseconds: 12,
+      outcomeCode: 'article_link_policy_failed',
+      retryClassification: 'permanent',
       rawItemCount: 2,
       normalizedCandidateCount: 1,
       normalizationFailureCount: 1,
@@ -624,6 +628,8 @@ describe('canonical endpoint collection service', () => {
         normalizationFailureCount: 0,
         articleLinkRejectionCount: 0,
         ...processingNotRun,
+        outcomeCode: 'network_safety_blocked',
+        retryClassification: 'permanent',
         error: {
           code: 'domain_not_approved',
           detail:
@@ -1075,6 +1081,7 @@ function persistedRun(input: {
     id: input.id,
     sourceEndpointId: input.endpointId,
     executionId: input.executionId,
+    triggerKind: 'manual',
     startedAt: new Date('2026-08-08T12:00:00.000Z'),
     finishedAt:
       finalization === undefined
@@ -1088,6 +1095,10 @@ function persistedRun(input: {
     httpStatusCode: finalization?.httpStatusCode,
     wireByteCount: finalization?.wireByteCount,
     decompressedByteCount: finalization?.decompressedByteCount,
+    retryClassification: finalization?.retryClassification,
+    outcomeCode: finalization?.outcomeCode,
+    responseEtag: finalization?.responseValidators?.etag,
+    responseLastModified: finalization?.responseValidators?.lastModified,
     rawItemCount: finalization?.rawItemCount ?? 0,
     normalizedCandidateCount: finalization?.normalizedCandidateCount ?? 0,
     normalizationFailureCount: finalization?.normalizationFailureCount ?? 0,

@@ -66,6 +66,13 @@ export interface TerminalizeEndpointCollectionJobInput {
   }>;
 }
 
+export interface RecoverExpiredStartedEndpointCollectionJobInput {
+  readonly workerId: string;
+  readonly expiredAt: Date;
+  readonly recoveredAt: Date;
+  readonly leaseExpiresAt: Date;
+}
+
 export interface EndpointCollectionJobRow {
   readonly id: unknown;
   readonly source_endpoint_id: unknown;
@@ -235,6 +242,8 @@ export async function attachCollectionRunToEndpointCollectionJob(
        AND job.claim_token = $2
        AND run.id = $3
        AND run.source_endpoint_id = job.source_endpoint_id
+       AND run.execution_id = job.id::text
+       AND run.trigger_kind = 'scheduled'
        AND job.lease_expires_at > $4
        AND (job.collection_run_id IS NULL OR job.collection_run_id = run.id)
      RETURNING ${qualifiedJobColumns('job')}`,
@@ -360,6 +369,38 @@ export async function requeueExpiredUnstartedEndpointCollectionJob(
        AND collection_run_id IS NULL
      RETURNING ${JOB_COLUMNS}`,
     [id, boundary, availability],
+  );
+  return optionalMappedRow(result.rows);
+}
+
+export async function recoverExpiredStartedEndpointCollectionJob(
+  executor: QueryExecutor,
+  jobId: string,
+  input: RecoverExpiredStartedEndpointCollectionJobInput,
+): Promise<PersistedEndpointCollectionJob | undefined> {
+  const id = requiredUuid(jobId, 'job id');
+  const workerId = requiredWorkerId(input.workerId);
+  const expiredAt = requiredTimestamp(input.expiredAt);
+  const recoveredAt = requiredTimestamp(input.recoveredAt);
+  const leaseExpiresAt = requiredTimestampAfter(
+    input.leaseExpiresAt,
+    recoveredAt,
+    'lease expiration',
+  );
+  const claimToken = randomUUID();
+  const result = await executor.query<EndpointCollectionJobRow>(
+    `UPDATE endpoint_collection_jobs
+     SET claim_worker_id = $3,
+         claim_token = $4,
+         claimed_at = $5,
+         lease_expires_at = $6,
+         updated_at = $5
+     WHERE id = $1
+       AND status = 'running'
+       AND lease_expires_at <= $2
+       AND collection_run_id IS NOT NULL
+     RETURNING ${JOB_COLUMNS}`,
+    [id, expiredAt, workerId, claimToken, recoveredAt, leaseExpiresAt],
   );
   return optionalMappedRow(result.rows);
 }

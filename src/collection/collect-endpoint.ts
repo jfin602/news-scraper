@@ -11,6 +11,10 @@ import type {
   HttpFetcherRequest,
   HttpFetcherResult,
 } from './fetchers/http-fetcher.ts';
+import type {
+  ConditionalRequestValidators,
+  RetryClassification,
+} from './fetchers/fetcher.ts';
 import type { EndpointRunLockBlocked } from './locks/endpoint-run-lock.ts';
 import {
   type ArticleLinkPolicyContext,
@@ -29,12 +33,14 @@ import {
   type FinalizeCollectionRunInput,
   type PersistedCollectionRun,
   type CollectionRunProcessingStatus,
+  type CollectionRunTriggerKind,
 } from './runs/repository.ts';
 
 export interface CollectionRunStore {
   start(input: {
     readonly sourceEndpointId: string;
     readonly executionId: string;
+    readonly triggerKind?: CollectionRunTriggerKind;
   }): Promise<PersistedCollectionRun>;
   finalize(
     collectionRunId: string,
@@ -64,6 +70,7 @@ export interface CollectEndpointDependencies {
   ) => Promise<ArticlePersistenceResult>;
   readonly observationTime: () => Date;
   readonly executionId: () => string;
+  readonly triggerKind?: CollectionRunTriggerKind;
   readonly fetchOptions?: Omit<HttpFetcherRequest, 'configuration'>;
 }
 
@@ -111,6 +118,8 @@ export interface EndpointCollectionAttemptResult {
   readonly decompressedByteCount?: number;
   readonly redirectCount?: number;
   readonly elapsedMilliseconds?: number;
+  readonly retryClassification?: RetryClassification;
+  readonly responseValidators?: ConditionalRequestValidators;
 }
 
 export type CollectEndpointResult =
@@ -167,6 +176,7 @@ export async function collectEndpoint(
       const running = await dependencies.runs.start({
         sourceEndpointId: configuration.endpoint.id,
         executionId,
+        triggerKind: dependencies.triggerKind ?? 'manual',
       });
       const draft = await executeAttempt(
         configuration,
@@ -209,6 +219,8 @@ async function executeAttempt(
       'not_run',
       'fetch_execution_failed',
       'Feed fetch failed outside its bounded result contract.',
+      {},
+      'transient',
     );
   }
 
@@ -234,6 +246,7 @@ async function executeAttempt(
       fetchResult.reason,
       fetchResult.detail,
       metadata,
+      fetchResult.retry,
     );
   }
   if (fetchResult.outcome === 'not_modified') {
@@ -258,6 +271,7 @@ async function executeAttempt(
         ...normalizationNotRun,
         ...processingNotRun,
         ...persistenceMetadata(metadata),
+        outcomeCode: 'not_modified',
       }),
     });
   }
@@ -381,6 +395,9 @@ async function executeAttempt(
       ...processing.accounting,
       candidates,
       ...(processing.failure === undefined ? {} : processing.failure),
+      ...(processingFailed
+        ? { retryClassification: 'permanent' as const }
+        : {}),
       ...metadata,
     }),
     finalization: Object.freeze({
@@ -394,6 +411,10 @@ async function executeAttempt(
       articleLinkRejectionCount,
       ...processing.accounting,
       ...persistenceMetadata(metadata),
+      outcomeCode: processingFailed ? 'processing_failed' : 'content',
+      ...(processingFailed
+        ? { retryClassification: 'permanent' as const }
+        : {}),
       ...(processing.failure === undefined
         ? {}
         : { error: processing.failureError }),
@@ -568,6 +589,7 @@ function normalizationExecutionFailedDraft(
       ...processingNotRun,
       reason,
       detail,
+      retryClassification: 'permanent',
       ...metadata,
     }),
     finalization: Object.freeze({
@@ -581,6 +603,8 @@ function normalizationExecutionFailedDraft(
       articleLinkRejectionCount: 0,
       ...processingNotRun,
       ...persistenceMetadata(metadata),
+      outcomeCode: 'normalization_failed',
+      retryClassification: 'permanent',
       error: Object.freeze({ code: reason, detail }),
     }),
   });
@@ -613,6 +637,7 @@ function articleLinkPolicyExecutionFailedDraft(
       ...processingNotRun,
       reason,
       detail,
+      retryClassification: 'permanent',
       ...metadata,
     }),
     finalization: Object.freeze({
@@ -626,6 +651,8 @@ function articleLinkPolicyExecutionFailedDraft(
       articleLinkRejectionCount,
       ...processingNotRun,
       ...persistenceMetadata(metadata),
+      outcomeCode: 'article_link_policy_failed',
+      retryClassification: 'permanent',
       error: Object.freeze({ code: reason, detail }),
     }),
   });
@@ -652,6 +679,7 @@ function failedDraft(
       | 'elapsedMilliseconds'
     >
   > = {},
+  retryClassification: RetryClassification = 'permanent',
 ): AttemptDraft {
   return Object.freeze({
     result: Object.freeze({
@@ -666,6 +694,7 @@ function failedDraft(
       ...processingNotRun,
       reason,
       detail,
+      retryClassification,
       ...metadata,
     }),
     finalization: Object.freeze({
@@ -676,6 +705,8 @@ function failedDraft(
       ...normalizationNotRun,
       ...processingNotRun,
       ...persistenceMetadata(metadata),
+      outcomeCode: outcome,
+      retryClassification,
       error: Object.freeze({ code: reason, detail }),
     }),
   });
@@ -717,7 +748,12 @@ function resultFromFinalized(
     finalized.unchangedCount !== attempted.unchangedCount ||
     finalized.rejectedCount !== attempted.rejectedCount ||
     finalized.excludedCount !== attempted.excludedCount ||
-    finalized.failedCount !== attempted.failedCount
+    finalized.failedCount !== attempted.failedCount ||
+    finalized.outcomeCode !== attempted.outcome ||
+    finalized.retryClassification !== attempted.retryClassification ||
+    finalized.responseEtag !== attempted.responseValidators?.etag ||
+    finalized.responseLastModified !==
+      attempted.responseValidators?.lastModified
   ) {
     throw new Error('Collection run finalization returned inconsistent state.');
   }
@@ -740,6 +776,22 @@ function resultFromFinalized(
     rejectedCount: finalized.rejectedCount,
     excludedCount: finalized.excludedCount,
     failedCount: finalized.failedCount,
+    ...(finalized.retryClassification === undefined
+      ? {}
+      : { retryClassification: finalized.retryClassification }),
+    ...(finalized.responseEtag === undefined &&
+    finalized.responseLastModified === undefined
+      ? {}
+      : {
+          responseValidators: Object.freeze({
+            ...(finalized.responseEtag === undefined
+              ? {}
+              : { etag: finalized.responseEtag }),
+            ...(finalized.responseLastModified === undefined
+              ? {}
+              : { lastModified: finalized.responseLastModified }),
+          }),
+        }),
     ...(finalized.httpStatusCode === undefined
       ? {}
       : { httpStatusCode: finalized.httpStatusCode }),
@@ -784,13 +836,31 @@ function fetchMetadata(
   | 'decompressedByteCount'
   | 'redirectCount'
   | 'elapsedMilliseconds'
-> & { readonly httpStatusCode?: number } {
+> & {
+  readonly httpStatusCode?: number;
+  readonly responseValidators?: ConditionalRequestValidators;
+} {
   const httpStatusCode = result.metrics.hops.at(-1)?.httpStatus;
   return Object.freeze({
     wireByteCount: result.metrics.wireBytes,
     decompressedByteCount: result.metrics.decompressedBytes,
     redirectCount: result.redirectCount,
     elapsedMilliseconds: result.metrics.elapsedMilliseconds,
+    ...(!('response' in result) ||
+    result.response === undefined ||
+    (result.response.etag === undefined &&
+      result.response.lastModified === undefined)
+      ? {}
+      : {
+          responseValidators: Object.freeze({
+            ...(result.response.etag === undefined
+              ? {}
+              : { etag: result.response.etag }),
+            ...(result.response.lastModified === undefined
+              ? {}
+              : { lastModified: result.response.lastModified }),
+          }),
+        }),
     ...(httpStatusCode === undefined ? {} : { httpStatusCode }),
   });
 }
@@ -810,6 +880,7 @@ function persistenceMetadata(
       | 'decompressedByteCount'
       | 'redirectCount'
       | 'elapsedMilliseconds'
+      | 'responseValidators'
     >
   >,
 ): Pick<
@@ -832,6 +903,9 @@ function persistenceMetadata(
     ...(metadata.elapsedMilliseconds === undefined
       ? {}
       : { transportElapsedMilliseconds: metadata.elapsedMilliseconds }),
+    ...(metadata.responseValidators === undefined
+      ? {}
+      : { responseValidators: metadata.responseValidators }),
   };
 }
 

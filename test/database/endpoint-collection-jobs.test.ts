@@ -240,7 +240,8 @@ test('guards lease, run attachment, terminalization, deferral, and successors by
     );
     const run = await startCollectionRun(database, {
       sourceEndpointId: endpointA.id,
-      executionId: 'owned-run',
+      executionId: claimed.id,
+      triggerKind: 'scheduled',
     });
     assert.equal(
       await attachCollectionRunToEndpointCollectionJob(
@@ -357,7 +358,8 @@ test('recovers only expired unstarted claims and rejects the former owner', asyn
     assert.ok(started);
     const run = await startCollectionRun(database, {
       sourceEndpointId: endpointB.id,
-      executionId: 'started-before-expiry',
+      executionId: started.id,
+      triggerKind: 'scheduled',
     });
     assert.equal(
       (

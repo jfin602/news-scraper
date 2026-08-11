@@ -1,12 +1,14 @@
 import { randomUUID } from 'node:crypto';
 
 import type { QueryExecutor } from '../../database/database.ts';
+import type { RetryClassification } from '../fetchers/fetcher.ts';
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const EXECUTION_ID_MAX_LENGTH = 200;
 const ERROR_CODE_MAX_LENGTH = 100;
 const ERROR_DETAIL_MAX_LENGTH = 2000;
+const VALIDATOR_MAX_LENGTH = 1_024;
 
 export type CollectionRunStatus = 'running' | 'succeeded' | 'failed';
 export type CollectionRunTransportStatus =
@@ -15,11 +17,23 @@ export type CollectionRunParserStatus = 'not_run' | 'succeeded' | 'failed';
 export type CollectionRunNormalizationStatus =
   'not_run' | 'succeeded' | 'failed';
 export type CollectionRunProcessingStatus = 'not_run' | 'succeeded' | 'failed';
+export type CollectionRunTriggerKind = 'manual' | 'scheduled';
+export type CollectionRunOutcomeCode =
+  | 'content'
+  | 'not_modified'
+  | 'network_safety_blocked'
+  | 'fetch_failed'
+  | 'parser_failed'
+  | 'normalization_failed'
+  | 'article_link_policy_failed'
+  | 'processing_failed'
+  | 'worker_interrupted';
 
 export interface PersistedCollectionRun {
   readonly id: string;
   readonly sourceEndpointId: string;
   readonly executionId: string;
+  readonly triggerKind: CollectionRunTriggerKind;
   readonly startedAt: Date;
   readonly finishedAt: Date | undefined;
   readonly runStatus: CollectionRunStatus;
@@ -32,6 +46,10 @@ export interface PersistedCollectionRun {
   readonly decompressedByteCount: number | undefined;
   readonly redirectCount?: number | undefined;
   readonly transportElapsedMilliseconds?: number | undefined;
+  readonly retryClassification: RetryClassification | undefined;
+  readonly outcomeCode: CollectionRunOutcomeCode | undefined;
+  readonly responseEtag: string | undefined;
+  readonly responseLastModified: string | undefined;
   readonly rawItemCount: number;
   readonly normalizedCandidateCount: number;
   readonly normalizationFailureCount: number;
@@ -49,6 +67,7 @@ export interface PersistedCollectionRun {
 export interface StartCollectionRunInput {
   readonly sourceEndpointId: string;
   readonly executionId: string;
+  readonly triggerKind?: CollectionRunTriggerKind;
 }
 
 export interface FinalizeCollectionRunInput {
@@ -62,6 +81,12 @@ export interface FinalizeCollectionRunInput {
   readonly decompressedByteCount?: number;
   readonly redirectCount?: number;
   readonly transportElapsedMilliseconds?: number;
+  readonly retryClassification?: RetryClassification;
+  readonly outcomeCode?: CollectionRunOutcomeCode;
+  readonly responseValidators?: Readonly<{
+    readonly etag?: string;
+    readonly lastModified?: string;
+  }>;
   readonly rawItemCount: number;
   readonly normalizedCandidateCount: number;
   readonly normalizationFailureCount: number;
@@ -82,6 +107,7 @@ export interface CollectionRunRow {
   readonly id: unknown;
   readonly source_endpoint_id: unknown;
   readonly execution_id: unknown;
+  readonly trigger_kind?: unknown;
   readonly started_at: unknown;
   readonly finished_at: unknown;
   readonly run_status: unknown;
@@ -94,6 +120,10 @@ export interface CollectionRunRow {
   readonly decompressed_byte_count: unknown;
   readonly redirect_count?: unknown;
   readonly transport_elapsed_milliseconds?: unknown;
+  readonly retry_classification?: unknown;
+  readonly outcome_code?: unknown;
+  readonly response_etag?: unknown;
+  readonly response_last_modified?: unknown;
   readonly raw_item_count: unknown;
   readonly normalized_candidate_count: unknown;
   readonly normalization_failure_count: unknown;
@@ -119,6 +149,10 @@ interface ValidatedFinalization {
   readonly decompressedByteCount: number | null;
   readonly redirectCount: number | null;
   readonly transportElapsedMilliseconds: number | null;
+  readonly retryClassification: RetryClassification | null;
+  readonly outcomeCode: CollectionRunOutcomeCode | null;
+  readonly responseEtag: string | null;
+  readonly responseLastModified: string | null;
   readonly rawItemCount: number;
   readonly normalizedCandidateCount: number;
   readonly normalizationFailureCount: number;
@@ -134,10 +168,11 @@ interface ValidatedFinalization {
 }
 
 const COLLECTION_RUN_COLUMNS = `
-  id, source_endpoint_id, execution_id, started_at, finished_at, run_status,
+  id, source_endpoint_id, execution_id, trigger_kind, started_at, finished_at, run_status,
   transport_status, parser_status, normalization_status, processing_status, http_status_code,
   wire_byte_count, decompressed_byte_count, redirect_count,
-  transport_elapsed_milliseconds, raw_item_count,
+  transport_elapsed_milliseconds, retry_classification, outcome_code,
+  response_etag, response_last_modified, raw_item_count,
   normalized_candidate_count, normalization_failure_count,
   article_link_rejection_count, created_count, updated_count, unchanged_count,
   rejected_count, excluded_count, failed_count, error_code, error_detail`;
@@ -162,16 +197,17 @@ export async function startCollectionRun(
     EXECUTION_ID_MAX_LENGTH,
     'execution id',
   );
+  const triggerKind = normalizeTriggerKind(input.triggerKind ?? 'manual');
   const result = await executor.query<CollectionRunRow>(
     `INSERT INTO collection_runs (
-       id, source_endpoint_id, execution_id, run_status, transport_status,
+       id, source_endpoint_id, execution_id, trigger_kind, run_status, transport_status,
        parser_status, normalization_status, processing_status, raw_item_count,
        normalized_candidate_count, normalization_failure_count,
        article_link_rejection_count, created_count, updated_count, unchanged_count,
        rejected_count, excluded_count, failed_count
-     ) VALUES ($1, $2, $3, 'running', 'not_run', 'not_run', 'not_run', 'not_run', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+     ) VALUES ($1, $2, $3, $4, 'running', 'not_run', 'not_run', 'not_run', 'not_run', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
      RETURNING ${COLLECTION_RUN_COLUMNS}`,
-    [randomUUID(), sourceEndpointId, executionId],
+    [randomUUID(), sourceEndpointId, executionId, triggerKind],
   );
   return mapCollectionRunRow(requiredRow(result.rows, 'collection run start'));
 }
@@ -196,18 +232,22 @@ export async function finalizeCollectionRun(
          decompressed_byte_count = $9,
          redirect_count = $10,
          transport_elapsed_milliseconds = $11,
-         raw_item_count = $12,
-         normalized_candidate_count = $13,
-         normalization_failure_count = $14,
-         article_link_rejection_count = $15,
-         created_count = $16,
-         updated_count = $17,
-         unchanged_count = $18,
-         rejected_count = $19,
-         excluded_count = $20,
-         failed_count = $21,
-         error_code = $22,
-         error_detail = $23
+         retry_classification = $12,
+         outcome_code = $13,
+         response_etag = $14,
+         response_last_modified = $15,
+         raw_item_count = $16,
+         normalized_candidate_count = $17,
+         normalization_failure_count = $18,
+         article_link_rejection_count = $19,
+         created_count = $20,
+         updated_count = $21,
+         unchanged_count = $22,
+         rejected_count = $23,
+         excluded_count = $24,
+         failed_count = $25,
+         error_code = $26,
+         error_detail = $27
      WHERE id = $1 AND run_status = 'running'
      RETURNING ${COLLECTION_RUN_COLUMNS}`,
     [
@@ -222,6 +262,10 @@ export async function finalizeCollectionRun(
       finalization.decompressedByteCount,
       finalization.redirectCount,
       finalization.transportElapsedMilliseconds,
+      finalization.retryClassification,
+      finalization.outcomeCode,
+      finalization.responseEtag,
+      finalization.responseLastModified,
       finalization.rawItemCount,
       finalization.normalizedCandidateCount,
       finalization.normalizationFailureCount,
@@ -261,6 +305,37 @@ export async function findCollectionRunById(
   return row === undefined ? undefined : mapCollectionRunRow(row);
 }
 
+export async function reconcileInterruptedCollectionRun(
+  executor: QueryExecutor,
+  collectionRunId: string,
+  finishedAt: Date,
+): Promise<PersistedCollectionRun> {
+  const runId = requiredUuid(collectionRunId, 'collection run id');
+  const terminalAt = requiredTimestamp(finishedAt);
+  const result = await executor.query<CollectionRunRow>(
+    `UPDATE collection_runs
+     SET finished_at = $2,
+         run_status = 'failed',
+         retry_classification = 'transient',
+         outcome_code = 'worker_interrupted',
+         error_code = 'worker_interrupted',
+         error_detail = 'Collection worker was interrupted before run finalization.'
+     WHERE id = $1
+       AND run_status = 'running'
+       AND started_at <= $2
+     RETURNING ${COLLECTION_RUN_COLUMNS}`,
+    [runId, terminalAt],
+  );
+  const reconciled = result.rows[0];
+  if (reconciled !== undefined) return mapCollectionRunRow(reconciled);
+
+  const existing = await findCollectionRunById(executor, runId);
+  if (existing === undefined) {
+    throw new CollectionRunPersistenceError('collection run not found');
+  }
+  return existing;
+}
+
 export function mapCollectionRunRow(
   row: CollectionRunRow,
 ): PersistedCollectionRun {
@@ -276,6 +351,7 @@ export function mapCollectionRunRow(
         EXECUTION_ID_MAX_LENGTH,
         'database execution id',
       ),
+      triggerKind: normalizeTriggerKind(row.trigger_kind ?? 'manual'),
       startedAt: requiredTimestamp(row.started_at),
       finishedAt: nullableTimestamp(row.finished_at),
       runStatus: normalizeRunStatus(row.run_status),
@@ -294,6 +370,12 @@ export function mapCollectionRunRow(
       transportElapsedMilliseconds: nullableNonnegativeNumber(
         row.transport_elapsed_milliseconds,
       ),
+      retryClassification: nullableRetryClassification(
+        row.retry_classification,
+      ),
+      outcomeCode: nullableOutcomeCode(row.outcome_code),
+      responseEtag: nullableValidator(row.response_etag),
+      responseLastModified: nullableValidator(row.response_last_modified),
       rawItemCount: requiredNonnegativeInteger(row.raw_item_count),
       normalizedCandidateCount: requiredNonnegativeInteger(
         row.normalized_candidate_count,
@@ -364,6 +446,22 @@ function validateFinalization(
         input.transportElapsedMilliseconds === undefined
           ? null
           : nonnegativeNumber(input.transportElapsedMilliseconds),
+      retryClassification:
+        input.retryClassification === undefined
+          ? null
+          : normalizeRetryClassification(input.retryClassification),
+      outcomeCode:
+        input.outcomeCode === undefined
+          ? null
+          : normalizeOutcomeCode(input.outcomeCode),
+      responseEtag:
+        input.responseValidators?.etag === undefined
+          ? null
+          : requiredValidator(input.responseValidators.etag),
+      responseLastModified:
+        input.responseValidators?.lastModified === undefined
+          ? null
+          : requiredValidator(input.responseValidators.lastModified),
       rawItemCount: nonnegativeInteger(input.rawItemCount),
       normalizedCandidateCount: nonnegativeInteger(
         input.normalizedCandidateCount,
@@ -393,6 +491,14 @@ function validateFinalization(
               'error detail',
             ),
     };
+    if (
+      (validated.runStatus === 'succeeded' &&
+        validated.retryClassification !== null) ||
+      (validated.runStatus === 'failed' &&
+        validated.retryClassification === null)
+    ) {
+      throw new Error();
+    }
     validateRunAccounting(validated);
     return Object.freeze(validated);
   } catch (error) {
@@ -406,6 +512,49 @@ function normalizeRunStatus(value: unknown): CollectionRunStatus {
     return value;
   }
   throw new Error();
+}
+
+function normalizeTriggerKind(value: unknown): CollectionRunTriggerKind {
+  if (value === 'manual' || value === 'scheduled') return value;
+  throw new Error();
+}
+
+function normalizeRetryClassification(value: unknown): RetryClassification {
+  if (value === 'transient' || value === 'permanent') return value;
+  throw new Error();
+}
+
+function nullableRetryClassification(
+  value: unknown,
+): RetryClassification | undefined {
+  return value === null || value === undefined
+    ? undefined
+    : normalizeRetryClassification(value);
+}
+
+function normalizeOutcomeCode(value: unknown): CollectionRunOutcomeCode {
+  if (
+    value === 'content' ||
+    value === 'not_modified' ||
+    value === 'network_safety_blocked' ||
+    value === 'fetch_failed' ||
+    value === 'parser_failed' ||
+    value === 'normalization_failed' ||
+    value === 'article_link_policy_failed' ||
+    value === 'processing_failed' ||
+    value === 'worker_interrupted'
+  ) {
+    return value;
+  }
+  throw new Error();
+}
+
+function nullableOutcomeCode(
+  value: unknown,
+): CollectionRunOutcomeCode | undefined {
+  return value === null || value === undefined
+    ? undefined
+    : normalizeOutcomeCode(value);
 }
 
 function normalizeTerminalRunStatus(value: unknown): 'succeeded' | 'failed' {
@@ -548,6 +697,24 @@ function requiredTimestamp(value: unknown): Date {
   if (!(value instanceof Date) || Number.isNaN(value.getTime()))
     throw new Error();
   return value;
+}
+
+function requiredValidator(value: unknown): string {
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value.length > VALIDATOR_MAX_LENGTH ||
+    /[\r\n\0]/u.test(value)
+  ) {
+    throw new Error();
+  }
+  return value;
+}
+
+function nullableValidator(value: unknown): string | undefined {
+  return value === null || value === undefined
+    ? undefined
+    : requiredValidator(value);
 }
 
 function nullableTimestamp(value: unknown): Date | undefined {

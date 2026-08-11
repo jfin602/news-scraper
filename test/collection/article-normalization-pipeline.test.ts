@@ -207,6 +207,7 @@ function persistedRun(
     id: RUN_ID,
     sourceEndpointId: endpointId,
     executionId,
+    triggerKind: 'manual',
     startedAt: new Date('2026-08-10T12:00:00.000Z'),
     finishedAt:
       finalization === undefined
@@ -220,6 +221,10 @@ function persistedRun(
     httpStatusCode: finalization?.httpStatusCode,
     wireByteCount: finalization?.wireByteCount,
     decompressedByteCount: finalization?.decompressedByteCount,
+    retryClassification: finalization?.retryClassification,
+    outcomeCode: finalization?.outcomeCode,
+    responseEtag: finalization?.responseValidators?.etag,
+    responseLastModified: finalization?.responseValidators?.lastModified,
     rawItemCount: finalization?.rawItemCount ?? 0,
     normalizedCandidateCount: finalization?.normalizedCandidateCount ?? 0,
     normalizationFailureCount: finalization?.normalizationFailureCount ?? 0,

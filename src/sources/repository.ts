@@ -464,6 +464,26 @@ export async function findEndpointConfigurationByKeys(
   sourceConfigKey: string,
   endpointConfigKey: string,
 ): Promise<EndpointConfigurationAggregate | undefined> {
+  return findEndpointConfiguration(
+    executor,
+    's.config_key = $1 AND e.config_key = $2',
+    [sourceConfigKey, endpointConfigKey],
+  );
+}
+
+export async function findEndpointConfigurationById(
+  executor: QueryExecutor,
+  sourceEndpointId: string,
+): Promise<EndpointConfigurationAggregate | undefined> {
+  const endpointId = requiredUuid(sourceEndpointId, 'source endpoint id');
+  return findEndpointConfiguration(executor, 'e.id = $1', [endpointId]);
+}
+
+async function findEndpointConfiguration(
+  executor: QueryExecutor,
+  predicate: 's.config_key = $1 AND e.config_key = $2' | 'e.id = $1',
+  values: readonly string[],
+): Promise<EndpointConfigurationAggregate | undefined> {
   const result = await executor.query<AggregateRow>(
     `SELECT
        p.name AS publication_name,
@@ -502,8 +522,8 @@ export async function findEndpointConfigurationByKeys(
      FROM sources s
      JOIN source_endpoints e ON e.source_id = s.id
      CROSS JOIN publication_settings p
-     WHERE s.config_key = $1 AND e.config_key = $2`,
-    [sourceConfigKey, endpointConfigKey],
+     WHERE ${predicate}`,
+    values,
   );
   const row = result.rows[0];
   if (row === undefined) return undefined;
@@ -548,6 +568,81 @@ export async function findEndpointConfigurationByKeys(
     endpoint,
     endpointDomainRules,
   });
+}
+
+export async function applyTerminalCollectionRunToEndpointRuntime(
+  executor: QueryExecutor,
+  collectionRunId: string,
+): Promise<PersistedSourceEndpoint | undefined> {
+  const runId = requiredUuid(collectionRunId, 'collection run id');
+  const result = await executor.query<EndpointRow>(
+    `WITH target_run AS (
+       SELECT run.id, run.source_endpoint_id, run.finished_at, run.run_status,
+              run.transport_status, run.response_etag,
+              run.response_last_modified,
+              (
+                SELECT count(*)::integer
+                FROM collection_runs history
+                WHERE history.source_endpoint_id = run.source_endpoint_id
+                  AND history.run_status = 'failed'
+                  AND history.finished_at <= run.finished_at
+                  AND history.finished_at > COALESCE(
+                    (
+                      SELECT max(success.finished_at)
+                      FROM collection_runs success
+                      WHERE success.source_endpoint_id = run.source_endpoint_id
+                        AND success.run_status = 'succeeded'
+                        AND success.finished_at <= run.finished_at
+                    ),
+                    '-infinity'::timestamptz
+                  )
+              ) AS consecutive_failure_count
+       FROM collection_runs run
+       WHERE run.id = $1
+         AND run.run_status IN ('succeeded', 'failed')
+         AND run.finished_at IS NOT NULL
+     )
+     UPDATE source_endpoints endpoint
+     SET last_attempt_at = target.finished_at,
+         last_success_at = CASE
+           WHEN target.run_status = 'succeeded' THEN target.finished_at
+           ELSE endpoint.last_success_at
+         END,
+         last_failure_at = CASE
+           WHEN target.run_status = 'failed' THEN target.finished_at
+           ELSE endpoint.last_failure_at
+         END,
+         consecutive_failure_count = CASE
+           WHEN target.run_status = 'succeeded' THEN 0
+           ELSE target.consecutive_failure_count
+         END,
+         cooldown_until = NULL,
+         next_due_at = target.finished_at
+           + make_interval(secs => endpoint.poll_interval_seconds),
+         etag = CASE
+           WHEN target.run_status <> 'succeeded' THEN endpoint.etag
+           WHEN target.transport_status = 'not_modified'
+             THEN COALESCE(target.response_etag, endpoint.etag)
+           ELSE target.response_etag
+         END,
+         last_modified = CASE
+           WHEN target.run_status <> 'succeeded' THEN endpoint.last_modified
+           WHEN target.transport_status = 'not_modified'
+             THEN COALESCE(target.response_last_modified, endpoint.last_modified)
+           ELSE target.response_last_modified
+         END,
+         updated_at = GREATEST(endpoint.updated_at, target.finished_at)
+     FROM target_run target
+     WHERE endpoint.id = target.source_endpoint_id
+       AND (
+         endpoint.last_attempt_at IS NULL
+         OR endpoint.last_attempt_at <= target.finished_at
+       )
+     RETURNING ${qualifiedColumns(ENDPOINT_COLUMNS, 'endpoint')}`,
+    [runId],
+  );
+  const row = result.rows[0];
+  return row === undefined ? undefined : mapEndpointRow(row);
 }
 
 export function mapSourceRow(row: SourceRow): PersistedSource {
@@ -748,4 +843,11 @@ function requiredRow<T>(rows: readonly T[], operation: string): T {
   const row = rows[0];
   if (row === undefined) throw new ConfigurationPersistenceError(operation);
   return row;
+}
+
+function qualifiedColumns(columns: string, alias: string): string {
+  return columns
+    .split(',')
+    .map((column) => `${alias}.${column.trim()}`)
+    .join(', ');
 }
