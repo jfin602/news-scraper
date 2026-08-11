@@ -1,6 +1,14 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { EventEmitter } from 'node:events';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  readdir,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { PassThrough } from 'node:stream';
@@ -16,6 +24,7 @@ const {
   assertPostPrompt,
   assertVersionCompatible,
   buildPlan,
+  createDisplaySession,
   createEventTracker,
   createStructuredEventProcessor,
   formatUsage,
@@ -29,13 +38,15 @@ const {
   renderSuccessHandoff,
   resolveModelConfig,
   startElapsedRedraw,
-  terminalDashboardOutput,
 } = core;
 const {
   buildCodexArguments,
   checkCodexLauncher,
+  commitPromptChanges,
+  invokeGit,
   resolveCodexLauncher,
   runCodex,
+  runCli,
 } = cli;
 
 const directTestLauncher = Object.freeze({
@@ -97,6 +108,78 @@ const prompt = (
   filename: `P${number}-${closeout ? 'phase-8-closeout' : `task-${number}`}.txt`,
   text: `TASK: Phase 8 / P${number} — ${title}\n\nMODEL / REASONING / USAGE\n- Recommended configuration: \`${config}\`.\n\nVERSIONING\n- This prompt's assigned project version is \`${version}\`.\n\nGOAL\n${closeout ? 'Perform Phase 8 closeout.' : 'Implement the task.'}\n`,
 });
+
+const gitResult = (rootDirectory: string, arguments_: string[]) => {
+  const result = spawnSync('git', arguments_, {
+    cwd: rootDirectory,
+    encoding: 'utf8',
+    shell: false,
+  });
+  assert.equal(
+    result.status,
+    0,
+    `git ${arguments_.join(' ')} failed: ${result.stderr}`,
+  );
+  return String(result.stdout ?? '').trim();
+};
+
+const commitMessage = (rootDirectory: string, revision = 'HEAD') => {
+  const object = spawnSync('git', ['cat-file', 'commit', revision], {
+    cwd: rootDirectory,
+    encoding: 'utf8',
+    shell: false,
+  });
+  assert.equal(object.status, 0, String(object.stderr));
+  const raw = String(object.stdout);
+  return raw.slice(raw.indexOf('\n\n') + 2);
+};
+
+const createPhaseRepository = async (implementationCount = 2) => {
+  const rootDirectory = await mkdtemp(
+    path.join(tmpdir(), 'news-scraper-phase-git-test-'),
+  );
+  await mkdir(path.join(rootDirectory, 'docs', 'tasks', 'p8'), {
+    recursive: true,
+  });
+  await writeFile(
+    path.join(rootDirectory, 'package.json'),
+    `${JSON.stringify({ name: 'phase-test', version: '0.8.0' }, null, 2)}\n`,
+  );
+  await writeFile(
+    path.join(rootDirectory, '.gitignore'),
+    '.codex-runs/\npackage-lock.json\n.env*\n',
+  );
+  for (let number = 1; number <= implementationCount; number += 1) {
+    const entry = prompt(number);
+    await writeFile(
+      path.join(rootDirectory, 'docs', 'tasks', 'p8', entry.filename),
+      entry.text,
+    );
+  }
+  const closeout = prompt(implementationCount + 1, { closeout: true });
+  await writeFile(
+    path.join(rootDirectory, 'docs', 'tasks', 'p8', closeout.filename),
+    closeout.text,
+  );
+  gitResult(rootDirectory, ['init', '--quiet']);
+  gitResult(rootDirectory, ['config', 'user.name', 'Runner Test']);
+  gitResult(rootDirectory, ['config', 'user.email', 'runner@example.invalid']);
+  gitResult(rootDirectory, ['add', '-A']);
+  gitResult(rootDirectory, ['commit', '--quiet', '-m', 'baseline']);
+  return rootDirectory;
+};
+
+const testOutput = (interactive = false) => {
+  let value = '';
+  return {
+    isTTY: interactive,
+    write(chunk: string) {
+      value += chunk;
+      return true;
+    },
+    read: () => value,
+  };
+};
 
 test('resolves every repository recommendation to its verified concrete CLI configuration', () => {
   const expected: Record<string, { model: string; reasoning: string }> = {
@@ -646,6 +729,7 @@ test('completed prompt durations and observed usage remain rendered', () => {
       {
         status: 'passed',
         durationMs: 402_000,
+        commitSha: 'abc1234567890',
         usage: {
           input_tokens: 182_440,
           cached_input_tokens: 151_392,
@@ -665,6 +749,7 @@ test('completed prompt durations and observed usage remain rendered', () => {
     now: 0,
   });
   assert.match(output, /P1.+06:42/);
+  assert.match(output, /Commit: abc1234/);
   assert.match(output, /Usage:/);
   assert.match(output, /Input\s+182440/);
   assert.match(output, /Cached\s+151392/);
@@ -762,11 +847,473 @@ test('runner-owned metadata, activity, errors, and paths are ASCII-safe', () => 
   assert.equal(isAscii(printableAscii('“quoted” — café → done…')), true);
 });
 
-test('non-TTY dashboard output contains no cursor controls', () => {
-  const output = terminalDashboardOutput('ASCII dashboard\n', false);
-  assert.equal(hasCursorControls(output), false);
-  assert.equal(output, 'ASCII dashboard\n');
-  assert.equal(hasCursorControls(terminalDashboardOutput(output, true)), true);
+test('interactive display replaces its prior region and supports changing heights', () => {
+  const output = testOutput(true);
+  const operations: string[] = [];
+  const display = createDisplaySession({
+    stream: output,
+    interactive: true,
+    moveCursorFunction: (_stream: unknown, x: number, y: number) => {
+      operations.push(`move:${x}:${y}`);
+    },
+    cursorToFunction: (_stream: unknown, x: number) => {
+      operations.push(`cursor:${x}`);
+    },
+    clearScreenDownFunction: () => {
+      operations.push('clear-owned-region');
+    },
+  });
+
+  assert.equal(display.render('first\nsecond\nthird\n'), true);
+  assert.equal(display.render('short\n'), true);
+  assert.deepEqual(operations, ['move:0:-3', 'cursor:0', 'clear-owned-region']);
+  assert.equal(output.read(), 'first\nsecond\nthird\nshort\n');
+});
+
+test('interactive elapsed redraws skip identical dashboards and use cursor controls without clearing history', () => {
+  const output = testOutput(true);
+  const display = createDisplaySession({ stream: output, interactive: true });
+  assert.equal(display.render('Elapsed: 00:01\n'), true);
+  assert.equal(display.render('Elapsed: 00:01\n'), false);
+  assert.equal(display.render('Elapsed: 00:02\n'), true);
+  assert.equal(hasCursorControls(output.read()), true);
+  assert.equal(output.read().includes(`${String.fromCharCode(27)}[2J`), false);
+  assert.equal((output.read().match(/Elapsed: 00:01/g) ?? []).length, 1);
+  assert.equal((output.read().match(/Elapsed: 00:02/g) ?? []).length, 1);
+});
+
+test('non-TTY display emits bounded transitions with no dashboards or cursor controls', () => {
+  const output = testOutput(false);
+  const display = createDisplaySession({ stream: output, interactive: false });
+  for (let index = 0; index < 100; index += 1) {
+    assert.equal(display.render(`FULL DASHBOARD ${index}\n`), false);
+  }
+  display.progress('[.] Phase 8 started');
+  display.progress('[>] P1 started');
+  display.progress('[+] P1 passed - commit abc1234');
+  display.finalize('FINAL DASHBOARD\n');
+
+  assert.equal(hasCursorControls(output.read()), false);
+  assert.doesNotMatch(output.read(), /FULL DASHBOARD|FINAL DASHBOARD/);
+  assert.equal(output.read().split('\n').filter(Boolean).length, 3);
+});
+
+test('display finalization leaves one stable final dashboard and restores append-only output', () => {
+  const output = testOutput(true);
+  const display = createDisplaySession({ stream: output, interactive: true });
+  display.render('RUNNING\n');
+  assert.equal(display.finalize('FINAL\n'), true);
+  assert.equal(display.render('SHOULD NOT RENDER\n'), false);
+  output.write('HANDOFF\n');
+  assert.equal((output.read().match(/FINAL/g) ?? []).length, 1);
+  assert.doesNotMatch(output.read(), /SHOULD NOT RENDER/);
+  assert.match(output.read(), /HANDOFF\n$/);
+});
+
+test('display session keeps runner output ASCII-safe while leaving source content untouched', () => {
+  const output = testOutput(false);
+  const display = createDisplaySession({ stream: output, interactive: false });
+  const source = 'Résumé — 東京';
+  display.progress(source);
+  assert.equal(isAscii(output.read()), true);
+  assert.equal(source, 'Résumé — 東京');
+});
+
+test('phase loop commits each prompt before the next starts with exact multiline Unicode messages', async () => {
+  const rootDirectory = await createPhaseRepository(2);
+  const output = testOutput(false);
+  const codexCalls: number[] = [];
+  const gitInvocations: Array<{ arguments: string[]; shell: boolean }> = [];
+  const responses = new Map([
+    [1, 'Implemented P1.\n\nDetails: café — 東京\n'],
+    [2, 'Implemented P2.\nSecond line.'],
+  ]);
+  try {
+    const result = await runCli(['p8'], {
+      rootDirectory,
+      stdout: output,
+      resolveLauncher: async () => ({
+        launcher: directTestLauncher,
+        version: 'codex-test 1.0.0',
+      }),
+      spawnSyncProcess: (
+        command: string,
+        arguments_: string[],
+        options: { shell: boolean },
+      ) => {
+        assert.equal(command, 'git');
+        gitInvocations.push({
+          arguments: [...arguments_],
+          shell: options.shell,
+        });
+        return spawnSync(command, arguments_, {
+          ...options,
+          cwd: rootDirectory,
+          encoding: 'utf8',
+        });
+      },
+      runCodexProcess: async (parsedPrompt: { number: number }) => {
+        codexCalls.push(parsedPrompt.number);
+        if (parsedPrompt.number === 2) {
+          assert.equal(
+            gitResult(rootDirectory, ['log', '-1', '--format=%s']),
+            '0.8.1',
+          );
+          assert.equal(
+            gitResult(rootDirectory, ['status', '--porcelain=v1']),
+            '',
+          );
+        }
+        await writeFile(
+          path.join(rootDirectory, 'package.json'),
+          `${JSON.stringify(
+            {
+              name: 'phase-test',
+              version: `0.8.${parsedPrompt.number}`,
+            },
+            null,
+            2,
+          )}\n`,
+        );
+        await writeFile(
+          path.join(
+            rootDirectory,
+            `P${parsedPrompt.number}-implementation.txt`,
+          ),
+          `change ${parsedPrompt.number}\n`,
+        );
+        return {
+          code: 0,
+          signal: null,
+          finalResponse: responses.get(parsedPrompt.number),
+          stderr: '',
+          childArgs: [],
+        };
+      },
+    });
+
+    assert.equal(result, 0);
+    assert.deepEqual(codexCalls, [1, 2]);
+    assert.deepEqual(
+      gitResult(rootDirectory, ['log', '-2', '--format=%s']).split('\n'),
+      ['0.8.2', '0.8.1'],
+    );
+    assert.equal(
+      commitMessage(rootDirectory, 'HEAD~1'),
+      `0.8.1\n\n${responses.get(1)}`,
+    );
+    assert.equal(
+      commitMessage(rootDirectory, 'HEAD'),
+      `0.8.2\n\n${responses.get(2)}`,
+    );
+    assert.equal(gitResult(rootDirectory, ['status', '--porcelain=v1']), '');
+    assert.equal(
+      gitInvocations.every((invocation) => invocation.shell === false),
+      true,
+    );
+    assert.equal(
+      gitInvocations.some((invocation) =>
+        invocation.arguments.includes('push'),
+      ),
+      false,
+    );
+    const commitCalls = gitInvocations.filter(
+      ({ arguments: arguments_ }) => arguments_[0] === 'commit',
+    );
+    assert.equal(commitCalls.length, 2);
+    assert.equal(
+      commitCalls.every(
+        ({ arguments: arguments_ }) =>
+          arguments_.includes('--file') &&
+          !arguments_.some((argument) => argument.includes('Implemented P')),
+      ),
+      true,
+    );
+    const runFolders = await readdir(
+      path.join(rootDirectory, '.codex-runs', 'p8'),
+    );
+    assert.equal(runFolders.length, 1);
+    const runDirectory = path.join(
+      rootDirectory,
+      '.codex-runs',
+      'p8',
+      runFolders[0]!,
+    );
+    const run = JSON.parse(
+      await readFile(path.join(runDirectory, 'run.json'), 'utf8'),
+    );
+    assert.match(run.prompts[0].commitSha, /^[0-9a-f]{40,64}$/);
+    assert.match(run.prompts[1].commitSha, /^[0-9a-f]{40,64}$/);
+    assert.equal(run.prompts[2].status, 'manual');
+    assert.equal(
+      await readFile(path.join(runDirectory, 'P1.commit-message.txt'), 'utf8'),
+      `0.8.1\n\n${responses.get(1)}`,
+    );
+    assert.match(output.read(), /P1 passed - commit [0-9a-f]{7}/);
+    assert.match(output.read(), /P2 passed - commit [0-9a-f]{7}/);
+    assert.doesNotMatch(output.read(), /NEWS SCRAPER - CODEX PHASE RUNNER/);
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('empty and interrupted prompt changes fail closed without a commit', async () => {
+  const rootDirectory = await createPhaseRepository(1);
+  const runDirectory = path.join(rootDirectory, '.codex-runs', 'test');
+  await mkdir(runDirectory, { recursive: true });
+  const parsed = parsePrompt(prompt(1).filename, prompt(1).text);
+  const baseline = gitResult(rootDirectory, ['rev-parse', 'HEAD']);
+  try {
+    await assert.rejects(
+      commitPromptChanges(
+        {
+          prompt: parsed,
+          finalResponse: 'unused',
+          runDirectory,
+          prePromptHead: baseline,
+        },
+        { rootDirectory },
+      ),
+      /commit boundary failed: No implementation changes/,
+    );
+
+    await writeFile(
+      path.join(rootDirectory, 'package.json'),
+      `${JSON.stringify({ name: 'phase-test', version: '0.8.1' }, null, 2)}\n`,
+    );
+    await assert.rejects(
+      commitPromptChanges(
+        {
+          prompt: parsed,
+          finalResponse: 'unused',
+          runDirectory,
+          prePromptHead: baseline,
+        },
+        { rootDirectory, isInterrupted: () => true },
+      ),
+      /commit boundary failed: Phase run was interrupted/,
+    );
+    assert.equal(gitResult(rootDirectory, ['rev-parse', 'HEAD']), baseline);
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('a Codex-created commit is rejected because the runner owns the single commit boundary', async () => {
+  const rootDirectory = await createPhaseRepository(1);
+  const runDirectory = path.join(rootDirectory, '.codex-runs', 'test');
+  await mkdir(runDirectory, { recursive: true });
+  const parsed = parsePrompt(prompt(1).filename, prompt(1).text);
+  const baseline = gitResult(rootDirectory, ['rev-parse', 'HEAD']);
+  try {
+    await writeFile(path.join(rootDirectory, 'unauthorized.txt'), 'first\n');
+    gitResult(rootDirectory, ['add', '-A']);
+    gitResult(rootDirectory, ['commit', '--quiet', '-m', 'unauthorized']);
+    await writeFile(path.join(rootDirectory, 'pending.txt'), 'second\n');
+    await assert.rejects(
+      commitPromptChanges(
+        {
+          prompt: parsed,
+          finalResponse: 'done',
+          runDirectory,
+          prePromptHead: baseline,
+        },
+        { rootDirectory },
+      ),
+      /HEAD changed during implementation; the runner owns/,
+    );
+    assert.equal(
+      gitResult(rootDirectory, ['log', '-1', '--format=%s']),
+      'unauthorized',
+    );
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('commit failure prevents every later implementation prompt', async () => {
+  const rootDirectory = await createPhaseRepository(2);
+  const codexCalls: number[] = [];
+  try {
+    await assert.rejects(
+      runCli(['p8'], {
+        rootDirectory,
+        stdout: testOutput(false),
+        resolveLauncher: async () => ({
+          launcher: directTestLauncher,
+          version: 'codex-test 1.0.0',
+        }),
+        spawnSyncProcess: (
+          command: string,
+          arguments_: string[],
+          options: { shell: boolean },
+        ) =>
+          arguments_[0] === 'commit'
+            ? { status: 1, stdout: '', stderr: 'test commit rejection' }
+            : spawnSync(command, arguments_, {
+                ...options,
+                cwd: rootDirectory,
+                encoding: 'utf8',
+              }),
+        runCodexProcess: async (parsedPrompt: { number: number }) => {
+          codexCalls.push(parsedPrompt.number);
+          await writeFile(
+            path.join(rootDirectory, 'package.json'),
+            `${JSON.stringify({ version: `0.8.${parsedPrompt.number}` })}\n`,
+          );
+          await writeFile(path.join(rootDirectory, 'change.txt'), 'change\n');
+          return {
+            code: 0,
+            signal: null,
+            finalResponse: 'done',
+            stderr: '',
+            childArgs: [],
+          };
+        },
+      }),
+      /implementation completed but its commit boundary failed: Git commit failed/,
+    );
+    assert.deepEqual(codexCalls, [1]);
+    assert.equal(
+      gitResult(rootDirectory, ['log', '-1', '--format=%s']),
+      'baseline',
+    );
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('commit verification and dirty-tree failures prevent every later prompt', async () => {
+  for (const failure of ['subject', 'dirty'] as const) {
+    const rootDirectory = await createPhaseRepository(2);
+    const codexCalls: number[] = [];
+    let statusCalls = 0;
+    try {
+      await assert.rejects(
+        runCli(['p8'], {
+          rootDirectory,
+          stdout: testOutput(false),
+          resolveLauncher: async () => ({
+            launcher: directTestLauncher,
+            version: 'codex-test 1.0.0',
+          }),
+          spawnSyncProcess: (
+            command: string,
+            arguments_: string[],
+            options: { shell: boolean },
+          ) => {
+            if (arguments_[0] === 'status') statusCalls += 1;
+            if (
+              failure === 'subject' &&
+              arguments_[0] === 'log' &&
+              arguments_.includes('--format=%s')
+            ) {
+              return { status: 0, stdout: 'wrong-subject\n', stderr: '' };
+            }
+            if (
+              failure === 'dirty' &&
+              arguments_[0] === 'status' &&
+              statusCalls === 4
+            ) {
+              return { status: 0, stdout: ' M leftover.txt\n', stderr: '' };
+            }
+            return spawnSync(command, arguments_, {
+              ...options,
+              cwd: rootDirectory,
+              encoding: 'utf8',
+            });
+          },
+          runCodexProcess: async (parsedPrompt: { number: number }) => {
+            codexCalls.push(parsedPrompt.number);
+            await writeFile(
+              path.join(rootDirectory, 'package.json'),
+              `${JSON.stringify({ version: `0.8.${parsedPrompt.number}` })}\n`,
+            );
+            await writeFile(path.join(rootDirectory, 'change.txt'), 'change\n');
+            return {
+              code: 0,
+              signal: null,
+              finalResponse: 'done\n',
+              stderr: '',
+              childArgs: [],
+            };
+          },
+        }),
+        /commit boundary failed/,
+      );
+      assert.deepEqual(codexCalls, [1]);
+    } finally {
+      await rm(rootDirectory, { recursive: true, force: true });
+    }
+  }
+});
+
+test('package-lock creation fails before commit and prevents later prompts', async () => {
+  const rootDirectory = await createPhaseRepository(2);
+  const codexCalls: number[] = [];
+  try {
+    await assert.rejects(
+      runCli(['p8'], {
+        rootDirectory,
+        stdout: testOutput(false),
+        resolveLauncher: async () => ({
+          launcher: directTestLauncher,
+          version: 'codex-test 1.0.0',
+        }),
+        runCodexProcess: async (parsedPrompt: { number: number }) => {
+          codexCalls.push(parsedPrompt.number);
+          await writeFile(
+            path.join(rootDirectory, 'package.json'),
+            `${JSON.stringify({ version: `0.8.${parsedPrompt.number}` })}\n`,
+          );
+          await writeFile(
+            path.join(rootDirectory, 'package-lock.json'),
+            '{}\n',
+          );
+          return {
+            code: 0,
+            signal: null,
+            finalResponse: 'done',
+            stderr: '',
+            childArgs: [],
+          };
+        },
+      }),
+      /package-lock\.json was created/,
+    );
+    assert.deepEqual(codexCalls, [1]);
+    assert.equal(
+      gitResult(rootDirectory, ['log', '-1', '--format=%s']),
+      'baseline',
+    );
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('Git process transport is an argument array and remains shell-free', () => {
+  let invocation: unknown;
+  const result = invokeGit(['commit', '--file', 'message.txt'], {
+    rootDirectory: 'C:\\repo',
+    spawnSyncProcess: (
+      command: string,
+      arguments_: string[],
+      options: { cwd: string; shell: boolean },
+    ) => {
+      invocation = { command, arguments: arguments_, options };
+      return { status: 0, stdout: '', stderr: '' };
+    },
+  });
+  assert.equal(result.status, 0);
+  assert.deepEqual(invocation, {
+    command: 'git',
+    arguments: ['commit', '--file', 'message.txt'],
+    options: {
+      cwd: 'C:\\repo',
+      encoding: 'utf8',
+      shell: false,
+    },
+  });
 });
 
 test('successful handoff preserves exit-success manual-closeout semantics', () => {

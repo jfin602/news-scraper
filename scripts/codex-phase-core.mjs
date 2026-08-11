@@ -1,3 +1,5 @@
+import { clearScreenDown, cursorTo, moveCursor } from 'node:readline';
+
 export const MODEL_CONFIGS = Object.freeze({
   'Terra High': Object.freeze({ model: 'gpt-5.6-terra', reasoning: 'high' }),
   'Terra Ultra': Object.freeze({ model: 'gpt-5.6-terra', reasoning: 'ultra' }),
@@ -369,6 +371,8 @@ export function renderDashboard({
       `  ${stateLabel(prompt, state)} P${prompt.number}  ${prompt.title}  ${prompt.recommendation}  ${prompt.kind === 'closeout' ? 'MANUAL' : prompt.targetVersion}${duration}`,
     );
     if (state?.status === 'passed') {
+      if (state.commitSha)
+        lines.push(`    Commit: ${state.commitSha.slice(0, 7)}`);
       const usageLines = formatUsage(state.usage);
       if (usageLines.length > 0)
         lines.push(...usageLines.map((line) => `    ${line}`));
@@ -409,8 +413,66 @@ export function renderDashboard({
   return `${printableAscii(lines.join('\n'))}\n`;
 }
 
-export function terminalDashboardOutput(output, interactive) {
-  return interactive ? `\x1b[2J\x1b[H${output}` : output;
+function renderedLineCount(output) {
+  return output.endsWith('\n')
+    ? output.split('\n').length - 1
+    : output.split('\n').length;
+}
+
+export function createDisplaySession({
+  stream,
+  interactive = Boolean(stream?.isTTY),
+  verbose = false,
+  moveCursorFunction = moveCursor,
+  cursorToFunction = cursorTo,
+  clearScreenDownFunction = clearScreenDown,
+}) {
+  let previousLineCount = 0;
+  let previousOutput = '';
+  let finalized = false;
+  const ownsInteractiveRegion = Boolean(interactive && !verbose);
+
+  const write = (value) => stream.write(value);
+  const normalize = (value) => {
+    const ascii = printableAscii(value);
+    return ascii.endsWith('\n') ? ascii : `${ascii}\n`;
+  };
+
+  return Object.freeze({
+    get interactive() {
+      return ownsInteractiveRegion;
+    },
+    render(value) {
+      if (!ownsInteractiveRegion || finalized) return false;
+      const output = normalize(value);
+      if (output === previousOutput) return false;
+      if (previousLineCount > 0) {
+        moveCursorFunction(stream, 0, -previousLineCount);
+        cursorToFunction(stream, 0);
+        clearScreenDownFunction(stream);
+      }
+      write(output);
+      previousLineCount = renderedLineCount(output);
+      previousOutput = output;
+      return true;
+    },
+    progress(value) {
+      if (ownsInteractiveRegion || finalized) return false;
+      write(normalize(value));
+      return true;
+    },
+    verbose(value) {
+      if (!verbose || finalized) return false;
+      write(normalize(value));
+      return true;
+    },
+    finalize(value) {
+      if (finalized) return false;
+      if (ownsInteractiveRegion && value !== undefined) this.render(value);
+      finalized = true;
+      return true;
+    },
+  });
 }
 
 export function startElapsedRedraw(

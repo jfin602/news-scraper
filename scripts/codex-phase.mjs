@@ -16,6 +16,7 @@ import {
   assertPostPrompt,
   assertVersionCompatible,
   buildPlan,
+  createDisplaySession,
   createEventTracker,
   createStructuredEventProcessor,
   interpretEvent,
@@ -24,7 +25,6 @@ import {
   renderFailureSummary,
   renderSuccessHandoff,
   startElapsedRedraw,
-  terminalDashboardOutput,
 } from './codex-phase-core.mjs';
 
 const root = process.cwd();
@@ -36,16 +36,40 @@ let activePlan;
 let activeStates = new Map();
 let activePrompt;
 let stopActiveRedraw;
+let activeDisplay;
+let activeDashboard;
 
 const exists = async (file) =>
   access(file).then(
     () => true,
     () => false,
   );
-const packageVersion = async () =>
-  JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8')).version;
-const git = (...gitArgs) =>
-  spawnSync('git', gitArgs, { cwd: root, encoding: 'utf8' });
+const packageVersion = async (rootDirectory = root) =>
+  JSON.parse(await readFile(path.join(rootDirectory, 'package.json'), 'utf8'))
+    .version;
+
+export function invokeGit(
+  arguments_,
+  { rootDirectory = root, spawnSyncProcess = spawnSync } = {},
+) {
+  return spawnSyncProcess('git', arguments_, {
+    cwd: rootDirectory,
+    encoding: 'utf8',
+    shell: false,
+  });
+}
+
+function successfulGit(result, action, { trim = true } = {}) {
+  if (result.error) throw new Error(`${action}: ${result.error.message}`);
+  if (result.status !== 0) {
+    const detail = String(result.stderr ?? result.stdout ?? '').trim();
+    throw new Error(
+      `${action}${detail ? `: ${detail}` : ` (status ${result.status})`}`,
+    );
+  }
+  const output = String(result.stdout ?? '');
+  return trim ? output.trim() : output;
+}
 const withoutPromptText = (prompt) => {
   const copy = { ...prompt };
   delete copy.text;
@@ -247,13 +271,6 @@ export async function resolveCodexLauncher({
   );
 }
 
-function writeDashboard(options, verbose) {
-  const output = renderDashboard(options);
-  process.stdout.write(
-    terminalDashboardOutput(output, Boolean(process.stdout.isTTY && !verbose)),
-  );
-}
-
 export function buildCodexArguments(prompt, rootDirectory, finalFile) {
   return [
     'exec',
@@ -334,7 +351,165 @@ export async function runCodex(
   return { ...result, finalResponse, stderr, childArgs };
 }
 
-export async function runCli(argv = process.argv.slice(2)) {
+export async function commitPromptChanges(
+  { prompt, finalResponse, runDirectory, prePromptHead },
+  {
+    rootDirectory = root,
+    spawnSyncProcess = spawnSync,
+    isInterrupted = () => false,
+  } = {},
+) {
+  const runGit = (arguments_) =>
+    invokeGit(arguments_, { rootDirectory, spawnSyncProcess });
+  const assertNotInterrupted = () => {
+    if (isInterrupted()) throw new Error('Phase run was interrupted.');
+  };
+  const boundaryFailure = (error) => {
+    throw new Error(
+      `P${prompt.number} implementation completed but its commit boundary failed: ${error.message}`,
+      { cause: error },
+    );
+  };
+
+  try {
+    assertNotInterrupted();
+    const currentHead = successfulGit(
+      runGit(['rev-parse', 'HEAD']),
+      'Unable to inspect HEAD before staging',
+    );
+    if (currentHead !== prePromptHead) {
+      throw new Error(
+        'HEAD changed during implementation; the runner owns the prompt commit boundary.',
+      );
+    }
+    const pending = successfulGit(
+      runGit(['status', '--porcelain=v1', '--untracked-files=all']),
+      'Unable to inspect implementation changes',
+    );
+    if (!pending) throw new Error('No implementation changes exist to commit.');
+
+    const messageFile = path.join(
+      runDirectory,
+      `P${prompt.number}.commit-message.txt`,
+    );
+    const expectedMessage = `${prompt.targetVersion}\n\n${finalResponse}`;
+    await writeFile(messageFile, expectedMessage, 'utf8');
+
+    assertNotInterrupted();
+    successfulGit(runGit(['add', '-A']), 'Git staging failed');
+    if (await exists(path.join(rootDirectory, 'package-lock.json'))) {
+      throw new Error('package-lock.json was created.');
+    }
+    const staged = runGit(['diff', '--cached', '--quiet', '--']);
+    if (staged.error)
+      throw new Error(
+        `Unable to inspect staged changes: ${staged.error.message}`,
+      );
+    if (staged.status === 0)
+      throw new Error('Staged implementation changes are empty.');
+    if (staged.status !== 1) {
+      throw new Error(
+        `Unable to inspect staged changes${staged.stderr ? `: ${String(staged.stderr).trim()}` : ''}`,
+      );
+    }
+    const stagedStatus = successfulGit(
+      runGit(['status', '--porcelain=v1', '--untracked-files=all']),
+      'Unable to inspect staged repository state',
+    );
+    if (!stagedStatus)
+      throw new Error('Staged implementation changes are empty.');
+    if (
+      stagedStatus
+        .split(/\r?\n/)
+        .some((entry) => entry.length < 2 || entry[1] !== ' ')
+    ) {
+      throw new Error(
+        'Repository state contains unstaged or conflicted changes after staging.',
+      );
+    }
+
+    assertNotInterrupted();
+    successfulGit(
+      runGit([
+        'commit',
+        '--no-gpg-sign',
+        '--cleanup=verbatim',
+        '--file',
+        messageFile,
+      ]),
+      'Git commit failed',
+    );
+    assertNotInterrupted();
+
+    const commitSha = successfulGit(
+      runGit(['rev-parse', 'HEAD']),
+      'Unable to read committed HEAD',
+    );
+    if (commitSha === prePromptHead) {
+      throw new Error('HEAD did not change after Git commit.');
+    }
+    const committedParent = successfulGit(
+      runGit(['rev-parse', 'HEAD^']),
+      'Unable to verify committed parent',
+    );
+    if (committedParent !== prePromptHead) {
+      throw new Error(
+        'Prompt commit is not the single direct successor of its pre-prompt HEAD.',
+      );
+    }
+    const subject = successfulGit(
+      runGit(['log', '-1', '--format=%s']),
+      'Unable to verify commit subject',
+    );
+    if (subject !== prompt.targetVersion) {
+      throw new Error(
+        `Commit subject ${JSON.stringify(subject)} does not equal ${prompt.targetVersion}.`,
+      );
+    }
+    const commitObject = successfulGit(
+      runGit(['cat-file', 'commit', commitSha]),
+      'Unable to verify commit message',
+      { trim: false },
+    );
+    const messageBoundary = commitObject.indexOf('\n\n');
+    const actualMessage =
+      messageBoundary === -1 ? '' : commitObject.slice(messageBoundary + 2);
+    if (actualMessage !== expectedMessage) {
+      throw new Error(
+        'Commit body does not preserve the captured final response.',
+      );
+    }
+    if ((await packageVersion(rootDirectory)) !== prompt.targetVersion) {
+      throw new Error(
+        `Package version changed during commit verification; expected ${prompt.targetVersion}.`,
+      );
+    }
+    if (await exists(path.join(rootDirectory, 'package-lock.json'))) {
+      throw new Error('package-lock.json exists after commit.');
+    }
+    const remaining = successfulGit(
+      runGit(['status', '--porcelain=v1', '--untracked-files=all']),
+      'Unable to verify clean working tree',
+    );
+    if (remaining)
+      throw new Error('Working tree is dirty after the prompt commit.');
+    assertNotInterrupted();
+    return Object.freeze({ commitSha, subject, messageFile });
+  } catch (error) {
+    boundaryFailure(error);
+  }
+}
+
+export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
+  const rootDirectory = dependencies.rootDirectory ?? root;
+  const stdout = dependencies.stdout ?? process.stdout;
+  const resolveLauncher =
+    dependencies.resolveLauncher ?? (() => resolveCodexLauncher());
+  const runCodexProcess = dependencies.runCodexProcess ?? runCodex;
+  const spawnSyncProcess = dependencies.spawnSyncProcess ?? spawnSync;
+  const runGit = (arguments_) =>
+    invokeGit(arguments_, { rootDirectory, spawnSyncProcess });
+  interrupted = false;
   const verbose = argv.includes('--verbose');
   const positional = argv.filter((argument) => argument !== '--verbose');
   if (
@@ -347,7 +522,7 @@ export async function runCli(argv = process.argv.slice(2)) {
   }
 
   const folderName = positional[0];
-  const taskDirectory = path.join(root, 'docs', 'tasks', folderName);
+  const taskDirectory = path.join(rootDirectory, 'docs', 'tasks', folderName);
   if (!(await exists(taskDirectory)))
     throw new Error(`Task folder does not exist: docs/tasks/${folderName}`);
   const names = await readdir(taskDirectory);
@@ -363,11 +538,11 @@ export async function runCli(argv = process.argv.slice(2)) {
   activePlan = plan;
   activeStates = states;
 
-  if (!(await exists(path.join(root, 'package.json'))))
+  if (!(await exists(path.join(rootDirectory, 'package.json'))))
     throw new Error('package.json does not exist.');
-  if (await exists(path.join(root, 'package-lock.json')))
+  if (await exists(path.join(rootDirectory, 'package-lock.json')))
     throw new Error('package-lock.json exists before the run.');
-  const initialStatus = git('status', '--porcelain=v1');
+  const initialStatus = runGit(['status', '--porcelain=v1']);
   if (initialStatus.status !== 0)
     throw new Error(
       `Unable to inspect repository state: ${initialStatus.stderr.trim()}`,
@@ -376,10 +551,15 @@ export async function runCli(argv = process.argv.slice(2)) {
     throw new Error(
       'Repository has uncommitted changes; start from an intentional clean phase baseline.',
     );
-  const { launcher, version: codexVersion } = await resolveCodexLauncher();
+  const { launcher, version: codexVersion } = await resolveLauncher();
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const runDirectory = path.join(root, '.codex-runs', folderName, stamp);
+  const runDirectory = path.join(
+    rootDirectory,
+    '.codex-runs',
+    folderName,
+    stamp,
+  );
   await mkdir(runDirectory, { recursive: true });
   const run = {
     phase: plan.phase,
@@ -401,11 +581,29 @@ export async function runCli(argv = process.argv.slice(2)) {
   saveActiveRun = saveRun;
   await saveRun();
 
+  const display = createDisplaySession({
+    stream: stdout,
+    interactive: Boolean(stdout.isTTY),
+    verbose,
+  });
+  activeDisplay = display;
+  display.progress(
+    `[.] Phase ${plan.phase} started - ${plan.implementations.length} implementation prompts`,
+  );
+
   let previousVersion = `0.${plan.phase}.0`;
   for (const prompt of plan.implementations) {
     if (interrupted) throw new Error('Phase run was interrupted.');
     activePrompt = prompt;
-    assertVersionCompatible(await packageVersion(), prompt, previousVersion);
+    assertVersionCompatible(
+      await packageVersion(rootDirectory),
+      prompt,
+      previousVersion,
+    );
+    const prePromptHead = successfulGit(
+      runGit(['rev-parse', 'HEAD']),
+      `Unable to read HEAD before P${prompt.number}`,
+    );
     const state = { status: 'running' };
     states.set(prompt.number, state);
     const record = run.prompts.find((item) => item.number === prompt.number);
@@ -414,26 +612,26 @@ export async function runCli(argv = process.argv.slice(2)) {
     const startedAt = Date.now();
     const tracker = createEventTracker();
     let latest = '[.] Waiting for Codex response';
-    const redraw = () =>
-      writeDashboard(
-        {
-          plan,
-          states,
-          current: prompt,
-          activity: latest,
-          tracker,
-          startedAt,
-        },
-        verbose,
-      );
+    const dashboard = () =>
+      renderDashboard({
+        plan,
+        states,
+        current: prompt,
+        activity: latest,
+        tracker,
+        startedAt,
+      });
+    const redraw = () => display.render(dashboard());
+    activeDashboard = dashboard;
+    display.progress(`[>] P${prompt.number} started - ${prompt.targetVersion}`);
     redraw();
-    if (process.stdout.isTTY && !verbose) {
+    if (display.interactive) {
       stopActiveRedraw = startElapsedRedraw(redraw);
     }
 
     let result;
     try {
-      result = await runCodex(
+      result = await runCodexProcess(
         prompt,
         runDirectory,
         (event) => {
@@ -445,11 +643,11 @@ export async function runCli(argv = process.argv.slice(2)) {
           }
           if (observation.visible && observation.activity) {
             latest = printableAscii(observation.activity);
-            if (verbose) process.stdout.write(`${latest}\n`);
+            if (verbose) display.verbose(latest);
             else redraw();
           }
         },
-        { launcher, verbose },
+        { launcher, verbose, rootDirectory },
       );
     } finally {
       stopActiveRedraw?.();
@@ -457,24 +655,46 @@ export async function runCli(argv = process.argv.slice(2)) {
     }
     if (interrupted || result.signal)
       throw new Error('Phase run was interrupted.');
-    const conflicts = git('diff', '--check');
+    const conflicts = runGit(['diff', '--check']);
     assertPostPrompt({
       exitCode: result.code,
-      version: await packageVersion(),
+      version: await packageVersion(rootDirectory),
       prompt,
-      packageLockExists: await exists(path.join(root, 'package-lock.json')),
+      packageLockExists: await exists(
+        path.join(rootDirectory, 'package-lock.json'),
+      ),
       coherent: conflicts.status === 0,
     });
+    if (interrupted) throw new Error('Phase run was interrupted.');
+    const commit = await commitPromptChanges(
+      {
+        prompt,
+        finalResponse: result.finalResponse,
+        runDirectory,
+        prePromptHead,
+      },
+      {
+        rootDirectory,
+        spawnSyncProcess,
+        isInterrupted: () => interrupted,
+      },
+    );
     const durationMs = Date.now() - startedAt;
     record.status = 'passed';
     record.endedAt = new Date().toISOString();
     record.durationMs = durationMs;
+    record.commitSha = commit.commitSha;
     states.set(prompt.number, {
       status: 'passed',
       durationMs,
+      commitSha: commit.commitSha,
       ...(record.usage ? { usage: record.usage } : {}),
     });
+    display.progress(
+      `[+] P${prompt.number} passed - commit ${commit.commitSha.slice(0, 7)}`,
+    );
     activePrompt = undefined;
+    activeDashboard = undefined;
     previousVersion = prompt.targetVersion;
     await saveRun();
   }
@@ -483,20 +703,19 @@ export async function runCli(argv = process.argv.slice(2)) {
   await saveRun();
   activeRun = undefined;
   saveActiveRun = undefined;
-  writeDashboard(
-    {
-      plan,
-      states,
-      current: undefined,
-      activity: '',
-      tracker: createEventTracker(),
-      startedAt: Date.now(),
-    },
-    verbose,
+  const finalDashboard = renderDashboard({
+    plan,
+    states,
+    current: undefined,
+    activity: '',
+    tracker: createEventTracker(),
+    startedAt: Date.now(),
+  });
+  display.finalize(finalDashboard);
+  stdout.write(
+    renderSuccessHandoff(plan, path.relative(rootDirectory, runDirectory)),
   );
-  process.stdout.write(
-    renderSuccessHandoff(plan, path.relative(root, runDirectory)),
-  );
+  activeDisplay = undefined;
   return 0;
 }
 
@@ -508,6 +727,9 @@ async function handleFailure(error) {
       status: interrupted ? 'interrupted' : 'failed',
     });
   }
+  activeDisplay?.finalize(activeDashboard?.());
+  activeDisplay = undefined;
+  activeDashboard = undefined;
   if (activeRun && saveActiveRun) {
     activeRun.status = interrupted ? 'interrupted' : 'failed';
     activeRun.endedAt = new Date().toISOString();
