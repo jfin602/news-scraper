@@ -11,7 +11,10 @@ import {
   parseBootstrapDocument,
   type BootstrapDocument,
 } from '../../src/publications/bootstrap.ts';
-import { findPublicationBySlug } from '../../src/publications/repository.ts';
+import {
+  findPublicationBySlug,
+  setPublicationPublicStatus,
+} from '../../src/publications/repository.ts';
 import {
   findSourceByPublicationAndConfigKey,
   findSourceEndpointBySourceAndConfigKey,
@@ -48,6 +51,11 @@ test('committed initial Publication bootstrap persists exactly the approved tree
       'indie-author-publishing-news',
     );
     assert.ok(publication);
+    assert.equal(
+      (await setPublicationPublicStatus(database, publication.slug, 'private'))
+        ?.publicStatus,
+      'private',
+    );
     const source = await findSourceByPublicationAndConfigKey(
       database,
       publication.id,
@@ -92,6 +100,11 @@ test('committed initial Publication bootstrap persists exactly the approved tree
       database,
       publication.id,
       'author_media',
+    );
+    assert.equal(
+      (await findPublicationBySlug(database, 'indie-author-publishing-news'))
+        ?.publicStatus,
+      'private',
     );
     const preservedEndpoint = await findSourceEndpointBySourceAndConfigKey(
       database,
@@ -154,7 +167,7 @@ async function assertInitialPublicationTree(database: Database): Promise<void> {
   assert.ok(publication);
   assert.equal(publication.name, 'Indie Author Publishing News');
   assert.equal(publication.activeForCollection, true);
-  assert.equal(publication.publicStatus, 'private');
+  assert.equal(publication.publicStatus, 'public');
 
   await assertSource(
     database,

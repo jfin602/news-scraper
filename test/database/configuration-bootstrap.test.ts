@@ -15,7 +15,10 @@ import {
 } from '../../src/publications/bootstrap.ts';
 import { createDatabase, type Database } from '../../src/database/database.ts';
 import { migrateDatabase } from '../../src/database/migrations.ts';
-import { findPublicationBySlug } from '../../src/publications/repository.ts';
+import {
+  findPublicationBySlug,
+  setPublicationPublicStatus,
+} from '../../src/publications/repository.ts';
 import {
   findSourceByPublicationAndConfigKey,
   findSourceEndpointBySourceAndConfigKey,
@@ -67,10 +70,14 @@ test('bootstrap creates approved configuration idempotently and preserves operat
 
     await database.query(
       `UPDATE publications
-       SET name = 'Operator Technology Desk', active_for_collection = false,
-           public_status = 'private'
+       SET name = 'Operator Technology Desk', active_for_collection = false
        WHERE id = $1`,
       [publication.id],
+    );
+    assert.equal(
+      (await setPublicationPublicStatus(database, publication.slug, 'private'))
+        ?.publicStatus,
+      'private',
     );
     await database.query(
       `UPDATE sources

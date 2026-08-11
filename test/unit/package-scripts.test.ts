@@ -17,6 +17,7 @@ describe('package command environment contract', () => {
       'test:live-sources',
       'db:migrate',
       'db:bootstrap',
+      'publication:set-public-status',
       'collect:endpoint',
       'start:web',
       'start:worker',

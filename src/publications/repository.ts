@@ -106,6 +106,23 @@ export async function findPublicationBySlug(
   return row === undefined ? undefined : mapPublicationRow(row);
 }
 
+export async function setPublicationPublicStatus(
+  executor: QueryExecutor,
+  slug: string,
+  publicStatus: unknown,
+): Promise<PersistedPublication | undefined> {
+  const normalizedPublicStatus = normalizePublicationPublicStatus(publicStatus);
+  const result = await executor.query<PublicationRow>(
+    `UPDATE publications
+     SET public_status = $2, updated_at = now()
+     WHERE slug = $1
+     RETURNING ${PUBLICATION_COLUMNS}`,
+    [slug, normalizedPublicStatus],
+  );
+  const row = result.rows[0];
+  return row === undefined ? undefined : mapPublicationRow(row);
+}
+
 export function mapPublicationRow(row: PublicationRow): PersistedPublication {
   try {
     return Object.freeze({
