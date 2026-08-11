@@ -255,7 +255,7 @@ export function createStructuredEventProcessor({ appendLine, onEvent }) {
   const enqueue = (line) => {
     if (!line.trim()) return;
     queue = queue.then(async () => {
-      await appendFile(`${line}\n`);
+      await appendLine(`${line}\n`);
       let event;
       try {
         event = JSON.parse(line);
@@ -344,7 +344,6 @@ function colorizeDashboardLine(line) {
   if (/^\s*\[M\]/.test(line) || line.startsWith('Closeout:'))
     return style(line, ANSI.yellow);
   if (/^\s*\[ \]/.test(line)) return style(line, ANSI.dim);
-  if (/^\s*Commit:/.test(line)) return style(line, ANSI.dimGreen);
   if (line.startsWith('Target:')) return style(line, ANSI.yellow);
   if (
     line.startsWith('Usage:') ||
