@@ -10,14 +10,14 @@ It establishes project identity, canonical terminology, authority, document rout
 - Default branch: `main`
 - Working product/repository name: News Scraper
 - Platform: reusable, topic-independent news aggregation Platform
-- Current phase: **Phase 8 — Basic public-feed backend**
+- Current phase: **Phase 9 — Basic public-feed UI and tech demo**
 - Production status: pre-production
 - Initial Publication: publishing-industry news relevant to indie authors
 - Public direction: rolling recent-headline feed sending readers to original publishers
 - Admin direction: Cloudflare Access-protected Publication/Source/endpoint/Relevance/Category/Article/duplicate/health/change-history control plane, built after the tech-demo vertical slice
 - Core constraint: Publication-specific behavior is configuration; shared engine logic remains topic independent
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication/Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, and Phase 7 Default Relevance/Article identity/persistence implementation/validation are complete. The repository is ready for Phase 8 implementation planning.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication/Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete. The repository is ready for Phase 9 implementation planning.
 
 ## Delivery priority
 
@@ -145,6 +145,9 @@ If a path does not exist, search for its current equivalent before assuming inte
 - Publication collection activity, Source operational state, and endpoint approval/lifecycle/operational/health state govern collection and do not by themselves suppress retained otherwise-eligible public rows.
 - Public feed effective date uses parsed `published_at` when available and otherwise `first_seen_at`, with fallback provenance detectable and deterministic tie ordering.
 - Public headline destination is the stored Article `original_url`; `canonical_identity_url` remains an identity-comparison field and is not substituted silently.
+- Phase 9 canonical public page is `GET /publications/:publicationSlug` and reuses the Phase 8 public-feed read model/API semantics rather than creating a parallel eligibility, ordering, or database-query path.
+- Until Publication presentation timezone/settings exist, Phase 9 renders the basic calendar date from `effectiveFeedDate` in UTC; viewer-local timezone must not shift the tech-demo date.
+- Missing and non-public Publications remain indistinguishable on the Phase 9 public page and use the same generic unavailable/not-found state without revealing private Publication identity.
 - Weak duplicate evidence persists as review state; unchanged dismissed evidence does not recur indefinitely.
 - Source runs/jobs fail independently and public-feed reads remain readable during collection failures.
 - MVP admin UI/API routes are behind Cloudflare Access and supported deployments prevent direct-origin bypass.
@@ -156,15 +159,16 @@ If a path does not exist, search for its current equivalent before assuming inte
 - Ordinary deterministic validation does not rely on live public Sources, and test composition must not weaken production whitelist/SSRF policy.
 - Required suites do not pass by silently skipping prerequisites or selecting zero tests.
 - Validation claims apply to the exact final source tree tested; previous passing evidence does not automatically transfer to later source changes.
+- Phase 9 closeout requires both Level 6 browser evidence for the public tech-demo workflow and Level 7 approved live-Source evidence for the named real Sources required by its tech-demo exit gate.
 - Implementation-roadmap phase closeout requires a durable `docs/validation/` artifact tied to the exact accepted commit/source tree and the commands/procedures actually executed.
 
 ## Roadmap state
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 8 — Basic public-feed backend**.
+Current phase: **Phase 9 — Basic public-feed UI and tech demo**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration core, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, and Phase 7 Default Relevance/Article identity/persistence are complete with durable closeout validation. Phase 8 is the active implementation phase.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration core, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend are complete with durable closeout validation. Phase 9 is the active implementation phase.
 
 ### Tech-demo critical path
 
@@ -568,7 +572,7 @@ Duplicate prompts preserve every Article/observation, exactly one Primary/group,
 
 Publication/Relevance prompts preserve topic independence, deterministic rule precedence, prospective-by-default rule edits, and full precedence-matrix tests.
 
-Public-feed prompts preserve Publication public exposure, Source approval/lifecycle trust, Article visibility + ungrouped-or-Primary eligibility, deterministic published-at/first-seen feed-date semantics, bounded safe output, and the stored Article `original_url` as the public destination; they do not use collection operational/endpoint health state as an implicit historical feed-suppression rule. Browser-dependent claims require browser evidence.
+Public-feed prompts preserve Publication public exposure, Source approval/lifecycle trust, Article visibility + ungrouped-or-Primary eligibility, deterministic published-at/first-seen feed-date semantics, bounded safe output, and the stored Article `original_url` as the public destination; they do not use collection operational/endpoint health state as an implicit historical feed-suppression rule. Phase 9 UI prompts additionally preserve canonical page route `GET /publications/:publicationSlug`, reuse the canonical Phase 8 feed read model/API instead of duplicating query semantics, use the UTC calendar-date fallback until Publication presentation settings exist, keep missing/non-public Publication states indistinguishable, and require Level 6 browser plus applicable Level 7 approved-live-Source evidence. Browser-dependent claims require browser evidence.
 
 Admin prompts preserve Cloudflare Access/origin protection, request integrity, Publication/resource ownership validation, and the MVP prohibition on unnecessary native identity/account work.
 
