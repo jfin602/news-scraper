@@ -66,7 +66,7 @@ Git does not track empty directories, so `design/tasks/`, `testing/`, `tasks/`, 
 - `decisions/cloudflare-access-admin-perimeter.md` — MVP admin access boundary and deferred native identity/account system.
 - `decisions/README.md` — ADR status/index.
 - `design/README.md` — design-document authority/routing and the boundary between presentation guidance and product/domain contracts.
-- `design/ui-workflow.md` — permanent `ui-polish` branch/worktree rules and the lightweight `/ui-plan` → `/ui-write` targeted single-prompt workflow.
+- `design/ui-workflow.md` — permanent `ui-polish` branch/worktree rules; normal `/ui-plan` → `/ui-write` targeted implementation workflow; and conditional `/ui-review` → `/ui-apply` design-guidance gate when `/ui-plan` determines durable presentation rules must first be created or changed.
 - `design/tasks/` — non-roadmap, non-versioned targeted UI prompts written by `/ui-write`; not parsed or executed by `codex:phase`.
 
 Use root `BOOT.md` as the session router; it points to the narrowest authoritative document for a task.
