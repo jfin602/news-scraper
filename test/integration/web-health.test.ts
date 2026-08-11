@@ -11,10 +11,13 @@ describe('Web health endpoints', () => {
   before(async () => {
     webServer = await startWebServer(
       createWebApp({
-        async checkReady() {
-          checks += 1;
-          return ready;
+        readiness: {
+          async checkReady() {
+            checks += 1;
+            return ready;
+          },
         },
+        publicFeed: { read: async () => undefined },
       }),
       {
         host: '127.0.0.1',

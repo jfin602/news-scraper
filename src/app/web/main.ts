@@ -1,6 +1,7 @@
 import { parseDatabaseConfig } from '../../database/config.ts';
 import { createDatabase } from '../../database/database.ts';
 import { createDatabaseDependency } from '../../database/readiness.ts';
+import { readPublicFeed } from '../../public-feed/repository.ts';
 import { createWebApp } from './create-app.ts';
 import { startWebServer } from './server.ts';
 import { parseWebConfig } from './web-config.ts';
@@ -10,9 +11,19 @@ async function main(): Promise<void> {
   try {
     const config = parseWebConfig(process.env);
     const databaseConfig = parseDatabaseConfig(process.env);
-    database = createDatabase(databaseConfig);
-    const dependency = createDatabaseDependency(database);
-    const webServer = await startWebServer(createWebApp(dependency), config);
+    const applicationDatabase = createDatabase(databaseConfig);
+    database = applicationDatabase;
+    const dependency = createDatabaseDependency(applicationDatabase);
+    const webServer = await startWebServer(
+      createWebApp({
+        readiness: dependency,
+        publicFeed: {
+          read: (publicationSlug) =>
+            readPublicFeed(applicationDatabase, publicationSlug),
+        },
+      }),
+      config,
+    );
     writeEvent({
       event: 'web.listening',
       host: webServer.host,

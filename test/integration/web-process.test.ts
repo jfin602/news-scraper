@@ -41,6 +41,12 @@ describe('Web process entrypoint', () => {
         status: 'not_ready',
         role: 'web',
       });
+      const feed = await fetch(`${baseUrl}/api/publications/example/feed`);
+      assert.equal(feed.status, 503);
+      assert.equal(feed.headers.get('cache-control'), 'no-store');
+      const feedBody = await feed.text();
+      assert.deepEqual(JSON.parse(feedBody), { error: 'service_unavailable' });
+      assert.doesNotMatch(feedBody, /synthetic-secret/u);
       const stoppedEvent = waitForJsonEvent(child, 'stdout', 'web.stopped');
       const exitEvent = waitForExit(child);
       sendGracefulTermination(child);
