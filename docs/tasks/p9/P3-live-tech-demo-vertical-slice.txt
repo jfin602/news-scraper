@@ -32,7 +32,7 @@ DEPENDS ON
 GOAL
 Add a Phase 9-specific repeatable approved-live-Source vertical-slice validation that proves the actual customer tech-demo path using the production Worker, real disposable PostgreSQL, the canonical public-feed boundary, the production Web app, and Chromium.
 
-P3 should make the live Phase 9 exit-gate behavior executable before closeout so P4 can consume a known repeatable capability rather than discovering live-network/persistence/browser integration defects for the first time during final certification.
+P3 should make the live Phase 9 exit-gate behavior executable before P4 final validation so P4 can consume a known repeatable capability rather than discovering live-network/persistence/browser integration defects for the first time during final certification.
 
 P3 is primarily a specialized validation/test implementation task. It MUST NOT redesign the collection pipeline, add scheduling/jobs, alter Source approval policy, weaken network safety, create a second collection path, or make ordinary deterministic regression depend on public publishers.
 
