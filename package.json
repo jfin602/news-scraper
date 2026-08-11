@@ -22,6 +22,7 @@
     "publication:set-public-status": "node --env-file-if-exists=.env scripts/set-publication-public-status.ts",
     "collect:endpoint": "node --env-file-if-exists=.env src/app/worker/collect-main.ts",
     "codex:phase": "node scripts/codex-phase.mjs",
+    "codex:phase:validate": "node scripts/validate-codex-phase.mjs",
     "start:web": "node --env-file-if-exists=.env src/app/web/main.ts",
     "start:worker": "node --env-file-if-exists=.env src/app/worker/main.ts",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm test"
