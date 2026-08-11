@@ -311,6 +311,8 @@ phase implementation / closeout task
 
 A green `/closeout` establishes the next implementation phase by committing its `0.<phase>.0` package baseline. Because `/closeout` is intentionally version-only, the roadmap and root phase summaries may still identify the just-completed phase until the immediately following `/docs-review` → `/docs-apply` alignment. This short post-closeout/pre-docs-apply state is expected and is not itself repository drift or a failed handoff.
 
+A correction stack has its own final manual closeout prompt, but that prompt is **not** the `/closeout` phase-handoff command. Correction closeout validates and clears only the named correction/gate while preserving the declared unchanged package version; it does not advance the roadmap phase or create a new `.0` baseline.
+
 ## `/closeout`
 
 `/closeout` is a bounded phase-handoff state transition, not an audit or troubleshooting workflow. Under normal repository and tool conditions, target completion is **under 60 seconds**.
@@ -421,36 +423,59 @@ Strict order:
 
 Do not silently run missing stages. If unstable requirements, contradictory docs, repository drift, or a material decision blocks progress, return `Planning needed` and stop before the next stage.
 
-## Phase-runner prompt-file grammar
+## Codex task-stack prompt-file grammar
 
-The phase runner and the parse-only validator share the same executable parser in `scripts/codex-phase-core.mjs`. The machine grammar below is a workflow contract, not a stylistic suggestion. Any future change to that parser grammar MUST update this section and focused regression coverage in the same change.
+The phase runner and parse-only validator share the same executable parser in `scripts/codex-phase-core.mjs`. The runner supports two explicit stack modes: versioned roadmap phase stacks and non-versioned correction stacks. The machine grammar below is a workflow contract, not a stylistic suggestion. Any future change to that parser grammar MUST update this section and focused regression coverage in the same change.
 
-Use `npm run codex:phase:validate -- <task-folder>` to validate the folder grammar without launching Codex, changing the package version, modifying the working tree, or committing anything.
+Use `npm run codex:phase:validate -- <task-folder>` to validate either stack type without launching Codex, changing the package version, modifying the working tree, or committing anything.
 
-The parser currently requires all of the following:
+### Common grammar
 
-- the task folder name is canonical lowercase `p<number>`, the phase number is one-based with no leading zero, and no alternate capitalization such as `P9` is accepted;
-- every `.txt` file in that folder is treated as a task prompt, so do not place notes or other non-prompt `.txt` files alongside the prompt stack;
-- prompt filenames are canonical `P<number>-<lower-kebab-slug>.txt`; the prompt number is one-based with no leading zero, and numbers are unique and contiguous from `P1`;
-- every prompt contains exactly one canonical task header: `TASK: Phase <phase> / P<number> — <title>`; the phase must match the folder, the prompt number must match the filename, and the title must be non-empty;
-- every prompt contains exactly one recommendation line whose literal form is `- Recommended configuration: ` followed by one backtick-delimited current runner label and a final period; supported labels are exactly the current keys of `MODEL_CONFIGS` in `scripts/codex-phase-core.mjs` (currently `Terra High`, `Terra Ultra`, `Sol Light`, `Sol High`, and `Sol Ultra`);
-- every prompt contains exactly one literal phrase `assigned project version is` followed by one backtick-delimited semantic version; the parsed target MUST equal `0.<folder phase>.<prompt number>`;
-- exactly one prompt in the folder is the closeout, and it MUST be the final/highest-numbered prompt;
-- closeout classification depends only on two agreeing metadata signals: the filename's lower-kebab slug contains a `closeout` segment and the parsed `TASK:` title contains the word `closeout` (case-insensitive); if only one signal is present, parsing fails as ambiguous;
-- implementation prompts therefore MUST NOT put a `closeout` segment in the filename or the word `closeout` in the `TASK:` title, while ordinary body prose MAY refer to closeout/P4/final validation freely because narrative prose is not a classification signal;
-- the closeout prompt is parsed into the plan but is never executed by `codex:phase`; automation stops after the implementation prompts and hands the closeout back to the user for manual execution.
+Both stack types require all of the following:
 
-The parser intentionally does **not** infer model, version, ordering, or closeout kind from free-form narrative prose. Keep machine-significant metadata in the explicit parsed fields above.
+- every `.txt` file in the task folder is a prompt; do not place notes or other non-prompt `.txt` files alongside the prompt stack;
+- prompt filenames are canonical `P<number>-<lower-kebab-slug>.txt`; numbering is one-based with no leading zero, unique, and contiguous from `P1`;
+- every prompt contains exactly one recommendation line whose literal form is `- Recommended configuration: ` followed by one backtick-delimited current runner label and a final period; supported labels are exactly the current keys of `MODEL_CONFIGS` in `scripts/codex-phase-core.mjs`;
+- exactly one prompt is the closeout and it MUST be final/highest-numbered;
+- closeout classification depends only on two agreeing metadata signals: the filename slug contains a `closeout` segment and the parsed `TASK:` title contains the word `closeout` case-insensitively; if only one signal is present, parsing fails as ambiguous;
+- implementation prompts MUST NOT put a `closeout` segment in the filename or the word `closeout` in the `TASK:` title, while body prose MAY mention closeout freely because narrative prose is not a classification signal;
+- the closeout prompt is parsed into the plan but never executed by `codex:phase`; automation stops after implementation prompts and hands the closeout back to the user for manual execution.
 
-Before `/prompt-write` reports a stack as ready:
+### Roadmap phase stacks
+
+Roadmap phase stacks preserve the existing versioned behavior:
+
+- folder name is canonical lowercase `p<number>` with no leading zero;
+- task header is exactly `TASK: Phase <phase> / P<number> — <title>` and the phase must match the folder;
+- each prompt contains exactly one literal phrase `assigned project version is` followed by one backtick-delimited semantic version;
+- the parsed target MUST equal `0.<folder phase>.<prompt number>`;
+- a prompt MUST NOT also contain correction-stack unchanged-version metadata.
+
+### Non-versioned correction stacks
+
+Correction stacks are for owner-approved bounded implementation gates, regressions, or architectural corrections that need multi-prompt sequencing and a final manual closeout without consuming roadmap prompt versions.
+
+- folder name is canonical `c<roadmap-phase>-<lower-kebab-slug>`, for example `c10-single-publication`; the referenced roadmap phase provides context only and does not make the correction a numbered roadmap phase;
+- task header is exactly `TASK: Correction <phase> / P<number> — <title>` and the phase must match the folder's numeric component;
+- each prompt contains exactly one literal line `- Required unchanged project version: `<version>`.` using one backtick-delimited semantic version;
+- every prompt in the correction stack MUST declare the same unchanged version;
+- correction prompts MUST NOT contain `assigned project version is` metadata;
+- the declared unchanged version MUST match `package.json` when execution begins and MUST remain unchanged before and after every implementation prompt and after every runner-owned commit;
+- correction prompt numbers are local sequencing only and do not consume or reserve roadmap phase patch numbers;
+- runner-owned correction commit subjects MUST identify the correction stack and prompt, for example `c10-single-publication/P1: <task title>`, rather than impersonating a package-version commit subject;
+- correction closeout validates and clears only the correction/gate. It does not invoke or substitute for the `/closeout` phase-handoff command and does not advance `package.json`.
+
+The parser intentionally does **not** infer stack mode, model, version behavior, ordering, or closeout kind from free-form narrative prose. Machine-significant metadata must use the explicit forms above.
+
+Before `/prompt-write` reports either stack type as ready:
 
 1. re-read the current parser/runner if it changed since planning;
-2. verify the folder against every machine grammar rule above;
+2. verify the folder against every applicable machine grammar rule above;
 3. when repository execution is available, run `npm run codex:phase:validate -- <task-folder>` and require a green result;
 4. when operating connector-only and local execution is unavailable, perform the equivalent parser-level check from the current source and say explicitly that it was source-validated rather than executed;
 5. do not recommend starting `codex:phase` while a parser/validator inconsistency remains.
 
-The phase runner has additional execution-time fail-closed invariants that are separate from prompt grammar: it requires a clean working tree, no `package-lock.json`, a compatible expected package version before each implementation prompt, the exact target version afterward, a coherent `git diff --check`, actual implementation changes to commit, and a clean single-successor prompt commit boundary. Prompt authors should preserve these assumptions but must not confuse them with the parse-only grammar check.
+The runner has additional fail-closed execution invariants separate from parse-only grammar. Both modes require a clean working tree, no `package-lock.json`, coherent `git diff --check`, actual implementation changes to commit, and a clean single-successor prompt commit boundary. Phase stacks additionally enforce their expected preceding/target version chain. Correction stacks instead enforce their one declared unchanged package version before and after every prompt and commit.
 
 ## Prompt model/reasoning and usage selection
 
@@ -512,27 +537,30 @@ For an expensive recommendation, explicitly consider whether one reasoning level
 
 ## Versioning and phase-prompt numbering
 
-Project versions use `0.<roadmap phase>.<phase prompt number>` while the project remains in the pre-1.0 roadmap.
+Project versions use `0.<roadmap phase>.<phase prompt number>` for roadmap phase stacks while the project remains in the pre-1.0 roadmap.
 
-- Phase prompt numbers are one-based. Task filenames begin with `P1`, then `P2`, `P3`, and so on; `P0` is not used.
-- The task number and version patch number match directly. Example: Phase 1 `P1` → `0.1.1`; Phase 1 `P4` → `0.1.4`; Phase 2 `P1` → `0.2.1`.
-- `0.<phase>.0` is the phase baseline. After the prior roadmap phase has formally closed, `/closeout` is the canonical handoff that verifies the closeout and, only on a green result, explicitly authorizes and performs the transition to `0.<new phase>.0`. This baseline transition consumes no implementation prompt number and does not change the P1 → `.1`, P2 → `.2`, P3 → `.3` mapping.
+- Roadmap phase prompt numbers are one-based. Task filenames begin with `P1`, then `P2`, `P3`, and so on; `P0` is not used.
+- For roadmap phase stacks, the task number and version patch number match directly. Example: Phase 1 `P1` → `0.1.1`; Phase 1 `P4` → `0.1.4`; Phase 2 `P1` → `0.2.1`.
+- `0.<phase>.0` is the roadmap phase baseline. After the prior roadmap phase has formally closed, `/closeout` is the canonical handoff that verifies the closeout and, only on a green result, explicitly authorizes and performs the transition to `0.<new phase>.0`. This baseline transition consumes no implementation prompt number.
 - A phase-baseline transition is never automatic. Invoking `/closeout` constitutes explicit repository-owner authorization for its green-path version-only transition. The owner may also separately authorize a `.0` transition explicitly when needed.
 - `package.json` is the sole authoritative source for the current project version.
 - The project intentionally does not use npm package locks. Repository npm configuration disables `package-lock.json` generation; dependency installation uses `package.json` and clean installs use `npm install`, not `npm ci`.
-- Do not duplicate the current version in README, BOOT, contracts, source constants, or other manually maintained files.
-- Project version changes occur only through execution of a new Codex roadmap-phase prompt, a green `/closeout` phase-baseline transition, or another explicit repository-owner-authorized `.0` transition after the prior phase closes. Documentation review/application, prompt assessment/planning/writing, code review, validation discussion, and other ChatGPT workflow activity do not otherwise increment it.
-- Re-running or correcting the same Codex prompt retains that prompt's assigned version; it does not consume a new version number.
-- If a `.0` baseline exists, the first prompt in that phase advances from `0.<phase>.0` to `0.<phase>.1`. If no `.0` baseline was authorized, the first prompt advances directly from the prior phase's final version to `0.<phase>.1`.
-- Each implementation/closeout task prompt MUST state its assigned target version and require Codex to verify the expected preceding version (the authorized `.0` baseline when present, otherwise the prior phase/prompt version; or the same assigned version on a rerun), update `package.json` as part of that prompt, avoid generating `package-lock.json`, and include the versioned tree in the prompt's final validation.
-- A closeout task prompt that owns a version change performs and commits that prompt-numbered version metadata transition before establishing the final source SHA to be validated. The later `/closeout` command, if green, performs the separate next-phase `.0` baseline transition.
-- The post-Phase-9 single-Publication correction is a required Phase 10 entry correction, not a new numbered roadmap phase; its implementation prompt(s) therefore use the existing `0.10.x` phase/version family.
+- Do not duplicate the current project version in root summaries, contracts, source constants, or other manually maintained files. A task prompt MAY declare the version it must change to or hold unchanged because that value is executable task metadata validated against `package.json`.
+- Project version changes occur only through execution of a new Codex roadmap-phase prompt, a green `/closeout` phase-baseline transition, or another explicit repository-owner-authorized `.0` transition after the prior phase closes.
+- Non-versioned correction stacks MUST NOT change `package.json` version. Their P-numbers are local sequencing only and do not consume, reserve, or redefine roadmap phase patch numbers.
+- Re-running a roadmap phase prompt retains that prompt's assigned version rather than consuming a new number. Re-running a correction prompt retains the same declared unchanged version.
+- If a `.0` baseline exists, the first roadmap prompt in that phase advances from `0.<phase>.0` to `0.<phase>.1`. If no `.0` baseline was authorized, the first roadmap prompt advances directly from the prior phase's final version to `0.<phase>.1`.
+- Each roadmap phase implementation/closeout task MUST state its assigned target version, verify the expected preceding version (or the same assigned version on a rerun), update `package.json` as part of that prompt, avoid generating `package-lock.json`, and include the versioned tree in final validation.
+- Each correction implementation/closeout task MUST state one required unchanged project version, verify it against `package.json`, forbid changing it, avoid generating `package-lock.json`, and include the unchanged-version invariant in final validation.
+- A roadmap closeout task that owns a version change performs and commits that prompt-numbered version transition before establishing the final source SHA to be validated. The later `/closeout` command, if green, performs the separate next-phase `.0` baseline transition.
+- A correction closeout never performs a package-version transition and is not followed automatically by `/closeout`; after it clears the correction gate, planning may resume for the already-active roadmap phase.
+- The post-Phase-9 single-Publication correction is the intended first non-versioned correction stack: it is a required Phase 10 entry correction, not a new numbered roadmap phase, and its prompts must preserve the package version that exists when the correction stack is written/executed.
 
 ## `/prompt-ass`
 
 Determine safe task boundaries from established behavior/contracts/roadmap. No writes.
 
-Return target behavior, constraints, roadmap phase, prompt count/order, goal/summary/dependencies/boundary rationale/deferred behavior, closeout task when needed, and for every proposed implementation/closeout prompt the provisional recommended configuration, complexity/quality floor, estimated usage, relevant alternative, estimate confidence when meaningful, and concise quality/efficiency rationale defined above.
+Return target behavior, constraints, roadmap phase, stack type (`phase` or `correction`), prompt count/order, goal/summary/dependencies/boundary rationale/deferred behavior, closeout task when needed, and for every proposed implementation/closeout prompt the provisional recommended configuration, complexity/quality floor, estimated usage, relevant alternative, estimate confidence when meaningful, and concise quality/efficiency rationale defined above. For correction stacks, also identify the correction slug and the package version that must remain unchanged, resolved from `package.json` rather than memory.
 
 Testing is part of task-boundary assessment: identify whether a prompt can own its focused tests and the required broader regression impact without becoming monolithic.
 
@@ -540,7 +568,7 @@ Testing is part of task-boundary assessment: identify whether a prompt can own i
 
 Requires completed `/prompt-ass` in current conversation. Perform source-level planning for every assessed prompt: contracts/ADRs, implementation, schemas/migrations, process roles, helpers/consumers/tests/recent changes, likely file scope, preserved behavior, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs implications, acceptance criteria, non-goals.
 
-Reassess the provisional model/reasoning recommendation, complexity/quality floor, expected usage, alternative, and efficiency rationale against the actual source-level boundary. Complexity and correctness supersede estimated cost. A more expensive configuration is required whenever the cheaper alternative would materially reduce reasoning headroom or increase regression risk.
+Reassess the provisional model/reasoning recommendation, complexity/quality floor, expected usage, alternative, and efficiency rationale against the actual source-level boundary. Complexity and correctness supersede estimated cost. A more expensive configuration is required whenever the cheaper alternative would materially reduce reasoning headroom or increase regression risk. Reconfirm stack type and, for correction stacks, the unchanged package-version invariant.
 
 Material boundary revisions produce `Planning needed`. No writes.
 
@@ -552,15 +580,17 @@ Requires completed unblocked `/prompt-plan`. Revalidate current repo/docs and wr
 docs/tasks/<folder name>/
 ```
 
-Each implementation/closeout task file MUST include its finalized `MODEL / REASONING / USAGE` block with recommended configuration, complexity/quality floor, estimated usage, relevant alternative, efficiency rationale, and estimate confidence when meaningful.
+Roadmap phase stack folders use `p<number>`. Correction stack folders use `c<roadmap-phase>-<lower-kebab-slug>`.
 
-After writing, `/prompt-write` MUST perform the Phase-runner prompt-file grammar check above before reporting the folder ready. A task stack is not complete merely because the files exist or look structurally similar to older prompts.
+Each implementation/closeout task file MUST include its finalized `MODEL / REASONING / USAGE` block with recommended configuration, complexity/quality floor, estimated usage, relevant alternative, efficiency rationale, and estimate confidence when meaningful. Roadmap phase tasks use assigned-version metadata; correction tasks use the required-unchanged-version metadata defined above.
 
-If revalidation reveals a materially changed task boundary or quality floor, return `Planning needed` rather than silently changing the approved plan.
+After writing, `/prompt-write` MUST perform the applicable runner prompt-file grammar check before reporting the folder ready. A task stack is not complete merely because the files exist or look structurally similar to older prompts.
+
+If revalidation reveals a materially changed task boundary, stack type, unchanged-version invariant, or quality floor, return `Planning needed` rather than silently changing the approved plan.
 
 Do not overwrite existing tasks without explicit authorization.
 
-Default names:
+Default prompt filenames remain:
 
 ```text
 P1-<short-task-slug>.txt
@@ -568,14 +598,14 @@ P2-<short-task-slug>.txt
 P3-<short-task-slug>.txt
 ```
 
-Continue one-based numbering for additional prompts in the same phase.
+Continue one-based numbering for additional prompts in the same stack.
 
 ## Supporting prompt commands
 
 - `/prompt <task>` — one prompt in conversation only.
 - `/stack <goal>` — legacy shorthand for `/prompt-ass`.
 - `/split <task>` — narrow assessment shorthand.
-- `/revalidate <task or stack>` — compare existing task(s) to current repo/contracts/model-usage policy and report whether the recorded configuration still satisfies the quality floor and whether a more efficient configuration can preserve the same expected quality.
+- `/revalidate <task or stack>` — compare existing task(s) to current repo/contracts/model-usage policy and report whether its stack grammar/version invariant and recorded configuration still satisfy current requirements and whether a more efficient configuration can preserve the same expected quality.
 
 # Review and validation commands
 
@@ -613,15 +643,17 @@ Recommend the single most logical next task.
 
 # Codex prompt requirements
 
-Finished implementation prompts normally include Task, Context, Current/Required behavior, roadmap phase, assigned project version, finalized `MODEL / REASONING / USAGE` block, governing contracts/ADRs/laws, inspected source, allowed/forbidden files, constraints, preserved behavior, applicable security/provenance/idempotency/failure-isolation implications, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs updates, acceptance criteria, and non-goals.
+Finished implementation prompts normally include Task, Context, Current/Required behavior, roadmap phase, stack type, finalized `MODEL / REASONING / USAGE` block, governing contracts/ADRs/laws, inspected source, allowed/forbidden files, constraints, preserved behavior, applicable security/provenance/idempotency/failure-isolation implications, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs updates, acceptance criteria, and non-goals.
 
-The phase-runner machine-significant fields are stricter than the rest of the prompt template: canonical folder/filename numbering, the single canonical `TASK:` header, the single exact recommended-configuration line, the single `assigned project version is ...` phrase, and the filename-plus-`TASK:` closeout convention MUST satisfy the Phase-runner prompt-file grammar above. Free-form prose must not be relied upon to supply parsed metadata.
+Machine-significant fields are stricter than the rest of the prompt template. Every task uses canonical folder/filename numbering, one canonical `TASK:` header, one exact recommended-configuration line, and the filename-plus-`TASK:` closeout convention. Roadmap phase prompts additionally use exactly one `assigned project version is ...` phrase. Correction prompts instead use exactly one `- Required unchanged project version: `<version>`.` line and MUST NOT use assigned-version metadata. Free-form prose must not be relied upon to supply parsed metadata.
 
 Every implementation prompt inherits `docs/contracts/testing-and-validation-contract.md`. A prompt must not treat tests as optional cleanup, silently accept missing prerequisites, or claim a higher evidence level than its validation procedure can prove.
 
-Every Codex roadmap-phase prompt also inherits the versioning rules above: it owns exactly its assigned `0.<phase>.<prompt>` version, uses `package.json` as the authority, respects the lockfile-disabled npm policy, and does not create duplicate manually maintained version constants.
+Every Codex roadmap-phase prompt inherits the roadmap versioning rules above: it owns exactly its assigned `0.<phase>.<prompt>` version, uses `package.json` as the authority, respects the lockfile-disabled npm policy, and does not create duplicate manually maintained version constants.
 
-Every Codex roadmap-phase implementation/closeout prompt also inherits the finalized model/reasoning/usage recommendation from the prompt workflow. The recommendation must satisfy the recorded complexity/quality floor; token efficiency may optimize among adequate configurations but must never weaken the quality requirement.
+Every Codex correction prompt inherits the fixed-version rule above: it uses `package.json` as the authority, requires the declared version to remain unchanged, respects the lockfile-disabled npm policy, and does not consume roadmap patch numbers.
+
+Every implementation/closeout prompt also inherits the finalized model/reasoning/usage recommendation from the prompt workflow. The recommendation must satisfy the recorded complexity/quality floor; token efficiency may optimize among adequate configurations but must never weaken the quality requirement.
 
 Collection prompts preserve single-installation Publication/bootstrap resolution, approval/lifecycle/operational boundaries, truthful Collection runs, pre-request network safety, run isolation, retry limits when applicable, Source-domain policy, and controlled deterministic collection tests without production safety bypasses.
 
@@ -639,11 +671,12 @@ Admin prompts preserve Cloudflare Access/origin protection, request integrity, i
 
 - Do not modify/commit unless authorized by current request/command.
 - `/closeout` performs only the quick phase-handoff verification described above and, when green, writes/commits only `package.json` for the next `0.<phase>.0` baseline. Invocation authorizes that version-only change on `main` unless a branch/PR is requested.
+- A correction stack's final manual closeout is not `/closeout`; it validates/clears the correction while preserving the unchanged package version and active roadmap phase.
 - `/docs-review` never writes.
 - `/docs-apply` writes only approved docs; invocation authorizes those documentation-only changes on `main` unless branch/PR requested.
 - `/prompt-ass` and `/prompt-plan` never write.
-- `/prompt-write` writes only approved task files in established task folder.
-- Documentation/prompt/review workflow activity does not change the package version except for the explicitly defined `/closeout` phase-baseline transition. Other version changes are limited to executed Codex roadmap-phase prompts and separately explicit owner-authorized `.0` transitions after the prior phase closes.
+- `/prompt-write` writes only approved task files in the established phase or correction task folder.
+- Documentation/prompt/review workflow activity does not change the package version except for the explicitly defined `/closeout` phase-baseline transition. Other version changes are limited to executed Codex roadmap-phase prompts and separately explicit owner-authorized `.0` transitions after the prior phase closes. Correction-stack execution is explicitly non-versioned and MUST preserve its declared unchanged version.
 - No task writes while `Planning needed` remains unresolved.
 - No speculative migrations/compatibility bridges.
 - No topic conditionals in shared engine code.
@@ -669,4 +702,4 @@ Prefer one canonical design. Do not add old/new aliases, duplicate synchronized 
 
 # Boot maintenance
 
-Update BOOT when phase, core paths, terminology, commands, authority, locked laws, modification conventions, versioning/prompt-numbering conventions, branch, repository identity, critical delivery ordering, foundational security/deployment decisions, or project-wide testing/validation policy changes.
+Update BOOT when phase, core paths, terminology, commands, authority, locked laws, modification conventions, task-stack grammar, versioning/prompt-numbering conventions, branch, repository identity, critical delivery ordering, foundational security/deployment decisions, or project-wide testing/validation policy changes.
