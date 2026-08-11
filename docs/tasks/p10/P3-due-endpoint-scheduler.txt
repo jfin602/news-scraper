@@ -1,0 +1,211 @@
+TASK: Phase 10 / P3 — Due-endpoint scheduler and atomic enqueue
+
+ROADMAP PHASE
+Phase 10 — Automated polling, durable jobs, and endpoint health.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Sol Light`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P3 has real scheduler race semantics but remains a narrow read/enqueue boundary once P1 endpoint state and P2 queue uniqueness exist. Terra High is sufficient for deterministic due selection, jitter, eligibility filtering, and competing-scheduler PostgreSQL tests without paying Sol-level cost for orchestration that belongs later.
+- If this exact configuration is unavailable at execution time, revalidate against current `BOOT.md` and runner configuration; do not invent a label.
+
+VERSIONING
+- This is Phase 10 prompt 3 and its assigned project version is `0.10.3`.
+- Confirm P2 left `package.json` at `0.10.2`, or retain `0.10.3` only for a rerun of this same P3.
+- Update only the top-level package version to `0.10.3`; do not create an npm lockfile.
+
+MANDATORY HANDOFF
+Before editing:
+- require the green singleton correction artifact;
+- re-read `BOOT.md`, Phase 10 roadmap/contracts, P1/P2 tasks, and actual final P1/P2 code/tests;
+- confirm endpoint runtime state and durable queue semantics match their accepted boundaries;
+- stop on material drift rather than silently redesigning around stale assumptions.
+
+GOAL
+Implement one deterministic scheduler pass that identifies endpoint collection work currently due for this installation and race-safely enqueues independent durable endpoint jobs with bounded scheduling jitter.
+
+P3 creates scheduling selection/enqueue behavior only. It does not consume jobs, execute collection, retry failures, derive health, enforce execution concurrency, or start a long-running timer loop.
+
+GOVERNING DOCUMENTS
+Read current:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- singleton correction validation artifact;
+- P1/P2 implementation/tests.
+
+INSPECT / TRACE BEFORE EDITING
+Trace:
+- final singleton Publication settings repository and `active_for_collection` representation;
+- final Source/endpoint state columns and lookup/mapping;
+- P1 `next_due_at`, `cooldown_until`, poll interval, and runtime state APIs;
+- P2 outstanding-job uniqueness/enqueue repository;
+- migration/test database helpers;
+- collection eligibility state vocabulary so scheduler filtering does not invent a competing interpretation.
+
+SCHEDULER OWNERSHIP
+Create the first substantive `src/collection/scheduler/` module.
+
+Prefer a small split such as:
+- due-endpoint persistence/query boundary;
+- pure scheduling-jitter calculation;
+- one scheduler-pass service that queries and enqueues.
+
+Do not create a timer/process loop in P3. P7 owns runtime cadence.
+
+DUE-ENDPOINT RULE
+An endpoint is scheduler-due only when all scheduling/configuration gates are true:
+- singleton Publication settings exist and `active_for_collection = true`;
+- Source approval = approved;
+- Source lifecycle = active;
+- Source operational state = enabled;
+- endpoint approval = approved;
+- endpoint lifecycle = active;
+- endpoint operational state = enabled;
+- endpoint is not currently inside a persisted cooldown (`cooldown_until` absent or <= scheduler `now`);
+- endpoint has never been assigned a due timestamp (`next_due_at IS NULL`) OR `next_due_at <= now`.
+
+Do not perform DNS/address/network-safety checks in the scheduler. Those remain in the canonical endpoint execution path immediately before contact.
+
+Do not make scheduler eligibility replace the canonical execution-time eligibility recheck. State may change between enqueue and execution.
+
+An absent singleton Publication or inactive collection setting yields no scheduler work; there is no Publication selector or multi-Publication loop.
+
+OUTSTANDING WORK
+Do not intentionally enqueue another job when an endpoint already has a queued/running durable job.
+
+The due query may exclude endpoints with outstanding jobs for efficiency, but P2's database uniqueness remains the final race-safety authority. Competing schedulers must be allowed to race and converge safely rather than depending on a process-local scheduler mutex.
+
+DUE ORDER / BATCHING
+Return due endpoints in deterministic oldest-due order with a stable endpoint-id tie breaker.
+
+Treat a null `next_due_at` as initial due work and order it consistently rather than nondeterministically.
+
+Scheduler pass size must be bounded with a small explicit default/limit suitable for MVP. Do not select an unbounded endpoint set into memory.
+
+SCHEDULING JITTER
+Add a pure deterministic/injectable jitter calculation used only when creating the queued job's `available_at`.
+
+Use bounded jitter based on the endpoint poll interval, with a maximum no larger than a small fixed window. A suitable baseline is:
+- maximum jitter = min(30 seconds, 10% of `poll_interval_seconds`);
+- actual jitter chosen from 0 through that maximum by an injected random source.
+
+Equivalent bounded math is acceptable if documented/tested and it cannot create negative or unbounded delays.
+
+Do not mutate `next_due_at` merely because work was enqueued. Runtime outcome processing later owns the next due timestamp. This prevents lost jobs from falsely appearing successfully scheduled.
+
+Scheduler randomness must be injectable/control-friendly for deterministic tests. Do not use unmockable global randomness inside assertions.
+
+SCHEDULER PASS
+Provide a service equivalent to:
+1. capture/inject one scheduler `now`;
+2. load a bounded due batch;
+3. calculate each job's bounded jitter/`available_at`;
+4. call P2 race-safe enqueue independently for each endpoint;
+5. return bounded summary counts such as considered/enqueued/already-outstanding.
+
+One endpoint enqueue failure caused by normal uniqueness contention must not abort enqueue of unrelated due endpoints.
+
+A real database failure may fail the scheduler pass, but must not leave partially invented in-memory authority; durable rows already committed remain the truth and the next pass may retry remaining work safely.
+
+Do not fetch publisher data or create Collection runs during scheduling.
+
+SOURCE / PUBLICATION FAILURE ISOLATION
+The scheduler must operate directly on installation endpoints. Do not introduce Publication ids/slugs into job rows or scheduler queries.
+
+A bad/paused/archived/unapproved Source/endpoint is simply not selected; do not rewrite its lifecycle/operational/health state.
+
+POLL INTERVAL
+Use the existing persisted positive `poll_interval_seconds` only to bound scheduling jitter in P3. P4/P5 outcome processing determines future `next_due_at` from the interval.
+
+Do not add a second poll cadence field.
+
+REAL POSTGRESQL TEST MATRIX
+Level 4 tests must prove:
+- singleton Publication inactive/absent => no due work;
+- approved/active/enabled Source + endpoint with null due timestamp is selected;
+- due timestamp <= now is selected;
+- future due timestamp is not selected;
+- future cooldown excludes an otherwise due endpoint;
+- expired cooldown no longer blocks due selection;
+- unapproved/archived/paused/disabled Source and endpoint cases are excluded;
+- deterministic due ordering and bounded batch size;
+- an existing queued/running job suppresses duplicate scheduling;
+- competing scheduler passes racing on the same due endpoint create at most one outstanding job due to P2 uniqueness;
+- unrelated due endpoints continue enqueueing when one race loses;
+- terminal prior jobs do not prevent a new due enqueue.
+
+Use controlled clock/random values and database barriers where concurrency matters. Avoid arbitrary sleeps.
+
+UNIT TEST MATRIX
+Pure tests should prove jitter immediately below/at meaningful bounds, including:
+- small poll interval produces <=10% jitter;
+- large interval is capped at the fixed maximum;
+- deterministic 0/maximum random cases;
+- invalid injected random values are rejected or normalized according to one explicit contract.
+
+BROADER REGRESSION
+Run relevant:
+- singleton settings/configuration tests;
+- Source/endpoint state tests;
+- P1 endpoint runtime tests;
+- P2 job queue/concurrency tests;
+- migration/database suite;
+- ordinary deterministic test matrix.
+
+Do not require browser or live-source validation for P3.
+
+EXPECTED PRIMARY WRITE SCOPE
+Likely:
+- `src/collection/scheduler/**`;
+- small Source/job repository query additions where ownership is clearest;
+- scheduler unit/integration/database tests;
+- no new migration unless actual final P1/P2 schema lacks a truly required index for the due query. Prefer adding a narrow index only when query evidence justifies it.
+
+FORBIDDEN / DEFERRED
+Do not:
+- claim/consume jobs;
+- invoke `collectEndpoint`;
+- update endpoint attempt/success/failure state;
+- persist conditional validators;
+- calculate retry/backoff/cooldown policy;
+- derive health;
+- add advisory capacity slots;
+- start Worker timers/loops;
+- add multi-Publication scheduling;
+- add admin controls.
+
+REQUIRED VALIDATION
+Run and record at minimum:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- focused scheduler unit tests;
+- focused scheduler/job integration tests;
+- `npm run test:db`
+- `npm test`
+- `npm run check`
+
+ACCEPTANCE CRITERIA
+P3 is complete only when:
+1. package version is exactly `0.10.3`;
+2. due selection uses singleton collection-active + Source/endpoint approved/active/enabled + due/cooldown state;
+3. null `next_due_at` is a deterministic initial-due state;
+4. scheduler jitter is bounded and deterministic under injected randomness;
+5. enqueue does not advance endpoint due state;
+6. competing scheduler passes converge to at most one outstanding job per endpoint;
+7. unrelated endpoints remain independently schedulable;
+8. no collection execution/retry/health/concurrency/Worker-loop behavior was added;
+9. focused + broader + real PostgreSQL evidence is green.
+
+FINAL REPORT
+Report scheduler API/ordering/jitter decisions, database race evidence, commands/results, and confirmation `package.json` is `0.10.3`.
