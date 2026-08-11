@@ -10,7 +10,7 @@
 
 The system is a reusable, topic-independent news aggregation Platform. It collects Article metadata from administrator-approved Sources, normalizes that metadata, persists Source instances idempotently, suppresses true duplicates without destroying provenance, and presents a rolling public feed whose headlines send readers to original publishers.
 
-The indie-author Publication is the first configuration of the Platform, not the identity of the aggregation engine.
+The indie-author Publication is the first configuration of the Platform, not the identity of the aggregation engine. Reuse occurs by configuring and deploying another installation of the same codebase for another topic; one deployed installation does not concurrently host multiple topic Publications.
 
 ## Locked project laws
 
@@ -24,10 +24,13 @@ The indie-author Publication is the first configuration of the Platform, not the
 8. **Categories, Relevance rules, branding, and Sources belong to Publication configuration.**
 9. **A failing Source must not interrupt collection from other Sources.**
 10. **Near-real-time means configurable polling unless a Source explicitly supports push delivery.**
+11. **Each deployed installation hosts exactly one Publication/topic. Topic independence means the same shared codebase can be configured and deployed for different topics without topic-specific engine changes; it does not mean one installation concurrently hosts multiple Publications. The root public route `/` is the canonical public feed surface for that installation.**
 
 ## Derived invariants
 
 - Collector code operates on generic Publications, Sources, endpoints, candidates, Articles, observations, and Duplicate groups.
+- A deployed installation resolves one configured Publication as its application-level topic/configuration boundary; public readers do not select a Publication by URL slug.
+- Publication identifiers/slugs may remain stable internal/configuration identity fields and ownership keys; retaining them does not imply multi-Publication hosting.
 - A Source or endpoint cannot be collected while unapproved, archived, paused, or disabled.
 - Approval/trust, configuration lifecycle, operational state, public visibility, moderation, duplicate role, and derived health are distinct concepts.
 - Public records are created only from normalized data.
@@ -75,12 +78,13 @@ Ordinary implementation work must not weaken a law indirectly.
 ### The Platform is
 
 - a controlled-Source headline and Article-metadata aggregator;
-- a reusable shell for multiple subject areas;
-- a public discovery feed backed by an administrative control plane;
+- a reusable shell for different subject areas through separate configured deployments;
+- a single-Publication public discovery feed backed by an administrative control plane per deployment;
 - a collection system with observable endpoint health and duplicate handling.
 
 ### The Platform is not
 
+- a multi-topic/multi-Publication host within one deployed installation;
 - an unrestricted web crawler;
 - a full-content republishing system;
 - an open-web search engine;
