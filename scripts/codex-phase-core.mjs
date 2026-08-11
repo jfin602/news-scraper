@@ -53,16 +53,10 @@ export function parsePrompt(filename, text) {
 
   const filenameSignal = /closeout/i.test(filename);
   const titleSignal = /closeout/i.test(task);
-  const contentSignal =
-    /^\s*(?:GOAL|PHASE CLOSEOUT|CLOSEOUT)\s*$[\s\S]{0,500}\bcloseout\b/im.test(
-      text,
-    );
-  const signals = [filenameSignal, titleSignal, contentSignal].filter(
-    Boolean,
-  ).length;
-  if (signals > 0 && signals < 2) {
+  if (filenameSignal !== titleSignal) {
     throw new Error(`Ambiguous closeout classification for ${filename}.`);
   }
+  const kind = filenameSignal && titleSignal ? 'closeout' : 'implementation';
 
   return Object.freeze({
     number,
@@ -72,7 +66,7 @@ export function parsePrompt(filename, text) {
     recommendation,
     ...config,
     targetVersion,
-    kind: signals >= 2 ? 'closeout' : 'implementation',
+    kind,
     text,
   });
 }
@@ -261,7 +255,7 @@ export function createStructuredEventProcessor({ appendLine, onEvent }) {
   const enqueue = (line) => {
     if (!line.trim()) return;
     queue = queue.then(async () => {
-      await appendLine(`${line}\n`);
+      await appendFile(`${line}\n`);
       let event;
       try {
         event = JSON.parse(line);
