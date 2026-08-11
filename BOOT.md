@@ -398,6 +398,37 @@ Strict order:
 
 Do not silently run missing stages. If unstable requirements, contradictory docs, repository drift, or a material decision blocks progress, return `Planning needed` and stop before the next stage.
 
+## Phase-runner prompt-file grammar
+
+The phase runner and the parse-only validator share the same executable parser in `scripts/codex-phase-core.mjs`. The machine grammar below is a workflow contract, not a stylistic suggestion. Any future change to that parser grammar MUST update this section and focused regression coverage in the same change.
+
+Use `npm run codex:phase:validate -- <task-folder>` to validate the folder grammar without launching Codex, changing the package version, modifying the working tree, or committing anything.
+
+The parser currently requires all of the following:
+
+- the task folder name has the form `p<number>` with a non-zero phase number; use lowercase by convention;
+- every `.txt` file in that folder is treated as a task prompt, so do not place notes or other non-prompt `.txt` files alongside the prompt stack;
+- prompt filenames have the form `P<number>-<slug>.txt`, prompt numbers are one-based, unique, and contiguous from `P1`;
+- every prompt contains exactly one `TASK:` line;
+- every prompt contains exactly one machine-parsed recommendation line in the form `- Recommended configuration: `<label>`.` where `<label>` must be one of the runner's current `MODEL_CONFIGS`; the currently executable labels are `Terra High`, `Terra Ultra`, `Sol Light`, `Sol High`, and `Sol Ultra`;
+- every prompt contains exactly one phrase matching `assigned project version is `<semver>``; the parsed target MUST equal `0.<folder phase>.<prompt number>`;
+- exactly one prompt in the folder is the closeout, and it MUST be the final/highest-numbered prompt;
+- closeout classification depends only on **both** the filename and the `TASK:` title containing `closeout` (case-insensitive); if only one contains it, parsing fails as ambiguous;
+- implementation prompts therefore MUST NOT put `closeout` in their filename or `TASK:` title, while ordinary body prose MAY refer to closeout/P4/final validation freely because narrative prose is not a classification signal;
+- the closeout prompt is parsed into the plan but is never executed by `codex:phase`; automation stops after the implementation prompts and hands the closeout back to the user for manual execution.
+
+The parser intentionally does **not** infer model, version, ordering, or closeout kind from free-form narrative prose. Keep machine-significant metadata in the explicit parsed fields above.
+
+Before `/prompt-write` reports a stack as ready:
+
+1. re-read the current parser/runner if it changed since planning;
+2. verify the folder against every machine grammar rule above;
+3. when repository execution is available, run `npm run codex:phase:validate -- <task-folder>` and require a green result;
+4. when operating connector-only and local execution is unavailable, perform the equivalent parser-level check from the current source and say explicitly that it was source-validated rather than executed;
+5. do not recommend starting `codex:phase` while a parser/validator inconsistency remains.
+
+The phase runner has additional execution-time fail-closed invariants that are separate from prompt grammar: it requires a clean working tree, no `package-lock.json`, a compatible expected package version before each implementation prompt, the exact target version afterward, a coherent `git diff --check`, actual implementation changes to commit, and a clean single-successor prompt commit boundary. Prompt authors should preserve these assumptions but must not confuse them with the parse-only grammar check.
+
 ## Prompt model/reasoning and usage selection
 
 Every implementation and closeout task MUST carry an explicit recommended Codex model/reasoning configuration and a token/credit-usage estimate. Model choice and reasoning effort are separate dimensions; there is no repository-defined linear ladder such as `Terra Max` or `Sol Max`.
@@ -499,6 +530,8 @@ docs/tasks/<folder name>/
 
 Each implementation/closeout task file MUST include its finalized `MODEL / REASONING / USAGE` block with recommended configuration, complexity/quality floor, estimated usage, relevant alternative, efficiency rationale, and estimate confidence when meaningful.
 
+After writing, `/prompt-write` MUST perform the Phase-runner prompt-file grammar check above before reporting the folder ready. A task stack is not complete merely because the files exist or look structurally similar to older prompts.
+
 If revalidation reveals a materially changed task boundary or quality floor, return `Planning needed` rather than silently changing the approved plan.
 
 Do not overwrite existing tasks without explicit authorization.
@@ -557,6 +590,8 @@ Recommend the single most logical next task.
 # Codex prompt requirements
 
 Finished implementation prompts normally include Task, Context, Current/Required behavior, roadmap phase, assigned project version, finalized `MODEL / REASONING / USAGE` block, governing contracts/ADRs/laws, inspected source, allowed/forbidden files, constraints, preserved behavior, applicable security/provenance/idempotency/failure-isolation implications, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs updates, acceptance criteria, and non-goals.
+
+The phase-runner machine-significant fields are stricter than the rest of the prompt template: filename/number, the single `TASK:` line, the single exact recommended-configuration line, the single `assigned project version is ...` phrase, and the filename-plus-`TASK:` closeout convention MUST satisfy the Phase-runner prompt-file grammar above. Free-form prose must not be relied upon to supply parsed metadata.
 
 Every implementation prompt inherits `docs/contracts/testing-and-validation-contract.md`. A prompt must not treat tests as optional cleanup, silently accept missing prerequisites, or claim a higher evidence level than its validation procedure can prove.
 
