@@ -13,7 +13,6 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { PassThrough } from 'node:stream';
 import test from 'node:test';
-// @ts-expect-error The runner intentionally ships as native ESM JavaScript.
 import * as core from '../../scripts/codex-phase-core.mjs';
 // @ts-expect-error The runner intentionally ships as native ESM JavaScript.
 import * as cli from '../../scripts/codex-phase.mjs';
@@ -381,8 +380,8 @@ test('orders prompt numbers numerically and excludes closeout from execution', (
     ].reverse(),
     'p8',
   );
-  assert.equal(plan.prompts[1].number, 2);
-  assert.equal(plan.prompts.at(-1).number, 10);
+  assert.equal(plan.prompts[1]!.number, 2);
+  assert.equal(plan.prompts.at(-1)!.number, 10);
   assert.equal(plan.implementations.length, 9);
   assert.equal(plan.closeout.kind, 'closeout');
   assert.equal(Object.isFrozen(plan.prompts), true);
@@ -1010,7 +1009,7 @@ test('runner-owned metadata, activity, errors, and paths are ASCII-safe', () => 
   const plan = buildPlan(
     [
       prompt(1, { title: 'Pagination — café “résumé”' }),
-      prompt(2, { closeout: true, title: 'Clôseout…' }),
+      prompt(2, { closeout: true, title: 'Closeout — Clôseout…' }),
     ],
     'p8',
   );

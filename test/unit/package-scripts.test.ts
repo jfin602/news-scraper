@@ -27,6 +27,7 @@ describe('package command environment contract', () => {
       'test:unit',
       'test:integration',
       'test:collection',
+      'test:browser',
       'codex:phase',
       'codex:phase:validate',
       'check',

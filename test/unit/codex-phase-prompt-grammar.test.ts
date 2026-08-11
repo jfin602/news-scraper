@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-// @ts-expect-error The runner intentionally ships as native ESM JavaScript.
 import {
   MODEL_CONFIGS,
   buildPlan,
@@ -118,10 +117,7 @@ test('phase plan grammar fails closed on malformed parsed metadata', () => {
   );
 
   for (const folderName of ['phase-9', 'P9', 'p09']) {
-    assert.throws(
-      () => buildPlan([p1, p2], folderName),
-      /form p<number>/,
-    );
+    assert.throws(() => buildPlan([p1, p2], folderName), /form p<number>/);
   }
   assert.throws(
     () => buildPlan([prompt(1, { version: '0.9.8' }), p2], 'p9'),

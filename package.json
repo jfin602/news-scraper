@@ -1,6 +1,6 @@
 {
   "name": "news-scraper",
-  "version": "0.9.0",
+  "version": "0.9.1",
   "private": true,
   "type": "module",
   "engines": {
@@ -15,6 +15,7 @@
     "test:unit": "node scripts/run-tests.mjs \"test/unit/**/*.test.ts\"",
     "test:integration": "node scripts/run-tests.mjs \"test/integration/**/*.test.ts\"",
     "test:collection": "node scripts/run-tests.mjs \"test/collection/**/*.test.ts\"",
+    "test:browser": "node scripts/run-tests.mjs \"test/browser/**/*.test.ts\"",
     "test:db": "node --env-file-if-exists=.env scripts/run-tests.mjs --test-global-setup=test/support/database/database-test-global-setup.ts \"test/database/**/*.test.ts\"",
     "test:live-sources": "node --env-file-if-exists=.env scripts/run-tests.mjs \"test/live-sources/**/*.test.ts\"",
     "db:migrate": "node --env-file-if-exists=.env scripts/migrate-database.ts",
@@ -34,6 +35,7 @@
     "@types/pg": "^8.20.4",
     "eslint": "^10.8.0",
     "prettier": "^3.9.6",
+    "playwright": "1.56.1",
     "typescript": "^6.0.3",
     "typescript-eslint": "^8.66.0"
   },

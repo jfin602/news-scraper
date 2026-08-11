@@ -1,6 +1,14 @@
+import { readFileSync } from 'node:fs';
+
 import express, { type Express } from 'express';
 
 import type { PublicFeed } from '../../public-feed/repository.ts';
+import { sendPublicFeedPage } from './public-feed-page.ts';
+
+const publicFeedStylesheet = readFileSync(
+  new URL('./public/public-feed.css', import.meta.url),
+  'utf8',
+);
 
 export interface ReadinessDependency {
   checkReady(): Promise<boolean>;
@@ -18,6 +26,10 @@ export interface WebDependencies {
 export function createWebApp(dependencies: WebDependencies): Express {
   const app = express();
   app.disable('x-powered-by');
+  app.use((_request, response, next) => {
+    response.set('X-Content-Type-Options', 'nosniff');
+    next();
+  });
 
   app.get('/health/live', (_request, response) => {
     response.set('Cache-Control', 'no-store');
@@ -64,6 +76,18 @@ export function createWebApp(dependencies: WebDependencies): Express {
       }
     },
   );
+
+  app.get('/public-feed.css', (_request, response) => {
+    response
+      .set('Cache-Control', 'no-store')
+      .status(200)
+      .type('css')
+      .send(publicFeedStylesheet);
+  });
+
+  app.get('/publications/:publicationSlug', (_request, response) => {
+    sendPublicFeedPage(response);
+  });
 
   return app;
 }
