@@ -273,7 +273,7 @@ Phase handoff after a roadmap phase has formally closed:
 → /prompt-write <folder name>
 ```
 
-`/closeout` performs a quick structural/evidence check of the completed phase and, only when green, advances `package.json` to the next `0.<phase>.0` baseline. Its invocation authorizes that version-only transition; it does not rerun the full phase validation matrix. The following docs review/apply aligns roadmap and root phase-state summaries with that already-entered baseline.
+`/closeout` performs a quick structural/evidence check of the completed roadmap phase and, only when green, advances `package.json` to the next `0.<phase>.0` baseline. A correction stack's final manual closeout is different: it validates/clears only the correction and does not advance the roadmap phase or package version.
 
 Documentation review/application:
 
@@ -285,7 +285,7 @@ Documentation review/application:
 
 Invoking `/docs-apply` after the review constitutes approval of the reviewed change set unless the user explicitly narrows it.
 
-Implementation prompt workflow:
+Implementation prompt workflow for both roadmap phases and correction stacks:
 
 ```text
 /prompt-ass
@@ -293,23 +293,39 @@ Implementation prompt workflow:
 → /prompt-write <folder name>
 ```
 
-Phase prompt folders are machine-parsed. Before starting automation, validate the exact written folder without launching Codex:
+Two task-folder modes are supported by the workflow contract:
 
 ```text
-npm run codex:phase:validate -- p9
+# Versioned roadmap phase stack
+docs/tasks/p10/
+
+# Non-versioned correction stack
+docs/tasks/c10-single-publication/
 ```
 
-A valid folder has contiguous `P1...Pn` `.txt` prompts, exact supported recommendation labels and `0.<phase>.<prompt>` version metadata, and exactly one final manual closeout whose filename and TASK title both contain `closeout`. Free-form body prose does not determine closeout kind. The complete grammar is authoritative in `BOOT.md` and executable in `scripts/codex-phase-core.mjs`.
+Roadmap phase stacks use `TASK: Phase <phase> / P<number> — <title>` plus `0.<phase>.<prompt>` assigned-version metadata. Correction stacks use `TASK: Correction <phase> / P<number> — <title>` plus one required-unchanged-package-version value shared by every prompt in the stack. Correction P-numbers are local sequencing only and do not consume roadmap patch numbers.
 
-After validation, run implementation prompts automatically with:
+Before starting automation, validate the exact written folder without launching Codex:
 
 ```text
-npm run codex:phase -- p9
+npm run codex:phase:validate -- p10
+npm run codex:phase:validate -- c10-single-publication
 ```
 
-The runner executes implementation prompts in order, uses each prompt's parsed model/reasoning configuration, validates version/working-tree boundaries, commits each successful prompt, and stops before the final closeout prompt so that closeout remains manual.
+A valid folder has contiguous `P1...Pn` `.txt` prompts, exact supported recommendation labels, exactly one final manual closeout whose filename and TASK title both contain `closeout`, and the version metadata required by its stack type. Free-form body prose does not determine closeout kind or stack mode. The complete grammar is authoritative in `BOOT.md` and executable in `scripts/codex-phase-core.mjs` after runner support is implemented.
 
-`BOOT.md` defines exact workflow gates, source-of-truth routing, validation expectations, versioning behavior, phase-runner prompt grammar, and repository modification rules.
+After validation, run implementation prompts automatically with the same command:
+
+```text
+npm run codex:phase -- p10
+npm run codex:phase -- c10-single-publication
+```
+
+For roadmap phase stacks, the runner validates the normal package-version chain and uses version commit subjects. For correction stacks, it validates that the declared package version remains unchanged before/after every prompt and uses correction-specific commit subjects. Both modes require clean working-tree boundaries, commit each successful implementation prompt independently, and stop before the final closeout prompt so closeout remains manual.
+
+The correction stack's final manual closeout is **not** followed by `/closeout` merely because it is named closeout. Once that correction is green, work resumes in the already-active roadmap phase using the normal prompt pipeline.
+
+`BOOT.md` defines exact workflow gates, source-of-truth routing, validation expectations, stack grammar, versioning behavior, and repository modification rules.
 
 ## Roadmap
 
@@ -344,7 +360,7 @@ Then:
 
 The correction gate is not a new numbered roadmap phase and does not change the `0.10.x` version family. It must land before ordinary Phase 10 scheduler/job implementation prompts proceed.
 
-Deferred: native administrator identity/accounts, historical Relevance bulk reprocessing, push/webhook adapters, AI summaries, related-story clustering, public personalization, outbound publishing, self-service tenancy, generic ranking/boost scoring, pinning/featured ordering, API access, multilingual feeds. Concurrent multi-Publication hosting inside one installation is not deferred-by-default behavior; it would require an explicit future contract/ADR change.
+Deferred: native administrator identity/accounts, historical Relevance bulk reprocessing, push/webhook adapters, AI summaries, related-story clustering, public personalization, outbound publishing, self-service tenancy, generic relevance ranking/boost scoring, pinning/featured ordering, API access, multilingual feeds. Concurrent multi-Publication hosting inside one installation is not deferred-by-default behavior; it would require an explicit future contract/ADR change.
 
 ## Repository
 
