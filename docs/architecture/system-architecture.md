@@ -6,7 +6,7 @@ Keep topic-specific Publication configuration at the edges while the core collec
 
 Each deployed installation hosts exactly one Publication. The reusable unit is the codebase: a different topic is configured and deployed as another installation rather than added as another concurrently hosted Publication.
 
-The forward architecture deliberately removes relational Publication tenancy. The singleton Publication remains configuration; real Source/endpoint/run/Article/observation relationships remain explicit.
+Publication is singleton editorial configuration, not relational tenancy. Real Source/endpoint/run/Article/observation relationships remain explicit.
 
 ## Logical components
 
@@ -38,14 +38,14 @@ One installation contains one singleton Publication configuration and its Source
 
 The singleton Publication configuration carries the installation-wide news-product settings actually used by implemented phases, such as name, `active_for_collection`, `public_status`, and later branding/presentation/Relevance/Category settings.
 
-Publication is not a tenant key in the forward persistence model:
+Publication is not a tenant key:
 
 - Sources, Articles, Categories, Relevance rules, duplicate records, jobs, and admin commands do not need a Publication UUID/slug/foreign key to scope the one installation;
 - Source `config_key` is installation-wide;
 - Source-endpoint `config_key` remains Source-scoped;
 - Article identity remains Source-scoped;
 - endpoint/Collection-run and Source/Article/observation relationships remain explicit because they protect real provenance/integrity;
-- no runtime path selects among Publications.
+- no supported runtime path selects among Publications.
 
 The canonical public page is `GET /`. The canonical basic public feed API is `GET /api/feed`.
 
@@ -62,7 +62,7 @@ A slow/crashed Source request in the Worker must not block normal public-feed re
 
 During the tech-demo critical path before durable jobs/scheduling exist, collection is invoked manually through the Worker process once transport exists. Phase 10 adds durable scheduling around the same endpoint execution unit; it does not create a second collection path.
 
-Forward operator/Worker entry points select Sources/endpoints directly and MUST NOT require Publication selection merely to choose among topics.
+Operator/Worker entry points select Sources/endpoints directly and MUST NOT require Publication selection merely to choose among topics.
 
 ### Phase 1 process bootstrap contract
 
@@ -74,9 +74,9 @@ Phase 1 establishes the process/lifecycle boundary without implementing collecti
 - The Worker is an independently executable process role with a testable bootstrap/startup and clean-shutdown contract.
 - Phase 1 does not require a separate Worker HTTP server merely to expose health probes. Worker readiness is proven through startup/configuration/dependency validation until a concrete deployment requirement justifies an HTTP probe.
 - Phase 5 adds manual endpoint execution behind this same Worker boundary. Phase 10 adds durable job consumption/scheduling around the same endpoint execution unit rather than creating another Worker path.
-- Phase 1 runtime configuration is centralized and typed/validated. Malformed or out-of-range startup configuration must fail predictably; database, Source, Publication-data, scheduler, and collection secrets/configuration are not invented early merely to make validation non-empty.
+- Phase 1 runtime configuration is centralized and typed/validated. Malformed or out-of-range startup configuration must fail predictably; database, Source, scheduler, and collection secrets/configuration are not invented early merely to make validation non-empty.
 
-Historical Phase 1 references to Publication-aware structure meant topic-independent naming and separation from indie-author-specific behavior. They do not require the forward data model to preserve relational Publication scoping.
+Publication-aware structure means generic naming and separation of topic configuration from shared engine behavior; it does not imply relational Publication tenancy.
 
 ### Phase 4 execution boundary
 
@@ -90,7 +90,7 @@ Phase 4 introduces the reusable pre-transport gate without introducing transport
 
 ## Module boundaries
 
-Recommended forward ownership layout:
+Canonical ownership layout:
 
 ```text
 src/
@@ -114,7 +114,7 @@ src/
   shared/
 ```
 
-The exact correction may keep or rename an existing module only when that choice produces the smallest coherent canonical design. It MUST NOT retain plural/selector-oriented APIs solely as a compatibility bridge.
+The exact implementation may keep or rename an existing module only when that choice produces the smallest coherent canonical design. It MUST NOT retain plural/selector-oriented APIs solely as a compatibility bridge.
 
 Native application authentication/account modules are deferred beyond MVP unless a later decision promotes them.
 
@@ -178,7 +178,7 @@ During Phases 5–9 before durable scheduling exists:
 
 Phase 4 itself stops at the controlled outbound-fetch boundary and does not yet create endpoint Collection runs.
 
-The historical Phase 5–9 manual command included a Publication slug. That remains historical behavior only; the post-Phase-9 correction removes it from the forward operational contract.
+Any implementation-level Publication selector left in the manual command is obsolete plumbing, not part of the supported architecture, and is removed by the Phase 10 entry correction.
 
 ### Automated polling
 
@@ -194,12 +194,12 @@ From Phase 10 onward:
 
 ## Persistence and transactions
 
-- Git-tracked migrations and migration infrastructure are authoritative for database schema structure and schema evolution.
+- Git-tracked migrations and migration infrastructure are authoritative for the supported database schema.
 - Runtime processes do not make ad hoc schema changes; Web/API and Worker startup do not automatically apply migrations.
-- Historical migrations remain unchanged. The singleton correction adds a later migration that converts the existing one-Publication schema to the canonical flattened schema.
-- Fresh migration-from-zero and migration of an existing valid one-Publication pre-production database MUST converge on the same corrected schema.
-- A pre-correction database with more than one Publication causes the flattening migration to fail clearly rather than selecting/merging data implicitly.
-- Publication tenancy/scoping is removed; Source/endpoint/run/Article/observation relationships and critical uniqueness remain explicit.
+- Before production upgrade compatibility is established, supported databases are created fresh from the repository's current migration chain and bootstrap/configuration workflow.
+- Foundational pre-production schema corrections MAY rewrite or consolidate current migrations rather than carry compatibility transformations for disposable older databases.
+- Migration-from-zero MUST deterministically create the complete canonical singleton schema.
+- Publication tenancy/scoping is absent; Source/endpoint/run/Article/observation relationships and critical uniqueness remain explicit.
 - The Phase 4 endpoint lock is shared across Worker processes and requires real persistence/concurrency evidence when implemented through PostgreSQL or another shared coordination store.
 - Minimal Collection-run persistence begins with real transport in Phase 5; it does not wait for Article persistence.
 - Article identity resolution plus Article create/update and the corresponding successful identity-resolving observation form one atomic per-candidate transaction with critical uniqueness constraints.
@@ -211,6 +211,8 @@ From Phase 10 onward:
 - Duplicate-review decisions persist independently from groups.
 - Once Article persistence exists, Collection-run accounting uses the canonical post-identity outcome taxonomy from the domain contract.
 - Database constraints are preferred over application-only assumptions for critical identity/uniqueness rules.
+
+When production database compatibility is later established, upgrade/data-preservation guarantees require an explicit contract and migration strategy.
 
 ## Administrative perimeter
 
