@@ -13,8 +13,6 @@ import { startWebServer, type WebServer } from '../../src/app/web/server.ts';
 import type { PublicFeed } from '../../src/public-feed/repository.ts';
 
 const publication = Object.freeze({
-  id: '10000000-0000-4000-8000-000000000001',
-  slug: 'example-publication',
   name: 'Example Publication',
 });
 
@@ -82,7 +80,7 @@ describe('Public feed page browser behavior', () => {
     outcome = new Promise<PublicFeed | undefined>((resolve) => {
       resolveFeed = resolve;
     });
-    const { context, page } = await openPage();
+    const { context, page, apiRequestPaths } = await openPage();
     try {
       await waitForState(page, 'loading');
       assert.equal(
@@ -94,12 +92,13 @@ describe('Public feed page browser behavior', () => {
       resolveFeed?.(populatedFeed());
       await waitForState(page, 'populated');
       assert.equal(await page.locator('.feed-row').count(), 2);
+      assert.deepEqual(apiRequestPaths, ['/api/feed']);
     } finally {
       await context.close();
     }
   });
 
-  it('renders API identity and server ordering into usable desktop Date, Headline, Source columns', async () => {
+  it('renders Publication name and server ordering into usable desktop Date, Headline, Source columns', async () => {
     outcome = populatedFeed();
     const { context, page } = await openPage({
       viewport: { width: 1440, height: 900 },
@@ -139,7 +138,7 @@ describe('Public feed page browser behavior', () => {
     }
   });
 
-  it('renders an empty public Publication with its successful API identity', async () => {
+  it('renders an empty public Publication with its descriptive settings', async () => {
     outcome = Object.freeze({ publication, items: Object.freeze([]) });
     const { context, page } = await openPage();
     try {
@@ -155,14 +154,14 @@ describe('Public feed page browser behavior', () => {
     }
   });
 
-  it('uses one generic unavailable page state for missing and private-looking slugs', async () => {
+  it('uses one generic unavailable page state regardless of the temporary shell path segment', async () => {
     outcome = undefined;
     const unavailableStates: Array<{
       readonly text: string;
       readonly markup: string;
     }> = [];
-    for (const slug of ['missing-publication', 'private-publication']) {
-      const { context, page } = await openPage({ slug });
+    for (const shellSegment of ['first-shell', 'second-shell']) {
+      const { context, page } = await openPage({ shellSegment });
       try {
         await waitForState(page, 'unavailable');
         unavailableStates.push({
@@ -313,11 +312,15 @@ describe('Public feed page browser behavior', () => {
 
   async function openPage(
     options: Readonly<{
-      slug?: string;
+      shellSegment?: string;
       timezoneId?: string;
       viewport?: { readonly width: number; readonly height: number };
     }> = {},
-  ): Promise<{ readonly context: BrowserContext; readonly page: Page }> {
+  ): Promise<{
+    readonly context: BrowserContext;
+    readonly page: Page;
+    readonly apiRequestPaths: string[];
+  }> {
     const context = await browser.newContext({
       ...(options.timezoneId === undefined
         ? {}
@@ -325,12 +328,17 @@ describe('Public feed page browser behavior', () => {
       ...(options.viewport === undefined ? {} : { viewport: options.viewport }),
     });
     const page = await context.newPage();
-    const slug = options.slug ?? publication.slug;
+    const apiRequestPaths: string[] = [];
+    page.on('request', (request) => {
+      const pathname = new URL(request.url()).pathname;
+      if (pathname.startsWith('/api/')) apiRequestPaths.push(pathname);
+    });
+    const shellSegment = options.shellSegment ?? 'current';
     const response = await page.goto(
-      `http://${webServer.host}:${webServer.port}/publications/${slug}`,
+      `http://${webServer.host}:${webServer.port}/publications/${shellSegment}`,
     );
     assert.equal(response?.status(), 200);
-    return { context, page };
+    return { context, page, apiRequestPaths };
   }
 });
 

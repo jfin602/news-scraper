@@ -419,7 +419,6 @@ describe('canonical endpoint collection service', () => {
     assert.equal(contexts.length, 2);
     for (const context of contexts) {
       assert.deepEqual(context, {
-        publicationId: aggregate().publication.id,
         sourceId: aggregate().source.id,
         sourceEndpointId: aggregate().endpoint.id,
         collectionRunId: RUN_ID,
@@ -1223,9 +1222,7 @@ function aggregate(
   const timestamp = new Date('2026-08-08T00:00:00.000Z');
   return {
     publication: {
-      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       name: 'Generic news',
-      slug: 'generic-news',
       activeForCollection: overrides.publicationActive ?? true,
       publicStatus: 'private',
       createdAt: timestamp,
@@ -1233,7 +1230,6 @@ function aggregate(
     },
     source: {
       id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-      publicationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       configKey: 'generic_source',
       displayName: 'Generic source',
       siteUrl: { value: 'https://example.test/', hostname: 'example.test' },

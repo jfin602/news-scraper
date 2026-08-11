@@ -1,4 +1,4 @@
-/* global document, HTMLElement, window, URL, fetch */
+/* global document, HTMLElement, URL, fetch */
 
 (() => {
   'use strict';
@@ -26,18 +26,6 @@
     content.replaceChildren();
     content.dataset.state = state;
     status.textContent = stateMessages[state] ?? '';
-  }
-
-  function publicationSlug() {
-    const prefix = '/publications/';
-    if (!window.location.pathname.startsWith(prefix)) {
-      throw new Error('Unexpected public feed path.');
-    }
-    const encodedSlug = window.location.pathname.slice(prefix.length);
-    if (encodedSlug.length === 0 || encodedSlug.includes('/')) {
-      throw new Error('Unexpected public feed path.');
-    }
-    return decodeURIComponent(encodedSlug);
   }
 
   function formatUtcDate(value) {
@@ -88,8 +76,6 @@
     }
     return {
       publication: {
-        id: requiredString(value.publication.id),
-        slug: requiredString(value.publication.slug),
         name: requiredString(value.publication.name),
       },
       items: value.items.map((item) => {
@@ -163,11 +149,9 @@
   async function loadFeed() {
     setState('loading');
     try {
-      const slug = publicationSlug();
-      const response = await fetch(
-        `/api/publications/${encodeURIComponent(slug)}/feed`,
-        { headers: { Accept: 'application/json' } },
-      );
+      const response = await fetch('/api/feed', {
+        headers: { Accept: 'application/json' },
+      });
       if (response.status === 404) {
         setState('unavailable');
         return;

@@ -45,11 +45,10 @@ describe('evaluateRelevance', () => {
     assert.equal(Object.isFrozen(candidate.provenance), false);
   });
 
-  it('includes candidates from unrelated Publication and Source identities', () => {
+  it('includes candidates from unrelated Source identities', () => {
     const first = evaluateRelevance(
       articleCandidate({
         provenance: {
-          publicationId: 'local-news',
           sourceId: 'city-desk',
           sourceEndpointId: 'city-feed',
           collectionRunId: 'city-run',
@@ -59,7 +58,6 @@ describe('evaluateRelevance', () => {
     const second = evaluateRelevance(
       articleCandidate({
         provenance: {
-          publicationId: 'science-weekly',
           sourceId: 'space-desk',
           sourceEndpointId: 'space-feed',
           collectionRunId: 'space-run',
@@ -120,7 +118,6 @@ function articleCandidate(
     publishedAt: { status: 'missing', fallback: 'first_seen' },
     updatedAt: { status: 'missing' },
     provenance: {
-      publicationId: 'publication-1',
       sourceId: 'source-1',
       sourceEndpointId: 'endpoint-1',
       collectionRunId: 'run-1',

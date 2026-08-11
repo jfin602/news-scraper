@@ -8,7 +8,6 @@ import { withDisposableDatabase } from '../support/database/disposable-database.
 import { boundedChildProcessFailure } from '../support/process/bounded-child-process-error.ts';
 
 const execFileAsync = promisify(execFile);
-const PUBLICATION_SLUG = 'indie-author-publishing-news';
 const APPROVED_ENDPOINTS = [
   {
     sourceName: 'Author Media',
@@ -29,7 +28,6 @@ interface CollectionOutput {
   status: string;
   outcome: string;
   collectionRunId: string;
-  publicationId: string;
   sourceId: string;
   endpointId: string;
   runStatus: string;
@@ -44,7 +42,6 @@ interface CollectionOutput {
     displayTitle: string;
     originalUrl: string;
     canonicalIdentityUrl: string;
-    publicationId: string;
     sourceId: string;
     endpointId: string;
     collectionRunId: string;
@@ -124,7 +121,7 @@ async function collect(
 ): Promise<CollectionOutput> {
   const { stdout } = await run(
     'src/app/worker/collect-main.ts',
-    [PUBLICATION_SLUG, endpoint.sourceConfigKey, endpoint.endpointConfigKey],
+    [endpoint.sourceConfigKey, endpoint.endpointConfigKey],
     environment,
   );
   const output = JSON.parse(stdout.trim()) as CollectionOutput;
@@ -147,7 +144,6 @@ async function collect(
     assert.ok(candidate.displayTitle.length > 0);
     assert.match(candidate.originalUrl, /^https?:\/\//u);
     assert.match(candidate.canonicalIdentityUrl, /^https?:\/\//u);
-    assert.equal(candidate.publicationId, output.publicationId);
     assert.equal(candidate.sourceId, output.sourceId);
     assert.equal(candidate.endpointId, output.endpointId);
     assert.equal(candidate.collectionRunId, output.collectionRunId);
@@ -219,11 +215,10 @@ async function readConfiguredUrl(
     await client.connect();
     const result = await client.query<{ endpoint_url: string }>(
       `SELECT se.endpoint_url
-       FROM publications p
-       JOIN sources s ON s.publication_id = p.id
+       FROM sources s
        JOIN source_endpoints se ON se.source_id = s.id
-       WHERE p.slug = $1 AND s.config_key = $2 AND se.config_key = $3`,
-      [PUBLICATION_SLUG, sourceConfigKey, endpointConfigKey],
+       WHERE s.config_key = $1 AND se.config_key = $2`,
+      [sourceConfigKey, endpointConfigKey],
     );
     assert.equal(result.rowCount, 1);
     return result.rows[0]?.endpoint_url ?? '';

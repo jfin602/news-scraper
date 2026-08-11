@@ -114,7 +114,6 @@ function normalizeContext(
 ):
   | Readonly<{ feedUrl: URL; provenance: ArticleCandidateProvenance }>
   | undefined {
-  const publicationId = contextId(context.publicationId);
   const sourceId = contextId(context.sourceId);
   const sourceEndpointId = contextId(context.sourceEndpointId);
   const collectionRunId = contextId(context.collectionRunId);
@@ -122,19 +121,12 @@ function normalizeContext(
     context.terminalFeedUrl,
     ARTICLE_CANDIDATE_LIMITS.url,
   );
-  if (
-    !publicationId ||
-    !sourceId ||
-    !sourceEndpointId ||
-    !collectionRunId ||
-    !feedUrl
-  ) {
+  if (!sourceId || !sourceEndpointId || !collectionRunId || !feedUrl) {
     return undefined;
   }
   return Object.freeze({
     feedUrl,
     provenance: Object.freeze({
-      publicationId,
       sourceId,
       sourceEndpointId,
       collectionRunId,

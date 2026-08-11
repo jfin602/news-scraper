@@ -20,7 +20,7 @@ import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   bootstrapPublicationTree,
   parseBootstrapDocument,
-} from '../../src/publications/bootstrap.ts';
+} from '../../src/publication/bootstrap.ts';
 import {
   findEndpointConfigurationByKeys,
   type EndpointConfigurationAggregate,
@@ -277,7 +277,6 @@ function metrics(
 async function loadEndpoint(database: Database, endpointConfigKey: string) {
   const endpoint = await findEndpointConfigurationByKeys(
     database,
-    'generic-collection-news',
     'synthetic_source',
     endpointConfigKey,
   );
@@ -298,7 +297,6 @@ function syntheticBootstrap() {
     JSON.stringify({
       publication: {
         name: 'Generic collection news',
-        slug: 'generic-collection-news',
         activeForCollection: true,
         publicStatus: 'private',
       },

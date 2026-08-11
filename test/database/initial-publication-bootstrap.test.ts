@@ -10,13 +10,13 @@ import {
   bootstrapPublicationTree,
   parseBootstrapDocument,
   type BootstrapDocument,
-} from '../../src/publications/bootstrap.ts';
+} from '../../src/publication/bootstrap.ts';
 import {
-  findPublicationBySlug,
+  readPublicationSettings,
   setPublicationPublicStatus,
-} from '../../src/publications/repository.ts';
+} from '../../src/publication/repository.ts';
 import {
-  findSourceByPublicationAndConfigKey,
+  findSourceByConfigKey,
   findSourceEndpointBySourceAndConfigKey,
   loadEndpointDomainRules,
   loadSourceApprovedDomainRules,
@@ -46,21 +46,13 @@ test('committed initial Publication bootstrap persists exactly the approved tree
     });
     await assertInitialPublicationTree(database);
 
-    const publication = await findPublicationBySlug(
-      database,
-      'indie-author-publishing-news',
-    );
+    const publication = await readPublicationSettings(database);
     assert.ok(publication);
     assert.equal(
-      (await setPublicationPublicStatus(database, publication.slug, 'private'))
-        ?.publicStatus,
+      (await setPublicationPublicStatus(database, 'private'))?.publicStatus,
       'private',
     );
-    const source = await findSourceByPublicationAndConfigKey(
-      database,
-      publication.id,
-      'author_media',
-    );
+    const source = await findSourceByConfigKey(database, 'author_media');
     assert.ok(source);
     const endpoint = await findSourceEndpointBySourceAndConfigKey(
       database,
@@ -96,14 +88,12 @@ test('committed initial Publication bootstrap persists exactly the approved tree
       sourcesCreated: 0,
       endpointsCreated: 0,
     });
-    const preservedSource = await findSourceByPublicationAndConfigKey(
+    const preservedSource = await findSourceByConfigKey(
       database,
-      publication.id,
       'author_media',
     );
     assert.equal(
-      (await findPublicationBySlug(database, 'indie-author-publishing-news'))
-        ?.publicStatus,
+      (await readPublicationSettings(database))?.publicStatus,
       'private',
     );
     const preservedEndpoint = await findSourceEndpointBySourceAndConfigKey(
@@ -160,10 +150,7 @@ test('db:bootstrap invokes the committed config through the root command', async
 
 async function assertInitialPublicationTree(database: Database): Promise<void> {
   assert.deepEqual(await cardinalities(database), [1, 2, 2, 2, 2]);
-  const publication = await findPublicationBySlug(
-    database,
-    'indie-author-publishing-news',
-  );
+  const publication = await readPublicationSettings(database);
   assert.ok(publication);
   assert.equal(publication.name, 'Indie Author Publishing News');
   assert.equal(publication.activeForCollection, true);
@@ -171,7 +158,6 @@ async function assertInitialPublicationTree(database: Database): Promise<void> {
 
   await assertSource(
     database,
-    publication.id,
     'author_media',
     'Author Media',
     'https://www.authormedia.com/',
@@ -181,7 +167,6 @@ async function assertInitialPublicationTree(database: Database): Promise<void> {
   );
   await assertSource(
     database,
-    publication.id,
     'the_creative_penn',
     'The Creative Penn',
     'https://www.thecreativepenn.com/',
@@ -193,14 +178,10 @@ async function assertInitialPublicationTree(database: Database): Promise<void> {
   const withheld = await database.query<{ count: string }>(
     `SELECT COUNT(*) AS count
      FROM sources
-     WHERE publication_id = $1
-       AND (
-         config_key = ANY($2::text[])
-         OR display_name = ANY($3::text[])
-         OR site_url = ANY($4::text[])
-       )`,
+     WHERE config_key = ANY($1::text[])
+        OR display_name = ANY($2::text[])
+        OR site_url = ANY($3::text[])`,
     [
-      publication.id,
       ['jane_friedman', 'authors_publish', 'sub_club', 'upstream_reviews'],
       ['Jane Friedman', 'Authors Publish', 'Sub Club', 'Upstream Reviews'],
       [
@@ -217,7 +198,6 @@ async function assertInitialPublicationTree(database: Database): Promise<void> {
 
 async function assertSource(
   database: Database,
-  publicationId: string,
   configKey: string,
   displayName: string,
   siteUrl: string,
@@ -225,11 +205,7 @@ async function assertSource(
   endpointConfigKey: string,
   endpointUrl: string,
 ): Promise<void> {
-  const source = await findSourceByPublicationAndConfigKey(
-    database,
-    publicationId,
-    configKey,
-  );
+  const source = await findSourceByConfigKey(database, configKey);
   assert.ok(source);
   assert.equal(source.displayName, displayName);
   assert.equal(source.siteUrl.value, siteUrl);
@@ -293,7 +269,7 @@ async function withMigratedDatabase(
 
 async function cardinalities(database: Database): Promise<number[]> {
   const tables = [
-    'publications',
+    'publication_settings',
     'sources',
     'source_endpoints',
     'source_approved_domain_rules',

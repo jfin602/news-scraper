@@ -8,7 +8,7 @@ import {
 } from '../../src/collection/article-links/policy.ts';
 import type { ArticleCandidate } from '../../src/collection/normalization/article-candidate.ts';
 import { normalizeArticleCandidate } from '../../src/collection/normalization/normalizer.ts';
-import { ConfigurationValidationError } from '../../src/publications/configuration.ts';
+import { ConfigurationValidationError } from '../../src/publication/configuration.ts';
 
 const sourceExact: ArticleLinkPolicyContext = Object.freeze({
   sourceDomainRules: Object.freeze([
@@ -184,7 +184,6 @@ function normalizedCandidate(): ArticleCandidate {
   const result = normalizeArticleCandidate(
     { title: 'A generic headline', url: 'https://publisher.example/story' },
     {
-      publicationId: 'publication-1',
       sourceId: 'source-1',
       sourceEndpointId: 'endpoint-1',
       collectionRunId: 'run-1',

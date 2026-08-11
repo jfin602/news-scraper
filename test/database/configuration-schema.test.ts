@@ -6,24 +6,16 @@ import { Client } from 'pg';
 import { migrateDatabase } from '../../src/database/migrations.ts';
 import { withDisposableDatabase } from '../support/database/disposable-database.ts';
 
-const publicationOne = '00000000-0000-0000-0000-000000000001';
-const publicationTwo = '00000000-0000-0000-0000-000000000002';
 const sourceOne = '00000000-0000-0000-0000-000000000011';
 const sourceTwo = '00000000-0000-0000-0000-000000000012';
-const sourceThree = '00000000-0000-0000-0000-000000000013';
 const endpointOne = '00000000-0000-0000-0000-000000000021';
 const endpointTwo = '00000000-0000-0000-0000-000000000022';
 const endpointThree = '00000000-0000-0000-0000-000000000023';
 
-test('production configuration schema migrates from zero and reruns safely', async () => {
+test('canonical production schema migrates from zero and reruns safely', async () => {
   await withDisposableDatabase(async ({ databaseUrl }) => {
     assert.deepEqual(await migrateDatabase({ connectionString: databaseUrl }), [
-      '0001_publication_source_configuration.sql',
-      '0002_collection_runs.sql',
-      '0003_collection_run_normalization.sql',
-      '0004_articles_and_observations.sql',
-      '0005_collection_run_processing.sql',
-      '0006_article_visibility.sql',
+      '0001_initial_schema.sql',
     ]);
     assert.deepEqual(
       await migrateDatabase({ connectionString: databaseUrl }),
@@ -38,88 +30,107 @@ test('production configuration schema migrates from zero and reruns safely', asy
          FROM information_schema.tables
          WHERE table_schema = 'public'
            AND table_name IN (
-             'publications',
+             'publication_settings',
              'sources',
              'source_approved_domain_rules',
              'source_endpoints',
              'source_endpoint_domain_rules',
-             'collection_runs'
+             'collection_runs',
+             'articles',
+             'article_observations'
            )
          ORDER BY table_name`,
       );
       assert.deepEqual(
         tables.rows.map(({ table_name }) => table_name),
         [
+          'article_observations',
+          'articles',
           'collection_runs',
-          'publications',
+          'publication_settings',
           'source_approved_domain_rules',
           'source_endpoint_domain_rules',
           'source_endpoints',
           'sources',
         ],
       );
-      const history = await client.query<{ count: string }>(
-        'SELECT count(*) FROM news_scraper_schema_migrations',
+
+      const history = await client.query<{
+        filename: string;
+      }>(
+        'SELECT filename FROM news_scraper_schema_migrations ORDER BY filename',
       );
-      assert.equal(history.rows[0]?.count, '6');
+      assert.deepEqual(history.rows, [{ filename: '0001_initial_schema.sql' }]);
+
+      const removedTenancy = await client.query<{
+        publications_table_absent: boolean;
+        settings_identity_absent: boolean;
+        publication_id_absent: boolean;
+      }>(
+        `SELECT
+           to_regclass('public.publications') IS NULL AS publications_table_absent,
+           NOT EXISTS (
+             SELECT 1
+             FROM information_schema.columns
+             WHERE table_schema = 'public'
+               AND table_name = 'publication_settings'
+               AND column_name IN ('id', 'slug')
+           ) AS settings_identity_absent,
+           NOT EXISTS (
+             SELECT 1
+             FROM information_schema.columns
+             WHERE table_schema = 'public'
+               AND column_name = 'publication_id'
+           ) AS publication_id_absent`,
+      );
+      assert.deepEqual(removedTenancy.rows, [
+        {
+          publications_table_absent: true,
+          settings_identity_absent: true,
+          publication_id_absent: true,
+        },
+      ]);
     } finally {
       await client.end();
     }
   });
 });
 
-test('production configuration schema enforces ownership, state, and policy invariants', async () => {
+test('canonical configuration schema enforces singleton, ownership, state, and policy invariants', async () => {
   await withDisposableDatabase(async ({ databaseUrl }) => {
     await migrateDatabase({ connectionString: databaseUrl });
     const client = new Client({ connectionString: databaseUrl });
     try {
       await client.connect();
-      await insertPublication(client, publicationOne, 'publication-one');
-      await insertPublication(client, publicationTwo, 'publication-two');
+      await insertPublicationSettings(client);
       await rejects(client, () =>
-        insertPublication(
-          client,
-          '00000000-0000-0000-0000-000000000003',
-          'publication-one',
+        client.query(
+          `INSERT INTO publication_settings (name, active_for_collection, public_status)
+           VALUES ('Second Publication', true, 'public')`,
         ),
       );
       await rejects(client, () =>
-        client.query(
-          `INSERT INTO publications (id, name, slug, active_for_collection, public_status)
-           VALUES ('00000000-0000-0000-0000-000000000004', 'Invalid', 'Uppercase', true, 'public')`,
-        ),
+        client.query(`UPDATE publication_settings SET name = ' Invalid '`),
       );
       await rejects(client, () =>
         client.query(
-          `INSERT INTO publications (id, name, slug, active_for_collection, public_status)
-           VALUES ('00000000-0000-0000-0000-000000000005', 'Invalid', 'invalid-status', true, 'invalid')`,
+          `UPDATE publication_settings SET public_status = 'invalid'`,
         ),
       );
 
-      await insertSource(client, sourceOne, publicationOne, 'primary_source');
-      await insertSource(client, sourceTwo, publicationOne, 'secondary_source');
-      await insertSource(client, sourceThree, publicationTwo, 'primary_source');
+      await insertSource(client, sourceOne, 'primary_source');
+      await insertSource(client, sourceTwo, 'secondary_source');
       await rejects(client, () =>
         insertSource(
           client,
-          '00000000-0000-0000-0000-000000000014',
-          publicationOne,
+          '00000000-0000-0000-0000-000000000013',
           'primary_source',
         ),
       );
       await rejects(client, () =>
         insertSource(
           client,
-          '00000000-0000-0000-0000-000000000015',
-          '00000000-0000-0000-0000-000000000099',
-          'orphan_source',
-        ),
-      );
-      await rejects(client, () =>
-        insertSource(
-          client,
-          '00000000-0000-0000-0000-000000000016',
-          publicationOne,
+          '00000000-0000-0000-0000-000000000014',
           'UPPERCASE',
         ),
       );
@@ -341,11 +352,11 @@ test('production configuration schema enforces ownership, state, and policy inva
            s.updated_at AS source_updated,
            e.created_at AS endpoint_created,
            e.updated_at AS endpoint_updated
-         FROM publications p
-         JOIN sources s ON s.id = $1
+         FROM sources s
          JOIN source_endpoints e ON e.id = $2
-         WHERE p.id = $3`,
-        [sourceOne, endpointOne, publicationOne],
+         CROSS JOIN publication_settings p
+         WHERE s.id = $1`,
+        [sourceOne, endpointOne],
       );
       assert.ok(timestamps.rows[0]?.publication_created instanceof Date);
       assert.ok(timestamps.rows[0]?.publication_updated instanceof Date);
@@ -359,30 +370,24 @@ test('production configuration schema enforces ownership, state, and policy inva
   });
 });
 
-async function insertPublication(
-  client: Client,
-  id: string,
-  slug: string,
-): Promise<void> {
+async function insertPublicationSettings(client: Client): Promise<void> {
   await client.query(
-    `INSERT INTO publications (id, name, slug, active_for_collection, public_status)
-     VALUES ($1, $2, $3, true, 'public')`,
-    [id, `Publication ${slug}`, slug],
+    `INSERT INTO publication_settings (name, active_for_collection, public_status)
+     VALUES ('Canonical Publication', true, 'public')`,
   );
 }
 
 async function insertSource(
   client: Client,
   id: string,
-  publicationId: string,
   configKey: string,
 ): Promise<void> {
   await client.query(
     `INSERT INTO sources (
-       id, publication_id, config_key, display_name, site_url,
+       id, config_key, display_name, site_url,
        approval_state, lifecycle_state, operational_state
-     ) VALUES ($1, $2, $3, 'Synthetic Source', 'https://source.invalid', 'approved', 'active', 'enabled')`,
-    [id, publicationId, configKey],
+     ) VALUES ($1, $2, 'Synthetic Source', 'https://source.invalid', 'approved', 'active', 'enabled')`,
+    [id, configKey],
   );
 }
 

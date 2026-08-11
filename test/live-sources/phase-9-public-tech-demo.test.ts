@@ -23,7 +23,6 @@ import {
 import { boundedChildProcessFailure } from '../support/process/bounded-child-process-error.ts';
 
 const execFileAsync = promisify(execFile);
-const PUBLICATION_SLUG = 'indie-author-publishing-news';
 const PUBLICATION_NAME = 'Indie Author Publishing News';
 const REQUIRED_ENDPOINTS = [
   {
@@ -45,7 +44,6 @@ interface CollectionOutput {
   status: string;
   outcome: string;
   collectionRunId: string;
-  publicationId: string;
   sourceId: string;
   endpointId: string;
   runStatus: string;
@@ -162,12 +160,11 @@ describe('Phase 9 approved live-Source public tech demo', () => {
         const database = createDatabase({ connectionString: databaseUrl });
         let feed: PublicFeed | undefined;
         try {
-          feed = await readPublicFeed(database, PUBLICATION_SLUG);
+          feed = await readPublicFeed(database);
         } finally {
           await database.close();
         }
         assert.ok(feed);
-        assert.equal(feed.publication.slug, PUBLICATION_SLUG);
         assert.equal(feed.publication.name, PUBLICATION_NAME);
 
         const representatives = new Map<string, PublicFeedItem>();
@@ -205,7 +202,7 @@ describe('Phase 9 approved live-Source public tech demo', () => {
           const page = await browser.newPage();
           try {
             const response = await page.goto(
-              `http://127.0.0.1:${String(listening.port)}/publications/${PUBLICATION_SLUG}`,
+              `http://127.0.0.1:${String(listening.port)}/publications/current`,
             );
             assert.equal(response?.status(), 200);
             await page.waitForSelector(
@@ -265,8 +262,7 @@ async function assertApprovedConfiguration(databaseUrl: string): Promise<void> {
       active_for_collection: boolean;
       public_status: string;
     }>(
-      'SELECT name, active_for_collection, public_status FROM publications WHERE slug = $1',
-      [PUBLICATION_SLUG],
+      'SELECT name, active_for_collection, public_status FROM publication_settings',
     );
     assert.deepEqual(publication.rows, [
       {
@@ -294,10 +290,9 @@ async function assertApprovedConfiguration(databaseUrl: string): Promise<void> {
               e.config_key AS endpoint_config_key, e.endpoint_url, e.endpoint_type,
               e.approval_state AS endpoint_approval, e.lifecycle_state AS endpoint_lifecycle,
               e.operational_state AS endpoint_operational
-       FROM publications p JOIN sources s ON s.publication_id = p.id
+       FROM sources s
        JOIN source_endpoints e ON e.source_id = s.id
-       WHERE p.slug = $1 ORDER BY s.config_key, e.config_key`,
-      [PUBLICATION_SLUG],
+       ORDER BY s.config_key, e.config_key`,
     );
     assert.equal(configured.rowCount, REQUIRED_ENDPOINTS.length);
     for (const endpoint of REQUIRED_ENDPOINTS) {
@@ -327,7 +322,7 @@ async function collect(
 ): Promise<CollectionOutput> {
   const { stdout } = await run(
     'src/app/worker/collect-main.ts',
-    [PUBLICATION_SLUG, endpoint.sourceConfigKey, endpoint.endpointConfigKey],
+    [endpoint.sourceConfigKey, endpoint.endpointConfigKey],
     environment,
   );
   const output = JSON.parse(stdout.trim()) as CollectionOutput;

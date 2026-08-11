@@ -1,4 +1,4 @@
-import type { PersistedPublication } from '../publications/repository.ts';
+import type { PersistedPublicationSettings } from '../publication/repository.ts';
 import type {
   PersistedSource,
   PersistedSourceEndpoint,
@@ -10,7 +10,10 @@ import {
 } from './decision.ts';
 
 export interface CollectionEligibilityAggregate {
-  readonly publication: Pick<PersistedPublication, 'activeForCollection'>;
+  readonly publication: Pick<
+    PersistedPublicationSettings,
+    'activeForCollection'
+  >;
   readonly source: Pick<
     PersistedSource,
     'approvalState' | 'lifecycleState' | 'operationalState'

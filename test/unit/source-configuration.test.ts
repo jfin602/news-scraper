@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { ConfigurationValidationError } from '../../src/publications/configuration.ts';
+import { ConfigurationValidationError } from '../../src/publication/configuration.ts';
 import {
   effectiveEndpointDomainRules,
   endpointRuleIsNarrowerThanSourceRule,

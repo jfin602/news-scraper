@@ -20,7 +20,6 @@ export type ArticleVisibilityState = 'visible' | 'hidden' | 'archived';
 
 export interface PersistedArticle {
   readonly id: string;
-  readonly publicationId: string;
   readonly sourceId: string;
   readonly externalId: string | undefined;
   readonly originalUrl: string;
@@ -44,7 +43,6 @@ export interface PersistedArticle {
 
 export interface PersistedArticleObservation {
   readonly id: string;
-  readonly publicationId: string;
   readonly sourceId: string;
   readonly sourceEndpointId: string;
   readonly collectionRunId: string;
@@ -84,7 +82,6 @@ export class ArticlePersistenceError extends Error {
 
 interface ArticleRow {
   readonly id: unknown;
-  readonly publication_id: unknown;
   readonly source_id: unknown;
   readonly external_id: unknown;
   readonly original_url: unknown;
@@ -108,7 +105,6 @@ interface ArticleRow {
 
 interface ObservationRow {
   readonly id: unknown;
-  readonly publication_id: unknown;
   readonly source_id: unknown;
   readonly source_endpoint_id: unknown;
   readonly collection_run_id: unknown;
@@ -133,7 +129,6 @@ interface ValidatedCandidate {
   readonly publishedAt: Date | undefined;
   readonly sourceUpdatedAtStatus: 'parsed' | 'missing' | 'invalid';
   readonly sourceUpdatedAt: Date | undefined;
-  readonly publicationId: string;
   readonly sourceId: string;
   readonly sourceEndpointId: string;
   readonly collectionRunId: string;
@@ -145,13 +140,13 @@ interface IdentityResolution {
 }
 
 const ARTICLE_COLUMNS = `
-  id, publication_id, source_id, external_id, original_url,
+  id, source_id, external_id, original_url,
   canonical_identity_url, display_title, normalized_title, author, summary,
   image_url, language, published_at_status, published_at,
   source_updated_at_status, source_updated_at, visibility_state, first_seen_at, last_seen_at,
   created_at, updated_at`;
 const OBSERVATION_COLUMNS = `
-  id, publication_id, source_id, source_endpoint_id, collection_run_id,
+  id, source_id, source_endpoint_id, collection_run_id,
   article_id, observed_at, processing_outcome, observed_external_id,
   observed_canonical_identity_url`;
 
@@ -225,17 +220,11 @@ async function provenanceMatches(
        FROM sources AS source
        JOIN source_endpoints AS endpoint ON endpoint.source_id = source.id
        JOIN collection_runs AS run ON run.source_endpoint_id = endpoint.id
-       WHERE source.publication_id = $1
-         AND source.id = $2
-         AND endpoint.id = $3
-         AND run.id = $4
+       WHERE source.id = $1
+         AND endpoint.id = $2
+         AND run.id = $3
      ) AS provenance_matches`,
-    [
-      candidate.publicationId,
-      candidate.sourceId,
-      candidate.sourceEndpointId,
-      candidate.collectionRunId,
-    ],
+    [candidate.sourceId, candidate.sourceEndpointId, candidate.collectionRunId],
   );
   return result.rows[0]?.provenance_matches === true;
 }
@@ -261,7 +250,6 @@ async function resolveIdentity(
 
     const canonicalRows = await findByCanonicalDigest(
       executor,
-      candidate.publicationId,
       candidate.sourceId,
       candidate.canonicalIdentityUrl,
     );
@@ -283,7 +271,6 @@ async function resolveIdentity(
 
   const canonicalRows = await findByCanonicalDigest(
     executor,
-    candidate.publicationId,
     candidate.sourceId,
     candidate.canonicalIdentityUrl,
   );
@@ -309,10 +296,7 @@ function assertResolvedOwnership(
   candidate: ValidatedCandidate,
   promoteFallback: boolean,
 ): IdentityResolution {
-  if (
-    article.publicationId !== candidate.publicationId ||
-    article.sourceId !== candidate.sourceId
-  ) {
+  if (article.sourceId !== candidate.sourceId) {
     throw new ArticlePersistenceError('transaction_failed');
   }
   return Object.freeze({ article, promoteFallback });
@@ -336,18 +320,16 @@ async function findByExternalDigest(
 
 async function findByCanonicalDigest(
   executor: QueryExecutor,
-  publicationId: string,
   sourceId: string,
   canonicalIdentityUrl: string,
 ): Promise<readonly PersistedArticle[]> {
   const result = await executor.query<ArticleRow>(
     `SELECT ${ARTICLE_COLUMNS}
      FROM articles
-     WHERE publication_id = $1
-       AND source_id = $2
-       AND canonical_identity_digest = sha256($3::text::bytea)
+     WHERE source_id = $1
+       AND canonical_identity_digest = sha256($2::text::bytea)
      ORDER BY id`,
-    [publicationId, sourceId, canonicalIdentityUrl],
+    [sourceId, canonicalIdentityUrl],
   );
   return Object.freeze(result.rows.map(mapArticleRow));
 }
@@ -398,14 +380,9 @@ async function persistResolvedArticle(
       `UPDATE articles
        SET first_seen_at = LEAST(first_seen_at, $2),
            last_seen_at = GREATEST(last_seen_at, $2)
-       WHERE id = $1 AND publication_id = $3 AND source_id = $4
+       WHERE id = $1 AND source_id = $3
        RETURNING ${ARTICLE_COLUMNS}`,
-      [
-        resolution.article.id,
-        observationTime,
-        candidate.publicationId,
-        candidate.sourceId,
-      ],
+      [resolution.article.id, observationTime, candidate.sourceId],
     );
     return Object.freeze({
       outcome: 'unchanged',
@@ -431,7 +408,7 @@ async function persistResolvedArticle(
          first_seen_at = LEAST(first_seen_at, $15),
          last_seen_at = GREATEST(last_seen_at, $15),
          updated_at = now()
-     WHERE id = $1 AND publication_id = $16 AND source_id = $17
+     WHERE id = $1 AND source_id = $16
      RETURNING ${ARTICLE_COLUMNS}`,
     [
       resolution.article.id,
@@ -449,7 +426,6 @@ async function persistResolvedArticle(
       candidate.sourceUpdatedAtStatus,
       candidate.sourceUpdatedAt ?? null,
       observationTime,
-      candidate.publicationId,
       candidate.sourceId,
     ],
   );
@@ -466,18 +442,17 @@ async function insertArticle(
 ): Promise<PersistedArticle> {
   const result = await executor.query<ArticleRow>(
     `INSERT INTO articles (
-       id, publication_id, source_id, external_id, original_url,
+       id, source_id, external_id, original_url,
        canonical_identity_url, display_title, normalized_title, author,
        summary, image_url, language, published_at_status, published_at,
        source_updated_at_status, source_updated_at, first_seen_at, last_seen_at
      ) VALUES (
        $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14,
-       $15, $16, $17, $17
+       $15, $16, $16
      )
      RETURNING ${ARTICLE_COLUMNS}`,
     [
       randomUUID(),
-      candidate.publicationId,
       candidate.sourceId,
       candidate.externalId ?? null,
       candidate.originalUrl,
@@ -507,14 +482,13 @@ async function insertObservation(
 ): Promise<PersistedArticleObservation> {
   const result = await executor.query<ObservationRow>(
     `INSERT INTO article_observations (
-       id, publication_id, source_id, source_endpoint_id, collection_run_id,
+       id, source_id, source_endpoint_id, collection_run_id,
        article_id, observed_at, processing_outcome, observed_external_id,
        observed_canonical_identity_url
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
      RETURNING ${OBSERVATION_COLUMNS}`,
     [
       randomUUID(),
-      candidate.publicationId,
       candidate.sourceId,
       candidate.sourceEndpointId,
       candidate.collectionRunId,
@@ -583,7 +557,6 @@ function validateCandidate(candidate: ArticleCandidate): ValidatedCandidate {
       publishedAt: publishedAt.value,
       sourceUpdatedAtStatus: sourceUpdatedAt.status,
       sourceUpdatedAt: sourceUpdatedAt.value,
-      publicationId: requiredUuid(candidate.provenance.publicationId),
       sourceId: requiredUuid(candidate.provenance.sourceId),
       sourceEndpointId: requiredUuid(candidate.provenance.sourceEndpointId),
       collectionRunId: requiredUuid(candidate.provenance.collectionRunId),
@@ -673,7 +646,6 @@ function mapArticleRow(row: ArticleRow): PersistedArticle {
   try {
     return Object.freeze({
       id: requiredUuid(row.id),
-      publicationId: requiredUuid(row.publication_id),
       sourceId: requiredUuid(row.source_id),
       externalId: nullableString(row.external_id),
       originalUrl: requiredTrimmedString(
@@ -716,7 +688,6 @@ function mapObservationRow(row: ObservationRow): PersistedArticleObservation {
   try {
     return Object.freeze({
       id: requiredUuid(row.id),
-      publicationId: requiredUuid(row.publication_id),
       sourceId: requiredUuid(row.source_id),
       sourceEndpointId: requiredUuid(row.source_endpoint_id),
       collectionRunId: requiredUuid(row.collection_run_id),

@@ -239,9 +239,7 @@ function aggregate(path: string): EndpointConfigurationAggregate {
   const timestamp = new Date('2026-08-10T00:00:00.000Z');
   return Object.freeze({
     publication: Object.freeze({
-      id: '63636363-6363-4636-8636-636363636363',
       name: 'Fixture publication',
-      slug: 'fixture-publication',
       activeForCollection: true,
       publicStatus: 'private',
       createdAt: timestamp,
@@ -249,7 +247,6 @@ function aggregate(path: string): EndpointConfigurationAggregate {
     }),
     source: Object.freeze({
       id: '64646464-6464-4646-8646-646464646464',
-      publicationId: '63636363-6363-4636-8636-636363636363',
       configKey: 'fixture_source',
       displayName: 'Fixture Source',
       siteUrl: Object.freeze({

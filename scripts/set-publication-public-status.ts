@@ -6,26 +6,22 @@ import {
   createDatabase,
   DatabaseRuntimeError,
 } from '../src/database/database.ts';
-import { ConfigurationValidationError } from '../src/publications/configuration.ts';
+import { ConfigurationValidationError } from '../src/publication/configuration.ts';
 import {
   ConfigurationPersistenceError,
   setPublicationPublicStatus,
-} from '../src/publications/repository.ts';
+} from '../src/publication/repository.ts';
 
-if (process.argv.length !== 4) {
-  console.error(
-    'Usage: set-publication-public-status.ts <publication-slug> <private|public>',
-  );
+if (process.argv.length !== 3) {
+  console.error('Usage: set-publication-public-status.ts <private|public>');
   process.exitCode = 1;
 } else {
   let database: ReturnType<typeof createDatabase> | undefined;
   try {
-    const slug = process.argv[2] as string;
-    const publicStatus = process.argv[3] as string;
+    const publicStatus = process.argv[2] as string;
     database = createDatabase(parseDatabaseConfig(process.env));
     const publication = await setPublicationPublicStatus(
       database,
-      slug,
       publicStatus,
     );
     if (publication === undefined) {
@@ -33,7 +29,7 @@ if (process.argv.length !== 4) {
       process.exitCode = 1;
     } else {
       console.log(
-        `Publication public status set: slug=${publication.slug}, public_status=${publication.publicStatus}.`,
+        `Publication public status set: public_status=${publication.publicStatus}.`,
       );
     }
   } catch (error) {

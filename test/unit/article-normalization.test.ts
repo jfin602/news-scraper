@@ -9,7 +9,6 @@ import {
 import { normalizeArticleCandidate } from '../../src/collection/normalization/normalizer.ts';
 
 const context: ArticleNormalizationContext = Object.freeze({
-  publicationId: 'publication-1',
   sourceId: 'source-1',
   sourceEndpointId: 'endpoint-1',
   collectionRunId: 'run-1',
@@ -267,7 +266,6 @@ describe('normalizeArticleCandidate', () => {
     });
     assert.equal(result.imageUrl, 'https://publisher.example/feeds/image.jpg');
     assert.deepEqual(result.provenance, {
-      publicationId: 'publication-1',
       sourceId: 'source-1',
       sourceEndpointId: 'endpoint-1',
       collectionRunId: 'run-1',
@@ -277,7 +275,7 @@ describe('normalizeArticleCandidate', () => {
   it('returns a bounded stable failure for malformed context', () => {
     const result = normalizeArticleCandidate(
       { title: 'A', url: '/a' },
-      { ...context, publicationId: ' ', terminalFeedUrl: 'file:///feed.xml' },
+      { ...context, sourceId: ' ', terminalFeedUrl: 'file:///feed.xml' },
     );
     assert.deepEqual(result, {
       ok: false,

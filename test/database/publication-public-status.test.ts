@@ -6,18 +6,18 @@ import { test } from 'node:test';
 
 import { createDatabase, type Database } from '../../src/database/database.ts';
 import { migrateDatabase } from '../../src/database/migrations.ts';
-import { ConfigurationValidationError } from '../../src/publications/configuration.ts';
+import { ConfigurationValidationError } from '../../src/publication/configuration.ts';
 import {
-  findPublicationBySlug,
-  insertPublication,
+  insertPublicationSettings,
+  readPublicationSettings,
   setPublicationPublicStatus,
-} from '../../src/publications/repository.ts';
+} from '../../src/publication/repository.ts';
 import {
   insertSource,
   insertSourceEndpoint,
 } from '../../src/sources/repository.ts';
-import { parseBootstrapDocument } from '../../src/publications/bootstrap.ts';
-import { bootstrapPublicationTree } from '../../src/publications/bootstrap.ts';
+import { parseBootstrapDocument } from '../../src/publication/bootstrap.ts';
+import { bootstrapPublicationTree } from '../../src/publication/bootstrap.ts';
 import { withDisposableDatabase } from '../support/database/disposable-database.ts';
 
 const execFileAsync = promisify(execFile);
@@ -26,17 +26,13 @@ const fixtureUrl = new URL(
   import.meta.url,
 );
 
-test('setPublicationPublicStatus updates only the requested Publication and preserves its owned configuration', async () => {
+test('setPublicationPublicStatus updates singleton settings and preserves Source configuration', async () => {
   await withMigratedDatabase(async (database) => {
-    const target = await insertPublication(
+    const target = await insertPublicationSettings(
       database,
-      publicationInput('target', 'private'),
+      publicationInput('Target', 'private'),
     );
-    const other = await insertPublication(
-      database,
-      publicationInput('other', 'public'),
-    );
-    const source = await insertSource(database, target.id, sourceInput());
+    const source = await insertSource(database, sourceInput());
     const endpoint = await insertSourceEndpoint(
       database,
       source.id,
@@ -60,20 +56,13 @@ test('setPublicationPublicStatus updates only the requested Publication and pres
     );
 
     await database.query('SELECT pg_sleep(0.01)');
-    const madePublic = await setPublicationPublicStatus(
-      database,
-      target.slug,
-      'public',
-    );
+    const madePublic = await setPublicationPublicStatus(database, 'public');
     assert.ok(madePublic);
     assert.equal(madePublic.publicStatus, 'public');
-    assert.equal(madePublic.id, target.id);
     assert.equal(madePublic.name, target.name);
-    assert.equal(madePublic.slug, target.slug);
     assert.equal(madePublic.activeForCollection, target.activeForCollection);
     assert.deepEqual(madePublic.createdAt, target.createdAt);
     assert.ok(madePublic.updatedAt > target.updatedAt);
-    assert.deepEqual(await findPublicationBySlug(database, other.slug), other);
     assert.deepEqual(
       await database.query('SELECT * FROM sources WHERE id = $1', [source.id]),
       sourceBefore,
@@ -99,48 +88,34 @@ test('setPublicationPublicStatus updates only the requested Publication and pres
       endpointDomainRulesBefore,
     );
 
-    const madePrivate = await setPublicationPublicStatus(
-      database,
-      target.slug,
-      'private',
-    );
+    const madePrivate = await setPublicationPublicStatus(database, 'private');
     assert.equal(madePrivate?.publicStatus, 'private');
     assert.equal(
-      (await findPublicationBySlug(database, other.slug))?.publicStatus,
-      'public',
+      (await readPublicationSettings(database))?.publicStatus,
+      'private',
     );
   });
 });
 
-test('setPublicationPublicStatus rejects invalid states and leaves a missing slug unchanged', async () => {
+test('setPublicationPublicStatus rejects invalid states and reports absent settings', async () => {
   await withMigratedDatabase(async (database) => {
-    const publication = await insertPublication(
+    const publication = await insertPublicationSettings(
       database,
-      publicationInput('existing', 'private'),
+      publicationInput('Existing', 'private'),
     );
     await assert.rejects(
-      setPublicationPublicStatus(database, publication.slug, 'published'),
+      setPublicationPublicStatus(database, 'published'),
       ConfigurationValidationError,
     );
-    assert.deepEqual(
-      await findPublicationBySlug(database, publication.slug),
-      publication,
-    );
+    assert.deepEqual(await readPublicationSettings(database), publication);
+    await database.query('DELETE FROM publication_settings');
     assert.equal(
-      await setPublicationPublicStatus(
-        database,
-        'missing-publication',
-        'public',
-      ),
+      await setPublicationPublicStatus(database, 'public'),
       undefined,
     );
     assert.equal(
-      (await database.query('SELECT 1 FROM publications')).rowCount,
-      1,
-    );
-    assert.deepEqual(
-      await findPublicationBySlug(database, publication.slug),
-      publication,
+      (await database.query('SELECT 1 FROM publication_settings')).rowCount,
+      0,
     );
   });
 });
@@ -156,30 +131,17 @@ test('publication:set-public-status changes both canonical states through the ac
       await database.close();
     }
 
-    const madePrivate = await runCommand(
-      databaseUrl,
-      'technology-bulletin',
-      'private',
-    );
-    assert.match(
-      madePrivate.stdout,
-      /slug=technology-bulletin, public_status=private/u,
-    );
-    const madePublic = await runCommand(
-      databaseUrl,
-      'technology-bulletin',
-      'public',
-    );
-    assert.match(
-      madePublic.stdout,
-      /slug=technology-bulletin, public_status=public/u,
-    );
+    const madePrivate = await runCommand(databaseUrl, 'private');
+    assert.match(madePrivate.stdout, /public_status=private/u);
+    assert.doesNotMatch(madePrivate.stdout, /slug=/u);
+    const madePublic = await runCommand(databaseUrl, 'public');
+    assert.match(madePublic.stdout, /public_status=public/u);
+    assert.doesNotMatch(madePublic.stdout, /slug=/u);
 
     const inspector = createDatabase({ connectionString: databaseUrl });
     try {
       assert.equal(
-        (await findPublicationBySlug(inspector, 'technology-bulletin'))
-          ?.publicStatus,
+        (await readPublicationSettings(inspector))?.publicStatus,
         'public',
       );
     } finally {
@@ -194,25 +156,26 @@ test('publication:set-public-status rejects invalid input and does not leak data
     missingArguments.stderr,
     /Usage: set-publication-public-status\.ts/u,
   );
+  const legacyArguments = await runCommandFailure(
+    undefined,
+    'technology-bulletin',
+    'public',
+  );
+  assert.match(
+    legacyArguments.stderr,
+    /Usage: set-publication-public-status\.ts/u,
+  );
 
   await withDisposableDatabase(async ({ databaseUrl }) => {
     await migrateDatabase({ connectionString: databaseUrl });
-    const invalidStatus = await runCommandFailure(
-      databaseUrl,
-      'missing-publication',
-      'published',
-    );
+    const invalidStatus = await runCommandFailure(databaseUrl, 'published');
     assert.match(invalidStatus.stderr, /Invalid publication public status\./u);
-    const missingPublication = await runCommandFailure(
-      databaseUrl,
-      'missing-publication',
-      'public',
-    );
+    const missingPublication = await runCommandFailure(databaseUrl, 'public');
     assert.match(missingPublication.stderr, /Publication not found\./u);
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       assert.equal(
-        (await database.query('SELECT 1 FROM publications')).rowCount,
+        (await database.query('SELECT 1 FROM publication_settings')).rowCount,
         0,
       );
     } finally {
@@ -223,7 +186,6 @@ test('publication:set-public-status rejects invalid input and does not leak data
   const secret = 'not-for-output';
   const unavailable = await runCommandFailure(
     `postgresql://invalid:${secret}@127.0.0.1:1/missing`,
-    'missing-publication',
     'public',
   );
   assert.match(unavailable.stderr, /Database operation failed\./u);
@@ -233,20 +195,16 @@ test('publication:set-public-status rejects invalid input and does not leak data
   );
 });
 
-async function runCommand(databaseUrl: string, slug: string, status: string) {
-  return runNpmCommand(databaseUrl, [slug, status]);
+async function runCommand(databaseUrl: string, status: string) {
+  return runNpmCommand(databaseUrl, [status]);
 }
 
 async function runCommandFailure(
   databaseUrl?: string,
-  slug?: string,
-  status?: string,
+  ...arguments_: string[]
 ): Promise<{ message: string; stdout: string; stderr: string }> {
   try {
-    await runNpmCommand(
-      databaseUrl,
-      slug === undefined || status === undefined ? [] : [slug, status],
-    );
+    await runNpmCommand(databaseUrl, arguments_);
   } catch (error) {
     const failure = error as Error & { stdout?: string; stderr?: string };
     return {
@@ -291,10 +249,9 @@ async function withMigratedDatabase(
   });
 }
 
-function publicationInput(slug: string, publicStatus: 'private' | 'public') {
+function publicationInput(name: string, publicStatus: 'private' | 'public') {
   return {
-    name: `Publication ${slug}`,
-    slug,
+    name: `Publication ${name}`,
     activeForCollection: true,
     publicStatus,
   } as const;

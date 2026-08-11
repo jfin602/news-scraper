@@ -66,8 +66,7 @@ export async function runCollectEndpointCommand(
       event: 'endpoint_collection.invocation_failed',
       role: 'worker',
       reason: 'invalid_arguments',
-      usage:
-        'collect:endpoint -- <publication-slug> <source-config-key> <endpoint-config-key>',
+      usage: 'collect:endpoint -- <source-config-key> <endpoint-config-key>',
     });
     return 2;
   }
@@ -94,7 +93,6 @@ export async function runCollectEndpointCommand(
   try {
     const configuration = await dependencies.findEndpointConfiguration(
       database,
-      args.publicationSlug,
       args.sourceConfigKey,
       args.endpointConfigKey,
     );
@@ -161,24 +159,21 @@ async function executeConfiguredEndpoint(
 
 function parseArguments(args: readonly string[]):
   | Readonly<{
-      publicationSlug: string;
       sourceConfigKey: string;
       endpointConfigKey: string;
     }>
   | undefined {
-  if (args.length !== 3) return undefined;
-  const [publicationSlug, sourceConfigKey, endpointConfigKey] = args;
+  if (args.length !== 2) return undefined;
+  const [sourceConfigKey, endpointConfigKey] = args;
   if (
-    publicationSlug === undefined ||
     sourceConfigKey === undefined ||
     endpointConfigKey === undefined ||
-    !validArgument(publicationSlug) ||
     !validArgument(sourceConfigKey) ||
     !validArgument(endpointConfigKey)
   ) {
     return undefined;
   }
-  return Object.freeze({ publicationSlug, sourceConfigKey, endpointConfigKey });
+  return Object.freeze({ sourceConfigKey, endpointConfigKey });
 }
 
 function validArgument(value: string): boolean {
@@ -191,7 +186,6 @@ function validArgument(value: string): boolean {
 
 function commandResult(
   keys: Readonly<{
-    publicationSlug: string;
     sourceConfigKey: string;
     endpointConfigKey: string;
   }>,
@@ -203,7 +197,6 @@ function commandResult(
       event: 'endpoint_collection.result',
       role: 'worker',
       ...keys,
-      publicationId: configuration.publication.id,
       sourceId: configuration.source.id,
       endpointId: configuration.endpoint.id,
       status: result.status,
@@ -215,7 +208,6 @@ function commandResult(
     event: 'endpoint_collection.result',
     role: 'worker',
     ...keys,
-    publicationId: configuration.publication.id,
     sourceId: configuration.source.id,
     endpointId: result.endpointId,
     status: result.status,
@@ -248,7 +240,6 @@ function commandResult(
               originalUrl: candidate.originalUrl,
               canonicalIdentityUrl: candidate.canonicalIdentityUrl,
               publishedAt: candidate.publishedAt,
-              publicationId: candidate.provenance.publicationId,
               sourceId: candidate.provenance.sourceId,
               endpointId: candidate.provenance.sourceEndpointId,
               collectionRunId: candidate.provenance.collectionRunId,

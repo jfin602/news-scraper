@@ -308,7 +308,6 @@ async function executeAttempt(
 
   const rawItems = immutableRawItems(parserResult.items);
   const normalizationContext = Object.freeze({
-    publicationId: configuration.publication.id,
     sourceId: configuration.source.id,
     sourceEndpointId: configuration.endpoint.id,
     collectionRunId,

@@ -12,15 +12,15 @@ import {
   normalizeBootstrapDocument,
   parseBootstrapDocument,
   type BootstrapDocument,
-} from '../../src/publications/bootstrap.ts';
+} from '../../src/publication/bootstrap.ts';
 import { createDatabase, type Database } from '../../src/database/database.ts';
 import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
-  findPublicationBySlug,
+  readPublicationSettings,
   setPublicationPublicStatus,
-} from '../../src/publications/repository.ts';
+} from '../../src/publication/repository.ts';
 import {
-  findSourceByPublicationAndConfigKey,
+  findSourceByConfigKey,
   findSourceEndpointBySourceAndConfigKey,
   loadEndpointDomainRules,
   loadSourceApprovedDomainRules,
@@ -48,16 +48,9 @@ test('bootstrap creates approved configuration idempotently and preserves operat
     });
     assert.deepEqual(await cardinalities(database), [1, 2, 2, 2, 1]);
 
-    const publication = await findPublicationBySlug(
-      database,
-      'technology-bulletin',
-    );
+    const publication = await readPublicationSettings(database);
     assert.ok(publication);
-    const source = await findSourceByPublicationAndConfigKey(
-      database,
-      publication.id,
-      'circuit_journal',
-    );
+    const source = await findSourceByConfigKey(database, 'circuit_journal');
     assert.ok(source);
     const endpoint = await findSourceEndpointBySourceAndConfigKey(
       database,
@@ -69,14 +62,11 @@ test('bootstrap creates approved configuration idempotently and preserves operat
     assert.equal(endpoint.approvalState, 'approved');
 
     await database.query(
-      `UPDATE publications
-       SET name = 'Operator Technology Desk', active_for_collection = false
-       WHERE id = $1`,
-      [publication.id],
+      `UPDATE publication_settings
+       SET name = 'Operator Technology Desk', active_for_collection = false`,
     );
     assert.equal(
-      (await setPublicationPublicStatus(database, publication.slug, 'private'))
-        ?.publicStatus,
+      (await setPublicationPublicStatus(database, 'private'))?.publicStatus,
       'private',
     );
     await database.query(
@@ -122,13 +112,9 @@ test('bootstrap creates approved configuration idempotently and preserves operat
       sourcesCreated: 0,
       endpointsCreated: 0,
     });
-    const preservedPublication = await findPublicationBySlug(
+    const preservedPublication = await readPublicationSettings(database);
+    const preservedSource = await findSourceByConfigKey(
       database,
-      'technology-bulletin',
-    );
-    const preservedSource = await findSourceByPublicationAndConfigKey(
-      database,
-      publication.id,
       'circuit_journal',
     );
     const preservedEndpoint = await findSourceEndpointBySourceAndConfigKey(
@@ -178,16 +164,9 @@ test('persisted Source policy governs new endpoints and failure rolls back the w
   await withMigratedDatabase(async (database) => {
     const original = await fixtureDocument();
     await bootstrapPublicationTree(database, original);
-    const publication = await findPublicationBySlug(
-      database,
-      original.publication.slug,
-    );
+    const publication = await readPublicationSettings(database);
     assert.ok(publication);
-    const source = await findSourceByPublicationAndConfigKey(
-      database,
-      publication.id,
-      'circuit_journal',
-    );
+    const source = await findSourceByConfigKey(database, 'circuit_journal');
     assert.ok(source);
     await database.query(
       'DELETE FROM source_approved_domain_rules WHERE source_id = $1',
@@ -227,11 +206,7 @@ test('persisted Source policy governs new endpoints and failure rolls back the w
       /hostname_outside_effective_domain_policy/u,
     );
     assert.equal(
-      await findSourceByPublicationAndConfigKey(
-        database,
-        publication.id,
-        'early_source',
-      ),
+      await findSourceByConfigKey(database, 'early_source'),
       undefined,
     );
     assert.equal(
@@ -392,7 +367,7 @@ async function withMigratedDatabase(
 
 async function cardinalities(database: Database): Promise<number[]> {
   const tables = [
-    'publications',
+    'publication_settings',
     'sources',
     'source_endpoints',
     'source_approved_domain_rules',

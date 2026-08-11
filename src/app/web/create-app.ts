@@ -19,7 +19,7 @@ export interface ReadinessDependency {
 }
 
 export interface PublicFeedDependency {
-  read(publicationSlug: string): Promise<PublicFeed | undefined>;
+  read(): Promise<PublicFeed | undefined>;
 }
 
 export interface WebDependencies {
@@ -52,34 +52,29 @@ export function createWebApp(dependencies: WebDependencies): Express {
     response.status(503).json({ status: 'not_ready', role: 'web' });
   });
 
-  app.get(
-    '/api/publications/:publicationSlug/feed',
-    async (request, response) => {
-      response.set('Cache-Control', 'no-store');
-      try {
-        const feed = await dependencies.publicFeed.read(
-          request.params.publicationSlug,
-        );
-        if (feed === undefined) {
-          response.status(404).json({ error: 'not_found' });
-          return;
-        }
-        response.status(200).json({
-          publication: feed.publication,
-          items: feed.items.map((item) => ({
-            articleId: item.articleId,
-            effectiveFeedDate: item.effectiveFeedDate.toISOString(),
-            feedDateSource: item.feedDateSource,
-            headline: item.headline,
-            sourceName: item.sourceName,
-            originalUrl: item.originalUrl,
-          })),
-        });
-      } catch {
-        response.status(503).json({ error: 'service_unavailable' });
+  app.get('/api/feed', async (_request, response) => {
+    response.set('Cache-Control', 'no-store');
+    try {
+      const feed = await dependencies.publicFeed.read();
+      if (feed === undefined) {
+        response.status(404).json({ error: 'not_found' });
+        return;
       }
-    },
-  );
+      response.status(200).json({
+        publication: { name: feed.publication.name },
+        items: feed.items.map((item) => ({
+          articleId: item.articleId,
+          effectiveFeedDate: item.effectiveFeedDate.toISOString(),
+          feedDateSource: item.feedDateSource,
+          headline: item.headline,
+          sourceName: item.sourceName,
+          originalUrl: item.originalUrl,
+        })),
+      });
+    } catch {
+      response.status(503).json({ error: 'service_unavailable' });
+    }
+  });
 
   app.get('/public-feed.css', (_request, response) => {
     response

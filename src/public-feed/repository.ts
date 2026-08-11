@@ -6,8 +6,6 @@ const UUID_PATTERN =
 export type PublicFeedDateSource = 'published_at' | 'first_seen_at';
 
 export interface PublicFeedPublication {
-  readonly id: string;
-  readonly slug: string;
   readonly name: string;
 }
 
@@ -38,8 +36,6 @@ export class PublicFeedRepositoryError extends Error {
 }
 
 interface PublicFeedRow {
-  readonly publication_id: unknown;
-  readonly publication_slug: unknown;
   readonly publication_name: unknown;
   readonly article_id: unknown;
   readonly effective_feed_date: unknown;
@@ -56,10 +52,9 @@ interface MappedPublicFeedRow {
 
 const PUBLIC_FEED_QUERY = `
   WITH public_publication AS (
-    SELECT id, slug, name
-    FROM publications
-    WHERE slug = $1
-      AND public_status = 'public'
+    SELECT name
+    FROM publication_settings
+    WHERE public_status = 'public'
   ),
   eligible_items AS (
     SELECT
@@ -85,11 +80,9 @@ const PUBLIC_FEED_QUERY = `
           article.id ASC
       ) AS feed_position
     FROM public_publication AS publication
-    JOIN articles AS article
-      ON article.publication_id = publication.id
+    CROSS JOIN articles AS article
     JOIN sources AS source
       ON source.id = article.source_id
-     AND source.publication_id = article.publication_id
     WHERE source.approval_state = 'approved'
       AND source.lifecycle_state = 'active'
       AND article.visibility_state = 'visible'
@@ -103,8 +96,6 @@ const PUBLIC_FEED_QUERY = `
     LIMIT 100
   )
   SELECT
-    publication.id AS publication_id,
-    publication.slug AS publication_slug,
     publication.name AS publication_name,
     item.article_id,
     item.effective_feed_date,
@@ -118,12 +109,9 @@ const PUBLIC_FEED_QUERY = `
 
 export async function readPublicFeed(
   executor: QueryExecutor,
-  publicationSlug: string,
 ): Promise<PublicFeed | undefined> {
   try {
-    const result = await executor.query<PublicFeedRow>(PUBLIC_FEED_QUERY, [
-      publicationSlug,
-    ]);
+    const result = await executor.query<PublicFeedRow>(PUBLIC_FEED_QUERY);
     if (!Array.isArray(result.rows)) {
       throw new PublicFeedRepositoryError('invalid_row');
     }
@@ -162,8 +150,6 @@ function mapPublicFeedRow(row: PublicFeedRow): MappedPublicFeedRow {
     if (row === null || typeof row !== 'object') throw new Error();
     return Object.freeze({
       publication: Object.freeze({
-        id: requiredUuid(row.publication_id),
-        slug: requiredTrimmedString(row.publication_slug),
         name: requiredTrimmedString(row.publication_name),
       }),
       item: mapPublicFeedItem(row),
@@ -202,9 +188,7 @@ function samePublication(
   left: PublicFeedPublication,
   right: PublicFeedPublication,
 ): boolean {
-  return (
-    left.id === right.id && left.slug === right.slug && left.name === right.name
-  );
+  return left.name === right.name;
 }
 
 function requiredUuid(value: unknown): string {

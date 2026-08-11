@@ -6,23 +6,26 @@ import { startWebServer, type WebServer } from '../../src/app/web/server.ts';
 import type { PublicFeed } from '../../src/public-feed/repository.ts';
 
 const publication = Object.freeze({
-  id: '10000000-0000-4000-8000-000000000001',
-  slug: 'example-publication',
   name: 'Example Publication',
+});
+const publicationWithLegacyIdentity = Object.freeze({
+  ...publication,
+  id: '10000000-0000-4000-8000-000000000001',
+  slug: 'must-not-leak',
 });
 
 describe('Public feed HTTP endpoint', () => {
   let webServer: WebServer;
   let outcome: PublicFeed | undefined | Error;
-  const requestedSlugs: string[] = [];
+  let publicFeedReads = 0;
 
   before(async () => {
     webServer = await startWebServer(
       createWebApp({
         readiness: { checkReady: async () => true },
         publicFeed: {
-          async read(slug) {
-            requestedSlugs.push(slug);
+          async read() {
+            publicFeedReads += 1;
             if (outcome instanceof Error) throw outcome;
             return outcome;
           },
@@ -35,8 +38,9 @@ describe('Public feed HTTP endpoint', () => {
   after(async () => webServer.close());
 
   it('returns the exact minimal feed shape with an explicit ISO date', async () => {
+    const readsBefore = publicFeedReads;
     outcome = Object.freeze({
-      publication,
+      publication: publicationWithLegacyIdentity,
       items: Object.freeze([
         Object.freeze({
           articleId: '20000000-0000-4000-8000-000000000001',
@@ -52,7 +56,7 @@ describe('Public feed HTTP endpoint', () => {
       ]),
     });
 
-    const response = await requestFeed(publication.slug);
+    const response = await requestFeed();
     assert.equal(response.status, 200);
     assert.match(
       response.headers.get('content-type') ?? '',
@@ -72,20 +76,20 @@ describe('Public feed HTTP endpoint', () => {
         },
       ],
     });
-    assert.equal(requestedSlugs.at(-1), publication.slug);
+    assert.equal(publicFeedReads, readsBefore + 1);
   });
 
   it('returns a public empty feed as 200', async () => {
     outcome = Object.freeze({ publication, items: Object.freeze([]) });
-    const response = await requestFeed(publication.slug);
+    const response = await requestFeed();
     assert.equal(response.status, 200);
     assert.deepEqual(await response.json(), { publication, items: [] });
   });
 
   it('uses one indistinguishable 404 for every undefined reader result', async () => {
     outcome = undefined;
-    for (const slug of ['private-publication', 'missing-publication']) {
-      const response = await requestFeed(slug);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const response = await requestFeed();
       assert.equal(response.status, 404);
       assert.equal(response.headers.get('cache-control'), 'no-store');
       assert.deepEqual(await response.json(), { error: 'not_found' });
@@ -95,7 +99,7 @@ describe('Public feed HTTP endpoint', () => {
   it('bounds and redacts reader failures', async () => {
     const secret = 'postgresql://user:SQL_SECRET@database/private';
     outcome = new Error(`SELECT * FROM articles failed at ${secret}`);
-    const response = await requestFeed(publication.slug);
+    const response = await requestFeed();
     assert.equal(response.status, 503);
     assert.equal(response.headers.get('cache-control'), 'no-store');
     const body = JSON.stringify(await response.json());
@@ -103,9 +107,17 @@ describe('Public feed HTTP endpoint', () => {
     assert.doesNotMatch(body, /SQL_SECRET|SELECT \*|articles/u);
   });
 
-  function requestFeed(slug: string): Promise<Response> {
-    return fetch(
-      `http://${webServer.host}:${webServer.port}/api/publications/${slug}/feed`,
+  it('does not retain the obsolete slug-addressed API route', async () => {
+    outcome = Object.freeze({ publication, items: Object.freeze([]) });
+    const readsBefore = publicFeedReads;
+    const response = await fetch(
+      `http://${webServer.host}:${webServer.port}/api/publications/obsolete/feed`,
     );
+    assert.equal(response.status, 404);
+    assert.equal(publicFeedReads, readsBefore);
+  });
+
+  function requestFeed(): Promise<Response> {
+    return fetch(`http://${webServer.host}:${webServer.port}/api/feed`);
   }
 });

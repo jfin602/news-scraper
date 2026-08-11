@@ -1,7 +1,6 @@
 {
   "publication": {
     "name": "Technology Bulletin",
-    "slug": "technology-bulletin",
     "activeForCollection": true,
     "publicStatus": "public"
   },

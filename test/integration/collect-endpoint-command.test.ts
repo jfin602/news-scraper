@@ -10,11 +10,11 @@ import type { Database } from '../../src/database/database.ts';
 import type { EndpointConfigurationAggregate } from '../../src/sources/repository.ts';
 
 const execFileAsync = promisify(execFile);
-const KEYS = ['generic-news', 'generic_source', 'main_feed'] as const;
+const KEYS = ['generic_source', 'main_feed'] as const;
 
 describe('manual Worker endpoint collection command', () => {
   it('rejects missing and extra arguments before creating database dependencies', async () => {
-    for (const args of [KEYS.slice(0, 2), [...KEYS, 'extra']]) {
+    for (const args of [KEYS.slice(0, 1), ['legacy-slug', ...KEYS]]) {
       const stderr = sink();
       let databaseCreated = false;
       const exitCode = await runCollectEndpointCommand({
@@ -36,7 +36,7 @@ describe('manual Worker endpoint collection command', () => {
           role: 'worker',
           reason: 'invalid_arguments',
           usage:
-            'collect:endpoint -- <publication-slug> <source-config-key> <endpoint-config-key>',
+            'collect:endpoint -- <source-config-key> <endpoint-config-key>',
         },
       ]);
     }
@@ -97,9 +97,8 @@ describe('manual Worker endpoint collection command', () => {
       {
         event: 'endpoint_collection.result',
         role: 'worker',
-        publicationSlug: KEYS[0],
-        sourceConfigKey: KEYS[1],
-        endpointConfigKey: KEYS[2],
+        sourceConfigKey: KEYS[0],
+        endpointConfigKey: KEYS[1],
         status: 'blocked',
         reason: 'endpoint_not_found',
       },
@@ -116,7 +115,13 @@ describe('manual Worker endpoint collection command', () => {
       stdout: output,
       dependencies: {
         createDatabase: () => fake.database,
-        async findEndpointConfiguration() {
+        async findEndpointConfiguration(
+          _database,
+          sourceConfigKey,
+          endpointConfigKey,
+        ) {
+          assert.equal(sourceConfigKey, KEYS[0]);
+          assert.equal(endpointConfigKey, KEYS[1]);
           return configuration;
         },
         async execute(_configuration, dependencies) {
@@ -141,10 +146,8 @@ describe('manual Worker endpoint collection command', () => {
     assert.deepEqual(output.events()[0], {
       event: 'endpoint_collection.result',
       role: 'worker',
-      publicationSlug: KEYS[0],
-      sourceConfigKey: KEYS[1],
-      endpointConfigKey: KEYS[2],
-      publicationId: configuration.publication.id,
+      sourceConfigKey: KEYS[0],
+      endpointConfigKey: KEYS[1],
       sourceId: configuration.source.id,
       endpointId: configuration.endpoint.id,
       status: 'succeeded',
@@ -175,7 +178,6 @@ describe('manual Worker endpoint collection command', () => {
           value: '2026-08-10T12:00:00.000Z',
           fallback: 'first_seen',
         },
-        publicationId: configuration.publication.id,
         sourceId: configuration.source.id,
         endpointId: configuration.endpoint.id,
         collectionRunId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
@@ -418,7 +420,6 @@ function candidate(index: number): ArticleCandidate {
     }),
     updatedAt: Object.freeze({ status: 'missing' }),
     provenance: Object.freeze({
-      publicationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       sourceId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
       sourceEndpointId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
       collectionRunId: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd',
@@ -430,9 +431,7 @@ function aggregate(): EndpointConfigurationAggregate {
   const timestamp = new Date('2026-08-08T00:00:00.000Z');
   return {
     publication: {
-      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       name: 'Generic news',
-      slug: KEYS[0],
       activeForCollection: true,
       publicStatus: 'private',
       createdAt: timestamp,
@@ -440,8 +439,7 @@ function aggregate(): EndpointConfigurationAggregate {
     },
     source: {
       id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-      publicationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-      configKey: KEYS[1],
+      configKey: KEYS[0],
       displayName: 'Generic source',
       siteUrl: { value: 'https://example.test/', hostname: 'example.test' },
       approvalState: 'approved',
@@ -454,7 +452,7 @@ function aggregate(): EndpointConfigurationAggregate {
     endpoint: {
       id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
       sourceId: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-      configKey: KEYS[2],
+      configKey: KEYS[1],
       endpointUrl: {
         value: 'https://feeds.example.test/feed.xml',
         hostname: 'feeds.example.test',

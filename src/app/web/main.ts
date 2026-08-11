@@ -18,8 +18,7 @@ async function main(): Promise<void> {
       createWebApp({
         readiness: dependency,
         publicFeed: {
-          read: (publicationSlug) =>
-            readPublicFeed(applicationDatabase, publicationSlug),
+          read: () => readPublicFeed(applicationDatabase),
         },
       }),
       config,

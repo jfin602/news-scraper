@@ -1,7 +1,7 @@
 import { isIP } from 'node:net';
 import { domainToASCII } from 'node:url';
 
-import { ConfigurationValidationError } from '../publications/configuration.ts';
+import { ConfigurationValidationError } from '../publication/configuration.ts';
 
 export const APPROVAL_STATES = ['approved', 'unapproved'] as const;
 export const LIFECYCLE_STATES = ['active', 'archived'] as const;

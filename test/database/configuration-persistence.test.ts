@@ -4,13 +4,13 @@ import { test } from 'node:test';
 import { createDatabase } from '../../src/database/database.ts';
 import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
-  findPublicationBySlug,
-  insertPublication,
-} from '../../src/publications/repository.ts';
-import { ConfigurationValidationError } from '../../src/publications/configuration.ts';
+  insertPublicationSettings,
+  readPublicationSettings,
+} from '../../src/publication/repository.ts';
+import { ConfigurationValidationError } from '../../src/publication/configuration.ts';
 import {
   findEndpointConfigurationByKeys,
-  findSourceByPublicationAndConfigKey,
+  findSourceByConfigKey,
   findSourceEndpointBySourceAndConfigKey,
   insertSource,
   insertSourceEndpoint,
@@ -19,17 +19,15 @@ import {
 } from '../../src/sources/repository.ts';
 import { withDisposableDatabase } from '../support/database/disposable-database.ts';
 
-test('configuration repositories round-trip a complete scoped endpoint aggregate', async () => {
+test('configuration repositories round-trip the singleton endpoint aggregate', async () => {
   await withMigratedDatabase(async (database) => {
-    const publication = await insertPublication(database, {
+    const publication = await insertPublicationSettings(database, {
       name: 'General news',
-      slug: 'general-news',
       activeForCollection: true,
       publicStatus: 'private',
     });
     const source = await insertSource(
       database,
-      publication.id,
       sourceInput({
         approvalState: 'unapproved',
         lifecycleState: 'archived',
@@ -51,16 +49,9 @@ test('configuration repositories round-trip a complete scoped endpoint aggregate
       }),
     );
 
+    assert.deepEqual(await readPublicationSettings(database), publication);
     assert.deepEqual(
-      await findPublicationBySlug(database, publication.slug),
-      publication,
-    );
-    assert.deepEqual(
-      await findSourceByPublicationAndConfigKey(
-        database,
-        publication.id,
-        source.configKey,
-      ),
+      await findSourceByConfigKey(database, source.configKey),
       source,
     );
     assert.deepEqual(
@@ -82,7 +73,6 @@ test('configuration repositories round-trip a complete scoped endpoint aggregate
     assert.deepEqual(
       await findEndpointConfigurationByKeys(
         database,
-        'general-news',
         'primary_source',
         'main_feed',
       ),
@@ -102,25 +92,16 @@ test('configuration repositories round-trip a complete scoped endpoint aggregate
   });
 });
 
-test('stable configuration keys remain isolated by their owning Publication and Source', async () => {
+test('Source keys are installation-wide while endpoint keys remain Source-scoped', async () => {
   await withMigratedDatabase(async (database) => {
-    const firstPublication = await insertPublication(
-      database,
-      publicationInput('first'),
-    );
-    const secondPublication = await insertPublication(
-      database,
-      publicationInput('second'),
-    );
-    const firstSource = await insertSource(
-      database,
-      firstPublication.id,
-      sourceInput(),
-    );
+    await insertPublicationSettings(database, publicationInput('News desk'));
+    const firstSource = await insertSource(database, sourceInput());
     const secondSource = await insertSource(
       database,
-      secondPublication.id,
-      sourceInput(),
+      sourceInput({
+        configKey: 'secondary_source',
+        displayName: 'Secondary source',
+      }),
     );
     const firstEndpoint = await insertSourceEndpoint(
       database,
@@ -130,27 +111,15 @@ test('stable configuration keys remain isolated by their owning Publication and 
     const secondEndpoint = await insertSourceEndpoint(
       database,
       secondSource.id,
-      endpointInput({ endpointUrl: 'https://feeds.example.com/second.xml' }),
+      endpointInput(),
     );
 
     assert.equal(
-      (
-        await findSourceByPublicationAndConfigKey(
-          database,
-          firstPublication.id,
-          'primary_source',
-        )
-      )?.id,
+      (await findSourceByConfigKey(database, 'primary_source'))?.id,
       firstSource.id,
     );
     assert.equal(
-      (
-        await findSourceByPublicationAndConfigKey(
-          database,
-          secondPublication.id,
-          'primary_source',
-        )
-      )?.id,
+      (await findSourceByConfigKey(database, 'secondary_source'))?.id,
       secondSource.id,
     );
     assert.equal(
@@ -176,43 +145,39 @@ test('stable configuration keys remain isolated by their owning Publication and 
     assert.equal(
       await findEndpointConfigurationByKeys(
         database,
-        'missing',
         'primary_source',
-        'main_feed',
+        'missing_endpoint',
       ),
       undefined,
     );
     assert.equal(
       await findEndpointConfigurationByKeys(
         database,
-        'first',
         'missing_source',
         'main_feed',
       ),
       undefined,
     );
+    await assert.rejects(insertSource(database, sourceInput()));
   });
 });
 
 test('repository writes validate policy before insertion while constraints remain authoritative', async () => {
   await withMigratedDatabase(async (database) => {
     await assert.rejects(
-      insertPublication(database, {
+      insertPublicationSettings(database, {
         ...publicationInput('invalid'),
-        slug: 'Invalid',
+        name: ' ',
       }),
       ConfigurationValidationError,
     );
     assert.equal(
-      (await database.query('SELECT 1 FROM publications')).rowCount,
+      (await database.query('SELECT 1 FROM publication_settings')).rowCount,
       0,
     );
 
-    const publication = await insertPublication(
-      database,
-      publicationInput('valid'),
-    );
-    const source = await insertSource(database, publication.id, sourceInput());
+    await insertPublicationSettings(database, publicationInput('Valid'));
+    const source = await insertSource(database, sourceInput());
     await assert.rejects(
       insertSourceEndpoint(
         database,
@@ -246,13 +211,6 @@ test('repository writes validate policy before insertion while constraints remai
     assert.deepEqual(await loadEndpointDomainRules(database, endpoint.id), []);
     await assert.rejects(
       insertSourceEndpoint(database, source.id, endpointInput()),
-    );
-    await assert.rejects(
-      insertSource(
-        database,
-        '00000000-0000-0000-0000-000000000099',
-        sourceInput({ configKey: 'orphan_source' }),
-      ),
     );
     await assert.rejects(
       insertSourceEndpoint(
@@ -296,22 +254,18 @@ test('caller-owned transactions roll configuration trees back without independen
     const expectedFailure = new Error('synthetic failure');
     await assert.rejects(
       database.transaction(async (transaction) => {
-        const publication = await insertPublication(
+        await insertPublicationSettings(
           transaction,
           publicationInput('rolled-back'),
         );
-        const source = await insertSource(
-          transaction,
-          publication.id,
-          sourceInput(),
-        );
+        const source = await insertSource(transaction, sourceInput());
         await insertSourceEndpoint(transaction, source.id, endpointInput());
         throw expectedFailure;
       }),
       expectedFailure,
     );
     assert.equal(
-      (await database.query('SELECT 1 FROM publications')).rowCount,
+      (await database.query('SELECT 1 FROM publication_settings')).rowCount,
       0,
     );
     assert.equal((await database.query('SELECT 1 FROM sources')).rowCount, 0);
@@ -346,10 +300,9 @@ async function withMigratedDatabase(
   });
 }
 
-function publicationInput(slug: string) {
+function publicationInput(name: string) {
   return {
-    name: `Publication ${slug}`,
-    slug,
+    name: `Publication ${name}`,
     activeForCollection: true,
     publicStatus: 'public',
   } as const;

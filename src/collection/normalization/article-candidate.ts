@@ -13,7 +13,6 @@ export const ARTICLE_CANDIDATE_LIMITS = Object.freeze({
 });
 
 export interface ArticleCandidateProvenance {
-  readonly publicationId: string;
   readonly sourceId: string;
   readonly sourceEndpointId: string;
   readonly collectionRunId: string;

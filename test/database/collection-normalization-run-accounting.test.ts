@@ -18,7 +18,7 @@ import type { FeedParser } from '../../src/collection/parsers/parser.ts';
 import { findCollectionRunById } from '../../src/collection/runs/repository.ts';
 import { createDatabase } from '../../src/database/database.ts';
 import { migrateDatabase } from '../../src/database/migrations.ts';
-import { insertPublication } from '../../src/publications/repository.ts';
+import { insertPublicationSettings } from '../../src/publication/repository.ts';
 import {
   findEndpointConfigurationByKeys,
   insertSource,
@@ -61,7 +61,6 @@ test('canonical normalization persists truthful accounting and real run provenan
         ['succeeded', 3, 2, 1, 1, 1],
       );
       assert.deepEqual(successful.candidates?.[0]?.provenance, {
-        publicationId: configuration.publication.id,
         sourceId: configuration.source.id,
         sourceEndpointId: configuration.endpoint.id,
         collectionRunId: successful.collectionRunId,
@@ -229,13 +228,12 @@ function parser(
 async function createConfiguration(
   database: ReturnType<typeof createDatabase>,
 ) {
-  const publication = await insertPublication(database, {
+  await insertPublicationSettings(database, {
     name: 'Normalization accounting',
-    slug: 'normalization-accounting',
     activeForCollection: true,
     publicStatus: 'private',
   });
-  const source = await insertSource(database, publication.id, {
+  const source = await insertSource(database, {
     configKey: 'accounting_source',
     displayName: 'Accounting Source',
     siteUrl: 'https://feeds.example.test/',
@@ -255,7 +253,6 @@ async function createConfiguration(
   });
   const configuration = await findEndpointConfigurationByKeys(
     database,
-    publication.slug,
     source.configKey,
     'accounting_feed',
   );

@@ -15,7 +15,7 @@ import {
   normalizePublicationConfiguration,
   type PublicationConfiguration,
 } from './configuration.ts';
-import { createPublicationIfAbsent } from './repository.ts';
+import { createPublicationSettingsIfAbsent } from './repository.ts';
 
 export interface BootstrapSourceConfiguration extends SourceConfiguration {
   readonly endpoints: readonly SourceEndpointConfiguration[];
@@ -66,7 +66,7 @@ export function normalizeBootstrapDocument(
   const publicationInput = record(document.publication, 'publication');
   exactKeys(
     publicationInput,
-    ['name', 'slug', 'activeForCollection', 'publicStatus'],
+    ['name', 'activeForCollection', 'publicStatus'],
     'publication',
   );
   const publication = normalizePublicationConfiguration(publicationInput);
@@ -137,7 +137,7 @@ export async function bootstrapPublicationTree(
   document: Readonly<BootstrapDocument>,
 ): Promise<Readonly<BootstrapResult>> {
   return database.transaction(async (transaction) => {
-    const publication = await createPublicationIfAbsent(
+    const publication = await createPublicationSettingsIfAbsent(
       transaction,
       document.publication,
     );
@@ -146,7 +146,6 @@ export async function bootstrapPublicationTree(
     for (const sourceInput of document.sources) {
       const source = await createSourceIfAbsent(
         transaction,
-        publication.value.id,
         sourcePersistenceInput(sourceInput),
       );
       if (source.created) sourcesCreated += 1;

@@ -12,9 +12,9 @@ import {
   BootstrapDocumentError,
   bootstrapPublicationTree,
   parseBootstrapDocument,
-} from '../src/publications/bootstrap.ts';
-import { ConfigurationValidationError } from '../src/publications/configuration.ts';
-import { ConfigurationPersistenceError } from '../src/publications/repository.ts';
+} from '../src/publication/bootstrap.ts';
+import { ConfigurationValidationError } from '../src/publication/configuration.ts';
+import { ConfigurationPersistenceError } from '../src/publication/repository.ts';
 
 if (process.argv.length !== 3) {
   console.error('Usage: bootstrap-database.ts <bootstrap.json>');

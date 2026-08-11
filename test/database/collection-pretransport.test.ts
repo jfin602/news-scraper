@@ -12,7 +12,7 @@ import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   bootstrapPublicationTree,
   parseBootstrapDocument,
-} from '../../src/publications/bootstrap.ts';
+} from '../../src/publication/bootstrap.ts';
 import {
   findEndpointConfigurationByKeys,
   type EndpointConfigurationAggregate,
@@ -31,7 +31,6 @@ test('persisted aggregate composes with real endpoint locking and controlled out
       await bootstrapPublicationTree(actorA, syntheticBootstrap());
       const configuration = await findEndpointConfigurationByKeys(
         actorA,
-        'generic-pretransport-news',
         'synthetic_source',
         'main_feed',
       );
@@ -193,7 +192,6 @@ function syntheticBootstrap() {
     JSON.stringify({
       publication: {
         name: 'Generic pretransport news',
-        slug: 'generic-pretransport-news',
         activeForCollection: true,
         publicStatus: 'private',
       },

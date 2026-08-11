@@ -414,9 +414,7 @@ function configuration(path: string): EndpointConfigurationAggregate {
   const timestamp = new Date('2026-08-08T00:00:00.000Z');
   return {
     publication: {
-      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       name: 'Generic news',
-      slug: 'generic-news',
       activeForCollection: true,
       publicStatus: 'private',
       createdAt: timestamp,
@@ -424,7 +422,6 @@ function configuration(path: string): EndpointConfigurationAggregate {
     },
     source: {
       id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
-      publicationId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       configKey: 'generic_source',
       displayName: 'Generic source',
       siteUrl: { value: 'https://example.test/', hostname: 'example.test' },

@@ -6,8 +6,8 @@ import {
   BootstrapDocumentError,
   normalizeBootstrapDocument,
   parseBootstrapDocument,
-} from '../../src/publications/bootstrap.ts';
-import { ConfigurationValidationError } from '../../src/publications/configuration.ts';
+} from '../../src/publication/bootstrap.ts';
+import { ConfigurationValidationError } from '../../src/publication/configuration.ts';
 
 const fixtureUrl = new URL(
   '../fixtures/generic-bootstrap.json',
@@ -17,7 +17,7 @@ const fixtureUrl = new URL(
 test('generic bootstrap JSON normalizes one complete Publication tree', async () => {
   const document = parseBootstrapDocument(await readFile(fixtureUrl, 'utf8'));
 
-  assert.equal(document.publication.slug, 'technology-bulletin');
+  assert.equal(document.publication.name, 'Technology Bulletin');
   assert.equal(document.sources.length, 2);
   assert.equal(document.sources[0]?.siteUrl.hostname, 'www.circuit.example');
   assert.equal(
@@ -65,13 +65,15 @@ test('bootstrap validation rejects unknown fields and invalid normalized values'
     publication: Record<string, unknown>;
     sources: Array<Record<string, unknown>>;
   };
-  input.publication.futureBranding = {};
+  input.publication.slug = 'obsolete-publication-selector';
   assert.throws(
     () => normalizeBootstrapDocument(input),
-    BootstrapDocumentError,
+    (error: unknown) =>
+      error instanceof BootstrapDocumentError &&
+      error.reason === 'publication_unknown_field',
   );
 
-  delete input.publication.futureBranding;
+  delete input.publication.slug;
   input.sources[0]!.approvalState = 'trusted';
   assert.throws(
     () => normalizeBootstrapDocument(input),

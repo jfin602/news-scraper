@@ -20,8 +20,6 @@ import { migrateDatabase } from '../../src/database/migrations.ts';
 import { withDisposableDatabase } from '../support/database/disposable-database.ts';
 
 interface Fixture {
-  readonly publicationOne: string;
-  readonly publicationTwo: string;
   readonly sourceOne: string;
   readonly sourceTwo: string;
   readonly sourceThree: string;
@@ -386,7 +384,6 @@ test('identity remains Source-scoped and provenance mismatches mutate nothing', 
         originalUrl: canonicalUrl,
         canonicalIdentityUrl: canonicalUrl,
         provenance: {
-          publicationId: fixture.publicationOne,
           sourceId: fixture.sourceTwo,
           sourceEndpointId: fixture.endpointTwo,
           collectionRunId: fixture.runTwo,
@@ -401,25 +398,16 @@ test('identity remains Source-scoped and provenance mismatches mutate nothing', 
     const before = await cardinality(inspector);
     for (const provenance of [
       {
-        publicationId: fixture.publicationTwo,
-        sourceId: fixture.sourceOne,
-        sourceEndpointId: fixture.endpointOne,
-        collectionRunId: fixture.runOne,
-      },
-      {
-        publicationId: fixture.publicationOne,
         sourceId: fixture.sourceOne,
         sourceEndpointId: fixture.endpointTwo,
         collectionRunId: fixture.runTwo,
       },
       {
-        publicationId: fixture.publicationOne,
         sourceId: fixture.sourceOne,
         sourceEndpointId: fixture.endpointOne,
         collectionRunId: fixture.runThree,
       },
       {
-        publicationId: fixture.publicationOne,
         sourceId: fixture.sourceOne,
         sourceEndpointId: fixture.endpointOne,
         collectionRunId: randomUUID(),
@@ -852,8 +840,6 @@ async function withPersistenceDatabase(
 
 async function createFixture(client: Client): Promise<Fixture> {
   const fixture: Fixture = {
-    publicationOne: randomUUID(),
-    publicationTwo: randomUUID(),
     sourceOne: randomUUID(),
     sourceTwo: randomUUID(),
     sourceThree: randomUUID(),
@@ -865,26 +851,14 @@ async function createFixture(client: Client): Promise<Fixture> {
     runThree: randomUUID(),
   };
   await client.query(
-    `INSERT INTO publications (id, name, slug, active_for_collection, public_status)
-     VALUES ($1, 'Publication One', 'publication-one', true, 'private'),
-            ($2, 'Publication Two', 'publication-two', true, 'private')`,
-    [fixture.publicationOne, fixture.publicationTwo],
-  );
-  await client.query(
     `INSERT INTO sources (
-       id, publication_id, config_key, display_name, site_url,
+       id, config_key, display_name, site_url,
        approval_state, lifecycle_state, operational_state
      ) VALUES
-       ($1, $4, 'source_one', 'Source One', 'https://one.example', 'approved', 'active', 'enabled'),
-       ($2, $4, 'source_two', 'Source Two', 'https://two.example', 'approved', 'active', 'enabled'),
-       ($3, $5, 'source_three', 'Source Three', 'https://three.example', 'approved', 'active', 'enabled')`,
-    [
-      fixture.sourceOne,
-      fixture.sourceTwo,
-      fixture.sourceThree,
-      fixture.publicationOne,
-      fixture.publicationTwo,
-    ],
+       ($1, 'source_one', 'Source One', 'https://one.example', 'approved', 'active', 'enabled'),
+       ($2, 'source_two', 'Source Two', 'https://two.example', 'approved', 'active', 'enabled'),
+       ($3, 'source_three', 'Source Three', 'https://three.example', 'approved', 'active', 'enabled')`,
+    [fixture.sourceOne, fixture.sourceTwo, fixture.sourceThree],
   );
   await client.query(
     `INSERT INTO source_endpoints (
@@ -963,7 +937,6 @@ function candidate(
     provenance:
       overrides.provenance ??
       Object.freeze({
-        publicationId: fixture.publicationOne,
         sourceId: fixture.sourceOne,
         sourceEndpointId: fixture.endpointOne,
         collectionRunId: fixture.runOne,
@@ -989,7 +962,7 @@ async function cardinality(
 
 async function articleState(client: Client): Promise<readonly unknown[]> {
   const result = await client.query(
-    `SELECT id, publication_id, source_id, external_id, original_url,
+    `SELECT id, source_id, external_id, original_url,
             canonical_identity_url, display_title, normalized_title, author,
             summary, image_url, language, published_at_status, published_at,
             source_updated_at_status, source_updated_at, visibility_state,
@@ -1008,19 +981,12 @@ async function seedStrongArticle(
 ): Promise<void> {
   await client.query(
     `INSERT INTO articles (
-       id, publication_id, source_id, external_id, original_url,
+       id, source_id, external_id, original_url,
        canonical_identity_url, display_title, normalized_title,
        published_at_status, source_updated_at_status, first_seen_at, last_seen_at
-     ) VALUES ($1, $2, $3, $4, $5, $5, 'Seeded strong', 'seeded strong',
-               'missing', 'missing', $6, $6)`,
-    [
-      randomUUID(),
-      fixture.publicationOne,
-      fixture.sourceOne,
-      externalId,
-      canonicalUrl,
-      OBSERVED_AT,
-    ],
+     ) VALUES ($1, $2, $3, $4, $4, 'Seeded strong', 'seeded strong',
+               'missing', 'missing', $5, $5)`,
+    [randomUUID(), fixture.sourceOne, externalId, canonicalUrl, OBSERVED_AT],
   );
 }
 

@@ -9,7 +9,7 @@ import {
   findCollectionRunById,
   startCollectionRun,
 } from '../../src/collection/runs/repository.ts';
-import { insertPublication } from '../../src/publications/repository.ts';
+import { insertPublicationSettings } from '../../src/publication/repository.ts';
 import {
   insertSource,
   insertSourceEndpoint,
@@ -447,13 +447,12 @@ function processingCounts(run: {
 }
 
 async function createEndpoint(database: ReturnType<typeof createDatabase>) {
-  const publication = await insertPublication(database, {
+  await insertPublicationSettings(database, {
     name: 'Collection run publication',
-    slug: 'collection-run-publication',
     activeForCollection: true,
     publicStatus: 'private',
   });
-  const source = await insertSource(database, publication.id, {
+  const source = await insertSource(database, {
     configKey: 'collection_run_source',
     displayName: 'Collection Run Source',
     siteUrl: 'https://www.example.com/',

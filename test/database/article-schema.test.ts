@@ -8,8 +8,6 @@ import { migrateDatabase } from '../../src/database/migrations.ts';
 import { withDisposableDatabase } from '../support/database/disposable-database.ts';
 
 interface Fixture {
-  publicationOne: string;
-  publicationTwo: string;
   sourceOne: string;
   sourceTwo: string;
   sourceThree: string;
@@ -78,15 +76,100 @@ test('article visibility accepts only canonical states', async () => {
   });
 });
 
+test('article metadata shape and length constraints remain database-enforced', async () => {
+  await withArticleDatabase(async (client, fixture) => {
+    const articleId = await insertArticle(client, fixture);
+    const maximumValues = {
+      external_id: 'e'.repeat(2_048),
+      original_url: 'o'.repeat(8_192),
+      canonical_identity_url: 'c'.repeat(8_192),
+      display_title: 'd'.repeat(2_048),
+      normalized_title: 'n'.repeat(2_048),
+      author: 'a'.repeat(1_024),
+      summary: 's'.repeat(32_768),
+      image_url: 'i'.repeat(8_192),
+      language: 'l'.repeat(128),
+    } as const;
+
+    await client.query(
+      `UPDATE articles
+       SET external_id = $2,
+           original_url = $3,
+           canonical_identity_url = $4,
+           display_title = $5,
+           normalized_title = $6,
+           author = $7,
+           summary = $8,
+           image_url = $9,
+           language = $10
+       WHERE id = $1`,
+      [articleId, ...Object.values(maximumValues)],
+    );
+    const lengths = await client.query<Record<string, number>>(
+      `SELECT char_length(external_id) AS external_id,
+              char_length(original_url) AS original_url,
+              char_length(canonical_identity_url) AS canonical_identity_url,
+              char_length(display_title) AS display_title,
+              char_length(normalized_title) AS normalized_title,
+              char_length(author) AS author,
+              char_length(summary) AS summary,
+              char_length(image_url) AS image_url,
+              char_length(language) AS language
+       FROM articles
+       WHERE id = $1`,
+      [articleId],
+    );
+    assert.deepEqual(lengths.rows, [
+      Object.fromEntries(
+        Object.entries(maximumValues).map(([column, value]) => [
+          column,
+          value.length,
+        ]),
+      ),
+    ]);
+
+    const constraints = [
+      ['external_id', 2_048],
+      ['original_url', 8_192],
+      ['canonical_identity_url', 8_192],
+      ['display_title', 2_048],
+      ['normalized_title', 2_048],
+      ['author', 1_024],
+      ['summary', 32_768],
+      ['image_url', 8_192],
+      ['language', 128],
+    ] as const;
+    for (const [column, maximumLength] of constraints) {
+      await rejects(() =>
+        client.query(`UPDATE articles SET ${column} = $2 WHERE id = $1`, [
+          articleId,
+          'x'.repeat(maximumLength + 1),
+        ]),
+      );
+      await rejects(() =>
+        client.query(`UPDATE articles SET ${column} = $2 WHERE id = $1`, [
+          articleId,
+          ' not-trimmed ',
+        ]),
+      );
+    }
+  });
+});
+
 test('article and observation ownership constraints reject false provenance', async () => {
   await withArticleDatabase(async (client, fixture) => {
     await rejects(() =>
       insertArticle(client, fixture, {
-        publicationId: fixture.publicationTwo,
-        sourceId: fixture.sourceOne,
+        sourceId: randomUUID(),
       }),
     );
     const articleId = await insertArticle(client, fixture);
+    await rejects(() =>
+      insertObservation(client, fixture, {
+        articleId,
+        outcome: 'unsupported',
+      }),
+    );
     for (const outcome of ['created', 'updated', 'unchanged']) {
       await rejects(() => insertObservation(client, fixture, { outcome }));
     }
@@ -107,7 +190,6 @@ test('article and observation ownership constraints reject false provenance', as
       }),
     );
     const otherArticle = await insertArticle(client, fixture, {
-      publicationId: fixture.publicationTwo,
       sourceId: fixture.sourceThree,
       externalId: 'other',
       canonicalUrl: 'https://other.example/article',
@@ -227,8 +309,6 @@ async function withArticleDatabase(
 
 async function createFixture(client: Client): Promise<Fixture> {
   const fixture: Fixture = {
-    publicationOne: randomUUID(),
-    publicationTwo: randomUUID(),
     sourceOne: randomUUID(),
     sourceTwo: randomUUID(),
     sourceThree: randomUUID(),
@@ -240,23 +320,11 @@ async function createFixture(client: Client): Promise<Fixture> {
     runThree: randomUUID(),
   };
   await client.query(
-    `INSERT INTO publications (id, name, slug, active_for_collection, public_status)
-     VALUES ($1, 'Publication One', 'publication-one', true, 'private'),
-            ($2, 'Publication Two', 'publication-two', true, 'private')`,
-    [fixture.publicationOne, fixture.publicationTwo],
-  );
-  await client.query(
-    `INSERT INTO sources (id, publication_id, config_key, display_name, site_url, approval_state, lifecycle_state, operational_state)
-     VALUES ($1, $4, 'source_one', 'Source One', 'https://one.example', 'approved', 'active', 'enabled'),
-            ($2, $4, 'source_two', 'Source Two', 'https://two.example', 'approved', 'active', 'enabled'),
-            ($3, $5, 'source_three', 'Source Three', 'https://three.example', 'approved', 'active', 'enabled')`,
-    [
-      fixture.sourceOne,
-      fixture.sourceTwo,
-      fixture.sourceThree,
-      fixture.publicationOne,
-      fixture.publicationTwo,
-    ],
+    `INSERT INTO sources (id, config_key, display_name, site_url, approval_state, lifecycle_state, operational_state)
+     VALUES ($1, 'source_one', 'Source One', 'https://one.example', 'approved', 'active', 'enabled'),
+            ($2, 'source_two', 'Source Two', 'https://two.example', 'approved', 'active', 'enabled'),
+            ($3, 'source_three', 'Source Three', 'https://three.example', 'approved', 'active', 'enabled')`,
+    [fixture.sourceOne, fixture.sourceTwo, fixture.sourceThree],
   );
   await client.query(
     `INSERT INTO source_endpoints (id, source_id, config_key, endpoint_url, endpoint_type, approval_state, lifecycle_state, operational_state, poll_interval_seconds)
@@ -293,7 +361,6 @@ async function insertArticle(
   client: Client,
   fixture: Fixture,
   overrides: {
-    publicationId?: string;
     sourceId?: string;
     externalId?: string;
     canonicalUrl?: string;
@@ -309,14 +376,13 @@ async function insertArticle(
   const canonicalUrl = overrides.canonicalUrl ?? `https://one.example/${id}`;
   await client.query(
     `INSERT INTO articles (
-       id, publication_id, source_id, external_id, original_url,
+       id, source_id, external_id, original_url,
        canonical_identity_url, display_title, normalized_title,
        published_at_status, published_at, source_updated_at_status,
        source_updated_at, first_seen_at, last_seen_at
-     ) VALUES ($1, $2, $3, $4, $5, $6, 'Display title', 'display title', $7, $8, $9, $10, $11, $12)`,
+     ) VALUES ($1, $2, $3, $4, $5, 'Display title', 'display title', $6, $7, $8, $9, $10, $11)`,
     [
       id,
-      overrides.publicationId ?? fixture.publicationOne,
       overrides.sourceId ?? fixture.sourceOne,
       overrides.externalId ?? null,
       canonicalUrl,
@@ -345,13 +411,12 @@ async function insertObservation(
 ): Promise<void> {
   await client.query(
     `INSERT INTO article_observations (
-       id, publication_id, source_id, source_endpoint_id, collection_run_id,
+       id, source_id, source_endpoint_id, collection_run_id,
        article_id, processing_outcome, observed_external_id,
        observed_canonical_identity_url
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'https://one.example/observed')`,
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'https://one.example/observed')`,
     [
       randomUUID(),
-      fixture.publicationOne,
       fixture.sourceOne,
       options.endpointId ?? fixture.endpointOne,
       options.runId ?? fixture.runOne,

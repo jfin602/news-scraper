@@ -19,49 +19,34 @@ test('serves persisted public Articles through the production reader and HTTP st
     await client.connect();
 
     try {
-      const publicPublication = await insertPublication(
+      const publication = await insertPublicationSettings(
         client,
-        'public-feed-http',
         'Public Feed HTTP',
-        'public',
-      );
-      const emptyPublication = await insertPublication(
-        client,
-        'empty-feed-http',
-        'Empty Feed HTTP',
-        'public',
-      );
-      const privatePublication = await insertPublication(
-        client,
-        'private-feed-http',
-        'Private Feed HTTP',
-        'private',
       );
       const sourceId = randomUUID();
       await client.query(
         `INSERT INTO sources (
-           id, publication_id, config_key, display_name, site_url,
+           id, config_key, display_name, site_url,
            approval_state, lifecycle_state, operational_state
-         ) VALUES ($1, $2, 'http_source', 'HTTP Publisher',
+         ) VALUES ($1, 'http_source', 'HTTP Publisher',
            'https://publisher.example/', 'approved', 'active', 'enabled')`,
-        [sourceId, publicPublication.id],
+        [sourceId],
       );
       const articleId = randomUUID();
       const originalUrl = 'https://publisher.example/canonical-story';
       await client.query(
         `INSERT INTO articles (
-           id, publication_id, source_id, original_url, canonical_identity_url,
+           id, source_id, original_url, canonical_identity_url,
            display_title, normalized_title, published_at_status, published_at,
            source_updated_at_status, source_updated_at, visibility_state,
            first_seen_at, last_seen_at
          ) VALUES (
-           $1, $2, $3, $4, $4, 'Persisted HTTP headline',
-           'persisted http headline', 'parsed', $5, 'missing', NULL, 'visible',
-           $6, $6
+           $1, $2, $3, $3, 'Persisted HTTP headline',
+           'persisted http headline', 'parsed', $4, 'missing', NULL, 'visible',
+           $5, $5
          )`,
         [
           articleId,
-          publicPublication.id,
           sourceId,
           originalUrl,
           new Date('2026-08-10T12:00:00.000Z'),
@@ -73,19 +58,17 @@ test('serves persisted public Articles through the production reader and HTTP st
         createWebApp({
           readiness: { checkReady: async () => true },
           publicFeed: {
-            read: (slug) => readPublicFeed(database, slug),
+            read: () => readPublicFeed(database),
           },
         }),
         { host: '127.0.0.1', port: 0 },
       );
       try {
         const baseUrl = `http://${webServer.host}:${webServer.port}`;
-        const response = await fetch(
-          `${baseUrl}/api/publications/${publicPublication.slug}/feed`,
-        );
+        const response = await fetch(`${baseUrl}/api/feed`);
         assert.equal(response.status, 200);
         assert.deepEqual(await response.json(), {
-          publication: publicPublication,
+          publication,
           items: [
             {
               articleId,
@@ -98,22 +81,33 @@ test('serves persisted public Articles through the production reader and HTTP st
           ],
         });
 
-        const emptyResponse = await fetch(
-          `${baseUrl}/api/publications/${emptyPublication.slug}/feed`,
+        await client.query(
+          "UPDATE articles SET visibility_state = 'hidden' WHERE id = $1",
+          [articleId],
         );
+        const emptyResponse = await fetch(`${baseUrl}/api/feed`);
         assert.equal(emptyResponse.status, 200);
         assert.deepEqual(await emptyResponse.json(), {
-          publication: emptyPublication,
+          publication,
           items: [],
         });
 
-        for (const slug of [privatePublication.slug, 'missing-feed-http']) {
-          const hiddenResponse = await fetch(
-            `${baseUrl}/api/publications/${slug}/feed`,
-          );
-          assert.equal(hiddenResponse.status, 404);
-          assert.deepEqual(await hiddenResponse.json(), { error: 'not_found' });
-        }
+        await client.query(
+          "UPDATE publication_settings SET public_status = 'private'",
+        );
+        const privateResponse = await fetch(`${baseUrl}/api/feed`);
+        assert.equal(privateResponse.status, 404);
+        assert.deepEqual(await privateResponse.json(), { error: 'not_found' });
+
+        await client.query('DELETE FROM publication_settings');
+        const absentResponse = await fetch(`${baseUrl}/api/feed`);
+        assert.equal(absentResponse.status, 404);
+        assert.deepEqual(await absentResponse.json(), { error: 'not_found' });
+
+        const obsoleteResponse = await fetch(
+          `${baseUrl}/api/publications/obsolete/feed`,
+        );
+        assert.equal(obsoleteResponse.status, 404);
       } finally {
         await webServer.close();
       }
@@ -123,18 +117,13 @@ test('serves persisted public Articles through the production reader and HTTP st
   });
 });
 
-async function insertPublication(
-  client: Client,
-  slug: string,
-  name: string,
-  publicStatus: 'private' | 'public',
-) {
-  const publication = { id: randomUUID(), slug, name };
+async function insertPublicationSettings(client: Client, name: string) {
+  const publication = { name };
   await client.query(
-    `INSERT INTO publications (
-       id, name, slug, active_for_collection, public_status
-     ) VALUES ($1, $2, $3, true, $4)`,
-    [publication.id, publication.name, publication.slug, publicStatus],
+    `INSERT INTO publication_settings (
+       name, active_for_collection, public_status
+     ) VALUES ($1, true, 'public')`,
+    [publication.name],
   );
   return publication;
 }

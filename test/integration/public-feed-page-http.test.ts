@@ -65,7 +65,12 @@ describe('Public feed page HTTP delivery', () => {
     );
     assert.equal(client.headers.get('cache-control'), 'no-store');
     assert.equal(client.headers.get('x-content-type-options'), 'nosniff');
-    assert.match(await client.text(), /api\/publications/u);
+    const clientSource = await client.text();
+    assert.match(clientSource, /\/api\/feed/u);
+    assert.doesNotMatch(
+      clientSource,
+      /api\/publications|window\.location\.pathname|decodeURIComponent/u,
+    );
 
     const unknown = await request('/public/private-source-file.ts');
     assert.equal(unknown.status, 404);

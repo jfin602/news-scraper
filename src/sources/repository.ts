@@ -3,13 +3,13 @@ import { randomUUID } from 'node:crypto';
 import type { QueryExecutor } from '../database/database.ts';
 import {
   ConfigurationPersistenceError,
-  mapPublicationRow,
+  mapPublicationSettingsRow,
   requiredBoolean,
   requiredString,
   requiredTimestamp,
-  type PersistedPublication,
   type CreateIfAbsentResult,
-} from '../publications/repository.ts';
+  type PersistedPublicationSettings,
+} from '../publication/repository.ts';
 import {
   normalizeApprovalState,
   normalizeDomainRules,
@@ -32,7 +32,6 @@ import {
 
 export interface PersistedSource {
   readonly id: string;
-  readonly publicationId: string;
   readonly configKey: string;
   readonly displayName: string;
   readonly siteUrl: ParsedConfiguredUrl;
@@ -58,7 +57,7 @@ export interface PersistedSourceEndpoint {
 }
 
 export interface EndpointConfigurationAggregate {
-  readonly publication: PersistedPublication;
+  readonly publication: PersistedPublicationSettings;
   readonly source: PersistedSource;
   readonly sourceDomainRules: readonly DomainRule[];
   readonly endpoint: PersistedSourceEndpoint;
@@ -67,7 +66,6 @@ export interface EndpointConfigurationAggregate {
 
 interface SourceRow {
   readonly id: unknown;
-  readonly publication_id: unknown;
   readonly config_key: unknown;
   readonly display_name: unknown;
   readonly site_url: unknown;
@@ -98,9 +96,7 @@ interface DomainRuleRow {
 }
 
 interface AggregateRow extends SourceRow {
-  readonly publication_id: unknown;
   readonly publication_name: unknown;
-  readonly publication_slug: unknown;
   readonly publication_active_for_collection: unknown;
   readonly publication_public_status: unknown;
   readonly publication_created_at: unknown;
@@ -119,7 +115,7 @@ interface AggregateRow extends SourceRow {
 }
 
 const SOURCE_COLUMNS = `
-  id, publication_id, config_key, display_name, site_url,
+  id, config_key, display_name, site_url,
   approval_state, lifecycle_state, operational_state, created_at, updated_at`;
 const ENDPOINT_COLUMNS = `
   id, source_id, config_key, endpoint_url, endpoint_type,
@@ -128,32 +124,25 @@ const ENDPOINT_COLUMNS = `
 
 export async function insertSource(
   executor: QueryExecutor,
-  publicationId: string,
   input: unknown,
 ): Promise<PersistedSource> {
-  return insertValidatedSource(
-    executor,
-    publicationId,
-    normalizeSourceConfiguration(input),
-  );
+  return insertValidatedSource(executor, normalizeSourceConfiguration(input));
 }
 
 export async function createSourceIfAbsent(
   executor: QueryExecutor,
-  publicationId: string,
   input: unknown,
 ): Promise<CreateIfAbsentResult<PersistedSource>> {
   const source = normalizeSourceConfiguration(input);
   const sourceResult = await executor.query<SourceRow>(
     `INSERT INTO sources (
-       id, publication_id, config_key, display_name, site_url,
+       id, config_key, display_name, site_url,
        approval_state, lifecycle_state, operational_state
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-     ON CONFLICT (publication_id, config_key) DO NOTHING
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+     ON CONFLICT (config_key) DO NOTHING
      RETURNING ${SOURCE_COLUMNS}`,
     [
       randomUUID(),
-      publicationId,
       source.configKey,
       source.displayName,
       source.siteUrl.value,
@@ -168,11 +157,7 @@ export async function createSourceIfAbsent(
     await insertSourceDomainRules(executor, value.id, source.domainRules);
     return Object.freeze({ value, created: true });
   }
-  const existing = await findSourceByPublicationAndConfigKey(
-    executor,
-    publicationId,
-    source.configKey,
-  );
+  const existing = await findSourceByConfigKey(executor, source.configKey);
   if (existing === undefined) {
     throw new ConfigurationPersistenceError('source conflict lookup');
   }
@@ -181,18 +166,16 @@ export async function createSourceIfAbsent(
 
 async function insertValidatedSource(
   executor: QueryExecutor,
-  publicationId: string,
   source: Readonly<SourceConfiguration>,
 ): Promise<PersistedSource> {
   const sourceResult = await executor.query<SourceRow>(
     `INSERT INTO sources (
-       id, publication_id, config_key, display_name, site_url,
+       id, config_key, display_name, site_url,
        approval_state, lifecycle_state, operational_state
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING ${SOURCE_COLUMNS}`,
     [
       randomUUID(),
-      publicationId,
       source.configKey,
       source.displayName,
       source.siteUrl.value,
@@ -208,16 +191,15 @@ async function insertValidatedSource(
   return persisted;
 }
 
-export async function findSourceByPublicationAndConfigKey(
+export async function findSourceByConfigKey(
   executor: QueryExecutor,
-  publicationId: string,
   configKey: string,
 ): Promise<PersistedSource | undefined> {
   const result = await executor.query<SourceRow>(
     `SELECT ${SOURCE_COLUMNS}
      FROM sources
-     WHERE publication_id = $1 AND config_key = $2`,
-    [publicationId, configKey],
+     WHERE config_key = $1`,
+    [configKey],
   );
   const row = result.rows[0];
   return row === undefined ? undefined : mapSourceRow(row);
@@ -371,15 +353,12 @@ export async function loadEndpointDomainRules(
 
 export async function findEndpointConfigurationByKeys(
   executor: QueryExecutor,
-  publicationSlug: string,
   sourceConfigKey: string,
   endpointConfigKey: string,
 ): Promise<EndpointConfigurationAggregate | undefined> {
   const result = await executor.query<AggregateRow>(
     `SELECT
-       p.id AS publication_id,
        p.name AS publication_name,
-       p.slug AS publication_slug,
        p.active_for_collection AS publication_active_for_collection,
        p.public_status AS publication_public_status,
        p.created_at AS publication_created_at,
@@ -404,19 +383,16 @@ export async function findEndpointConfigurationByKeys(
        e.poll_interval_seconds AS poll_interval_seconds,
        e.created_at AS endpoint_created_at,
        e.updated_at AS endpoint_updated_at
-     FROM publications p
-     JOIN sources s ON s.publication_id = p.id
+     FROM sources s
      JOIN source_endpoints e ON e.source_id = s.id
-     WHERE p.slug = $1 AND s.config_key = $2 AND e.config_key = $3`,
-    [publicationSlug, sourceConfigKey, endpointConfigKey],
+     CROSS JOIN publication_settings p
+     WHERE s.config_key = $1 AND e.config_key = $2`,
+    [sourceConfigKey, endpointConfigKey],
   );
   const row = result.rows[0];
   if (row === undefined) return undefined;
 
-  const source = mapSourceRow({
-    ...row,
-    publication_id: row.publication_id,
-  });
+  const source = mapSourceRow(row);
   const endpoint = mapEndpointRow({
     id: row.endpoint_id,
     source_id: row.endpoint_source_id,
@@ -430,10 +406,8 @@ export async function findEndpointConfigurationByKeys(
     created_at: row.endpoint_created_at,
     updated_at: row.endpoint_updated_at,
   });
-  const publication = mapPublicationRow({
-    id: row.publication_id,
+  const publication = mapPublicationSettingsRow({
     name: row.publication_name,
-    slug: row.publication_slug,
     active_for_collection: row.publication_active_for_collection,
     public_status: row.publication_public_status,
     created_at: row.publication_created_at,
@@ -456,7 +430,6 @@ export function mapSourceRow(row: SourceRow): PersistedSource {
   try {
     return Object.freeze({
       id: requiredString(row.id),
-      publicationId: requiredString(row.publication_id),
       configKey: requiredString(row.config_key),
       displayName: requiredString(row.display_name),
       siteUrl: parseSourceSiteUrl(row.site_url),

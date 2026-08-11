@@ -5,7 +5,6 @@ export type PublicationPublicStatus =
 
 export interface PublicationConfiguration {
   readonly name: string;
-  readonly slug: string;
   readonly activeForCollection: boolean;
   readonly publicStatus: PublicationPublicStatus;
 }
@@ -23,8 +22,6 @@ export class ConfigurationValidationError extends Error {
 }
 
 const PUBLICATION_NAME_MAX_LENGTH = 200;
-const PUBLICATION_SLUG_MAX_LENGTH = 100;
-const PUBLICATION_SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 
 export function normalizePublicationConfiguration(
   input: unknown,
@@ -33,14 +30,6 @@ export function normalizePublicationConfiguration(
   const name = trimmedString(record.name, 'publication.name');
   if (name.length > PUBLICATION_NAME_MAX_LENGTH) {
     throw new ConfigurationValidationError('publication.name', 'too_long');
-  }
-
-  const slug = stringValue(record.slug, 'publication.slug');
-  if (
-    slug.length > PUBLICATION_SLUG_MAX_LENGTH ||
-    !PUBLICATION_SLUG_PATTERN.test(slug)
-  ) {
-    throw new ConfigurationValidationError('publication.slug', 'invalid_shape');
   }
 
   if (typeof record.activeForCollection !== 'boolean') {
@@ -52,7 +41,6 @@ export function normalizePublicationConfiguration(
 
   return Object.freeze({
     name,
-    slug,
     activeForCollection: record.activeForCollection,
     publicStatus: normalizePublicationPublicStatus(record.publicStatus),
   });

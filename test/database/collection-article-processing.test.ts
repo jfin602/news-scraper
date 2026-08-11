@@ -24,7 +24,7 @@ import { evaluateRelevance } from '../../src/collection/relevance/evaluator.ts';
 import { findCollectionRunById } from '../../src/collection/runs/repository.ts';
 import { createDatabase, type Database } from '../../src/database/database.ts';
 import { migrateDatabase } from '../../src/database/migrations.ts';
-import { insertPublication } from '../../src/publications/repository.ts';
+import { insertPublicationSettings } from '../../src/publication/repository.ts';
 import {
   findEndpointConfigurationByKeys,
   insertSource,
@@ -374,13 +374,12 @@ function contentFetcher(): HttpFetcher {
 }
 
 async function createConfiguration(database: Database) {
-  const publication = await insertPublication(database, {
+  await insertPublicationSettings(database, {
     name: 'Phase 7 processing',
-    slug: 'phase-7-processing',
     activeForCollection: true,
     publicStatus: 'private',
   });
-  const source = await insertSource(database, publication.id, {
+  const source = await insertSource(database, {
     configKey: 'processing_source',
     displayName: 'Processing Source',
     siteUrl: 'https://feeds.example.test/',
@@ -400,7 +399,6 @@ async function createConfiguration(database: Database) {
   });
   const configuration = await findEndpointConfigurationByKeys(
     database,
-    publication.slug,
     source.configKey,
     'processing_feed',
   );

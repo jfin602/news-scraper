@@ -24,15 +24,12 @@ type VisibilityState = 'visible' | 'hidden' | 'archived';
 type PublicationPublicStatus = 'private' | 'public';
 type PublishedAtStatus = 'parsed' | 'missing' | 'invalid';
 
-interface SeededPublication {
-  readonly id: string;
+interface SeededPublicationSettings {
   readonly name: string;
-  readonly slug: string;
 }
 
 interface SeededSource {
   readonly id: string;
-  readonly publicationId: string;
   readonly displayName: string;
 }
 
@@ -43,7 +40,6 @@ interface SeededEndpoint {
 
 interface SeededArticle {
   readonly id: string;
-  readonly publicationId: string;
   readonly sourceId: string;
   readonly originalUrl: string;
   readonly canonicalIdentityUrl: string;
@@ -58,14 +54,13 @@ let sourceSequence = 0;
 let endpointSequence = 0;
 let runSequence = 0;
 
-test('readPublicFeed exposes only the requested public Publication and ignores collection activity', async () => {
+test('readPublicFeed exposes the singleton public Publication and ignores collection activity', async () => {
   await withPublicFeedDatabase(async ({ client, database }) => {
-    const target = await insertPublication(client, {
-      slug: 'public-target',
+    const publication = await insertPublicationSettings(client, {
       name: 'Public target',
       activeForCollection: false,
     });
-    const targetSource = await insertSource(client, target, {
+    const targetSource = await insertSource(client, {
       displayName: 'Target source',
     });
     const targetArticle = await insertArticle(client, targetSource, {
@@ -73,65 +68,42 @@ test('readPublicFeed exposes only the requested public Publication and ignores c
       firstSeenAt: new Date('2026-08-10T01:00:00.000Z'),
     });
 
-    const privatePublication = await insertPublication(client, {
-      slug: 'private-publication',
-      publicStatus: 'private',
-    });
-    const privateSource = await insertSource(client, privatePublication);
-    await insertArticle(client, privateSource, {
-      displayTitle: 'Private headline',
-      firstSeenAt: new Date('2026-08-10T02:00:00.000Z'),
-    });
-
-    const otherPublication = await insertPublication(client, {
-      slug: 'other-publication',
-      name: 'Other public Publication',
-    });
-    const otherSource = await insertSource(client, otherPublication);
-    const otherArticle = await insertArticle(client, otherSource, {
-      displayTitle: 'Other headline',
-      firstSeenAt: new Date('2026-08-10T03:00:00.000Z'),
-    });
-
-    const feed = requireFeed(await readPublicFeed(database, target.slug));
-    assert.deepEqual(feed.publication, target);
+    const feed = requireFeed(await readPublicFeed(database));
+    assert.deepEqual(feed.publication, publication);
     assert.deepEqual(
       feed.items.map((item) => item.articleId),
       [targetArticle.id],
     );
-    assert.notEqual(feed.items[0]?.articleId, otherArticle.id);
 
-    assert.deepEqual(
-      await Promise.all([
-        readPublicFeed(database, privatePublication.slug),
-        readPublicFeed(database, 'missing-publication'),
-      ]),
-      [undefined, undefined],
+    await client.query(
+      "UPDATE publication_settings SET public_status = 'private'",
     );
+    const privateResult = await readPublicFeed(database);
+    await client.query('DELETE FROM publication_settings');
+    const absentResult = await readPublicFeed(database);
+    assert.deepEqual([privateResult, absentResult], [undefined, undefined]);
   });
 });
 
 test('readPublicFeed gates Source trust and lifecycle but retains paused and disabled Sources', async () => {
   await withPublicFeedDatabase(async ({ client, database }) => {
-    const publication = await insertPublication(client, {
-      slug: 'source-states',
-    });
-    const included = await insertSource(client, publication, {
+    await insertPublicationSettings(client, { name: 'Source states' });
+    const included = await insertSource(client, {
       displayName: 'Enabled source',
     });
-    const unapproved = await insertSource(client, publication, {
+    const unapproved = await insertSource(client, {
       approvalState: 'unapproved',
       displayName: 'Unapproved source',
     });
-    const archived = await insertSource(client, publication, {
+    const archived = await insertSource(client, {
       lifecycleState: 'archived',
       displayName: 'Archived source',
     });
-    const paused = await insertSource(client, publication, {
+    const paused = await insertSource(client, {
       operationalState: 'paused',
       displayName: 'Paused source',
     });
-    const disabled = await insertSource(client, publication, {
+    const disabled = await insertSource(client, {
       operationalState: 'disabled',
       displayName: 'Disabled source',
     });
@@ -142,7 +114,7 @@ test('readPublicFeed gates Source trust and lifecycle but retains paused and dis
     const pausedArticle = await insertArticle(client, paused);
     const disabledArticle = await insertArticle(client, disabled);
 
-    const feed = requireFeed(await readPublicFeed(database, publication.slug));
+    const feed = requireFeed(await readPublicFeed(database));
     assert.deepEqual(
       feed.items.map((item) => item.articleId).sort(),
       [includedArticle.id, pausedArticle.id, disabledArticle.id].sort(),
@@ -152,19 +124,17 @@ test('readPublicFeed gates Source trust and lifecycle but retains paused and dis
 
 test('readPublicFeed does not use endpoint state or failed Collection-run provenance as row suppression gates', async () => {
   await withPublicFeedDatabase(async ({ client, database }) => {
-    const publication = await insertPublication(client, {
-      slug: 'endpoint-and-run-state',
+    await insertPublicationSettings(client, {
+      name: 'Endpoint and run state',
     });
-    const source = await insertSource(client, publication);
+    const source = await insertSource(client);
     const endpoint = await insertEndpoint(client, source);
     const article = await insertArticle(client, source, {
       firstSeenAt: new Date('2026-08-09T00:05:00.000Z'),
       lastSeenAt: new Date('2026-08-09T00:05:00.000Z'),
     });
 
-    const before = requireFeed(
-      await readPublicFeed(database, publication.slug),
-    );
+    const before = requireFeed(await readPublicFeed(database));
     assert.deepEqual(
       before.items.map((item) => item.articleId),
       [article.id],
@@ -172,7 +142,6 @@ test('readPublicFeed does not use endpoint state or failed Collection-run proven
 
     const failedRunId = await insertFailedCollectionRun(client, endpoint.id);
     await insertObservation(client, {
-      publicationId: publication.id,
       sourceId: source.id,
       endpointId: endpoint.id,
       collectionRunId: failedRunId,
@@ -187,24 +156,22 @@ test('readPublicFeed does not use endpoint state or failed Collection-run proven
       [endpoint.id],
     );
 
-    const after = requireFeed(await readPublicFeed(database, publication.slug));
+    const after = requireFeed(await readPublicFeed(database));
     assert.deepEqual(after, before);
   });
 });
 
 test('readPublicFeed excludes hidden and archived Articles', async () => {
   await withPublicFeedDatabase(async ({ client, database }) => {
-    const publication = await insertPublication(client, {
-      slug: 'article-visibility',
-    });
-    const source = await insertSource(client, publication);
+    await insertPublicationSettings(client, { name: 'Article visibility' });
+    const source = await insertSource(client);
     const visible = await insertArticle(client, source, {
       visibilityState: 'visible',
     });
     await insertArticle(client, source, { visibilityState: 'hidden' });
     await insertArticle(client, source, { visibilityState: 'archived' });
 
-    const feed = requireFeed(await readPublicFeed(database, publication.slug));
+    const feed = requireFeed(await readPublicFeed(database));
     assert.deepEqual(
       feed.items.map((item) => item.articleId),
       [visible.id],
@@ -214,11 +181,10 @@ test('readPublicFeed excludes hidden and archived Articles', async () => {
 
 test('readPublicFeed maps canonical dates and only the safe basic public fields', async () => {
   await withPublicFeedDatabase(async ({ client, database }) => {
-    const publication = await insertPublication(client, {
-      slug: 'date-and-shaping',
+    const publication = await insertPublicationSettings(client, {
       name: 'Date and shaping',
     });
-    const source = await insertSource(client, publication, {
+    const source = await insertSource(client, {
       displayName: 'Mapped source name',
     });
     const parsedDate = new Date('2026-08-01T09:00:00.000Z');
@@ -243,11 +209,10 @@ test('readPublicFeed maps canonical dates and only the safe basic public fields'
     });
 
     const recordingExecutor = new RecordingExecutor(database);
-    const feed = requireFeed(
-      await readPublicFeed(recordingExecutor, publication.slug),
-    );
+    const feed = requireFeed(await readPublicFeed(recordingExecutor));
     assert.equal(recordingExecutor.queries.length, 1);
-    assert.equal(recordingExecutor.queries[0]?.values?.[0], publication.slug);
+    assert.equal(recordingExecutor.queries[0]?.values, undefined);
+    assert.deepEqual(feed.publication, publication);
 
     const parsedItem = requireItem(feed, parsed.id);
     assert.equal(
@@ -274,11 +239,7 @@ test('readPublicFeed maps canonical dates and only the safe basic public fields'
     );
     assert.equal(invalidItem.feedDateSource, 'first_seen_at');
 
-    assert.deepEqual(Object.keys(feed.publication).sort(), [
-      'id',
-      'name',
-      'slug',
-    ]);
+    assert.deepEqual(Object.keys(feed.publication), ['name']);
     assert.deepEqual(Object.keys(parsedItem).sort(), [
       'articleId',
       'effectiveFeedDate',
@@ -293,10 +254,8 @@ test('readPublicFeed maps canonical dates and only the safe basic public fields'
 
 test('readPublicFeed uses canonical deterministic ordering across repeated reads', async () => {
   await withPublicFeedDatabase(async ({ client, database }) => {
-    const publication = await insertPublication(client, {
-      slug: 'deterministic-order',
-    });
-    const source = await insertSource(client, publication);
+    await insertPublicationSettings(client, { name: 'Deterministic order' });
+    const source = await insertSource(client);
     const later = await insertArticle(client, source, {
       firstSeenAt: new Date('2026-08-12T00:00:00.000Z'),
     });
@@ -330,10 +289,8 @@ test('readPublicFeed uses canonical deterministic ordering across repeated reads
       sameEffectiveAndFirstSeenLowId.id,
       sameEffectiveAndFirstSeenHighId.id,
     ];
-    const first = requireFeed(await readPublicFeed(database, publication.slug));
-    const second = requireFeed(
-      await readPublicFeed(database, publication.slug),
-    );
+    const first = requireFeed(await readPublicFeed(database));
+    const second = requireFeed(await readPublicFeed(database));
     assert.deepEqual(
       first.items.map((item) => item.articleId),
       expectedArticleIds,
@@ -347,37 +304,28 @@ test('readPublicFeed uses canonical deterministic ordering across repeated reads
 
 test('readPublicFeed preserves public empty state and limits the canonical window to 100 Articles', async () => {
   await withPublicFeedDatabase(async ({ client, database }) => {
-    const emptyPublication = await insertPublication(client, {
-      slug: 'empty-public-feed',
+    const publication = await insertPublicationSettings(client, {
       name: 'Empty public feed',
     });
-    const emptySource = await insertSource(client, emptyPublication);
-    await insertArticle(client, emptySource, { visibilityState: 'hidden' });
+    const source = await insertSource(client);
+    await insertArticle(client, source, { visibilityState: 'hidden' });
 
-    const emptyFeed = requireFeed(
-      await readPublicFeed(database, emptyPublication.slug),
-    );
-    assert.deepEqual(emptyFeed.publication, emptyPublication);
+    const emptyFeed = requireFeed(await readPublicFeed(database));
+    assert.deepEqual(emptyFeed.publication, publication);
     assert.deepEqual(emptyFeed.items, []);
 
-    const boundedPublication = await insertPublication(client, {
-      slug: 'bounded-public-feed',
-    });
-    const boundedSource = await insertSource(client, boundedPublication);
     const articles: SeededArticle[] = [];
     const baseTime = Date.parse('2026-08-01T00:00:00.000Z');
     for (let index = 0; index <= 100; index += 1) {
       articles.push(
-        await insertArticle(client, boundedSource, {
+        await insertArticle(client, source, {
           displayTitle: `Bounded headline ${index}`,
           firstSeenAt: new Date(baseTime + index * 60_000),
         }),
       );
     }
 
-    const boundedFeed = requireFeed(
-      await readPublicFeed(database, boundedPublication.slug),
-    );
+    const boundedFeed = requireFeed(await readPublicFeed(database));
     assert.equal(boundedFeed.items.length, 100);
     assert.deepEqual(
       boundedFeed.items.map((item) => item.articleId),
@@ -396,8 +344,6 @@ test('readPublicFeed preserves public empty state and limits the canonical windo
 test('readPublicFeed rejects malformed result rows and database failures through its bounded error', async () => {
   const malformedRowExecutor = new ScriptedExecutor([
     {
-      publication_id: '10000000-0000-4000-8000-000000000001',
-      publication_slug: 'scripted-publication',
       publication_name: 'Scripted Publication',
       article_id: null,
       effective_feed_date: null,
@@ -408,7 +354,7 @@ test('readPublicFeed rejects malformed result rows and database failures through
     },
   ]);
   await assertPublicFeedFailure(
-    () => readPublicFeed(malformedRowExecutor, 'scripted-publication'),
+    () => readPublicFeed(malformedRowExecutor),
     'invalid_row',
     'ROW_SHAPE_SECRET',
   );
@@ -417,7 +363,7 @@ test('readPublicFeed rejects malformed result rows and database failures through
     new Error('database error: CONNECTION_SECRET'),
   );
   await assertPublicFeedFailure(
-    () => readPublicFeed(queryFailureExecutor, 'scripted-publication'),
+    () => readPublicFeed(queryFailureExecutor),
     'read_failed',
     'CONNECTION_SECRET',
   );
@@ -439,28 +385,23 @@ async function withPublicFeedDatabase(
   });
 }
 
-async function insertPublication(
+async function insertPublicationSettings(
   client: Client,
   options: Readonly<{
-    slug: string;
-    name?: string;
+    name: string;
     activeForCollection?: boolean;
     publicStatus?: PublicationPublicStatus;
   }>,
-): Promise<SeededPublication> {
-  const publication: SeededPublication = {
-    id: randomUUID(),
-    name: options.name ?? `Publication ${options.slug}`,
-    slug: options.slug,
+): Promise<SeededPublicationSettings> {
+  const publication: SeededPublicationSettings = {
+    name: options.name,
   };
   await client.query(
-    `INSERT INTO publications (
-       id, name, slug, active_for_collection, public_status
-     ) VALUES ($1, $2, $3, $4, $5)`,
+    `INSERT INTO publication_settings (
+       name, active_for_collection, public_status
+     ) VALUES ($1, $2, $3)`,
     [
-      publication.id,
       publication.name,
-      publication.slug,
       options.activeForCollection ?? true,
       options.publicStatus ?? 'public',
     ],
@@ -470,7 +411,6 @@ async function insertPublication(
 
 async function insertSource(
   client: Client,
-  publication: SeededPublication,
   options: Readonly<{
     displayName?: string;
     approvalState?: ApprovalState;
@@ -481,17 +421,15 @@ async function insertSource(
   sourceSequence += 1;
   const source: SeededSource = {
     id: randomUUID(),
-    publicationId: publication.id,
     displayName: options.displayName ?? `Source ${sourceSequence}`,
   };
   await client.query(
     `INSERT INTO sources (
-       id, publication_id, config_key, display_name, site_url,
+       id, config_key, display_name, site_url,
        approval_state, lifecycle_state, operational_state
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [
       source.id,
-      source.publicationId,
       `source_${sourceSequence}`,
       source.displayName,
       `https://source-${sourceSequence}.example.test/`,
@@ -557,7 +495,6 @@ async function insertArticle(
     options.firstSeenAt ?? new Date('2026-08-10T00:00:00.000Z');
   const article: SeededArticle = {
     id,
-    publicationId: source.publicationId,
     sourceId: source.id,
     originalUrl: options.originalUrl ?? `https://article.example.test/${id}`,
     canonicalIdentityUrl:
@@ -565,16 +502,15 @@ async function insertArticle(
   };
   await client.query(
     `INSERT INTO articles (
-       id, publication_id, source_id, original_url, canonical_identity_url,
+       id, source_id, original_url, canonical_identity_url,
        display_title, normalized_title, published_at_status, published_at,
        source_updated_at_status, source_updated_at, visibility_state,
        first_seen_at, last_seen_at
      ) VALUES (
-       $1, $2, $3, $4, $5, $6, $7, $8, $9, 'missing', NULL, $10, $11, $12
+       $1, $2, $3, $4, $5, $6, $7, $8, 'missing', NULL, $9, $10, $11
      )`,
     [
       article.id,
-      article.publicationId,
       article.sourceId,
       article.originalUrl,
       article.canonicalIdentityUrl,
@@ -618,7 +554,6 @@ async function insertFailedCollectionRun(
 async function insertObservation(
   client: Client,
   input: Readonly<{
-    publicationId: string;
     sourceId: string;
     endpointId: string;
     collectionRunId: string;
@@ -627,13 +562,12 @@ async function insertObservation(
 ): Promise<void> {
   await client.query(
     `INSERT INTO article_observations (
-       id, publication_id, source_id, source_endpoint_id, collection_run_id,
+       id, source_id, source_endpoint_id, collection_run_id,
        article_id, observed_at, processing_outcome,
        observed_canonical_identity_url
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'created', $8)`,
+     ) VALUES ($1, $2, $3, $4, $5, $6, 'created', $7)`,
     [
       randomUUID(),
-      input.publicationId,
       input.sourceId,
       input.endpointId,
       input.collectionRunId,
