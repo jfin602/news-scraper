@@ -77,6 +77,8 @@ Align governing documentation around the demo-first delivery strategy while pres
 
 ## Phase 1 — Application foundation
 
+**Status:** Complete with durable validation recorded in `docs/validation/phase-1-application-foundation.md`.
+
 ### Goal
 
 Create the independently runnable application skeleton and the regression-testing/local-validation foundation without business behavior.
@@ -417,7 +419,7 @@ Preserve canonical pipeline order and persist normalized Source instances transa
 
 ## Phase 8 — Basic public-feed backend
 
-**Status:** Current.
+**Status:** Complete with durable validation recorded in `docs/validation/phase-8-basic-public-feed-backend.md`.
 
 ### Goal
 
@@ -478,6 +480,8 @@ Expose the smallest useful Publication-scoped rolling feed from real stored Arti
 
 ## Phase 9 — Basic public-feed UI and tech demo
 
+**Status:** Current.
+
 ### Goal
 
 Produce the first customer-visible working product using real collected data.
@@ -488,29 +492,41 @@ Produce the first customer-visible working product using real collected data.
 
 ### Deliverables
 
-- database-backed public feed page;
+- database-backed public feed page at canonical route `GET /publications/:publicationSlug`;
+- page consumption of the canonical Phase 8 public-feed read model/API semantics without a parallel Article-eligibility, ordering, or database-query path;
 - core desktop `Date | Headline | Source` presentation;
-- sane basic mobile rendering;
-- Publication name/identity;
-- linked original-publisher headlines;
-- loading, empty, error states.
+- sane basic stacked mobile rendering;
+- Publication name/identity from the canonical public-feed boundary;
+- linked original-publisher headlines using stored Article `original_url`;
+- deterministic UTC calendar-date rendering from `effectiveFeedDate` until Publication presentation timezone/settings exist;
+- loading, empty, generic unavailable/not-found, and dependency/error states.
+
+### Boundary clarification
+
+- Missing and non-public Publications remain indistinguishable on the customer-visible page and use the same generic unavailable/not-found state; the UI does not reveal private Publication identity.
+- The Phase 9 page may fetch `GET /api/publications/:publicationSlug/feed` from a lightweight same-origin client or server-render through the same shared read model, but it MUST NOT duplicate feed eligibility/order/query semantics.
+- Collection remains Worker-owned; page requests MUST NOT fetch Source endpoints inline.
+- Shared UI behavior remains topic independent and MUST NOT hard-code the initial indie-author Publication identity.
+- Phase 9 owns a useful basic desktop/mobile tech-demo surface, not the final responsive/accessibility/theming pass reserved for Phase 13.
 
 ### Out of scope
 
 - final responsive/accessibility polish;
 - dark-mode completion;
 - filters/search;
+- client-controlled pagination/load-more;
 - duplicate moderation;
 - admin UI.
 
 ### Exit gate — tech-demo milestone
 
-- At least two real approved RSS/Atom Sources collect through the Worker.
+- At least two real approved RSS/Atom Sources collect through the Worker, with Level 7 approved live-Source evidence for the named Sources/endpoints and observed procedure.
 - Collection runs record the attempts.
 - Raw items normalize, pass default Relevance, and persist idempotently with observations.
-- Current Articles appear in the public feed with intended publisher links.
+- Current Articles appear in the canonical public page with intended stored-`original_url` publisher links.
 - Re-running collection does not create duplicate Article records for one Source identity.
-- The core public flow has Level 6 browser evidence at representative desktop and mobile viewports, in addition to the automated regression matrix.
+- Direct navigation/refresh plus loading, empty, error/unavailable, external-link, desktop, and mobile behavior receive Level 6 browser evidence at representative viewports.
+- The applicable automated deterministic regression matrix passes independently of live public publishers.
 
 ## Phase 10 — Automated polling, durable jobs, and endpoint health
 
