@@ -4,11 +4,13 @@
 
 The public experience is a fast, readable index of recent relevant headlines. It promotes discovery and sends readers to the original publisher.
 
+A deployed installation hosts exactly one Publication. The deployment itself identifies the news product/topic; public readers do not select among Publications.
+
 ## Feed eligibility
 
 Ordinary public rows require all of the following:
 
-- the owning Publication has `public_status = public`;
+- the installation's Publication has `public_status = public`;
 - the owning Source has approval state `approved` and lifecycle state `active`;
 - the Article is `visible`; and
 - the Article is either `ungrouped` or the `primary` member of a Duplicate group.
@@ -19,25 +21,35 @@ Before duplicate grouping exists, visible persisted Articles are logically `ungr
 
 Collection eligibility and public-feed eligibility are separate. `active_for_collection`, Source operational state (`enabled`/`paused`/`disabled`), endpoint operational/lifecycle/health state, and the success/failure of current collection attempts do not by themselves suppress an already-persisted otherwise-eligible Article. Retained provenance remains readable while collection is paused or failing. Source approval and Source lifecycle remain public-row trust/lifecycle gates as stated above.
 
-## Phase 8 basic public-feed backend
+## Single-Publication deployment boundary
 
-Phase 8 introduces the first public Article read path through the Web/API process. The canonical basic endpoint is:
+Each deployed installation MUST resolve exactly one Publication as its topic/configuration boundary.
 
-`GET /api/publications/:publicationSlug/feed`
+- Publication remains a persisted domain entity and continues to own Sources, Categories, Relevance rules, branding/feed settings, Articles, duplicate state, and related resource ownership.
+- Stable Publication identifiers and slugs MAY remain in configuration/persistence for identity, scoping, fixtures, migrations, and operator tooling.
+- Public routing MUST NOT require a Publication slug or expose a topic-selection surface.
+- Concurrent multi-Publication/topic hosting inside one installation is not supported MVP behavior.
+- A different topic is served by another configured deployment of the same topic-independent codebase.
+
+## Basic public-feed backend
+
+Phase 8 introduced the first public Article read path through the Web/API process. Under the single-Publication deployment contract, the canonical public endpoint is:
+
+`GET /api/feed`
 
 The endpoint MUST:
 
-- resolve one Publication by its stable slug;
+- resolve the installation's one configured Publication without requiring a reader-supplied Publication identifier or slug;
 - expose rows only when that Publication has `public_status = public`;
 - apply the canonical feed-eligibility rule above in the database-backed read path;
 - return a bounded server-defined recent window rather than an unbounded Article set;
 - use deterministic effective-feed-date ordering;
-- return `200` with an empty item list when a public Publication exists but has no eligible Articles;
-- treat a missing Publication and a non-public Publication equivalently as `404` on the public surface;
+- return `200` with an empty item list when the configured public Publication exists but has no eligible Articles;
+- return a generic `404` when the configured Publication is absent or non-public, without revealing private Publication identity;
 - return bounded generic dependency/read failures without SQL, stack traces, database connection details, or other secrets;
 - require no reader authentication.
 
-The Phase 8 item read model is intentionally small. Each item exposes only the fields needed by the basic feed:
+The basic item read model is intentionally small. Each item exposes only the fields needed by the basic feed:
 
 - stable Article identifier;
 - effective feed date;
@@ -46,34 +58,40 @@ The Phase 8 item read model is intentionally small. Each item exposes only the f
 - Source display name;
 - stored Article `original_url` as the external destination.
 
-The response MAY include minimal Publication identity needed by the Phase 9 basic UI, such as stable Publication identifier, slug, and name. It MUST NOT expose Raw items, Article observations, internal identity digests, normalized-title matching fields, database internals, unbounded summaries/content, or other fields merely because they are stored.
+The response MAY include minimal Publication identity needed by the public UI, such as stable Publication identifier, slug, and name. Such identity is descriptive/configurational; it is not a public routing selector. The response MUST NOT expose Raw items, Article observations, internal identity digests, normalized-title matching fields, database internals, unbounded summaries/content, or other fields merely because they are stored.
 
-Keyword search, Source/Category filters, client-controlled cursor/load-more behavior, ranking, and presentation/theme behavior are not part of this Phase 8 endpoint. Phase 12 adds deterministic discovery/pagination behavior without changing the eligibility rule.
+Keyword search, Source/Category filters, client-controlled cursor/load-more behavior, ranking, and presentation/theme behavior are not part of the basic endpoint. Phase 12 adds deterministic discovery/pagination behavior without changing the eligibility rule.
 
-## Phase 9 basic public-feed UI
+The earlier Phase 8 validation artifact remains historical evidence for the slug-scoped endpoint that existed when Phase 8 closed. The post-Phase-9 single-Publication correction supersedes that public route contract before Phase 10 implementation continues; historical validation evidence is not rewritten.
 
-Phase 9 introduces the first customer-visible page over the Phase 8 public-feed boundary. The canonical basic page route is:
+## Basic public-feed UI
 
-`GET /publications/:publicationSlug`
+Phase 9 introduced the first customer-visible page over the public-feed boundary. Under the single-Publication deployment contract, the canonical customer-visible route is:
 
-The Phase 9 page MUST:
+`GET /`
 
-- remain Publication-scoped and topic independent;
-- consume the canonical Phase 8 public-feed read model/semantics rather than introducing a second Article-eligibility, ordering, or database-query path;
-- preserve the same Publication public-exposure, Source trust/lifecycle, Article visibility, bounded-window, effective-date, ordering, and `original_url` destination rules as the Phase 8 endpoint;
-- use the Publication identity returned by the canonical public-feed boundary rather than hard-coding the initial Publication's topic/name into shared UI behavior;
+The page MUST:
+
+- represent the installation's one configured Publication and remain topic independent in shared code;
+- consume the canonical public-feed read model/semantics rather than introducing a second Article-eligibility, ordering, or database-query path;
+- preserve the same Publication public-exposure, Source trust/lifecycle, Article visibility, bounded-window, effective-date, ordering, and `original_url` destination rules as the canonical feed endpoint;
+- use Publication identity returned by the canonical public-feed boundary rather than hard-coding the initial Publication's topic/name into shared UI behavior;
 - require no reader authentication;
 - render explicit loading, empty, unavailable/not-found, and dependency/error states without leaking private Publication identity or backend details;
-- treat a missing Publication and a non-public Publication as the same generic unavailable/not-found public-page state, consistent with the API's indistinguishable `404` behavior;
+- treat an absent configured Publication and a non-public configured Publication as the same generic unavailable/not-found public-page state, consistent with the API's generic `404` behavior;
 - link each headline directly to the stored Article `original_url` supplied by the public-feed read model;
 - provide the core desktop `Date | Headline | Source` presentation and a sane stacked mobile presentation without pulling Phase 13 presentation polish forward;
 - avoid Source collection in Web/API page handling; collection remains Worker-owned.
 
-A lightweight same-origin client that fetches `GET /api/publications/:publicationSlug/feed` is a valid Phase 9 implementation. Server rendering is also valid only when it reuses the same canonical public-feed read-model boundary rather than duplicating feed eligibility/query logic.
+A lightweight same-origin client that fetches `GET /api/feed` is a valid implementation. Server rendering is also valid only when it reuses the same canonical public-feed read-model boundary rather than duplicating feed eligibility/query logic.
 
-Publication presentation timezone/settings are not persisted yet. Until that later presentation configuration exists, the Phase 9 basic UI MUST render the calendar date from `effectiveFeedDate` in UTC so the same feed item does not shift dates according to the viewer/test machine timezone. A later presentation phase may deliberately replace this fallback with Publication-configured date/time rendering.
+The former pre-production route `GET /publications/:publicationSlug` is not the canonical public product surface under this contract. The implementation correction should remove the need for reader-supplied Publication selection rather than preserve a multi-Publication compatibility path without an explicit requirement.
 
-Phase 9 does not add keyword search, Source/Category filters, client-controlled pagination, final accessibility/responsive polish, completed light/dark theming, duplicate moderation, or admin UI.
+Publication presentation timezone/settings are not persisted yet. Until that later presentation configuration exists, the basic UI MUST render the calendar date from `effectiveFeedDate` in UTC so the same feed item does not shift dates according to the viewer/test machine timezone. A later presentation phase may deliberately replace this fallback with Publication-configured date/time rendering.
+
+The basic public page does not add keyword search, Source/Category filters, client-controlled pagination, final accessibility/responsive polish, completed light/dark theming, duplicate moderation, or admin UI.
+
+The Phase 9 validation artifact remains authoritative historical evidence for the slug-addressed route that was actually tested before this contract correction. It MUST NOT be edited to claim root-route evidence that was not observed.
 
 ## Feed date and ordering
 
@@ -102,7 +120,7 @@ Requirements:
 - headline is dominant interactive element;
 - headline links directly to the Article's stored `original_url`;
 - Source identity is clear;
-- Phase 9 uses the UTC calendar-date fallback defined above; date formatting follows Publication settings once those presentation settings exist;
+- until Publication presentation settings exist, calendar-date rendering uses the UTC fallback defined above;
 - loading, empty, and error states are explicit.
 
 ## Mobile feed
@@ -146,7 +164,7 @@ Final theme/branding polish follows the basic public-feed tech-demo milestone as
 
 - The Article's stored `original_url` is the primary public destination.
 - `canonical_identity_url` is an identity-comparison field and MUST NOT silently replace `original_url` as the public headline destination.
-- A future separately governed Source-derived public/canonical destination field may change this only through an explicit contract decision; none exists in Phase 8.
+- A future separately governed Source-derived public/canonical destination field may change this only through an explicit contract decision; none exists in the basic feed.
 - UI must not imply Platform authorship of linked content.
 - External navigation is visually/accessibly understandable.
 - Redirector/tracking links are not MVP behavior unless separately approved/documented.
@@ -162,7 +180,9 @@ The aggregation vertical slice and basic public feed are implemented before the 
 
 Initial Publication/Source configuration MAY be supplied through approved operator-maintained bootstrap/seed tooling until the corresponding admin screens exist. That mechanism does not bypass Source approval or other collection eligibility rules.
 
-Ordinary bootstrap remains create-if-absent and MUST NOT overwrite existing operator-managed Publication state. Before Publication administration exists, the tech-demo path therefore requires an explicit operator-controlled, topic-independent way to change an existing Publication's `public_status` deliberately. Changing committed bootstrap input alone is not a state-transition mechanism for an already-created Publication. Phase 8 may provide the smallest safe operator mechanism needed for this transition; it does not create the later full Publication-admin surface.
+Ordinary bootstrap remains create-if-absent and MUST NOT overwrite existing operator-managed Publication state. Before Publication administration exists, the tech-demo path therefore requires an explicit operator-controlled, topic-independent way to change the installation Publication's `public_status` deliberately. Changing committed bootstrap input alone is not a state-transition mechanism for an already-created Publication.
+
+Bootstrap/deployment configuration MUST fail clearly rather than silently choose among multiple candidate Publications when the installation cannot resolve exactly one configured Publication.
 
 When administrative UI/API routes are introduced, they are protected by Cloudflare Access under `docs/decisions/cloudflare-access-admin-perimeter.md`.
 
@@ -171,7 +191,7 @@ When administrative UI/API routes are introduced, they are protected by Cloudfla
 Administrative area SHOULD eventually contain:
 
 - Dashboard;
-- Publications;
+- Publication;
 - Sources;
 - Articles;
 - Duplicate review;
@@ -180,7 +200,7 @@ Administrative area SHOULD eventually contain:
 - change/audit history;
 - Settings.
 
-A single-Publication MVP may simplify navigation while preserving Publication/resource ownership and data-scoping boundaries.
+Navigation is single-Publication. Resource ownership remains explicit in the domain/application layers even though the operator does not switch among Publications in one installation.
 
 ## Source management UI
 
