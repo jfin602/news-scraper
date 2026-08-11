@@ -15,7 +15,7 @@ When administrator functionality is introduced, MVP MUST provide:
 - Cloudflare Access protection for all admin UI/API routes;
 - supported deployment/origin configuration that prevents direct unauthenticated bypass of that perimeter;
 - CSRF protection or an equivalent request-integrity control for state-changing browser actions;
-- Publication/resource ownership and domain-invariant validation for every admin command;
+- real resource-relationship and domain-invariant validation for every admin command;
 - bounded configuration/moderation change history where required by the governing contracts;
 - secrets outside source control.
 
@@ -25,11 +25,13 @@ Cloudflare identity/access logs may provide operational evidence but are not the
 
 Administrative errors must not expose secrets, stack traces, or raw database details.
 
+The singleton Publication is an installation/editorial configuration boundary, not an application tenant key. Administrative security therefore validates actual Source/endpoint/run/Article/observation/duplicate relationships and invariants rather than obsolete cross-Publication ownership.
+
 ## Fetching and SSRF defenses
 
 The detailed destination-safety policy is governed by `docs/contracts/source-and-collection-contract.md`. Before the first outbound request and before every redirect hop, Worker/fetch logic MUST validate:
 
-- Publication collection-active state;
+- singleton Publication `active_for_collection` state;
 - Source/endpoint approval state = approved;
 - Source/endpoint lifecycle state = active;
 - Source/endpoint operational state = enabled;
@@ -145,6 +147,7 @@ Recovery claims require observed or injected recovery validation under the testi
 - Secrets and environment-specific settings, including database connection details, live outside committed source.
 - Git-tracked migrations and migration infrastructure are authoritative for database schema structure and schema evolution; PostgreSQL is authoritative for persisted runtime data and applied database state.
 - The same versioned migration history is used across local development, disposable test, and deployed environments.
+- The post-Phase-9 singleton correction adds a new migration rather than rewriting accepted historical migrations; migration-from-zero and supported existing one-Publication state must converge on the corrected schema.
 - Web/API and Worker versions are compatible with active schema.
 - Graceful shutdown lets jobs finish or become safely retryable.
 - Readiness fails when critical dependencies are unavailable.

@@ -1,7 +1,8 @@
 # ADR: Whitelist Collection and Structured-Feed Priority
 
 **Status:** Accepted  
-**Date:** 2026-08-06
+**Date:** 2026-08-06  
+**Amended:** 2026-08-11
 
 ## Context
 
@@ -16,7 +17,7 @@ Collection eligibility requires:
 - Source and endpoint approval state = `approved`;
 - Source and endpoint lifecycle state = `active`;
 - Source and endpoint operational state = `enabled`;
-- Publication active for collection.
+- singleton Publication configuration active for collection.
 
 Before admin UI exists, operator-maintained seed/bootstrap tooling may explicitly create approved Source/endpoint records. This is deliberate operator approval, not an eligibility bypass. Bootstrap tooling must not discover and auto-approve Sources, infer approval from fetch success, silently widen approved-domain policy, or blindly overwrite later operator-managed state during ordinary startup.
 
@@ -33,6 +34,8 @@ Integration priority is:
 5. browser automation as a last resort.
 
 Before every network request/redirect, destination approval and network safety are validated. After parsing/normalization, Article links are separately validated against Source/endpoint Article-domain policy.
+
+The singleton Publication collection-active gate is installation-wide. It does not require Publication selection or make Publication identity a Source/endpoint tenancy key.
 
 ## Consequences
 
@@ -64,4 +67,4 @@ Rejected because it would create a hidden second trust path and violate the whit
 
 ## Compliance check
 
-A change violates this ADR when it contacts unapproved, archived, paused, or disabled configuration; discovers/approves Sources without deliberate operator configuration; widens endpoint policy beyond Source approval silently; follows a redirect without pre-request revalidation; accepts unsafe/unapproved Article links; or makes HTML/browser collection the default despite an adequate structured feed.
+A change violates this ADR when it contacts configuration while singleton collection is inactive or the Source/endpoint is unapproved, archived, paused, or disabled; discovers/approves Sources without deliberate operator configuration; widens endpoint policy beyond Source approval silently; follows a redirect without pre-request revalidation; accepts unsafe/unapproved Article links; or makes HTML/browser collection the default despite an adequate structured feed.

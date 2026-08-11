@@ -2,9 +2,11 @@
 
 ## Architectural goal
 
-Keep Publication-specific configuration at the edges while the core collection, identity, Article, and duplicate pipeline remains reusable across topics and deployments.
+Keep topic-specific Publication configuration at the edges while the core collection, identity, Article, duplicate, feed, scheduling, and administration behavior remains reusable across topics and deployments.
 
 Each deployed installation hosts exactly one Publication. The reusable unit is the codebase: a different topic is configured and deployed as another installation rather than added as another concurrently hosted Publication.
+
+The forward architecture deliberately removes relational Publication tenancy. The singleton Publication remains configuration; real Source/endpoint/run/Article/observation relationships remain explicit.
 
 ## Logical components
 
@@ -22,8 +24,8 @@ flowchart LR
     F --> R[Parser Adapter]
     R --> N[Normalizer]
     N --> L[Article-link / Source Policy Validation]
-    L --> V[Publication Relevance + Categories]
-    V --> I[Article Identity Resolution]
+    L --> V[Installation Relevance + Categories]
+    V --> I[Source-scoped Article Identity Resolution]
     I --> X[Duplicate Candidate / Grouping when implemented]
     X --> D
     W --> O[Metrics + Structured Logs]
@@ -32,11 +34,20 @@ flowchart LR
 
 ## Deployment boundary
 
-One installation contains one configured Publication and its owned Sources/endpoints/Articles/configuration. Publication identifiers/slugs remain valid internal identity and ownership fields, but they are not public topic selectors and do not imply multi-Publication hosting.
+One installation contains one singleton Publication configuration and its Sources/endpoints/Articles/editorial state.
 
-Deployment/bootstrap/runtime configuration MUST resolve one Publication unambiguously. If an installation cannot establish exactly one configured Publication, startup/operator workflows that require the installation Publication must fail clearly rather than choose one implicitly.
+The singleton Publication configuration carries the installation-wide news-product settings actually used by implemented phases, such as name, `active_for_collection`, `public_status`, and later branding/presentation/Relevance/Category settings.
 
-The canonical public page is `GET /`. The canonical basic public feed API is `GET /api/feed`. Both resolve the installation Publication internally rather than accepting a reader-supplied Publication slug.
+Publication is not a tenant key in the forward persistence model:
+
+- Sources, Articles, Categories, Relevance rules, duplicate records, jobs, and admin commands do not need a Publication UUID/slug/foreign key to scope the one installation;
+- Source `config_key` is installation-wide;
+- Source-endpoint `config_key` remains Source-scoped;
+- Article identity remains Source-scoped;
+- endpoint/Collection-run and Source/Article/observation relationships remain explicit because they protect real provenance/integrity;
+- no runtime path selects among Publications.
+
+The canonical public page is `GET /`. The canonical basic public feed API is `GET /api/feed`.
 
 A second topic uses another configured deployment of the same codebase and therefore has separate deployment/runtime state unless a later explicit architecture decision defines shared infrastructure without changing the one-Publication-per-installation product boundary.
 
@@ -51,7 +62,7 @@ A slow/crashed Source request in the Worker must not block normal public-feed re
 
 During the tech-demo critical path before durable jobs/scheduling exist, collection is invoked manually through the Worker process once transport exists. Phase 10 adds durable scheduling around the same endpoint execution unit; it does not create a second collection path.
 
-After the single-Publication contract correction, operator/Worker entry points MUST NOT require Publication selection merely to choose among topics in one installation. Stable Publication identity may still be carried internally where required for ownership/provenance.
+Forward operator/Worker entry points select Sources/endpoints directly and MUST NOT require Publication selection merely to choose among topics.
 
 ### Phase 1 process bootstrap contract
 
@@ -65,11 +76,13 @@ Phase 1 establishes the process/lifecycle boundary without implementing collecti
 - Phase 5 adds manual endpoint execution behind this same Worker boundary. Phase 10 adds durable job consumption/scheduling around the same endpoint execution unit rather than creating another Worker path.
 - Phase 1 runtime configuration is centralized and typed/validated. Malformed or out-of-range startup configuration must fail predictably; database, Source, Publication-data, scheduler, and collection secrets/configuration are not invented early merely to make validation non-empty.
 
+Historical Phase 1 references to Publication-aware structure meant topic-independent naming and separation from indie-author-specific behavior. They do not require the forward data model to preserve relational Publication scoping.
+
 ### Phase 4 execution boundary
 
 Phase 4 introduces the reusable pre-transport gate without introducing transport itself.
 
-- Eligibility reads the persisted installation Publication/Source/endpoint state and approved-domain policy established in Phase 3.
+- Eligibility reads singleton Publication collection-active state plus persisted Source/endpoint state and approved-domain policy established in Phase 3.
 - A shared cross-process per-endpoint run lock prevents overlapping ownership for one endpoint and is available to every Worker process. PostgreSQL or an equivalently shared coordination mechanism is required; process-local locking alone is insufficient.
 - Network safety may resolve DNS and classifies the concrete destination before transport. Eligible results carry validated destination/address information forward so later transport cannot silently make a second unchecked DNS decision.
 - Eligible execution stops at an injected/controlled outbound-fetch boundary in Phase 4. No publisher HTTP request, real HTTP redirect following, persisted Collection run, or manual endpoint collection command exists yet.
@@ -77,12 +90,12 @@ Phase 4 introduces the reusable pre-transport gate without introducing transport
 
 ## Module boundaries
 
-Recommended initial layout:
+Recommended forward ownership layout:
 
 ```text
 src/
   app/
-  publications/
+  publication/      # singleton installation/editorial configuration
   sources/
   collection/
     scheduler/       # populated when automated polling arrives
@@ -101,27 +114,28 @@ src/
   shared/
 ```
 
+The exact correction may keep or rename an existing module only when that choice produces the smallest coherent canonical design. It MUST NOT retain plural/selector-oriented APIs solely as a compatibility bridge.
+
 Native application authentication/account modules are deferred beyond MVP unless a later decision promotes them.
 
 The layout above is a target ownership map, not a requirement to create empty directories or placeholder modules before substantive code exists.
-
-Phase 1 Publication-awareness is structural only: generic naming, dependency direction, and module placement preserve Publication as the topic/configuration scoping boundary. Single-Publication deployment cardinality does not justify hard-coding the initial topic or removing Publication ownership from shared engine/domain code.
 
 Rules:
 
 - Source-specific retrieval/parsing lives behind fetcher/parser adapter interfaces established with the first RSS/Atom implementation.
 - Public-feed code consumes normalized Article read models only.
 - Admin controllers do not perform collection inline; once manual check-now exists they invoke/request the Worker collection path and later enqueue the same endpoint execution unit.
-- Deduplication logic does not depend on Publication-specific keywords.
-- Publication Relevance/Categories enter through configuration interfaces.
-- Before configurable Relevance rules exist, the same Relevance boundary runs with an empty rule set and returns the deterministic default `include` decision.
+- Deduplication logic does not depend on topic-specific keywords.
+- Relevance/Categories enter through singleton Publication configuration interfaces and may use Source scope where defined.
+- Before configurable Relevance rules exist, the same Relevance boundary runs with an empty rule set and returns deterministic default `include`.
 - Article observations preserve endpoint/run provenance independently from Article cardinality.
+- Publication identifiers/slugs are not passed through domain/application layers merely as an installation scope token.
 
 ## Collection pipeline
 
 ```mermaid
 flowchart TD
-    A[Manual Worker invocation or due endpoint] --> B{Installation Publication collection-active + Source/endpoint approved, active, enabled?}
+    A[Manual Worker invocation or due endpoint] --> B{Publication collection active + Source/endpoint approved, active, enabled?}
     B -- No --> Z[Skip with reason]
     B -- Yes --> C[Acquire endpoint run lock]
     C --> R0[Create Collection run]
@@ -133,8 +147,8 @@ flowchart TD
     E -- Content --> I[Parse Raw items]
     I --> J[Normalize Article candidates]
     J --> K[Validate normalized Article-link/source-domain policy]
-    K --> L[Evaluate Publication Relevance/Categories]
-    L --> M[Resolve Article identity idempotently]
+    K --> L[Evaluate installation/Source-scoped Relevance + Categories]
+    L --> M[Resolve Article identity within Source]
     M --> N[Persist/update Article + Article observation transactionally]
     N --> O[Evaluate duplicate candidate/grouping where applicable]
     O --> P[Update run counters + endpoint health where implemented]
@@ -164,31 +178,34 @@ During Phases 5–9 before durable scheduling exists:
 
 Phase 4 itself stops at the controlled outbound-fetch boundary and does not yet create endpoint Collection runs.
 
-The historical Phase 5–9 manual command included a Publication slug. That remains historical behavior until the post-Phase-9 single-Publication implementation correction lands; it is not the forward operational contract.
+The historical Phase 5–9 manual command included a Publication slug. That remains historical behavior only; the post-Phase-9 correction removes it from the forward operational contract.
 
 ### Automated polling
 
 From Phase 10 onward:
 
-- polling is endpoint-specific within the installation's one Publication;
-- scheduler identifies due approved + active + enabled endpoints under the collection-active installation Publication and enqueues independent jobs;
+- polling is endpoint-specific within the installation;
+- scheduler identifies due approved + active + enabled endpoints when singleton Publication collection is active and enqueues independent jobs;
 - jobs reuse the Phase 4 shared/database-backed endpoint lock to prevent overlapping runs for one endpoint;
 - bounded jitter avoids synchronized spikes;
 - manual `check now` uses the same approval, lifecycle, operational, locking, network-safety, timeout, concurrency, and rate-limit rules and requests the same endpoint execution unit;
-- no scheduler/job design is needed for choosing among multiple topic Publications in one installation;
+- no scheduler/job design chooses among multiple topic Publications in one installation;
 - push/webhook adapters are not MVP work; a future push ingress must reuse the normalized downstream pipeline.
 
 ## Persistence and transactions
 
 - Git-tracked migrations and migration infrastructure are authoritative for database schema structure and schema evolution.
 - Runtime processes do not make ad hoc schema changes; Web/API and Worker startup do not automatically apply migrations.
-- Publication ownership/scoping remains explicit in persisted domain relationships even though deployment cardinality is one.
+- Historical migrations remain unchanged. The singleton correction adds a later migration that converts the existing one-Publication schema to the canonical flattened schema.
+- Fresh migration-from-zero and migration of an existing valid one-Publication pre-production database MUST converge on the same corrected schema.
+- A pre-correction database with more than one Publication causes the flattening migration to fail clearly rather than selecting/merging data implicitly.
+- Publication tenancy/scoping is removed; Source/endpoint/run/Article/observation relationships and critical uniqueness remain explicit.
 - The Phase 4 endpoint lock is shared across Worker processes and requires real persistence/concurrency evidence when implemented through PostgreSQL or another shared coordination store.
 - Minimal Collection-run persistence begins with real transport in Phase 5; it does not wait for Article persistence.
 - Article identity resolution plus Article create/update and the corresponding successful identity-resolving observation form one atomic per-candidate transaction with critical uniqueness constraints.
 - `created`, `updated`, and `unchanged` observations reference the resolved Article; pre-identity outcomes such as `rejected` or `excluded` may persist provenance without an Article identifier as governed by the domain contract.
-- An Article observation is linked to the actual Source endpoint and existing Collection run that produced the candidate; endpoint/run and Article Publication/Source ownership must remain consistent.
-- A failed candidate does not roll back unrelated successful candidates from the same Collection run unless integrity requires it; Phase 7 does not wrap an entire feed batch in one all-or-nothing Article transaction.
+- An Article observation is linked to the actual Source endpoint and existing Collection run that produced the candidate; endpoint/run and Article Source relationships must remain consistent.
+- A failed candidate does not roll back unrelated successful candidates from the same Collection run unless integrity requires it; Article persistence does not wrap an entire feed batch in one all-or-nothing Article transaction.
 - Collection-run finalization occurs after the bounded candidate batch finishes and canonical processing-outcome counters are known.
 - Duplicate-group changes preserve exactly one Primary Article.
 - Duplicate-review decisions persist independently from groups.
@@ -202,8 +219,8 @@ MVP administrative UI/API routes are protected by Cloudflare Access according to
 - Supported deployments prevent direct-origin bypass of the Access perimeter.
 - Application-managed accounts/sessions/roles are not part of MVP architecture.
 - State-changing admin browser actions still require applicable CSRF/equivalent request-integrity protection.
-- Admin commands validate Publication/resource ownership regardless of external access control.
-- Admin navigation/commands operate on the installation Publication rather than exposing a multi-Publication topic selector.
+- Admin commands validate real resource relationships and domain invariants regardless of external access control.
+- Admin navigation/commands operate on the installation's singleton Publication configuration and resources rather than exposing a multi-Publication topic selector.
 
 ## Initial technical baseline
 
@@ -213,6 +230,7 @@ Unless superseded by an Accepted ADR:
 - Express-compatible HTTP structure;
 - PostgreSQL as system of record;
 - one Publication/topic per deployed installation;
+- singleton Publication configuration without relational tenancy;
 - root `/` as the canonical customer-visible feed route;
 - manual Worker collection during the tech-demo critical path;
 - durable scheduler/job mechanism suitable for retries and separate Workers from Phase 10 onward;
@@ -225,7 +243,7 @@ The architecture contract matters more than a specific library choice.
 
 MVP does not require microservices, but must not prevent:
 
-- multiple Worker processes for the same installation Publication;
+- multiple Worker processes for the same installation;
 - bounded global/per-host/per-Source concurrency;
 - public-feed read caching;
 - moving collection execution away from the web host;
@@ -233,3 +251,5 @@ MVP does not require microservices, but must not prevent:
 - evolving durable jobs/object storage where justified.
 
 Scaling infrastructure across deployments in the future MUST preserve the product boundary that one installation presents one Publication/topic unless a new explicit contract/ADR changes that decision.
+
+A future concurrent multi-Publication requirement is a deliberate architecture/data-model project; the MVP does not carry dormant tenant fields to make that hypothetical change appear incremental.

@@ -4,13 +4,15 @@ Reusable, topic-independent news aggregation Platform for collecting Article met
 
 Each deployed installation hosts exactly one Publication/topic. The first deployment focuses on publishing-industry news relevant to indie authors. That topic is configuration, not shared Platform logic. A different topic reuses the same codebase through a separately configured deployment rather than being added as another live Publication in the same installation.
 
+Publication remains the singleton editorial/configuration concept for the installed news product, but it is **not** a relational tenancy key in the forward data model. The codebase does not retain Publication IDs/slugs/foreign-key scoping merely to support hypothetical concurrent topics.
+
 ## Current project state
 
 Current phase: **Phase 10 — Automated polling, durable jobs, and endpoint health**.
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation and closeout validation are complete. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; that accepted limitation is not rewritten as passing evidence.
 
-On August 11, 2026 the repository owner tightened the deployment model before Phase 10 implementation: one deployed installation hosts one Publication/topic, the root `/` is the canonical customer-visible feed, and topic reuse occurs through separate configured deployments of the same topic-independent codebase. Publication identity/slugs remain valid internal configuration/persistence scoping fields. The historical Phase 8/9 slug-addressed routes remain accurately recorded in their validation artifacts, but the implementation must be corrected and browser/regression validated before Phase 10 scheduler/job implementation proceeds.
+On August 11, 2026 the repository owner tightened the deployment/data model before Phase 10 implementation: one deployed installation hosts one Publication/topic, topic reuse occurs through separate deployments, relational Publication tenancy is removed from the forward model, and `/` plus `/api/feed` are the canonical public surfaces. Historical Phase 3–9 Publication-scoped schema/routes remain accurately recorded in migrations/tasks/validation evidence, but the implementation must complete the dedicated post-Phase-9 singleton simplification correction before Phase 10 scheduler/job work proceeds.
 
 Phase 10 then turns the proven manual endpoint execution unit into automated polling through durable jobs, due-endpoint scheduling, bounded retry/recovery behavior, conditional-fetch state persistence, and baseline endpoint health without creating a second collection path or a multi-Publication scheduler.
 
@@ -29,7 +31,7 @@ Prove both:
 1. The initial indie-author Publication is useful as a rolling industry-news feed.
 2. A second unrelated topic can be configured and deployed from the same codebase without changing aggregation-engine business logic.
 
-The MVP does **not** require one installation to concurrently host multiple topic Publications.
+The MVP does **not** require one installation to concurrently host multiple topic Publications or to preserve dormant relational tenant machinery for that hypothetical future.
 
 ## Public feed
 
@@ -39,7 +41,7 @@ Canonical public page:
 GET /
 ```
 
-Canonical basic feed API after the single-Publication correction:
+Canonical basic feed API after the singleton correction:
 
 ```text
 GET /api/feed
@@ -53,7 +55,7 @@ Date | Headline | Source
 
 Completed MVP adds:
 
-- reverse-chronological eligibility for visible ungrouped Articles and visible Primary Articles under the installation's public Publication and approved active Source;
+- reverse-chronological eligibility for visible ungrouped Articles and visible Primary Articles when singleton Publication `public_status = public` and the owning Source is approved/active;
 - stored Article `original_url` destination links;
 - clear Source identity;
 - accessible stacked mobile layout;
@@ -61,7 +63,7 @@ Completed MVP adds:
 - deterministic pagination/load-more;
 - light/dark presentation.
 
-The earlier Phase 8 backend and Phase 9 page were originally validated through Publication-slug routes. Those artifacts remain historical evidence. The forward product contract removes reader-supplied Publication selection and makes the installation root the actual publication feed.
+The earlier Phase 8 backend and Phase 9 page were originally validated through Publication-slug routes. Those artifacts remain historical evidence. The forward product contract removes reader-supplied Publication selection and Publication tenancy from the supported feed model.
 
 Pinning/featured-story ordering is deferred beyond MVP.
 
@@ -81,21 +83,33 @@ See `docs/contracts/project-contract.md`.
 10. Near-real-time means configurable polling unless a Source explicitly supports push; push adapters are deferred beyond MVP unless promoted.
 11. Each deployed installation hosts exactly one Publication/topic; `/` is its canonical public feed surface, and different topics reuse the codebase through separate configured deployments.
 
-## Canonical state model
+## Canonical state and relationship model
 
 The contracts deliberately separate:
 
+- singleton Publication collection/public configuration;
 - approval/trust state;
 - configuration lifecycle state;
 - operational collection state;
-- Publication public visibility;
 - Article moderation visibility;
 - duplicate-group role;
 - derived endpoint health.
 
 An approved Source can therefore be paused without becoming “unhealthy,” and a hidden Article can remain a member of a Duplicate group without duplicate membership forcing it visible again. Collection operational state does not itself hide retained feed-eligible Articles.
 
-Publication remains the topic/configuration ownership boundary even though deployment cardinality is one. Stable Publication identifiers/slugs may remain in persistence and configuration for identity/scoping without becoming a public topic selector.
+The forward relational model keeps only meaningful relationships:
+
+```text
+singleton Publication settings
+
+Source
+  ├── Source endpoint
+  │     └── Collection run
+  └── Article
+        └── Article observation (with endpoint/run provenance)
+```
+
+Source `config_key` is installation-wide. Endpoint identity remains Source-scoped. Article identity remains Source-scoped. Categories/Relevance/duplicate state are installation-wide with Source scope where explicitly required; they do not need a Publication tenant foreign key.
 
 ## Collection architecture
 
@@ -120,9 +134,9 @@ Cloudflare Access-protected Admin UI/API       Root Public Feed
                               |
              Article-link policy validation
                               |
-            Publication Relevance/Categories
+       installation/Source Relevance + Categories
                               |
-             Article identity + persistence
+          Source-scoped Article identity + persistence
                               |
                Article observation provenance
                               |
@@ -133,29 +147,29 @@ Cloudflare Access-protected Admin UI/API       Root Public Feed
 
 During Phases 5–9 the Worker was invoked manually for configured endpoints. Phase 10 places that same proven endpoint execution unit behind durable jobs/scheduling; Web/API never performs Source collection inline.
 
-The scheduler operates on due endpoints owned by the installation Publication. There is no supported Phase 10 requirement to schedule or switch among multiple topic Publications inside one deployment.
+The scheduler operates directly on due endpoints when singleton Publication collection is active. There is no supported Phase 10 requirement to schedule or switch among multiple topic Publications inside one deployment.
 
 Minimal Collection runs begin with the first real fetch in Phase 5. Before configurable Relevance rules exist, safe candidates pass through the canonical empty-rule/default-include decision before identity.
 
 ## Identity versus duplicates
 
-- **Article identity:** have we already stored this Source instance? Solved transactionally in Phase 7 using reliable Source external IDs, canonical URLs, and constrained fallback evidence.
+- **Article identity:** have we already stored this Source instance? Solved transactionally using reliable Source external IDs and canonical-URL fallback **within the same Source**.
 - **True duplicate identity:** do two separately stored Articles represent the same underlying published item? Added in Phase 16.
 
 Weak duplicate evidence becomes a persisted review candidate rather than silently hiding an Article.
 
 ## Administration
 
-Initial Publication/Source configuration may be supplied through idempotent operator-maintained bootstrap data. Bootstrap approval is explicit operator approval and never bypasses whitelist/state/network-safety rules. Ordinary bootstrap remains create-if-absent; the pre-admin public-feed work therefore uses an explicit generic operator transition when the installation Publication's `public_status` must change rather than making bootstrap overwrite persisted state.
+Initial singleton Publication/Source configuration may be supplied through idempotent operator-maintained bootstrap data. Bootstrap approval is explicit operator approval and never bypasses whitelist/state/network-safety rules. Ordinary bootstrap remains create-if-absent; the pre-admin public-feed work therefore uses an explicit generic operator transition when `public_status` must change rather than making bootstrap overwrite persisted state.
 
-MVP Source admin UI begins in Phase 14, after the working public vertical slice. Admin navigation/configuration is for the installation's one Publication rather than a multi-Publication selector.
+Forward bootstrap/runtime selection does not use a Publication slug. MVP Source admin UI begins in Phase 14, after the working public vertical slice. Admin navigation/configuration operates on the installation's one configured news product rather than a multi-Publication selector.
 
 MVP admin UI/API routes:
 
 - are protected by Cloudflare Access;
 - require supported deployment/origin configuration that prevents direct-origin bypass;
 - use CSRF or equivalent request-integrity controls for state-changing browser actions;
-- validate Publication/resource ownership in application commands.
+- validate real Source/endpoint/run/Article/observation/duplicate relationships and domain invariants in application commands.
 
 Native application-managed administrator accounts, sessions, roles, account recovery, per-user Publication authorization, and identity-linked audit attribution are deferred beyond MVP.
 
@@ -169,52 +183,31 @@ Core rules:
 - every implementation change requires focused tests plus relevant broader regression coverage for its blast radius;
 - validation evidence applies to the exact final source tree tested;
 - source inspection is not runtime proof and browser/database/live-Source claims require the corresponding evidence level;
-- persistence guarantees use real disposable PostgreSQL where practical from Phase 2 onward;
+- persistence/migration guarantees use real disposable PostgreSQL where practical from Phase 2 onward;
 - ordinary deterministic local regression validation does not depend on live public publishers;
 - collection behavior is tested with controlled fixtures/servers without weakening production whitelist/SSRF policy;
 - explicitly invoked required suites fail clearly when prerequisites are missing and cannot silently skip green;
-- flaky/skipped tests do not satisfy phase exit gates;
+- flaky/skipped tests do not satisfy exit gates;
 - implementation-roadmap phase closeout uses executed local terminal evidence and a durable `docs/validation/` record tied to the exact accepted commit/source tree.
 
-Every implementation roadmap phase inherits that contract even when its phase entry does not repeat the complete test matrix. Phase 9 additionally required Level 6 browser evidence for the public tech-demo flow and Level 7 evidence against the named approved live Sources required by its historical exit gate.
+Every implementation roadmap phase and gating correction inherits that contract even when its roadmap entry does not repeat the complete test matrix.
 
-The single-Publication root-route correction introduced after Phase 9 requires new focused browser/regression evidence; the historical Phase 9 artifact must not be rewritten to imply that `/` was previously tested.
+The post-Phase-9 singleton simplification correction specifically requires real PostgreSQL proof for fresh migration and existing one-Publication migration, rejection of ambiguous multi-Publication state, Source-scoped identity/integrity regressions, canonical `/api/feed` behavior, and Level 6 browser validation of `/`. Historical Phase 3–9 validation artifacts are not rewritten to imply those corrected behaviors were previously observed.
 
 Dependency installation intentionally uses `package.json` without an npm package lock. Repository npm configuration disables `package-lock.json` generation, so clean installs use `npm install` rather than `npm ci`. Because declared dependency ranges may resolve to different compatible versions over time, validation applies to the exact source tree and recorded Node/npm environment that was actually tested rather than claiming byte-for-byte dependency reproducibility.
 
-Database tests are intentionally separate from the ordinary deterministic suite. A
-root `.env` file is an optional, local, ignored configuration source that must not be
-committed. `npm run test:db`, `npm run test:live-sources`, `npm run db:migrate`,
-`npm run db:bootstrap`, `npm run collect:endpoint`, `npm run start:web`, and
-`npm run start:worker` load it when it exists; explicit environment variables take
-precedence. The ordinary `npm test`, unit, integration, and `check` commands do not
-automatically load `.env`.
+Database tests are intentionally separate from the ordinary deterministic suite. A root `.env` file is an optional, local, ignored configuration source that must not be committed. `npm run test:db`, `npm run test:live-sources`, `npm run db:migrate`, `npm run db:bootstrap`, `npm run collect:endpoint`, `npm run start:web`, and `npm run start:worker` load it when it exists; explicit environment variables take precedence. The ordinary `npm test`, unit, integration, and `check` commands do not automatically load `.env`.
 
-Set `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` to a dedicated test-capable PostgreSQL
-administrative connection and run `npm run test:db`. The command creates and removes
-uniquely named disposable databases, including forced cleanup of ordinary leaked
-connections, and fails when the prerequisite is absent. This privileged test role
-must be able to create databases and terminate ordinary disposable-database
-connections. A PostgreSQL administrator should provision a dedicated non-production
-role with `CREATEDB` and `pg_signal_backend`, for example:
+Set `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL` to a dedicated test-capable PostgreSQL administrative connection and run `npm run test:db`. The command creates and removes uniquely named disposable databases, including forced cleanup of ordinary leaked connections, and fails when the prerequisite is absent. This privileged test role must be able to create databases and terminate ordinary disposable-database connections. A PostgreSQL administrator should provision a dedicated non-production role with `CREATEDB` and `pg_signal_backend`, for example:
 
 ```sql
 ALTER ROLE <test-role> CREATEDB;
 GRANT pg_signal_backend TO <test-role>;
 ```
 
-News Scraper never grants these privileges. `SUPERUSER` is neither required nor
-recommended. Never point this variable at a development or production application
-database.
+News Scraper never grants these privileges. `SUPERUSER` is neither required nor recommended. Never point this variable at a development or production application database.
 
-For an application or development database, set `NEWS_SCRAPER_DATABASE_URL` to its
-PostgreSQL connection URL and run `npm run db:migrate` explicitly. Web/API and Worker
-startup do not apply migrations, including when started with values from `.env`. The
-application URL is separate from
-`NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL`; the latter is privileged test administration
-used by database-backed validation commands such as `npm run test:db` and
-`npm run test:live-sources` and must never point at ordinary development or
-production application data.
+For an application or development database, set `NEWS_SCRAPER_DATABASE_URL` to its PostgreSQL connection URL and run `npm run db:migrate` explicitly. Web/API and Worker startup do not apply migrations, including when started with values from `.env`. The application URL is separate from `NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL`; the latter is privileged test administration used by database-backed validation commands such as `npm run test:db` and `npm run test:live-sources` and must never point at ordinary development or production application data.
 
 ## Security and reliability
 
@@ -224,7 +217,7 @@ Baseline controls are implemented with the surfaces they protect, not postponed 
 - response/decompression limits and timeouts;
 - untrusted-content sanitization/escaping;
 - Source/endpoint run isolation;
-- transactionally idempotent Article identity;
+- transactionally idempotent Source-scoped Article identity;
 - secret-safe structured logs and truthful Collection-run telemetry;
 - Cloudflare Access/origin/request-integrity controls when admin surfaces arrive;
 - focused and regression testing for contract-critical security/reliability behavior as each capability is introduced.
@@ -252,7 +245,8 @@ docs/
 ├── roadmap/
 │   └── mvp-roadmap.md
 └── decisions/
-    ├── topic-independent-publication-model.md
+    ├── single-publication-simplified-data-model.md
+    ├── topic-independent-publication-model.md  # superseded historical ADR
     ├── whitelist-and-structured-feed-first.md
     ├── original-link-and-normalized-metadata.md
     └── cloudflare-access-admin-perimeter.md
@@ -312,9 +306,9 @@ npm run codex:phase:validate -- p10
 npm run codex:phase:validate -- c10-single-publication
 ```
 
-A valid folder has contiguous `P1...Pn` `.txt` prompts, exact supported recommendation labels, exactly one final manual closeout whose filename and TASK title both contain `closeout`, and the version metadata required by its stack type. Free-form body prose does not determine closeout kind or stack mode. The complete grammar is authoritative in `BOOT.md` and executable in `scripts/codex-phase-core.mjs` after runner support is implemented.
+A valid folder has contiguous `P1...Pn` `.txt` prompts, exact supported recommendation labels, exactly one final manual closeout whose filename and TASK title both contain `closeout`, and the version metadata required by its stack type. Free-form body prose does not determine closeout kind or stack mode. The complete grammar is authoritative in `BOOT.md` and executable in `scripts/codex-phase-core.mjs`.
 
-After validation, run implementation prompts automatically with the same command:
+After validation, run implementation prompts automatically with:
 
 ```text
 npm run codex:phase -- p10
@@ -345,22 +339,22 @@ Tech-demo critical path:
 
 Then:
 
-10. **Pre-Phase-10 correction gate — single-Publication root routing/runtime alignment**
-11. Phase 10 — Automated polling, durable jobs, and endpoint health
-12. Phase 11 — Categories and configurable Relevance execution
-13. Phase 12 — Feed discovery features
-14. Phase 13 — Public presentation polish
-15. Phase 14 — Source administration
-16. Phase 15 — Publication and Relevance administration
-17. Phase 16 — True duplicate detection and grouping
-18. Phase 17 — Article and duplicate moderation
-19. Phase 18 — Configurable HTML collection
-20. Phase 19 — Reliability, observability, and production operations
-21. Phase 20 — Customer launch validation
+- **Phase 10 entry correction — single-Publication simplification**: flatten obsolete Publication tenancy, preserve real provenance, make `/api/feed` and `/` canonical, validate migration/regression/browser behavior. This is non-versioned and not a numbered roadmap phase.
+- Phase 10 — Automated polling, durable jobs, and endpoint health
+- Phase 11 — Categories and configurable Relevance execution
+- Phase 12 — Feed discovery features
+- Phase 13 — Public presentation polish
+- Phase 14 — Source administration
+- Phase 15 — Publication and Relevance administration
+- Phase 16 — True duplicate detection and grouping
+- Phase 17 — Article and duplicate moderation
+- Phase 18 — Configurable HTML collection
+- Phase 19 — Reliability, observability, and production operations
+- Phase 20 — Customer launch validation
 
-The correction gate is not a new numbered roadmap phase and does not change the `0.10.x` version family. It must land before ordinary Phase 10 scheduler/job implementation prompts proceed.
+The correction gate does not change the `0.10.x` version family. It must close before ordinary Phase 10 scheduler/job implementation prompts proceed.
 
-Deferred: native administrator identity/accounts, historical Relevance bulk reprocessing, push/webhook adapters, AI summaries, related-story clustering, public personalization, outbound publishing, self-service tenancy, generic relevance ranking/boost scoring, pinning/featured ordering, API access, multilingual feeds. Concurrent multi-Publication hosting inside one installation is not deferred-by-default behavior; it would require an explicit future contract/ADR change.
+Deferred: native administrator identity/accounts, historical Relevance bulk reprocessing, push/webhook adapters, AI summaries, related-story clustering, public personalization, outbound publishing, self-service tenancy, generic relevance ranking/boost scoring, pinning/featured ordering, API access, multilingual feeds. Concurrent multi-Publication hosting inside one installation is not deferred-by-default behavior; it would require an explicit future contract/ADR and deliberate data-model migration.
 
 ## Repository
 

@@ -6,10 +6,12 @@
 The reusable software system that hosts collection, normalization, identity resolution, deduplication, administration, and public-feed capabilities.
 
 ### Publication
-A configured news product with its own name, slug, branding, timezone, Categories, Relevance rules, Sources, and public feed. Publication is the boundary for topic-specific behavior.
+The one configured news product for a deployed installation. Publication owns topic-specific editorial configuration such as name, collection/public state, branding, timezone/presentation settings, Categories, Relevance rules, Sources, Source priority, and public-feed settings.
+
+A supported installation has exactly one Publication configuration. Publication is an editorial/configuration boundary, **not** a tenancy or relational ownership key in the forward data model.
 
 ### Source
-A configured publisher or outlet belonging to one Publication in the MVP. Approval state determines whether the Platform trusts/collects it. A Source owns one or more Source endpoints and defines public Source identity for accepted Articles.
+A configured publisher or outlet in the installation. Approval state determines whether the Platform trusts/collects it. A Source owns one or more Source endpoints and defines public Source identity for accepted Articles.
 
 ### Source endpoint
 A configured machine-readable feed, API URL, or HTML listing page belonging to a Source. Approval, lifecycle/operational state, polling state, HTTP cache metadata, parser settings, and derived health are endpoint-level concerns.
@@ -42,40 +44,43 @@ The one Article selected to represent a Duplicate group in public output.
 Distinct reporting about the same event or subject. Related coverage is not a true duplicate and remains separately visible.
 
 ### Category
-A Publication-owned editorial grouping.
+An installation-wide editorial grouping owned by the singleton Publication configuration.
 
 ### Relevance rule
-A Publication-owned deterministic rule used to include, exclude, or categorize candidates. MVP does not define a generic ranking/boost score.
+An installation-wide deterministic rule used to include, exclude, or categorize candidates, optionally scoped to one Source. MVP does not define a generic ranking/boost score.
 
-## Ownership boundaries
+## Relationship boundaries
 
-- A Publication owns branding, feed settings, Categories, Relevance rules, Sources, and Source-priority configuration.
-- A Source belongs to exactly one Publication in MVP.
+- The singleton Publication configuration owns installation-wide editorial settings but does not provide a tenant foreign key for other entities.
 - A Source owns one or more Source endpoints.
 - A Source endpoint owns collection scheduling/cache/health state and Collection runs.
-- An Article belongs to one Publication and one Source.
-- Article observations link Articles/candidate outcomes to one Source endpoint and one Collection run.
-- Duplicate groups and Duplicate review candidates belong to one Publication and never cross Publication boundaries.
-- Administrative commands validate Publication/resource ownership and scoping even though MVP does not implement per-user Publication authorization.
+- An Article belongs to one Source.
+- Article observations link Articles/candidate outcomes to the Source endpoint and Collection run that produced them and preserve Source consistency where stored directly.
+- Duplicate groups and Duplicate review candidates relate Articles within the one installation; cross-Publication checks are structurally unnecessary because the installation cannot contain another Publication domain.
+- Administrative commands validate real resource relationships and domain invariants even though MVP does not implement per-user authorization.
+
+Do not preserve or introduce Publication UUIDs, slugs, foreign keys, composite uniqueness scopes, repository arguments, or compatibility aliases solely to model concurrent Publications that the supported product does not host.
 
 ## State model
 
 Approval/trust, configuration lifecycle, operational state, public visibility, moderation, and derived health are separate concepts.
 
-### Publication
+### Publication configuration
 Required concepts:
-- `active_for_collection`: whether its eligible Sources may be scheduled/fetched;
-- `public_status`: whether its public feed is exposed;
-- branding/feed configuration.
+- `active_for_collection`: whether eligible Sources may be scheduled/fetched;
+- `public_status`: whether the public feed is exposed;
+- name and later branding/feed/presentation configuration.
 
-A Publication may collect while its public feed is not exposed. Public feed reads require `public_status = public`; `active_for_collection` is a collection-state control and does not independently expose or suppress already-persisted feed rows.
+The singleton Publication may collect while its public feed is not exposed. Public feed reads require `public_status = public`; `active_for_collection` is a collection-state control and does not independently expose or suppress already-persisted feed rows.
+
+The persisted representation MUST enforce singleton semantics. It need not expose a dynamic Publication identifier or slug to other domain records.
 
 ### Source
 Required concepts:
 - approval/trust state: `approved` or `unapproved`;
 - lifecycle state: `active` or `archived`;
 - operational state while active: `enabled`, `paused`, or `disabled`;
-- Source priority within its Publication;
+- Source priority within the installation;
 - approved public-domain policy.
 
 Approval authorizes trust. Lifecycle controls whether configuration is current/retired. Operational state controls whether active approved configuration currently runs.
@@ -107,49 +112,44 @@ Duplicate role:
 
 Joining/leaving a Duplicate group does not inherently change Article visibility. Hiding/restoring does not inherently change group membership.
 
-Phase 7 persists Articles before a public read path consumes Article visibility. Phase 8 introduces persisted Article visibility with the canonical states above, migrates existing Phase 7 Articles to `visible`, and uses `visible` as the baseline for newly persisted Articles unless a separately implemented policy deliberately produces another state. Phase 8 does not introduce moderation controls.
+Phase 7 persisted Articles before a public read path consumed Article visibility. Phase 8 introduced persisted Article visibility with the canonical states above, migrated existing Phase 7 Articles to `visible`, and used `visible` as the baseline for newly persisted Articles unless a separately implemented policy deliberately produced another state. Phase 8 did not introduce moderation controls.
 
-Before Duplicate-group persistence exists, Articles are logically `ungrouped`. Duplicate groups/roles are not persisted speculatively in Phase 8 merely to implement the baseline feed.
+Before Duplicate-group persistence exists, Articles are logically `ungrouped`. Duplicate groups/roles are not persisted speculatively merely to implement the baseline feed.
 
 ## Logical entities
 
-Names below define logical concepts, not final SQL. They describe the completed MVP domain model; roadmap phases introduce only the fields needed by behavior that exists in that phase. An earlier phase MUST NOT front-load later scheduling/cache/health/parser/Relevance/Category/branding fields merely because they appear in the logical entity descriptions below.
+Names below define logical concepts, not final SQL. Roadmap phases introduce only fields needed by behavior that exists in that phase. Earlier phases MUST NOT front-load later scheduling/cache/health/parser/Relevance/Category/branding fields merely because they appear below.
 
-### Phase 3 minimum persisted configuration boundary
+### Singleton Publication configuration
 
-Phase 3 introduces only the trusted configuration needed by later collection eligibility:
+Forward behavior requires one persisted Publication/settings record with only the fields actually used by implemented phases, including:
 
-- Publication: stable identifier, name, unique slug, `active_for_collection`, `public_status`, and timestamps;
-- Source: stable identifier, Publication identifier, immutable Publication-scoped configuration key, display name/site URL, approval state, lifecycle state, operational state, approved-domain policy, and timestamps;
-- Source endpoint: stable identifier, Source identifier, immutable Source-scoped configuration key, endpoint URL/type, approval state, lifecycle state, operational state, basic polling interval, optional policy narrowing, and timestamps.
-
-Runtime parser/cache fields, due/attempt/success timing, derived health, Categories/Relevance persistence, and final branding/feed configuration are introduced by the roadmap phase that first uses them.
-
-### `publications`
-- stable identifier;
-- name/slug/description;
-- default timezone;
+- name;
 - `active_for_collection`;
 - `public_status`;
-- branding/feed configuration;
-- created/updated timestamps.
+- later description/default timezone/branding/feed/presentation configuration;
+- created/updated timestamps where useful.
+
+The implementation MAY retain the historical `publications` table name during the correction migration, but it MUST enforce singleton semantics and MUST NOT require a Publication UUID or slug for relational scoping.
 
 ### `sources`
-- Publication identifier;
-- stable immutable configuration key unique within the Publication;
+
+- stable identifier;
+- immutable `config_key` unique across the installation;
 - display name/site URL;
 - approval state;
 - lifecycle state/archive timestamp as appropriate;
 - operational state;
 - approved-domain policy;
-- Publication-scoped priority;
+- installation-wide Source priority;
 - default Category;
 - optional Source-scoped Relevance settings;
 - created/updated timestamps.
 
 ### `source_endpoints`
+
 - Source identifier;
-- stable immutable configuration key unique within the Source;
+- stable immutable `config_key` unique within the Source;
 - endpoint URL/type;
 - approval state;
 - lifecycle state/archive timestamp as appropriate;
@@ -167,6 +167,7 @@ Configuration inheritance:
 - endpoint default Category overrides Source default for that endpoint; Source default is fallback.
 
 ### `collection_runs`
+
 - Source endpoint identifier;
 - start/finish timestamps;
 - terminal run/transport status;
@@ -189,9 +190,9 @@ Phase 6 pre-persistence accounting uses the normalization stage vocabulary defin
 - the candidate count safe for the next stage is `normalized_candidate_count - article_link_rejection_count`;
 - item-level normalization failures or link rejections do not by themselves mean the normalization stage failed; stage-level failure means the bounded batch could not complete.
 
-These Phase 6 values are stage accounting only. They are not aliases for the post-identity processing outcomes introduced when Article persistence exists.
+These values are stage accounting only. They are not aliases for the post-identity processing outcomes introduced when Article persistence exists.
 
-Once Article persistence exists, every processed candidate has exactly one **processing outcome**:
+Once Article persistence exists, every successfully normalized candidate has exactly one **processing outcome**:
 
 - `created` — new Article inserted;
 - `updated` — existing Article Source-derived fields changed;
@@ -200,24 +201,21 @@ Once Article persistence exists, every processed candidate has exactly one **pro
 - `excluded` — deterministically excluded by Relevance policy;
 - `failed` — item-level processing failed.
 
-For every successfully normalized candidate after Article-persistence accounting exists, exactly one of those processing outcomes is recorded. Therefore:
+Therefore:
 
 `created + updated + unchanged + rejected + excluded + failed = normalized_candidate_count`.
 
-Normalization failures remain pre-candidate stage failures and do not receive a post-normalization processing outcome. A separate Article-link-policy rejection is both retained in `article_link_rejection_count` and mapped to the candidate processing outcome `rejected`; the two values describe different accounting dimensions rather than two candidates. Before configurable Relevance rules exist, safe link-accepted candidates pass the empty-rule boundary and `excluded` is therefore zero.
+Normalization failures remain pre-candidate stage failures and do not receive a post-normalization processing outcome. An Article-link-policy rejection is retained in `article_link_rejection_count` and maps that same candidate to processing outcome `rejected`; the values describe different accounting dimensions rather than two candidates. Before configurable Relevance rules exist, safe link-accepted candidates pass the empty-rule boundary and `excluded` is zero.
 
 Accepted Article processing may also produce zero or more **orthogonal effects**, which do not replace the processing outcome:
 
-- `visibility_hidden` — resulting Article is hidden by policy/moderation;
-- `duplicate_review_created` — new/persisted weak-match review work was created;
-- `duplicate_grouped` — Article was newly attached to or materially changed within a true Duplicate group.
-
-Example: one candidate may be counted as `created` and also increment `duplicate_grouped`; these are not competing outcomes.
-
-Before Article persistence exists, Collection runs may report transport/parser/normalization stage counts/statuses, but MUST NOT use post-identity processing outcomes as though Articles already exist. Generic terms such as `accepted` or `skipped` require explicit mapping rather than competing semantics.
+- `visibility_hidden`;
+- `duplicate_review_created`;
+- `duplicate_grouped`.
 
 ### `articles`
-- Publication/Source identifiers;
+
+- Source identifier;
 - reliable Source external identifier where available;
 - original discovered URL and canonical identity URL;
 - display/source title and normalized title;
@@ -225,18 +223,18 @@ Before Article persistence exists, Collection runs may report transport/parser/n
 - Source-published time/confidence;
 - first-seen/last-seen time;
 - Source-updated time where available;
-- stable identity fingerprint;
+- stable identity fingerprint where implemented;
 - visibility/moderation state;
 - normalization/Relevance reasons.
 
-`original_url` is the preserved absolute Source-provided Article destination and is the public headline destination in the Phase 8 read model. `canonical_identity_url` exists for identity comparison/cleanup and MUST NOT silently replace `original_url` as a public destination. A different Source-derived public/canonical destination field requires a separately governed future contract.
+`original_url` is the preserved absolute Source-provided Article destination and public headline destination. `canonical_identity_url` exists for identity comparison/cleanup and MUST NOT silently replace `original_url` as a public destination. A different Source-derived public/canonical destination field requires a separately governed future contract.
 
 Source-derived normalized values remain distinct from optional administrator display overrides. Later Source observations update Source-derived values without clobbering an active override. Clearing an override reveals the latest normalized Source value.
 
-Phase 8 first persists the Article visibility field needed by public-feed behavior. Existing Phase 7 Articles transition to `visible`; the later Article-moderation phase owns operator hide/restore/archive controls.
-
 ### `article_observations`
+
 - Article identifier when identity resolves;
+- Source identifier where retained for direct provenance/validation;
 - Source endpoint identifier;
 - Collection run identifier;
 - observed Source identity/key and optional bounded Raw-item reference;
@@ -248,15 +246,19 @@ Observation invariants:
 
 - `created`, `updated`, and `unchanged` observations MUST reference the resolved Article;
 - pre-identity terminal outcomes such as `rejected` or `excluded` MAY have no Article identifier because identity was intentionally not reached;
-- every observation MUST reference the Source endpoint and the existing Collection run that actually produced that candidate outcome, and that Collection run MUST belong to that endpoint;
-- when an Article is referenced, its Publication/Source ownership MUST match the candidate and endpoint provenance;
-- Article identity resolution plus any Article create/update and its successful identity-resolving observation are atomic for that candidate.
+- every observation MUST reference the Source endpoint and existing Collection run that actually produced that candidate outcome, and that Collection run MUST belong to that endpoint;
+- when an Article is referenced, the Article Source MUST match the candidate and endpoint provenance;
+- any directly stored observation Source identifier MUST agree with the endpoint/Article Source relationships rather than act as an independent ownership dimension;
+- Article identity resolution plus Article create/update and its successful identity-resolving observation are atomic for that candidate.
 
 ### `categories` and `article_categories`
-Categories belong to one Publication. Articles may have multiple Categories; a Publication may define a preferred display Category.
+
+Categories are installation-wide Publication configuration. Articles may have multiple Categories; the singleton Publication may define a preferred display Category.
+
+No Publication foreign key is required because another Publication cannot exist in the same supported installation.
 
 ### `relevance_rules`
-- Publication identifier;
+
 - optional Source scope;
 - rule type/pattern;
 - action: `include`, `exclude`, or `categorize`;
@@ -267,20 +269,20 @@ Categories belong to one Publication. Articles may have multiple Categories; a P
 Deterministic MVP decision procedure:
 1. Collect applicable enabled include/exclude rules.
 2. Highest explicit priority wins.
-3. At equal priority, Source-scoped rule wins over Publication-wide rule.
+3. At equal priority, Source-scoped rule wins over installation-wide rule.
 4. At equal priority and scope specificity, `exclude` wins over `include`.
 5. If no include/exclude rule decides the candidate, include by default.
 6. Category rules are evaluated independently and do not alter inclusion unless a separate include/exclude rule does so.
 7. Persist the winning include/exclude reason and applied Category-rule reasons.
 
-Before configurable Relevance-rule persistence exists, the canonical Relevance boundary still executes with an empty rule set. Safe normalized candidates therefore receive the deterministic default `include` decision rather than bypassing Relevance evaluation.
+Before configurable Relevance-rule persistence exists, the canonical Relevance boundary still executes with an empty rule set. Safe normalized candidates receive deterministic default `include` rather than bypassing Relevance evaluation.
 
-MVP Relevance-rule edits are prospective by default. Editing rules affects future candidate processing; automatic bulk retroactive re-evaluation of previously persisted Articles is deferred unless a dedicated reprocessing capability is explicitly invoked/implemented later. Article moderation remains available for corrections.
+MVP Relevance-rule edits are prospective by default. Automatic bulk retroactive re-evaluation of previously persisted Articles is deferred unless a dedicated reprocessing capability is explicitly invoked/implemented later. Article moderation remains available for corrections.
 
 Generic `boost`/ranking behavior is deferred until a ranking/scoring contract exists.
 
 ### `duplicate_review_candidates`
-- Publication identifier;
+
 - compared Article identifiers;
 - deterministic signals/reason codes;
 - confidence;
@@ -289,61 +291,61 @@ Generic `boost`/ranking behavior is deferred until a ranking/scoring contract ex
 - manual decision time/reason where applicable.
 
 ### `duplicate_groups` and memberships
-- Publication identifier;
+
 - Primary Article identifier;
 - matching method/confidence;
 - automatic/manual origin;
 - group timestamps;
 - membership records preserving every Article instance.
 
-Exactly one member is Primary.
+Exactly one member is Primary. No Publication foreign key or cross-Publication membership check is needed in the supported singleton installation.
 
 ### `audit_events`
+
 MVP may persist bounded administrative configuration/moderation change history for security-sensitive or editorially significant changes. Records may include action, target, prior/new state, timestamp, and reason where applicable. MVP does not require a native administrator identifier or canonical per-user attribution.
 
-Native administrator accounts/identity, roles, per-user Publication authorization, account recovery, and identity-linked audit attribution are outside MVP and require a later contract/ADR if promoted.
+Native administrator accounts/identity, roles, per-user authorization, account recovery, and identity-linked audit attribution are outside MVP and require a later contract/ADR if promoted.
 
 ## Identity and uniqueness invariants
 
 Persistence MUST enforce or transactionally guarantee:
 
-- unique Publication slug;
-- unique immutable Source configuration key within a Publication;
-- unique immutable Source-endpoint configuration key within a Source;
+- singleton Publication/settings configuration;
+- unique immutable Source `config_key` across the installation;
+- unique immutable Source-endpoint `config_key` within a Source;
 - no duplicate non-archived normalized endpoint URL within the same Source;
 - no duplicate Article for the same reliable immutable external identifier within the same Source;
-- no duplicate Article for the same Publication/Source canonical identity when external identifier is absent;
+- no duplicate Article for the same Source canonical identity when external identifier is absent;
 - one Primary Article per Duplicate group;
-- no cross-Publication Duplicate membership/review pair;
 - one canonical unresolved/reviewed Duplicate-candidate relationship per Article pair/method as appropriate;
-- every public feed row resolves to a public Publication, an approved active Source, and an eligible stored Article;
+- every public feed row resolves to an approved active Source and an eligible stored Article while singleton Publication `public_status = public`;
 - pausing/disabling/archiving Source configuration never erases retained Article provenance.
 
 For Article identity, an `ArticleCandidate.externalId` that is present is an adapter-designated strong Source identity signal; downstream identity code MUST NOT infer or downgrade its reliability by applying title, summary, date, or fuzzy-fingerprint heuristics. The current RSS/Atom adapter designates RSS `guid` and Atom `id` as that field.
 
-Identity resolution uses that strong external identifier first and canonical URL fallback second within the same Source/Publication scope:
+Identity resolution uses that strong external identifier first and canonical URL fallback second within the same Source:
 
 - a matching strong external identifier resolves the existing Article even when its Source-derived URL changes;
-- a candidate without a strong external identifier falls back to canonical identity URL;
+- a candidate without a strong external identifier falls back to canonical identity URL within the same Source;
 - when an Article previously created through canonical-URL fallback is later observed with a strong external identifier and no contradictory strong identity exists, the existing Article MAY be promoted by attaching that external identifier rather than creating a second Article;
 - two different strong external identifiers MUST NOT be silently merged, overwritten, or reassigned solely because their canonical URLs match;
 - canonical-only fallback that encounters multiple Articles distinguished by different strong external identifiers is an explicit identity conflict and MUST NOT choose one arbitrarily;
 - fuzzy title/fingerprint evidence is secondary corroboration only and MUST NOT resolve Article identity by itself.
 
-An additional configured stable endpoint identity key is introduced only when a concrete approved adapter/endpoint requires one. Phase 7 MUST NOT invent a speculative generic identity-key configuration system merely because the completed logical model permits future adapters to provide stable identity keys.
+An additional configured stable endpoint identity key is introduced only when a concrete approved adapter/endpoint requires one. Do not invent a speculative generic identity-key system merely because future adapters might use one.
 
 ## Public-feed eligibility
 
 A feed row is eligible only when all of the following are true:
 
-- the owning Publication has `public_status = public`;
+- singleton Publication configuration has `public_status = public`;
 - the owning Source is `approved` and lifecycle `active`;
 - the Article is `visible`; and
 - the Article is either logically/persistently `ungrouped` or the `primary` member of its Duplicate group.
 
-Before Duplicate groups exist, all persisted Articles are logically `ungrouped`; Phase 8 uses that baseline without inventing duplicate-group persistence. A visible `non_primary` member is duplicate-suppressed from ordinary rows but remains administratively available once grouping exists. Hidden/archived Articles are not restored merely because duplicate membership changes.
+Before Duplicate groups exist, all persisted Articles are logically `ungrouped`. A visible `non_primary` member is duplicate-suppressed from ordinary rows but remains administratively available once grouping exists. Hidden/archived Articles are not restored merely because duplicate membership changes.
 
-Collection and presentation state remain separate. Publication `active_for_collection`, Source operational state, and endpoint approval/lifecycle/operational/health state govern whether collection work runs; they do not by themselves suppress retained Articles that otherwise satisfy the public-row rule. Source approval/lifecycle and Publication public exposure remain explicit public-row gates.
+Collection and presentation state remain separate. Publication `active_for_collection`, Source operational state, and endpoint approval/lifecycle/operational/health state govern whether collection work runs; they do not by themselves suppress retained Articles that otherwise satisfy the public-row rule. Source approval/lifecycle and singleton Publication public exposure remain explicit public-row gates.
 
 The public headline destination is `articles.original_url`; `canonical_identity_url` is not substituted merely because it is the identity-normalized URL.
 
@@ -354,11 +356,11 @@ The public headline destination is `articles.original_url`; `canonical_identity_
 - `last_seen_at` = latest observation.
 - Platform `updated_at` = record-change time, never publication time.
 - Public feed uses trusted `published_at`; otherwise `first_seen_at` with detectable fallback metadata.
-- Persist UTC; render according to Publication/viewer presentation rules.
+- Persist UTC; render according to singleton Publication presentation rules when implemented.
 
-Phase 6 may parse Source publication/update values into UTC and attach confidence/reason/fallback metadata, but it does not create persistence observation times. Missing or invalid Source publication dates remain distinguishable, and normalization MUST NOT substitute a Collection-run timestamp as `published_at`. Phase 7 Article/observation persistence establishes `first_seen_at`/`last_seen_at` from actual Platform observations.
+Phase 6 may parse Source publication/update values into UTC and attach confidence/reason/fallback metadata, but it does not create persistence observation times. Missing or invalid Source publication dates remain distinguishable, and normalization MUST NOT substitute a Collection-run timestamp as `published_at`. Article/observation persistence establishes `first_seen_at`/`last_seen_at` from actual Platform observations.
 
-For Phase 7 processing semantics:
+Processing semantics:
 
 - a newly `created` Article sets `first_seen_at` and `last_seen_at` from the successful observation time;
 - `first_seen_at` never moves forward on later observations;
@@ -367,7 +369,23 @@ For Phase 7 processing semantics:
 - both `updated` and `unchanged` advance `last_seen_at` to the successful observation time;
 - advancing `last_seen_at`, adding an observation, or changing only persistence-maintenance timestamps does not by itself convert an otherwise unchanged observation into `updated`.
 
-For Phase 8 public-feed ordering, the effective feed date is trusted parsed `published_at` when available and otherwise `first_seen_at`. The read model identifies that source explicitly. Reverse-chronological ordering is deterministic: effective feed date descending, then `first_seen_at` descending, then stable Article identifier as the final tie-breaker.
+For public-feed ordering, the effective feed date is trusted parsed `published_at` when available and otherwise `first_seen_at`. The read model identifies that source explicitly. Reverse-chronological ordering is deterministic: effective feed date descending, then `first_seen_at` descending, then stable Article identifier as the final tie-breaker.
+
+## Post-Phase-9 singleton migration contract
+
+The historical Phase 3–9 schema and validation artifacts accurately record Publication identifiers/slugs and Publication-scoped relationships that existed at those accepted source trees. They are not rewritten.
+
+The correction migration MUST:
+
+- build on existing migration history rather than editing migrations already used for accepted phases;
+- migrate a valid existing one-Publication pre-production database to the singleton model without losing Source, endpoint, Collection-run, Article, observation, or visibility/provenance data;
+- remove Publication tenancy keys/scopes that are no longer required by the forward model;
+- establish installation-wide uniqueness where Publication previously supplied the only extra scope, including Source `config_key`;
+- preserve Source/endpoint/run/Article/observation referential integrity and Article identity behavior;
+- make fresh migration-from-zero end at the same corrected schema;
+- fail clearly if pre-correction data contains more than one Publication rather than choosing, merging, or deleting records implicitly.
+
+The correction is pre-production and SHOULD prefer one canonical schema over permanent compatibility columns, aliases, duplicated values, or fallback query paths.
 
 ## Retention and deletion principles
 

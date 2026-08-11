@@ -6,7 +6,7 @@ Only configured Sources/endpoints that are currently trusted and operationally e
 
 An endpoint is collectable only when all are true:
 
-- its Publication is active for collection;
+- the singleton Publication configuration is active for collection;
 - its Source approval state is `approved`;
 - its Source lifecycle state is `active`;
 - its Source operational state is `enabled`;
@@ -20,7 +20,7 @@ An endpoint is collectable only when all are true:
 
 ## Bootstrap configuration and approval
 
-Before Source administration UI exists, operator-maintained seed/bootstrap tooling MAY create Publication, Source, and endpoint configuration, including explicitly setting approval state to `approved`.
+Before Source administration UI exists, operator-maintained seed/bootstrap tooling MAY create the singleton Publication configuration plus Source and endpoint configuration, including explicitly setting approval state to `approved`.
 
 Bootstrap approval counts as deliberate operator approval; it is not a bypass of the approval boundary.
 
@@ -28,11 +28,11 @@ Bootstrap is an explicit operator action. Web/API and Worker ordinary startup MU
 
 Bootstrap identity is stable and configuration-owned:
 
-- Publication bootstrap identity uses the Publication slug;
-- each Source has an immutable `config_key` unique within its Publication;
+- the Publication portion is singleton installation configuration and does not require a slug or dynamic identifier;
+- each Source has an immutable `config_key` unique across the installation;
 - each Source endpoint has an immutable `config_key` unique within its Source.
 
-Ordinary bootstrap execution is create-if-absent by those stable identities. If a matching Publication/Source/endpoint already exists, bootstrap MUST leave the existing record unchanged, including later operator-managed approval, lifecycle, operational state, approved domains, endpoint URL, and polling configuration. A rerun therefore MUST NOT recreate an obsolete seeded endpoint merely because an operator later changed its URL.
+Ordinary bootstrap execution is create-if-absent by those stable identities. If singleton Publication settings or a matching Source/endpoint already exist, bootstrap MUST leave the existing record unchanged, including later operator-managed collection/public state, approval, lifecycle, operational state, approved domains, endpoint URL, and polling configuration. A rerun therefore MUST NOT recreate an obsolete seeded endpoint merely because an operator later changed its URL.
 
 Bootstrap tooling:
 
@@ -40,9 +40,11 @@ Bootstrap tooling:
 - MUST NOT infer approval from a successful fetch;
 - MUST NOT silently widen Source approved-domain policy;
 - MUST be idempotent;
-- MUST NOT blindly overwrite later operator-managed approval/lifecycle/operational state or other existing configuration.
+- MUST NOT blindly overwrite later operator-managed Publication/Source/endpoint state or other existing configuration.
 
 Once admin UI becomes the normal management surface, bootstrap data is initialization input rather than competing runtime authority.
+
+The post-Phase-9 singleton correction removes Publication slug selection from bootstrap/runtime commands. Historical Phase 3–9 bootstrap behavior remains accurately described by historical tasks/validation artifacts.
 
 ## Approved-domain policy
 
@@ -58,7 +60,7 @@ Configuration representation is intentionally structural and deterministic:
 - when endpoint narrowing exists, every endpoint rule MUST be equal to or narrower than an approved Source rule;
 - an endpoint cannot enter `approved` state when its configured hostname falls outside the Source approved-domain policy.
 
-Phase 3 validates and persists these configuration relationships only. It does not resolve DNS, classify resolved addresses, enforce runtime port policy, follow redirects, or contact endpoints. Those pre-request network-safety behaviors begin in Phase 4.
+Phase 3 validated and persisted these configuration relationships only. It did not resolve DNS, classify resolved addresses, enforce runtime port policy, follow redirects, or contact endpoints. Those pre-request network-safety behaviors begin in Phase 4.
 
 ### Phase 4 pre-fetch network-safety policy
 
@@ -90,7 +92,7 @@ Eligibility and network-safety decisions MUST expose stable machine-readable rea
 
 The Phase 4 reason vocabulary MUST distinguish at least:
 
-- `publication_inactive`;
+- `publication_inactive` — singleton Publication collection is disabled;
 - `source_unapproved`;
 - `source_archived`;
 - `source_paused`;
@@ -134,17 +136,24 @@ The fetcher/parser adapter boundary is established with the first structured-fee
 
 ### Phase 3 endpoint type and polling configuration
 
-Phase 3 persists only the structured-feed type needed for the initial critical path. The canonical initial endpoint type is `rss_atom`; the later parser determines whether fetched content is RSS or Atom rather than requiring an operator to pre-classify the XML dialect correctly.
+Phase 3 persisted only the structured-feed type needed for the initial critical path. The canonical initial endpoint type is `rss_atom`; the parser determines whether fetched content is RSS or Atom rather than requiring an operator to pre-classify the XML dialect correctly.
 
 The canonical basic polling field is `poll_interval_seconds`. It MUST be a positive bounded value. `0` MUST NOT mean disabled because operational state already owns `enabled`, `paused`, and `disabled` semantics. Other endpoint types and their adapter-specific configuration arrive only with the roadmap phase that implements them.
 
 ## Configuration precedence
 
+Singleton Publication configuration owns installation-wide editorial/global controls including:
+
+- collection-active/public state;
+- name and later branding/presentation settings;
+- installation-wide Categories and Relevance rules;
+- Source priority ordering.
+
 Source configuration owns:
 
 - approval/trust and lifecycle/operational states;
 - approved-domain maximum boundary;
-- Publication-scoped Source priority;
+- Source priority value within the installation;
 - default Category fallback;
 - optional Source-scoped Relevance defaults.
 
@@ -190,6 +199,8 @@ During this pre-scheduler period:
 - no temporary second parser/persistence path is introduced.
 
 Phase 4 establishes eligibility, the shared endpoint lock, and network-safety primitives only. Manual Worker endpoint execution and Collection-run creation begin in Phase 5. Phase 10 later places the already-proven endpoint execution unit behind durable jobs and due-endpoint scheduling while reusing the Phase 4 lock.
+
+Forward Worker/manual/scheduler execution selects the Source/endpoint directly. It MUST NOT require a Publication slug or identifier to choose among topics in one installation.
 
 ## Retry and backoff
 
@@ -237,14 +248,14 @@ Before Relevance, identity, duplicate, or public-feed logic, normalization MUST:
 - sanitize/strip unsafe markup;
 - bound field lengths;
 - normalize title representation for matching while preserving display/source title;
-- attach Publication, Source, endpoint, and Collection-run provenance;
+- attach Source, endpoint, and Collection-run provenance; Publication tenancy provenance is not part of the forward candidate contract;
 - hand the absolute normalized Article URL to the separate Article-link domain-policy gate before acceptance.
 
 The original discovered URL remains the future public destination unless a later explicit Source-derived canonical/public-destination field is governed separately; canonical identity cleanup exists for identity comparison and MUST NOT silently replace the preserved original destination.
 
 ## Relevance evaluation
 
-Relevance belongs to Publication configuration, not engine code.
+Relevance belongs to singleton Publication configuration, not engine code.
 
 MVP actions are `include`, `exclude`, and `categorize`.
 
@@ -252,7 +263,7 @@ Deterministic include/exclude procedure:
 
 1. Collect applicable enabled include/exclude rules.
 2. Highest explicit priority wins.
-3. At equal priority, Source-scoped rule wins over Publication-wide rule.
+3. At equal priority, Source-scoped rule wins over installation-wide rule.
 4. At equal priority and scope specificity, `exclude` wins over `include`.
 5. If no include/exclude rule decides the candidate, include by default.
 6. Category rules are evaluated independently and do not alter inclusion unless a separate include/exclude rule does so.
@@ -271,7 +282,7 @@ Reprocessing the same Source item MUST converge on the same logical Article iden
 Identity resolution order is:
 
 1. adapter-designated reliable immutable Source external identifier within the same Source;
-2. normalized/canonical URL identity within Publication/Source scope when a strong external identifier does not resolve the candidate;
+2. normalized/canonical URL identity within the same Source when a strong external identifier does not resolve the candidate;
 3. an explicitly configured stable endpoint identity key only when a concrete approved adapter/endpoint actually requires one;
 4. conservative fingerprints only as secondary corroboration, never as a primary resolver.
 
@@ -279,7 +290,7 @@ A matching strong external identifier resolves the existing Article even when it
 
 Two different strong external identifiers MUST NOT be silently merged, overwritten, or reassigned solely because their canonical URLs match. Canonical-only fallback that encounters multiple Articles distinguished by different strong external identifiers is an explicit identity conflict and MUST NOT choose one arbitrarily. Fuzzy-title similarity or fingerprint evidence alone never overwrites or resolves an Article.
 
-Phase 7 MUST NOT invent a speculative generic stable-identity-key configuration mechanism merely because future adapters may require one. Such configuration is introduced only with a concrete adapter/endpoint requirement.
+Do not invent a speculative generic stable-identity-key configuration mechanism merely because future adapters may require one. Such configuration is introduced only with a concrete adapter/endpoint requirement.
 
 Transactional uniqueness constraints are required where practical. Repeated observation may add/update Article observations and run counters, but Article cardinality must not increase for the same Source identity.
 
@@ -311,7 +322,7 @@ The post-normalization outcome counters MUST therefore satisfy:
 
 `created + updated + unchanged + rejected + excluded + failed = normalized_candidate_count`.
 
-Normalization failures do not receive a processing outcome because no Article candidate exists. Article-link-policy rejection remains counted in `article_link_rejection_count` and maps that same candidate to processing outcome `rejected`. Link-accepted candidates then pass Relevance before identity. Until configurable Relevance rules exist, the empty-rule decision is deterministic `include`, so Phase 7 has `excluded = 0`; included candidates end as `created`, `updated`, `unchanged`, or `failed`.
+Normalization failures do not receive a processing outcome because no Article candidate exists. Article-link-policy rejection remains counted in `article_link_rejection_count` and maps that same candidate to processing outcome `rejected`. Link-accepted candidates then pass Relevance before identity. Until configurable Relevance rules exist, the empty-rule decision is deterministic `include`, so `excluded = 0`; included candidates end as `created`, `updated`, `unchanged`, or `failed`.
 
 Accepted Article processing may additionally produce zero or more orthogonal effects:
 
@@ -323,7 +334,7 @@ Effects do not replace outcomes. For example, a candidate may be `created` and a
 
 Collection runs aggregate processing outcomes and effects separately, plus transport/run-level status. Run finalization occurs after the bounded candidate batch has completed and the canonical outcome counters are known; item-level persistence failures do not erase successful unrelated candidate work when integrity permits isolation.
 
-During pre-persistence collection/normalization, runs record transport/parser stage status/counts plus the Phase 6 normalization status and normalization/Article-link item counts defined above, but MUST NOT use post-identity outcome names as though Article persistence exists.
+During pre-persistence collection/normalization, runs record transport/parser stage status/counts plus normalization status and normalization/Article-link item counts, but MUST NOT use post-identity outcome names as though Article persistence exists.
 
 Generic terms such as `accepted` or `skipped` require explicit mapping rather than competing counter definitions.
 

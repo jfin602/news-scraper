@@ -4,7 +4,7 @@
 
 Automated behavioral regression coverage is the Platform's primary protection against implementation regressions.
 
-No implementation phase, prompt, fix, refactor, or review is complete merely because requested behavior appears to exist. New behavior requires focused proof, and changed behavior requires the relevant existing regression matrix to pass against the final source tree.
+No implementation phase, prompt, fix, refactor, correction stack, or review is complete merely because requested behavior appears to exist. New behavior requires focused proof, and changed behavior requires the relevant existing regression matrix to pass against the final source tree.
 
 This document is the project-wide authority for testing and validation. Narrow phase- or feature-specific validation plans MAY add requirements but MUST NOT weaken this contract.
 
@@ -22,7 +22,7 @@ This contract governs:
 - flaky-test and skipped-test policy;
 - evidence levels and reporting language;
 - defect regression coverage;
-- implementation-roadmap phase completion evidence.
+- implementation-roadmap phase and correction-stack completion evidence.
 
 It does not choose a test framework before Phase 1 implementation evaluates the smallest suitable TypeScript-compatible tooling. Tool choice does not weaken the behavior or evidence requirements below.
 
@@ -112,6 +112,7 @@ Uses real disposable PostgreSQL where database behavior is part of the claim.
 Examples:
 
 - migrations from zero;
+- migration of existing supported pre-production state;
 - uniqueness constraints;
 - Article identity/idempotency;
 - Article observations and Collection-run accounting;
@@ -126,7 +127,7 @@ Permitted claim:
 
 > The named persistence/concurrency/recovery behavior passed against disposable PostgreSQL or the described observed failure environment.
 
-Mocks alone do not prove PostgreSQL constraints, transactions, locks, or race behavior.
+Mocks alone do not prove PostgreSQL constraints, transactions, locks, migrations, or race behavior.
 
 ### Level 5 — Deterministic collection-fixture validation
 
@@ -215,9 +216,9 @@ Durable validation records SHOULD identify:
 - important limitations;
 - evidence level.
 
-An implementation-roadmap phase closeout validation artifact MUST identify those items for the exact commit/source tree being accepted.
+An implementation-roadmap phase closeout validation artifact MUST identify those items for the exact commit/source tree being accepted. A correction-stack closeout that gates further roadmap implementation MUST do the same when its governing correction entry requires a durable artifact.
 
-Historical passing evidence remains historical after later source changes until the applicable matrix is rerun.
+Historical passing evidence remains historical after later source changes until the applicable matrix is rerun. Later architecture corrections MUST NOT rewrite historical validation artifacts to claim behavior that was not observed at their accepted source tree.
 
 ## Test naming and ownership
 
@@ -257,7 +258,7 @@ npm run test:live-sources
 
 A command is added only with its first substantive suite. Empty/no-op commands are prohibited.
 
-`npm test` MUST represent the ordinary deterministic development regression matrix suitable for local development and final-tree validation. Specialized environment-requiring suites MAY remain separate, but final implementation-phase validation MUST explicitly run every specialized deterministic suite required by the current implemented phase.
+`npm test` MUST represent the ordinary deterministic development regression matrix suitable for local development and final-tree validation. Specialized environment-requiring suites MAY remain separate, but final implementation-phase/correction validation MUST explicitly run every specialized deterministic suite required by the behavior being accepted.
 
 If a named/filtered test command is invoked and zero tests match, it MUST fail rather than report success, unless the command is explicitly a discovery/listing operation whose contract says otherwise.
 
@@ -275,7 +276,7 @@ Final-tree validation MUST, as applicable:
 
 - perform a clean dependency installation from `package.json` using the repository npm configuration;
 - run applicable static/type/lint/format checks;
-- run the complete deterministic test matrix required by the current implemented phase;
+- run the complete deterministic test matrix required by the current implemented behavior;
 - fail when a required selected suite contains zero tests;
 - validate the committed change range for whitespace/diff errors rather than relying on an empty clean-working-tree diff;
 - execute any required runtime/database/fixture/browser/recovery procedures at the evidence level needed for the acceptance claim;
@@ -288,17 +289,18 @@ At minimum:
 
 - Phase 1: startup/config/static/test-runner/local-validation foundation;
 - Phase 2: disposable PostgreSQL, migration-from-zero, cleanup verification;
-- Phase 3: Publication/Source/endpoint migrations from zero plus real-PostgreSQL state/uniqueness/bootstrap-idempotency/no-overwrite/rollback evidence; pure configuration normalization/validation may additionally use unit coverage;
+- Phase 3 historical implementation: Publication/Source/endpoint migrations from zero plus real-PostgreSQL state/uniqueness/bootstrap-idempotency/no-overwrite/rollback evidence; the later singleton correction supersedes Publication tenancy forward without rewriting this historical requirement/evidence;
 - Phase 4: deterministic eligibility/domain/scheme/port/DNS/address/redirect/rebinding negatives through injected boundaries, plus real-disposable-PostgreSQL evidence for cross-process endpoint-lock contention and release;
 - Phase 5: deterministic HTTP/RSS/Atom/Collection-run fixture coverage;
 - Phase 6: normalization fixture matrix;
-- Phase 7: deterministic proof that every safe candidate passes the empty-rule/default-include Relevance boundary before identity, plus real-disposable-PostgreSQL coverage for strong-external-ID and canonical-URL identity/fallback/promotion/conflict behavior, idempotent create/update/unchanged semantics, concurrent/racing uniqueness, endpoint/run observation provenance and ownership consistency, first-seen/last-seen behavior, Article/observation transaction rollback, unrelated-candidate isolation, and exact Collection-run processing-outcome accounting;
+- Phase 7 historical implementation: deterministic proof that every safe candidate passes the empty-rule/default-include Relevance boundary before identity, plus real-disposable-PostgreSQL coverage for strong-external-ID and canonical-URL identity/fallback/promotion/conflict behavior, idempotent create/update/unchanged semantics, concurrent/racing uniqueness, endpoint/run observation provenance and ownership consistency, first-seen/last-seen behavior, Article/observation transaction rollback, unrelated-candidate isolation, and exact Collection-run processing-outcome accounting;
 - Phase 8: feed eligibility/order/read-model/API coverage;
 - Phase 9: Level 6 browser validation for the public tech-demo workflow at representative desktop/mobile viewports plus Level 7 approved live-Source validation demonstrating at least two real approved RSS/Atom Sources through the Worker; ordinary deterministic regression remains independent of live publishers;
+- **Post-Phase-9 single-Publication simplification correction:** migration-from-zero to the corrected schema; migration of representative existing one-Publication Phase 9 state; clear rejection of ambiguous multi-Publication pre-correction state; removal of Publication tenancy columns/scopes/slug-selection plumbing; installation-wide Source uniqueness; preserved Source/endpoint/run/Article/observation referential integrity; Source-scoped Article identity/idempotency including race/conflict coverage; preserved Collection-run accounting and network-safety/whitelist behavior; canonical `/api/feed` and `/` semantics; and Level 6 browser evidence for direct navigation/refresh, loading/empty/unavailable/error, external-link, desktop, and mobile behavior. The correction closeout MUST create a durable validation artifact under `docs/validation/` tied to the exact accepted corrected source tree before ordinary Phase 10 implementation begins;
 - Phase 10: scheduler/retry/overlap/recovery coverage;
-- Phase 11: complete deterministic Relevance precedence matrix;
+- Phase 11: complete deterministic Relevance precedence matrix using installation-wide plus Source-scoped precedence;
 - Phases 12–13: search/filter/pagination and responsive/accessibility/browser regressions;
-- Phases 14–15: admin perimeter/request-integrity/resource-boundary regressions;
+- Phases 14–15: admin perimeter/request-integrity/resource-relationship regressions;
 - Phase 16: duplicate corpus, Primary invariants, and false-positive safeguards;
 - Phase 17: reversible moderation and provenance regressions;
 - Phase 18: HTML adapter parity with existing downstream collection tests;
@@ -323,9 +325,11 @@ Database suites SHOULD:
 
 1. create a unique disposable database such as `news_scraper_test_<unique-id>`;
 2. apply migrations from zero;
-3. execute tests against actual constraints, transactions, locks, timestamps, and errors;
+3. execute tests against actual constraints, transactions, locks, timestamps, migrations, and errors;
 4. clean up the disposable database;
 5. verify cleanup.
+
+Migration corrections that transform already-populated supported state MUST additionally exercise representative pre-correction fixtures/state through the real migration path rather than relying only on fresh-schema tests.
 
 Parallel database tests MUST NOT share mutable schemas/databases unless concurrency between those actors is the behavior under test. Phase 4 endpoint-lock validation is such an intentional concurrency case: independent clients/process-equivalent actors MUST contend for the same endpoint lock against the same disposable PostgreSQL database, prove that only one owner succeeds at a time, prove unrelated endpoint locks can proceed independently, and prove release/reacquisition on relevant success/failure paths.
 
@@ -401,6 +405,7 @@ As the relevant phases arrive, tests MUST cover realistic failures such as:
 - item-level normalization/persistence failure;
 - transaction rollback;
 - duplicate/race insert attempts;
+- ambiguous/unsupported migration state;
 - lost/failed job execution;
 - overlapping-run prevention;
 - PostgreSQL interruption/recovery;
@@ -434,7 +439,7 @@ Coverage tooling MAY be used to identify gaps, but contract compliance is behavi
 
 > Every contract-critical invariant touched by implemented behavior must have direct automated protection at the lowest evidence level capable of actually proving it.
 
-Increasing or gaming a line percentage does not substitute for missing idempotency, concurrency, security, provenance, failure-isolation, duplicate, or browser tests.
+Increasing or gaming a line percentage does not substitute for missing idempotency, concurrency, security, provenance, failure-isolation, duplicate, migration, or browser tests.
 
 ## Flaky and skipped-test policy
 
@@ -442,22 +447,22 @@ A flaky test is a defect in the test or product until understood.
 
 - Do not automatically retry tests merely to obtain a passing result.
 - Fix nondeterminism or document an explicit bounded environmental limitation.
-- `skip`, `todo`, quarantine, or temporary disablement MUST NOT satisfy an implementation-roadmap exit gate for the behavior they would have proved.
+- `skip`, `todo`, quarantine, or temporary disablement MUST NOT satisfy an implementation-roadmap/correction exit gate for the behavior they would have proved.
 - Required specialized suites MUST fail clearly when prerequisites are missing rather than silently becoming green.
 - If the available local/reference environment cannot execute a required evidence level, report the limitation and keep the corresponding claim unverified.
 
 ## Phase and prompt completion gate
 
-Every implementation roadmap phase inherits this contract even when the roadmap does not repeat its full matrix.
+Every implementation roadmap phase and correction stack inherits this contract even when its roadmap/correction entry does not repeat the full matrix.
 
-An implementation phase cannot close until:
+A phase or correction cannot close until:
 
 - each implemented deliverable has appropriate focused tests;
 - relevant earlier regression suites pass against the final tree;
 - contract-critical negative/failure cases are covered at the correct level;
-- required database/browser/fixture/recovery evidence for that phase has actually been executed;
+- required database/browser/fixture/recovery evidence has actually been executed;
 - the complete required local final-tree validation matrix has been executed with terminal evidence for the accepted tree;
-- a durable implementation-phase closeout validation artifact under `docs/validation/` records the exact accepted commit/source tree, commands/procedures, results, evidence levels, and limitations;
+- the required durable closeout validation artifact records the exact accepted commit/source tree, commands/procedures, results, evidence levels, and limitations;
 - known skipped/flaky tests do not hide exit-gate behavior;
 - validation limitations are reported explicitly.
 
@@ -471,4 +476,4 @@ Create `docs/testing/` plans only when a feature or phase has enough specialized
 
 Do not create empty placeholders. Specialized plans may define concrete fixture matrices, browser viewport matrices, live-Source procedures, security attack cases, or release/reference-deployment checklists, but they remain subordinate to this contract.
 
-Durable observed evidence may be stored under `docs/validation/` when useful. Implementation-phase closeout validation artifacts are required by the completion gate above. Validation artifacts record what was actually observed; they do not redefine contracts.
+Durable observed evidence may be stored under `docs/validation/` when useful. Implementation-phase and gating correction closeout validation artifacts are required by the completion gates above. Validation artifacts record what was actually observed; they do not redefine contracts.

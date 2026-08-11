@@ -4,7 +4,8 @@
 **Platform:** Reusable News Aggregation Platform  
 **Repository:** `jfin602/news-scraper`  
 **Initial Publication:** Indie-author publishing industry news  
-**Established:** 2026-08-06
+**Established:** 2026-08-06  
+**Architecture amended:** 2026-08-11
 
 ## Product definition
 
@@ -28,19 +29,22 @@ The indie-author Publication is the first configuration of the Platform, not the
 
 ## Derived invariants
 
-- Collector code operates on generic Publications, Sources, endpoints, candidates, Articles, observations, and Duplicate groups.
-- A deployed installation resolves one configured Publication as its application-level topic/configuration boundary; public readers do not select a Publication by URL slug.
-- Publication identifiers/slugs may remain stable internal/configuration identity fields and ownership keys; retaining them does not imply multi-Publication hosting.
-- A Source or endpoint cannot be collected while unapproved, archived, paused, or disabled.
+- Collector code operates on generic Sources, endpoints, candidates, Articles, observations, Duplicate groups, and singleton Publication configuration.
+- A deployed installation has one Publication configuration as its application-level editorial/topic boundary; public readers and ordinary runtime flows do not select a Publication.
+- Publication is not a tenancy or relational ownership key in the forward data model. Publication UUIDs, slugs, foreign keys, joins, uniqueness scopes, API parameters, or compatibility paths MUST NOT be retained solely for hypothetical concurrent multi-Publication hosting.
+- The singleton Publication configuration owns installation-wide editorial settings such as name, collection/public state, branding, Categories, Relevance rules, Sources, Source priority, and presentation settings without requiring those resources to carry a Publication foreign key.
+- Real domain relationships remain explicit: a Source owns endpoints and Articles; an endpoint owns Collection runs; observations preserve the endpoint/run and Article/Source provenance needed for integrity.
+- A Source or endpoint cannot be collected while unapproved, archived, paused, or disabled, and global collection is disabled when the singleton Publication configuration is not active for collection.
 - Approval/trust, configuration lifecycle, operational state, public visibility, moderation, duplicate role, and derived health are distinct concepts.
 - Public records are created only from normalized data.
 - Fetching the same unchanged Source repeatedly produces no additional logical Article.
 - Article identity and true-duplicate grouping are separate concerns.
 - Source failures are isolated by Source endpoint and Collection run.
 - Duplicate suppression never destroys Article instances or provenance.
-- Publication-specific settings are data, not topic conditionals in shared engine code.
+- Topic-specific settings are data/configuration, not topic conditionals in shared engine code.
 - Polling-only Sources are not described as literally real-time.
 - Network-safety validation occurs before each outbound request/redirect; Article-link validation occurs after parsing/normalization before acceptance.
+- Pre-production architecture favors the smallest canonical model for supported behavior. Speculative tenancy, compatibility aliases, synchronized duplicate fields, or future-proofing abstractions require a concrete current need or an explicit later architecture decision.
 
 ## Authority order
 
@@ -99,7 +103,7 @@ Phase 0 is accepted when:
 - foundational laws are represented consistently in repository docs;
 - terminology is topic-independent and internally consistent;
 - MVP scope/exclusions are explicit;
-- Publication, Source, endpoint, Article, observation, and duplicate ownership boundaries are defined;
+- singleton Publication configuration plus Source, endpoint, Article, observation, and duplicate relationship boundaries are defined;
 - collection and Article lifecycles have no contradictory state models;
 - public-feed eligibility and admin requirements are explicit;
 - security, reliability, and observability baselines are defined;

@@ -55,11 +55,11 @@ Identity resolution prevents repeated polling from inserting the same Source Art
 Identity SHOULD evaluate:
 
 1. reliable immutable Source external identifier within the same Source;
-2. canonical URL within Publication/Source scope;
-3. explicit stable endpoint identity key;
+2. canonical URL within the same Source;
+3. explicit stable endpoint identity key only when a concrete adapter requires one;
 4. conservative fingerprint corroboration.
 
-Fuzzy-title matching alone must never overwrite an Article.
+Publication identity is not part of Article identity because the supported installation contains only one Publication configuration. Fuzzy-title matching alone must never overwrite an Article.
 
 ## Duplicate classes
 
@@ -104,6 +104,8 @@ A Duplicate review candidate stores:
 - automatic/manual origin;
 - manual decision time and optional reason where applicable.
 
+Duplicate review/group records are installation-wide Article relationships and do not require Publication foreign keys or cross-Publication checks.
+
 MVP does not require a native administrator identity on manual decisions. If native identity is added later, it may extend attribution without redefining the duplicate decision itself.
 
 A dismissed candidate does not reappear indefinitely from unchanged evidence. Reconsideration requires materially new evidence or explicit operator action.
@@ -116,7 +118,7 @@ Default selection SHOULD consider, in order:
 
 1. explicit manual override;
 2. explicit original-publisher/canonical metadata;
-3. Publication-scoped Source priority;
+3. Source priority within the installation;
 4. metadata completeness and destination URL quality;
 5. earliest credible publication time;
 6. stable deterministic tie-breaker.
@@ -136,7 +138,7 @@ Visible `non_primary` members are duplicate-suppressed from ordinary rows but re
 
 Related coverage remains separate.
 
-The owning Publication/Source trust and exposure gates are defined by `docs/contracts/public-feed-and-admin-contract.md`; Article visibility/duplicate role do not replace those gates.
+The singleton Publication public-exposure gate and Source trust/lifecycle gates are defined by `docs/contracts/public-feed-and-admin-contract.md`; Article visibility/duplicate role do not replace those gates.
 
 The MVP may show a non-interactive “also reported by” count derived from group membership, but must not emit redundant rows.
 
