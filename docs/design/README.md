@@ -8,7 +8,7 @@ For public-feed behavior, `docs/contracts/public-feed-and-admin-contract.md` rem
 
 ## Files
 
-- `ui-workflow.md` — permanent `ui-polish` branch/worktree rules, UI task boundaries, integration/synchronization rules, and `/ui-plan` → `/ui-write` workflow.
+- `ui-workflow.md` — permanent `ui-polish` branch/worktree rules, UI task boundaries, design-guidance review/apply rules, integration/synchronization rules, and `/ui-review` → `/ui-apply` plus `/ui-plan` → `/ui-write` workflows.
 - `tasks/` — created only when `/ui-write` emits targeted single-task Codex prompts. These are non-roadmap, non-versioned UI implementation instructions and are not parsed or executed by `codex:phase`.
 
 Additional durable design specifications may be added here as presentation decisions become concrete. Do not create speculative design contracts or placeholder files.
@@ -21,5 +21,24 @@ Use:
 
 - `docs/contracts/public-feed-and-admin-contract.md` for supported public-feed behavior, routes, feed semantics, and external-link behavior;
 - `docs/contracts/testing-and-validation-contract.md` for regression/evidence requirements;
-- `docs/design/ui-workflow.md` for parallel UI planning, prompt generation, branch scope, and integration discipline;
+- `docs/design/ui-workflow.md` for parallel UI design review/application, planning, prompt generation, branch scope, and integration discipline;
 - the narrowest additional design specification under `docs/design/` when one exists for the surface being changed.
+
+## UI workflow
+
+When durable design guidance itself needs to be created or changed:
+
+```text
+/ui-review <area>
+→ explicit approval
+→ /ui-apply
+```
+
+When approved design guidance already exists and implementation work is ready to plan:
+
+```text
+/ui-plan <task>
+→ /ui-write <lower-kebab-slug>
+```
+
+`/ui-plan` and `/ui-write` must not silently revise durable design guidance. If they discover missing or conflicting design authority, they return `Planning needed` and route the design decision through `/ui-review`.
