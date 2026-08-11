@@ -1,0 +1,554 @@
+TASK: Correction 10 / P1 — Canonical singleton data and runtime reset
+
+ROADMAP PHASE
+Phase 10 — Automated polling, durable jobs, and endpoint health.
+
+STACK TYPE
+Non-versioned Phase 10 entry correction. This prompt is implementation work for the gating singleton simplification correction, not ordinary Phase 10 scheduler/job work.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Ultra`.
+- Complexity / quality floor: `Critical`.
+- Estimated usage: `Very High`.
+- Alternative considered: `Terra Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P1 rewrites the authoritative schema-from-zero baseline and simultaneously changes singleton Publication persistence, Source/endpoint lookup, collection provenance, Source-scoped Article identity, observations, Worker invocation, feed persistence, and the canonical feed API. These changes share transactional and referential-integrity boundaries, so the strongest available reasoning is justified despite higher usage cost.
+- If this exact configuration is no longer available in the current Codex picker at execution time, revalidate against `BOOT.md` rather than silently substituting an invented model/effort name.
+
+VERSIONING
+- Required unchanged project version: `0.10.0`.
+- Confirm `package.json` is exactly `0.10.0` before editing and remains exactly `0.10.0` after implementation.
+- This correction does not advance the roadmap version.
+- `package.json` remains the sole authoritative current-version source.
+- The repository intentionally does not use npm package locks; do not create, require, regenerate, or validate `package-lock.json` or `npm-shrinkwrap.json`.
+
+DEPENDS ON
+- Accepted Phase 9 implementation and repository-owner acceptance.
+- Current singleton architecture/contracts and Accepted ADR `docs/decisions/single-publication-simplified-data-model.md`.
+- Current destructive pre-production reset policy: old development/pre-production database contents and legacy-only migration/runtime/test/config compatibility structures are disposable.
+- P1 is the first implementation prompt in this correction stack.
+
+GOAL
+Replace the current pre-production Publication-tenant-shaped persistence/runtime core with the smallest coherent one-installation/one-Publication implementation.
+
+P1 must establish one canonical schema from zero, remove Publication UUID/slug tenancy from persistence and provenance, retain the singleton Publication editorial/settings concept, preserve genuine Source/endpoint/run/Article/observation integrity, preserve Source-scoped Article identity and idempotency, remove Publication selection from the manual Worker, and expose the selector-free canonical feed backend at `GET /api/feed`.
+
+This is a destructive pre-production canonicalization. Do not preserve databases created by the old migration chain. Do not add compatibility migrations, old/new schema bridges, ignored Publication selector parameters, duplicate fields, aliases, or fallback APIs solely to support superseded pre-production behavior.
+
+GOVERNING DOCUMENTS
+Read current versions before implementation:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/contracts/project-contract.md`
+- `docs/contracts/domain-and-data-contract.md`
+- `docs/contracts/source-and-collection-contract.md`
+- `docs/contracts/article-lifecycle-and-deduplication.md`
+- `docs/contracts/public-feed-and-admin-contract.md`
+- `docs/contracts/testing-and-validation-contract.md`
+- `docs/architecture/system-architecture.md`
+- `docs/operations/security-reliability-and-operations.md`
+- `docs/roadmap/mvp-roadmap.md`
+- `docs/decisions/single-publication-simplified-data-model.md`
+- `docs/decisions/whitelist-and-structured-feed-first.md`
+- `docs/decisions/original-link-and-normalized-metadata.md`
+
+INSPECT / TRACE BEFORE EDITING
+Trace all consumers before changing shared types or schema:
+- every file under `migrations/`;
+- `src/database/migrations.ts` and migration tests;
+- `src/publications/configuration.ts`;
+- `src/publications/repository.ts`;
+- `src/publications/bootstrap.ts`;
+- `src/sources/repository.ts` and Source configuration types;
+- `src/collection/eligibility.ts` and decision reasons;
+- `src/collection/collect-endpoint.ts`;
+- `src/collection/normalization/article-candidate.ts`;
+- `src/collection/normalization/normalizer.ts`;
+- `src/collection/runs/repository.ts`;
+- `src/articles/identity-lock.ts`;
+- `src/articles/repository.ts`;
+- `src/app/worker/collect-main.ts`;
+- `src/public-feed/repository.ts`;
+- `src/app/web/main.ts`;
+- `src/app/web/create-app.ts`;
+- `src/app/web/public/public-feed.js`;
+- `scripts/bootstrap-database.ts`;
+- `scripts/set-publication-public-status.ts`;
+- current checked-in Publication bootstrap configuration;
+- all unit/database/integration/browser/live-source tests importing or asserting Publication IDs/slugs, old migrations, Worker arguments, or feed API behavior.
+
+Search references before renaming `src/publications/` or deleting migrations. Do not leave stale imports, obsolete helper overloads, or dead compatibility types.
+
+CANONICAL MIGRATION BASELINE
+Delete the current legacy-only production migration sequence:
+- `migrations/0001_publication_source_configuration.sql`
+- `migrations/0002_collection_runs.sql`
+- `migrations/0003_collection_run_normalization.sql`
+- `migrations/0004_articles_and_observations.sql`
+- `migrations/0005_collection_run_processing.sql`
+- `migrations/0006_article_visibility.sql`
+
+Replace it with the smallest coherent current schema-from-zero baseline, preferably:
+
+`migrations/0001_initial_schema.sql`
+
+Use more than one baseline migration only if there is a concrete current architectural reason; do not preserve phase-by-phase schema history merely because it existed previously.
+
+Keep the generic migration infrastructure in `src/database/migrations.ts`. It already owns discovery, checksums, advisory locking, transactional application, ledger status, and rerun behavior. Do not weaken those guarantees.
+
+The canonical baseline must directly create all schema required by implemented behavior through Phase 9, including:
+- singleton Publication settings;
+- Sources and Source approved-domain rules;
+- Source endpoints and endpoint domain rules;
+- Collection runs including transport/parser/normalization/processing state and counters;
+- Articles including visibility state;
+- Article observations;
+- all currently required checks, uniqueness, timestamps, accounting constraints, and provenance relationships.
+
+SINGLETON PUBLICATION SETTINGS
+Replace the relational tenant-style `publications` model with a true singleton settings representation. Prefer a clearly named table such as `publication_settings`.
+
+The singleton settings data required now is:
+- `name`;
+- `active_for_collection`;
+- `public_status`;
+- timestamps needed by current persistence behavior.
+
+Do not retain a Publication UUID or slug. Do not invent a dynamic tenant identifier solely to satisfy a primary-key habit.
+
+Enforce at most one settings row in PostgreSQL with the smallest clear database-level mechanism. A constant-expression unique index or another equally simple singleton constraint is acceptable. The constraint must be real database enforcement, not only an application convention.
+
+Preserve current name/public-status validation semantics. The existing public statuses remain `private` and `public`.
+
+SOURCE / ENDPOINT MODEL
+Remove `publication_id` from Sources.
+
+Source `config_key` becomes installation-wide unique:
+- `UNIQUE(config_key)`.
+
+Preserve existing Source constraints for:
+- display name;
+- site URL;
+- approval state;
+- lifecycle state;
+- operational state;
+- approved-domain rules.
+
+Preserve endpoint ownership and identity:
+- endpoint belongs to Source via `source_id`;
+- endpoint `config_key` is Source-scoped;
+- endpoint URL uniqueness remains Source-scoped;
+- endpoint domain rules remain endpoint-owned;
+- endpoint type, approval/lifecycle/operational state, URL, and poll-interval constraints remain.
+
+Do not flatten real Source/endpoint ownership merely because Publication tenancy is being removed.
+
+COLLECTION RUN MODEL
+Fold the current final Collection-run schema directly into the canonical baseline.
+
+Preserve:
+- endpoint ownership;
+- execution id;
+- start/finish timestamps;
+- run/transport/parser/normalization/processing statuses;
+- HTTP/wire/decompressed/raw-item fields;
+- normalization counters;
+- processing outcome counters;
+- error fields;
+- all current status, bounds, terminal-state, ordering, and accounting/arithmetic constraints.
+
+The correction must not weaken truthful run accounting.
+
+ARTICLE MODEL / IDENTITY
+Remove `publication_id` from Articles.
+
+Article ownership is direct Source ownership through `source_id`.
+
+Preserve strong identity:
+- Source + external-id digest, when external ID exists.
+
+Preserve fallback identity:
+- Source + canonical-identity digest, when external ID is absent.
+
+The fallback unique index must no longer contain Publication identity.
+
+Preserve:
+- generated identity digests;
+- exact-string collision defense in application logic;
+- fallback-to-strong promotion;
+- contradictory strong-identity conflict behavior;
+- canonical URL behavior;
+- original URL behavior;
+- display/normalized title and metadata limits;
+- parsed/missing/invalid date-state consistency;
+- first-seen/last-seen semantics;
+- Article visibility state and checks;
+- transactional create/update/unchanged behavior;
+- identity-lock/concurrency behavior.
+
+Do not conflate Article identity with later true-duplicate grouping.
+
+ARTICLE OBSERVATION PROVENANCE
+Remove Publication identity from observations while preserving the real provenance chain.
+
+Retain `source_id` on observations if needed for direct PostgreSQL integrity enforcement. Prefer constraints equivalent to:
+- `(source_id, source_endpoint_id)` references endpoint ownership;
+- `(source_endpoint_id, collection_run_id)` references the endpoint/run pair;
+- `(source_id, article_id)` references Article ownership when `article_id` is present.
+
+Retain or add the supporting composite unique keys PostgreSQL requires for those foreign keys.
+
+Preserve current observation outcome checks and the rule that successful identity-resolving outcomes reference an Article.
+
+Simplification MUST NOT permit an observation to pair a Source with another Source's endpoint, run, or Article.
+
+PUBLICATION MODULE CANONICALIZATION
+Rename `src/publications/` to `src/publication/` as part of this atomic refactor unless current inspection proves a smaller coherent alternative.
+
+The canonical module should continue to own substantive singleton Publication behavior, for example:
+- configuration validation;
+- settings repository;
+- bootstrap orchestration.
+
+Do not remove the Publication editorial/configuration concept. Remove only tenancy/selector identity.
+
+Update all imports directly. Do not leave forwarding modules or re-export wrappers under the old plural path solely for compatibility.
+
+PUBLICATION CONFIGURATION / REPOSITORY
+Canonical `PublicationConfiguration` contains:
+- `name`;
+- `activeForCollection`;
+- `publicStatus`.
+
+Delete slug validation/types/constants.
+
+Canonical persisted Publication/settings data must not expose `id` or `slug`.
+
+Use singleton-oriented repository operations, such as:
+- create/read singleton settings;
+- set singleton public status.
+
+Exact function names may follow existing naming conventions, but repository APIs MUST NOT accept Publication UUID/slug selectors.
+
+Update `scripts/set-publication-public-status.ts` to operate on the singleton directly. Its operator contract becomes one status argument (`private|public`), not `<publication-slug> <status>`.
+
+Preserve bounded/redacted failure handling and reliable database close behavior.
+
+BOOTSTRAP
+Keep the existing explicit JSON-file bootstrap mechanism in `scripts/bootstrap-database.ts`; it is a useful operator boundary and is already topic-independent.
+
+Change the bootstrap document Publication shape to remove slug.
+
+Bootstrap behavior remains:
+1. validate the complete document before persistence;
+2. create singleton Publication settings if absent;
+3. create Sources by installation-wide `configKey` if absent;
+4. create endpoints by Source-scoped `configKey` if absent;
+5. do not overwrite later operator-managed Publication/Source/endpoint state during ordinary repeated bootstrap;
+6. preserve transaction/rollback behavior.
+
+Do not add Source discovery or approval inference.
+
+For this P1 only, update the contents of the existing checked-in config file to remove obsolete slug data, but leave its path in place. P2 owns the path move to `config/publication.json`.
+
+SOURCE REPOSITORY / COLLECTION LOOKUP
+Remove Publication IDs/slugs from Source persistence and lookup APIs.
+
+Canonical lookup for manual endpoint execution is Source key + endpoint key only.
+
+The endpoint aggregate may still include singleton Publication settings required for global collection eligibility, especially `activeForCollection`. That is legitimate installation configuration, not tenant identity.
+
+Preserve current approved-domain and endpoint narrowing data exactly.
+
+COLLECTION ELIGIBILITY
+Preserve singleton Publication `activeForCollection` as the global collection gate.
+
+The stable machine reason `publication_inactive` may remain. Do not rename it merely to erase terminology.
+
+Preserve all Source/endpoint approval, lifecycle, operational, endpoint-lock, scheme/port/DNS/address/domain safety decisions.
+
+ARTICLE CANDIDATE PROVENANCE
+Change canonical provenance from:
+- Publication ID;
+- Source ID;
+- Source endpoint ID;
+- Collection run ID;
+
+to:
+- Source ID;
+- Source endpoint ID;
+- Collection run ID.
+
+Update normalization context, normalizer output, collection composition, Article validation/persistence, tests, Worker samples, and any supporting types consistently.
+
+Do not remove endpoint/run provenance.
+
+ARTICLE REPOSITORY APPLICATION LOGIC
+Remove Publication identity from:
+- persisted Article types;
+- persisted observation types;
+- candidate validation;
+- provenance existence checks;
+- canonical digest lookups;
+- resolved ownership assertions;
+- update predicates;
+- inserts;
+- observation inserts;
+- row mappings.
+
+Provenance validation should prove Source → endpoint → run consistency directly.
+
+Identity lookups and ownership assertions should use Source as the owner/scope.
+
+Preserve all existing transaction behavior and error classifications unless the old Publication dimension is the only reason for a branch.
+
+MANUAL WORKER
+Change manual collection invocation to exactly two selection arguments:
+
+`npm run collect:endpoint -- <source-config-key> <endpoint-config-key>`
+
+Do not support, ignore, or alias the old Publication-slug argument.
+
+Validate argument count before database/network creation as current safety behavior requires.
+
+Remove Publication slug/ID from machine-readable Worker result output and candidate samples.
+
+Preserve useful operational fields including Source ID, endpoint ID, Collection run ID, statuses, counters, timing, transport information, and bounded candidate samples.
+
+Preserve:
+- failure isolation;
+- redaction;
+- endpoint locking;
+- network safety;
+- parser/normalization/Relevance/identity ordering;
+- run finalization;
+- database close behavior.
+
+PUBLIC FEED REPOSITORY
+Change the canonical repository API to selector-free singleton behavior:
+
+`readPublicFeed(executor)`
+
+or an equivalently simple signature.
+
+The read model may expose descriptive singleton Publication data needed by the UI, currently at least `name`. It MUST NOT expose a Publication UUID or slug as routing/scoping identity.
+
+Update feed SQL to read singleton public settings plus eligible Articles joined to Sources by Article `source_id`.
+
+Preserve:
+- generic unavailable result when settings are absent or private;
+- `200`-eligible empty feed distinction at the HTTP layer;
+- Source approval + active lifecycle trust gate;
+- Article visibility gate;
+- current ungrouped-before-duplicate behavior;
+- `published_at` then `first_seen_at` effective-date rule;
+- deterministic ordering/tie breakers;
+- bounded recent window;
+- stored `original_url` as the public destination.
+
+CANONICAL FEED API
+Replace the slug-addressed API route:
+
+`GET /api/publications/:publicationSlug/feed`
+
+with:
+
+`GET /api/feed`
+
+Update the Web dependency interface from `read(publicationSlug)` to `read()`.
+
+Preserve public response semantics:
+- public configured feed: `200`;
+- public configured but no eligible rows: `200` with empty items;
+- absent or private singleton settings: generic `404`;
+- bounded dependency/read failure: generic `503`;
+- no SQL/stack/database details.
+
+Remove the old API route completely. Do not redirect or alias it.
+
+P1 CLIENT COMPATIBILITY WITH CANONICAL API
+Update `src/app/web/public/public-feed.js` so it fetches `/api/feed` and no longer parses a Publication slug from `window.location.pathname` or requires Publication id/slug response fields.
+
+The old slug-addressed PAGE route may remain temporarily in P1 solely as the current shell-delivery location. Do not add a new compatibility alias. P2 removes the old page route and makes `/` canonical.
+
+This leaves a coherent P1 intermediate tree:
+- existing page-shell path still serves the UI;
+- client is already selector-free;
+- feed API is already canonical.
+
+TEST OWNERSHIP — MIGRATIONS
+In `test/database/migrations.test.ts`, preserve generic migration-engine tests that prove:
+- discovery/order;
+- reruns/idempotent ledger behavior;
+- pending status;
+- checksum mismatch/incompatible history behavior where relevant to the generic engine;
+- transaction rollback;
+- safe locking/error behavior.
+
+Delete Phase-specific production-upgrade tests whose only purpose is replaying the obsolete 0001→0006 evolution or preserving old populated schemas. Do not rewrite them into artificial compatibility tests.
+
+TEST OWNERSHIP — CANONICAL SCHEMA
+Rewrite current production schema tests around the canonical baseline.
+
+At minimum prove with real disposable PostgreSQL:
+- migration from zero applies the canonical baseline and reruns with no repeated effect;
+- migration ledger reflects the new canonical baseline count;
+- singleton Publication settings cannot have two rows;
+- old tenant `publications` table/slug/Publication-ID requirements are absent;
+- Source `config_key` uniqueness is installation-wide;
+- endpoint key/URL uniqueness is Source-scoped;
+- Source/endpoint state and domain constraints remain;
+- Collection-run status/count arithmetic constraints remain;
+- Article strong/fallback identities are Source-scoped;
+- Article metadata/date/visibility constraints remain;
+- observation Source/endpoint/run/Article consistency is database-enforced.
+
+Do not keep tests whose only success condition is that two Publications can coexist or two Sources can reuse a key under different Publications.
+
+FOCUSED ARTICLE / COLLECTION TESTS
+Update and preserve meaningful unit/database/integration coverage for:
+- Article create/update/unchanged;
+- strong external-id identity;
+- canonical fallback identity;
+- fallback promotion;
+- contradictory identity conflict;
+- digest collision defense where existing tests cover it;
+- concurrent/racing identity uniqueness;
+- transaction rollback;
+- observation provenance;
+- unrelated-candidate isolation;
+- Collection-run processing counters;
+- collection eligibility and safety;
+- endpoint lock behavior;
+- normalization provenance;
+- Worker two-key selection and output;
+- bootstrap idempotency/no-overwrite/rollback;
+- singleton public-status operator;
+- public-feed repository/API.
+
+ACTIVE LIVE-SOURCE TEST SOURCE
+The files under `test/live-sources/` are still current executable source even when named after historical milestones. Update their code so the TypeScript/current-tree contract no longer depends on Publication slug/ID, old Worker arguments, or old feed-repository signatures.
+
+Do not require executing live publishers in P1. Keep ordinary deterministic validation independent of live public networks.
+
+EXPECTED PRIMARY WRITE SCOPE
+P1 may change/delete/create files in these current-behavior areas as needed:
+- `migrations/**`;
+- `src/publications/**` → canonical `src/publication/**`;
+- `src/sources/**` where tenancy/lookup persistence changes;
+- `src/collection/**` only where provenance/aggregate/collection composition changes;
+- `src/articles/**`;
+- `src/public-feed/**`;
+- `src/app/worker/collect-main.ts`;
+- `src/app/web/main.ts`;
+- `src/app/web/create-app.ts` for canonical API/dependency changes only;
+- `src/app/web/public/public-feed.js` for selector-free API use;
+- `scripts/bootstrap-database.ts` only if import/module changes require it;
+- `scripts/set-publication-public-status.ts`;
+- current checked-in Publication config contents, not its path;
+- affected current tests/fixtures/support files required by the new canonical behavior.
+
+`package.json` may be changed only if a command's argument/documentation contract must be updated for the singleton operator behavior; its version MUST remain unchanged.
+
+FORBIDDEN / DEFERRED WRITES
+Do not:
+- write ordinary Phase 10 scheduler/job implementation;
+- add durable queue/job tables or scheduler code;
+- add Category/Relevance persistence beyond currently implemented default Relevance boundary;
+- add duplicate grouping/review persistence;
+- add admin UI/native auth;
+- redesign public UI presentation;
+- move the config path to `config/publication.json` yet;
+- make `/` the page route yet;
+- add old API/page redirects or compatibility aliases;
+- preserve old migration files for historical reasons;
+- alter historical `docs/tasks/p1` through `docs/tasks/p9` or historical `docs/validation/**`;
+- edit governing docs unless an actual contradiction is discovered. If one is discovered, stop and report it rather than silently redefining architecture.
+
+PRE-PRODUCTION DATABASE SAFETY
+Do not attempt an in-place upgrade of an arbitrary configured development database.
+
+Automated proof must use the existing disposable PostgreSQL harness. If local operator instructions are needed, state clearly that superseded development/pre-production application databases must be deliberately destroyed/recreated outside the implementation prompt and then migrated/bootstraped from zero.
+
+Never blindly drop a database merely because `NEWS_SCRAPER_DATABASE_URL` is present.
+
+SECURITY / SAFETY INVARIANTS
+P1 MUST NOT weaken:
+- administrator-approved Source boundary;
+- Source/endpoint approval/lifecycle/operational distinctions;
+- domain whitelist maximum boundary and endpoint narrowing;
+- scheme/default-port/DNS/address safety;
+- redirect revalidation;
+- validated-destination handoff/rebinding protections;
+- separate normalized Article-link Source-domain validation;
+- parser → Raw item → normalization ordering;
+- default Relevance boundary before identity;
+- per-endpoint isolation and locking;
+- redacted failure output.
+
+No test-only production safety bypass may be introduced.
+
+EVIDENCE LEVELS
+P1 requires Level 4 real PostgreSQL evidence for schema, constraints, bootstrap, Article identity/concurrency, transactions, and provenance.
+
+P1 does not claim root-page browser acceptance; that belongs to P2.
+
+FOCUSED / BROADER VALIDATION
+Against the final P1 tree run and record at minimum:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:collection`
+- `npm run test:db`
+- `npm test`
+- `npm run check`
+
+Use repository-standard `npm install` only when dependency installation is needed. Do not use `npm ci` and do not create a lockfile.
+
+If a required test-admin PostgreSQL prerequisite is unavailable, report that limitation clearly; do not silently skip `test:db` and claim persistence verified.
+
+ACCEPTANCE CRITERIA
+P1 is complete only when all are true:
+1. package version remains `0.10.0`;
+2. the active production migration tree is the smallest canonical schema-from-zero baseline and the obsolete six-step production migration history is gone;
+3. migration-from-zero creates the complete current schema with real singleton Publication enforcement;
+4. no relational Publication UUID/slug/FK/scoping remains in Source, Article, observation, or candidate provenance;
+5. Source config keys are installation-wide and endpoint keys remain Source-scoped;
+6. Collection-run accounting constraints remain intact;
+7. Article identity is Source-scoped with existing idempotency/promotion/conflict/race behavior preserved;
+8. observations preserve Source/endpoint/run/Article consistency;
+9. singleton Publication settings and bootstrap are idempotent and no-overwrite;
+10. manual Worker selection is Source key + endpoint key only and output contains no Publication identity;
+11. collection still honors singleton `activeForCollection` plus all Source/endpoint/network safety gates;
+12. public-feed repository is selector-free and exposes only descriptive Publication data needed by the UI;
+13. `GET /api/feed` is canonical and the old slug API route is removed;
+14. the public client fetches `/api/feed` without parsing a slug;
+15. obsolete production-upgrade tests/fixtures and old plural-module compatibility wrappers are removed rather than preserved;
+16. focused and broader deterministic tests pass to the evidence level actually available;
+17. no scheduler/jobs or other Phase 10 feature work was pulled forward.
+
+NON-GOALS
+- Preserving old development/pre-production database rows.
+- Migrating an already-populated old schema.
+- Supporting multiple Publications/topics in one installation.
+- Compatibility aliases for old Publication IDs/slugs/routes/APIs.
+- Root public-page route migration; P2 owns `/`.
+- Final browser correction certification; P2/P3 own it.
+- Scheduler/jobs/endpoint health automation.
+- Search/filter/pagination/theme polish.
+- Admin UI/native account systems.
+- Duplicate grouping/review.
+- HTML adapters.
+
+FINAL REPORT
+Report:
+- files created/changed/deleted;
+- final migration baseline shape;
+- major removed Publication-tenancy surfaces;
+- preserved integrity/identity/security behavior;
+- tests/commands actually executed and observed results;
+- any unavailable prerequisites or unverified claims;
+- confirmation that `package.json` remains `0.10.0`;
+- any residual old page-route work intentionally left for P2.
