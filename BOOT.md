@@ -8,6 +8,7 @@ It establishes project identity, canonical terminology, authority, document rout
 
 - Repository: `jfin602/news-scraper`
 - Default branch: `main`
+- Parallel UI branch: `ui-polish` for non-versioned presentation work; use a separate worktree when UI work runs concurrently with roadmap/correction implementation
 - Working product/repository name: News Scraper
 - Platform: reusable, topic-independent news aggregation Platform
 - Deployment cardinality: exactly one Publication/topic per deployed installation
@@ -53,6 +54,8 @@ For project-wide work refresh:
 7. relevant implementation/tests
 8. recent commits affecting the area when recency matters
 
+For UI-workstream tasks, additionally read `docs/design/README.md` and `docs/design/ui-workflow.md` before planning or writing a UI prompt.
+
 Do not read every document indiscriminately. Use routing below. A full `/docs-review` is the intentional exception.
 
 ## Canonical terminology
@@ -78,7 +81,8 @@ Governed by `docs/contracts/domain-and-data-contract.md` plus `docs/decisions/si
 - `Relevance rule` = deterministic installation-wide include/exclude/categorize rule, optionally Source-scoped
 - `contract` = behavior implementation must preserve
 - `ADR` = decision record in `docs/decisions/`
-- `task` = implementation prompt under `docs/tasks/`
+- `task` = roadmap/correction implementation prompt under `docs/tasks/`
+- `UI task` = non-roadmap, non-versioned targeted presentation prompt under `docs/design/tasks/`
 - `validation artifact` = durable record under `docs/validation/` of evidence actually observed against a specific source tree/environment; it does not redefine contracts
 - `refresh` = re-read current repository sources before answering
 - `lock` = treat a decision as authoritative and identify documents that must reflect it
@@ -101,6 +105,8 @@ Canonical authority is `docs/contracts/project-contract.md`:
 
 `docs/contracts/testing-and-validation-contract.md` governs how implementation behavior is proven and when implementation/correction work may be considered complete. It does not redefine product/domain behavior or outrank the governing behavioral contract being tested.
 
+Design documents under `docs/design/` are presentation/workflow guidance subordinate to the applicable product/domain contracts and roadmap. They may refine presentation, but they do not silently redefine supported behavior or roadmap exit gates.
+
 Observed validation evidence proves behavior only for the source tree/environment/procedure actually tested; it does not outrank or redefine a governing contract. Earlier Phase 3–9 artifacts may accurately describe Publication-scoped schema/routes at their accepted SHAs even though the canonical current architecture does not use those shapes.
 
 Current user instruction controls task scope. A proposed locked-law change is a contract-change request, not permission for lower-authority work to override it silently.
@@ -119,6 +125,7 @@ Report authoritative conflicts rather than choosing silently.
 | Approval / bootstrap / collection / safety / normalization / Relevance / identity / run accounting | `docs/contracts/source-and-collection-contract.md` |
 | Article visibility / duplicate role / review/groups / Primary | `docs/contracts/article-lifecycle-and-deduplication.md` |
 | Public feed / root routing / search / themes / admin UX / change history | `docs/contracts/public-feed-and-admin-contract.md` |
+| UI design / presentation workflow / parallel UI branch | `docs/design/README.md`, then `docs/design/ui-workflow.md` |
 | Admin perimeter / SSRF / content safety / isolation / observability / recovery | `docs/operations/security-reliability-and-operations.md` |
 | Phase sequence / correction gate / exit gates | `docs/roadmap/mvp-roadmap.md` |
 | Singleton Publication data-model decision | `docs/decisions/single-publication-simplified-data-model.md` |
@@ -128,7 +135,8 @@ Report authoritative conflicts rather than choosing silently.
 | Cloudflare Access admin perimeter | `docs/decisions/cloudflare-access-admin-perimeter.md` |
 | Documentation index | `docs/README.md` |
 | Specialized validation plans | `docs/testing/` when present |
-| Implementation prompts | `docs/tasks/` when present |
+| Roadmap/correction implementation prompts | `docs/tasks/` when present |
+| Targeted UI prompts | `docs/design/tasks/` when present |
 | Durable validation artifacts | `docs/validation/` when present |
 
 If a path does not exist, search for its current equivalent before assuming intentional deletion.
@@ -246,6 +254,8 @@ Do not advance by assumption. Verify each phase/correction exit gate plus the in
 - Before Article/duplicate changes trace external IDs/canonical URLs/uniqueness → observations → review candidates → groups → Primary → moderation → feed → tests.
 - Before admin changes trace Cloudflare Access perimeter → origin protection → request integrity → real resource relationships/domain invariants → mutation → change history → tests.
 - Before public-route changes trace singleton Publication settings → canonical read model → `/api/feed` → `/` page/client → unavailable/error behavior → external links → browser tests.
+- Before UI changes trace governing public/design behavior → current presentation source → shared frontend consumers → relevant browser/tests, and keep backend/domain behavior unchanged unless the task is routed out of the UI workstream.
+- Do not run UI implementation in the same worktree used by an active phase/correction runner.
 - Before approving a change, trace testing blast radius and confirm relevant regression suites were actually executed against the reviewed final tree.
 - For implementation-roadmap phase or gating correction closeout, require observed local terminal evidence and the required durable validation artifact tied to the exact accepted source tree.
 - Make a concrete choice when asked for `recommended`.
@@ -375,6 +385,7 @@ Always a **read-only first pass**.
 Default full scope: every tracked `.md` and `.txt` except:
 
 - `docs/tasks/`
+- `docs/design/tasks/`
 - `docs/validation/`
 
 Conversation may narrow scope explicitly.
@@ -389,7 +400,7 @@ Apply only approved findings/change groups from current conversation.
 
 Before editing, re-read targets and confirm drift has not invalidated findings.
 
-Invoking `/docs-apply` explicitly authorizes approved **documentation-only** edits directly on `main` unless the user requests a branch/PR. It does not authorize source changes, unrelated cleanup, history rewriting, or unapproved docs edits.
+Invoking `/docs-apply` explicitly authorizes approved **documentation-only** edits directly on `main` unless the user requests a branch/PR or explicitly requires isolation from an active runner/workstream. It does not authorize source changes, unrelated cleanup, history rewriting, or unapproved docs edits.
 
 After applying, report changed files, addressed/unapplied findings, newly discovered conflicts, and remaining validation.
 
@@ -551,6 +562,44 @@ After writing, perform applicable runner prompt-file grammar check before report
 - `/split <task>` — narrow assessment shorthand.
 - `/revalidate <task or stack>` — compare existing tasks to current repo/contracts/model-usage policy and report grammar/version/config adequacy/efficiency.
 
+# Parallel UI workflow
+
+The UI workstream is governed by `docs/design/ui-workflow.md`. It is intentionally a lightweight targeted single-prompt lane rather than a third `codex:phase` stack type.
+
+Canonical flow:
+
+```text
+/ui-plan <task>
+→ /ui-write <lower-kebab-slug>
+→ execute the single prompt in the ui-polish worktree
+→ review and validate
+→ integrate when accepted
+```
+
+`ui-polish` is the permanent parallel UI branch. Use a separate local worktree for it whenever roadmap/correction Codex work is active. Before a new UI task, incorporate current `main` into `ui-polish` using a non-destructive workflow and re-plan if relevant main-lane changes invalidate the task boundary. UI work never owns roadmap state or package version.
+
+## `/ui-plan <task>`
+
+Read-only combined assessment/source-planning pass for one targeted UI task.
+
+Read `BOOT.md`, `docs/design/README.md`, `docs/design/ui-workflow.md`, the narrowest governing product/design/testing docs, relevant current `ui-polish` source/tests, and relevant `main` drift when freshness matters.
+
+Return task goal, UI-workstream fit, current/required presentation behavior, likely/allowed files, shared-file risks, preserved behavior, forbidden backend/domain changes, responsive/accessibility considerations, tests/browser evidence, acceptance criteria/non-goals, recommended lower-kebab slug, and recommended configuration/complexity/usage/alternative/efficiency/confidence using the same quality-first policy as implementation planning.
+
+If the task requires a material backend/domain/roadmap behavior change, or current branch/source drift makes the boundary unsafe, return `Planning needed` and route/split the work appropriately. `/ui-plan` never writes.
+
+## `/ui-write <lower-kebab-slug>`
+
+Requires a completed unblocked `/ui-plan` in the current conversation. Re-read relevant `ui-polish` source/docs/tests and relevant `main` drift before writing.
+
+Write exactly one implementation-ready prompt under `docs/design/tasks/<lower-kebab-slug>.txt`. Do not overwrite an existing task without explicit authorization.
+
+The prompt MUST identify `Workstream: UI`, require execution on `ui-polish`, preserve `package.json` version and roadmap state, state allowed/forbidden files/behavior, include finalized model/reasoning/usage guidance, define focused and broader/browser validation, and prohibit unrelated cleanup or phase/correction closeout behavior.
+
+`/ui-write` writes only the approved UI prompt. It does not run Codex, invoke `codex:phase`, implement source, modify project version, advance roadmap state, or merge branches.
+
+Early UI work may satisfy portions of future Phase 13, but it does not automatically complete or redefine the Phase 13 roadmap exit gate.
+
 # Review and validation commands
 
 - `/review <commit, PR, task, implementation>`
@@ -583,7 +632,7 @@ Recommend the single most logical next task.
 
 Finished implementation prompts normally include Task, Context, Current/Required behavior, roadmap phase, stack type, finalized `MODEL / REASONING / USAGE` block, governing contracts/ADRs/laws, inspected source, allowed/forbidden files, constraints, preserved behavior, applicable security/provenance/idempotency/failure-isolation implications, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs updates, acceptance criteria, and non-goals.
 
-Machine-significant fields are stricter than prose. Every task uses canonical folder/filename numbering, one canonical `TASK:` header, one exact recommended-configuration line, and filename-plus-`TASK:` closeout convention. Roadmap prompts additionally use exactly one `assigned project version is ...` phrase. Correction prompts instead use exactly one required-unchanged-version line and MUST NOT use assigned-version metadata.
+Machine-significant fields are stricter than prose. Every roadmap/correction task uses canonical folder/filename numbering, one canonical `TASK:` header, one exact recommended-configuration line, and filename-plus-`TASK:` closeout convention. Roadmap prompts additionally use exactly one `assigned project version is ...` phrase. Correction prompts instead use exactly one required-unchanged-version line and MUST NOT use assigned-version metadata. Targeted UI prompts under `docs/design/tasks/` are outside this parser grammar and follow `docs/design/ui-workflow.md` instead.
 
 Every implementation prompt inherits testing contract. Tests are not optional cleanup; prerequisites cannot silently skip green; claims cannot exceed evidence.
 
@@ -597,6 +646,8 @@ Publication/Relevance prompts preserve topic independence, singleton Publication
 
 Public-feed prompts preserve singleton public exposure, Source approval/lifecycle trust, Article visibility + ungrouped-or-Primary eligibility, deterministic published-at/first-seen semantics, bounded safe output, and stored `original_url`. Routing is `GET /` and `GET /api/feed`; no Publication selector/scoping argument.
 
+UI prompts preserve the same public-feed/domain behavior while changing approved presentation. Shared frontend/runtime files may be changed only when explicitly planned; material backend/domain changes are routed out of the UI workstream. UI prompts never change project version or roadmap state.
+
 Admin prompts preserve Cloudflare Access/origin protection, request integrity, real resource-relationship/domain-invariant validation, singleton Publication configuration, and prohibition on unnecessary native identity/account work, multi-Publication selectors, or Publication tenant authorization.
 
 The Phase 10 entry singleton correction prompts additionally establish the smallest canonical migration-from-zero schema, delete/squash/replace superseded pre-production migrations, remove Publication tenancy/selectors and legacy-only compatibility source/API/type/test/fixture/config paths throughout the active tree, and must prove database/regression/browser behavior before correction closeout. They MUST NOT add compatibility/data-preservation machinery solely for databases created by older disposable pre-production source trees.
@@ -607,10 +658,15 @@ The Phase 10 entry singleton correction prompts additionally establish the small
 - `/closeout` performs only bounded handoff verification and green-path version-only `package.json` transition.
 - A correction stack's final manual closeout validates/clears correction while preserving unchanged package version/active phase.
 - `/docs-review` never writes.
-- `/docs-apply` writes only approved docs; invocation authorizes documentation-only changes on `main` unless branch/PR requested.
+- `/docs-apply` writes only approved docs; invocation authorizes documentation-only changes on `main` unless branch/PR/isolation is requested.
 - `/prompt-ass` and `/prompt-plan` never write.
 - `/prompt-write` writes only approved task files in established phase/correction folder.
-- Documentation/prompt/review activity does not change package version except explicit `/closeout` baseline transition; correction execution is non-versioned.
+- `/ui-plan` never writes.
+- `/ui-write` writes only the approved single UI prompt under `docs/design/tasks/` on the `ui-polish` workstream.
+- UI implementation is non-versioned: it MUST NOT change `package.json` version, consume roadmap prompt numbers, advance roadmap/correction state, or create a phase/correction closeout.
+- Do not run UI implementation in the same working tree used by an active phase/correction runner; keep concurrent work isolated on `ui-polish`/its worktree.
+- Do not merge `ui-polish` into `main` automatically; integration requires review and explicit authorization.
+- Documentation/prompt/review activity does not change package version except explicit `/closeout` baseline transition; correction execution and UI work are non-versioned.
 - No task writes while `Planning needed` remains unresolved.
 - No speculative compatibility bridges or permanent dual schemas.
 - Before production compatibility is established, delete legacy-only migration/code/API/type/test/fixture/configuration artifacts rather than preserving superseded pre-production behavior in the active tree.
@@ -638,4 +694,4 @@ Prefer one canonical design. Do not add old/new aliases, duplicate synchronized 
 
 # Boot maintenance
 
-Update BOOT when phase, core paths, terminology, commands, authority, locked laws, modification conventions, task-stack grammar, versioning/prompt-numbering conventions, branch, repository identity, critical delivery ordering, foundational security/deployment/data-model decisions, or project-wide testing/validation policy changes.
+Update BOOT when phase, core paths, terminology, commands, authority, locked laws, modification conventions, task-stack grammar, UI-workstream workflow/branch rules, versioning/prompt-numbering conventions, branch, repository identity, critical delivery ordering, foundational security/deployment/data-model decisions, or project-wide testing/validation policy changes.

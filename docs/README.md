@@ -36,12 +36,16 @@ docs/
 │   ├── whitelist-and-structured-feed-first.md
 │   ├── original-link-and-normalized-metadata.md
 │   └── cloudflare-access-admin-perimeter.md
+├── design/
+│   ├── README.md
+│   ├── ui-workflow.md
+│   └── tasks/       # created when targeted single UI prompts are written
 ├── testing/      # created only when specialized validation plans become substantive
-├── tasks/        # created when implementation prompt stacks are written
+├── tasks/        # created when roadmap/correction implementation prompt stacks are written
 └── validation/   # durable observed validation artifacts / implementation closeout evidence
 ```
 
-Git does not track empty directories, so `testing/`, `tasks/`, and `validation/` may not exist until substantive files are created there. Do not create placeholder testing plans or empty validation artifacts.
+Git does not track empty directories, so `design/tasks/`, `testing/`, `tasks/`, and `validation/` may not exist until substantive files are created there. Do not create placeholder design tasks, testing plans, or empty validation artifacts.
 
 ## Document routing
 
@@ -61,6 +65,9 @@ Git does not track empty directories, so `testing/`, `tasks/`, and `validation/`
 - `decisions/original-link-and-normalized-metadata.md` — stored `original_url` public-destination decision and normalized-metadata boundary.
 - `decisions/cloudflare-access-admin-perimeter.md` — MVP admin access boundary and deferred native identity/account system.
 - `decisions/README.md` — ADR status/index.
+- `design/README.md` — design-document authority/routing and the boundary between presentation guidance and product/domain contracts.
+- `design/ui-workflow.md` — permanent `ui-polish` branch/worktree rules and the lightweight `/ui-plan` → `/ui-write` targeted single-prompt workflow.
+- `design/tasks/` — non-roadmap, non-versioned targeted UI prompts written by `/ui-write`; not parsed or executed by `codex:phase`.
 
 Use root `BOOT.md` as the session router; it points to the narrowest authoritative document for a task.
 
@@ -82,6 +89,8 @@ Use root `BOOT.md` as the session router; it points to the narrowest authoritati
 - Concurrent multi-Publication hosting inside one installation is not inferred from Publication configuration and requires a new explicit locked contract/ADR decision plus deliberate data-model work if ever promoted.
 - Do not introduce Publication tenant IDs/slugs/FKs/scopes solely as speculative future compatibility.
 - Before production compatibility exists, do not retain migration/code/API/type/test/fixture/configuration artifacts solely to preserve superseded pre-production behavior; delete them when the current canonical system no longer needs them.
+- Design documents may refine presentation but must not silently redefine behavior owned by higher-authority contracts/ADRs/roadmap.
+- UI workstream prompts are non-versioned and do not advance roadmap state or substitute for future roadmap exit gates such as Phase 13.
 - Foundational architecture changes require an Accepted/superseding ADR where appropriate.
 
 ## Phase completion discipline
