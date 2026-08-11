@@ -181,7 +181,11 @@ export function interpretEvent(event, verbose = false) {
   }
   if (type === 'agent_message') {
     const message = item.text ?? item.message ?? '';
-    return { visible: Boolean(message) && verbose, activity: message };
+    return {
+      visible: Boolean(message) && verbose,
+      activity: message,
+      agentMessage: message,
+    };
   }
   if (type === 'turn.completed')
     return {
@@ -207,10 +211,14 @@ export function createEventTracker() {
     anonymousCommands: new Map(),
     activeCommands: new Map(),
     files: new Set(),
+    latestAgentMessage: '',
   };
 }
 
 export function applyEventObservation(tracker, observation, now = Date.now()) {
+  if (observation.agentMessage?.trim()) {
+    tracker.latestAgentMessage = observation.agentMessage;
+  }
   for (const file of observation.files ?? []) tracker.files.add(file);
   const command = observation.command;
   if (!command) return;
@@ -309,6 +317,78 @@ export function printableAscii(value) {
     .join('');
 }
 
+const ANSI = Object.freeze({
+  reset: '\u001B[0m',
+  boldCyan: '\u001B[1;36m',
+  cyan: '\u001B[36m',
+  green: '\u001B[32m',
+  dimGreen: '\u001B[2;32m',
+  yellow: '\u001B[33m',
+  red: '\u001B[31m',
+  magenta: '\u001B[35m',
+  dim: '\u001B[2m',
+});
+
+export function style(text, code, enabled = true) {
+  return enabled && text ? `${code}${text}${ANSI.reset}` : text;
+}
+
+export function stripAnsi(value) {
+  const escape = String.fromCharCode(27);
+  return String(value).replace(new RegExp(`${escape}\\[[0-9;]*m`, 'g'), '');
+}
+
+function colorizeDashboardLine(line) {
+  if (line === 'NEWS SCRAPER - CODEX PHASE RUNNER')
+    return style(line, ANSI.boldCyan);
+  if (/^[-=]+$/.test(line)) return style(line, ANSI.dim);
+  if (line.startsWith('Agent:')) return style(line, ANSI.magenta);
+  if (line.startsWith('Activity:')) return style(line, ANSI.cyan);
+  if (/^\s*\[>\]/.test(line)) return style(line, ANSI.cyan);
+  if (/^\s*\[\+\]/.test(line)) return style(line, ANSI.green);
+  if (/^\s*\[X\]/.test(line)) return style(line, ANSI.red);
+  if (/^\s*\[M\]/.test(line) || line.startsWith('Closeout:'))
+    return style(line, ANSI.yellow);
+  if (/^\s*\[ \]/.test(line)) return style(line, ANSI.dim);
+  if (/^\s*Commit:/.test(line)) return style(line, ANSI.dimGreen);
+  if (line.startsWith('Target:')) return style(line, ANSI.yellow);
+  if (
+    line.startsWith('Usage:') ||
+    /^\s+(Input|Cached|Output|Reasoning)\s/.test(line)
+  )
+    return style(line, ANSI.dim);
+  return line;
+}
+
+function formatAgentMessage(message, terminalWidth = 100) {
+  const normalized = printableAscii(message).replace(/\s+/g, ' ').trim();
+  if (!normalized) return [];
+  const availableWidth = Number.isFinite(terminalWidth) ? terminalWidth : 100;
+  const width = Math.max(40, Math.min(110, availableWidth - 4));
+  const maximum = Math.min(320, width * 3);
+  const bounded =
+    normalized.length > maximum
+      ? `${normalized.slice(0, Math.max(0, maximum - 3)).trimEnd()}...`
+      : normalized;
+  const lines = [];
+  let remaining = bounded;
+  while (remaining && lines.length < 3) {
+    if (remaining.length <= width) {
+      lines.push(remaining);
+      break;
+    }
+    const candidate = remaining.slice(0, width + 1);
+    const space = candidate.lastIndexOf(' ');
+    const breakAt = space > 0 ? space : width;
+    lines.push(remaining.slice(0, breakAt).trimEnd());
+    remaining = remaining.slice(breakAt).trimStart();
+  }
+  if (remaining && lines.length === 3 && !lines[2].endsWith('...')) {
+    lines[2] = `${lines[2].slice(0, Math.max(0, width - 3)).trimEnd()}...`;
+  }
+  return lines;
+}
+
 export function formatElapsed(durationMs) {
   const seconds = Math.floor(Math.max(0, durationMs) / 1000);
   return `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
@@ -349,6 +429,8 @@ export function renderDashboard({
   tracker,
   startedAt,
   now = Date.now(),
+  terminalWidth = 100,
+  colorEnabled = false,
 }) {
   const lines = [
     'NEWS SCRAPER - CODEX PHASE RUNNER',
@@ -398,6 +480,15 @@ export function renderDashboard({
       `Target:        ${current.targetVersion}`,
       `Elapsed:       ${formatElapsed(now - startedAt)}`,
       '',
+    );
+    const agentLines = formatAgentMessage(
+      tracker.latestAgentMessage,
+      terminalWidth,
+    );
+    if (agentLines.length > 0) {
+      lines.push('Agent:', ...agentLines.map((line) => `  ${line}`), '');
+    }
+    lines.push(
       'Activity:',
       `  ${activeCommand ? `[>] Running: ${activeCommand.text}` : activity || '[.] Waiting for Codex response'}`,
     );
@@ -410,7 +501,11 @@ export function renderDashboard({
     );
   }
   lines.push('-'.repeat(60));
-  return `${printableAscii(lines.join('\n'))}\n`;
+  const plain = printableAscii(lines.join('\n'));
+  const rendered = colorEnabled
+    ? plain.split('\n').map(colorizeDashboardLine).join('\n')
+    : plain;
+  return `${rendered}\n`;
 }
 
 function renderedLineCount(output) {
@@ -423,6 +518,7 @@ export function createDisplaySession({
   stream,
   interactive = Boolean(stream?.isTTY),
   verbose = false,
+  colorEnabled = Boolean(interactive && !process.env.NO_COLOR),
   moveCursorFunction = moveCursor,
   cursorToFunction = cursorTo,
   clearScreenDownFunction = clearScreenDown,
@@ -434,7 +530,9 @@ export function createDisplaySession({
 
   const write = (value) => stream.write(value);
   const normalize = (value) => {
-    const ascii = printableAscii(value);
+    const ascii = colorEnabled
+      ? String(value)
+      : printableAscii(stripAnsi(value));
     return ascii.endsWith('\n') ? ascii : `${ascii}\n`;
   };
 

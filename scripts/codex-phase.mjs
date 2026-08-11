@@ -585,6 +585,7 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
     stream: stdout,
     interactive: Boolean(stdout.isTTY),
     verbose,
+    colorEnabled: Boolean(stdout.isTTY && !verbose && !process.env.NO_COLOR),
   });
   activeDisplay = display;
   display.progress(
@@ -620,6 +621,10 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
         activity: latest,
         tracker,
         startedAt,
+        terminalWidth: stdout.columns,
+        colorEnabled: Boolean(
+          stdout.isTTY && !verbose && !process.env.NO_COLOR,
+        ),
       });
     const redraw = () => display.render(dashboard());
     activeDashboard = dashboard;
@@ -645,6 +650,8 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
             latest = printableAscii(observation.activity);
             if (verbose) display.verbose(latest);
             else redraw();
+          } else if (observation.agentMessage?.trim()) {
+            redraw();
           }
         },
         { launcher, verbose, rootDirectory },
@@ -710,6 +717,8 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
     activity: '',
     tracker: createEventTracker(),
     startedAt: Date.now(),
+    terminalWidth: stdout.columns,
+    colorEnabled: Boolean(stdout.isTTY && !verbose && !process.env.NO_COLOR),
   });
   display.finalize(finalDashboard);
   stdout.write(

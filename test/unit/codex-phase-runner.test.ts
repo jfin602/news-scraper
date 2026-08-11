@@ -38,6 +38,7 @@ const {
   renderSuccessHandoff,
   resolveModelConfig,
   startElapsedRedraw,
+  stripAnsi,
 } = core;
 const {
   buildCodexArguments,
@@ -719,6 +720,173 @@ test('command lifecycle counts one logical command and tracks active elapsed tim
   applyEventObservation(tracker, completed, 40_000);
   assert.equal(tracker.commands, 1);
   assert.equal(tracker.activeCommands.size, 0);
+});
+
+test('latest non-empty agent message persists independently through command and file activity', () => {
+  const tracker = createEventTracker();
+  const firstEvent = {
+    type: 'item.completed',
+    item: { type: 'agent_message', text: 'Inspecting the persistence tests.' },
+  };
+  const first = interpretEvent(firstEvent);
+  applyEventObservation(tracker, first);
+  assert.equal(tracker.latestAgentMessage, firstEvent.item.text);
+
+  applyEventObservation(
+    tracker,
+    interpretEvent({
+      type: 'item.started',
+      item: {
+        id: 'cmd-agent-test',
+        type: 'command_execution',
+        command: 'npm run test:db',
+        status: 'in_progress',
+      },
+    }),
+  );
+  applyEventObservation(
+    tracker,
+    interpretEvent({
+      type: 'item.completed',
+      item: { type: 'file_change', changes: [{ path: 'schema.sql' }] },
+    }),
+  );
+  assert.equal(tracker.latestAgentMessage, firstEvent.item.text);
+
+  const replacement = interpretEvent({
+    type: 'item.completed',
+    item: { type: 'agent_message', text: 'Running the focused tests now.' },
+  });
+  applyEventObservation(tracker, replacement);
+  applyEventObservation(
+    tracker,
+    interpretEvent({
+      type: 'item.completed',
+      item: { type: 'agent_message', text: '   ' },
+    }),
+  );
+  assert.equal(tracker.latestAgentMessage, 'Running the focused tests now.');
+
+  const plan = buildPlan([prompt(1), prompt(2, { closeout: true })], 'p8');
+  const output = renderDashboard({
+    plan,
+    states: new Map([[1, { status: 'running' }]]),
+    current: plan.implementations[0],
+    activity: '',
+    tracker,
+    startedAt: 0,
+    now: 1_000,
+  });
+  assert.match(output, /Agent:\n {2}Running the focused tests now\./);
+  assert.match(output, /Activity:\n {2}\[>\] Running: npm run test:db/);
+});
+
+test('normal agent presentation bounds whitespace and length without mutating event content', () => {
+  const original = `  ${'complete narrative '.repeat(40)}\nwith final detail  `;
+  const event = {
+    type: 'item.completed',
+    item: { type: 'agent_message', text: original },
+  };
+  const observation = interpretEvent(event);
+  const tracker = createEventTracker();
+  applyEventObservation(tracker, observation);
+  const plan = buildPlan([prompt(1), prompt(2, { closeout: true })], 'p8');
+  const output = renderDashboard({
+    plan,
+    states: new Map([[1, { status: 'running' }]]),
+    current: plan.implementations[0],
+    activity: '',
+    tracker,
+    startedAt: 0,
+    terminalWidth: 80,
+  });
+  const agentBlock = output.match(/Agent:\n([\s\S]*?)\n\nActivity:/)?.[1] ?? '';
+  assert.ok(agentBlock.split('\n').length <= 3);
+  assert.ok(agentBlock.length <= 330);
+  assert.match(agentBlock, /\.\.\.$/);
+  assert.equal(observation.agentMessage, original);
+  assert.equal(event.item.text, original);
+  assert.equal(interpretEvent(event, true).activity, original);
+});
+
+test('interactive dashboard colors semantic states while disabled output stays plain', () => {
+  const plan = buildPlan(
+    [prompt(1), prompt(2), prompt(3), prompt(4, { closeout: true })],
+    'p8',
+  );
+  const states = new Map([
+    [1, { status: 'passed', commitSha: 'abc1234567890' }],
+    [2, { status: 'running' }],
+    [3, { status: 'failed' }],
+  ]);
+  const tracker = createEventTracker();
+  applyEventObservation(
+    tracker,
+    interpretEvent({
+      type: 'item.completed',
+      item: { type: 'agent_message', text: 'Checking color semantics.' },
+    }),
+  );
+  const colored = renderDashboard({
+    plan,
+    states,
+    current: plan.implementations[1],
+    activity: '[X] failed activity',
+    tracker,
+    startedAt: 0,
+    colorEnabled: true,
+  });
+  const escape = String.fromCharCode(27);
+  assert.ok(colored.includes(`${escape}[1;36mNEWS SCRAPER`));
+  assert.ok(colored.includes(`${escape}[32m  [+] PASSED`));
+  assert.ok(colored.includes(`${escape}[36m  [>] RUNNING`));
+  assert.ok(colored.includes(`${escape}[31m  [X] FAILED`));
+  assert.ok(colored.includes(`${escape}[33m  [M] MANUAL`));
+  assert.ok(colored.includes(`${escape}[35mAgent:`));
+  const styles = colored.match(new RegExp(`${escape}\\[[0-9;]*m`, 'g')) ?? [];
+  assert.equal(styles.at(-1), `${escape}[0m`);
+
+  const plain = renderDashboard({
+    plan,
+    states,
+    current: plan.implementations[1],
+    activity: '',
+    tracker,
+    startedAt: 0,
+    colorEnabled: false,
+  });
+  assert.equal(stripAnsi(plain), plain);
+  assert.match(plain, /\[\+\] PASSED/);
+});
+
+test('display strips ANSI when color is disabled and counts styled redraw lines safely', () => {
+  const plainOutput = testOutput(false);
+  const plainDisplay = createDisplaySession({
+    stream: plainOutput,
+    interactive: false,
+    colorEnabled: false,
+  });
+  plainDisplay.progress('\u001b[31m[X] failure\u001b[0m');
+  assert.equal(plainOutput.read(), '[X] failure\n');
+
+  const styledOutput = testOutput(true);
+  const operations: string[] = [];
+  const styledDisplay = createDisplaySession({
+    stream: styledOutput,
+    interactive: true,
+    colorEnabled: true,
+    moveCursorFunction: (_stream: unknown, x: number, y: number) =>
+      operations.push(`move:${x}:${y}`),
+    cursorToFunction: () => undefined,
+    clearScreenDownFunction: () => undefined,
+  });
+  styledDisplay.render('\u001b[36mfirst\u001b[0m\nsecond\n');
+  styledDisplay.render('\u001b[32mfinal\u001b[0m\n');
+  assert.deepEqual(operations, ['move:0:-2']);
+  const escape = String.fromCharCode(27);
+  const styles =
+    styledOutput.read().match(new RegExp(`${escape}\\[[0-9;]*m`, 'g')) ?? [];
+  assert.equal(styles.at(-1), `${escape}[0m`);
 });
 
 test('completed prompt durations and observed usage remain rendered', () => {
