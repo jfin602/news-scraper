@@ -514,11 +514,21 @@ function renderedLineCount(output) {
     : output.split('\n').length;
 }
 
+export function isColorEnabled({
+  interactive,
+  verbose = false,
+  environment = process.env,
+}) {
+  return Boolean(
+    interactive && !verbose && !Object.hasOwn(environment, 'NO_COLOR'),
+  );
+}
+
 export function createDisplaySession({
   stream,
   interactive = Boolean(stream?.isTTY),
   verbose = false,
-  colorEnabled = Boolean(interactive && !process.env.NO_COLOR),
+  colorEnabled = isColorEnabled({ interactive, verbose }),
   moveCursorFunction = moveCursor,
   cursorToFunction = cursorTo,
   clearScreenDownFunction = clearScreenDown,

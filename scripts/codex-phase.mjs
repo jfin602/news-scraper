@@ -18,6 +18,7 @@ import {
   buildPlan,
   createDisplaySession,
   createEventTracker,
+  isColorEnabled,
   createStructuredEventProcessor,
   interpretEvent,
   printableAscii,
@@ -585,7 +586,7 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
     stream: stdout,
     interactive: Boolean(stdout.isTTY),
     verbose,
-    colorEnabled: Boolean(stdout.isTTY && !verbose && !process.env.NO_COLOR),
+    colorEnabled: isColorEnabled({ interactive: stdout.isTTY, verbose }),
   });
   activeDisplay = display;
   display.progress(
@@ -622,9 +623,7 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
         tracker,
         startedAt,
         terminalWidth: stdout.columns,
-        colorEnabled: Boolean(
-          stdout.isTTY && !verbose && !process.env.NO_COLOR,
-        ),
+        colorEnabled: isColorEnabled({ interactive: stdout.isTTY, verbose }),
       });
     const redraw = () => display.render(dashboard());
     activeDashboard = dashboard;
@@ -718,7 +717,7 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
     tracker: createEventTracker(),
     startedAt: Date.now(),
     terminalWidth: stdout.columns,
-    colorEnabled: Boolean(stdout.isTTY && !verbose && !process.env.NO_COLOR),
+    colorEnabled: isColorEnabled({ interactive: stdout.isTTY, verbose }),
   });
   display.finalize(finalDashboard);
   stdout.write(

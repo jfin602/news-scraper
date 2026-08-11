@@ -30,6 +30,7 @@ const {
   formatUsage,
   hasCursorControls,
   interpretEvent,
+  isColorEnabled,
   isAscii,
   parsePrompt,
   printableAscii,
@@ -857,6 +858,26 @@ test('interactive dashboard colors semantic states while disabled output stays p
   });
   assert.equal(stripAnsi(plain), plain);
   assert.match(plain, /\[\+\] PASSED/);
+});
+
+test('color eligibility requires TTY, non-verbose output, and absent NO_COLOR', () => {
+  const hadNoColor = Object.hasOwn(process.env, 'NO_COLOR');
+  const previousNoColor = process.env.NO_COLOR;
+  try {
+    delete process.env.NO_COLOR;
+    assert.equal(isColorEnabled({ interactive: true }), true);
+    assert.equal(isColorEnabled({ interactive: false }), false);
+    assert.equal(isColorEnabled({ interactive: true, verbose: true }), false);
+
+    process.env.NO_COLOR = '1';
+    assert.equal(isColorEnabled({ interactive: true }), false);
+
+    process.env.NO_COLOR = '';
+    assert.equal(isColorEnabled({ interactive: true }), false);
+  } finally {
+    if (hadNoColor) process.env.NO_COLOR = previousNoColor;
+    else delete process.env.NO_COLOR;
+  }
 });
 
 test('display strips ANSI when color is disabled and counts styled redraw lines safely', () => {
