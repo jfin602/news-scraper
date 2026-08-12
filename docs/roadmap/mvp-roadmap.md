@@ -572,7 +572,7 @@ Turn the manually proven endpoint execution unit into a continuously updating si
 
 ## Phase 11 — Categories and configurable Relevance execution
 
-**Status:** Current roadmap phase.
+**Status:** Complete with durable validation recorded in `docs/validation/phase-11-categories-configurable-relevance-execution.md`.
 
 ### Goal
 
@@ -631,6 +631,8 @@ Add deterministic installation-specific inclusion/exclusion/categorization witho
 - Relevance changes do not redefine Article identity.
 
 ## Phase 12 — Feed discovery features
+
+**Status:** Current roadmap phase.
 
 ### Goal
 
