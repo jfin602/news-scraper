@@ -7,6 +7,11 @@ import type {
 } from '../../src/collection/concurrency/collection-capacity.ts';
 import { executeEndpointCollection } from '../../src/collection/endpoint-collection-service.ts';
 import type { CollectEndpointDependencies } from '../../src/collection/collect-endpoint.ts';
+import type { ArticleCandidate } from '../../src/collection/normalization/article-candidate.ts';
+import type {
+  EffectiveRelevanceConfiguration,
+  RelevanceDecision,
+} from '../../src/collection/relevance/evaluator.ts';
 import type { Database, QueryExecutor } from '../../src/database/database.ts';
 import type { EndpointConfigurationAggregate } from '../../src/sources/repository.ts';
 
@@ -24,7 +29,31 @@ test('manual and scheduled triggers use one production collection composition', 
   };
   const observed: CollectEndpointDependencies[] = [];
   const capacityInputs: unknown[] = [];
+  const compositionEvents: string[] = [];
   const database = {} as Database;
+  const snapshot = Object.freeze({
+    sourceId: configuration.source.id,
+    sourceEndpointId: configuration.endpoint.id,
+    rules: Object.freeze([]),
+  });
+  const candidate = {} as ArticleCandidate;
+  const includedDecision = {
+    included: true,
+    candidate,
+    decisionReason: { kind: 'default_include' },
+    categoryAssignments: [],
+    categoryReasons: [],
+  } as RelevanceDecision;
+  const excludedDecision = {
+    included: false,
+    decisionReason: {
+      kind: 'rule_exclude',
+      ruleConfigKey: 'exclude_fixture',
+      ruleReason: 'Fixture exclusion.',
+    },
+    categoryAssignments: [],
+    categoryReasons: [],
+  } as RelevanceDecision;
   const overrides = {
     async findByKeys() {
       return configuration;
@@ -55,6 +84,25 @@ test('manual and scheduled triggers use one production collection composition', 
       dependencies: CollectEndpointDependencies,
     ) {
       observed.push(dependencies);
+      const loaded = await dependencies.loadRelevanceConfiguration();
+      assert.equal(loaded, snapshot);
+      dependencies.evaluateRelevance(candidate, loaded);
+      await dependencies.persistArticle(
+        candidate,
+        new Date('2026-08-11T12:00:00.000Z'),
+        includedDecision as Extract<
+          RelevanceDecision,
+          { readonly included: true }
+        >,
+      );
+      await dependencies.persistExcludedArticle(
+        candidate,
+        new Date('2026-08-11T12:00:00.000Z'),
+        excludedDecision as Extract<
+          RelevanceDecision,
+          { readonly included: false }
+        >,
+      );
       return {
         status: 'blocked' as const,
         stage: 'lock' as const,
@@ -63,6 +111,50 @@ test('manual and scheduled triggers use one production collection composition', 
     },
     async applyRuntimeState() {
       throw new Error('blocked work has no runtime state');
+    },
+    async loadRelevanceConfiguration(
+      receivedDatabase: QueryExecutor,
+      sourceId: unknown,
+      endpointId: unknown,
+    ) {
+      assert.equal(receivedDatabase, database);
+      assert.equal(sourceId, configuration.source.id);
+      assert.equal(endpointId, configuration.endpoint.id);
+      compositionEvents.push('snapshot');
+      return snapshot;
+    },
+    evaluateRelevance(
+      receivedCandidate: ArticleCandidate,
+      receivedSnapshot?: EffectiveRelevanceConfiguration,
+    ) {
+      assert.equal(receivedCandidate, candidate);
+      assert.equal(receivedSnapshot, snapshot);
+      compositionEvents.push('evaluate');
+      return includedDecision;
+    },
+    async persistIncludedArticle(
+      receivedDatabase: Pick<Database, 'transaction'>,
+      receivedCandidate: ArticleCandidate,
+      _observationTime: Date,
+      receivedDecision?: RelevanceDecision,
+    ) {
+      assert.equal(receivedDatabase, database);
+      assert.equal(receivedCandidate, candidate);
+      assert.equal(receivedDecision, includedDecision);
+      compositionEvents.push('included');
+      return { outcome: 'created' as const } as never;
+    },
+    async persistExcludedArticle(
+      receivedDatabase: Pick<Database, 'transaction'>,
+      receivedCandidate: ArticleCandidate,
+      _observationTime: Date,
+      receivedDecision: RelevanceDecision,
+    ) {
+      assert.equal(receivedDatabase, database);
+      assert.equal(receivedCandidate, candidate);
+      assert.equal(receivedDecision, excludedDecision);
+      compositionEvents.push('excluded');
+      return { outcome: 'excluded' as const } as never;
     },
   };
 
@@ -92,6 +184,16 @@ test('manual and scheduled triggers use one production collection composition', 
   assert.equal(manual.status, 'resolved');
   assert.equal(scheduled.status, 'resolved');
   assert.equal(observed.length, 2);
+  assert.deepEqual(compositionEvents, [
+    'snapshot',
+    'evaluate',
+    'included',
+    'excluded',
+    'snapshot',
+    'evaluate',
+    'included',
+    'excluded',
+  ]);
   assert.deepEqual(capacityInputs, [
     {
       sourceId: configuration.source.id,
@@ -114,8 +216,10 @@ test('manual and scheduled triggers use one production collection composition', 
   for (const dependencies of observed) {
     assert.equal(typeof dependencies.normalizeArticleCandidate, 'function');
     assert.equal(typeof dependencies.applyArticleLinkPolicy, 'function');
+    assert.equal(typeof dependencies.loadRelevanceConfiguration, 'function');
     assert.equal(typeof dependencies.evaluateRelevance, 'function');
     assert.equal(typeof dependencies.persistArticle, 'function');
+    assert.equal(typeof dependencies.persistExcludedArticle, 'function');
   }
 });
 

@@ -248,11 +248,29 @@ test('Phase 11 Category and Relevance schema enforces canonical configuration an
         position: 3,
         kind: 'endpoint_default',
       });
+      await client.query(
+        `UPDATE relevance_rules
+         SET category_id = $1, updated_at = now()
+         WHERE id = $2`,
+        [categoryTwo, categorizeRuleOne],
+      );
+      const historicalReason = await client.query<{
+        category_id: string;
+        relevance_rule_id: string;
+      }>(
+        `SELECT category_id, relevance_rule_id
+         FROM article_observation_category_reasons
+         WHERE article_observation_id = $1 AND reason_position = 1`,
+        [fixture.observationId],
+      );
+      assert.deepEqual(historicalReason.rows, [
+        { category_id: categoryOne, relevance_rule_id: categorizeRuleOne },
+      ]);
       await rejects(client, () =>
         insertCategoryReason(client, {
           observationId: fixture.observationId,
           categoryId: categoryOne,
-          relevanceRuleId: categorizeRuleOne,
+          relevanceRuleId: categorizeRuleTwo,
           position: 1,
           kind: 'rule',
         }),
@@ -285,7 +303,7 @@ test('Phase 11 Category and Relevance schema enforces canonical configuration an
       await rejects(client, () =>
         insertCategoryReason(client, {
           observationId: fixture.observationId,
-          categoryId: categoryTwo,
+          categoryId: categoryOne,
           relevanceRuleId: categorizeRuleOne,
           position: 4,
           kind: 'rule',

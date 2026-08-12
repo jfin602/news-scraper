@@ -3,6 +3,7 @@ import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
 import { executeEndpointCollection } from '../../src/collection/endpoint-collection-service.ts';
+import { createRelevanceRule } from '../../src/collection/relevance/repository.ts';
 import type {
   HttpFetcher,
   HttpFetcherRequest,
@@ -221,6 +222,84 @@ test('scheduled execution atomically correlates one job and run and updates endp
       [enqueued.job.id],
     );
     assert.equal(Number(count.rows[0]?.count), 1);
+  });
+});
+
+test('manual and scheduled execution share persisted Relevance exclusion semantics', async () => {
+  await withEndpoint(async (database, endpoint) => {
+    await createRelevanceRule(database, {
+      configKey: 'exclude_fixture_item',
+      predicateType: 'title_contains',
+      pattern: 'One',
+      action: 'exclude',
+      priority: 10,
+      enabled: true,
+      reason: 'Fixture item is editorially excluded.',
+    });
+
+    const manual = await executeEndpointCollection(
+      database,
+      {
+        triggerKind: 'manual',
+        sourceConfigKey: 'circuit_journal',
+        endpointConfigKey: 'main_feed',
+        executionId: 'manual-relevance-exclusion',
+      },
+      { createFetcher: () => fetcher(contentResult('"manual-excluded"')) },
+    );
+    assert.equal(manual.status, 'resolved');
+    if (manual.status !== 'resolved') return;
+    assert.equal(manual.collection.status, 'succeeded');
+    if (manual.collection.status !== 'succeeded') return;
+    assert.equal(manual.collection.excludedCount, 1);
+    assert.equal(manual.collection.failedCount, 0);
+    await updateEndpointRuntimeState(database, endpoint.id, {
+      nextDueAt: T1000,
+    });
+
+    const enqueued = await enqueueEndpointCollectionJob(database, {
+      sourceEndpointId: endpoint.id,
+      availableAt: T1000,
+      attemptNumber: 1,
+    });
+    const claimed = await claimNextEndpointCollectionJob(database, {
+      workerId: 'scheduled-relevance-worker',
+      claimedAt: T1001,
+      leaseExpiresAt: T1010,
+    });
+    assert.equal(claimed?.id, enqueued.job.id);
+    assert.ok(claimed?.claimToken);
+    const scheduled = await executeClaimedEndpointCollectionJob(database, {
+      jobId: enqueued.job.id,
+      claimToken: claimed.claimToken,
+      now: T1002,
+      serviceDependencies: {
+        createFetcher: () => fetcher(contentResult('"scheduled-excluded"')),
+      },
+    });
+    assert.equal(scheduled.category, 'succeeded');
+    assert.equal(scheduled.retryClassification, undefined);
+    assert.ok(scheduled.collectionRunId);
+    const scheduledRun = await findCollectionRunById(
+      database,
+      scheduled.collectionRunId,
+    );
+    assert.equal(scheduledRun?.triggerKind, 'scheduled');
+    assert.equal(scheduledRun?.excludedCount, 1);
+    assert.equal(scheduledRun?.failedCount, 0);
+    assert.equal(await articleCount(database), 0);
+    const observations = await database.query<{
+      article_id: string | null;
+      processing_outcome: string;
+    }>(
+      `SELECT article_id, processing_outcome
+       FROM article_observations
+       ORDER BY observed_at, id`,
+    );
+    assert.deepEqual(observations.rows, [
+      { article_id: null, processing_outcome: 'excluded' },
+      { article_id: null, processing_outcome: 'excluded' },
+    ]);
   });
 });
 

@@ -20,6 +20,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
       '0003_endpoint_collection_jobs.sql',
       '0004_canonical_scheduled_execution.sql',
       '0005_categories_and_relevance.sql',
+      '0006_mutable_relevance_rule_history.sql',
     ]);
     assert.deepEqual(
       await migrateDatabase({ connectionString: databaseUrl }),
@@ -78,6 +79,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
         { filename: '0003_endpoint_collection_jobs.sql' },
         { filename: '0004_canonical_scheduled_execution.sql' },
         { filename: '0005_categories_and_relevance.sql' },
+        { filename: '0006_mutable_relevance_rule_history.sql' },
       ]);
 
       const removedTenancy = await client.query<{

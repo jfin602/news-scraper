@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import {
+  persistExcludedArticleObservation,
   persistIncludedArticle,
   type ArticlePersistenceResult,
 } from '../articles/repository.ts';
@@ -34,7 +35,11 @@ import {
 import { normalizeArticleCandidate } from './normalization/normalizer.ts';
 import type { ArticleCandidate } from './normalization/article-candidate.ts';
 import { RssAtomParser } from './parsers/rss-atom-parser.ts';
-import { evaluateRelevance } from './relevance/evaluator.ts';
+import {
+  evaluateRelevance,
+  type RelevanceDecision,
+} from './relevance/evaluator.ts';
+import { loadEffectiveRelevanceConfiguration } from './relevance/repository.ts';
 import {
   finalizeCollectionRun,
   startCollectionRun,
@@ -93,6 +98,10 @@ export interface EndpointCollectionServiceDependencies {
   readonly collect: typeof collectEndpoint;
   readonly executionId: () => string;
   readonly applyRuntimeState: typeof applyTerminalCollectionRunToEndpointRuntime;
+  readonly loadRelevanceConfiguration: typeof loadEffectiveRelevanceConfiguration;
+  readonly evaluateRelevance: typeof evaluateRelevance;
+  readonly persistIncludedArticle: typeof persistIncludedArticle;
+  readonly persistExcludedArticle: typeof persistExcludedArticleObservation;
 }
 
 const DEFAULT_DEPENDENCIES: EndpointCollectionServiceDependencies =
@@ -104,6 +113,10 @@ const DEFAULT_DEPENDENCIES: EndpointCollectionServiceDependencies =
     collect: collectEndpoint,
     executionId: randomUUID,
     applyRuntimeState: applyTerminalCollectionRunToEndpointRuntime,
+    loadRelevanceConfiguration: loadEffectiveRelevanceConfiguration,
+    evaluateRelevance,
+    persistIncludedArticle,
+    persistExcludedArticle: persistExcludedArticleObservation,
   });
 
 export async function executeEndpointCollection(
@@ -227,12 +240,40 @@ function collectionDependencies(
     rssAtomParser: new RssAtomParser(),
     normalizeArticleCandidate,
     applyArticleLinkPolicy,
-    evaluateRelevance,
+    async loadRelevanceConfiguration() {
+      const snapshot = await dependencies.loadRelevanceConfiguration(
+        database,
+        configuration.source.id,
+        configuration.endpoint.id,
+      );
+      if (snapshot === undefined) {
+        throw new Error('Endpoint Relevance configuration was not found.');
+      }
+      return snapshot;
+    },
+    evaluateRelevance: dependencies.evaluateRelevance,
     persistArticle: (
       candidate: ArticleCandidate,
       observationTime: Date,
+      decision: Extract<RelevanceDecision, { readonly included: true }>,
     ): Promise<ArticlePersistenceResult> =>
-      persistIncludedArticle(database, candidate, observationTime),
+      dependencies.persistIncludedArticle(
+        database,
+        candidate,
+        observationTime,
+        decision,
+      ),
+    persistExcludedArticle: (
+      candidate: ArticleCandidate,
+      observationTime: Date,
+      decision: Extract<RelevanceDecision, { readonly included: false }>,
+    ) =>
+      dependencies.persistExcludedArticle(
+        database,
+        candidate,
+        observationTime,
+        decision,
+      ),
     observationTime: () => new Date(),
     executionId: () =>
       request.triggerKind === 'scheduled'

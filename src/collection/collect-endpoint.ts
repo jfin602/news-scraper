@@ -1,5 +1,8 @@
 import type { QueryExecutor } from '../database/database.ts';
-import type { ArticlePersistenceResult } from '../articles/repository.ts';
+import type {
+  ArticlePersistenceResult,
+  ExcludedArticlePersistenceResult,
+} from '../articles/repository.ts';
 import type { EndpointConfigurationAggregate } from '../sources/repository.ts';
 import type { CollectionBlockedDecision } from './decision.ts';
 import {
@@ -27,6 +30,10 @@ import type {
 } from './normalization/article-candidate.ts';
 import type { FeedParser, ParserResult } from './parsers/parser.ts';
 import type { RawItem } from './raw-item.ts';
+import type {
+  EffectiveRelevanceConfiguration,
+  RelevanceDecision,
+} from './relevance/evaluator.ts';
 import {
   finalizeCollectionRun,
   startCollectionRun,
@@ -61,22 +68,26 @@ export interface CollectEndpointDependencies {
     candidate: ArticleCandidate,
     context: ArticleLinkPolicyContext,
   ) => ArticleLinkPolicyDecision;
+  readonly loadRelevanceConfiguration: () => Promise<EffectiveRelevanceConfiguration>;
   readonly evaluateRelevance: (
     candidate: ArticleCandidate,
-  ) => CollectionRelevanceDecision;
+    configuration: EffectiveRelevanceConfiguration,
+  ) => RelevanceDecision;
   readonly persistArticle: (
     candidate: ArticleCandidate,
     observationTime: Date,
+    decision: Extract<RelevanceDecision, { readonly included: true }>,
   ) => Promise<ArticlePersistenceResult>;
+  readonly persistExcludedArticle: (
+    candidate: ArticleCandidate,
+    observationTime: Date,
+    decision: Extract<RelevanceDecision, { readonly included: false }>,
+  ) => Promise<ExcludedArticlePersistenceResult>;
   readonly observationTime: () => Date;
   readonly executionId: () => string;
   readonly triggerKind?: CollectionRunTriggerKind;
   readonly fetchOptions?: Omit<HttpFetcherRequest, 'configuration'>;
 }
-
-export type CollectionRelevanceDecision =
-  | Readonly<{ included: true; candidate: ArticleCandidate }>
-  | Readonly<{ included: false }>;
 
 export type CollectionAttemptOutcome =
   | 'content'
@@ -452,11 +463,33 @@ async function processCandidates(
     failedCount: 0,
   };
 
+  let relevanceConfiguration: EffectiveRelevanceConfiguration;
+  try {
+    relevanceConfiguration = await dependencies.loadRelevanceConfiguration();
+    if (
+      relevanceConfiguration === null ||
+      typeof relevanceConfiguration !== 'object' ||
+      !Array.isArray(relevanceConfiguration.rules)
+    ) {
+      throw new TypeError('Invalid Relevance configuration snapshot.');
+    }
+  } catch {
+    return processingFailure(
+      counters,
+      candidates.length,
+      'relevance_configuration_load_execution_failed',
+      'Relevance configuration loading failed outside its bounded snapshot contract.',
+    );
+  }
+
   for (let index = 0; index < candidates.length; index += 1) {
     const candidate = candidates[index]!;
-    let relevance: CollectionRelevanceDecision;
+    let relevance: RelevanceDecision;
     try {
-      relevance = dependencies.evaluateRelevance(candidate);
+      relevance = dependencies.evaluateRelevance(
+        candidate,
+        relevanceConfiguration,
+      );
       if (
         relevance === null ||
         typeof relevance !== 'object' ||
@@ -471,11 +504,6 @@ async function processCandidates(
         'relevance_execution_failed',
         'Relevance evaluation failed outside its bounded decision contract.',
       );
-    }
-
-    if (!relevance.included) {
-      counters.excludedCount += 1;
-      continue;
     }
 
     let observationTime: Date;
@@ -496,11 +524,37 @@ async function processCandidates(
       );
     }
 
+    if (!relevance.included) {
+      let persistence: ExcludedArticlePersistenceResult;
+      try {
+        persistence = await dependencies.persistExcludedArticle(
+          candidate,
+          observationTime,
+          relevance,
+        );
+        if (!isExcludedArticlePersistenceResult(persistence)) {
+          throw new TypeError('Invalid excluded Article persistence result.');
+        }
+      } catch {
+        return processingFailure(
+          counters,
+          candidates.length - index,
+          'relevance_exclusion_persistence_execution_failed',
+          'Relevance exclusion persistence failed outside its bounded result contract.',
+        );
+      }
+
+      if (persistence.outcome === 'excluded') counters.excludedCount += 1;
+      else counters.failedCount += 1;
+      continue;
+    }
+
     let persistence: ArticlePersistenceResult;
     try {
       persistence = await dependencies.persistArticle(
         relevance.candidate,
         observationTime,
+        relevance,
       );
       if (!isArticlePersistenceResult(persistence)) {
         throw new TypeError('Invalid Article persistence result.');
@@ -528,6 +582,17 @@ async function processCandidates(
   return Object.freeze({
     accounting: Object.freeze({ processingStatus: 'succeeded', ...counters }),
   });
+}
+
+function isExcludedArticlePersistenceResult(
+  value: unknown,
+): value is ExcludedArticlePersistenceResult {
+  if (value === null || typeof value !== 'object') return false;
+  const outcome = Reflect.get(value, 'outcome');
+  if (outcome === 'excluded') return true;
+  if (outcome !== 'failed') return false;
+  const reason = Reflect.get(value, 'reason');
+  return reason === 'identity_conflict' || reason === 'provenance_mismatch';
 }
 
 function isArticlePersistenceResult(
