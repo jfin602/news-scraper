@@ -154,7 +154,7 @@ flowchart TD
     O --> P[Update run counters + endpoint health]
 ```
 
-This is the completed staged pipeline through Phase 10 plus the contracted later Relevance/duplicate nodes; it is not a claim that every node existed in Phase 4. Every redirect returns through the pre-request network-safety gate before being followed.
+This is the completed staged pipeline through Phase 11 plus the contracted later duplicate node; it is not a claim that every node existed in Phase 4. Every redirect returns through the pre-request network-safety gate before being followed.
 
 The pipeline grew by phase without inventing outcomes for stages that did not exist yet:
 
@@ -164,6 +164,7 @@ The pipeline grew by phase without inventing outcomes for stages that did not ex
 - Before configurable Relevance rules exist, candidates pass the empty-rule/default-include Relevance boundary.
 - Phase 7 added Article identity/persistence, observations, and canonical post-identity outcomes.
 - Phase 10 added durable scheduling/jobs, conditional-fetch state, retry/recovery, concurrency controls, and endpoint health around the same endpoint execution unit.
+- Phase 11 extended the existing pre-identity Relevance boundary with persisted installation-wide/Source-scoped include/exclude/categorize rules, Category/default assignment, deterministic persisted reasons, exact pre-identity `excluded` accounting, and the explicit pre-admin editorial-configuration path.
 - Later duplicate phases add duplicate effects/grouping without redefining Article identity.
 
 ## Scheduling model
