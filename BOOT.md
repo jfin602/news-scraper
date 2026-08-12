@@ -470,7 +470,7 @@ Before `/prompt-write` reports either stack ready:
 4. connector-only work performs equivalent parser-level source check and explicitly says it was source-validated rather than executed;
 5. do not recommend automation while parser/validator inconsistency remains.
 
-Runner fail-closed execution invariants: clean working tree, no `package-lock.json`, coherent `git diff --check`, actual implementation changes, clean single-successor prompt commit boundary. Phase stacks also enforce expected version chain. Correction stacks enforce one unchanged package version before/after every prompt and commit.
+Runner fail-closed execution invariants: clean working tree, no `package-lock.json`, coherent `git diff --check`, actual implementation changes, clean single-successor prompt commit boundary. On a new invocation, the runner detects already completed implementation prompts from exact runner-owned commit subjects reachable from `HEAD`; unrelated committed history may appear before, between, or after those commits. Completion must be an unambiguous contiguous prefix from P1, and `package.json` must match that proven prefix (or the correction stack's unchanged version), otherwise execution stops before Codex starts. A new `.codex-runs` record marks history-detected prompts as `previously_completed` with their commit SHAs; old run metadata is not a completion source. The working tree must still be clean. Phase stacks also enforce the expected version chain from the resume point. Correction stacks enforce one unchanged package version before/after every prompt and commit.
 
 ## Prompt model/reasoning and usage selection
 
