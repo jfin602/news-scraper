@@ -1,0 +1,16 @@
+{
+  "categories": [
+    { "configKey": "platforms_and_retailers", "displayName": "Platforms and Retailers" },
+    { "configKey": "publishing_industry", "displayName": "Publishing Industry" },
+    { "configKey": "author_business", "displayName": "Author Business" },
+    { "configKey": "marketing", "displayName": "Marketing" },
+    { "configKey": "audiobooks", "displayName": "Audiobooks" },
+    { "configKey": "artificial_intelligence", "displayName": "Artificial Intelligence" },
+    { "configKey": "copyright_and_legal", "displayName": "Copyright and Legal" },
+    { "configKey": "tools_and_technology", "displayName": "Tools and Technology" },
+    { "configKey": "general", "displayName": "General" }
+  ],
+  "rules": [],
+  "sourceDefaults": [],
+  "endpointDefaults": []
+}

@@ -17,6 +17,7 @@ describe('package command environment contract', () => {
       'test:live-sources',
       'db:migrate',
       'db:bootstrap',
+      'editorial:apply',
       'publication:set-public-status',
       'collect:endpoint',
       'start:web',
@@ -60,6 +61,15 @@ describe('package command environment contract', () => {
     assert.equal(
       manifest.scripts['db:bootstrap'],
       'node --env-file-if-exists=.env scripts/bootstrap-database.ts config/publication.json',
+    );
+  });
+
+  it('applies editorial configuration from the canonical explicit path', async () => {
+    const manifest = await readJson<PackageManifest>('package.json');
+
+    assert.equal(
+      manifest.scripts['editorial:apply'],
+      'node --env-file-if-exists=.env scripts/apply-editorial-configuration.ts config/editorial.json',
     );
   });
 
