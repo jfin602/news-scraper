@@ -15,9 +15,9 @@ flowchart LR
     A[Cloudflare Access-protected Admin UI/API] --> B[Web/API Application]
     P[Root Public Feed] --> B
     B --> D[(PostgreSQL)]
-    B --> Q[Durable Job Queue / Scheduler - Phase 10+]
+    B --> Q[Durable Job Queue / Scheduler]
     Q --> W[Collection Worker]
-    M[Manual Worker Invocation - Tech Demo] --> W
+    M[Manual Worker Invocation] --> W
     W --> G[Eligibility + Pre-fetch Network Safety Gate]
     G --> F[Fetcher]
     F --> S[Approved Active Enabled Source Endpoint]
@@ -55,12 +55,12 @@ A second topic uses another configured deployment of the same codebase and there
 
 The initial deployment may use one repository/database, but it MUST support at least two independently runnable process roles:
 
-- **Web/API process:** serves the installation's public/admin interfaces, validates commands, reads normalized data, and later requests/enqueues jobs. It does not perform Source collection inline.
-- **Worker process:** performs collection execution, eligibility/network-safety checks, parsing, normalization, validation, Relevance, identity resolution, duplicate evaluation where implemented, and persistence.
+- **Web/API process:** serves the installation's public/admin interfaces, validates commands, reads normalized data, and may request/enqueue jobs. It does not perform Source collection inline.
+- **Worker process:** performs scheduled/manual collection execution, eligibility/network-safety checks, parsing, normalization, validation, Relevance, identity resolution, duplicate evaluation where implemented, and persistence.
 
 A slow/crashed Source request in the Worker must not block normal public-feed requests.
 
-During the tech-demo critical path before durable jobs/scheduling exist, collection is invoked manually through the Worker process once transport exists. Phase 10 adds durable scheduling around the same endpoint execution unit; it does not create a second collection path.
+During the tech-demo critical path before durable jobs/scheduling existed, collection was invoked manually through the Worker process once transport existed. Phase 10 added durable scheduling around that same endpoint execution unit rather than creating a second collection path.
 
 Operator/Worker entry points select Sources/endpoints directly and MUST NOT require Publication selection merely to choose among topics.
 
@@ -73,7 +73,7 @@ Phase 1 establishes the process/lifecycle boundary without implementing collecti
 - Phase 1 has no PostgreSQL dependency. Phase 2 extends readiness to cover the shared database dependency.
 - The Worker is an independently executable process role with a testable bootstrap/startup and clean-shutdown contract.
 - Phase 1 does not require a separate Worker HTTP server merely to expose health probes. Worker readiness is proven through startup/configuration/dependency validation until a concrete deployment requirement justifies an HTTP probe.
-- Phase 5 adds manual endpoint execution behind this same Worker boundary. Phase 10 adds durable job consumption/scheduling around the same endpoint execution unit rather than creating another Worker path.
+- Phase 5 added manual endpoint execution behind this same Worker boundary. Phase 10 added durable job consumption/scheduling around the same endpoint execution unit rather than creating another Worker path.
 - Phase 1 runtime configuration is centralized and typed/validated. Malformed or out-of-range startup configuration must fail predictably; database, Source, scheduler, and collection secrets/configuration are not invented early merely to make validation non-empty.
 
 Publication-aware structure means generic naming and separation of topic configuration from shared engine behavior; it does not imply relational Publication tenancy.
@@ -98,7 +98,7 @@ src/
   publication/      # singleton installation/editorial configuration
   sources/
   collection/
-    scheduler/       # populated when automated polling arrives
+    scheduler/       # due-endpoint scheduling and scheduler policy/runtime
     fetchers/
     parsers/
     normalization/
@@ -108,7 +108,7 @@ src/
   deduplication/
   public-feed/
   admin/
-  jobs/              # populated when durable jobs arrive
+  jobs/              # durable endpoint collection jobs/retry/recovery execution
   database/
   observability/
   shared/
@@ -124,7 +124,7 @@ Rules:
 
 - Source-specific retrieval/parsing lives behind fetcher/parser adapter interfaces established with the first RSS/Atom implementation.
 - Public-feed code consumes normalized Article read models only.
-- Admin controllers do not perform collection inline; once manual check-now exists they invoke/request the Worker collection path and later enqueue the same endpoint execution unit.
+- Admin controllers do not perform collection inline; manual check-now requests the same governed endpoint execution/job path rather than a second collector.
 - Deduplication logic does not depend on topic-specific keywords.
 - Relevance/Categories enter through singleton Publication configuration interfaces and may use Source scope where defined.
 - Before configurable Relevance rules exist, the same Relevance boundary runs with an empty rule set and returns deterministic default `include`.
@@ -151,34 +151,35 @@ flowchart TD
     L --> M[Resolve Article identity within Source]
     M --> N[Persist/update Article + Article observation transactionally]
     N --> O[Evaluate duplicate candidate/grouping where applicable]
-    O --> P[Update run counters + endpoint health where implemented]
+    O --> P[Update run counters + endpoint health]
 ```
 
-This is the completed staged pipeline, not a claim that every node exists in Phase 4. Every redirect returns through the pre-request network-safety gate before being followed.
+This is the completed staged pipeline through Phase 10 plus the contracted later Relevance/duplicate nodes; it is not a claim that every node existed in Phase 4. Every redirect returns through the pre-request network-safety gate before being followed.
 
-The pipeline grows by phase without inventing outcomes for stages that do not exist yet:
+The pipeline grew by phase without inventing outcomes for stages that did not exist yet:
 
-- Phase 4 establishes eligibility, the shared endpoint lock, network-safety decisions, and the controlled outbound-fetch boundary only.
-- Phase 5 first adds manual endpoint execution, real HTTP transport/redirect following, minimal persisted Collection runs, and transport/parser status/counts.
-- Phase 6 adds normalization status/counts and validated candidates.
+- Phase 4 established eligibility, the shared endpoint lock, network-safety decisions, and the controlled outbound-fetch boundary only.
+- Phase 5 added manual endpoint execution, real HTTP transport/redirect following, minimal persisted Collection runs, and transport/parser status/counts.
+- Phase 6 added normalization status/counts and validated candidates.
 - Before configurable Relevance rules exist, candidates pass the empty-rule/default-include Relevance boundary.
-- Phase 7 adds Article identity/persistence, observations, and canonical post-identity outcomes.
+- Phase 7 added Article identity/persistence, observations, and canonical post-identity outcomes.
+- Phase 10 added durable scheduling/jobs, conditional-fetch state, retry/recovery, concurrency controls, and endpoint health around the same endpoint execution unit.
 - Later duplicate phases add duplicate effects/grouping without redefining Article identity.
 
 ## Scheduling model
 
 ### Tech-demo execution
 
-During Phases 5–9 before durable scheduling exists:
+During Phases 5–9 before durable scheduling existed:
 
-- collection is manually invoked in the Worker for one configured endpoint at a time;
-- eligibility, the Phase 4 shared lock, network safety, fetch/redirect, parsing, normalization, Relevance, identity/persistence, and run accounting use the canonical pipeline stages that exist;
-- separate endpoint runs fail independently;
-- Web/API does not fetch Sources inline.
+- collection was manually invoked in the Worker for one configured endpoint at a time;
+- eligibility, the Phase 4 shared lock, network safety, fetch/redirect, parsing, normalization, Relevance, identity/persistence, and run accounting used the canonical pipeline stages that existed;
+- separate endpoint runs failed independently;
+- Web/API did not fetch Sources inline.
 
-Phase 4 itself stops at the controlled outbound-fetch boundary and does not yet create endpoint Collection runs.
+Phase 4 itself stopped at the controlled outbound-fetch boundary and did not yet create endpoint Collection runs.
 
-Any implementation-level Publication selector left in the manual command is obsolete plumbing, not part of the supported architecture, and is removed by the Phase 10 entry correction.
+Implementation-level Publication selectors that remained from earlier source trees were obsolete plumbing and were removed by the completed Phase 10 entry singleton correction.
 
 ### Automated polling
 
@@ -235,7 +236,7 @@ Unless superseded by an Accepted ADR:
 - one Publication/topic per deployed installation;
 - singleton Publication configuration without relational tenancy;
 - root `/` as the canonical customer-visible feed route;
-- manual Worker collection during the tech-demo critical path;
+- manual Worker collection preserved as an operator path established during the tech-demo critical path;
 - durable scheduler/job mechanism suitable for retries and separate Workers from Phase 10 onward;
 - server-rendered or lightweight client-rendered web UI;
 - container-friendly environment/secrets configuration.
