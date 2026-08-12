@@ -195,7 +195,7 @@ Represent the minimum trusted singleton Publication and Source configuration req
 - positive bounded `poll_interval_seconds` configuration;
 - explicit idempotent operator-invoked bootstrap mechanism for the singleton Publication and approved Sources without Publication selection.
 
-The currently accepted Phase 3 validation artifact remains historical evidence for its accepted source SHA. The Phase 10 entry correction updates implementation/tests that still carry obsolete Publication-scoped plumbing so the current tree matches this canonical model.
+The accepted Phase 3 validation artifact remains historical evidence for its accepted source SHA. The completed Phase 10 entry correction removed obsolete Publication-scoped plumbing from the current implementation/tests so the active tree matches this canonical model without rewriting that historical evidence.
 
 ### Out of scope
 
@@ -375,7 +375,7 @@ Preserve canonical pipeline order and persist normalized Source instances transa
 - Article observation linked to endpoint and existing Collection run;
 - canonical processing outcomes added to Collection-run accounting.
 
-The currently accepted Phase 7 validation artifact remains historical evidence for its accepted source SHA. The Phase 10 entry correction updates implementation/tests that still carry obsolete Publication-scoped identity/provenance fields so the current tree matches the Source-scoped canonical model.
+The accepted Phase 7 validation artifact remains historical evidence for its accepted source SHA. The completed Phase 10 entry correction removed obsolete Publication-scoped identity/provenance fields from the current implementation/tests so the active tree matches the Source-scoped canonical model without rewriting that historical evidence.
 
 ### Out of scope
 
@@ -415,7 +415,7 @@ Expose the smallest useful rolling feed from real stored Articles through the We
 - bounded secret-safe public error behavior;
 - explicit operator-controlled `public_status` transition without making ordinary bootstrap overwrite existing state.
 
-The accepted Phase 8 validation artifact records the slug-addressed implementation that existed at its accepted source SHA. The Phase 10 entry correction removes that obsolete selector plumbing and establishes the canonical singleton API without rewriting historical evidence.
+The accepted Phase 8 validation artifact records the slug-addressed implementation that existed at its accepted source SHA. The completed Phase 10 entry correction removed that obsolete selector plumbing and established the canonical singleton API without rewriting historical evidence.
 
 ### Out of scope
 
@@ -453,7 +453,7 @@ Produce the first customer-visible working product using real collected data.
 - loading/empty/unavailable/error behavior;
 - topic-independent shared UI behavior.
 
-The accepted Phase 9 validation artifact records the slug-addressed page that existed at its accepted source SHA. The Phase 10 entry correction removes that obsolete route plumbing and establishes root `/` without rewriting historical evidence.
+The accepted Phase 9 validation artifact records the slug-addressed page that existed at its accepted source SHA. The completed Phase 10 entry correction removed that obsolete route plumbing and established root `/` without rewriting historical evidence.
 
 ### Out of scope
 
@@ -466,11 +466,11 @@ The accepted Phase 9 validation artifact records the slug-addressed page that ex
 
 ### Exit gate — tech-demo milestone
 
-The historical Phase 9 milestone remains accepted with its recorded live-source limitation. The Phase 10 entry correction owns the current root-route/singleton regression evidence.
+The historical Phase 9 milestone remains accepted with its recorded live-source limitation. The completed Phase 10 entry correction owns the current root-route/singleton regression evidence.
 
 ## Phase 10 entry singleton implementation correction
 
-**Status:** Required Phase 10 entry gate. Non-versioned correction stack; not a numbered roadmap phase.
+**Status:** Complete with durable validation recorded in `docs/validation/single-publication-simplification-correction.md`. This was a non-versioned Phase 10 entry gate, not a numbered roadmap phase.
 
 ### Goal
 
@@ -510,7 +510,7 @@ Bring the current pre-production implementation into exact alignment with the ca
 
 ### Exit gate
 
-Before ordinary Phase 10 implementation begins, the corrected final tree MUST have executed evidence required by `docs/contracts/testing-and-validation-contract.md`, including:
+Before ordinary Phase 10 implementation began, the corrected final tree required the executed evidence in `docs/contracts/testing-and-validation-contract.md`, including:
 
 - real disposable PostgreSQL migration from zero to the canonical singleton schema using the smallest current migration baseline;
 - singleton Publication enforcement and installation-wide Source uniqueness;
@@ -524,11 +524,11 @@ Before ordinary Phase 10 implementation begins, the corrected final tree MUST ha
 - no legacy-only migration/code/API/type/test/fixture/configuration artifact retained solely to preserve superseded pre-production implementation history;
 - a durable correction validation artifact tied to the exact accepted corrected source tree.
 
-Clearing this gate returns directly to Phase 10 planning; it does not invoke `/closeout`, advance the roadmap phase, or change the package version.
+The completed gate returned directly to Phase 10 planning; it did not invoke `/closeout`, advance the roadmap phase, or change the package version.
 
 ## Phase 10 — Automated polling, durable jobs, and endpoint health
 
-**Status:** Current roadmap phase; implementation blocked until the Phase 10 entry singleton implementation correction above is completed and validated.
+**Status:** Complete with durable validation recorded in `docs/validation/phase-10-automated-polling-durable-jobs-endpoint-health.md`.
 
 ### Goal
 
@@ -572,45 +572,61 @@ Turn the manually proven endpoint execution unit into a continuously updating si
 
 ## Phase 11 — Categories and configurable Relevance execution
 
+**Status:** Current roadmap phase.
+
 ### Goal
 
 Add deterministic installation-specific inclusion/exclusion/categorization without topic logic in the engine.
 
 ### Depends on
 
-- Phase 10.
+- completed Phase 10.
 
 ### Deliverables
 
-- Category persistence without a Publication tenant foreign key;
-- Relevance-rule persistence without a Publication tenant foreign key;
+- Category persistence without a Publication tenant foreign key, using immutable installation-wide Category `config_key` identity;
+- Relevance-rule persistence without a Publication tenant foreign key, using immutable installation-wide rule `config_key` identity;
 - include/exclude/categorize actions;
-- explicit priority;
-- installation-wide and Source-scoped behavior;
-- deterministic precedence/tie-breaks;
-- Source/endpoint default Category precedence;
-- persisted Relevance/category reasons;
-- excluded outcome accounting.
+- bounded literal predicates `title_contains`, `summary_contains`, and `source_category_equals`;
+- explicit integer priority;
+- installation-wide and optional Source-scoped behavior;
+- deterministic priority → scope → exclude-over-include → rule-`config_key` tie-breaks for include/exclude decisions;
+- all-matching independent categorize rules with deterministic reason ordering;
+- endpoint default Category with Source default fallback only when no categorize rule assigns a Category;
+- persisted winning Relevance and applied Category/default reasons;
+- exact `excluded` observation/Collection-run accounting before Article identity;
+- smallest explicit topic-independent pre-admin operator configuration path for Categories, Relevance rules, and Source/endpoint default Category references, without changing ordinary bootstrap no-overwrite behavior.
 
 ### Behavioral boundary
 
 - the existing default-include Relevance boundary is extended, not replaced;
-- rule changes are prospective by default;
-- automatic bulk retroactive re-evaluation of already persisted Articles is deferred unless a dedicated reprocessing capability is explicitly added;
+- patterns are bounded non-empty literals, not regexes/globs, and missing candidate fields simply do not match;
+- no fuzzy, stemming, semantic/AI, arbitrary metadata, compound Boolean, or generic ranking/boost engine is introduced;
+- categorize rules are additive and independent from inclusion; priority orders categorize reasons rather than suppressing another matching Category;
+- default Category behavior is fallback-only: endpoint default first, then Source default, and only when no categorize rule matched;
+- an excluded candidate terminates before Article identity, retains endpoint/run provenance and exclusion reason, and does not look up an earlier Article merely to hide/delete/recategorize it;
+- rule changes are prospective by default; automatic bulk retroactive re-evaluation of already persisted Articles is deferred unless a dedicated reprocessing capability is explicitly added;
+- ordinary later included observations may apply then-current Category configuration without constituting a bulk historical scan;
+- pre-admin editorial configuration runs only through an explicit operator action and is never implicitly applied by Web/API or Worker startup;
 - another topic uses different configuration in another deployment, not another Relevance tenant in the same database.
 
 ### Out of scope
 
 - generic boost/ranking;
 - semantic AI relevance;
-- admin rule-builder polish;
+- regex/glob/fuzzy/general expression rules;
+- arbitrary metadata or compound Boolean rule builders;
+- polished admin rule-builder UX;
 - duplicate grouping;
 - automatic bulk historical reprocessing.
 
 ### Exit gate
 
-- Identical candidate + configuration produces identical Relevance result/reasons.
-- The complete documented priority/scope/tie-break/default/category matrix has deterministic automated coverage.
+- Identical candidate + configuration produces identical Relevance result and ordered reasons.
+- The complete documented literal-predicate, priority/scope/action/final-tie, categorize/default, and missing-field matrix has deterministic automated coverage.
+- Real disposable PostgreSQL proves Category/rule stable-key uniqueness, relationships/default references, Article/Category membership integrity, reason persistence, migration-from-zero, and exact excluded observation/run accounting.
+- A newly excluded observation is proven prospective: it stops before identity and does not retroactively mutate an earlier persisted Article.
+- The explicit pre-admin operator path validates real Source/Category relationships and does not weaken ordinary bootstrap or trigger bulk reprocessing.
 - A separately deployed unrelated Publication can use unrelated Categories/rules without engine-topic conditionals.
 - Relevance changes do not redefine Article identity.
 
