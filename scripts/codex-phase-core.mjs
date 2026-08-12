@@ -786,7 +786,9 @@ export function renderFailureSummary({ plan, states, failedPrompt, reason }) {
     lines.push(`[X] P${failedPrompt.number} - ${failedPrompt.title}`, '');
   lines.push('Reason:', `  ${reason}`, '', 'Completed:');
   const completed = plan?.implementations.filter(
-    (prompt) => states.get(prompt.number)?.status === 'passed',
+    (prompt) =>
+      states.get(prompt.number)?.status === 'passed' ||
+      states.get(prompt.number)?.status === 'previously_completed',
   );
   if (completed?.length)
     lines.push(...completed.map((prompt) => `  [+] P${prompt.number}`));
@@ -795,9 +797,13 @@ export function renderFailureSummary({ plan, states, failedPrompt, reason }) {
   const notExecuted = plan?.implementations.filter(
     (prompt) =>
       prompt.number !== failedPrompt?.number &&
-      !['passed', 'running', 'failed', 'interrupted'].includes(
-        states.get(prompt.number)?.status,
-      ),
+      ![
+        'passed',
+        'previously_completed',
+        'running',
+        'failed',
+        'interrupted',
+      ].includes(states.get(prompt.number)?.status),
   );
   if (notExecuted?.length)
     lines.push(...notExecuted.map((prompt) => `  [ ] P${prompt.number}`));

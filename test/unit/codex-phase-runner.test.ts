@@ -1110,6 +1110,31 @@ test('failure summary names failed, completed, not executed, and manual closeout
   assert.equal(isAscii(output), true);
 });
 
+test('failure summary reports previously completed resumed prompts as completed', () => {
+  const plan = buildPlan(
+    [prompt(1), prompt(2), prompt(3), prompt(4, { closeout: true })],
+    'p8',
+  );
+  const states = new Map([
+    [1, { status: 'previously_completed' }],
+    [2, { status: 'failed' }],
+    [3, { status: 'waiting' }],
+  ]);
+  const output = renderFailureSummary({
+    plan,
+    states,
+    failedPrompt: plan.prompts[1],
+    reason: 'Prompt failed.',
+  });
+
+  assert.match(output, /Completed:\n\s{2}\[\+\] P1/);
+  assert.match(output, /\[X\] P2 - Task 2/);
+  assert.match(output, /Not executed:\n\s{2}\[ \] P3/);
+  assert.doesNotMatch(output, /Not executed:[\s\S]*\[ \] P1/);
+  assert.match(output, /\[M\] P4 - Phase 8 closeout validation - NOT EXECUTED/);
+  assert.equal(isAscii(output), true);
+});
+
 test('correction dashboard, failure, and handoff use fixed-version correction semantics', () => {
   const plan = buildPlan(
     [correctionPrompt(1), correctionPrompt(2, { closeout: true })],
