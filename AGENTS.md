@@ -199,8 +199,20 @@ Basic public-feed baseline:
 - results are a bounded server-defined recent window with deterministic effective-feed-date ordering;
 - each basic item exposes stable Article identity, effective feed date/date source, display headline, Source display name, and stored `original_url` only as needed by the basic feed;
 - Publication UUID/slug is not required as public response routing/scoping identity;
-- safe dependency errors do not expose SQL, stack traces, credentials, or database detail;
-- search/filters/client-controlled pagination and public presentation remain later phases.
+- safe dependency errors do not expose SQL, stack traces, credentials, or database detail.
+
+Phase 12 discovery extends that same canonical endpoint/read model:
+
+- optional `q`, `source`, `category`, and `cursor` inputs are bounded and validated;
+- `source` and `category` use immutable public `config_key` identities rather than database UUIDs or mutable labels;
+- at most one Source and one Category filter apply in MVP, and supplied discovery dimensions compose with AND semantics;
+- Category filtering uses current `article_categories` membership rather than historical observation reasons;
+- keyword search is bounded case-insensitive literal matching over the display/normalized headline and other explicitly exposed safe normalized textual metadata; regex, fuzzy, semantic, and ranking behavior are not implied;
+- search/filtering never changes canonical chronological ordering;
+- pagination uses opaque/versioned keyset cursors derived from effective feed date, `first_seen_at`, and stable Article identifier and bound to normalized discovery criteria;
+- page size remains bounded and server-defined in Phase 12;
+- malformed/unsupported discovery input returns bounded generic `400` behavior without changing existing public `404`/dependency semantics;
+- the response exposes only bounded public Source/Category option identity/label data needed by the discovery UI and a nullable next cursor.
 
 Basic public-page baseline:
 
@@ -213,6 +225,8 @@ Basic public-page baseline:
 - until Publication presentation timezone/settings exist, the basic UI renders calendar dates from `effectiveFeedDate` in UTC;
 - desktop uses the core `Date | Headline | Source` view and mobile uses a sane stacked layout without pulling Phase 13 presentation polish forward;
 - Web/API page handling does not collect Sources inline.
+
+Phase 12 page behavior reflects `q`, `source`, and `category` in the URL; changing those inputs resets pagination, Reset clears discovery state, browser back/forward restores URL discovery state, and load-more cursor depth does not need to become canonical shareable URL state.
 
 Accepted Phase 8/9 validation artifacts continue to describe the slug-addressed routes actually tested at their source SHAs; the completed singleton correction supplies current selector-free route evidence.
 
@@ -245,17 +259,18 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 - Phase 9's accepted validation artifact remains historical evidence for its exact source tree.
 - The Phase 10 entry singleton correction is complete and its durable validation artifact remains authoritative for the corrected singleton migration/identity/collection/public-browser evidence actually observed.
 - Phase 10 is complete with durable scheduler/job/retry/overlap/recovery validation evidence.
-- Phase 11 requires the full literal-predicate, include/exclude precedence/final-tie, categorize/default, stable-reason, prospective-exclusion, and exact `excluded` accounting matrix plus real PostgreSQL proof for its new persistence relationships and constraints.
+- Phase 11 is complete with durable deterministic literal-predicate/precedence/category/default/prospective/excluded-accounting and real-PostgreSQL Category/rule persistence evidence.
+- Phase 12 requires focused API/database/browser evidence for bounded discovery input, unchanged feed eligibility, Source/Category filtering, literal search, stable keyset pagination, cursor/query mismatch rejection, URL/reset/back-forward behavior, and relevant query/index behavior.
 
 ## Roadmap law
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 11 — Categories and configurable Relevance execution**.
+Current phase: **Phase 12 — Feed discovery features**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with its recorded live-source limitation preserved. The Phase 10 entry singleton correction and Phase 10 Automated polling/durable jobs/endpoint health are complete with durable validation.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with its recorded live-source limitation preserved. The Phase 10 entry singleton correction, Phase 10 Automated polling/durable jobs/endpoint health, and Phase 11 Categories/configurable Relevance execution are complete with durable validation.
 
-Phase 11 is active. Do not pull Phase 12 discovery UI, Phase 14–15 admin UX, Phase 16 duplicate grouping, or later work into Phase 11 unless a true dependency or explicit decision requires it.
+Phase 12 is active. Do not pull Phase 13 presentation polish, Phase 14–15 admin UX, Phase 16 duplicate grouping, or later work into Phase 12 unless a true dependency or explicit decision requires it.
 
 Phases 1–9 remain the tech-demo critical path historically.
 
@@ -268,7 +283,7 @@ Phases 1–9 remain the tech-demo critical path historically.
 - Do not claim runtime/browser/database/live-Source behavior unless actually observed at the corresponding evidence level.
 - Prefer smallest correct changes over speculative abstractions or compatibility bridges.
 - Trace shared helpers/consumers before changing data or collection semantics.
-- Before Phase 11 Relevance work trace migrations/schema → Category/rule/default configuration → normalized Article candidate fields → Relevance evaluator → pre-identity exclusion path → Article identity/persistence/observations → Article Categories/reasons → Collection-run accounting → scheduler/manual consumers → tests.
+- Before Phase 12 discovery work trace singleton public state → canonical feed eligibility/read model → Source/Category public identities and current membership → bounded search/filter input validation → database query/indexes → canonical ordering/keyset cursor → `/api/feed` response → root client → URL/reset/back-forward/load-more behavior → integration/database/browser tests.
 - Before public-route work trace singleton Publication settings → canonical read model → `/api/feed` → `/` page/client → unavailable/error behavior → external links → browser tests.
 - Before UI work read `docs/design/README.md` and `docs/design/ui-workflow.md`, trace presentation source/shared frontend consumers/tests, and keep concurrent UI implementation isolated in the `ui-polish` worktree.
 - Confirm applicable local validation commands/suites were actually executed against the final tree before approval.
