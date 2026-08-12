@@ -8,7 +8,7 @@ Publication is the singleton editorial/configuration concept for the installed n
 
 ## Current project state
 
-Current phase: **Phase 11 — Categories and configurable Relevance execution**.
+Current phase: **Phase 12 — Feed discovery features**.
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation and closeout validation are complete. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; that accepted limitation is not rewritten as passing evidence.
 
@@ -16,7 +16,9 @@ The Phase 10 entry singleton implementation correction is complete with durable 
 
 Phase 10 — Automated polling, durable jobs, and endpoint health — is complete with durable validation in `docs/validation/phase-10-automated-polling-durable-jobs-endpoint-health.md`. The proven endpoint execution unit now runs behind durable jobs, due-endpoint scheduling, bounded retry/recovery behavior, conditional-fetch state persistence, cross-process capacity/locking controls, and baseline endpoint health without creating a second collection path or multi-Publication scheduler.
 
-Phase 11 extends the existing Relevance boundary with persisted installation-wide Categories and deterministic configurable include/exclude/categorize rules while preserving topic independence, Source-scoped Article identity, provenance, and prospective-by-default rule edits.
+Phase 11 — Categories and configurable Relevance execution — is complete with durable validation in `docs/validation/phase-11-categories-configurable-relevance-execution.md`. It extended the existing Relevance boundary with persisted installation-wide Categories and deterministic configurable include/exclude/categorize rules while preserving topic independence, Source-scoped Article identity, provenance, and prospective-by-default rule edits.
+
+Phase 12 extends the canonical public-feed boundary with deterministic Source/Category filters, bounded literal keyword search, stable keyset pagination/load-more, URL/reset navigation behavior, and MVP-scale query/index tuning without changing feed eligibility or chronological ordering.
 
 ## Delivery priority
 
@@ -166,7 +168,7 @@ Weak duplicate evidence becomes a persisted review candidate rather than silentl
 
 Initial singleton Publication/Source configuration may be supplied through idempotent operator-maintained bootstrap data. Bootstrap approval is explicit operator approval and never bypasses whitelist/state/network-safety rules. Ordinary bootstrap remains create-if-absent; the pre-admin public-feed work therefore uses explicit generic operator transitions where mutable persisted state must be changed rather than making bootstrap overwrite persisted configuration.
 
-Phase 11 may provide the smallest explicit topic-independent pre-admin operator mechanism for Categories, Relevance rules, and Source/endpoint default Category references. It is invoked deliberately, never on ordinary Web/Worker startup, validates real Source/Category relationships, and does not weaken ordinary bootstrap or trigger automatic bulk historical Relevance reprocessing.
+Phase 11 provides the smallest explicit topic-independent pre-admin operator mechanism for Categories, Relevance rules, and Source/endpoint default Category references. It is invoked deliberately, never on ordinary Web/Worker startup, validates real Source/Category relationships, and does not weaken ordinary bootstrap or trigger automatic bulk historical Relevance reprocessing.
 
 Bootstrap/runtime selection does not use a Publication slug. MVP Source admin UI begins in Phase 14, after the working public vertical slice. Admin navigation/configuration operates on the installation's one configured news product rather than a multi-Publication selector.
 
@@ -200,7 +202,9 @@ Every implementation roadmap phase and gating correction inherits that contract 
 
 The completed Phase 10 entry singleton correction required real PostgreSQL migration-from-zero proof for the canonical singleton schema, structural proof that legacy-only migration/compatibility/test/config artifacts were gone, Source-scoped identity/integrity regressions, unchanged collection safety/accounting, canonical `/api/feed` behavior, and Level 6 browser validation of `/`. Its durable artifact remains evidence for the accepted corrected tree.
 
-Phase 11 additionally requires deterministic proof of literal predicate/missing-field behavior, the complete include/exclude precedence/tie matrix, all-matching categorize/default fallback semantics, stable reason ordering, exact `excluded` accounting before identity, prospective non-retroactive behavior, and real PostgreSQL proof for Category/rule schema, uniqueness, relationships, memberships, and reason persistence.
+Phase 11 closeout additionally required deterministic proof of literal predicate/missing-field behavior, the complete include/exclude precedence/tie matrix, all-matching categorize/default fallback semantics, stable reason ordering, exact `excluded` accounting before identity, prospective non-retroactive behavior, and real PostgreSQL proof for Category/rule schema, uniqueness, relationships, memberships, and reason persistence.
+
+Phase 12 requires focused API/database/browser regression proof for search/filter parameter validation, unchanged feed eligibility, Source/Category filtering, literal keyword search, stable keyset pagination, cursor/query consistency, URL/reset/back-forward navigation, load-more behavior, and the indexes/query shape needed for MVP-scale discovery.
 
 Dependency installation intentionally uses `package.json` without an npm package lock. Repository npm configuration disables `package-lock.json` generation, so clean installs use `npm install` rather than `npm ci`. Because declared dependency ranges may resolve to different compatible versions over time, validation applies to the exact source tree and recorded Node/npm environment that was actually tested rather than claiming byte-for-byte dependency reproducibility.
 
@@ -303,7 +307,7 @@ Two task-folder modes are supported by the workflow contract:
 
 ```text
 # Versioned roadmap phase stack
-docs/tasks/p11/
+docs/tasks/p12/
 
 # Non-versioned correction stack
 docs/tasks/c10-single-publication/
@@ -314,7 +318,7 @@ Roadmap phase stacks use `TASK: Phase <phase> / P<number> — <title>` plus `0.<
 Before starting automation, validate the exact written folder without launching Codex:
 
 ```text
-npm run codex:phase:validate -- p11
+npm run codex:phase:validate -- p12
 npm run codex:phase:validate -- c10-single-publication
 ```
 
@@ -323,7 +327,7 @@ A valid folder has contiguous `P1...Pn` `.txt` prompts, exact supported recommen
 After validation, run implementation prompts automatically with:
 
 ```text
-npm run codex:phase -- p11
+npm run codex:phase -- p12
 npm run codex:phase -- c10-single-publication
 ```
 
@@ -355,14 +359,14 @@ Completed after the tech-demo milestone:
 
 - **Phase 10 entry correction — singleton implementation alignment** — complete with durable correction validation.
 - **Phase 10 — Automated polling, durable jobs, and endpoint health** — complete with durable phase validation.
+- **Phase 11 — Categories and configurable Relevance execution** — complete with durable phase validation.
 
 Current:
 
-- **Phase 11 — Categories and configurable Relevance execution**
+- **Phase 12 — Feed discovery features**
 
 Then:
 
-- Phase 12 — Feed discovery features
 - Phase 13 — Public presentation polish
 - Phase 14 — Source administration
 - Phase 15 — Publication and Relevance administration
