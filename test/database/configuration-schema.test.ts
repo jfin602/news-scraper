@@ -19,6 +19,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
       '0002_endpoint_runtime_and_run_transport_telemetry.sql',
       '0003_endpoint_collection_jobs.sql',
       '0004_canonical_scheduled_execution.sql',
+      '0005_categories_and_relevance.sql',
     ]);
     assert.deepEqual(
       await migrateDatabase({ connectionString: databaseUrl }),
@@ -40,17 +41,25 @@ test('canonical production schema migrates from zero and reruns safely', async (
              'source_endpoint_domain_rules',
              'collection_runs',
              'articles',
-             'article_observations'
+             'article_observations',
+             'categories',
+             'relevance_rules',
+             'article_categories',
+             'article_observation_category_reasons'
            )
          ORDER BY table_name`,
       );
       assert.deepEqual(
         tables.rows.map(({ table_name }) => table_name),
         [
+          'article_categories',
+          'article_observation_category_reasons',
           'article_observations',
           'articles',
+          'categories',
           'collection_runs',
           'publication_settings',
+          'relevance_rules',
           'source_approved_domain_rules',
           'source_endpoint_domain_rules',
           'source_endpoints',
@@ -68,6 +77,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
         { filename: '0002_endpoint_runtime_and_run_transport_telemetry.sql' },
         { filename: '0003_endpoint_collection_jobs.sql' },
         { filename: '0004_canonical_scheduled_execution.sql' },
+        { filename: '0005_categories_and_relevance.sql' },
       ]);
 
       const removedTenancy = await client.query<{
