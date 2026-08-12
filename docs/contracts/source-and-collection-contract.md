@@ -46,6 +46,22 @@ Once admin UI becomes the normal management surface, bootstrap data is initializ
 
 Bootstrap/runtime commands operate on the installation's singleton Publication configuration and MUST NOT require a Publication slug or selector.
 
+### Phase 11 pre-admin editorial configuration
+
+Before the Phase 15 Publication/Relevance administration UI exists, Phase 11 MAY provide the smallest explicit topic-independent operator mechanism needed to create and edit Categories, Relevance rules, and Source/endpoint default Category references.
+
+That operator path is distinct from ordinary Source/endpoint bootstrap semantics:
+
+- it runs only when explicitly invoked and MUST NOT be applied implicitly during Web/API or Worker startup;
+- Category and Relevance-rule identities use their immutable installation-wide `config_key` values;
+- it MAY deliberately create/update/enable/disable Phase 11 editorial configuration because configuration edits are the purpose of the operation;
+- it MUST validate referenced Source and Category identities and all domain invariants before commit;
+- it MUST NOT auto-discover topic vocabulary, infer rules from collected content, or inject indie-author-specific behavior into shared engine code;
+- it MUST NOT weaken ordinary bootstrap's create-if-absent/no-overwrite guarantee for existing Publication/Source/endpoint configuration;
+- it MUST NOT perform automatic bulk historical Article reprocessing as a side effect of a rule edit.
+
+Phase 15 may later expose the same governed configuration through the Cloudflare-protected admin control plane without creating a second rule model.
+
 ## Approved-domain policy
 
 Each Source defines the maximum approved public-domain boundary. Endpoint configuration may narrow that boundary for redirects/Article links but may not silently widen it.
@@ -154,8 +170,8 @@ Source configuration owns:
 - approval/trust and lifecycle/operational states;
 - approved-domain maximum boundary;
 - Source priority value within the installation;
-- default Category fallback;
-- optional Source-scoped Relevance defaults.
+- optional default Category fallback;
+- Source scope for otherwise installation-defined Relevance rules.
 
 Endpoint configuration owns:
 
@@ -165,10 +181,10 @@ Endpoint configuration owns:
 - timeout;
 - parser profile/adapter key;
 - redirect/Article-domain restrictions that only narrow Source policy;
-- endpoint default Category override;
+- optional endpoint default Category override;
 - optional parser/header settings that do not leak secrets to logs.
 
-If both Source and endpoint specify a default Category, endpoint wins for that endpoint; Source is fallback.
+Default Category resolution is fallback-only: if no matching categorize rule assigns a Category, endpoint default wins when present and Source default is the fallback. A matching categorize rule set suppresses default fallback for that candidate rather than automatically adding a generic default Category alongside specific rule assignments.
 
 ## Fetch contract
 
@@ -188,17 +204,17 @@ Fetcher SHOULD respect published Source guidance and avoid unnecessary traffic.
 
 ## Pre-scheduler Worker execution
 
-The tech-demo critical path performs real collection before durable scheduling exists.
+The tech-demo critical path performed real collection before durable scheduling existed.
 
-During this pre-scheduler period:
+During this historical pre-scheduler period:
 
-- collection is invoked manually through the Worker process, not inline inside Web/API request handling;
-- one endpoint invocation creates one isolated Collection run;
-- the same eligibility → run lock → network-safety → fetch/redirect → parse → normalize → Article-link validation → Relevance → identity/persistence stages are used as they become available;
-- a failure for one endpoint does not invalidate an unrelated endpoint run;
-- no temporary second parser/persistence path is introduced.
+- collection was invoked manually through the Worker process, not inline inside Web/API request handling;
+- one endpoint invocation created one isolated Collection run;
+- the same eligibility → run lock → network-safety → fetch/redirect → parse → normalize → Article-link validation → Relevance → identity/persistence stages were used as they became available;
+- a failure for one endpoint did not invalidate an unrelated endpoint run;
+- no temporary second parser/persistence path was introduced.
 
-Phase 4 establishes eligibility, the shared endpoint lock, and network-safety primitives only. Manual Worker endpoint execution and Collection-run creation begin in Phase 5. Phase 10 later places the already-proven endpoint execution unit behind durable jobs and due-endpoint scheduling while reusing the Phase 4 lock.
+Phase 4 established eligibility, the shared endpoint lock, and network-safety primitives only. Manual Worker endpoint execution and Collection-run creation began in Phase 5. Phase 10 placed the already-proven endpoint execution unit behind durable jobs and due-endpoint scheduling while reusing the Phase 4 lock.
 
 Worker/manual/scheduler execution selects the Source/endpoint directly. It MUST NOT require a Publication slug or identifier to choose among topics in one installation.
 
@@ -257,21 +273,42 @@ The original discovered URL remains the future public destination unless a later
 
 Relevance belongs to singleton Publication configuration, not engine code.
 
-MVP actions are `include`, `exclude`, and `categorize`.
+MVP actions are `include`, `exclude`, and `categorize`. Persisted Categories and Relevance rules use immutable installation-wide `config_key` identities; a rule may optionally scope itself to one Source.
+
+MVP rule matching uses only these deterministic literal predicates:
+
+- `title_contains` — case-insensitive literal substring match against normalized title;
+- `summary_contains` — case-insensitive literal substring match against the normalized/sanitized summary, with absent summary treated as no match;
+- `source_category_equals` — case-insensitive literal equality against any normalized Source-provided category label, with absent Source categories treated as no match.
+
+Every rule contains one bounded non-empty literal pattern. Patterns are not regexes or globs. MVP does not add stemming, fuzzy matching, semantic/AI relevance, arbitrary metadata expressions, compound Boolean expressions, generic ranking, or boost scoring.
 
 Deterministic include/exclude procedure:
 
-1. Collect applicable enabled include/exclude rules.
+1. Collect applicable enabled matching include/exclude rules.
 2. Highest explicit priority wins.
 3. At equal priority, Source-scoped rule wins over installation-wide rule.
 4. At equal priority and scope specificity, `exclude` wins over `include`.
-5. If no include/exclude rule decides the candidate, include by default.
-6. Category rules are evaluated independently and do not alter inclusion unless a separate include/exclude rule does so.
-7. Persist the winning include/exclude reason and applied Category reasons once persistence for those reasons exists.
+5. At equal priority, scope specificity, and action, lexicographically lower immutable rule `config_key` wins so both decision and winning reason are deterministic.
+6. If no include/exclude rule decides the candidate, include by default.
+7. Persist the winning include/exclude reason once persistence for those reasons exists.
+
+Categorization is independent from inclusion:
+
+1. Evaluate every applicable enabled matching `categorize` rule.
+2. All matching categorize rules apply; deduplicate Category targets by immutable Category `config_key`.
+3. Categorize-rule priority orders reasons but does not suppress another matching Category assignment.
+4. Order applied rule reasons by priority descending, Source-scoped before installation-wide at equal priority, then immutable rule `config_key` ascending.
+5. If at least one categorize rule assigns a Category, do not add a default Category.
+6. If none assigns a Category, use endpoint default Category when configured; otherwise Source default Category.
+7. If neither a rule nor a default assigns a Category, an included Article may remain uncategorized.
+8. Default reasons must distinguish endpoint default from Source fallback.
+
+An `exclude` result terminates candidate processing before Article identity and produces the canonical `excluded` processing outcome with persisted endpoint/run provenance and exclusion reason. It MUST NOT perform Article identity lookup merely to find/hide/delete/recategorize an Article stored by an earlier included observation.
 
 Before configurable Relevance rules are implemented, normalized safe candidates still pass through this canonical boundary with an empty rule set and therefore receive the deterministic default `include` decision. The pipeline never bypasses Relevance merely because configuration UI/rule persistence has not arrived yet.
 
-Relevance-rule edits are prospective by default in MVP. They affect future candidate processing. Automatic bulk retroactive re-evaluation of already persisted Articles is deferred unless a dedicated reprocessing operation is explicitly added later. Article moderation may correct existing presentation independently.
+Relevance-rule edits are prospective by default in MVP. They affect future candidate processing. Automatic bulk retroactive re-evaluation of already persisted Articles is deferred unless a dedicated reprocessing operation is explicitly added later. Existing Articles retain prior persisted state until ordinary later included observations, explicit moderation, or a dedicated future reprocessing operation changes it. Applying then-current Category rules during an ordinary later included observation is normal candidate processing, not a bulk historical scan.
 
 Generic `boost` ranking is deferred until a ranking/scoring contract exists.
 
@@ -286,7 +323,7 @@ Identity resolution order is:
 3. an explicitly configured stable endpoint identity key only when a concrete approved adapter/endpoint actually requires one;
 4. conservative fingerprints only as secondary corroboration, never as a primary resolver.
 
-A matching strong external identifier resolves the existing Article even when its Source-derived URL changes. A candidate without a strong external identifier falls back to canonical URL identity. If an Article was originally created through canonical-URL fallback and a later observation supplies a strong external identifier with no contradictory strong identity, the existing Article MAY be promoted by attaching that identifier rather than creating a second Article.
+A matching strong external identifier resolves the existing Article even when its Source-derived URL changes. A candidate without a strong external identifier falls back to canonical URL identity. If an Article was originally created through canonical-URL fallback and a later observation supplies a strong external identifier with no contradictory strong identity, the existing Article MAY be promoted by attaching that external identifier rather than creating a second Article.
 
 Two different strong external identifiers MUST NOT be silently merged, overwritten, or reassigned solely because their canonical URLs match. Canonical-only fallback that encounters multiple Articles distinguished by different strong external identifiers is an explicit identity conflict and MUST NOT choose one arbitrarily. Fuzzy-title similarity or fingerprint evidence alone never overwrites or resolves an Article.
 
@@ -322,7 +359,7 @@ The post-normalization outcome counters MUST therefore satisfy:
 
 `created + updated + unchanged + rejected + excluded + failed = normalized_candidate_count`.
 
-Normalization failures do not receive a processing outcome because no Article candidate exists. Article-link-policy rejection remains counted in `article_link_rejection_count` and maps that same candidate to processing outcome `rejected`. Link-accepted candidates then pass Relevance before identity. Until configurable Relevance rules exist, the empty-rule decision is deterministic `include`, so `excluded = 0`; included candidates end as `created`, `updated`, `unchanged`, or `failed`.
+Normalization failures do not receive a processing outcome because no Article candidate exists. Article-link-policy rejection remains counted in `article_link_rejection_count` and maps that same candidate to processing outcome `rejected`. Link-accepted candidates then pass Relevance before identity. Before configurable rules exist, the empty-rule decision is deterministic `include`, so `excluded = 0`. Once configurable rules exist, every deterministic Relevance exclusion maps exactly one normalized candidate to `excluded`; it does not also count as `rejected`, `failed`, or an identity-resolving outcome.
 
 Accepted Article processing may additionally produce zero or more orthogonal effects:
 
