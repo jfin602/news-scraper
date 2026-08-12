@@ -12,6 +12,7 @@ import {
   findEndpointConfigurationByKeys,
   type EndpointConfigurationAggregate,
 } from '../sources/repository.ts';
+import { normalizeDomainHostname } from '../sources/configuration.ts';
 import { applyArticleLinkPolicy } from './article-links/policy.ts';
 import {
   collectEndpoint,
@@ -22,6 +23,10 @@ import {
 } from './collect-endpoint.ts';
 import { createEndpointExecutionLockRunner } from './execution.ts';
 import { evaluateCollectionEligibility } from './eligibility.ts';
+import {
+  withCollectionCapacity,
+  type CollectionCapacityBlocked,
+} from './concurrency/collection-capacity.ts';
 import {
   createHttpFetcher,
   type HttpFetcher,
@@ -67,11 +72,23 @@ export type EndpointCollectionServiceResult =
       status: 'skipped';
       endpointId: string;
       reason: 'no_longer_due';
-    }>;
+    }>
+  | (Omit<CollectionCapacityBlocked, 'status'> &
+      Readonly<{
+        status: 'capacity_blocked';
+        sourceId: string;
+        endpointId: string;
+      }>);
+
+type LoadedEndpointCollectionServiceResult = Exclude<
+  EndpointCollectionServiceResult,
+  Readonly<{ status: 'not_found' | 'capacity_blocked' }>
+>;
 
 export interface EndpointCollectionServiceDependencies {
   readonly findByKeys: typeof findEndpointConfigurationByKeys;
   readonly findById: typeof findEndpointConfigurationById;
+  readonly runWithCapacity: typeof withCollectionCapacity;
   readonly createFetcher: () => HttpFetcher;
   readonly collect: typeof collectEndpoint;
   readonly executionId: () => string;
@@ -82,6 +99,7 @@ const DEFAULT_DEPENDENCIES: EndpointCollectionServiceDependencies =
   Object.freeze({
     findByKeys: findEndpointConfigurationByKeys,
     findById: findEndpointConfigurationById,
+    runWithCapacity: withCollectionCapacity,
     createFetcher: () => createHttpFetcher({ resolver: createNodeResolver() }),
     collect: collectEndpoint,
     executionId: randomUUID,
@@ -109,16 +127,47 @@ export async function executeEndpointCollection(
     });
   }
 
-  if (request.triggerKind === 'scheduled') {
-    const eligibility = evaluateCollectionEligibility(configuration);
-    if (eligibility.status === 'blocked') {
-      return Object.freeze({
-        status: 'resolved' as const,
-        sourceId: configuration.source.id,
-        endpointId: configuration.endpoint.id,
-        collection: eligibility,
-      });
-    }
+  const eligibility = evaluateCollectionEligibility(configuration);
+  if (eligibility.status === 'blocked') {
+    return resolvedCollection(configuration, eligibility);
+  }
+
+  const capacity = await dependencies.runWithCapacity(
+    database,
+    {
+      sourceId: configuration.source.id,
+      destinationHost: normalizeDomainHostname(
+        configuration.endpoint.endpointUrl.hostname,
+      ),
+    },
+    () =>
+      executeLoadedEndpointCollection(
+        database,
+        request,
+        configuration,
+        dependencies,
+      ),
+  );
+  if (capacity.status === 'blocked') {
+    return Object.freeze({
+      ...capacity,
+      status: 'capacity_blocked' as const,
+      sourceId: configuration.source.id,
+      endpointId: configuration.endpoint.id,
+    });
+  }
+  return capacity.value;
+}
+
+async function executeLoadedEndpointCollection(
+  database: Database,
+  request: EndpointCollectionExecutionRequest,
+  configuration: EndpointConfigurationAggregate,
+  dependencies: EndpointCollectionServiceDependencies,
+): Promise<LoadedEndpointCollectionServiceResult> {
+  const eligibility = evaluateCollectionEligibility(configuration);
+  if (eligibility.status === 'blocked') {
+    return resolvedCollection(configuration, eligibility);
   }
 
   if (
@@ -146,6 +195,18 @@ export async function executeEndpointCollection(
     sourceId: configuration.source.id,
     endpointId: configuration.endpoint.id,
     collection: result,
+  });
+}
+
+function resolvedCollection(
+  configuration: EndpointConfigurationAggregate,
+  collection: CollectEndpointResult,
+): Extract<EndpointCollectionServiceResult, { status: 'resolved' }> {
+  return Object.freeze({
+    status: 'resolved',
+    sourceId: configuration.source.id,
+    endpointId: configuration.endpoint.id,
+    collection,
   });
 }
 

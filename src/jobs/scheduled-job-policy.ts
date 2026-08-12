@@ -9,7 +9,10 @@ export const MINIMUM_COOLDOWN_MILLISECONDS = 300_000;
 
 export type ScheduledJobDisposition =
   | Readonly<{ kind: 'retry' }>
-  | Readonly<{ kind: 'defer'; reason: 'endpoint_locked' }>
+  | Readonly<{
+      kind: 'defer';
+      reason: 'endpoint_locked' | 'collection_capacity_limited';
+    }>
   | Readonly<{
       kind: 'terminal';
       status: 'succeeded' | 'failed' | 'skipped' | 'abandoned';
@@ -29,8 +32,11 @@ export function decideScheduledJobDisposition(
     return Object.freeze({ kind: 'terminal', status: 'succeeded' });
   }
   if (result.category === 'blocked') {
-    if (result.reason === 'endpoint_locked') {
-      return Object.freeze({ kind: 'defer', reason: 'endpoint_locked' });
+    if (
+      result.reason === 'endpoint_locked' ||
+      result.reason === 'collection_capacity_limited'
+    ) {
+      return Object.freeze({ kind: 'defer', reason: result.reason });
     }
     return Object.freeze({ kind: 'terminal', status: 'skipped' });
   }

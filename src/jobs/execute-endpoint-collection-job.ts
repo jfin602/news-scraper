@@ -1,4 +1,5 @@
 import type { Database } from '../database/database.ts';
+import type { CollectionCapacityScope } from '../collection/concurrency/collection-capacity.ts';
 import {
   executeEndpointCollection,
   type EndpointCollectionServiceDependencies,
@@ -28,6 +29,7 @@ export interface ScheduledJobExecutionResult {
   readonly outcome: string;
   readonly reason?: string;
   readonly retryClassification?: RetryClassification;
+  readonly limitingScope?: CollectionCapacityScope;
 }
 
 export interface ExecuteClaimedEndpointCollectionJobInput {
@@ -68,6 +70,14 @@ export async function executeClaimedEndpointCollectionJob(
   }
   if (result.status === 'skipped') {
     return blockedResult(job, input.claimToken, result.reason);
+  }
+  if (result.status === 'capacity_blocked') {
+    return blockedResult(
+      job,
+      input.claimToken,
+      result.reason,
+      result.limitingScope,
+    );
   }
   const collection = result.collection;
   if (collection.status === 'blocked') {
@@ -232,6 +242,7 @@ function blockedResult(
   job: PersistedEndpointCollectionJob,
   claimToken: string,
   reason: string,
+  limitingScope?: CollectionCapacityScope,
 ): ScheduledJobExecutionResult {
   return Object.freeze({
     jobId: job.id,
@@ -242,5 +253,6 @@ function blockedResult(
     category: 'blocked' as const,
     outcome: reason,
     reason,
+    ...(limitingScope === undefined ? {} : { limitingScope }),
   });
 }

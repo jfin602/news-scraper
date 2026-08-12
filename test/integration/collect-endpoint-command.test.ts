@@ -102,6 +102,47 @@ describe('manual Worker endpoint collection command', () => {
     ]);
   });
 
+  it('reports capacity contention as a bounded machine-readable failure', async () => {
+    const output = sink();
+    const fake = fakeDatabase();
+    const configuration = aggregate();
+    const exitCode = await runCollectEndpointCommand({
+      args: KEYS,
+      environment: validEnvironment(),
+      stdout: output,
+      dependencies: {
+        createDatabase: () => fake.database,
+        async execute() {
+          return {
+            status: 'capacity_blocked',
+            stage: 'capacity',
+            reason: 'collection_capacity_limited',
+            limitingScope: 'host',
+            sourceId: configuration.source.id,
+            endpointId: configuration.endpoint.id,
+          };
+        },
+      },
+    });
+
+    assert.equal(exitCode, 1);
+    assert.equal(fake.closeCalls, 1);
+    assert.deepEqual(output.events(), [
+      {
+        event: 'endpoint_collection.result',
+        role: 'worker',
+        sourceConfigKey: KEYS[0],
+        endpointConfigKey: KEYS[1],
+        sourceId: configuration.source.id,
+        endpointId: configuration.endpoint.id,
+        status: 'blocked',
+        stage: 'capacity',
+        reason: 'collection_capacity_limited',
+        limitingScope: 'host',
+      },
+    ]);
+  });
+
   it('emits a bounded successful result without Raw-item bodies and closes resources', async () => {
     const output = sink();
     const fake = fakeDatabase();

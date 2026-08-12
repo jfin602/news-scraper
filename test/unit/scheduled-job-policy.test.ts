@@ -44,6 +44,13 @@ test('only transient actual failures below the maximum attempt are retried', () 
     kind: 'defer',
     reason: 'endpoint_locked',
   });
+  assert.deepEqual(
+    decideScheduledJobDisposition(blocked('collection_capacity_limited')),
+    {
+      kind: 'defer',
+      reason: 'collection_capacity_limited',
+    },
+  );
 });
 
 test('worker interruption preserves abandoned status and remains retryable when bounded', () => {

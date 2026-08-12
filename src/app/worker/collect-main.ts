@@ -96,6 +96,19 @@ export async function runCollectEndpointCommand(
         reason: result.reason,
       });
       exitCode = 1;
+    } else if (result.status === 'capacity_blocked') {
+      writeJson(stdout, {
+        event: 'endpoint_collection.result',
+        role: 'worker',
+        ...args,
+        sourceId: result.sourceId,
+        endpointId: result.endpointId,
+        status: 'blocked',
+        stage: result.stage,
+        reason: result.reason,
+        limitingScope: result.limitingScope,
+      });
+      exitCode = 1;
     } else {
       writeJson(stdout, commandResult(args, result));
       exitCode = result.collection.status === 'succeeded' ? 0 : 1;

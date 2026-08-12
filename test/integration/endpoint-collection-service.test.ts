@@ -1,14 +1,29 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import type {
+  CollectionCapacityRequest,
+  CollectionCapacityResult,
+} from '../../src/collection/concurrency/collection-capacity.ts';
 import { executeEndpointCollection } from '../../src/collection/endpoint-collection-service.ts';
 import type { CollectEndpointDependencies } from '../../src/collection/collect-endpoint.ts';
-import type { Database } from '../../src/database/database.ts';
+import type { Database, QueryExecutor } from '../../src/database/database.ts';
 import type { EndpointConfigurationAggregate } from '../../src/sources/repository.ts';
 
 test('manual and scheduled triggers use one production collection composition', async () => {
-  const configuration = aggregate();
+  const base = aggregate();
+  const configuration: EndpointConfigurationAggregate = {
+    ...base,
+    endpoint: {
+      ...base.endpoint,
+      endpointUrl: {
+        ...base.endpoint.endpointUrl,
+        hostname: 'Feeds.Example.TEST.',
+      },
+    },
+  };
   const observed: CollectEndpointDependencies[] = [];
+  const capacityInputs: unknown[] = [];
   const database = {} as Database;
   const overrides = {
     async findByKeys() {
@@ -16,6 +31,17 @@ test('manual and scheduled triggers use one production collection composition', 
     },
     async findById() {
       return configuration;
+    },
+    async runWithCapacity<T>(
+      _database: Pick<Database, 'withSession'>,
+      input: CollectionCapacityRequest,
+      work: (executor: QueryExecutor) => Promise<T>,
+    ): Promise<CollectionCapacityResult<T>> {
+      capacityInputs.push(input);
+      return {
+        status: 'acquired' as const,
+        value: await work({} as QueryExecutor),
+      };
     },
     createFetcher() {
       return {
@@ -66,6 +92,16 @@ test('manual and scheduled triggers use one production collection composition', 
   assert.equal(manual.status, 'resolved');
   assert.equal(scheduled.status, 'resolved');
   assert.equal(observed.length, 2);
+  assert.deepEqual(capacityInputs, [
+    {
+      sourceId: configuration.source.id,
+      destinationHost: 'feeds.example.test',
+    },
+    {
+      sourceId: configuration.source.id,
+      destinationHost: 'feeds.example.test',
+    },
+  ]);
   assert.equal(observed[0]?.triggerKind, 'manual');
   assert.equal(observed[1]?.triggerKind, 'scheduled');
   assert.deepEqual(
@@ -83,6 +119,116 @@ test('manual and scheduled triggers use one production collection composition', 
   }
 });
 
+test('capacity blocks each limiting scope before collection or runtime state', async () => {
+  const configuration = aggregate();
+  for (const limitingScope of ['global', 'source', 'host'] as const) {
+    let collectCalls = 0;
+    let runtimeCalls = 0;
+    let fetcherCalls = 0;
+    const result = await executeEndpointCollection(
+      {} as Database,
+      {
+        triggerKind: 'manual',
+        sourceConfigKey: 'source',
+        endpointConfigKey: 'feed',
+        executionId: `blocked-${limitingScope}`,
+      },
+      {
+        async findByKeys() {
+          return configuration;
+        },
+        async runWithCapacity(_database, input) {
+          assert.deepEqual(input, {
+            sourceId: configuration.source.id,
+            destinationHost: 'feeds.example.test',
+          });
+          return {
+            status: 'blocked' as const,
+            stage: 'capacity' as const,
+            reason: 'collection_capacity_limited' as const,
+            limitingScope,
+          };
+        },
+        createFetcher() {
+          fetcherCalls += 1;
+          throw new Error('capacity-blocked work must not create a fetcher');
+        },
+        async collect() {
+          collectCalls += 1;
+          throw new Error('capacity-blocked work must not collect');
+        },
+        async applyRuntimeState() {
+          runtimeCalls += 1;
+          throw new Error('capacity-blocked work has no runtime state');
+        },
+      },
+    );
+
+    assert.deepEqual(result, {
+      status: 'capacity_blocked',
+      stage: 'capacity',
+      reason: 'collection_capacity_limited',
+      limitingScope,
+      sourceId: configuration.source.id,
+      endpointId: configuration.endpoint.id,
+    });
+    assert.equal(fetcherCalls, 0);
+    assert.equal(collectCalls, 0);
+    assert.equal(runtimeCalls, 0);
+  }
+});
+
+test('ineligible configuration is blocked before host normalization or capacity', async () => {
+  const base = aggregate();
+  const configuration: EndpointConfigurationAggregate = {
+    ...base,
+    endpoint: {
+      ...base.endpoint,
+      approvalState: 'unapproved',
+      endpointUrl: {
+        value: 'https://draft.invalid/feed.xml',
+        hostname: 'invalid draft host:443',
+      },
+    },
+  };
+  let capacityCalls = 0;
+  let collectCalls = 0;
+  const result = await executeEndpointCollection(
+    {} as Database,
+    {
+      triggerKind: 'manual',
+      sourceConfigKey: 'source',
+      endpointConfigKey: 'feed',
+    },
+    {
+      async findByKeys() {
+        return configuration;
+      },
+      async runWithCapacity() {
+        capacityCalls += 1;
+        throw new Error('ineligible work must not acquire capacity');
+      },
+      async collect() {
+        collectCalls += 1;
+        throw new Error('ineligible work must not collect');
+      },
+    },
+  );
+
+  assert.deepEqual(result, {
+    status: 'resolved',
+    sourceId: configuration.source.id,
+    endpointId: configuration.endpoint.id,
+    collection: {
+      status: 'blocked',
+      stage: 'eligibility',
+      reason: 'endpoint_unapproved',
+    },
+  });
+  assert.equal(capacityCalls, 0);
+  assert.equal(collectCalls, 0);
+});
+
 test('scheduler-root jobs skip obsolete due work while retry successors use availability', async () => {
   const base = aggregate();
   const configuration: EndpointConfigurationAggregate = {
@@ -96,6 +242,16 @@ test('scheduler-root jobs skip obsolete due work while retry successors use avai
   const overrides = {
     async findById() {
       return configuration;
+    },
+    async runWithCapacity<T>(
+      _database: Pick<Database, 'withSession'>,
+      _input: CollectionCapacityRequest,
+      work: (executor: QueryExecutor) => Promise<T>,
+    ): Promise<CollectionCapacityResult<T>> {
+      return {
+        status: 'acquired' as const,
+        value: await work({} as QueryExecutor),
+      };
     },
     async collect() {
       collectionCalls += 1;

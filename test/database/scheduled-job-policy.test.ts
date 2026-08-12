@@ -2,6 +2,15 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { test } from 'node:test';
 
+import {
+  COLLECTION_CAPACITY_LIMITS,
+  withCollectionCapacity,
+  type CollectionCapacityResult,
+} from '../../src/collection/concurrency/collection-capacity.ts';
+import type {
+  HttpFetcher,
+  HttpFetcherRequest,
+} from '../../src/collection/fetchers/http-fetcher.ts';
 import { runSchedulerPass } from '../../src/collection/scheduler/scheduler-pass.ts';
 import {
   startCollectionRun,
@@ -14,6 +23,7 @@ import {
   ScheduledJobFinalizationError,
 } from '../../src/jobs/finalize-endpoint-collection-job.ts';
 import {
+  executeClaimedEndpointCollectionJob,
   reconcileExpiredEndpointCollectionJob,
   type ScheduledJobExecutionResult,
 } from '../../src/jobs/execute-endpoint-collection-job.ts';
@@ -289,6 +299,156 @@ test('lock deferral requeues the same attempt, rejects the former owner, and wai
     });
     assert.equal(other?.sourceEndpointId, endpointB.id);
   });
+});
+
+test('capacity contention requeues the same linked attempt without a run while unrelated work remains executable', async () => {
+  await withPolicyDatabase(
+    async (database, [endpointA, endpointB], databaseUrl) => {
+      const saturation = await saturateSourceCapacity(
+        databaseUrl,
+        endpointA.sourceId,
+      );
+      try {
+        const previous = await createClaimedJob(
+          database,
+          endpointA.id,
+          1,
+          undefined,
+          T0959,
+          T1100,
+        );
+        assert.ok(previous.claimToken);
+        const terminalPrevious = await terminalizeEndpointCollectionJob(
+          database,
+          previous.id,
+          previous.claimToken,
+          {
+            status: 'failed',
+            terminalAt: T1000,
+            outcomeCode: 'synthetic_previous_failure',
+          },
+        );
+        assert.equal(terminalPrevious?.status, 'failed');
+
+        const claimed = await createClaimedJob(
+          database,
+          endpointA.id,
+          2,
+          previous.id,
+          T1000,
+          T1100,
+        );
+        assert.ok(claimed.claimToken);
+        const otherEnqueued = await enqueueEndpointCollectionJob(database, {
+          sourceEndpointId: endpointB.id,
+          availableAt: T1001,
+          attemptNumber: 1,
+        });
+        assert.equal(otherEnqueued.created, true);
+
+        const execution = await executeClaimedEndpointCollectionJob(database, {
+          jobId: claimed.id,
+          claimToken: claimed.claimToken,
+          now: T1001,
+          serviceDependencies: {
+            async collect() {
+              throw new Error('capacity-blocked work must not collect');
+            },
+          },
+        });
+        assert.deepEqual(execution, {
+          jobId: claimed.id,
+          attemptNumber: 2,
+          endpointId: endpointA.id,
+          claimToken: claimed.claimToken,
+          collectionRunOccurred: false,
+          category: 'blocked',
+          outcome: 'collection_capacity_limited',
+          reason: 'collection_capacity_limited',
+          limitingScope: 'source',
+        });
+
+        const deferred = await finalizeScheduledJobExecution(database, {
+          result: execution,
+          terminalAt: T1001,
+          random: () => 1,
+        });
+        assert.equal(deferred.disposition, 'deferred');
+        assert.equal(deferred.reason, 'collection_capacity_limited');
+        assert.equal(deferred.job.id, claimed.id);
+        assert.equal(deferred.job.attemptNumber, 2);
+        assert.equal(deferred.job.previousJobId, previous.id);
+        assert.equal(deferred.job.status, 'queued');
+        assert.equal(deferred.job.claimWorkerId, undefined);
+        assert.equal(deferred.job.claimToken, undefined);
+        assert.equal(deferred.job.claimedAt, undefined);
+        assert.equal(deferred.job.leaseExpiresAt, undefined);
+        assert.equal(deferred.job.collectionRunId, undefined);
+        assert.equal(
+          deferred.job.availableAt.toISOString(),
+          new Date(T1001.getTime() + 5_000).toISOString(),
+        );
+
+        const runs = await database.query<{ count: string }>(
+          'SELECT count(*) AS count FROM collection_runs WHERE execution_id = $1',
+          [claimed.id],
+        );
+        assert.equal(Number(runs.rows[0]?.count), 0);
+        const successors = await database.query<{ count: string }>(
+          'SELECT count(*) AS count FROM endpoint_collection_jobs WHERE previous_job_id = $1',
+          [claimed.id],
+        );
+        assert.equal(Number(successors.rows[0]?.count), 0);
+        const runtimeAfterDeferral =
+          await findSourceEndpointBySourceAndConfigKey(
+            database,
+            endpointA.sourceId,
+            endpointA.configKey,
+          );
+        assert.equal(runtimeAfterDeferral?.lastAttemptAt, undefined);
+        assert.equal(runtimeAfterDeferral?.lastFailureAt, undefined);
+        assert.equal(runtimeAfterDeferral?.consecutiveFailureCount, 0);
+
+        const other = await claimNextEndpointCollectionJob(database, {
+          workerId: 'unrelated-worker',
+          claimedAt: T1001,
+          leaseExpiresAt: T1100,
+        });
+        assert.equal(other?.id, otherEnqueued.job.id);
+        assert.equal(other?.sourceEndpointId, endpointB.id);
+        assert.ok(other?.claimToken);
+
+        const unrelatedExecution = await executeClaimedEndpointCollectionJob(
+          database,
+          {
+            jobId: other.id,
+            claimToken: other.claimToken,
+            now: T1001,
+            serviceDependencies: {
+              createFetcher: controlledNotModifiedFetcher,
+            },
+          },
+        );
+        assert.equal(unrelatedExecution.endpointId, endpointB.id);
+        assert.equal(unrelatedExecution.collectionRunOccurred, true);
+        assert.equal(unrelatedExecution.category, 'succeeded');
+        assert.equal(unrelatedExecution.outcome, 'not_modified');
+        assert.ok(unrelatedExecution.collectionRunId);
+
+        const unrelatedFinalized = await finalizeScheduledJobExecution(
+          database,
+          {
+            result: unrelatedExecution,
+            terminalAt: T1002,
+          },
+        );
+        assert.equal(unrelatedFinalized.disposition, 'terminal');
+        assert.equal(unrelatedFinalized.job.status, 'succeeded');
+      } finally {
+        await saturation.stop();
+      }
+    },
+  );
 });
 
 test('final repeated failure applies scheduler cooldown and later success clears failure health', async () => {
@@ -638,10 +798,124 @@ async function outstandingCount(
   return Number(result.rows[0]?.count);
 }
 
+interface SourceCapacitySaturation {
+  stop(): Promise<void>;
+}
+
+interface DeferredSignal {
+  readonly promise: Promise<void>;
+  resolve(): void;
+}
+
+async function saturateSourceCapacity(
+  databaseUrl: string,
+  sourceId: string,
+): Promise<SourceCapacitySaturation> {
+  const actors = Array.from({ length: COLLECTION_CAPACITY_LIMITS.source }, () =>
+    createDatabase({ connectionString: databaseUrl }),
+  );
+  const entered = actors.map(() => deferredSignal());
+  const release = actors.map(() => deferredSignal());
+  const operations = actors.map((actor, index) =>
+    withCollectionCapacity(
+      actor,
+      {
+        sourceId,
+        destinationHost: `source-capacity-holder-${index}.example`,
+      },
+      async () => {
+        entered[index]!.resolve();
+        await release[index]!.promise;
+        return index;
+      },
+    ),
+  );
+
+  try {
+    await Promise.all(
+      entered.map((signal, index) =>
+        waitForSignalOrFailure(signal.promise, operations[index]!),
+      ),
+    );
+  } catch (error) {
+    for (const signal of release) signal.resolve();
+    await Promise.allSettled(operations);
+    await Promise.all(actors.map(async (actor) => actor.close()));
+    throw error;
+  }
+
+  let stopped = false;
+  return Object.freeze({
+    async stop(): Promise<void> {
+      if (stopped) return;
+      stopped = true;
+      for (const signal of release) signal.resolve();
+      try {
+        const results = await Promise.all(operations);
+        for (const result of results) assert.equal(result.status, 'acquired');
+      } finally {
+        await Promise.all(actors.map(async (actor) => actor.close()));
+      }
+    },
+  });
+}
+
+function controlledNotModifiedFetcher(): HttpFetcher {
+  return Object.freeze({
+    async fetch(request: HttpFetcherRequest) {
+      return Object.freeze({
+        outcome: 'not_modified' as const,
+        response: Object.freeze({ etag: '"capacity-fairness"' }),
+        finalUrl: request.configuration.endpoint.endpointUrl.value,
+        redirectCount: 0,
+        metrics: Object.freeze({
+          elapsedMilliseconds: 1,
+          hopCount: 1,
+          wireBytes: 0,
+          decompressedBytes: 0,
+          hops: Object.freeze([
+            Object.freeze({
+              elapsedMilliseconds: 1,
+              httpStatus: 304,
+              wireBytes: 0,
+              decompressedBytes: 0,
+              selectedAddress: '203.0.113.10',
+              selectedAddressFamily: 4 as const,
+            }),
+          ]),
+        }),
+      });
+    },
+  });
+}
+
+function deferredSignal(): DeferredSignal {
+  let resolve!: () => void;
+  const promise = new Promise<void>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
+}
+
+function waitForSignalOrFailure<T>(
+  signal: Promise<void>,
+  operation: Promise<CollectionCapacityResult<T>>,
+): Promise<void> {
+  return Promise.race([
+    signal,
+    operation.then(() => {
+      throw new Error(
+        'Capacity holder exited before reaching its test barrier.',
+      );
+    }),
+  ]);
+}
+
 async function withPolicyDatabase(
   work: (
     database: Database,
     endpoints: readonly [PersistedSourceEndpoint, PersistedSourceEndpoint],
+    databaseUrl: string,
   ) => Promise<void>,
 ): Promise<void> {
   await withDisposableDatabase(async ({ databaseUrl }) => {
@@ -674,7 +948,7 @@ async function withPolicyDatabase(
       );
       assert.ok(first);
       assert.ok(second);
-      await work(database, [first, second]);
+      await work(database, [first, second], databaseUrl);
     } finally {
       await database.close();
     }
