@@ -645,6 +645,45 @@ export async function applyTerminalCollectionRunToEndpointRuntime(
   return row === undefined ? undefined : mapEndpointRow(row);
 }
 
+export async function applyCooldownFromFinalCollectionFailure(
+  executor: QueryExecutor,
+  collectionRunId: string,
+  minimumCooldownSeconds: number,
+  failureThreshold: number,
+): Promise<PersistedSourceEndpoint | undefined> {
+  const runId = requiredUuid(collectionRunId, 'collection run id');
+  const minimumSeconds = requiredPositiveInteger(
+    minimumCooldownSeconds,
+    'minimum cooldown seconds',
+  );
+  const threshold = requiredPositiveInteger(
+    failureThreshold,
+    'cooldown failure threshold',
+  );
+  const result = await executor.query<EndpointRow>(
+    `WITH target_run AS (
+       SELECT source_endpoint_id, finished_at
+       FROM collection_runs
+       WHERE id = $1
+         AND run_status = 'failed'
+         AND finished_at IS NOT NULL
+     )
+     UPDATE source_endpoints endpoint
+     SET cooldown_until = target.finished_at + make_interval(
+           secs => GREATEST(endpoint.poll_interval_seconds, $2)
+         ),
+         updated_at = GREATEST(endpoint.updated_at, target.finished_at)
+     FROM target_run target
+     WHERE endpoint.id = target.source_endpoint_id
+       AND endpoint.last_attempt_at = target.finished_at
+       AND endpoint.consecutive_failure_count >= $3
+     RETURNING ${qualifiedColumns(ENDPOINT_COLUMNS, 'endpoint')}`,
+    [runId, minimumSeconds, threshold],
+  );
+  const row = result.rows[0];
+  return row === undefined ? undefined : mapEndpointRow(row);
+}
+
 export function mapSourceRow(row: SourceRow): PersistedSource {
   try {
     return Object.freeze({
@@ -817,6 +856,13 @@ function requiredNonnegativeInteger(value: unknown): number {
     throw new Error();
   }
   return value;
+}
+
+function requiredPositiveInteger(value: unknown, field: string): number {
+  if (!Number.isSafeInteger(value) || (value as number) <= 0) {
+    throw new ConfigurationPersistenceError(`invalid ${field}`);
+  }
+  return value as number;
 }
 
 function nullableTimestamp(value: unknown): Date | undefined {
