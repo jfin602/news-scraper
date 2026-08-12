@@ -44,10 +44,10 @@ The one Article selected to represent a Duplicate group in public output.
 Distinct reporting about the same event or subject. Related coverage is not a true duplicate and remains separately visible.
 
 ### Category
-An installation-wide editorial grouping owned by the singleton Publication configuration.
+An installation-wide editorial grouping owned by the singleton Publication configuration. Each persisted Category has an immutable installation-wide `config_key` so configuration, rule targets, and reasons do not depend on mutable display labels or database-generated identifiers.
 
 ### Relevance rule
-An installation-wide deterministic rule used to include, exclude, or categorize candidates, optionally scoped to one Source. MVP does not define a generic ranking/boost score.
+An installation-wide deterministic rule used to include, exclude, or categorize candidates, optionally scoped to one Source. Each persisted rule has an immutable installation-wide `config_key`. MVP uses a deliberately bounded literal predicate vocabulary rather than a generic expression, fuzzy, regex, semantic, or ranking engine.
 
 ## Relationship boundaries
 
@@ -142,7 +142,7 @@ The concrete table name is an implementation detail. The schema MUST enforce sin
 - operational state;
 - approved-domain policy;
 - installation-wide Source priority;
-- default Category;
+- optional default Category reference;
 - optional Source-scoped Relevance settings;
 - created/updated timestamps.
 
@@ -159,7 +159,8 @@ The concrete table name is an implementation detail. The schema MUST enforce sin
 - next-due/last-attempt/last-success timing;
 - ETag/Last-Modified;
 - consecutive failure count;
-- derived health.
+- derived health;
+- optional default Category reference.
 
 Configuration inheritance:
 - Source approved domains define the maximum permitted destination boundary;
@@ -253,31 +254,55 @@ Observation invariants:
 
 ### `categories` and `article_categories`
 
-Categories are installation-wide Publication configuration. Articles may have multiple Categories; the singleton Publication may define a preferred display Category.
+Categories are installation-wide Publication configuration. Each Category has an immutable installation-wide `config_key`, a mutable/display label, and any later presentation metadata introduced by the phase that uses it. Articles may have multiple Categories; the singleton Publication may define a preferred display Category.
 
-No Publication foreign key is required because another Publication cannot exist in the same supported installation.
+Article/Category membership is unique per Article + Category. A Category referenced by a Relevance rule or Source/endpoint default MUST exist in the same installation. No Publication foreign key is required because another Publication cannot exist in the same supported installation.
+
+For ordinary Phase 11 candidate processing, Category assignment is determined as follows:
+
+1. Evaluate every applicable enabled `categorize` rule independently.
+2. All matching categorize rules apply; Category targets are deduplicated by immutable Category `config_key` rather than mutable label.
+3. Categorize-rule priority orders persisted/explanatory reasons but does not suppress another matching Category assignment.
+4. If at least one categorize rule assigns a Category, do not add a Source/endpoint default Category.
+5. If no categorize rule assigns a Category, use the endpoint default Category when configured; otherwise use the Source default Category.
+6. If no rule or default assigns a Category, the included Article may remain uncategorized.
 
 ### `relevance_rules`
 
+- immutable `config_key` unique across the installation;
 - optional Source scope;
-- rule type/pattern;
+- predicate type: `title_contains`, `summary_contains`, or `source_category_equals`;
+- one bounded non-empty literal pattern;
 - action: `include`, `exclude`, or `categorize`;
+- Category target when action is `categorize`;
 - explicit integer priority/order;
 - enabled state;
 - explanatory label/reason.
 
-Deterministic MVP decision procedure:
-1. Collect applicable enabled include/exclude rules.
+MVP predicate semantics are intentionally narrow and deterministic:
+
+- `title_contains` matches the candidate's normalized title by case-insensitive literal substring comparison;
+- `summary_contains` matches the normalized/sanitized candidate summary by case-insensitive literal substring comparison and does not match when summary is absent;
+- `source_category_equals` matches any normalized Source-provided category label by case-insensitive literal equality and does not match when Source categories are absent;
+- patterns are literal data, not regular expressions or globs;
+- MVP does not provide stemming, fuzzy matching, semantic/AI matching, arbitrary metadata predicates, compound Boolean expressions, or generic ranking/boost behavior;
+- missing candidate fields do not match rather than being coerced to empty strings with special meaning.
+
+Deterministic MVP include/exclude procedure:
+1. Collect applicable enabled matching include/exclude rules.
 2. Highest explicit priority wins.
 3. At equal priority, Source-scoped rule wins over installation-wide rule.
 4. At equal priority and scope specificity, `exclude` wins over `include`.
-5. If no include/exclude rule decides the candidate, include by default.
-6. Category rules are evaluated independently and do not alter inclusion unless a separate include/exclude rule does so.
-7. Persist the winning include/exclude reason and applied Category-rule reasons.
+5. At equal priority, scope specificity, and action, lexicographically lower immutable rule `config_key` wins so the selected reason is stable.
+6. If no include/exclude rule decides the candidate, include by default.
+7. Category rules are evaluated independently and do not alter inclusion unless a separate include/exclude rule does so.
+8. Persist the winning include/exclude reason and applied Category-rule/default reasons in deterministic order once persistence for those reasons exists.
+
+Applied categorize-rule reasons are ordered by priority descending, Source-scoped before installation-wide at equal priority, then immutable rule `config_key` ascending. Default-Category reasons are explicit and distinguish endpoint default from Source fallback.
 
 Before configurable Relevance-rule persistence exists, the canonical Relevance boundary still executes with an empty rule set. Safe normalized candidates receive deterministic default `include` rather than bypassing Relevance evaluation.
 
-MVP Relevance-rule edits are prospective by default. Automatic bulk retroactive re-evaluation of previously persisted Articles is deferred unless a dedicated reprocessing capability is explicitly invoked/implemented later. Article moderation remains available for corrections.
+MVP Relevance-rule edits are prospective by default. They affect future candidate processing and MUST NOT cause automatic bulk retroactive re-evaluation of previously persisted Articles. Because Relevance precedes Article identity, a newly excluded future observation terminates before Article identity and MUST NOT look up an earlier Article merely to hide, delete, or recategorize it. A previously persisted Article remains in its prior persisted state unless an explicit moderation or dedicated future reprocessing capability changes it. A later included observation may apply then-current Category assignment through the ordinary candidate pipeline; that normal observation is not a bulk historical scan.
 
 Generic `boost`/ranking behavior is deferred until a ranking/scoring contract exists.
 
@@ -313,6 +338,9 @@ Persistence MUST enforce or transactionally guarantee:
 - singleton Publication/settings configuration;
 - unique immutable Source `config_key` across the installation;
 - unique immutable Source-endpoint `config_key` within a Source;
+- unique immutable Category `config_key` across the installation;
+- unique immutable Relevance-rule `config_key` across the installation;
+- no duplicate Article/Category membership for one Article and Category;
 - no duplicate non-archived normalized endpoint URL within the same Source;
 - no duplicate Article for the same reliable immutable external identifier within the same Source;
 - no duplicate Article for the same Source canonical identity when external identifier is absent;
