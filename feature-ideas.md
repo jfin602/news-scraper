@@ -12,6 +12,16 @@ This file is the running feature idea log for ideas proposed in this chat.
   - `ui-status` — print a compact UI-workstream status summary including current branch, working-tree cleanliness, and how many commits `ui-polish` is ahead of or behind `main`/`origin/main` so the operator can immediately see whether synchronization or integration is needed.
 - These are operator conveniences for moving safely between the main roadmap worktree and the parallel UI worktree. They should not become part of `codex:phase`, change project versioning, advance roadmap state, or automate merging UI work into `main`.
 
+### +M7XR — 2026-08-11 — Article thumbnail image URLs
+
+- **Status:** Proposed
+- Extend structured-source collection so Articles may carry an optional normalized thumbnail/image URL when the approved Source provides one.
+- Prefer image metadata already exposed by RSS/Atom or another approved structured adapter, such as Media RSS thumbnail/content fields, image enclosures, or equivalent structured fields. Do not fetch Article HTML solely to discover an image as part of the initial implementation.
+- Carry the value through the normal Raw item → Article candidate → persisted Article pipeline, validate and normalize it as untrusted Source-derived metadata, persist it as nullable Article metadata, and expose it through the public feed API.
+- Let the public UI render the remote image as a thumbnail beside an Article when available, with a clean text-only fallback when absent or unusable. The headline must continue linking to the stored original publisher URL.
+- Initial scope stores the remote image URL only; it does not download, proxy, cache, transform, or host publisher image bytes. A controlled image proxy/cache may be considered separately if hotlink reliability, privacy, or content-delivery requirements justify it.
+- Keep extraction and normalization topic independent and preserve existing Source approval, provenance, network-safety, idempotency, and feed behavior.
+
 ## Shipped Ideas
 
 ## Maintenance Notes
