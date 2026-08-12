@@ -1,0 +1,224 @@
+TASK: Phase 11 / P2 — Editorial configuration persistence
+
+ROADMAP PHASE
+Phase 11 — Categories and configurable Relevance execution.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Sol Light`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P2 establishes canonical configuration validation/repository semantics and deterministic runtime loading with meaningful referential integrity, but it still does not cross the production Article transaction or collection execution boundary. Terra High is the right balance for persistence correctness without unnecessary Sol-level usage.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a model/configuration label.
+
+VERSIONING
+- This is Phase 11 prompt 2 and its assigned project version is `0.11.2`.
+- Before editing, confirm P1 left `package.json` at `0.11.1`, or retain `0.11.2` only for a rerun of this same P2.
+- Update only the top-level package version to `0.11.2`; do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- `package.json` remains the sole current-version authority.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the Phase 11 roadmap entry, and governing Phase 11 contracts;
+2. read P1 and inspect the final P1 migration/schema/tests rather than assuming this prompt's planned SQL shape survived unchanged;
+3. confirm P1 is coherent at `0.11.1` and that no material post-P1 drift changes the configuration boundary;
+4. inspect current Source configuration normalization/repository code, Publication configuration errors/helpers, and existing configuration persistence tests;
+5. inspect the current Relevance evaluator interface so P2 creates data that P3 can consume without activating runtime behavior early;
+6. stop and report planning drift if P1 materially changed the planned Category/rule/default model.
+
+GOAL
+Create the canonical Phase 11 configuration layer for Categories, Relevance rules, Source/endpoint default Categories, and one deterministic effective Relevance snapshot per endpoint execution.
+
+CURRENT ARCHITECTURE TO PRESERVE
+- `src/sources/configuration.ts` owns existing generic Source/endpoint config normalization, including canonical config-key validation.
+- `src/sources/repository.ts` owns persisted Source/endpoint aggregates and their real relationships.
+- Publication configuration remains singleton state, not a tenant selector.
+- Current collection code still uses the Phase 7 default-include evaluator and MUST remain behaviorally unchanged in P2.
+
+MODULE OWNERSHIP
+Prefer the smallest coherent Relevance-owned configuration surface, expected to include:
+- `src/collection/relevance/configuration.ts` for Phase 11 types/normalization;
+- `src/collection/relevance/repository.ts` for Category/rule/default persistence and effective runtime loading.
+
+If current code organization makes another narrow file split cleaner, use it, but do not create a generic rules-engine framework or scatter Relevance behavior through Publication/Source modules.
+
+CONFIGURATION DOMAIN TYPES
+Define topic-independent canonical types for at least:
+- Category identity/configuration;
+- Relevance predicate type;
+- Relevance action;
+- installation-wide vs Source-scoped rule scope;
+- Relevance rule configuration/persisted record;
+- Category target identity;
+- Source default Category;
+- endpoint default Category;
+- effective Relevance configuration snapshot for a concrete Source/endpoint execution.
+
+Use the immutable database `config_key` as configuration identity. Mutable labels, patterns, reasons, priorities, enabled state, Source scope, and Category target are not identity.
+
+NORMALIZATION CONTRACT
+Reuse the repository's existing canonical config-key grammar/helper rather than inventing a slightly different one.
+
+At minimum validate:
+- Category display label: trimmed, non-empty, bounded (planned maximum 200 unless P1 establishes another governed bound);
+- rule predicate: exactly `title_contains`, `summary_contains`, `source_category_equals`;
+- rule action: exactly `include`, `exclude`, `categorize`;
+- rule pattern: trimmed, non-empty, bounded (planned maximum 2048 unless P1 establishes another governed bound);
+- rule reason: trimmed, non-empty, bounded to fit the observation snapshot detail boundary (planned maximum 160 unless P1 establishes another governed bound);
+- priority: finite integer within any P1 DB bound;
+- enabled: boolean;
+- Source scope: optional existing Source identity/config key resolved explicitly;
+- Category target: required only for `categorize` and absent for include/exclude.
+
+Do not add regex/glob/fuzzy/stemming/AI/general-expression semantics.
+
+REPOSITORY OPERATIONS
+Provide the smallest composable repository API needed by P4/P5/P6. It should support deliberate caller-owned transactions and include operations equivalent to:
+
+Categories
+- create Category by immutable config key;
+- find/read Category by config key;
+- update mutable Category fields while retaining identity;
+- list Categories deterministically where needed.
+
+Relevance rules
+- create rule by immutable config key;
+- find/read rule by config key;
+- update mutable rule fields while retaining identity;
+- enable/disable through mutable `enabled` state;
+- list/load rules deterministically.
+
+Defaults
+- set or clear Source default Category;
+- set or clear endpoint default Category;
+- reject real relationship mismatches/orphans.
+
+Effective runtime snapshot
+Provide one read operation for a concrete Source/endpoint execution that returns a frozen/immutable logical snapshot containing only:
+- enabled installation-wide rules;
+- enabled rules scoped to that Source;
+- Category identities/labels required by those rules/defaults;
+- Source default Category if any;
+- endpoint default Category if any.
+
+Rules scoped to another Source MUST NOT appear in the effective snapshot.
+
+The snapshot may be loaded by Source/endpoint persisted IDs or from the existing endpoint configuration aggregate, whichever produces the smallest safe P6 integration. Do not add Publication selector parameters.
+
+DETERMINISTIC ORDERING
+- Do not rely on PostgreSQL's unspecified row order.
+- Repository reads should be stable/deterministic for testing and observability.
+- P3 remains the behavioral precedence authority; repository ordering must not accidentally encode a competing precedence algorithm.
+- Stable config-key ordering is preferred when no behaviorally stronger order is needed.
+
+TRANSACTION OWNERSHIP
+- Repositories must work correctly with an existing caller-owned `QueryExecutor`/transaction.
+- Do not open independent transactions inside leaf repository functions that would defeat P4 atomic edits or P5 candidate transactions.
+- Application validation and DB constraints should agree; constraints remain authoritative under races/direct writes.
+
+LIKELY / ALLOWED FILES
+Expected primary scope:
+- `package.json`
+- `src/collection/relevance/configuration.ts` (new)
+- `src/collection/relevance/repository.ts` (new)
+- `src/sources/repository.ts` only if the effective endpoint aggregate/default-category read boundary requires a narrow extension
+- `src/sources/configuration.ts` only to export/reuse generic config-key normalization cleanly if needed
+- `test/unit/relevance-configuration.test.ts` (new or equivalent)
+- `test/database/relevance-configuration.test.ts` (new or equivalent)
+- `test/database/configuration-persistence.test.ts`
+- narrow existing configuration/schema tests required by shared changes
+
+Do not modify:
+- `src/collection/collect-endpoint.ts` runtime behavior;
+- `src/collection/relevance/evaluator.ts` beyond type/import compatibility that does not activate rules;
+- Article persistence transaction behavior;
+- Worker scheduling/jobs;
+- public routes/UI;
+- ordinary bootstrap semantics.
+
+FOCUSED TESTS
+Unit/static:
+1. canonical config-key validation is reused consistently;
+2. valid Category/rule inputs normalize deterministically;
+3. unknown predicate/action values fail;
+4. empty/not-trimmed/out-of-bound pattern/reason/label values fail;
+5. categorize target requirements are enforced before persistence;
+6. output values/snapshots are immutable where current project style expects it.
+
+Real PostgreSQL:
+1. Category create/read/update preserves immutable ID/config key;
+2. Relevance rule create/read/update preserves immutable ID/config key;
+3. enabled false persists and is excluded from effective runtime loading;
+4. installation-wide rules load for any Source;
+5. Source-scoped rules load only for their Source;
+6. another Source's scoped rules never leak into the snapshot;
+7. Source default set/replace/clear works;
+8. endpoint default set/replace/clear works;
+9. invalid Source/endpoint/Category references fail safely;
+10. caller-owned transaction rollback removes all P2 writes;
+11. deterministic reads remain stable across repeated calls;
+12. no Publication selector/tenant scope is required.
+
+BROADER REGRESSION
+Run at minimum:
+- focused P2 unit tests;
+- focused P2 database tests;
+- existing Source configuration/repository unit/database tests;
+- `test/database/configuration-persistence.test.ts`;
+- existing bootstrap tests because Source/repository exports may be shared;
+- relevant migration/schema suites.
+
+Also run final-tree:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+
+Use full `npm run test:db` when the test database prerequisite is available and the touched repository surface makes it practical; otherwise clearly report the narrower real-DB evidence actually run.
+
+REQUIRED EVIDENCE LEVELS
+- Level 2 unit evidence for normalization/shape behavior.
+- Level 4 real PostgreSQL evidence for persistence/references/rollback/effective loading.
+
+PRESERVED BEHAVIOR
+Explicitly preserve:
+- existing Source/endpoint approval/domain-policy behavior;
+- ordinary `db:bootstrap` create-if-absent/no-overwrite behavior;
+- Phase 7 default-include runtime behavior;
+- Source-scoped Article identity;
+- Article/observation transactions;
+- Phase 10 manual/scheduled endpoint execution and runtime state;
+- public-feed behavior.
+
+NON-GOALS
+- no evaluator precedence implementation beyond any type plumbing required for compile;
+- no pre-admin operator command/file yet;
+- no Article Category/reason persistence integration;
+- no durable exclusion observation path yet;
+- no collection runtime activation;
+- no public filters/search;
+- no Phase 15 admin UI/API;
+- no bulk historical reprocessing;
+- no ranking/boost/duplicate behavior.
+
+ACCEPTANCE CRITERIA
+P2 is complete only when:
+- package version is `0.11.2`;
+- P1 schema is accessed through one coherent topic-independent Relevance configuration/repository surface;
+- real Source/Category/default references are validated and database-backed;
+- immutable config identities survive mutable edits;
+- effective per-Source/endpoint configuration loading excludes other-Source scoped rules and is deterministic;
+- caller-owned transactions and rollback are proven;
+- current collection runtime still behaves as default include;
+- focused and relevant broader tests pass on the final tree;
+- no package lock or unrelated future-phase behavior is introduced.
+
+FINAL RESPONSE
+Report:
+- files changed;
+- final package version;
+- configuration/repository APIs introduced;
+- effective snapshot semantics;
+- focused and broader commands actually run with results;
+- real PostgreSQL evidence actually observed;
+- any deviations from the planned file/module shape and why.
