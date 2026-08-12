@@ -8,15 +8,15 @@ Publication is the singleton editorial/configuration concept for the installed n
 
 ## Current project state
 
-Current phase: **Phase 10 — Automated polling, durable jobs, and endpoint health**.
+Current phase: **Phase 11 — Categories and configurable Relevance execution**.
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation and closeout validation are complete. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; that accepted limitation is not rewritten as passing evidence.
 
-Before ordinary Phase 10 scheduler/job work, the repository has one implementation correction gate: remove obsolete Publication tenancy/selector plumbing still present in the current pre-production implementation so the source tree matches the canonical singleton model, root `/` page, and `/api/feed` API.
+The Phase 10 entry singleton implementation correction is complete with durable validation in `docs/validation/single-publication-simplification-correction.md`. It removed obsolete Publication tenancy/selector plumbing and established the canonical singleton migration-from-zero model, root `/` page, and `/api/feed` API without rewriting historical validation evidence.
 
-Because the project is pre-production, databases created by older source trees are disposable. The correction destructively rebuilds from the smallest canonical current migration baseline and removes legacy-only migrations, compatibility code/APIs/types, tests/fixtures, and obsolete configuration paths rather than preserving an in-place data or implementation-history compatibility path.
+Phase 10 — Automated polling, durable jobs, and endpoint health — is complete with durable validation in `docs/validation/phase-10-automated-polling-durable-jobs-endpoint-health.md`. The proven endpoint execution unit now runs behind durable jobs, due-endpoint scheduling, bounded retry/recovery behavior, conditional-fetch state persistence, cross-process capacity/locking controls, and baseline endpoint health without creating a second collection path or multi-Publication scheduler.
 
-Phase 10 then turns the proven manual endpoint execution unit into automated polling through durable jobs, due-endpoint scheduling, bounded retry/recovery behavior, conditional-fetch state persistence, and baseline endpoint health without creating a second collection path or a multi-Publication scheduler.
+Phase 11 extends the existing Relevance boundary with persisted installation-wide Categories and deterministic configurable include/exclude/categorize rules while preserving topic independence, Source-scoped Article identity, provenance, and prospective-by-default rule edits.
 
 ## Delivery priority
 
@@ -65,7 +65,7 @@ Completed MVP adds:
 - deterministic pagination/load-more;
 - light/dark presentation.
 
-The accepted Phase 8/9 validation artifacts record the slug-addressed implementation that existed at their accepted source SHAs. Those artifacts remain historical evidence; the current implementation correction establishes the canonical selector-free routes.
+The accepted Phase 8/9 validation artifacts record the slug-addressed implementation that existed at their accepted source SHAs. Those artifacts remain historical evidence; the completed singleton correction established the canonical selector-free routes.
 
 Pinning/featured-story ordering is deferred beyond MVP.
 
@@ -113,6 +113,8 @@ Source
 
 Source `config_key` is installation-wide. Endpoint identity remains Source-scoped. Article identity remains Source-scoped. Categories/Relevance/duplicate state are installation-wide with Source scope where explicitly required; they do not need a Publication tenant foreign key.
 
+Phase 11 Categories and Relevance rules use immutable installation-wide configuration keys. The MVP Relevance predicate vocabulary is deliberately bounded to literal `title_contains`, `summary_contains`, and `source_category_equals` matching. Include/exclude precedence is deterministic by priority, Source scope, exclude-over-include, and final rule-config-key tie-break. All matching categorize rules apply; endpoint/Source defaults are fallback-only when no categorize rule assigns a Category.
+
 ## Collection architecture
 
 ```text
@@ -122,7 +124,7 @@ Cloudflare Access-protected Admin UI/API       Root Public Feed
                               |
                           PostgreSQL
                               |
-            durable jobs/scheduler (Phase 10+)
+                  durable jobs/scheduler
                               |
                            Worker
                               |
@@ -147,11 +149,11 @@ Cloudflare Access-protected Admin UI/API       Root Public Feed
              public-feed read model -> publisher
 ```
 
-During Phases 5–9 the Worker was invoked manually for configured endpoints. Phase 10 places that same proven endpoint execution unit behind durable jobs/scheduling; Web/API never performs Source collection inline.
+During Phases 5–9 the Worker was invoked manually for configured endpoints. Phase 10 placed that same proven endpoint execution unit behind durable jobs/scheduling; Web/API never performs Source collection inline.
 
-The scheduler operates directly on due endpoints when singleton Publication collection is active. There is no supported Phase 10 requirement to schedule or switch among multiple topic Publications inside one deployment.
+The scheduler operates directly on due endpoints when singleton Publication collection is active. There is no supported requirement to schedule or switch among multiple topic Publications inside one deployment.
 
-Minimal Collection runs begin with the first real fetch in Phase 5. Before configurable Relevance rules exist, safe candidates pass through the canonical empty-rule/default-include decision before identity.
+Minimal Collection runs begin with the first real fetch in Phase 5. Before configurable Relevance rules exist, safe candidates pass through the canonical empty-rule/default-include decision before identity. Phase 11 extends that same boundary rather than introducing a parallel relevance path.
 
 ## Identity versus duplicates
 
@@ -162,7 +164,9 @@ Weak duplicate evidence becomes a persisted review candidate rather than silentl
 
 ## Administration
 
-Initial singleton Publication/Source configuration may be supplied through idempotent operator-maintained bootstrap data. Bootstrap approval is explicit operator approval and never bypasses whitelist/state/network-safety rules. Ordinary bootstrap remains create-if-absent; the pre-admin public-feed work therefore uses an explicit generic operator transition when `public_status` must change rather than making bootstrap overwrite persisted state.
+Initial singleton Publication/Source configuration may be supplied through idempotent operator-maintained bootstrap data. Bootstrap approval is explicit operator approval and never bypasses whitelist/state/network-safety rules. Ordinary bootstrap remains create-if-absent; the pre-admin public-feed work therefore uses explicit generic operator transitions where mutable persisted state must be changed rather than making bootstrap overwrite persisted configuration.
+
+Phase 11 may provide the smallest explicit topic-independent pre-admin operator mechanism for Categories, Relevance rules, and Source/endpoint default Category references. It is invoked deliberately, never on ordinary Web/Worker startup, validates real Source/Category relationships, and does not weaken ordinary bootstrap or trigger automatic bulk historical Relevance reprocessing.
 
 Bootstrap/runtime selection does not use a Publication slug. MVP Source admin UI begins in Phase 14, after the working public vertical slice. Admin navigation/configuration operates on the installation's one configured news product rather than a multi-Publication selector.
 
@@ -194,7 +198,9 @@ Core rules:
 
 Every implementation roadmap phase and gating correction inherits that contract even when its roadmap entry does not repeat the complete test matrix.
 
-The Phase 10 entry singleton implementation correction specifically requires real PostgreSQL migration-from-zero proof for the canonical singleton schema, structural proof that legacy-only migration/compatibility/test/config artifacts are gone, Source-scoped identity/integrity regressions, unchanged collection safety/accounting, canonical `/api/feed` behavior, and Level 6 browser validation of `/`. It does **not** require preservation/migration of databases created by earlier pre-production source trees.
+The completed Phase 10 entry singleton correction required real PostgreSQL migration-from-zero proof for the canonical singleton schema, structural proof that legacy-only migration/compatibility/test/config artifacts were gone, Source-scoped identity/integrity regressions, unchanged collection safety/accounting, canonical `/api/feed` behavior, and Level 6 browser validation of `/`. Its durable artifact remains evidence for the accepted corrected tree.
+
+Phase 11 additionally requires deterministic proof of literal predicate/missing-field behavior, the complete include/exclude precedence/tie matrix, all-matching categorize/default fallback semantics, stable reason ordering, exact `excluded` accounting before identity, prospective non-retroactive behavior, and real PostgreSQL proof for Category/rule schema, uniqueness, relationships, memberships, and reason persistence.
 
 Dependency installation intentionally uses `package.json` without an npm package lock. Repository npm configuration disables `package-lock.json` generation, so clean installs use `npm install` rather than `npm ci`. Because declared dependency ranges may resolve to different compatible versions over time, validation applies to the exact source tree and recorded Node/npm environment that was actually tested rather than claiming byte-for-byte dependency reproducibility.
 
@@ -246,6 +252,10 @@ docs/
 │   └── security-reliability-and-operations.md
 ├── roadmap/
 │   └── mvp-roadmap.md
+├── design/
+│   ├── README.md
+│   ├── ui-workflow.md
+│   └── tasks/            # targeted non-versioned UI prompts when present
 └── decisions/
     ├── single-publication-simplified-data-model.md
     ├── topic-independent-publication-model.md  # historical superseded ADR
@@ -293,7 +303,7 @@ Two task-folder modes are supported by the workflow contract:
 
 ```text
 # Versioned roadmap phase stack
-docs/tasks/p10/
+docs/tasks/p11/
 
 # Non-versioned correction stack
 docs/tasks/c10-single-publication/
@@ -304,7 +314,7 @@ Roadmap phase stacks use `TASK: Phase <phase> / P<number> — <title>` plus `0.<
 Before starting automation, validate the exact written folder without launching Codex:
 
 ```text
-npm run codex:phase:validate -- p10
+npm run codex:phase:validate -- p11
 npm run codex:phase:validate -- c10-single-publication
 ```
 
@@ -313,7 +323,7 @@ A valid folder has contiguous `P1...Pn` `.txt` prompts, exact supported recommen
 After validation, run implementation prompts automatically with:
 
 ```text
-npm run codex:phase -- p10
+npm run codex:phase -- p11
 npm run codex:phase -- c10-single-publication
 ```
 
@@ -321,7 +331,9 @@ For roadmap phase stacks, the runner validates the normal package-version chain 
 
 The correction stack's final manual closeout is **not** followed by `/closeout` merely because it is named closeout. Once that correction is green, work resumes in the already-active roadmap phase using the normal prompt pipeline.
 
-`BOOT.md` defines exact workflow gates, source-of-truth routing, validation expectations, stack grammar, versioning behavior, and repository modification rules.
+Parallel presentation work uses the separate `ui-polish` branch/worktree and `docs/design/ui-workflow.md`. The normal targeted path is `/ui-plan <task>` → `/ui-write <slug>`. When durable design guidance is missing, contradictory, materially ambiguous, or must change, `/ui-plan` blocks and requires `/ui-review <area>` → explicit approval → `/ui-apply` → rerun `/ui-plan` before `/ui-write`. UI work is non-versioned and is not a `codex:phase` stack.
+
+`BOOT.md` defines exact workflow gates, source-of-truth routing, validation expectations, stack grammar, UI-workstream boundaries, versioning behavior, and repository modification rules.
 
 ## Roadmap
 
@@ -339,11 +351,17 @@ Tech-demo critical path:
 8. Phase 8 — Basic public-feed backend
 9. Phase 9 — Basic public-feed UI and tech demo
 
+Completed after the tech-demo milestone:
+
+- **Phase 10 entry correction — singleton implementation alignment** — complete with durable correction validation.
+- **Phase 10 — Automated polling, durable jobs, and endpoint health** — complete with durable phase validation.
+
+Current:
+
+- **Phase 11 — Categories and configurable Relevance execution**
+
 Then:
 
-- **Phase 10 entry correction — singleton implementation alignment**: destructively rebuild disposable pre-production database state from the smallest canonical migration baseline; remove obsolete Publication tenancy/selectors and legacy-only migration/code/API/type/test/fixture/configuration paths; establish `/api/feed` plus `/`; and obtain required database/regression/browser evidence. This is non-versioned and not a numbered roadmap phase.
-- Phase 10 — Automated polling, durable jobs, and endpoint health
-- Phase 11 — Categories and configurable Relevance execution
 - Phase 12 — Feed discovery features
 - Phase 13 — Public presentation polish
 - Phase 14 — Source administration
@@ -353,8 +371,6 @@ Then:
 - Phase 18 — Configurable HTML collection
 - Phase 19 — Reliability, observability, and production operations
 - Phase 20 — Customer launch validation
-
-The correction gate does not change the `0.10.x` version family. It must close before ordinary Phase 10 scheduler/job implementation prompts proceed.
 
 Deferred: native administrator identity/accounts, historical Relevance bulk reprocessing, push/webhook adapters, AI summaries, related-story clustering, public personalization, outbound publishing, self-service tenancy, generic relevance ranking/boost scoring, pinning/featured ordering, API access, multilingual feeds. Concurrent multi-Publication hosting inside one installation is not deferred-by-default behavior; it would require an explicit future contract/ADR and deliberate data-model work.
 

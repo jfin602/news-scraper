@@ -23,6 +23,7 @@ Follow `BOOT.md`.
 - `/docs-apply` authorizes only approved documentation changes and may commit them directly to `main` unless the user requests otherwise.
 - Preserve unrelated wording during scoped documentation fixes.
 - Normal phase handoff follows `/closeout` → `/docs-review` → `/docs-apply` → `/prompt-ass` → `/prompt-plan` → `/prompt-write <folder name>`.
+- Parallel UI work is governed by `docs/design/ui-workflow.md` on the permanent `ui-polish` branch/worktree. The normal targeted path is `/ui-plan` → `/ui-write`; when durable design guidance must first change, `/ui-plan` requires `/ui-review` → explicit approval → `/ui-apply` → rerun `/ui-plan` before `/ui-write`.
 
 ## Versioning Workflow
 
@@ -37,7 +38,8 @@ Follow the canonical versioning and prompt-numbering rules in `BOOT.md`.
 - Project version changes occur only through execution of a new Codex roadmap-phase prompt, a green `/closeout` transition, or another explicit owner-authorized `.0` transition after the prior phase closes. Other documentation/prompt/review workflow activity does not increment the version.
 - Non-versioned correction stacks do not change `package.json` version. Their P-numbers are local ordering only and do not consume/reserve roadmap phase patch numbers.
 - Roadmap prompt reruns keep their assigned version. Correction prompt reruns keep their declared unchanged version.
-- The Phase 10 entry singleton implementation correction is not a new numbered roadmap phase and uses a non-versioned correction stack rather than consuming Phase 10 patch numbers.
+- The completed Phase 10 entry singleton implementation correction was the first non-versioned correction stack and did not consume Phase 10 patch numbers.
+- Parallel UI work is also non-versioned and does not consume roadmap prompt numbers or change roadmap/correction state.
 
 ## Codex Task Stack Grammar
 
@@ -68,6 +70,8 @@ Non-versioned correction stacks:
 - Correction commit subjects identify the correction stack/prompt instead of impersonating package-version commits.
 - Correction closeout validates only that correction and does not invoke/substitute for `/closeout` or advance the package version.
 
+Targeted UI prompts under `docs/design/tasks/` are not a third `codex:phase` grammar. They follow `docs/design/ui-workflow.md`, are single targeted prompts, require `Workstream: UI` and execution on `ui-polish`, and must preserve project version and roadmap state.
+
 ## Canonical documents
 
 Use `BOOT.md` as router and read the narrowest governing document.
@@ -83,6 +87,8 @@ docs/contracts/testing-and-validation-contract.md
 docs/architecture/system-architecture.md
 docs/operations/security-reliability-and-operations.md
 docs/roadmap/mvp-roadmap.md
+docs/design/README.md
+docs/design/ui-workflow.md
 docs/decisions/single-publication-simplified-data-model.md
 docs/decisions/topic-independent-publication-model.md  # historical superseded ADR
 docs/decisions/whitelist-and-structured-feed-first.md
@@ -119,6 +125,7 @@ High-risk distinctions:
 - A second unrelated topic is a second configured deployment of the same codebase, not another concurrently hosted Publication in one installation.
 - Source is a configured publisher/outlet whose approval state determines trust; Source endpoint is the concrete feed/API/HTML location.
 - Source `config_key` is installation-wide; endpoint `config_key` is Source-scoped.
+- Categories and Relevance rules use immutable installation-wide `config_key` identities; a Relevance rule may optionally be Source-scoped.
 - Approval/trust, configuration lifecycle, operational state, public visibility, moderation state, duplicate role, and derived health are separate.
 - Active configuration may be enabled/paused/disabled; archived configuration is retired and not collectable.
 - Collection run is one endpoint attempt and begins as persisted provenance with the first real fetch phase.
@@ -152,10 +159,15 @@ Governed by `docs/contracts/source-and-collection-contract.md`, `docs/architectu
 - Parsers produce Raw items and never persist Articles directly.
 - Normalization precedes Relevance, identity, duplicate, and feed behavior.
 - Before configurable Relevance rules exist, the canonical Relevance boundary runs with an empty rule set and returns deterministic default `include`.
-- Configurable MVP Relevance actions are include/exclude/categorize with installation-wide plus optional Source-scoped precedence; edits are prospective by default and automatic bulk historical reprocessing is deferred.
+- Phase 11 MVP Relevance predicates are only literal `title_contains`, `summary_contains`, and `source_category_equals`. Missing fields do not match; regex/glob/fuzzy/semantic/general expression behavior is not implied.
+- Matching include/exclude precedence is priority descending → Source-scoped before installation-wide → `exclude` before `include` → immutable rule `config_key` ascending for the final stable reason tie-break; otherwise inclusion defaults to `include`.
+- All matching categorize rules apply and are deduplicated by Category `config_key`; categorize priority orders reasons but does not suppress another matching Category. Endpoint default Category then Source default Category are fallback-only when no categorize rule assigns a Category.
+- A Relevance exclusion terminates before Article identity, persists the canonical `excluded` outcome with endpoint/run provenance and reason, and does not retroactively mutate an earlier persisted Article.
+- Configurable MVP Relevance edits are prospective by default and automatic bulk historical reprocessing is deferred.
+- Before the Phase 15 admin surface, the smallest explicit topic-independent operator mechanism may create/edit Category/Relevance/default-Category configuration, but it is never applied implicitly at Web/Worker startup and must not weaken ordinary bootstrap no-overwrite behavior.
 - Repeated Source observations converge transactionally on one Source-scoped Article identity.
-- During Phases 5–9, collection was manually invoked through Worker endpoint runs; Web/API never fetches Sources inline.
-- Phase 10 adds durable jobs/scheduling around the same endpoint execution unit; scheduler operates directly on due endpoints and uses the singleton collection-active state as a global gate.
+- During Phases 5–9, collection was manually invoked through Worker endpoint runs; Web/API never fetched Sources inline.
+- Phase 10 added durable jobs/scheduling around the same endpoint execution unit; scheduler operates directly on due endpoints and uses the singleton collection-active state as a global gate.
 - Endpoint runs/jobs fail independently and public-feed reads remain available.
 
 ## Article and duplicate law
@@ -202,7 +214,7 @@ Basic public-page baseline:
 - desktop uses the core `Date | Headline | Source` view and mobile uses a sane stacked layout without pulling Phase 13 presentation polish forward;
 - Web/API page handling does not collect Sources inline.
 
-Accepted Phase 8/9 validation artifacts continue to describe the slug-addressed routes actually tested at their source SHAs; current implementation correction work supplies new evidence for the canonical selector-free routes.
+Accepted Phase 8/9 validation artifacts continue to describe the slug-addressed routes actually tested at their source SHAs; the completed singleton correction supplies current selector-free route evidence.
 
 Admin MVP:
 
@@ -213,7 +225,7 @@ Admin MVP:
 - application commands validate real Source/endpoint/run/Article/observation/duplicate relationships and domain invariants, not Publication tenancy;
 - native application accounts/sessions/roles/account recovery/per-user Publication authorization/identity-linked audit attribution are deferred beyond MVP.
 
-Before the full Publication-admin phase exists, the smallest explicit topic-independent operator mechanism may change singleton `public_status`. Ordinary bootstrap remains create-if-absent and does not overwrite existing persisted state.
+Before the full Publication-admin phase exists, the smallest explicit topic-independent operator mechanisms may change already-governed mutable singleton/editorial configuration without turning ordinary bootstrap into overwrite authority.
 
 ## Validation law
 
@@ -231,21 +243,21 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 - Every reproducible defect should receive regression coverage when technically practical.
 - Every implementation roadmap phase and gating correction inherits the testing contract.
 - Phase 9's accepted validation artifact remains historical evidence for its exact source tree.
-- The Phase 10 entry singleton correction requires migration-from-zero, singleton/Source-scoped identity/integrity, unchanged collection safety/accounting, `/api/feed`, `/`, Level 6 browser coverage, and structural proof that legacy-only migration/compatibility/test/config artifacts were removed before ordinary Phase 10 implementation proceeds.
-- The singleton correction does not require preservation/migration of databases created by older pre-production source trees or tests that exist only to exercise those unsupported upgrades.
-- The gating correction closeout requires executed local terminal evidence and a durable `docs/validation/` artifact tied to the exact accepted corrected source tree.
+- The Phase 10 entry singleton correction is complete and its durable validation artifact remains authoritative for the corrected singleton migration/identity/collection/public-browser evidence actually observed.
+- Phase 10 is complete with durable scheduler/job/retry/overlap/recovery validation evidence.
+- Phase 11 requires the full literal-predicate, include/exclude precedence/final-tie, categorize/default, stable-reason, prospective-exclusion, and exact `excluded` accounting matrix plus real PostgreSQL proof for its new persistence relationships and constraints.
 
 ## Roadmap law
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 10 — Automated polling, durable jobs, and endpoint health**.
+Current phase: **Phase 11 — Categories and configurable Relevance execution**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; owner acceptance advances roadmap state without rewriting that evidence.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with its recorded live-source limitation preserved. The Phase 10 entry singleton correction and Phase 10 Automated polling/durable jobs/endpoint health are complete with durable validation.
 
-Phase 10 is active, but implementation is gated on the **singleton implementation correction**: destructively rebuild pre-production database state from the smallest canonical migration baseline, remove obsolete Publication tenancy/selectors and legacy-only migration/code/API/type/test/fixture/config paths, make `/api/feed` and `/` canonical, and validate database/regression/browser behavior. This gate is not a new numbered roadmap phase and must execute as a non-versioned correction stack before ordinary Phase 10 prompts begin.
+Phase 11 is active. Do not pull Phase 12 discovery UI, Phase 14–15 admin UX, Phase 16 duplicate grouping, or later work into Phase 11 unless a true dependency or explicit decision requires it.
 
-Phases 1–9 remain the tech-demo critical path historically; do not pull later admin/discovery/deduplication work into the correction or Phase 10 without a true dependency or explicit decision.
+Phases 1–9 remain the tech-demo critical path historically.
 
 ## Working preferences
 
@@ -255,10 +267,10 @@ Phases 1–9 remain the tech-demo critical path historically; do not pull later 
 - Require focused + broader regression tests and name the evidence level needed to prove acceptance.
 - Do not claim runtime/browser/database/live-Source behavior unless actually observed at the corresponding evidence level.
 - Prefer smallest correct changes over speculative abstractions or compatibility bridges.
-- For pre-production canonicalization, prefer deletion over wrappers/aliases: remove legacy-only migrations, code, types, APIs, tests, fixtures, and configuration paths instead of preserving superseded behavior in the active tree.
 - Trace shared helpers/consumers before changing data or collection semantics.
-- Before singleton-correction work trace current migrations/schema → singleton Publication/bootstrap repositories → Sources/endpoints → Worker/manual selection → candidate provenance → Article identity/observations → public-feed repository/routes/page → fixtures/tests/browser evidence.
+- Before Phase 11 Relevance work trace migrations/schema → Category/rule/default configuration → normalized Article candidate fields → Relevance evaluator → pre-identity exclusion path → Article identity/persistence/observations → Article Categories/reasons → Collection-run accounting → scheduler/manual consumers → tests.
 - Before public-route work trace singleton Publication settings → canonical read model → `/api/feed` → `/` page/client → unavailable/error behavior → external links → browser tests.
+- Before UI work read `docs/design/README.md` and `docs/design/ui-workflow.md`, trace presentation source/shared frontend consumers/tests, and keep concurrent UI implementation isolated in the `ui-polish` worktree.
 - Confirm applicable local validation commands/suites were actually executed against the final tree before approval.
 - Confirm each Codex roadmap phase prompt uses its assigned one-based prompt number/version; confirm each correction prompt preserves its declared unchanged version; `package.json` remains authoritative in both modes.
 - Before declaring a task folder automation-ready, validate its exact machine-parsed grammar against the current runner; do not infer parser compatibility from visual similarity to historical prompts.
