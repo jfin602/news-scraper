@@ -83,11 +83,19 @@ export function waitForJsonEvent(
 }
 
 export function sendGracefulTermination(child: ChildProcess): void {
+  sendSignal(child, 'SIGTERM');
+}
+
+export function sendGracefulInterrupt(child: ChildProcess): void {
+  sendSignal(child, 'SIGINT');
+}
+
+function sendSignal(child: ChildProcess, signal: 'SIGINT' | 'SIGTERM'): void {
   if (process.platform === 'win32') {
     assert.equal(child.connected, true, 'Windows test IPC is not connected');
-    child.send('SIGTERM');
+    child.send(signal);
   } else {
-    assert.equal(child.kill('SIGTERM'), true);
+    assert.equal(child.kill(signal), true);
   }
 }
 

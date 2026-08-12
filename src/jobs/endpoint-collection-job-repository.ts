@@ -345,6 +345,26 @@ export async function listExpiredRunningEndpointCollectionJobs(
   return Object.freeze(result.rows.map(mapEndpointCollectionJobRow));
 }
 
+export async function listRecentEndpointCollectionJobs(
+  executor: QueryExecutor,
+  limit: number,
+): Promise<readonly PersistedEndpointCollectionJob[]> {
+  const boundedLimit = requiredIntegerInRange(
+    limit,
+    1,
+    EXPIRED_BATCH_MAX_LIMIT,
+    'recent job batch limit',
+  );
+  const result = await executor.query<EndpointCollectionJobRow>(
+    `SELECT ${JOB_COLUMNS}
+     FROM endpoint_collection_jobs
+     ORDER BY updated_at DESC, id DESC
+     LIMIT $1`,
+    [boundedLimit],
+  );
+  return Object.freeze(result.rows.map(mapEndpointCollectionJobRow));
+}
+
 export async function requeueExpiredUnstartedEndpointCollectionJob(
   executor: QueryExecutor,
   jobId: string,
