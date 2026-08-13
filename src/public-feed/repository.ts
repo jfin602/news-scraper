@@ -34,6 +34,12 @@ export interface PublicFeedItem {
 export interface PublicFeed {
   readonly publication: PublicFeedPublication;
   readonly items: readonly PublicFeedItem[];
+  /** Present on the canonical Phase 12 discovery read model. */
+  readonly sourceChoices?: readonly PublicDiscoveryChoice[];
+  /** Present on the canonical Phase 12 discovery read model. */
+  readonly categoryChoices?: readonly PublicDiscoveryChoice[];
+  /** Present on the canonical Phase 12 discovery read model. */
+  readonly nextCursor?: string | null;
 }
 
 export interface PublicDiscoveryChoice {
