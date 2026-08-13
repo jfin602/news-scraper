@@ -38,6 +38,7 @@ docs/
 │   └── cloudflare-access-admin-perimeter.md
 ├── design/
 │   ├── README.md
+│   ├── public-feed-presentation.md
 │   ├── ui-workflow.md
 │   └── tasks/       # created only when /ui-write emits targeted UI prompts
 ├── testing/         # created only when specialized validation plans become substantive
@@ -58,9 +59,10 @@ Git does not track empty directories, so `testing/`, `tasks/`, `design/tasks/`, 
 - `contracts/article-lifecycle-and-deduplication.md` — Article visibility, Source-scoped identity, duplicate roles/review/groups, Primary selection, feed eligibility.
 - `contracts/public-feed-and-admin-contract.md` — canonical root public page, singleton public-feed API/read model, search/filtering, themes, external links, and Cloudflare-protected admin UX/change history. Accepted Phase 8/9 slug-addressed routes remain recorded in validation artifacts for their accepted SHAs.
 - `design/README.md` — design-document authority/routing and the entry point for the parallel UI workstream.
+- `design/public-feed-presentation.md` — durable public-feed layout, typography, themes, states, responsive behavior, accessibility presentation, and design-token guidance for Phase 13 and later presentation work.
 - `design/ui-workflow.md` — permanent `ui-polish` branch/worktree rules, presentation task boundaries, conditional `/ui-review` → `/ui-apply` design-guidance workflow, and targeted `/ui-plan` → `/ui-write` prompt workflow.
 - `operations/security-reliability-and-operations.md` — admin perimeter, fetch security, real resource validation, failure isolation, observability, recovery, pre-production database deployment, production hardening.
-- `roadmap/mvp-roadmap.md` — Phase 0–20 sequence, tech-demo critical path, completed Phase 10 entry singleton correction, completed Phase 11 Category/Relevance execution, dependencies, non-goals, exit gates, and current Phase 12 discovery scope.
+- `roadmap/mvp-roadmap.md` — Phase 0–20 sequence, tech-demo critical path, completed Phase 10 entry singleton correction, completed Phase 11 Category/Relevance execution, completed Phase 12 feed discovery, dependencies, non-goals, exit gates, and current Phase 13 public-presentation scope.
 - `decisions/single-publication-simplified-data-model.md` — **current Accepted ADR** for topic-independent separate deployments, singleton Publication configuration without relational tenancy, and the pre-production rebuild-from-zero database rule.
 - `decisions/topic-independent-publication-model.md` — **Superseded historical ADR** retained only as decision history.
 - `decisions/whitelist-and-structured-feed-first.md` — whitelist/trust and structured-feed priority.
@@ -99,6 +101,6 @@ Implementation-phase/correction closeout requires executed local validation evid
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend are complete with durable closeout validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026; its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in that run because The Creative Penn timed out under the recorded execution environment.
 
-The Phase 10 entry singleton implementation correction is complete with durable validation in `validation/single-publication-simplification-correction.md`. Phase 10 — Automated polling, durable jobs, and endpoint health — is complete with durable validation in `validation/phase-10-automated-polling-durable-jobs-endpoint-health.md`. Phase 11 — Categories and configurable Relevance execution — is complete with durable validation in `validation/phase-11-categories-configurable-relevance-execution.md`.
+The Phase 10 entry singleton implementation correction is complete with durable validation in `validation/single-publication-simplification-correction.md`. Phase 10 — Automated polling, durable jobs, and endpoint health — is complete with durable validation in `validation/phase-10-automated-polling-durable-jobs-endpoint-health.md`. Phase 11 — Categories and configurable Relevance execution — is complete with durable validation in `validation/phase-11-categories-configurable-relevance-execution.md`. Phase 12 — Feed discovery features — is complete with durable validation in `validation/phase-12-feed-discovery-features.md`.
 
-The repository is currently in **Phase 12 — Feed discovery features**. Phase 12 extends the canonical public-feed boundary with deterministic Source/Category filtering, bounded literal keyword search, stable keyset pagination/load-more, URL/reset navigation behavior, and MVP-scale query/index tuning without changing feed eligibility or chronological ordering.
+The repository is currently in **Phase 13 — Public presentation polish**. Phase 13 owns the minimum singleton Publication public-presentation/branding support, final responsive desktop/mobile feed presentation, system/light/dark reader themes, accessibility, intentional pending/loading presentation including R7KM, and browser validation while preserving Phase 12 discovery semantics.
