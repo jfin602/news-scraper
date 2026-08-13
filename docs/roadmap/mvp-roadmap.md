@@ -632,7 +632,7 @@ Add deterministic installation-specific inclusion/exclusion/categorization witho
 
 ## Phase 12 — Feed discovery features
 
-**Status:** Current roadmap phase.
+**Status:** Complete with durable validation recorded in `docs/validation/phase-12-feed-discovery-features.md`.
 
 ### Goal
 
@@ -666,6 +666,8 @@ Make the growing feed easy to explore without changing eligibility semantics.
 - Browser/API regression coverage preserves URL/reset/navigation behavior.
 
 ## Phase 13 — Public presentation polish
+
+**Status:** Current roadmap phase.
 
 ### Goal
 
