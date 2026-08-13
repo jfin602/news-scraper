@@ -15,6 +15,28 @@ const publicFeedPage = `<!doctype html>
   <body>
     <main class="public-feed-shell">
       <h1 data-publication-name>News feed</h1>
+      <form data-discovery-form aria-label="Discover headlines">
+        <div class="discovery-field">
+          <label for="discovery-keyword">Keyword</label>
+          <input id="discovery-keyword" name="q" type="search" data-discovery-keyword>
+        </div>
+        <div class="discovery-field">
+          <label for="discovery-source">Source</label>
+          <select id="discovery-source" name="source" data-discovery-source>
+            <option value="">All sources</option>
+          </select>
+        </div>
+        <div class="discovery-field">
+          <label for="discovery-category">Category</label>
+          <select id="discovery-category" name="category" data-discovery-category>
+            <option value="">All categories</option>
+          </select>
+        </div>
+        <div class="discovery-actions">
+          <button type="submit">Search</button>
+          <button type="button" data-discovery-reset>Reset</button>
+        </div>
+      </form>
       <p data-feed-status role="status" aria-live="polite">Loading the latest headlines.</p>
       <section data-feed-content aria-label="Latest headlines"></section>
     </main>

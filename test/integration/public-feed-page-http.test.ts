@@ -43,6 +43,30 @@ describe('Public feed page HTTP delivery', () => {
     assert.match(body, /<link rel="stylesheet" href="\/public-feed\.css">/u);
     assert.match(body, /<script src="\/public-feed\.js" defer><\/script>/u);
     assert.match(body, /<h1 data-publication-name>News feed<\/h1>/u);
+    assert.match(
+      body,
+      /<form data-discovery-form aria-label="Discover headlines">/u,
+    );
+    assert.match(body, /<label for="discovery-keyword">Keyword<\/label>/u);
+    assert.match(
+      body,
+      /<input id="discovery-keyword" name="q" type="search" data-discovery-keyword>/u,
+    );
+    assert.match(body, /<label for="discovery-source">Source<\/label>/u);
+    assert.match(
+      body,
+      /<select id="discovery-source" name="source" data-discovery-source>/u,
+    );
+    assert.match(body, /<label for="discovery-category">Category<\/label>/u);
+    assert.match(
+      body,
+      /<select id="discovery-category" name="category" data-discovery-category>/u,
+    );
+    assert.match(body, /<button type="submit">Search<\/button>/u);
+    assert.match(
+      body,
+      /<button type="button" data-discovery-reset>Reset<\/button>/u,
+    );
     assert.doesNotMatch(body, /indie|author|publishing/u);
     assert.equal(publicFeedReads, 0);
   });
@@ -73,8 +97,10 @@ describe('Public feed page HTTP delivery', () => {
     assert.match(clientSource, /\/api\/feed/u);
     assert.doesNotMatch(
       clientSource,
-      /api\/publications|window\.location\.pathname|decodeURIComponent/u,
+      /api\/publications|publications\/|decodeURIComponent/u,
     );
+    assert.match(clientSource, /window\.location\.search/u);
+    assert.match(clientSource, /history\.pushState/u);
 
     const unknown = await request('/public/private-source-file.ts');
     assert.equal(unknown.status, 404);
