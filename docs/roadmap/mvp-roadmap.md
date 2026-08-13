@@ -669,7 +669,7 @@ Make the growing feed easy to explore without changing eligibility semantics.
 
 ### Goal
 
-Turn the working feed into a polished customer-facing publication experience.
+Turn the working feed into a polished customer-facing publication experience without changing the feed/discovery semantics proven by Phase 12.
 
 ### Depends on
 
@@ -677,28 +677,43 @@ Turn the working feed into a polished customer-facing publication experience.
 
 ### Deliverables
 
+- minimum singleton Publication public-presentation persistence/read-model support for required name plus optional bounded description, same-origin logo path, and canonical accent color;
 - final desktop three-column presentation;
 - accessible stacked mobile layout;
 - responsive refinement;
-- light/dark modes;
-- singleton Publication branding integration;
-- contrast/focus/keyboard/wrapping/tap-target pass;
-- external-link semantics;
-- browser validation.
+- reader-selectable `system` / `light` / `dark` modes with system-following default and persistent local override;
+- singleton Publication branding integration with safe generic fallbacks when optional values are absent;
+- WCAG 2.2 Level AA pass for the in-scope root public-feed experience, including contrast, semantic controls, visible focus, keyboard operation, wrapping/reflow, target sizing, status semantics, and reduced-motion behavior;
+- neutral intentional initial loading presentation that resolves tracked issue R7KM without visibly flashing unset/generic Publication content before `/api/feed` resolves;
+- direct understandable external-link presentation while retaining normal same-context navigation to stored `original_url` by default;
+- browser validation across supported desktop/mobile layouts, themes, accessibility interactions, loading/error states, and Phase 12 discovery workflows.
+
+### Boundary clarification
+
+- Phase 13 is presentation polish plus the smallest Publication presentation persistence/public-read support required by that polish. It does not create a parallel feed query, routing surface, ranking model, or reader account/session system.
+- The canonical `/api/feed` eligibility/order/search/filter/keyset semantics and root URL/history/reset/load-more behavior from Phase 12 remain unchanged. Presentation/markup changes must preserve the relevant Phase 12 API, database, and browser regression coverage.
+- Phase 13 introduces/uses the minimum public branding data, but Phase 15 owns the Cloudflare-protected administrator editing surface for those values.
+- Configurable presentation timezone/date behavior remains deferred to Phase 15; Phase 13 preserves the established UTC calendar-date fallback.
+- Earlier compliant presentation changes already integrated from the parallel `ui-polish` workstream may satisfy portions of this phase and should be credited after final-tree assessment rather than rebuilt automatically.
 
 ### Out of scope
 
-- admin UX;
+- admin UX or branding-setting administration;
+- configurable presentation timezone/date settings;
 - duplicate moderation;
 - Article-body republishing;
-- featured ordering.
+- featured ordering;
+- changes to Phase 12 discovery semantics, cursor behavior, feed eligibility, or chronological ordering.
 
 ### Exit gate
 
-- Core public workflows are usable on supported desktop/mobile layouts with browser evidence.
-- Light/dark/accessibility/navigation regressions pass.
-- Branding remains Publication configuration, not shared-engine topic logic.
-- Original publisher remains primary read action.
+- Core public workflows are usable on supported desktop/mobile layouts with Level 6 browser evidence.
+- Effective light and dark presentation, theme selection/persistence, WCAG 2.2 AA in-scope accessibility behavior, keyboard/focus navigation, responsive wrapping/reflow, target sizing, and reduced-motion behavior pass browser regression coverage.
+- Initial pending-load presentation does not visibly expose unset/generic Publication content before configured public data is known, resolving R7KM only when the final implementation/browser evidence proves it.
+- The relevant Phase 12 search/filter/URL/Reset/Back-Forward/load-more/stale-response/API/database regressions remain green on the exact final Phase 13 tree.
+- Branding values come from bounded singleton Publication configuration/public read-model data with safe generic fallbacks, not shared-engine topic logic.
+- Configurable timezone is not introduced and UTC date behavior remains unchanged.
+- Original publisher remains the primary read action through an exact stored-`original_url` direct link with normal same-context activation by default.
 
 ## Phase 14 — Source administration
 
@@ -756,7 +771,8 @@ Expose the installation's singleton Publication/editorial configuration through 
 
 - singleton Publication name/settings;
 - collection/public controls;
-- branding/feed configuration;
+- branding/feed configuration, including editing the public presentation values introduced in Phase 13;
+- configurable Publication presentation timezone/date settings replacing the earlier UTC-only fallback when explicitly configured;
 - Category management;
 - Relevance-rule management;
 - Source priority/default Category controls;
