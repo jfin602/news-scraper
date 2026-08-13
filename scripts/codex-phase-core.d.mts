@@ -60,6 +60,23 @@ export function buildPlan(
   entries: readonly { filename: string; text: string }[],
   folderName: string,
 ): TaskStackPlan;
+export function promptCommitSubject(
+  plan: TaskStackPlan,
+  prompt: ParsedPrompt,
+): string;
+export function detectCompletedPromptPrefix(
+  plan: TaskStackPlan,
+  history: readonly { readonly sha: string; readonly subject: string }[],
+  packageVersion: string,
+): {
+  readonly completedCount: number;
+  readonly completed: readonly {
+    readonly prompt: ParsedPrompt;
+    readonly commitSha: string;
+  }[];
+  readonly nextPrompt: ParsedPrompt | undefined;
+  readonly previousVersion: string;
+};
 export function assertVersionCompatible(
   actual: string,
   prompt: PhasePrompt,

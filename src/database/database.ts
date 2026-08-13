@@ -8,6 +8,8 @@ import {
 
 import type { DatabaseConfig } from './config.ts';
 
+export const DATABASE_POOL_MAX_CONNECTIONS = 10;
+
 export interface QueryExecutor {
   query<Row extends QueryResultRow = QueryResultRow>(
     text: string,
@@ -41,7 +43,10 @@ const UNAVAILABLE_REASON = 'database connection is unavailable';
 const DISCARDED_SESSION_REASON = 'database session is discarded';
 
 export function createDatabase(config: Readonly<DatabaseConfig>): Database {
-  return new PooledDatabase({ connectionString: config.connectionString });
+  return new PooledDatabase({
+    connectionString: config.connectionString,
+    max: DATABASE_POOL_MAX_CONNECTIONS,
+  });
 }
 
 class PooledDatabase implements Database {
@@ -92,6 +97,12 @@ class PooledDatabase implements Database {
       throw new DatabaseRuntimeError('transaction', UNAVAILABLE_REASON);
     }
 
+    let discard = false;
+    const handleClientError = () => {
+      discard = true;
+    };
+    client.on('error', handleClientError);
+
     try {
       await client.query('BEGIN');
       try {
@@ -117,7 +128,11 @@ class PooledDatabase implements Database {
       }
       throw error;
     } finally {
-      client.release();
+      try {
+        client.release(discard);
+      } finally {
+        client.off('error', handleClientError);
+      }
     }
   }
 
@@ -134,6 +149,10 @@ class PooledDatabase implements Database {
     }
 
     let discard = false;
+    const handleClientError = () => {
+      discard = true;
+    };
+    client.on('error', handleClientError);
     const session: DatabaseSession = {
       discard: () => {
         discard = true;
@@ -163,7 +182,11 @@ class PooledDatabase implements Database {
     try {
       return await work(session);
     } finally {
-      client.release(discard);
+      try {
+        client.release(discard);
+      } finally {
+        client.off('error', handleClientError);
+      }
     }
   }
 

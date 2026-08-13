@@ -1,5 +1,8 @@
 import type { QueryExecutor } from '../database/database.ts';
-import type { ArticlePersistenceResult } from '../articles/repository.ts';
+import type {
+  ArticlePersistenceResult,
+  ExcludedArticlePersistenceResult,
+} from '../articles/repository.ts';
 import type { EndpointConfigurationAggregate } from '../sources/repository.ts';
 import type { CollectionBlockedDecision } from './decision.ts';
 import {
@@ -11,6 +14,10 @@ import type {
   HttpFetcherRequest,
   HttpFetcherResult,
 } from './fetchers/http-fetcher.ts';
+import type {
+  ConditionalRequestValidators,
+  RetryClassification,
+} from './fetchers/fetcher.ts';
 import type { EndpointRunLockBlocked } from './locks/endpoint-run-lock.ts';
 import {
   type ArticleLinkPolicyContext,
@@ -23,18 +30,24 @@ import type {
 } from './normalization/article-candidate.ts';
 import type { FeedParser, ParserResult } from './parsers/parser.ts';
 import type { RawItem } from './raw-item.ts';
+import type {
+  EffectiveRelevanceConfiguration,
+  RelevanceDecision,
+} from './relevance/evaluator.ts';
 import {
   finalizeCollectionRun,
   startCollectionRun,
   type FinalizeCollectionRunInput,
   type PersistedCollectionRun,
   type CollectionRunProcessingStatus,
+  type CollectionRunTriggerKind,
 } from './runs/repository.ts';
 
 export interface CollectionRunStore {
   start(input: {
     readonly sourceEndpointId: string;
     readonly executionId: string;
+    readonly triggerKind?: CollectionRunTriggerKind;
   }): Promise<PersistedCollectionRun>;
   finalize(
     collectionRunId: string,
@@ -55,21 +68,26 @@ export interface CollectEndpointDependencies {
     candidate: ArticleCandidate,
     context: ArticleLinkPolicyContext,
   ) => ArticleLinkPolicyDecision;
+  readonly loadRelevanceConfiguration: () => Promise<EffectiveRelevanceConfiguration>;
   readonly evaluateRelevance: (
     candidate: ArticleCandidate,
-  ) => CollectionRelevanceDecision;
+    configuration: EffectiveRelevanceConfiguration,
+  ) => RelevanceDecision;
   readonly persistArticle: (
     candidate: ArticleCandidate,
     observationTime: Date,
+    decision: Extract<RelevanceDecision, { readonly included: true }>,
   ) => Promise<ArticlePersistenceResult>;
+  readonly persistExcludedArticle: (
+    candidate: ArticleCandidate,
+    observationTime: Date,
+    decision: Extract<RelevanceDecision, { readonly included: false }>,
+  ) => Promise<ExcludedArticlePersistenceResult>;
   readonly observationTime: () => Date;
   readonly executionId: () => string;
+  readonly triggerKind?: CollectionRunTriggerKind;
   readonly fetchOptions?: Omit<HttpFetcherRequest, 'configuration'>;
 }
-
-export type CollectionRelevanceDecision =
-  | Readonly<{ included: true; candidate: ArticleCandidate }>
-  | Readonly<{ included: false }>;
 
 export type CollectionAttemptOutcome =
   | 'content'
@@ -111,6 +129,8 @@ export interface EndpointCollectionAttemptResult {
   readonly decompressedByteCount?: number;
   readonly redirectCount?: number;
   readonly elapsedMilliseconds?: number;
+  readonly retryClassification?: RetryClassification;
+  readonly responseValidators?: ConditionalRequestValidators;
 }
 
 export type CollectEndpointResult =
@@ -167,6 +187,7 @@ export async function collectEndpoint(
       const running = await dependencies.runs.start({
         sourceEndpointId: configuration.endpoint.id,
         executionId,
+        triggerKind: dependencies.triggerKind ?? 'manual',
       });
       const draft = await executeAttempt(
         configuration,
@@ -209,6 +230,8 @@ async function executeAttempt(
       'not_run',
       'fetch_execution_failed',
       'Feed fetch failed outside its bounded result contract.',
+      {},
+      'transient',
     );
   }
 
@@ -234,6 +257,7 @@ async function executeAttempt(
       fetchResult.reason,
       fetchResult.detail,
       metadata,
+      fetchResult.retry,
     );
   }
   if (fetchResult.outcome === 'not_modified') {
@@ -258,6 +282,7 @@ async function executeAttempt(
         ...normalizationNotRun,
         ...processingNotRun,
         ...persistenceMetadata(metadata),
+        outcomeCode: 'not_modified',
       }),
     });
   }
@@ -381,6 +406,9 @@ async function executeAttempt(
       ...processing.accounting,
       candidates,
       ...(processing.failure === undefined ? {} : processing.failure),
+      ...(processingFailed
+        ? { retryClassification: 'permanent' as const }
+        : {}),
       ...metadata,
     }),
     finalization: Object.freeze({
@@ -394,6 +422,10 @@ async function executeAttempt(
       articleLinkRejectionCount,
       ...processing.accounting,
       ...persistenceMetadata(metadata),
+      outcomeCode: processingFailed ? 'processing_failed' : 'content',
+      ...(processingFailed
+        ? { retryClassification: 'permanent' as const }
+        : {}),
       ...(processing.failure === undefined
         ? {}
         : { error: processing.failureError }),
@@ -431,11 +463,33 @@ async function processCandidates(
     failedCount: 0,
   };
 
+  let relevanceConfiguration: EffectiveRelevanceConfiguration;
+  try {
+    relevanceConfiguration = await dependencies.loadRelevanceConfiguration();
+    if (
+      relevanceConfiguration === null ||
+      typeof relevanceConfiguration !== 'object' ||
+      !Array.isArray(relevanceConfiguration.rules)
+    ) {
+      throw new TypeError('Invalid Relevance configuration snapshot.');
+    }
+  } catch {
+    return processingFailure(
+      counters,
+      candidates.length,
+      'relevance_configuration_load_execution_failed',
+      'Relevance configuration loading failed outside its bounded snapshot contract.',
+    );
+  }
+
   for (let index = 0; index < candidates.length; index += 1) {
     const candidate = candidates[index]!;
-    let relevance: CollectionRelevanceDecision;
+    let relevance: RelevanceDecision;
     try {
-      relevance = dependencies.evaluateRelevance(candidate);
+      relevance = dependencies.evaluateRelevance(
+        candidate,
+        relevanceConfiguration,
+      );
       if (
         relevance === null ||
         typeof relevance !== 'object' ||
@@ -450,11 +504,6 @@ async function processCandidates(
         'relevance_execution_failed',
         'Relevance evaluation failed outside its bounded decision contract.',
       );
-    }
-
-    if (!relevance.included) {
-      counters.excludedCount += 1;
-      continue;
     }
 
     let observationTime: Date;
@@ -475,11 +524,37 @@ async function processCandidates(
       );
     }
 
+    if (!relevance.included) {
+      let persistence: ExcludedArticlePersistenceResult;
+      try {
+        persistence = await dependencies.persistExcludedArticle(
+          candidate,
+          observationTime,
+          relevance,
+        );
+        if (!isExcludedArticlePersistenceResult(persistence)) {
+          throw new TypeError('Invalid excluded Article persistence result.');
+        }
+      } catch {
+        return processingFailure(
+          counters,
+          candidates.length - index,
+          'relevance_exclusion_persistence_execution_failed',
+          'Relevance exclusion persistence failed outside its bounded result contract.',
+        );
+      }
+
+      if (persistence.outcome === 'excluded') counters.excludedCount += 1;
+      else counters.failedCount += 1;
+      continue;
+    }
+
     let persistence: ArticlePersistenceResult;
     try {
       persistence = await dependencies.persistArticle(
         relevance.candidate,
         observationTime,
+        relevance,
       );
       if (!isArticlePersistenceResult(persistence)) {
         throw new TypeError('Invalid Article persistence result.');
@@ -507,6 +582,17 @@ async function processCandidates(
   return Object.freeze({
     accounting: Object.freeze({ processingStatus: 'succeeded', ...counters }),
   });
+}
+
+function isExcludedArticlePersistenceResult(
+  value: unknown,
+): value is ExcludedArticlePersistenceResult {
+  if (value === null || typeof value !== 'object') return false;
+  const outcome = Reflect.get(value, 'outcome');
+  if (outcome === 'excluded') return true;
+  if (outcome !== 'failed') return false;
+  const reason = Reflect.get(value, 'reason');
+  return reason === 'identity_conflict' || reason === 'provenance_mismatch';
 }
 
 function isArticlePersistenceResult(
@@ -568,6 +654,7 @@ function normalizationExecutionFailedDraft(
       ...processingNotRun,
       reason,
       detail,
+      retryClassification: 'permanent',
       ...metadata,
     }),
     finalization: Object.freeze({
@@ -581,6 +668,8 @@ function normalizationExecutionFailedDraft(
       articleLinkRejectionCount: 0,
       ...processingNotRun,
       ...persistenceMetadata(metadata),
+      outcomeCode: 'normalization_failed',
+      retryClassification: 'permanent',
       error: Object.freeze({ code: reason, detail }),
     }),
   });
@@ -613,6 +702,7 @@ function articleLinkPolicyExecutionFailedDraft(
       ...processingNotRun,
       reason,
       detail,
+      retryClassification: 'permanent',
       ...metadata,
     }),
     finalization: Object.freeze({
@@ -626,6 +716,8 @@ function articleLinkPolicyExecutionFailedDraft(
       articleLinkRejectionCount,
       ...processingNotRun,
       ...persistenceMetadata(metadata),
+      outcomeCode: 'article_link_policy_failed',
+      retryClassification: 'permanent',
       error: Object.freeze({ code: reason, detail }),
     }),
   });
@@ -652,6 +744,7 @@ function failedDraft(
       | 'elapsedMilliseconds'
     >
   > = {},
+  retryClassification: RetryClassification = 'permanent',
 ): AttemptDraft {
   return Object.freeze({
     result: Object.freeze({
@@ -666,6 +759,7 @@ function failedDraft(
       ...processingNotRun,
       reason,
       detail,
+      retryClassification,
       ...metadata,
     }),
     finalization: Object.freeze({
@@ -676,6 +770,8 @@ function failedDraft(
       ...normalizationNotRun,
       ...processingNotRun,
       ...persistenceMetadata(metadata),
+      outcomeCode: outcome,
+      retryClassification,
       error: Object.freeze({ code: reason, detail }),
     }),
   });
@@ -717,7 +813,12 @@ function resultFromFinalized(
     finalized.unchangedCount !== attempted.unchangedCount ||
     finalized.rejectedCount !== attempted.rejectedCount ||
     finalized.excludedCount !== attempted.excludedCount ||
-    finalized.failedCount !== attempted.failedCount
+    finalized.failedCount !== attempted.failedCount ||
+    finalized.outcomeCode !== attempted.outcome ||
+    finalized.retryClassification !== attempted.retryClassification ||
+    finalized.responseEtag !== attempted.responseValidators?.etag ||
+    finalized.responseLastModified !==
+      attempted.responseValidators?.lastModified
   ) {
     throw new Error('Collection run finalization returned inconsistent state.');
   }
@@ -740,6 +841,22 @@ function resultFromFinalized(
     rejectedCount: finalized.rejectedCount,
     excludedCount: finalized.excludedCount,
     failedCount: finalized.failedCount,
+    ...(finalized.retryClassification === undefined
+      ? {}
+      : { retryClassification: finalized.retryClassification }),
+    ...(finalized.responseEtag === undefined &&
+    finalized.responseLastModified === undefined
+      ? {}
+      : {
+          responseValidators: Object.freeze({
+            ...(finalized.responseEtag === undefined
+              ? {}
+              : { etag: finalized.responseEtag }),
+            ...(finalized.responseLastModified === undefined
+              ? {}
+              : { lastModified: finalized.responseLastModified }),
+          }),
+        }),
     ...(finalized.httpStatusCode === undefined
       ? {}
       : { httpStatusCode: finalized.httpStatusCode }),
@@ -784,13 +901,31 @@ function fetchMetadata(
   | 'decompressedByteCount'
   | 'redirectCount'
   | 'elapsedMilliseconds'
-> & { readonly httpStatusCode?: number } {
+> & {
+  readonly httpStatusCode?: number;
+  readonly responseValidators?: ConditionalRequestValidators;
+} {
   const httpStatusCode = result.metrics.hops.at(-1)?.httpStatus;
   return Object.freeze({
     wireByteCount: result.metrics.wireBytes,
     decompressedByteCount: result.metrics.decompressedBytes,
     redirectCount: result.redirectCount,
     elapsedMilliseconds: result.metrics.elapsedMilliseconds,
+    ...(!('response' in result) ||
+    result.response === undefined ||
+    (result.response.etag === undefined &&
+      result.response.lastModified === undefined)
+      ? {}
+      : {
+          responseValidators: Object.freeze({
+            ...(result.response.etag === undefined
+              ? {}
+              : { etag: result.response.etag }),
+            ...(result.response.lastModified === undefined
+              ? {}
+              : { lastModified: result.response.lastModified }),
+          }),
+        }),
     ...(httpStatusCode === undefined ? {} : { httpStatusCode }),
   });
 }
@@ -805,7 +940,12 @@ function persistenceMetadata(
   metadata: Partial<
     Pick<
       EndpointCollectionAttemptResult,
-      'httpStatusCode' | 'wireByteCount' | 'decompressedByteCount'
+      | 'httpStatusCode'
+      | 'wireByteCount'
+      | 'decompressedByteCount'
+      | 'redirectCount'
+      | 'elapsedMilliseconds'
+      | 'responseValidators'
     >
   >,
 ): Pick<
@@ -822,6 +962,15 @@ function persistenceMetadata(
     ...(metadata.decompressedByteCount === undefined
       ? {}
       : { decompressedByteCount: metadata.decompressedByteCount }),
+    ...(metadata.redirectCount === undefined
+      ? {}
+      : { redirectCount: metadata.redirectCount }),
+    ...(metadata.elapsedMilliseconds === undefined
+      ? {}
+      : { transportElapsedMilliseconds: metadata.elapsedMilliseconds }),
+    ...(metadata.responseValidators === undefined
+      ? {}
+      : { responseValidators: metadata.responseValidators }),
   };
 }
 

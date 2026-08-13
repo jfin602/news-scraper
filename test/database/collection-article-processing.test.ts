@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import {
+  persistExcludedArticleObservation,
   persistIncludedArticle,
   type ArticlePersistenceResult,
 } from '../../src/articles/repository.ts';
@@ -20,7 +21,17 @@ import type {
 import { normalizeArticleCandidate } from '../../src/collection/normalization/normalizer.ts';
 import type { FeedParser } from '../../src/collection/parsers/parser.ts';
 import type { RawItem } from '../../src/collection/raw-item.ts';
-import { evaluateRelevance } from '../../src/collection/relevance/evaluator.ts';
+import {
+  evaluateRelevance,
+  type EffectiveRelevanceConfiguration,
+  type RelevanceDecision,
+} from '../../src/collection/relevance/evaluator.ts';
+import { loadEffectiveRelevanceConfiguration } from '../../src/collection/relevance/repository.ts';
+import {
+  createCategory,
+  createRelevanceRule,
+  updateRelevanceRule,
+} from '../../src/collection/relevance/repository.ts';
 import { findCollectionRunById } from '../../src/collection/runs/repository.ts';
 import { createDatabase, type Database } from '../../src/database/database.ts';
 import { migrateDatabase } from '../../src/database/migrations.ts';
@@ -111,7 +122,7 @@ test('canonical collection persists idempotent Articles and isolated outcomes wi
         ],
         {
           observationTime: () => new Date('2026-08-10T14:00:00.000Z'),
-          persistArticle(candidate, observationTime) {
+          persistArticle(candidate, observationTime, decision) {
             return candidate.displayTitle === 'Expected conflict'
               ? Promise.resolve(
                   Object.freeze({
@@ -119,7 +130,12 @@ test('canonical collection persists idempotent Articles and isolated outcomes wi
                     reason: 'identity_conflict' as const,
                   }),
                 )
-              : persistIncludedArticle(database, candidate, observationTime);
+              : persistIncludedArticle(
+                  database,
+                  candidate,
+                  observationTime,
+                  decision,
+                );
           },
         },
       );
@@ -148,12 +164,17 @@ test('canonical collection persists idempotent Articles and isolated outcomes wi
         ],
         {
           observationTime: () => new Date('2026-08-10T15:00:00.000Z'),
-          async persistArticle(candidate, observationTime) {
+          async persistArticle(candidate, observationTime, decision) {
             stagePersistenceCalls += 1;
             if (stagePersistenceCalls === 2) {
               throw new Error('SYNTHETIC_DATABASE_SECRET');
             }
-            return persistIncludedArticle(database, candidate, observationTime);
+            return persistIncludedArticle(
+              database,
+              candidate,
+              observationTime,
+              decision,
+            );
           },
         },
       );
@@ -215,6 +236,221 @@ test('canonical collection persists idempotent Articles and isolated outcomes wi
   });
 });
 
+test('persisted Relevance configuration drives durable prospective collection outcomes', async () => {
+  await withDisposableDatabase(async ({ databaseUrl }) => {
+    await migrateDatabase({ connectionString: databaseUrl });
+    const database = createDatabase({ connectionString: databaseUrl });
+    try {
+      const configuration = await createConfiguration(database);
+      const otherSource = await insertSource(database, {
+        configKey: 'other_source',
+        displayName: 'Other Source',
+        siteUrl: 'https://other.example/',
+        approvalState: 'approved',
+        lifecycleState: 'active',
+        operationalState: 'enabled',
+        domainRules: [{ hostname: 'other.example', includeSubdomains: false }],
+      });
+      await createCategory(database, {
+        configKey: 'category_a',
+        displayName: 'Category A',
+      });
+      await createCategory(database, {
+        configKey: 'category_b',
+        displayName: 'Category B',
+      });
+      await createRelevanceRule(database, {
+        configKey: 'global_story_decision',
+        predicateType: 'title_contains',
+        pattern: 'Story',
+        action: 'include',
+        priority: 10,
+        enabled: true,
+        reason: 'Stories are included.',
+      });
+      await createRelevanceRule(database, {
+        configKey: 'global_story_category',
+        predicateType: 'title_contains',
+        pattern: 'Story',
+        action: 'categorize',
+        categoryConfigKey: 'category_a',
+        priority: 5,
+        enabled: true,
+        reason: 'Stories start in Category A.',
+      });
+      await createRelevanceRule(database, {
+        configKey: 'source_blocked_story',
+        sourceConfigKey: configuration.source.configKey,
+        predicateType: 'title_contains',
+        pattern: 'Blocked Story',
+        action: 'exclude',
+        priority: 10,
+        enabled: true,
+        reason: 'This Source excludes blocked stories.',
+      });
+      await createRelevanceRule(database, {
+        configKey: 'other_source_story_exclusion',
+        sourceConfigKey: otherSource.configKey,
+        predicateType: 'title_contains',
+        pattern: 'Story',
+        action: 'exclude',
+        priority: 100,
+        enabled: true,
+        reason: 'Other Source rules must not leak.',
+      });
+
+      let snapshotLoads = 0;
+      const first = await execute(
+        database,
+        configuration,
+        'p6-persisted-first',
+        [
+          item('included-story', 'Included Story', '../articles/included'),
+          item('blocked-story', 'Blocked Story', '../articles/blocked'),
+        ],
+        {
+          observationTime: () => FIRST_OBSERVATION,
+          async loadRelevanceConfiguration() {
+            snapshotLoads += 1;
+            const snapshot = await loadEffectiveRelevanceConfiguration(
+              database,
+              configuration.source.id,
+              configuration.endpoint.id,
+            );
+            assert.ok(snapshot);
+            assert.equal(
+              snapshot.rules.some(
+                (rule) => rule.configKey === 'other_source_story_exclusion',
+              ),
+              false,
+            );
+            return snapshot;
+          },
+        },
+      );
+      assertAttempt(first, ['succeeded', 1, 0, 0, 0, 1, 0]);
+      assert.equal(snapshotLoads, 1);
+      await assertRunMatches(database, first);
+      assert.deepEqual(await cardinality(database), {
+        articles: 1,
+        observations: 2,
+      });
+      assert.deepEqual(await currentCategoryKeys(database), ['category_a']);
+      const firstReasons = await database.query<{
+        reason_code: string;
+        category_reason_count: string;
+      }>(
+        `SELECT observation.reason_code,
+                count(category_reason.*)::text AS category_reason_count
+         FROM article_observations observation
+         LEFT JOIN article_observation_category_reasons category_reason
+           ON category_reason.article_observation_id = observation.id
+         WHERE observation.processing_outcome = 'created'
+         GROUP BY observation.id, observation.reason_code`,
+      );
+      assert.deepEqual(firstReasons.rows, [
+        {
+          reason_code: 'relevance_rule_include',
+          category_reason_count: '1',
+        },
+      ]);
+      const firstExclusion = await database.query<{
+        article_id: string | null;
+        reason_code: string;
+      }>(
+        `SELECT article_id, reason_code
+         FROM article_observations
+         WHERE processing_outcome = 'excluded'`,
+      );
+      assert.deepEqual(firstExclusion.rows, [
+        { article_id: null, reason_code: 'relevance_rule_exclude' },
+      ]);
+
+      await updateRelevanceRule(database, 'global_story_category', {
+        predicateType: 'title_contains',
+        pattern: 'Story',
+        action: 'categorize',
+        categoryConfigKey: 'category_b',
+        priority: 5,
+        enabled: true,
+        reason: 'Stories now use Category B.',
+      });
+      const recategorized = await execute(
+        database,
+        configuration,
+        'p6-category-only',
+        [item('included-story', 'Included Story', '../articles/included')],
+        { observationTime: () => SECOND_OBSERVATION },
+      );
+      assertAttempt(recategorized, ['succeeded', 0, 0, 1, 0, 0, 0]);
+      await assertRunMatches(database, recategorized);
+      assert.deepEqual(await currentCategoryKeys(database), ['category_b']);
+
+      const beforeExclusion = await articleState(database);
+      await updateRelevanceRule(database, 'global_story_decision', {
+        predicateType: 'title_contains',
+        pattern: 'Story',
+        action: 'exclude',
+        priority: 10,
+        enabled: true,
+        reason: 'Stories are prospectively excluded.',
+      });
+      const excluded = await execute(
+        database,
+        configuration,
+        'p6-prospective-exclusion',
+        [item('included-story', 'Included Story', '../articles/included')],
+        { observationTime: () => new Date('2026-08-10T14:00:00.000Z') },
+      );
+      assertAttempt(excluded, ['succeeded', 0, 0, 0, 0, 1, 0]);
+      await assertRunMatches(database, excluded);
+      assert.deepEqual(await articleState(database), beforeExclusion);
+      assert.deepEqual(await currentCategoryKeys(database), ['category_b']);
+      assert.equal((await cardinality(database)).articles, 1);
+      const prospectiveObservation = await database.query<{
+        article_id: string | null;
+      }>(
+        `SELECT article_id
+         FROM article_observations
+         WHERE collection_run_id = $1 AND processing_outcome = 'excluded'`,
+        [excluded.collectionRunId],
+      );
+      assert.deepEqual(prospectiveObservation.rows, [{ article_id: null }]);
+
+      await updateRelevanceRule(database, 'global_story_decision', {
+        predicateType: 'title_contains',
+        pattern: 'Story',
+        action: 'include',
+        priority: 10,
+        enabled: true,
+        reason: 'Stories are included again.',
+      });
+      await updateRelevanceRule(database, 'global_story_category', {
+        predicateType: 'title_contains',
+        pattern: 'Story',
+        action: 'categorize',
+        categoryConfigKey: 'category_a',
+        priority: 5,
+        enabled: true,
+        reason: 'Stories return to Category A.',
+      });
+      const includedAgain = await execute(
+        database,
+        configuration,
+        'p6-included-again',
+        [item('included-story', 'Included Story', '../articles/included')],
+        { observationTime: () => new Date('2026-08-10T15:00:00.000Z') },
+      );
+      assertAttempt(includedAgain, ['succeeded', 0, 0, 1, 0, 0, 0]);
+      await assertRunMatches(database, includedAgain);
+      assert.deepEqual(await currentCategoryKeys(database), ['category_a']);
+      assert.equal((await cardinality(database)).articles, 1);
+    } finally {
+      await database.close();
+    }
+  });
+});
+
 async function execute(
   database: Database,
   configuration: EndpointConfigurationAggregate,
@@ -225,7 +461,9 @@ async function execute(
     persistArticle?: (
       candidate: Parameters<typeof persistIncludedArticle>[1],
       observationTime: Date,
+      decision: Extract<RelevanceDecision, { readonly included: true }>,
     ) => Promise<ArticlePersistenceResult>;
+    loadRelevanceConfiguration?: () => Promise<EffectiveRelevanceConfiguration>;
     runs?: CollectionRunStore;
   }>,
 ) {
@@ -236,11 +474,29 @@ async function execute(
     rssAtomParser: parser(items),
     normalizeArticleCandidate,
     applyArticleLinkPolicy,
+    loadRelevanceConfiguration:
+      options.loadRelevanceConfiguration ??
+      (async () => {
+        const snapshot = await loadEffectiveRelevanceConfiguration(
+          database,
+          configuration.source.id,
+          configuration.endpoint.id,
+        );
+        assert.ok(snapshot);
+        return snapshot;
+      }),
     evaluateRelevance,
     persistArticle:
       options.persistArticle ??
-      ((candidate, observationTime) =>
-        persistIncludedArticle(database, candidate, observationTime)),
+      ((candidate, observationTime, decision) =>
+        persistIncludedArticle(database, candidate, observationTime, decision)),
+    persistExcludedArticle: (candidate, observationTime, decision) =>
+      persistExcludedArticleObservation(
+        database,
+        candidate,
+        observationTime,
+        decision,
+      ),
     observationTime: options.observationTime,
     executionId: () => executionId,
   });
@@ -323,6 +579,30 @@ async function cardinality(database: Database): Promise<{
     articles: Number(result.rows[0]?.articles),
     observations: Number(result.rows[0]?.observations),
   };
+}
+
+async function currentCategoryKeys(database: Database): Promise<string[]> {
+  const result = await database.query<{ config_key: string }>(
+    `SELECT category.config_key
+     FROM article_categories membership
+     JOIN categories category ON category.id = membership.category_id
+     ORDER BY category.config_key`,
+  );
+  return result.rows.map((row) => row.config_key);
+}
+
+async function articleState(database: Database): Promise<unknown> {
+  const result = await database.query<{
+    id: string;
+    visibility_state: string;
+    first_seen_at: Date;
+    last_seen_at: Date;
+    updated_at: Date;
+  }>(
+    `SELECT id, visibility_state, first_seen_at, last_seen_at, updated_at
+     FROM articles`,
+  );
+  return result.rows;
 }
 
 function item(externalId: string, title: string, url: string): RawItem {

@@ -2,28 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 
 import {
-  collectEndpoint,
-  createCollectionRunStore,
-  type CollectEndpointResult,
-} from '../../collection/collect-endpoint.ts';
-import { persistIncludedArticle } from '../../articles/repository.ts';
-import { createEndpointExecutionLockRunner } from '../../collection/execution.ts';
-import { applyArticleLinkPolicy } from '../../collection/article-links/policy.ts';
-import {
-  createHttpFetcher,
-  type HttpFetcher,
-} from '../../collection/fetchers/http-fetcher.ts';
-import { RssAtomParser } from '../../collection/parsers/rss-atom-parser.ts';
-import { normalizeArticleCandidate } from '../../collection/normalization/normalizer.ts';
-import { evaluateRelevance } from '../../collection/relevance/evaluator.ts';
-import { createNodeResolver } from '../../collection/safety/resolver.ts';
+  executeEndpointCollection,
+  type EndpointCollectionServiceResult,
+} from '../../collection/endpoint-collection-service.ts';
 import { parseDatabaseConfig } from '../../database/config.ts';
 import { createDatabase, type Database } from '../../database/database.ts';
 import { parseRuntimeConfig } from '../../shared/runtime-config.ts';
-import {
-  findEndpointConfigurationByKeys,
-  type EndpointConfigurationAggregate,
-} from '../../sources/repository.ts';
 
 const CONFIGURATION_KEY_MAX_LENGTH = 200;
 
@@ -33,9 +17,7 @@ interface CommandOutput {
 
 export interface CollectEndpointCommandDependencies {
   readonly createDatabase: typeof createDatabase;
-  readonly findEndpointConfiguration: typeof findEndpointConfigurationByKeys;
-  readonly createFetcher: () => HttpFetcher;
-  readonly execute: typeof collectEndpoint;
+  readonly execute: typeof executeEndpointCollection;
   readonly executionId: () => string;
 }
 
@@ -49,9 +31,7 @@ export interface CollectEndpointCommandOptions {
 
 const DEFAULT_DEPENDENCIES: CollectEndpointCommandDependencies = Object.freeze({
   createDatabase,
-  findEndpointConfiguration: findEndpointConfigurationByKeys,
-  createFetcher: () => createHttpFetcher({ resolver: createNodeResolver() }),
-  execute: collectEndpoint,
+  execute: executeEndpointCollection,
   executionId: randomUUID,
 });
 
@@ -91,28 +71,47 @@ export async function runCollectEndpointCommand(
 
   let exitCode: number;
   try {
-    const configuration = await dependencies.findEndpointConfiguration(
-      database,
-      args.sourceConfigKey,
-      args.endpointConfigKey,
-    );
-    if (configuration === undefined) {
+    const result = await dependencies.execute(database, {
+      triggerKind: 'manual',
+      executionId: dependencies.executionId(),
+      sourceConfigKey: args.sourceConfigKey,
+      endpointConfigKey: args.endpointConfigKey,
+    });
+    if (result.status === 'not_found') {
       writeJson(stdout, {
         event: 'endpoint_collection.result',
         role: 'worker',
         ...args,
         status: 'blocked',
-        reason: 'endpoint_not_found',
+        reason: result.reason,
+      });
+      exitCode = 1;
+    } else if (result.status === 'skipped') {
+      writeJson(stdout, {
+        event: 'endpoint_collection.result',
+        role: 'worker',
+        ...args,
+        endpointId: result.endpointId,
+        status: 'blocked',
+        reason: result.reason,
+      });
+      exitCode = 1;
+    } else if (result.status === 'capacity_blocked') {
+      writeJson(stdout, {
+        event: 'endpoint_collection.result',
+        role: 'worker',
+        ...args,
+        sourceId: result.sourceId,
+        endpointId: result.endpointId,
+        status: 'blocked',
+        stage: result.stage,
+        reason: result.reason,
+        limitingScope: result.limitingScope,
       });
       exitCode = 1;
     } else {
-      const result = await executeConfiguredEndpoint(
-        database,
-        configuration,
-        dependencies,
-      );
-      writeJson(stdout, commandResult(args, configuration, result));
-      exitCode = result.status === 'succeeded' ? 0 : 1;
+      writeJson(stdout, commandResult(args, result));
+      exitCode = result.collection.status === 'succeeded' ? 0 : 1;
     }
   } catch {
     writeJson(stderr, {
@@ -135,26 +134,6 @@ export async function runCollectEndpointCommand(
     }
   }
   return exitCode;
-}
-
-async function executeConfiguredEndpoint(
-  database: Database,
-  configuration: EndpointConfigurationAggregate,
-  dependencies: CollectEndpointCommandDependencies,
-): Promise<CollectEndpointResult> {
-  return dependencies.execute(configuration, {
-    lockRunner: createEndpointExecutionLockRunner(database),
-    runs: createCollectionRunStore(database),
-    fetcher: dependencies.createFetcher(),
-    rssAtomParser: new RssAtomParser(),
-    normalizeArticleCandidate,
-    applyArticleLinkPolicy,
-    evaluateRelevance,
-    persistArticle: (candidate, observationTime) =>
-      persistIncludedArticle(database, candidate, observationTime),
-    observationTime: () => new Date(),
-    executionId: dependencies.executionId,
-  });
 }
 
 function parseArguments(args: readonly string[]):
@@ -189,16 +168,19 @@ function commandResult(
     sourceConfigKey: string;
     endpointConfigKey: string;
   }>,
-  configuration: EndpointConfigurationAggregate,
-  result: CollectEndpointResult,
+  serviceResult: Extract<
+    EndpointCollectionServiceResult,
+    { status: 'resolved' }
+  >,
 ): Readonly<Record<string, unknown>> {
+  const result = serviceResult.collection;
   if (result.status === 'blocked') {
     return Object.freeze({
       event: 'endpoint_collection.result',
       role: 'worker',
       ...keys,
-      sourceId: configuration.source.id,
-      endpointId: configuration.endpoint.id,
+      sourceId: serviceResult.sourceId,
+      endpointId: serviceResult.endpointId,
       status: result.status,
       stage: result.stage,
       reason: result.reason,
@@ -208,7 +190,7 @@ function commandResult(
     event: 'endpoint_collection.result',
     role: 'worker',
     ...keys,
-    sourceId: configuration.source.id,
+    sourceId: serviceResult.sourceId,
     endpointId: result.endpointId,
     status: result.status,
     outcome: result.outcome,
@@ -266,6 +248,9 @@ function commandResult(
     ...(result.elapsedMilliseconds === undefined
       ? {}
       : { elapsedMilliseconds: result.elapsedMilliseconds }),
+    ...(result.retryClassification === undefined
+      ? {}
+      : { retryClassification: result.retryClassification }),
   });
 }
 

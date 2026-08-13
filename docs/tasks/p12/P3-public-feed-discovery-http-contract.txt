@@ -1,0 +1,284 @@
+TASK: Phase 12 / P3 — Public feed discovery HTTP contract
+
+ROADMAP PHASE
+Phase 12 — Feed discovery features.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Terra Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P3 is a security- and compatibility-sensitive HTTP integration task, but P1/P2 should already own the difficult normalization, cursor, SQL, and pagination semantics. Terra High provides sufficient reasoning for raw-query parsing integration, bounded error mapping, response shaping, and production dependency wiring without spending Ultra-level reasoning on a deliberately narrow transport boundary.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a model/configuration label.
+
+VERSIONING
+- This is Phase 12 prompt 3 and its assigned project version is `0.12.3`.
+- Before editing, confirm P2 left `package.json` at `0.12.2`, or retain `0.12.3` only for a rerun of this same P3.
+- Update only the top-level package version to `0.12.3`; do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- `package.json` remains the sole current-version authority.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the Phase 12 roadmap entry, the Phase 12 public-feed contract, and testing contract;
+2. read P1/P2 and inspect their actual final discovery parser/cursor API, repository request/result/error types, metadata shape, and database tests;
+3. inspect `src/app/web/create-app.ts`, `src/app/web/main.ts`, `src/public-feed/repository.ts`, `test/integration/public-feed-http.test.ts`, and `test/database/public-feed-http.test.ts`;
+4. inspect current root-page HTTP tests only to understand response compatibility; do not implement browser controls in P3;
+5. trace raw request URL -> P1 parser -> P2 repository -> exact JSON response -> public error mapping;
+6. stop and report planning drift if P1/P2 changed the approved HTTP integration boundary materially or if the canonical `/api/feed` route changed after this prompt was written.
+
+GOAL
+Expose the completed Phase 12 discovery repository through the existing canonical `GET /api/feed` endpoint. Parse discovery input exactly once through P1, forward one normalized request to P2, return bounded Source/Category metadata and `nextCursor`, and preserve all existing public-state/error/secret-redaction behavior.
+
+ONE CANONICAL ENDPOINT
+Phase 12 extends only:
+`GET /api/feed`
+
+Do not add:
+- another search endpoint;
+- Source- or Category-specific feed routes;
+- slug-addressed Publication routes;
+- POST-based search;
+- offset/page-number APIs;
+- public `limit`.
+
+The obsolete `/api/publications/:slug/feed` behavior must remain absent.
+
+RAW QUERY BOUNDARY
+Use the P1 raw-query parser against the request's raw query-string representation before Express query coercion can hide duplicate/encoding ambiguity.
+
+Do not independently reinterpret:
+- repeated parameters;
+- percent encoding;
+- config-key grammar;
+- `q` normalization/bounds;
+- cursor structure/query binding.
+
+P1 owns those semantics.
+
+The route must support exactly:
+- `q`;
+- `source`;
+- `category`;
+- `cursor`.
+
+P1 parser failure must terminate before the repository read and map to one bounded generic public `400` response.
+
+DEPENDENCY SHAPE
+Change `PublicFeedDependency.read` from a parameterless function to one that accepts the normalized P1 discovery request.
+
+Update production `src/app/web/main.ts` composition to pass that request into the canonical `readPublicFeed(database, request)` or actual final P2 equivalent.
+
+Do not add a second production reader or wrap the old reader in a compatibility path that silently drops filters.
+
+HTTP RESPONSE SHAPE
+On public-success `200`, return one bounded JSON document with the semantic equivalent of:
+
+- `publication: { name }`;
+- `discovery: {`
+  - `query: { q, source, category }` using normalized nullable/absent-safe public criteria values;
+  - `sources: [{ configKey, displayName }, ...]`;
+  - `categories: [{ configKey, displayName }, ...]`;
+  - `}`;
+- `items: [...]` using the existing exact safe item fields;
+- `nextCursor: string | null`.
+
+The `discovery.query` echo is intentional: it gives the Phase 12 browser one server-normalized source of truth for active safe criteria without exposing cursor internals or searchable private metadata.
+
+Use one consistent nullable/optional representation and test it. Prefer explicit nullable fields for the three query criteria if that simplifies browser validation and stable JSON shape.
+
+PUBLIC ITEM SHAPE MUST REMAIN
+Each Article item exposes only:
+- `articleId`;
+- ISO `effectiveFeedDate`;
+- `feedDateSource`;
+- `headline`;
+- `sourceName`;
+- `originalUrl`.
+
+Do NOT expose:
+- `first_seen_at` cursor key;
+- high-precision cursor timestamp strings;
+- normalized title;
+- summary/author solely because they are searched;
+- Source/Category UUIDs;
+- canonical identity URL;
+- observations/rules/reasons.
+
+PUBLIC ERROR MAPPING
+Preserve/cache `Cache-Control: no-store` on every `/api/feed` response.
+
+Map outcomes exactly:
+- malformed/repeated/unknown/out-of-bound query/cursor input from P1 -> `400` with one generic body such as `{ "error": "invalid_request" }`;
+- structurally valid but unsupported/non-publicly-selectable Source or unsupported Category on a public Publication from P2 -> SAME generic `400` body;
+- absent or non-public singleton Publication -> existing generic `404 { "error": "not_found" }`;
+- database/repository/internal dependency failure -> existing generic `503 { "error": "service_unavailable" }`.
+
+Do not distinguish malformed cursor vs bad Source vs bad Category publicly. Do not serialize error class names/reasons, SQL, UUIDs, attacker input, connection information, stack traces, or Publication private-state details.
+
+ERROR PRECEDENCE
+Rely on P2's private/absent Publication precedence for structurally valid filter probes. P3 must not perform a separate Source/Category existence lookup that can turn a private Publication into a `400` existence oracle.
+
+Malformed raw request syntax may still return `400` before any repository read because no valid discovery request exists to evaluate.
+
+UNFILTERED COMPATIBILITY
+`GET /api/feed` with no query parameters remains the unfiltered first page of the same canonical feed.
+
+It may gain the Phase 12 `discovery` metadata and `nextCursor` fields, but MUST preserve:
+- current Article eligibility;
+- current item fields;
+- current ordering;
+- current 200 empty-Publication behavior;
+- current 404 absent/private behavior;
+- current secret-safe 503 behavior;
+- exact stored `originalUrl`.
+
+Do not retain the historical exact pre-Phase-12 top-level JSON shape in a parallel compatibility mode. Update current tests/consumers to the one new canonical response.
+
+CURSOR HTTP SEMANTICS
+A request with valid `cursor` must also pass the current normalized `q`/`source`/`category` criteria through P1/P2.
+
+Cursor/query mismatch is a generic `400` and must not reach a looser repository continuation path.
+
+The public response treats `nextCursor` as an opaque string. Do not decode it in `create-app.ts` for response purposes or expose its fields.
+
+CONTENT / SECURITY
+- Keep Express `x-powered-by` disabled.
+- Preserve `X-Content-Type-Options: nosniff` middleware.
+- Continue parameterized SQL indirectly through P2; P3 must never construct SQL.
+- JSON serialization must not execute/render untrusted Article/Source text.
+- No Source fetching occurs in Web/API.
+- No CORS widening or cross-origin browser dependency is introduced.
+
+LIKELY / ALLOWED FILES
+Expected primary scope:
+- `package.json`
+- `src/app/web/create-app.ts`
+- `src/app/web/main.ts`
+- `src/public-feed/discovery.ts` only for a narrowly necessary P3 public parser/error API adjustment consistent with P1
+- `src/public-feed/repository.ts` only for a narrowly necessary P3 error/result type adjustment consistent with P2
+- `test/integration/public-feed-http.test.ts`
+- `test/database/public-feed-http.test.ts`
+
+A focused new HTTP test file is allowed only if it makes the malformed-query matrix materially clearer.
+
+Do not modify:
+- migrations/indexes except to correct a P2 defect discovered by P3 evidence;
+- HTML/JS/CSS browser controls;
+- browser tests;
+- collection/Worker/Relevance/Article persistence;
+- contract/roadmap/design docs.
+
+FOCUSED HTTP MATRIX — LEVEL 3 REQUIRED
+Using the mocked `PublicFeedDependency`, prove at minimum:
+
+Successful forwarding/shaping
+1. no-query request parses and calls dependency exactly once;
+2. valid `q` forwarded in normalized request;
+3. valid Source forwarded;
+4. valid Category forwarded;
+5. combined criteria forwarded;
+6. valid cursor plus criteria forwarded;
+7. response includes normalized `discovery.query`;
+8. response includes bounded Source choices;
+9. response includes bounded Category choices;
+10. response includes nullable/non-null `nextCursor` as supplied by repository;
+11. item date serializes to ISO while internal fields do not leak.
+
+Input errors
+12. repeated `q` -> generic 400 and no repository read;
+13. repeated Source -> 400/no read;
+14. repeated Category -> 400/no read;
+15. repeated cursor -> 400/no read;
+16. unknown query parameter -> 400/no read;
+17. malformed percent encoding -> 400/no read;
+18. invalid percent-UTF8 -> 400/no read;
+19. over-bound query -> 400/no read;
+20. malformed cursor -> 400/no read;
+21. cursor/query mismatch -> 400/no read when caught by P1.
+
+Repository/domain outcomes
+22. unsupported Source/Category domain outcome -> same generic 400;
+23. public empty feed -> 200 with metadata/items empty/nextCursor null as appropriate;
+24. undefined feed -> generic 404;
+25. dependency failure -> generic 503;
+26. every error body is bounded and secret-safe;
+27. every route response retains no-store.
+
+Compatibility/security
+28. obsolete slug-addressed API remains 404 without a feed read;
+29. no public response exposes normalized title/summary/author/cursor keys/internal IDs;
+30. headline destination remains exact original URL.
+
+REAL POSTGRESQL -> HTTP MATRIX — LEVEL 4 REQUIRED
+Extend `test/database/public-feed-http.test.ts` so the production repository + web composition proves at minimum:
+- persisted public Article returned through no-param `/api/feed` with the new response shape;
+- Source/Category/search filters compose through the real route/repository;
+- at least one `nextCursor` is issued and consumed through a second HTTP request against a seeded >100 or deliberately reduced test page boundary if the production page-size cannot be safely parameterized for tests;
+- hidden/ineligible Article remains absent under discovery;
+- private/absent Publication remains 404;
+- valid-shaped unsupported filter on public Publication returns 400 without internal leakage;
+- cursor/query mismatch returns 400;
+- obsolete slug route remains absent.
+
+Do not add a production public page-size parameter merely to make this database HTTP test small. If seeding >100 minimal rows is the cleanest honest proof, do that.
+
+BROADER REGRESSION
+Run:
+- focused public-feed HTTP integration tests;
+- focused database HTTP tests;
+- `npm run test:integration`;
+- `npm run test:db`;
+- `npm run test:unit` because P1 parser remains a direct route dependency;
+- `npm test`;
+- `npm run format:check`;
+- `npm run lint`;
+- `npm run typecheck`.
+
+Browser tests are not required yet because P3 does not change root-page client code. Existing page HTTP delivery tests should remain green if affected by dependency type adaptation.
+
+REQUIRED EVIDENCE LEVEL
+- Level 3 HTTP integration evidence is mandatory.
+- Level 4 real PostgreSQL-through-HTTP evidence is mandatory for the production repository/route composition.
+- Level 6 browser evidence belongs to P4/P5.
+- Live-Source evidence is not required because publisher transport is unchanged.
+
+PRESERVED BEHAVIOR
+- Web/API still never fetches Sources inline.
+- root `/` remains canonical page route.
+- same-origin static resources/CSP are unchanged.
+- Publication/Source/Article eligibility semantics are unchanged.
+- Source operational state remains a collection concern, not retained-feed suppression.
+- stored original URL remains public destination.
+- one generic absent/private state remains indistinguishable.
+
+NON-GOALS
+- no search/filter form yet;
+- no browser URL/history state yet;
+- no load-more UI;
+- no final presentation/accessibility/theme polish;
+- no public counts/ranking/sort/limit;
+- no admin endpoints;
+- no duplicate grouping;
+- no publisher transport changes.
+
+ACCEPTANCE CRITERIA
+P3 is complete only when:
+- package version is `0.12.3`;
+- `/api/feed` is the sole canonical discovery endpoint;
+- every request is normalized exactly once through P1 and forwarded to P2;
+- success response exposes only safe item/filter metadata plus normalized active criteria and opaque `nextCursor`;
+- malformed/unsupported discovery returns indistinguishable generic 400 while private/absent remains generic 404 and dependencies remain generic 503;
+- no-param feed retains established semantics under the new canonical response shape;
+- focused Level 3, real-PostgreSQL HTTP, and relevant broader regressions pass;
+- no package lock or browser/later-phase behavior is introduced.
+
+FINAL RESPONSE
+Report:
+- files changed;
+- final package version;
+- exact final `/api/feed` request/response shape;
+- exact 400/404/503 mapping and private-state precedence;
+- production dependency signature/composition change;
+- focused/broader commands actually run with observed results;
+- confirmation that browser behavior remains deferred to P4/P5.

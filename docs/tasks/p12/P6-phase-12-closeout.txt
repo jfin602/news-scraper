@@ -1,0 +1,352 @@
+TASK: Phase 12 / P6 — Phase 12 closeout validation
+
+ROADMAP PHASE
+Phase 12 — Feed discovery features.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Very High`.
+- Alternative considered: `Terra Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P6 is evidence-heavy final-tree validation across static, unit, HTTP, real-PostgreSQL, and browser layers rather than new architecture design. Sol Light is appropriate for broad execution/synthesis; if P6 exposes a substantive SQL/keyset/browser-state defect, remediate that defect with an appropriately stronger configuration before rerunning P6 instead of redesigning Phase 12 inside the evidence task.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a model/configuration label.
+
+VERSIONING
+- This is Phase 12 prompt 6 and its assigned project version is `0.12.6`.
+- On first execution, confirm P5 left `package.json` at `0.12.5`, then advance only the top-level package version to `0.12.6` before establishing the final Phase 12 candidate source SHA.
+- If this same P6 prompt is rerun and `package.json` is already `0.12.6`, retain `0.12.6`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` remains the sole current-version authority.
+- The repository intentionally does not use npm package locks; do not create, require, regenerate, or validate `package-lock.json` or `npm-shrinkwrap.json`.
+- A later conversational `/closeout`, if Phase 12 is accepted, separately transitions to the Phase 13 baseline `0.13.0`; that transition is NOT part of P6.
+
+MANUAL CLOSEOUT BOUNDARY
+This is the sole final manual closeout prompt for the Phase 12 task stack. The phase runner must stop after P5 and MUST NOT execute P6 automatically.
+
+P6 validates the exact final Phase 12 tree, fixes only bounded defects necessary to satisfy the already-governed Phase 12 contracts/exit gate, and writes the durable validation artifact. It must not invent new Phase 12 scope, pull Phase 13/later roadmap features forward, or silently redefine contracts.
+
+MANDATORY HANDOFF
+Before any P6 version/write action:
+1. read current `BOOT.md`, the Phase 12 roadmap entry, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, relevant architecture/data contracts, and the singleton ADR;
+2. read P1-P5 and inspect the actual final implementation/tests from those prompts rather than relying on task prose;
+3. confirm `package.json` is the expected P5 version and Git history/working tree contains no unexpected implementation drift outside the Phase 12 sequence;
+4. inspect final discovery parser/cursor codec, public-feed repository/query/index migration, API route/composition, root page/client/styles, and integration/database/browser tests;
+5. establish the final candidate source SHA after moving to `0.12.6` and before recording acceptance evidence;
+6. if material contract drift, a broad architectural defect, or later-phase dependency is discovered, stop and report the blocker rather than using P6 as an unplanned redesign prompt.
+
+PHASE 12 EXIT GATE TO PROVE
+The final tree must prove:
+- search, Source filtering, Category filtering, and pagination return only Articles already eligible for the canonical public feed;
+- no discovery path weakens singleton public-state, Source approval/lifecycle, or Article visibility rules;
+- Source operational collection state still does not hide retained otherwise-eligible rows;
+- keyword search is bounded deterministic case-insensitive literal filtering over only approved safe Article metadata and does not rerank results;
+- Source/Category public identity uses immutable `config_key`, with no public UUID/private configuration leakage;
+- Category filtering uses current `article_categories` membership, not historical observation reasons;
+- `q + source + category` composes with AND;
+- canonical effective-date DESC -> `first_seen_at` DESC -> Article-ID ASC ordering remains unchanged;
+- keyset pagination follows that exact mixed-direction tuple with no duplicate/omitted rows across a static result set, including high-precision timestamp ties;
+- opaque/versioned cursors are query-bound and malformed/mismatched cursors fail generically;
+- no public `limit`, offset, page number, ranking, or total-count contract was introduced;
+- `/api/feed` remains the single canonical discovery/feed endpoint and `/` remains the canonical page;
+- direct URL, refresh, Apply, Reset, Back/Forward, and Load more maintain coherent browser state;
+- cursor/load-more depth is not canonical root URL state;
+- stale first-page/continuation responses cannot corrupt newer browser state;
+- continuation failure preserves already rendered rows and supports bounded retry;
+- public headline links remain exact stored `original_url`;
+- shared engine/client logic remains topic-independent.
+
+DURABLE VALIDATION ARTIFACT
+Create:
+`docs/validation/phase-12-feed-discovery-features.md`
+
+The artifact MUST record:
+- validation date/time and relevant environment/tool versions;
+- exact accepted/final source SHA;
+- package version `0.12.6`;
+- P1-P6 scope summarized without pretending unrun evidence passed;
+- exact commands/procedures run and observed results;
+- exact test counts where commands report them;
+- real PostgreSQL prerequisite/environment used without secrets;
+- browser/Chromium version/context where available;
+- any unavailable evidence/prerequisite and its consequence;
+- Phase 12 exit-gate conclusion as GREEN or blocked/red;
+- explicit intended next phase if GREEN: Phase 13 — Public presentation polish;
+- statement that later conversational `/closeout` is required for the `0.13.0` baseline transition and is not performed by P6.
+
+SOURCE / ARCHITECTURE INSPECTION
+Inspect and record enough final-tree evidence to confirm:
+- exactly one canonical `GET /api/feed` item eligibility path exists;
+- no slug/Publication selector or relational Publication tenancy was reintroduced;
+- no indie-author/publishing-specific business logic exists in shared discovery/search/filter/pagination code;
+- Web/API still does not fetch Sources inline;
+- discovery parser owns supported public query keys and malformed/repeated/unknown input semantics;
+- repository owns feed eligibility + discovery filtering/keyset continuation rather than a parallel search service;
+- root client consumes public Source/Category metadata instead of hard-coded deployment-specific options;
+- browser does not decode cursor internals;
+- no offset/total-count/infinite-scroll/search-ranking subsystem was added;
+- Phase 13 theme/branding/final presentation work remains deferred.
+
+P1 INPUT / CURSOR EVIDENCE — LEVEL 2 REQUIRED
+The final unit suite must prove at minimum:
+
+Input parsing
+- supported keys exactly q/source/category/cursor;
+- absent and combined valid inputs;
+- repeated key rejection;
+- unknown key rejection;
+- malformed percent escape and invalid percent-UTF8 rejection;
+- raw query and normalized q bounds;
+- Source/Category config-key grammar/bounds;
+- blank q normalization without silently repairing invalid Source/Category.
+
+Cursor
+- opaque versioned encode/decode;
+- exact supported version;
+- query/Source/Category binding;
+- malformed shape/encoding/UUID/timestamp rejection;
+- deterministic round-trip;
+- exact high-precision ordering timestamp representation survives round-trip;
+- no authentication/secret/session dependency was invented.
+
+P2 REPOSITORY / MIGRATION EVIDENCE — REAL POSTGRESQL LEVEL 4 REQUIRED
+Using the existing disposable database harness, prove the final migration chain from zero and rerun behavior through the Phase 12 discovery-index migration.
+
+Verify at minimum:
+
+Eligibility preservation
+- public singleton requirement;
+- approved active Source requirement;
+- paused/disabled Source retained visibility;
+- hidden/archived Article exclusion;
+- endpoint/run state remains non-suppressing;
+- exact stored original URL/public safe item shape.
+
+Source filtering
+- immutable Source config-key filter;
+- unapproved/archived Source not publicly selectable/exposed;
+- paused/disabled approved active Source remains valid;
+- unsupported Source on public Publication produces bounded invalid-discovery outcome;
+- private/absent Publication does not become a Source-existence oracle.
+
+Category filtering
+- immutable Category config-key filter;
+- CURRENT `article_categories` membership controls matching;
+- historical observation Category reasons without current membership do not match;
+- multiple memberships do not duplicate an Article;
+- unsupported Category on public Publication is bounded;
+- private/absent Publication does not become a Category-existence oracle.
+
+Literal search
+- display title;
+- normalized title;
+- author;
+- summary;
+- missing optional field non-match;
+- case-insensitive behavior;
+- `%`, `_`, backslash, and regex/glob-looking input are literal data;
+- searchable internal fields are not exposed merely because they match.
+
+Composition/order/keyset
+- q + source + category AND behavior;
+- search/filter do not alter chronological order;
+- <=page-size exhaustion returns null continuation;
+- >page-size emits continuation from last returned row;
+- full static walk returns all expected matching Article IDs exactly once;
+- equal effective date uses `first_seen_at` DESC;
+- equal first two keys uses Article ID ASC;
+- final tie continuation therefore uses greater Article ID semantics;
+- PostgreSQL timestamps differing below JavaScript millisecond precision paginate correctly;
+- cursor key precision is not truncated by JS Date;
+- final page returns null continuation.
+
+Metadata/indexes
+- Source/Category metadata is bounded/deterministic and contains only configKey/displayName;
+- unapproved/archived Source metadata is absent;
+- active selected option remains representable at metadata cap boundary if implemented that way;
+- expected Phase 12 indexes exist with intended definitions/predicates;
+- no full-text/trigram extension/index appears unless an explicit governing decision was added before execution.
+
+P3 HTTP EVIDENCE — LEVEL 3 + REAL-DB COMPOSITION REQUIRED
+Prove:
+- no-param `/api/feed` remains canonical unfiltered first page under the new response shape;
+- q/source/category/cursor are parsed exactly once through the P1 boundary;
+- normalized discovery query and bounded Source/Category choices are safely shaped;
+- item fields remain the established safe set;
+- nextCursor is opaque nullable public output;
+- repeated/unknown/malformed/out-of-bound input -> generic 400 before repository read where applicable;
+- unsupported Source/Category -> same generic 400;
+- cursor/query mismatch -> generic 400;
+- absent/private singleton -> existing generic 404;
+- dependency/database errors -> existing generic secret-safe 503;
+- all responses remain no-store;
+- obsolete slug API remains absent;
+- production repository -> HTTP path proves combined discovery and continuation against real PostgreSQL.
+
+P4 FIRST-PAGE BROWSER EVIDENCE — LEVEL 6 REQUIRED
+Prove:
+- root shell remains same-origin/CSP-protected and topic-independent;
+- keyword/Source/Category controls are accessible and driven by API metadata;
+- direct q/source/category/combined root URLs load matching first-page state;
+- refresh reconstructs state;
+- Apply changes URL/results without appending stale rows;
+- Reset clears criteria and returns to `/` first page;
+- Back/Forward restores URL-reflected controls/results without history loops;
+- malformed direct discovery URL becomes bounded invalid state rather than being silently repaired;
+- filtered zero results remain normal public empty state;
+- 404 unavailable and 503 error remain generic;
+- stale first-page responses cannot overwrite newer Apply/Reset/history state;
+- untrusted Publication/Source/Category/headline text remains inert;
+- UTC date and exact external publisher link behavior remain intact;
+- representative desktop/mobile no-overflow baseline remains green.
+
+P5 CONTINUATION BROWSER EVIDENCE — LEVEL 6 REQUIRED
+Prove:
+- Load more appears only when continuation exists;
+- current normalized criteria + exact opaque cursor are sent;
+- root URL never gains cursor/depth;
+- returned rows append once in server order;
+- final null cursor removes/disables continuation;
+- double activation cannot duplicate a page;
+- duplicate Article ID in an invalid continuation page is not silently applied;
+- Apply/Source/Category/Reset transitions discard old depth and start first page;
+- Back/Forward after pagination restores URL state at first-page depth only;
+- stale continuation success/failure cannot mutate newer state;
+- continuation 400/503/network/malformed/criteria-mismatch errors preserve existing rows and current cursor for safe retry;
+- successful retry appends once and clears pagination error;
+- Load more remains keyboard accessible and mobile-safe.
+
+PHASE 8/9/10/11 PUBLIC REGRESSION
+Run existing relevant public-feed/API/browser tests to ensure Phase 12 did not regress accepted earlier behavior:
+- singleton Publication/public-state semantics;
+- Source eligibility and operational-state distinction;
+- Article visibility/date fallback/order/original destination;
+- root page loading/empty/unavailable/error behavior;
+- CSP/same-origin static delivery;
+- inert untrusted text;
+- desktop/mobile baseline.
+
+Phase 12 does NOT require rerunning collection/live-publisher transport simply because discovery reads persisted Articles, but ordinary deterministic aggregate suites still run as specified below.
+
+MIGRATION / QUERY TUNING REVIEW
+Inspect the final discovery SQL and indexes for MVP-scale simplicity:
+- no N+1 per Article;
+- no unbounded metadata result;
+- no row multiplication from Category joins;
+- page-size + 1 continuation detection rather than count-all;
+- parameterized search/filter/cursor values;
+- indexes align with canonical visible feed order/Source filtering/Category lookup where justified;
+- no speculative full-text/ranking infrastructure.
+
+If useful, execute representative `EXPLAIN` against a disposable database and record the observation as supplemental evidence. Do not make GREEN depend on a brittle exact planner text/cost unless the repository already has a stable explicit query-plan contract.
+
+REQUIRED COMMAND MATRIX
+Run against the exact final source tree, with prerequisites present:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:collection`
+- `npm run test:db`
+- `npm run test:browser`
+- `npm test`
+- `npm run check`
+
+Run focused commands as useful during defect triage, but the durable artifact must clearly distinguish focused runs from the final broad final-tree evidence.
+
+No test suite may silently skip required cases or select zero tests and still count as GREEN evidence. An explicit `test:db` without a safe configured disposable-test PostgreSQL prerequisite must fail clearly rather than downgrade; P6 cannot claim Phase 12 GREEN without the required real-PostgreSQL evidence.
+
+BROWSER PREREQUISITE
+`npm run test:browser` requires the repository's supported Playwright Chromium environment. If Chromium is unavailable, record the missing prerequisite and Phase 12 remains blocked because Level 6 evidence is part of the explicit exit gate.
+
+Do not replace required browser evidence with source inspection or HTTP-only tests.
+
+LIVE-SOURCE / REFERENCE-DEPLOYMENT POLICY
+New Level 7 approved live-publisher evidence is NOT intrinsically required for Phase 12 because P1-P5 do not change publisher network safety, transport, RSS/Atom parsing, normalization, Relevance collection execution, or Source write behavior.
+
+Level 8 reference-deployment evidence is also not added as a Phase 12 exit requirement by the current roadmap/testing contract.
+
+Record these as not required for the Phase 12 blast radius, not as silently skipped passing evidence.
+
+If the actual P1-P5 tree unexpectedly changed publisher transport/network behavior, stop and reassess the evidence boundary instead of assuming live-source validation remains unnecessary.
+
+DEFECT HANDLING
+P6 may fix only bounded defects necessary to make the already-defined Phase 12 implementation satisfy its contracts/tests.
+
+If a fix is made:
+- keep package version `0.12.6`;
+- add a focused regression for the defect;
+- rerun every broader suite invalidated by the fix;
+- update the final candidate SHA after the fix;
+- ensure the durable artifact references the exact final tested SHA.
+
+Examples of bounded P6 fixes:
+- wrong HTTP generic error mapping;
+- one missing input edge-case assertion;
+- keyset `<` vs `>` bug with a focused DB regression;
+- stale browser request ownership bug with a focused Playwright regression;
+- minor metadata leakage/shape bug;
+- index definition typo discovered by migration-from-zero.
+
+If the defect requires:
+- material contract change;
+- new persistence model;
+- new search technology;
+- broad migration redesign;
+- new frontend architecture;
+- Phase 13 design system/presentation work;
+- another roadmap feature;
+STOP and report Phase 12 closeout blocked rather than stretching P6 scope.
+
+NON-GOALS
+Do not add/fix as Phase 12 scope unless required to restore a regression caused by P1-P5:
+- Phase 13 final presentation polish, light/dark, branding, typography, broad responsive/accessibility refinement;
+- separately tracked initial loading-wheel/placeholder polish issue;
+- Phase 14 Source administration;
+- Phase 15 Publication/Relevance administration;
+- Phase 16 duplicate grouping;
+- Phase 17 moderation;
+- HTML collection;
+- ranking/featured/pinned ordering;
+- fuzzy/semantic AI search;
+- public accounts/personalization;
+- automatic refresh/push feeds;
+- offset pagination/total counts.
+
+ACCEPTANCE CRITERIA
+P6 may declare Phase 12 GREEN only when:
+- package version is `0.12.6`;
+- the exact final source SHA is identified;
+- required Level 2 input/cursor, Level 3 HTTP, Level 4 real-PostgreSQL, and Level 6 browser evidence is green on that exact final tree;
+- no required suite is skipped/flaky/zero-count;
+- all discovery paths preserve canonical public eligibility and original-link semantics;
+- Source/Category current identity/membership rules and literal safe-field search are proven;
+- static tie-heavy/high-precision keyset walking has no duplicate/omission;
+- generic 400/404/503 boundaries and no internal metadata leakage are proven;
+- direct URL/refresh/Apply/Reset/Back/Forward/Load more browser behavior is proven;
+- stale request/double-activation/continuation failure behavior is proven;
+- migration/index behavior is proven from zero against real PostgreSQL;
+- full relevant regression matrix is green;
+- durable validation artifact accurately records evidence/limitations and is committed;
+- no package lock or Phase 13/later scope is introduced.
+
+FINAL RESPONSE
+If GREEN, report:
+- `Phase 12 closeout: GREEN`;
+- final accepted source SHA;
+- package version `0.12.6`;
+- durable validation artifact path;
+- exact final broad commands and observed results/counts;
+- real PostgreSQL migration/filter/keyset/index evidence summary;
+- Level 6 browser URL/history/load-more/concurrency evidence summary;
+- explicitly not-required live-Source/reference-deployment evidence;
+- statement that the repository is ready for the separate conversational `/closeout` to enter Phase 13.
+
+If blocked/red, report:
+- `Phase 12 closeout: BLOCKED`;
+- exact failing contract/evidence;
+- source SHA/version tested;
+- whether any bounded P6 fixes were attempted;
+- missing PostgreSQL/browser prerequisite if applicable;
+- do not claim Phase 12 complete and do not perform the Phase 13 baseline transition.

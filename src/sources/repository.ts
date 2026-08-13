@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 
 import type { QueryExecutor } from '../database/database.ts';
+import { HTTP_TRANSPORT_HEADER_LIMITS } from '../collection/fetchers/fetcher.ts';
 import {
   ConfigurationPersistenceError,
   mapPublicationSettingsRow,
@@ -52,6 +53,14 @@ export interface PersistedSourceEndpoint {
   readonly lifecycleState: LifecycleState;
   readonly operationalState: OperationalState;
   readonly pollIntervalSeconds: number;
+  readonly nextDueAt?: Date | undefined;
+  readonly lastAttemptAt?: Date | undefined;
+  readonly lastSuccessAt?: Date | undefined;
+  readonly lastFailureAt?: Date | undefined;
+  readonly consecutiveFailureCount?: number | undefined;
+  readonly cooldownUntil?: Date | undefined;
+  readonly etag?: string | undefined;
+  readonly lastModified?: string | undefined;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -86,6 +95,14 @@ interface EndpointRow {
   readonly lifecycle_state: unknown;
   readonly operational_state: unknown;
   readonly poll_interval_seconds: unknown;
+  readonly next_due_at: unknown;
+  readonly last_attempt_at: unknown;
+  readonly last_success_at: unknown;
+  readonly last_failure_at: unknown;
+  readonly consecutive_failure_count: unknown;
+  readonly cooldown_until: unknown;
+  readonly etag: unknown;
+  readonly last_modified: unknown;
   readonly created_at: unknown;
   readonly updated_at: unknown;
 }
@@ -110,6 +127,14 @@ interface AggregateRow extends SourceRow {
   readonly endpoint_lifecycle_state: unknown;
   readonly endpoint_operational_state: unknown;
   readonly poll_interval_seconds: unknown;
+  readonly next_due_at: unknown;
+  readonly last_attempt_at: unknown;
+  readonly last_success_at: unknown;
+  readonly last_failure_at: unknown;
+  readonly consecutive_failure_count: unknown;
+  readonly cooldown_until: unknown;
+  readonly etag: unknown;
+  readonly last_modified: unknown;
   readonly endpoint_created_at: unknown;
   readonly endpoint_updated_at: unknown;
 }
@@ -120,7 +145,30 @@ const SOURCE_COLUMNS = `
 const ENDPOINT_COLUMNS = `
   id, source_id, config_key, endpoint_url, endpoint_type,
   approval_state, lifecycle_state, operational_state, poll_interval_seconds,
+  next_due_at, last_attempt_at, last_success_at, last_failure_at,
+  consecutive_failure_count, cooldown_until, etag, last_modified,
   created_at, updated_at`;
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+
+export interface EndpointConditionalValidators {
+  readonly etag?: string;
+  readonly lastModified?: string;
+}
+
+export interface EndpointRuntimeStateUpdate {
+  readonly completion?: Readonly<{
+    readonly at: Date;
+    readonly outcome: 'attempted' | 'succeeded' | 'failed';
+  }>;
+  readonly consecutiveFailureCount?: number;
+  readonly nextDueAt?: Date | null;
+  readonly cooldownUntil?: Date | null;
+  readonly validators?: Readonly<{
+    readonly mode: 'replace' | 'merge';
+    readonly values: EndpointConditionalValidators;
+  }>;
+}
 
 export async function insertSource(
   executor: QueryExecutor,
@@ -337,6 +385,66 @@ export async function findSourceEndpointBySourceAndConfigKey(
   return row === undefined ? undefined : mapEndpointRow(row);
 }
 
+export async function updateEndpointRuntimeState(
+  executor: QueryExecutor,
+  sourceEndpointId: string,
+  input: EndpointRuntimeStateUpdate,
+): Promise<PersistedSourceEndpoint> {
+  const endpointId = requiredUuid(sourceEndpointId, 'source endpoint id');
+  const update = validateEndpointRuntimeStateUpdate(input);
+  const assignments: string[] = [];
+  const values: unknown[] = [];
+  const parameter = (value: unknown): string => {
+    values.push(value);
+    return `$${values.length}`;
+  };
+
+  if (update.completion !== undefined) {
+    const completedAt = parameter(update.completion.at);
+    assignments.push(`last_attempt_at = ${completedAt}`);
+    if (update.completion.outcome === 'succeeded') {
+      assignments.push(`last_success_at = ${completedAt}`);
+    }
+    if (update.completion.outcome === 'failed') {
+      assignments.push(`last_failure_at = ${completedAt}`);
+    }
+  }
+  if (update.consecutiveFailureCount !== undefined) {
+    assignments.push(
+      `consecutive_failure_count = ${parameter(update.consecutiveFailureCount)}`,
+    );
+  }
+  if ('nextDueAt' in update) {
+    assignments.push(`next_due_at = ${parameter(update.nextDueAt)}`);
+  }
+  if ('cooldownUntil' in update) {
+    assignments.push(`cooldown_until = ${parameter(update.cooldownUntil)}`);
+  }
+  if (update.validators !== undefined) {
+    const etag = parameter(update.validators.values.etag ?? null);
+    const lastModified = parameter(
+      update.validators.values.lastModified ?? null,
+    );
+    if (update.validators.mode === 'replace') {
+      assignments.push(`etag = ${etag}`, `last_modified = ${lastModified}`);
+    } else {
+      assignments.push(
+        `etag = COALESCE(${etag}, etag)`,
+        `last_modified = COALESCE(${lastModified}, last_modified)`,
+      );
+    }
+  }
+
+  const result = await executor.query<EndpointRow>(
+    `UPDATE source_endpoints
+     SET ${assignments.join(', ')}
+     WHERE id = ${parameter(endpointId)}
+     RETURNING ${ENDPOINT_COLUMNS}`,
+    values,
+  );
+  return mapEndpointRow(requiredRow(result.rows, 'endpoint runtime update'));
+}
+
 export async function loadEndpointDomainRules(
   executor: QueryExecutor,
   endpointId: string,
@@ -355,6 +463,26 @@ export async function findEndpointConfigurationByKeys(
   executor: QueryExecutor,
   sourceConfigKey: string,
   endpointConfigKey: string,
+): Promise<EndpointConfigurationAggregate | undefined> {
+  return findEndpointConfiguration(
+    executor,
+    's.config_key = $1 AND e.config_key = $2',
+    [sourceConfigKey, endpointConfigKey],
+  );
+}
+
+export async function findEndpointConfigurationById(
+  executor: QueryExecutor,
+  sourceEndpointId: string,
+): Promise<EndpointConfigurationAggregate | undefined> {
+  const endpointId = requiredUuid(sourceEndpointId, 'source endpoint id');
+  return findEndpointConfiguration(executor, 'e.id = $1', [endpointId]);
+}
+
+async function findEndpointConfiguration(
+  executor: QueryExecutor,
+  predicate: 's.config_key = $1 AND e.config_key = $2' | 'e.id = $1',
+  values: readonly string[],
 ): Promise<EndpointConfigurationAggregate | undefined> {
   const result = await executor.query<AggregateRow>(
     `SELECT
@@ -381,13 +509,21 @@ export async function findEndpointConfigurationByKeys(
        e.lifecycle_state AS endpoint_lifecycle_state,
        e.operational_state AS endpoint_operational_state,
        e.poll_interval_seconds AS poll_interval_seconds,
+       e.next_due_at AS next_due_at,
+       e.last_attempt_at AS last_attempt_at,
+       e.last_success_at AS last_success_at,
+       e.last_failure_at AS last_failure_at,
+       e.consecutive_failure_count AS consecutive_failure_count,
+       e.cooldown_until AS cooldown_until,
+       e.etag AS etag,
+       e.last_modified AS last_modified,
        e.created_at AS endpoint_created_at,
        e.updated_at AS endpoint_updated_at
      FROM sources s
      JOIN source_endpoints e ON e.source_id = s.id
      CROSS JOIN publication_settings p
-     WHERE s.config_key = $1 AND e.config_key = $2`,
-    [sourceConfigKey, endpointConfigKey],
+     WHERE ${predicate}`,
+    values,
   );
   const row = result.rows[0];
   if (row === undefined) return undefined;
@@ -403,6 +539,14 @@ export async function findEndpointConfigurationByKeys(
     lifecycle_state: row.endpoint_lifecycle_state,
     operational_state: row.endpoint_operational_state,
     poll_interval_seconds: row.poll_interval_seconds,
+    next_due_at: row.next_due_at,
+    last_attempt_at: row.last_attempt_at,
+    last_success_at: row.last_success_at,
+    last_failure_at: row.last_failure_at,
+    consecutive_failure_count: row.consecutive_failure_count,
+    cooldown_until: row.cooldown_until,
+    etag: row.etag,
+    last_modified: row.last_modified,
     created_at: row.endpoint_created_at,
     updated_at: row.endpoint_updated_at,
   });
@@ -424,6 +568,120 @@ export async function findEndpointConfigurationByKeys(
     endpoint,
     endpointDomainRules,
   });
+}
+
+export async function applyTerminalCollectionRunToEndpointRuntime(
+  executor: QueryExecutor,
+  collectionRunId: string,
+): Promise<PersistedSourceEndpoint | undefined> {
+  const runId = requiredUuid(collectionRunId, 'collection run id');
+  const result = await executor.query<EndpointRow>(
+    `WITH target_run AS (
+       SELECT run.id, run.source_endpoint_id, run.finished_at, run.run_status,
+              run.transport_status, run.response_etag,
+              run.response_last_modified,
+              (
+                SELECT count(*)::integer
+                FROM collection_runs history
+                WHERE history.source_endpoint_id = run.source_endpoint_id
+                  AND history.run_status = 'failed'
+                  AND history.finished_at <= run.finished_at
+                  AND history.finished_at > COALESCE(
+                    (
+                      SELECT max(success.finished_at)
+                      FROM collection_runs success
+                      WHERE success.source_endpoint_id = run.source_endpoint_id
+                        AND success.run_status = 'succeeded'
+                        AND success.finished_at <= run.finished_at
+                    ),
+                    '-infinity'::timestamptz
+                  )
+              ) AS consecutive_failure_count
+       FROM collection_runs run
+       WHERE run.id = $1
+         AND run.run_status IN ('succeeded', 'failed')
+         AND run.finished_at IS NOT NULL
+     )
+     UPDATE source_endpoints endpoint
+     SET last_attempt_at = target.finished_at,
+         last_success_at = CASE
+           WHEN target.run_status = 'succeeded' THEN target.finished_at
+           ELSE endpoint.last_success_at
+         END,
+         last_failure_at = CASE
+           WHEN target.run_status = 'failed' THEN target.finished_at
+           ELSE endpoint.last_failure_at
+         END,
+         consecutive_failure_count = CASE
+           WHEN target.run_status = 'succeeded' THEN 0
+           ELSE target.consecutive_failure_count
+         END,
+         cooldown_until = NULL,
+         next_due_at = target.finished_at
+           + make_interval(secs => endpoint.poll_interval_seconds),
+         etag = CASE
+           WHEN target.run_status <> 'succeeded' THEN endpoint.etag
+           WHEN target.transport_status = 'not_modified'
+             THEN COALESCE(target.response_etag, endpoint.etag)
+           ELSE target.response_etag
+         END,
+         last_modified = CASE
+           WHEN target.run_status <> 'succeeded' THEN endpoint.last_modified
+           WHEN target.transport_status = 'not_modified'
+             THEN COALESCE(target.response_last_modified, endpoint.last_modified)
+           ELSE target.response_last_modified
+         END,
+         updated_at = GREATEST(endpoint.updated_at, target.finished_at)
+     FROM target_run target
+     WHERE endpoint.id = target.source_endpoint_id
+       AND (
+         endpoint.last_attempt_at IS NULL
+         OR endpoint.last_attempt_at <= target.finished_at
+       )
+     RETURNING ${qualifiedColumns(ENDPOINT_COLUMNS, 'endpoint')}`,
+    [runId],
+  );
+  const row = result.rows[0];
+  return row === undefined ? undefined : mapEndpointRow(row);
+}
+
+export async function applyCooldownFromFinalCollectionFailure(
+  executor: QueryExecutor,
+  collectionRunId: string,
+  minimumCooldownSeconds: number,
+  failureThreshold: number,
+): Promise<PersistedSourceEndpoint | undefined> {
+  const runId = requiredUuid(collectionRunId, 'collection run id');
+  const minimumSeconds = requiredPositiveInteger(
+    minimumCooldownSeconds,
+    'minimum cooldown seconds',
+  );
+  const threshold = requiredPositiveInteger(
+    failureThreshold,
+    'cooldown failure threshold',
+  );
+  const result = await executor.query<EndpointRow>(
+    `WITH target_run AS (
+       SELECT source_endpoint_id, finished_at
+       FROM collection_runs
+       WHERE id = $1
+         AND run_status = 'failed'
+         AND finished_at IS NOT NULL
+     )
+     UPDATE source_endpoints endpoint
+     SET cooldown_until = target.finished_at + make_interval(
+           secs => GREATEST(endpoint.poll_interval_seconds, $2)
+         ),
+         updated_at = GREATEST(endpoint.updated_at, target.finished_at)
+     FROM target_run target
+     WHERE endpoint.id = target.source_endpoint_id
+       AND endpoint.last_attempt_at = target.finished_at
+       AND endpoint.consecutive_failure_count >= $3
+     RETURNING ${qualifiedColumns(ENDPOINT_COLUMNS, 'endpoint')}`,
+    [runId, minimumSeconds, threshold],
+  );
+  const row = result.rows[0];
+  return row === undefined ? undefined : mapEndpointRow(row);
 }
 
 export function mapSourceRow(row: SourceRow): PersistedSource {
@@ -463,6 +721,16 @@ export function mapEndpointRow(row: EndpointRow): PersistedSourceEndpoint {
       lifecycleState: normalizeLifecycleState(row.lifecycle_state),
       operationalState: normalizeOperationalState(row.operational_state),
       pollIntervalSeconds,
+      nextDueAt: nullableTimestamp(row.next_due_at),
+      lastAttemptAt: nullableTimestamp(row.last_attempt_at),
+      lastSuccessAt: nullableTimestamp(row.last_success_at),
+      lastFailureAt: nullableTimestamp(row.last_failure_at),
+      consecutiveFailureCount: requiredNonnegativeInteger(
+        row.consecutive_failure_count,
+      ),
+      cooldownUntil: nullableTimestamp(row.cooldown_until),
+      etag: nullableValidator(row.etag, 'etag'),
+      lastModified: nullableValidator(row.last_modified, 'last modified'),
       createdAt: requiredTimestamp(row.created_at),
       updatedAt: requiredTimestamp(row.updated_at),
     });
@@ -518,8 +786,114 @@ function mapDomainRules(rows: readonly DomainRuleRow[]): readonly DomainRule[] {
   }
 }
 
+function validateEndpointRuntimeStateUpdate(
+  input: EndpointRuntimeStateUpdate,
+): EndpointRuntimeStateUpdate {
+  if (input === null || typeof input !== 'object') {
+    throw new ConfigurationPersistenceError('invalid endpoint runtime update');
+  }
+  try {
+    const completion = input.completion;
+    if (completion !== undefined) {
+      if (
+        completion === null ||
+        typeof completion !== 'object' ||
+        (completion.outcome !== 'attempted' &&
+          completion.outcome !== 'succeeded' &&
+          completion.outcome !== 'failed')
+      ) {
+        throw new Error();
+      }
+      requiredTimestamp(completion.at);
+    }
+    if (input.consecutiveFailureCount !== undefined) {
+      requiredNonnegativeInteger(input.consecutiveFailureCount);
+    }
+    if ('nextDueAt' in input) nullableTimestamp(input.nextDueAt);
+    if ('cooldownUntil' in input) nullableTimestamp(input.cooldownUntil);
+    if (input.validators !== undefined) {
+      const validators = input.validators;
+      if (
+        validators === null ||
+        typeof validators !== 'object' ||
+        (validators.mode !== 'replace' && validators.mode !== 'merge') ||
+        validators.values === null ||
+        typeof validators.values !== 'object'
+      ) {
+        throw new Error();
+      }
+      if (validators.values.etag !== undefined) {
+        requiredValidator(validators.values.etag, 'etag');
+      }
+      if (validators.values.lastModified !== undefined) {
+        requiredValidator(validators.values.lastModified, 'last modified');
+      }
+    }
+    if (
+      completion === undefined &&
+      input.consecutiveFailureCount === undefined &&
+      !('nextDueAt' in input) &&
+      !('cooldownUntil' in input) &&
+      input.validators === undefined
+    ) {
+      throw new Error();
+    }
+    return input;
+  } catch {
+    throw new ConfigurationPersistenceError('invalid endpoint runtime update');
+  }
+}
+
+function requiredUuid(value: unknown, field: string): string {
+  if (typeof value !== 'string' || !UUID_PATTERN.test(value)) {
+    throw new ConfigurationPersistenceError(`invalid ${field}`);
+  }
+  return value;
+}
+
+function requiredNonnegativeInteger(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+    throw new Error();
+  }
+  return value;
+}
+
+function requiredPositiveInteger(value: unknown, field: string): number {
+  if (!Number.isSafeInteger(value) || (value as number) <= 0) {
+    throw new ConfigurationPersistenceError(`invalid ${field}`);
+  }
+  return value as number;
+}
+
+function nullableTimestamp(value: unknown): Date | undefined {
+  return value === null ? undefined : requiredTimestamp(value);
+}
+
+function requiredValidator(value: unknown, field: string): string {
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value.length > HTTP_TRANSPORT_HEADER_LIMITS.responseValidator ||
+    /[\r\n\0]/u.test(value)
+  ) {
+    throw new Error(`invalid ${field}`);
+  }
+  return value;
+}
+
+function nullableValidator(value: unknown, field: string): string | undefined {
+  return value === null ? undefined : requiredValidator(value, field);
+}
+
 function requiredRow<T>(rows: readonly T[], operation: string): T {
   const row = rows[0];
   if (row === undefined) throw new ConfigurationPersistenceError(operation);
   return row;
+}
+
+function qualifiedColumns(columns: string, alias: string): string {
+  return columns
+    .split(',')
+    .map((column) => `${alias}.${column.trim()}`)
+    .join(', ');
 }

@@ -20,6 +20,7 @@ import {
   createEventTracker,
   isColorEnabled,
   createStructuredEventProcessor,
+  detectCompletedPromptPrefix,
   interpretEvent,
   printableAscii,
   renderDashboard,
@@ -573,6 +574,26 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
     throw new Error(
       'Repository has uncommitted changes; start from an intentional clean phase baseline.',
     );
+  const historyOutput = successfulGit(
+    runGit(['log', '--format=%H%x09%s', 'HEAD']),
+    'Unable to inspect reachable Git history',
+  );
+  const history = historyOutput
+    ? historyOutput.split(/\r?\n/).map((line) => {
+        const separator = line.indexOf('\t');
+        if (separator === -1)
+          throw new Error('Unable to parse reachable Git history.');
+        return {
+          sha: line.slice(0, separator),
+          subject: line.slice(separator + 1),
+        };
+      })
+    : [];
+  const resume = detectCompletedPromptPrefix(
+    plan,
+    history,
+    await packageVersion(rootDirectory),
+  );
   const { launcher, version: codexVersion } = await resolveLauncher();
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
@@ -604,6 +625,17 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
       status: prompt.kind === 'closeout' ? 'manual' : 'waiting',
     })),
   };
+  for (const completed of resume.completed) {
+    const record = run.prompts.find(
+      (item) => item.number === completed.prompt.number,
+    );
+    record.status = 'previously_completed';
+    record.commitSha = completed.commitSha;
+    states.set(completed.prompt.number, {
+      status: 'previously_completed',
+      commitSha: completed.commitSha,
+    });
+  }
   const saveRun = () =>
     writeFile(
       path.join(runDirectory, 'run.json'),
@@ -623,10 +655,17 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
   display.progress(
     `[.] ${plan.mode === 'correction' ? `Correction stack ${plan.folderName}` : `Phase ${plan.phase}`} started - ${plan.implementations.length} implementation prompts`,
   );
+  for (const completed of resume.completed) {
+    display.progress(
+      `[+] P${completed.prompt.number} previously completed - commit ${completed.commitSha.slice(0, 7)}`,
+    );
+  }
+  if (resume.nextPrompt) {
+    display.progress(`[>] Resuming at P${resume.nextPrompt.number}`);
+  }
 
-  let previousVersion =
-    plan.mode === 'phase' ? `0.${plan.phase}.0` : plan.unchangedVersion;
-  for (const prompt of plan.implementations) {
+  let previousVersion = resume.previousVersion;
+  for (const prompt of plan.implementations.slice(resume.completedCount)) {
     if (interrupted) throw new Error(interruptionMessage);
     activePrompt = prompt;
     assertVersionCompatible(

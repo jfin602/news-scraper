@@ -1,8 +1,11 @@
 import { parseDatabaseConfig } from '../../database/config.ts';
 import { createDatabase } from '../../database/database.ts';
-import { createDatabaseDependency } from '../../database/readiness.ts';
 import { parseRuntimeConfig } from '../../shared/runtime-config.ts';
-import { startWorkerRuntime } from './runtime.ts';
+import {
+  createWorkerRuntimeDependencies,
+  startWorkerRuntime,
+  type WorkerDiagnostic,
+} from './runtime.ts';
 
 async function main(): Promise<void> {
   try {
@@ -11,16 +14,18 @@ async function main(): Promise<void> {
     const database = createDatabase(databaseConfig);
     const runtime = await startWorkerRuntime(
       config,
-      createDatabaseDependency(database),
+      createWorkerRuntimeDependencies(database, { emit: writeEvent }),
     );
     let shutdownPromise: Promise<void> | undefined;
     const shutdown = () => {
-      shutdownPromise ??= runtime.shutdown();
+      shutdownPromise ??= runtime.shutdown().catch(() => {
+        writeError('worker.shutdown_failed');
+        process.exitCode = 1;
+      });
     };
 
     process.once('SIGINT', shutdown);
     process.once('SIGTERM', shutdown);
-    writeEvent({ event: 'worker.ready', role: 'worker' });
 
     try {
       await runtime.stopped;
@@ -35,7 +40,7 @@ async function main(): Promise<void> {
   }
 }
 
-function writeEvent(event: Readonly<Record<string, string>>): void {
+function writeEvent(event: WorkerDiagnostic): void {
   process.stdout.write(`${JSON.stringify(event)}\n`);
 }
 

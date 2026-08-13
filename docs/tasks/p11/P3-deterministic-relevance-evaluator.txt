@@ -1,0 +1,240 @@
+TASK: Phase 11 / P3 — Deterministic Relevance evaluator
+
+ROADMAP PHASE
+Phase 11 — Categories and configurable Relevance execution.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Terra Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P3 is a subtle but fully specified deterministic decision matrix isolated to pure synchronous logic. Terra High provides enough reasoning for precedence, matching, stable ordering, and edge-case coverage without spending Ultra-level reasoning on a DB-free, concurrency-free evaluator.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a model/configuration label.
+
+VERSIONING
+- This is Phase 11 prompt 3 and its assigned project version is `0.11.3`.
+- Before editing, confirm P2 left `package.json` at `0.11.2`, or retain `0.11.3` only for a rerun of this same P3.
+- Update only the top-level package version to `0.11.3`; do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- `package.json` remains the sole current-version authority.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, Phase 11 roadmap, and governing Relevance sections of `domain-and-data-contract.md` and `source-and-collection-contract.md`;
+2. read P1/P2 and inspect the actual final P1/P2 Relevance configuration types/repositories/tests;
+3. inspect `src/collection/normalization/article-candidate.ts` and current normalized candidate production so matching uses only fields that actually exist;
+4. inspect current `src/collection/relevance/evaluator.ts` and `test/unit/relevance-evaluator.test.ts`;
+5. confirm P2 did not activate database lookups inside the evaluator or create a competing precedence algorithm;
+6. stop and report planning drift if the final configuration representation materially differs from the governing contract.
+
+GOAL
+Replace the Phase 7 default-include stub with the complete Phase 11 deterministic, topic-independent, pure Relevance + Category evaluator while preserving the same canonical Relevance boundary.
+
+PURE FUNCTION BOUNDARY
+The evaluator MUST remain:
+- synchronous;
+- database-free;
+- network-free;
+- filesystem-free;
+- clock-free;
+- randomness-free;
+- environment-free;
+- topic-independent.
+
+It should receive the normalized Article candidate plus one explicit effective Relevance configuration snapshot produced by P2. It must not load configuration itself.
+
+CANDIDATE INPUTS ALLOWED FOR MATCHING
+MVP predicates may inspect only:
+- candidate normalized title;
+- candidate normalized/sanitized summary when present;
+- candidate normalized Source-provided category labels when present;
+- candidate Source identity only for deciding whether a Source-scoped rule is applicable, normally already filtered by P2.
+
+Do not inspect author, URL, language, dates, image, arbitrary metadata, environment variables, Source display name, publication topic, or any ambient state to make Relevance decisions.
+
+MATCHING SEMANTICS
+Implement exactly these literal predicates:
+
+1. `title_contains`
+- case-insensitive literal substring match against `candidate.normalizedTitle`.
+
+2. `summary_contains`
+- case-insensitive literal substring match against normalized/sanitized `candidate.summary`;
+- absent summary means no match.
+
+3. `source_category_equals`
+- case-insensitive literal equality against any normalized Source-provided category label;
+- absent/empty Source categories mean no match.
+
+Patterns are literal data. Do not interpret regex metacharacters, globs, escaping syntax, stemming, fuzzy distance, semantic similarity, ranking weights, or Boolean expressions.
+
+Use deterministic non-locale-dependent string normalization/comparison. Do not allow process locale to affect decisions or ordering.
+
+INCLUDE / EXCLUDE PRECEDENCE
+For applicable enabled matching include/exclude rules, apply exactly:
+
+1. higher integer priority wins;
+2. at equal priority, Source-scoped wins over installation-wide;
+3. at equal priority and scope specificity, `exclude` wins over `include`;
+4. at equal priority, scope specificity, and action, lexicographically lower immutable rule `config_key` wins;
+5. when no include/exclude rule matches, include by default.
+
+The final config-key tie is required so the selected winning reason is deterministic, not merely the boolean result.
+
+CATEGORIZATION SEMANTICS
+Categorization is independent from inclusion.
+
+1. evaluate every applicable enabled matching `categorize` rule;
+2. every matching categorize rule applies;
+3. deduplicate resulting Category assignments by immutable Category `config_key`;
+4. retain every matching categorize-rule reason even when several rules target the same deduplicated Category;
+5. order applied rule reasons by priority descending, then Source-scoped before installation-wide at equal priority, then immutable rule `config_key` ascending;
+6. categorize-rule priority orders explanations only; it MUST NOT suppress another matching Category;
+7. if at least one categorize rule matches, do not add a default Category;
+8. otherwise use endpoint default Category when configured;
+9. otherwise use Source default Category;
+10. otherwise leave Category assignment empty;
+11. default reasons must explicitly distinguish endpoint default from Source fallback.
+
+For deterministic persistence input, return unique Category assignments in stable Category `config_key` ascending order, independent from the separately governed reason ordering.
+
+DECISION RESULT SHAPE
+Return one immutable/frozen logical result that carries enough data for P5/P6 without persistence re-running the evaluator.
+
+The result should include the semantic equivalents of:
+- `included` boolean;
+- the original candidate reference when inclusion preserves the current interface pattern;
+- winning include/exclude decision reason containing stable reason kind and optional selected rule identity/config key;
+- unique Category assignments;
+- ordered Category reasons including rule/default identity and Category target.
+
+Do not leak raw persistence/database row shapes into the evaluator API if a smaller domain type is clearer.
+
+DEFAULT INCLUDE
+The historical empty-rule behavior remains canonical:
+- empty configuration => `included: true`;
+- decision reason remains `default_include` or the final canonical equivalent already used by contracts/tests;
+- no Category unless endpoint/Source default configuration explicitly supplies one.
+
+IMMUTABILITY
+- Do not mutate the candidate.
+- Do not mutate the supplied configuration snapshot.
+- Freeze decision/result structures consistent with current project conventions.
+- Repeated calls with structurally identical candidate/configuration must produce deeply equal semantic output.
+
+LIKELY / ALLOWED FILES
+Expected primary scope:
+- `package.json`
+- `src/collection/relevance/evaluator.ts`
+- `src/collection/relevance/configuration.ts` only for narrow shared types/helpers required by the evaluator
+- `test/unit/relevance-evaluator.test.ts`
+- possibly a dedicated additional unit matrix file if that materially improves clarity
+
+Do not modify:
+- PostgreSQL schema/repositories except an unavoidable narrow type correction discovered from P2;
+- Article persistence;
+- `collect-endpoint.ts` production integration;
+- Worker jobs/scheduler;
+- operator scripts/config files;
+- public routes/UI.
+
+COMPLETE FOCUSED TEST MATRIX
+Extend/replace the current small evaluator suite so it proves at minimum:
+
+Predicate behavior
+1. title substring matches case-insensitively;
+2. title non-match;
+3. summary substring match;
+4. missing summary non-match;
+5. Source category equality match;
+6. Source category case-insensitive equality;
+7. Source category substring does NOT count as equality;
+8. missing Source categories non-match;
+9. regex/glob-looking pattern is treated literally;
+10. unrelated candidate fields cannot affect match result.
+
+Include/exclude precedence
+11. higher priority wins even against a lower-priority exclude;
+12. equal-priority Source-scoped rule beats installation-wide;
+13. equal-priority/equal-scope exclude beats include;
+14. equal priority/scope/action uses lexicographically lower rule config key;
+15. disabled rules are ignored;
+16. rule scoped to another Source is ignored if such a rule can appear in the input type;
+17. no matching include/exclude => default include.
+
+Categorization
+18. one matching categorize rule assigns its Category;
+19. multiple matching rules assign multiple Categories;
+20. two rules targeting the same Category create one Category assignment but retain both ordered reasons;
+21. categorize priority does not suppress another Category;
+22. reason order is priority desc -> Source scope -> rule config key asc;
+23. Category assignment order is stable config-key asc;
+24. endpoint default is used only when no categorize rule matches;
+25. Source default is used only when no categorize rule and no endpoint default apply;
+26. endpoint default wins over Source default;
+27. matching categorize rule suppresses both defaults even if it assigns the same Category as a default;
+28. no rule/default may leave the included Article uncategorized.
+
+Determinism/topic independence
+29. identical inputs produce identical outputs;
+30. candidate/configuration are not mutated;
+31. frozen decision behavior remains consistent;
+32. changes to `Date.now`, `Math.random`, environment variables, or locale-sensitive ambient state do not affect semantics;
+33. unrelated-topic vocabulary produces the same rule mechanics as publishing vocabulary;
+34. no hardcoded indie-author/publishing keywords alter results.
+
+BROADER REGRESSION
+Run:
+- the complete focused evaluator unit suite;
+- relevant normalization/Article-candidate unit/collection tests that protect Source category/summary/title shapes;
+- existing integration tests that inject `evaluateRelevance`, ensuring type/API changes remain intentionally compatible or are updated without activating DB configuration early;
+- `npm run test:unit` if practical after the evaluator API change.
+
+Also run final-tree:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+
+REQUIRED EVIDENCE LEVEL
+- Level 2 unit evidence is mandatory.
+- P3 does not claim database/Worker runtime proof because it intentionally remains pure and unintegrated.
+
+PRESERVED BEHAVIOR
+- Relevance remains before Article identity.
+- No Source/endpoint approval/network-safety behavior changes.
+- No Article identity/persistence changes.
+- No Collection-run accounting changes yet.
+- No manual/scheduled composition changes.
+- No public-feed behavior changes.
+- Empty rules retain deterministic include behavior.
+
+NON-GOALS
+- no operator editorial command;
+- no database-driven evaluator lookup;
+- no Article Category membership persistence;
+- no observation reason persistence integration;
+- no durable exclusion observation path;
+- no Worker/runtime activation;
+- no regex/glob/fuzzy/semantic/AI/ranking/boost;
+- no bulk reprocessing;
+- no admin UI or public filters.
+
+ACCEPTANCE CRITERIA
+P3 is complete only when:
+- package version is `0.11.3`;
+- the evaluator implements the exact governed literal matching/precedence/category/default rules;
+- both boolean result and persisted-reason inputs are deterministic under all documented ties;
+- every matching categorize explanation is retained while Category membership inputs are deduplicated;
+- empty rules still default include;
+- evaluator has no DB/network/clock/random/environment/topic dependency;
+- the complete focused unit matrix and relevant regressions pass;
+- no package lock or unrelated future-phase behavior is introduced.
+
+FINAL RESPONSE
+Report:
+- files changed;
+- final package version;
+- final evaluator input/output shape;
+- exact precedence and categorization semantics implemented;
+- focused and broader commands actually run with results;
+- any API compatibility changes required in existing tests without runtime activation.

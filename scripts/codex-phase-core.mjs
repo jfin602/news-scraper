@@ -226,6 +226,64 @@ export function assertVersionCompatible(actual, prompt, previousVersion) {
   }
 }
 
+export function promptCommitSubject(plan, prompt) {
+  return plan.mode === 'phase'
+    ? prompt.targetVersion
+    : `${plan.folderName}/P${prompt.number}: ${prompt.title}`;
+}
+
+export function detectCompletedPromptPrefix(plan, history, packageVersion) {
+  const matches = plan.implementations.map((prompt) => {
+    const subject = promptCommitSubject(plan, prompt);
+    const commits = history.filter((commit) => commit.subject === subject);
+    if (commits.length > 1) {
+      throw new Error(
+        `Git history is ambiguous for P${prompt.number}: found ${commits.length} reachable commits with subject ${subject}.`,
+      );
+    }
+    return commits[0];
+  });
+
+  const firstMissing = matches.findIndex((commit) => !commit);
+  const completedCount = firstMissing === -1 ? matches.length : firstMissing;
+  const laterMatch = matches.findIndex(
+    (commit, index) => index > completedCount && Boolean(commit),
+  );
+  if (laterMatch !== -1) {
+    throw new Error(
+      `Git history is unsafe to resume: P${laterMatch + 1} is completed while P${completedCount + 1} is missing.`,
+    );
+  }
+
+  const expectedVersion =
+    plan.mode === 'phase'
+      ? `0.${plan.phase}.${completedCount}`
+      : plan.unchangedVersion;
+  if (packageVersion !== expectedVersion) {
+    if (plan.mode === 'correction') {
+      throw new Error(
+        `Correction stack expected unchanged package version ${expectedVersion}; found ${packageVersion}.`,
+      );
+    }
+    throw new Error(
+      `Package version ${packageVersion} does not match the Git-proven completed prefix through ${completedCount ? `P${completedCount}` : 'no prompts'}; expected ${expectedVersion}.`,
+    );
+  }
+
+  return Object.freeze({
+    completedCount,
+    completed: Object.freeze(
+      plan.implementations
+        .slice(0, completedCount)
+        .map((prompt, index) =>
+          Object.freeze({ prompt, commitSha: matches[index].sha }),
+        ),
+    ),
+    nextPrompt: plan.implementations[completedCount],
+    previousVersion: expectedVersion,
+  });
+}
+
 export function assertPostPrompt({
   exitCode,
   version,
@@ -514,6 +572,8 @@ export function formatUsage(usage) {
 
 function stateLabel(prompt, state) {
   if (prompt.kind === 'closeout') return '[M] MANUAL / CLOSEOUT';
+  if (state?.status === 'previously_completed')
+    return '[+] PREVIOUSLY COMPLETED';
   if (state?.status === 'passed') return '[+] PASSED';
   if (state?.status === 'running') return '[>] RUNNING';
   if (state?.status === 'failed') return '[X] FAILED';
@@ -565,7 +625,10 @@ export function renderDashboard({
     lines.push(
       `  ${stateLabel(prompt, state)} P${prompt.number}  ${prompt.title}  ${prompt.recommendation}  ${prompt.kind === 'closeout' ? 'MANUAL' : promptVersionLabel(prompt)}${duration}`,
     );
-    if (state?.status === 'passed') {
+    if (
+      state?.status === 'passed' ||
+      state?.status === 'previously_completed'
+    ) {
       if (state.commitSha)
         lines.push(`    Commit: ${state.commitSha.slice(0, 7)}`);
       const usageLines = formatUsage(state.usage);
@@ -574,7 +637,8 @@ export function renderDashboard({
     }
   }
   const complete = [...states.values()].filter(
-    (state) => state.status === 'passed',
+    (state) =>
+      state.status === 'passed' || state.status === 'previously_completed',
   ).length;
   lines.push(
     '',
@@ -722,7 +786,9 @@ export function renderFailureSummary({ plan, states, failedPrompt, reason }) {
     lines.push(`[X] P${failedPrompt.number} - ${failedPrompt.title}`, '');
   lines.push('Reason:', `  ${reason}`, '', 'Completed:');
   const completed = plan?.implementations.filter(
-    (prompt) => states.get(prompt.number)?.status === 'passed',
+    (prompt) =>
+      states.get(prompt.number)?.status === 'passed' ||
+      states.get(prompt.number)?.status === 'previously_completed',
   );
   if (completed?.length)
     lines.push(...completed.map((prompt) => `  [+] P${prompt.number}`));
@@ -731,9 +797,13 @@ export function renderFailureSummary({ plan, states, failedPrompt, reason }) {
   const notExecuted = plan?.implementations.filter(
     (prompt) =>
       prompt.number !== failedPrompt?.number &&
-      !['passed', 'running', 'failed', 'interrupted'].includes(
-        states.get(prompt.number)?.status,
-      ),
+      ![
+        'passed',
+        'previously_completed',
+        'running',
+        'failed',
+        'interrupted',
+      ].includes(states.get(prompt.number)?.status),
   );
   if (notExecuted?.length)
     lines.push(...notExecuted.map((prompt) => `  [ ] P${prompt.number}`));

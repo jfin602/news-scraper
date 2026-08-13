@@ -49,6 +49,8 @@ test('starts, finds, and finalizes a successful collection run exactly once', as
       httpStatusCode: 200,
       wireByteCount: 1234,
       decompressedByteCount: 4321,
+      redirectCount: 2,
+      transportElapsedMilliseconds: 12.5,
       rawItemCount: 2,
       normalizedCandidateCount: 1,
       normalizationFailureCount: 1,
@@ -66,6 +68,8 @@ test('starts, finds, and finalizes a successful collection run exactly once', as
     assert.equal(finalized.httpStatusCode, 200);
     assert.equal(finalized.wireByteCount, 1234);
     assert.equal(finalized.decompressedByteCount, 4321);
+    assert.equal(finalized.redirectCount, 2);
+    assert.equal(finalized.transportElapsedMilliseconds, 12.5);
     assert.equal(finalized.rawItemCount, 2);
     assert.equal(finalized.normalizationStatus, 'succeeded');
     assert.equal(finalized.normalizedCandidateCount, 1);
@@ -94,6 +98,7 @@ test('persists truthful no-change and failed collection-run stage outcomes', asy
       runStatus: 'succeeded',
       transportStatus: 'not_modified',
       parserStatus: 'not_run',
+      outcomeCode: 'not_modified',
       httpStatusCode: 304,
       rawItemCount: 0,
       ...normalizationNotRun,
@@ -111,6 +116,8 @@ test('persists truthful no-change and failed collection-run stage outcomes', asy
       runStatus: 'failed',
       transportStatus: 'failed',
       parserStatus: 'not_run',
+      outcomeCode: 'fetch_failed',
+      retryClassification: 'transient',
       rawItemCount: 0,
       ...normalizationNotRun,
       ...processingNotRun,
@@ -206,6 +213,7 @@ test('persists complete processing outcomes for succeeded and failed stages', as
       parserStatus: 'succeeded',
       normalizationStatus: 'succeeded',
       processingStatus: 'succeeded',
+      outcomeCode: 'content',
       rawItemCount: 7,
       normalizedCandidateCount: 6,
       normalizationFailureCount: 1,
@@ -230,6 +238,8 @@ test('persists complete processing outcomes for succeeded and failed stages', as
       parserStatus: 'succeeded',
       normalizationStatus: 'succeeded',
       processingStatus: 'failed',
+      outcomeCode: 'processing_failed',
+      retryClassification: 'permanent',
       rawItemCount: 2,
       normalizedCandidateCount: 2,
       normalizationFailureCount: 0,
@@ -353,6 +363,18 @@ test('database constraints preserve collection-run lifecycle and caller transact
     await assert.rejects(
       database.query(
         'UPDATE collection_runs SET wire_byte_count = -1 WHERE id = $1',
+        [run.id],
+      ),
+    );
+    await assert.rejects(
+      database.query(
+        'UPDATE collection_runs SET redirect_count = -1 WHERE id = $1',
+        [run.id],
+      ),
+    );
+    await assert.rejects(
+      database.query(
+        'UPDATE collection_runs SET transport_elapsed_milliseconds = -1 WHERE id = $1',
         [run.id],
       ),
     );

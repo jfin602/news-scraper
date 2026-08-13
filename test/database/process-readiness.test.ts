@@ -6,6 +6,7 @@ import { withDisposableDatabase } from '../support/database/disposable-database.
 import {
   cleanupChild,
   disconnectTestIpc,
+  sendGracefulInterrupt,
   sendGracefulTermination,
   spawnRole,
   waitForExit,
@@ -20,6 +21,12 @@ describe('real process database readiness', () => {
       const web = spawnDatabaseRole('web', databaseUrl);
       const worker = spawnDatabaseRole('worker', databaseUrl);
       try {
+        const workerReady = waitForJsonEvent(worker, 'stdout', 'worker.ready');
+        const schedulerActive = waitForJsonEvent(
+          worker,
+          'stdout',
+          'worker.scheduler_pass_completed',
+        );
         const listening = await waitForJsonEvent(
           web,
           'stdout',
@@ -28,16 +35,28 @@ describe('real process database readiness', () => {
         const baseUrl = `http://127.0.0.1:${String(listening.port)}`;
         assert.equal((await fetch(`${baseUrl}/health/live`)).status, 200);
         assert.equal((await fetch(`${baseUrl}/health/ready`)).status, 200);
-        assert.deepEqual(
-          await waitForJsonEvent(worker, 'stdout', 'worker.ready'),
-          { event: 'worker.ready', role: 'worker' },
-        );
+        assert.deepEqual(await workerReady, {
+          event: 'worker.ready',
+          role: 'worker',
+        });
+        assert.deepEqual(await schedulerActive, {
+          event: 'worker.scheduler_pass_completed',
+          role: 'worker',
+          considered: 0,
+          enqueued: 0,
+          alreadyOutstanding: 0,
+        });
 
         const webStopped = waitForJsonEvent(web, 'stdout', 'web.stopped');
         const workerStopped = waitForJsonEvent(
           worker,
           'stdout',
           'worker.stopped',
+        );
+        const workerShutdown = waitForJsonEvent(
+          worker,
+          'stdout',
+          'worker.shutdown_begin',
         );
         sendGracefulTermination(web);
         sendGracefulTermination(worker);
@@ -47,6 +66,10 @@ describe('real process database readiness', () => {
         });
         assert.deepEqual(await workerStopped, {
           event: 'worker.stopped',
+          role: 'worker',
+        });
+        assert.deepEqual(await workerShutdown, {
+          event: 'worker.shutdown_begin',
           role: 'worker',
         });
         disconnectTestIpc(web);
@@ -98,6 +121,32 @@ describe('real process database readiness', () => {
         assert.deepEqual(await webExit, { code: 0, signal: null });
       } finally {
         await cleanupChild(web);
+        await cleanupChild(worker);
+      }
+    });
+  });
+
+  it('stops the active Worker runtime cleanly on SIGINT', async () => {
+    await withDisposableDatabase(async ({ databaseUrl }) => {
+      await migrateDatabase({ connectionString: databaseUrl });
+      const worker = spawnDatabaseRole('worker', databaseUrl);
+      try {
+        assert.deepEqual(
+          await waitForJsonEvent(worker, 'stdout', 'worker.ready'),
+          { event: 'worker.ready', role: 'worker' },
+        );
+        const stopped = waitForJsonEvent(worker, 'stdout', 'worker.stopped');
+        sendGracefulInterrupt(worker);
+        assert.deepEqual(await stopped, {
+          event: 'worker.stopped',
+          role: 'worker',
+        });
+        disconnectTestIpc(worker);
+        assert.deepEqual(await waitForExit(worker), {
+          code: 0,
+          signal: null,
+        });
+      } finally {
         await cleanupChild(worker);
       }
     });

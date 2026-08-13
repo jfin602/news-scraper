@@ -27,6 +27,7 @@ const {
   createDisplaySession,
   createEventTracker,
   createStructuredEventProcessor,
+  detectCompletedPromptPrefix,
   formatUsage,
   hasCursorControls,
   interpretEvent,
@@ -222,6 +223,29 @@ const createCorrectionRepository = async (implementationCount = 2) => {
   gitResult(rootDirectory, ['add', '-A']);
   gitResult(rootDirectory, ['commit', '--quiet', '-m', 'baseline']);
   return rootDirectory;
+};
+
+const commitRoadmapCompletion = async (
+  rootDirectory: string,
+  number: number,
+) => {
+  await writeFile(
+    path.join(rootDirectory, 'package.json'),
+    `${JSON.stringify({ name: 'phase-test', version: `0.8.${number}` }, null, 2)}\n`,
+  );
+  await writeFile(
+    path.join(rootDirectory, `historical-P${number}.txt`),
+    `completed ${number}\n`,
+  );
+  gitResult(rootDirectory, ['add', '-A']);
+  gitResult(rootDirectory, ['commit', '--quiet', '-m', `0.8.${number}`]);
+  return gitResult(rootDirectory, ['rev-parse', 'HEAD']);
+};
+
+const commitUnrelated = async (rootDirectory: string, name: string) => {
+  await writeFile(path.join(rootDirectory, `${name}.txt`), `${name}\n`);
+  gitResult(rootDirectory, ['add', '-A']);
+  gitResult(rootDirectory, ['commit', '--quiet', '-m', name]);
 };
 
 const testOutput = (interactive = false) => {
@@ -1086,6 +1110,31 @@ test('failure summary names failed, completed, not executed, and manual closeout
   assert.equal(isAscii(output), true);
 });
 
+test('failure summary reports previously completed resumed prompts as completed', () => {
+  const plan = buildPlan(
+    [prompt(1), prompt(2), prompt(3), prompt(4, { closeout: true })],
+    'p8',
+  );
+  const states = new Map([
+    [1, { status: 'previously_completed' }],
+    [2, { status: 'failed' }],
+    [3, { status: 'waiting' }],
+  ]);
+  const output = renderFailureSummary({
+    plan,
+    states,
+    failedPrompt: plan.prompts[1],
+    reason: 'Prompt failed.',
+  });
+
+  assert.match(output, /Completed:\n\s{2}\[\+\] P1/);
+  assert.match(output, /\[X\] P2 - Task 2/);
+  assert.match(output, /Not executed:\n\s{2}\[ \] P3/);
+  assert.doesNotMatch(output, /Not executed:[\s\S]*\[ \] P1/);
+  assert.match(output, /\[M\] P4 - Phase 8 closeout validation - NOT EXECUTED/);
+  assert.equal(isAscii(output), true);
+});
+
 test('correction dashboard, failure, and handoff use fixed-version correction semantics', () => {
   const plan = buildPlan(
     [correctionPrompt(1), correctionPrompt(2, { closeout: true })],
@@ -1401,6 +1450,262 @@ test('phase loop commits each prompt before the next starts with exact multiline
     assert.match(output.read(), /P1 passed - commit [0-9a-f]{7}/);
     assert.match(output.read(), /P2 passed - commit [0-9a-f]{7}/);
     assert.doesNotMatch(output.read(), /NEWS SCRAPER - CODEX PHASE RUNNER/);
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('resume planning rejects gaps, duplicates, and package versions inconsistent with history', () => {
+  const plan = buildPlan(
+    [prompt(1), prompt(2), prompt(3), prompt(4, { closeout: true })],
+    'p8',
+  );
+  assert.equal(
+    detectCompletedPromptPrefix(plan, [], '0.8.0').completedCount,
+    0,
+  );
+  assert.throws(
+    () =>
+      detectCompletedPromptPrefix(
+        plan,
+        [
+          { sha: 'one', subject: '0.8.1' },
+          { sha: 'three', subject: '0.8.3' },
+        ],
+        '0.8.1',
+      ),
+    /P3 is completed while P2 is missing/,
+  );
+  assert.throws(
+    () =>
+      detectCompletedPromptPrefix(
+        plan,
+        [
+          { sha: 'one-a', subject: '0.8.1' },
+          { sha: 'one-b', subject: '0.8.1' },
+        ],
+        '0.8.1',
+      ),
+    /ambiguous for P1/,
+  );
+  assert.throws(
+    () =>
+      detectCompletedPromptPrefix(
+        plan,
+        [{ sha: 'one', subject: '0.8.1' }],
+        '0.8.2',
+      ),
+    /expected 0\.8\.1/,
+  );
+  assert.throws(
+    () =>
+      detectCompletedPromptPrefix(
+        plan,
+        [
+          { sha: 'one', subject: '0.8.1' },
+          { sha: 'two', subject: '0.8.2' },
+        ],
+        '0.8.1',
+      ),
+    /expected 0\.8\.2/,
+  );
+});
+
+test('roadmap resume skips a proven prefix across unrelated commits and records historical SHAs', async () => {
+  const rootDirectory = await createPhaseRepository(3);
+  const codexCalls: number[] = [];
+  const output = testOutput(false);
+  try {
+    const firstSha = await commitRoadmapCompletion(rootDirectory, 1);
+    await commitUnrelated(rootDirectory, 'documentation-update');
+    const secondSha = await commitRoadmapCompletion(rootDirectory, 2);
+    await commitUnrelated(rootDirectory, 'runner-maintenance');
+    const result = await runCli(['p8'], {
+      rootDirectory,
+      stdout: output,
+      resolveLauncher: async () => ({
+        launcher: directTestLauncher,
+        version: 'codex-test 1.0.0',
+      }),
+      runCodexProcess: async (parsedPrompt: { number: number }) => {
+        codexCalls.push(parsedPrompt.number);
+        await writeFile(
+          path.join(rootDirectory, 'package.json'),
+          `${JSON.stringify({ name: 'phase-test', version: '0.8.3' }, null, 2)}\n`,
+        );
+        await writeFile(path.join(rootDirectory, 'P3-new.txt'), 'new\n');
+        return {
+          code: 0,
+          signal: null,
+          finalResponse: 'completed P3',
+          stderr: '',
+          childArgs: [],
+        };
+      },
+    });
+    assert.equal(result, 0);
+    assert.deepEqual(codexCalls, [3]);
+    const runFolders = await readdir(
+      path.join(rootDirectory, '.codex-runs', 'p8'),
+    );
+    const run = JSON.parse(
+      await readFile(
+        path.join(
+          rootDirectory,
+          '.codex-runs',
+          'p8',
+          runFolders[0]!,
+          'run.json',
+        ),
+        'utf8',
+      ),
+    );
+    assert.deepEqual(
+      run.prompts
+        .slice(0, 2)
+        .map(
+          ({ status, commitSha }: { status: string; commitSha: string }) => ({
+            status,
+            commitSha,
+          }),
+        ),
+      [
+        { status: 'previously_completed', commitSha: firstSha },
+        { status: 'previously_completed', commitSha: secondSha },
+      ],
+    );
+    assert.match(output.read(), /P1 previously completed - commit/);
+    assert.match(output.read(), /Resuming at P3/);
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('roadmap resume after P1 starts P2 even when an unrelated commit is newer', async () => {
+  const rootDirectory = await createPhaseRepository(2);
+  const codexCalls: number[] = [];
+  try {
+    await commitRoadmapCompletion(rootDirectory, 1);
+    await commitUnrelated(rootDirectory, 'runner-update');
+    await runCli(['p8'], {
+      rootDirectory,
+      stdout: testOutput(false),
+      resolveLauncher: async () => ({
+        launcher: directTestLauncher,
+        version: 'test',
+      }),
+      runCodexProcess: async (parsedPrompt: { number: number }) => {
+        codexCalls.push(parsedPrompt.number);
+        await writeFile(
+          path.join(rootDirectory, 'package.json'),
+          `${JSON.stringify({ version: '0.8.2' })}\n`,
+        );
+        await writeFile(path.join(rootDirectory, 'P2-new.txt'), 'new\n');
+        return {
+          code: 0,
+          signal: null,
+          finalResponse: 'done',
+          stderr: '',
+          childArgs: [],
+        };
+      },
+    });
+    assert.deepEqual(codexCalls, [2]);
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('all completed roadmap prompts launch no Codex process and retain manual closeout', async () => {
+  const rootDirectory = await createPhaseRepository(2);
+  let codexCalls = 0;
+  const output = testOutput(false);
+  try {
+    await commitRoadmapCompletion(rootDirectory, 1);
+    await commitRoadmapCompletion(rootDirectory, 2);
+    assert.equal(
+      await runCli(['p8'], {
+        rootDirectory,
+        stdout: output,
+        resolveLauncher: async () => ({
+          launcher: directTestLauncher,
+          version: 'test',
+        }),
+        runCodexProcess: async () => {
+          codexCalls += 1;
+          throw new Error('must not run');
+        },
+      }),
+      0,
+    );
+    assert.equal(codexCalls, 0);
+    assert.match(output.read(), /IMPLEMENTATION PROMPTS COMPLETE/);
+    assert.match(output.read(), /Execution:\s+MANUAL/);
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('correction resume uses the exact subject and tolerates a newer unrelated commit', async () => {
+  const rootDirectory = await createCorrectionRepository(2);
+  const codexCalls: number[] = [];
+  try {
+    await writeFile(path.join(rootDirectory, 'correction-1.txt'), 'done\n');
+    gitResult(rootDirectory, ['add', '-A']);
+    gitResult(rootDirectory, [
+      'commit',
+      '--quiet',
+      '-m',
+      'c10-single-publication/P1: Correction 1',
+    ]);
+    await commitUnrelated(rootDirectory, 'unrelated-correction-docs');
+    await runCli(['c10-single-publication'], {
+      rootDirectory,
+      stdout: testOutput(false),
+      resolveLauncher: async () => ({
+        launcher: directTestLauncher,
+        version: 'test',
+      }),
+      runCodexProcess: async (parsedPrompt: { number: number }) => {
+        codexCalls.push(parsedPrompt.number);
+        await writeFile(path.join(rootDirectory, 'correction-2.txt'), 'done\n');
+        return {
+          code: 0,
+          signal: null,
+          finalResponse: 'done',
+          stderr: '',
+          childArgs: [],
+        };
+      },
+    });
+    assert.deepEqual(codexCalls, [2]);
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('dirty working tree still prevents resume inspection from launching Codex', async () => {
+  const rootDirectory = await createPhaseRepository(2);
+  let codexCalls = 0;
+  try {
+    await commitRoadmapCompletion(rootDirectory, 1);
+    await writeFile(path.join(rootDirectory, 'dirty.txt'), 'dirty\n');
+    await assert.rejects(
+      runCli(['p8'], {
+        rootDirectory,
+        stdout: testOutput(false),
+        resolveLauncher: async () => ({
+          launcher: directTestLauncher,
+          version: 'test',
+        }),
+        runCodexProcess: async () => {
+          codexCalls += 1;
+          throw new Error('must not run');
+        },
+      }),
+      /uncommitted changes/,
+    );
+    assert.equal(codexCalls, 0);
   } finally {
     await rm(rootDirectory, { recursive: true, force: true });
   }
