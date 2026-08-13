@@ -8,7 +8,7 @@ Publication is the singleton editorial/configuration concept for the installed n
 
 ## Current project state
 
-Current phase: **Phase 12 — Feed discovery features**.
+Current phase: **Phase 13 — Public presentation polish**.
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation and closeout validation are complete. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; that accepted limitation is not rewritten as passing evidence.
 
@@ -18,7 +18,9 @@ Phase 10 — Automated polling, durable jobs, and endpoint health — is complet
 
 Phase 11 — Categories and configurable Relevance execution — is complete with durable validation in `docs/validation/phase-11-categories-configurable-relevance-execution.md`. It extended the existing Relevance boundary with persisted installation-wide Categories and deterministic configurable include/exclude/categorize rules while preserving topic independence, Source-scoped Article identity, provenance, and prospective-by-default rule edits.
 
-Phase 12 extends the canonical public-feed boundary with deterministic Source/Category filters, bounded literal keyword search, stable keyset pagination/load-more, URL/reset navigation behavior, and MVP-scale query/index tuning without changing feed eligibility or chronological ordering.
+Phase 12 — Feed discovery features — is complete with durable validation in `docs/validation/phase-12-feed-discovery-features.md`. It extended the canonical public-feed boundary with deterministic Source/Category filters, bounded literal keyword search, stable keyset pagination/load-more, URL/reset navigation behavior, and MVP-scale query/index tuning without changing feed eligibility or chronological ordering.
+
+Phase 13 now owns public presentation polish: minimum singleton Publication branding/read-model support, final responsive desktop/mobile presentation, light/dark theme behavior, accessibility, intentional loading presentation, and browser validation while preserving Phase 12 discovery semantics.
 
 ## Delivery priority
 
@@ -204,7 +206,7 @@ The completed Phase 10 entry singleton correction required real PostgreSQL migra
 
 Phase 11 closeout additionally required deterministic proof of literal predicate/missing-field behavior, the complete include/exclude precedence/tie matrix, all-matching categorize/default fallback semantics, stable reason ordering, exact `excluded` accounting before identity, prospective non-retroactive behavior, and real PostgreSQL proof for Category/rule schema, uniqueness, relationships, memberships, and reason persistence.
 
-Phase 12 requires focused API/database/browser regression proof for search/filter parameter validation, unchanged feed eligibility, Source/Category filtering, literal keyword search, stable keyset pagination, cursor/query consistency, URL/reset/back-forward navigation, load-more behavior, and the indexes/query shape needed for MVP-scale discovery.
+Phase 12 closeout proved search/filter parameter validation, unchanged feed eligibility, Source/Category filtering, literal keyword search, stable keyset pagination, cursor/query consistency, URL/reset/back-forward navigation, load-more behavior, and the indexes/query shape needed for MVP-scale discovery across the required API/database/browser regression evidence.
 
 Dependency installation intentionally uses `package.json` without an npm package lock. Repository npm configuration disables `package-lock.json` generation, so clean installs use `npm install` rather than `npm ci`. Because declared dependency ranges may resolve to different compatible versions over time, validation applies to the exact source tree and recorded Node/npm environment that was actually tested rather than claiming byte-for-byte dependency reproducibility.
 
@@ -360,14 +362,14 @@ Completed after the tech-demo milestone:
 - **Phase 10 entry correction — singleton implementation alignment** — complete with durable correction validation.
 - **Phase 10 — Automated polling, durable jobs, and endpoint health** — complete with durable phase validation.
 - **Phase 11 — Categories and configurable Relevance execution** — complete with durable phase validation.
+- **Phase 12 — Feed discovery features** — complete with durable phase validation.
 
 Current:
 
-- **Phase 12 — Feed discovery features**
+- **Phase 13 — Public presentation polish**
 
 Then:
 
-- Phase 13 — Public presentation polish
 - Phase 14 — Source administration
 - Phase 15 — Publication and Relevance administration
 - Phase 16 — True duplicate detection and grouping
