@@ -1,0 +1,198 @@
+TASK: Phase 13 / P2 — Public presentation read model and API
+
+ROADMAP PHASE
+Phase 13 — Public presentation polish.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol High`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Terra High`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P2 is a narrow producer/consumer extension across the canonical PostgreSQL public-feed reader and Express serializer. Sol High is sufficient for preserving Phase 12 query/error semantics while adding the bounded Publication presentation shape without spending Terra-level reasoning on a largely mechanical read-model change.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a model/configuration label.
+
+VERSIONING
+- This is Phase 13 prompt 2 and its assigned project version is `0.13.2`.
+- Before editing, confirm `package.json` is exactly `0.13.1` on first execution, or already `0.13.2` only for a rerun of this same P2.
+- Update only the top-level package version to `0.13.2`; do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- `package.json` remains the sole current-version authority.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the Phase 13 roadmap entry, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/domain-and-data-contract.md`, and `docs/contracts/testing-and-validation-contract.md`;
+2. inspect the P1 implementation and tests on the actual current tree, including the final canonical nullable presentation field types and migration constraints;
+3. inspect `src/public-feed/repository.ts`, `src/app/web/create-app.ts`, `src/app/web/main.ts`, and current public-feed repository/HTTP/browser fixtures;
+4. trace every consumer of `PublicFeedPublication` / `PublicFeed` so stricter presentation fields do not create ad hoc alternate shapes;
+5. confirm Phase 12 discovery/filter/keyset SQL remains the canonical feed read path and that no implementation drift changed `/api/feed` or `/`;
+6. stop and report planning drift if P1 did not establish the expected presentation persistence or if current feed contracts differ materially from this prompt.
+
+GOAL
+Expose the P1 singleton Publication presentation values through the one canonical public-feed read model and `GET /api/feed` response:
+- required `name`;
+- nullable `description`;
+- nullable `logoPath`;
+- nullable `accentColor`.
+
+P2 is intentionally backend/read-model only. It must not implement branding DOM, theme controls, CSS redesign, or the R7KM loading fix.
+
+PUBLIC READ MODEL
+Extend `PublicFeedPublication` to require the canonical public presentation shape:
+- `name: string`;
+- `description: string | null`;
+- `logoPath: string | null`;
+- `accentColor: string | null`.
+
+Do not make the new fields optional properties merely to ease fixture migration. A public Publication response has a stable explicit shape; missing persisted optional values are represented by JSON `null`.
+
+Do not expose:
+- `activeForCollection`;
+- `publicStatus`;
+- timestamps;
+- internal Publication identity/slug/tenant fields;
+- raw CSS or HTML;
+- admin-only state.
+
+REPOSITORY QUERY + MAPPING
+Extend the existing public Publication query to select only the four required public presentation values from the singleton `publication_settings` row when `public_status = 'public'`.
+
+Keep the existing public-state behavior:
+- absent Publication -> no public feed;
+- private Publication -> no public feed;
+- public Publication -> bounded read model.
+
+Preserve the existing second/final public Publication read in `readPublicFeed()` unless a higher-authority current contract or observed implementation change demonstrates it is obsolete. Do not opportunistically simplify public-state race protection while changing presentation fields.
+
+Map values defensively:
+- required name remains trimmed/non-empty;
+- nullable values must be either null or already-valid canonical strings consistent with P1 persistence;
+- malformed/corrupt database values must become the existing bounded `PublicFeedRepositoryError('invalid_row')` behavior rather than leak raw data or be repaired into a different value.
+
+Do not duplicate a full second presentation-validation subsystem if P1 exposes narrowly reusable canonical helpers. Reuse where it keeps one source of truth without coupling the public-feed repository to bootstrap behavior.
+
+PHASE 12 QUERY PRESERVATION
+Do not alter the semantics of:
+- Source/Category validation;
+- keyword matching;
+- feed eligibility;
+- effective-date ordering;
+- high-precision cursor keys;
+- keyset continuation;
+- discovery metadata caps/order;
+- Source approval/lifecycle gates;
+- Article visibility;
+- exact stored `original_url`.
+
+No new joins, ranking, Publication selector, pagination behavior, total counts, or alternate feed query are needed for presentation fields.
+
+HTTP RESPONSE
+Update the canonical `/api/feed` serializer so successful responses contain exactly:
+
+`publication: { name, description, logoPath, accentColor }`
+
+for the Publication portion.
+
+Keep all established response behavior:
+- `discovery` shape unchanged;
+- Article item safe shape unchanged;
+- nullable opaque `nextCursor` unchanged;
+- no-store unchanged;
+- malformed/unsupported discovery -> generic 400;
+- absent/private Publication -> generic 404;
+- dependency/read failure -> generic secret-safe 503;
+- obsolete slug API remains absent.
+
+The new values are inert JSON presentation data. Do not convert description to HTML, color to CSS declarations, or logo path to an external URL in the API layer.
+
+FOCUSED REPOSITORY TESTS — LEVEL 3/4
+Extend current public-feed repository tests to prove at minimum:
+- public Publication with all optional presentation values null returns explicit nulls;
+- fully populated public Publication returns exact canonical stored values;
+- private/absent Publication behavior remains unchanged;
+- malformed publication rows fail with bounded `invalid_row` behavior;
+- public Article/discovery results are otherwise identical to the established Phase 12 path;
+- presentation fields do not alter Article eligibility/order/filtering/cursors.
+
+Use disposable PostgreSQL where the test claims actual P1 persisted columns/read behavior.
+
+HTTP / COMPONENT TESTS — LEVEL 3
+Extend the existing HTTP tests to prove:
+- no-query successful response contains the complete four-field Publication shape;
+- filtered and continuation responses use the same presentation shape;
+- all-null optionals serialize as `null`, not omitted properties;
+- markup-looking description/name and path/color strings remain ordinary JSON data;
+- internal Publication fields cannot leak merely because the repository object has extra properties in a synthetic test double;
+- existing internal Article/search fields remain non-public;
+- existing generic 400/404/503 behavior remains secret-safe;
+- all responses remain no-store;
+- obsolete slug routes remain absent.
+
+REAL-DB HTTP COMPOSITION
+Extend `test/database/public-feed-http.test.ts` or the current equivalent real-PostgreSQL production reader -> HTTP path so a migrated database with populated Publication presentation fields is observed through `/api/feed` exactly once without bypassing the canonical repository.
+
+Also prove the all-null persisted case if not already covered at repository level.
+
+BROWSER FIXTURE COMPATIBILITY
+Update browser test Publication fixtures to the new required four-field type/response shape, typically using null optionals by default. Do not change browser rendering expectations yet except where compilation/fixture validity requires the new response contract.
+
+The existing Phase 12 browser suite should remain green after fixture adaptation, demonstrating that merely adding inert API fields does not alter current discovery/navigation behavior before P3 consumes them.
+
+LIKELY FILE SCOPE
+Expected relevant files include:
+- `package.json`;
+- `src/public-feed/repository.ts`;
+- `src/app/web/create-app.ts`;
+- `test/integration/public-feed-http.test.ts`;
+- `test/database/public-feed-repository.test.ts` and/or `test/database/public-feed-discovery-repository.test.ts` as appropriate;
+- `test/database/public-feed-http.test.ts`;
+- `test/browser/public-feed-page.test.ts` fixture/response builders.
+
+Touch additional files only when the actual current source trace demonstrates they are direct consumers of the changed public Publication type.
+
+REGRESSION COVERAGE
+Run at minimum:
+- focused public-feed repository/HTTP tests;
+- `npm run typecheck`;
+- `npm run test:integration`;
+- `npm run test:db`;
+- `npm run test:browser`;
+- `npm run check`.
+
+If PostgreSQL or Chromium prerequisites are unavailable, report the failure rather than claiming those evidence levels passed.
+
+No live-Source test is required by this read-only public-presentation blast radius.
+
+PRESERVED BEHAVIOR
+- exactly one canonical `/api/feed`;
+- exactly one root `/` public page;
+- singleton public-state semantics;
+- Phase 12 discovery/filter/keyset ordering and input/error behavior;
+- UTC date behavior;
+- same Article item shape and exact original publisher destination;
+- Web/API still never collects Sources inline;
+- no topic-specific business logic.
+
+NON-GOALS
+Do not implement in P2:
+- root-page branding rendering;
+- loading lifecycle changes;
+- logo asset serving/upload;
+- theme selection/local storage;
+- CSS redesign/accessibility polish;
+- admin editing/timezone settings;
+- Source/Category/discovery changes;
+- R7KM resolution;
+- unrelated refactors.
+
+ACCEPTANCE CRITERIA
+P2 is complete only when:
+- package version is `0.13.2`;
+- canonical public-feed repository output requires the four-field Publication presentation shape;
+- `/api/feed` emits those fields with explicit null optionals and no internal leakage;
+- private/absent/error semantics remain unchanged;
+- real PostgreSQL -> repository -> HTTP composition proves the persisted values;
+- Phase 12 query/cursor/browser regressions remain green;
+- no frontend presentation behavior has been pulled into this task;
+- `git diff --check` is clean.
+
+Report exact files changed and commands actually run. Do not claim Phase 13 browser presentation has been implemented or validated by P2.

@@ -1,0 +1,331 @@
+TASK: Phase 13 / P6 — Phase 13 closeout validation
+
+ROADMAP PHASE
+Phase 13 — Public presentation polish.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol High`.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Very High`.
+- Alternative considered: `Terra High`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P6 is an evidence-heavy exact-final-tree validation task across static, unit, integration, disposable PostgreSQL, and Chromium layers. Sol High is appropriate for broad execution and bounded defect triage; if validation exposes a material persistence/API architectural defect, stop or use an appropriately stronger separately planned remediation rather than redesigning Phase 13 inside the evidence task.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a model/configuration label.
+
+VERSIONING
+- This is Phase 13 prompt 6 and its assigned project version is `0.13.6`.
+- On first execution, confirm P5 left `package.json` at `0.13.5`, then advance only the top-level package version to `0.13.6` before establishing the final Phase 13 candidate source SHA.
+- If this same P6 prompt is rerun and `package.json` is already `0.13.6`, retain `0.13.6`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- A later conversational `/closeout`, if Phase 13 is accepted, separately transitions to the Phase 14 baseline `0.14.0`; that transition is NOT part of P6.
+
+MANUAL CLOSEOUT BOUNDARY
+This is the sole final manual closeout prompt for the Phase 13 task stack. The phase runner must stop after P5 and MUST NOT execute P6 automatically.
+
+P6 validates the exact final Phase 13 tree, fixes only bounded defects necessary to satisfy the already-governed Phase 13 contracts/exit gate, resolves R7KM only when final browser evidence proves it, and writes the durable validation artifact.
+
+P6 must not invent new Phase 13 scope, change the approved design direction, pull Phase 14/15/later work forward, or silently redefine Phase 12 behavior.
+
+MANDATORY HANDOFF
+Before any P6 version/write action:
+1. read current `BOOT.md`, the complete Phase 13 roadmap entry, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/domain-and-data-contract.md`, `docs/contracts/testing-and-validation-contract.md`, and `docs/design/public-feed-presentation.md`;
+2. read P1-P5 and inspect the actual final implementation/tests from those prompts rather than relying on task prose;
+3. inspect `known-issues.md` and confirm R7KM state before deciding whether final evidence permits resolution;
+4. confirm `package.json` is the expected P5 version and Git history/working tree contains no unexpected implementation drift outside the Phase 13 sequence;
+5. inspect the final Publication configuration/repository/migration, public-feed read model/API, root HTML/client/theme resource/CSS, and unit/integration/database/browser tests;
+6. establish the final candidate source SHA after moving to `0.13.6` and before recording acceptance evidence;
+7. if material contract drift, a broad architectural defect, or a later-phase dependency is discovered, stop and report the blocker rather than using P6 as an unplanned redesign prompt.
+
+PHASE 13 EXIT GATE TO PROVE
+The exact final tree must prove all of the following.
+
+Publication presentation persistence/read model:
+- singleton Publication still has no relational tenant identity/slug requirement;
+- required name plus nullable bounded description/logo path/accent are persisted canonically;
+- ordinary bootstrap remains create-if-absent/no-overwrite;
+- malformed presentation values are rejected at the documented boundaries;
+- `/api/feed` exposes exactly the bounded public Publication presentation fields and does not leak internal configuration;
+- missing optional values remain valid and produce a complete generic presentation.
+
+Public presentation:
+- canonical root `/` remains the one customer page;
+- approved modern editorial/publication-desk design is implemented without generic dashboard/card-portal framing;
+- desktop keeps Date | Headline | Source with headline dominance;
+- mobile uses Date · Source then headline without compressed table behavior;
+- long content reflows without horizontal page scrolling at supported widths;
+- configured logo/name/description/accent are inert and safe;
+- absent/broken optional logo/description/accent degrade cleanly;
+- configured accent remains restrained and does not become unsafe contrast-critical text/focus/error color.
+
+Theme:
+- reader modes are exactly System/Light/Dark;
+- default System follows browser/OS preference;
+- explicit Light/Dark locally persist and override system preference;
+- choosing System resumes live system following and removes the fixed override;
+- corrupt/unavailable local preference storage falls back safely;
+- theme state does not alter root discovery URL, browser history, `/api/feed` criteria, Publication persistence, Article eligibility/order, or reader identity.
+
+Accessibility/responsive:
+- in-scope root experience meets the documented WCAG 2.2 AA target for the behaviors actually covered;
+- semantic/native controls and coherent keyboard order are preserved;
+- visible focus works in both effective themes;
+- contrast-critical application-owned token combinations meet applicable AA thresholds;
+- discovery/theme/load-more controls satisfy the chosen target-size/spacing assertions;
+- loading/status/error behavior is understandable without relying only on color;
+- reduced motion removes nonessential/continuous animation while preserving understandable loading state;
+- desktop/mobile/long-content layouts remain usable without destructive overlap/overflow.
+
+R7KM:
+- while the initial owned `/api/feed` request is deliberately held pending in Chromium, the visible page presents an intentional neutral loading state;
+- no generic/unset Publication heading such as `News feed` is visibly painted before configured public data is known;
+- no fake description/logo/headlines are painted;
+- reduced-motion loading remains understandable;
+- after resolution, configured Publication presentation appears correctly;
+- later Search/Reset/Back/Forward pending requests do not flash generic placeholder branding;
+- unavailable/public-state transitions do not leave stale private branding visible.
+
+Phase 12 preservation:
+- `/api/feed` remains the one canonical feed/discovery endpoint;
+- `/` remains canonical page;
+- feed eligibility unchanged;
+- effective-date DESC -> `first_seen_at` DESC -> Article-ID ASC ordering unchanged;
+- bounded literal `q`, Source, Category filtering unchanged;
+- immutable public `config_key` identities unchanged;
+- query-bound opaque keyset cursor behavior unchanged;
+- direct URL/refresh/Search/Reset/Back/Forward reconstruction unchanged;
+- load-more depth remains non-URL state;
+- stale first-page/continuation protection unchanged;
+- continuation failure preserves existing rows and supports retry;
+- UTC calendar date behavior remains unchanged;
+- exact stored `original_url` remains the direct same-context headline destination;
+- topic-independent shared code remains intact.
+
+DURABLE VALIDATION ARTIFACT
+Create:
+`docs/validation/phase-13-public-presentation-polish.md`
+
+The artifact MUST record:
+- validation date/time;
+- exact accepted/final source SHA;
+- package version `0.13.6`;
+- relevant Node/npm/PostgreSQL/Chromium/Playwright versions where observed;
+- P1-P6 scope summary without pretending unrun evidence passed;
+- exact commands/procedures run and observed outcomes;
+- exact test counts where commands report them;
+- PostgreSQL prerequisite/environment used without credentials/secrets;
+- browser contexts/viewports/color-scheme/reduced-motion conditions used;
+- any unavailable prerequisite/evidence and its consequence;
+- explicit evidence levels actually achieved;
+- R7KM final disposition and evidence if resolved;
+- Phase 13 exit-gate conclusion as GREEN or blocked/red;
+- intended next phase if GREEN: Phase 14 — Source administration;
+- statement that later conversational `/closeout` is still required for the `0.14.0` baseline transition and is not performed by P6.
+
+P1 PERSISTENCE EVIDENCE — LEVEL 2 + LEVEL 4 REQUIRED
+Prove on the final tree:
+- absent and populated presentation configuration normalization;
+- exact description bound including Unicode-code-point behavior;
+- logo-path allowed/rejected boundary cases;
+- canonical accent normalization/rejection;
+- configuration immutability;
+- migration chain from zero includes the presentation migration and reruns safely;
+- historical applied migration files/checksums remain intact;
+- database constraints reject invalid non-null presentation shapes;
+- valid/null rows map correctly through production repository;
+- singleton cardinality remains enforced;
+- bootstrap creates once and preserves operator-managed presentation values on rerun;
+- concurrent/idempotent bootstrap behavior remains green.
+
+P2 READ MODEL / API EVIDENCE — LEVEL 3 + LEVEL 4 REQUIRED
+Prove:
+- public repository returns name + explicit nullable description/logoPath/accentColor;
+- private/absent Publication remains generic 404 behavior;
+- corrupt row mapping is bounded and secret-safe;
+- `/api/feed` publishes only the four presentation fields for Publication plus established discovery/item/cursor shapes;
+- all-null and fully populated values serialize correctly;
+- markup-looking values remain inert JSON data;
+- no `activeForCollection`, `publicStatus`, timestamps, internal IDs/slugs, raw CSS/HTML, or other private settings leak;
+- production PostgreSQL reader -> HTTP composition returns the persisted values;
+- discovery/filter/cursor results/order remain unchanged.
+
+P3 LOADING / BRANDING EVIDENCE — LEVEL 6 REQUIRED
+With an intentionally deferred first-page response, observe:
+- neutral document/pending state;
+- accessible loading text/status;
+- zero Article rows;
+- no visible generic/unset Publication placeholder;
+- no configured Publication data before response;
+- successful resolution renders inert name/description/logo/accent correctly;
+- null optional branding remains complete;
+- broken logo degrades cleanly;
+- markup-looking values do not inject DOM/script behavior;
+- subsequent query pending state preserves known public branding rather than flashing generic content;
+- owned 404 clears old branding;
+- stale success/error/404 cannot mutate a newer state.
+
+P4 THEME EVIDENCE — LEVEL 6 REQUIRED
+Prove in isolated browser contexts:
+- System + light preference;
+- System + dark preference;
+- live system preference change while System selected;
+- explicit Light against dark system preference;
+- explicit Dark against light system preference;
+- persistence across reload;
+- System selection clearing/resuming system following;
+- corrupt local preference fallback;
+- unavailable local storage fallback;
+- keyboard theme selection;
+- no URL/history/feed-request/content side effects from theme changes.
+
+P5 RESPONSIVE / ACCESSIBILITY EVIDENCE — LEVEL 6 REQUIRED
+Prove representative desktop and mobile viewports plus stress cases:
+- Date | Headline | Source desktop layout;
+- Date · Source -> headline mobile logical/visual order;
+- long headline/Source/Category/discovery values wrap without horizontal document scrolling;
+- Publication masthead/theme/discovery/load-more reflow coherently;
+- visible focus for all important interactive controls in both themes;
+- coherent keyboard traversal and no trap;
+- deterministic control target-size/spacing checks;
+- contrast-critical token combinations satisfy intended AA thresholds;
+- reduced-motion preference disables nonessential/continuous motion but keeps loading understandable;
+- loading/empty/invalid/unavailable/dependency-error/continuation states remain distinguishable and accessible;
+- continuation busy/error state remains local and preserves loaded rows;
+- exact publisher links remain direct same-context anchors.
+
+PHASE 12 BROWSER REGRESSION — LEVEL 6 REQUIRED
+Run/retain explicit browser coverage for:
+- direct q/source/category/combined URLs;
+- refresh reconstruction;
+- Search URL/results replacement;
+- Reset from valid and invalid states;
+- Back/Forward restoration without history loops;
+- malformed root discovery input;
+- filtered empty state;
+- stale first-page response protection;
+- Load more current criteria + opaque cursor;
+- no cursor in root URL;
+- final-page control removal;
+- duplicate activation protection;
+- continuation cursor replacement;
+- Apply/Reset/history invalidation of old continuation depth;
+- stale continuation success/failure protection;
+- continuation error/retry preserving existing rows;
+- inert untrusted text;
+- UTC date fallback;
+- exact original publisher link destination.
+
+STATIC / ARCHITECTURE INSPECTION
+Inspect and record enough final-tree source evidence to confirm:
+- no Publication relational tenancy or slug selector reappeared;
+- no topic-specific indie-author/publishing conditionals/default branding exist in shared engine/UI code;
+- Web/API does not fetch Sources inline;
+- theme state is client-local only;
+- no generic public filesystem-serving surface was introduced for logos/theme assets;
+- no remote font dependency was added;
+- no configurable timezone or Phase 15 admin surface was pulled forward;
+- public client still consumes the canonical `/api/feed` response rather than implementing a parallel feed query.
+
+REQUIRED COMMAND MATRIX
+Run on the exact final candidate tree with prerequisites present:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:collection`
+- `npm run test:db`
+- `npm run test:browser`
+- `npm test`
+- `npm run check`
+
+Run focused commands during defect triage as useful, but distinguish focused runs from final broad evidence in the validation artifact.
+
+No required suite may silently skip its required cases or select zero tests and still count as GREEN evidence.
+
+DATABASE PREREQUISITE
+`npm run test:db` must use the existing safe disposable PostgreSQL harness. If a usable configured test PostgreSQL prerequisite is absent, record the missing prerequisite and Phase 13 remains blocked because Level 4 persistence proof is part of this phase's new behavior.
+
+Do not substitute mocks/source inspection for database constraints, migration, bootstrap, or production reader composition.
+
+BROWSER PREREQUISITE
+`npm run test:browser` requires the repository's supported Playwright Chromium environment. If Chromium is unavailable, record the missing prerequisite and Phase 13 remains blocked because Level 6 browser evidence is an explicit exit gate.
+
+Do not substitute HTML/HTTP inspection for browser proof.
+
+LIVE-SOURCE / REFERENCE-DEPLOYMENT POLICY
+New Level 7 live-publisher evidence is NOT intrinsically required for Phase 13 because P1-P5 do not change Source approval, network safety, RSS/Atom transport/parsing, normalization, Relevance execution, Article persistence, or Worker collection behavior.
+
+Level 8 reference-deployment evidence is also not added as a Phase 13 exit requirement by the current roadmap/testing contract.
+
+Record those as not required for this blast radius, not as passing/skipped evidence.
+
+If the actual final tree unexpectedly changed publisher transport/network behavior or deployment boundaries, stop and reassess rather than assuming those evidence levels remain unnecessary.
+
+R7KM RESOLUTION RULE
+Only after the exact-final-tree Chromium loading evidence above passes:
+- move R7KM from Open to the repository's resolved/completed issue section/form in `known-issues.md`;
+- record the resolution date and concise statement that delayed initial `/api/feed` browser proof showed intentional neutral loading with no visible generic/unset Publication placeholder;
+- do not claim anything not actually observed.
+
+If the browser proof fails, is flaky/unreproducible, or Chromium is unavailable, leave R7KM open and Phase 13 cannot be GREEN.
+
+DEFECT HANDLING
+P6 may fix only bounded defects necessary to make the already-defined Phase 13 implementation satisfy its contracts/tests.
+
+For any bounded fix:
+- keep package version `0.13.6`;
+- add/fix a focused regression for the failed invariant;
+- rerun every broader suite invalidated by the fix;
+- re-establish the final candidate source SHA after the fix;
+- ensure the durable artifact references the exact final tested SHA.
+
+Examples of bounded P6 fixes:
+- one missing nullable Publication mapping assertion;
+- incorrect theme storage fallback;
+- one focus/overflow/reduced-motion CSS defect;
+- generic placeholder still present in one pending branch;
+- page resource header typo;
+- one stale branding state transition bug.
+
+STOP rather than stretching P6 scope if correction requires:
+- material contract/design change;
+- new persistence model;
+- new asset-upload/storage subsystem;
+- broad migration redesign;
+- new frontend framework/state architecture;
+- admin UI/control plane;
+- configurable timezone;
+- changes to Phase 12 discovery/keyset semantics;
+- another roadmap feature.
+
+NON-GOALS
+Do not add as P6 scope:
+- Phase 14 Source administration;
+- Phase 15 Publication/Relevance administration or timezone settings;
+- Phase 16 duplicate grouping;
+- Article-body republishing;
+- thumbnails/images;
+- ranking/featured/pinned ordering;
+- reader accounts/personalization;
+- remote fonts;
+- HTML collection;
+- unrelated cleanup/refactors.
+
+ACCEPTANCE CRITERIA
+P6 may declare Phase 13 GREEN only when:
+- package version is `0.13.6`;
+- exact final source SHA is identified after all bounded fixes;
+- required Level 2, Level 3, Level 4, and Level 6 evidence is green on that exact tree;
+- required PostgreSQL and Chromium suites were actually executed with no required silent skips/zero-test success;
+- all Phase 13 persistence/API/branding/theme/responsive/accessibility/loading requirements above are satisfied;
+- relevant Phase 12 API/database/browser regressions remain green;
+- R7KM is resolved only if final delayed-response browser proof passed;
+- `docs/validation/phase-13-public-presentation-polish.md` accurately records observed evidence and limitations;
+- no Phase 14/15/later behavior was pulled forward;
+- `git diff --check` and final repository checks are clean.
+
+If GREEN, report the accepted final SHA, durable validation artifact path, R7KM disposition, and that the next conversational workflow action is `/closeout` for the separate Phase 14 `0.14.0` baseline transition.
+
+Do NOT edit roadmap/root phase summaries forward to Phase 14 inside P6; `/closeout` followed by `/docs-review` -> approval -> `/docs-apply` owns that handoff.

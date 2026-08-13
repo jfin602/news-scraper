@@ -1,0 +1,214 @@
+TASK: Phase 13 / P3 — Branding and initial loading lifecycle
+
+ROADMAP PHASE
+Phase 13 — Public presentation polish.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol High`.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Alternative considered: `Sol Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P3 is frontend-state work across server HTML, the existing request-generation/AbortController state machine, Publication privacy transitions, inert branding rendering, and browser proof. Sol High is the right quality floor without using Ultra unless the current browser-state implementation has become materially more entangled than planned.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a model/configuration label.
+
+VERSIONING
+- This is Phase 13 prompt 3 and its assigned project version is `0.13.3`.
+- Before editing, confirm `package.json` is exactly `0.13.2` on first execution, or already `0.13.3` only for a rerun of this same P3.
+- Update only the top-level package version to `0.13.3`; do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- `package.json` remains the sole current-version authority.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the Phase 13 roadmap entry, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, and `docs/design/public-feed-presentation.md`;
+2. inspect P1/P2 final implementation and confirm `/api/feed` now returns required `name` plus nullable `description`, `logoPath`, and `accentColor`;
+3. inspect `src/app/web/public-feed-page.ts`, `src/app/web/public/public-feed.js`, `src/app/web/public/public-feed.css`, `src/app/web/create-app.ts`, and all browser/page HTTP tests;
+4. trace the entire first-page request lifecycle, including generation counters, AbortControllers, discovery control clearing, continuation invalidation, stale-response checks, state rendering, and publication-title/name reset behavior;
+5. inspect `known-issues.md` and confirm R7KM is still open and described as the initial generic/unset placeholder flash;
+6. stop and report planning drift if the current root/client lifecycle or P2 response contract materially differs from this prompt.
+
+GOAL
+Integrate the Phase 13 Publication presentation data into the canonical root page and fix the R7KM root cause by making the initial unresolved page neutral and intentional.
+
+P3 owns:
+- initial root shell loading lifecycle;
+- Publication name/description/logo/accent DOM integration;
+- document-title lifecycle;
+- safe generic fallbacks when optional branding is absent;
+- preservation/clearing rules for already-resolved branding across subsequent requests;
+- focused browser evidence for the loading/branding state machine.
+
+P3 does NOT own the reader theme selector or final editorial CSS/accessibility pass; those are P4/P5.
+
+ROOT-CAUSE FIX FOR R7KM
+The current implementation paints generic Publication copy (`News feed`) in initial HTML and resets to that same generic copy before first-page requests. Remove that placeholder-first behavior at its source.
+
+Initial server HTML while Publication data is unresolved MUST:
+- contain no visible fake/generic Publication heading such as `News feed`;
+- contain no fake description/logo/headline content;
+- provide a neutral document title suitable for unresolved state, e.g. `Loading publication…`;
+- provide an intentional loading region/status that can be centered/styled by the existing stylesheet;
+- remain useful to assistive technology with a status message such as `Loading publication…`;
+- remain topic-independent.
+
+Do not "fix" R7KM by rendering the old placeholder and hiding it after JavaScript starts. Browser tests must be able to delay `/api/feed` and observe that generic Publication copy was never visibly present during the pending state.
+
+PUBLICATION DOM
+Create/adjust semantic masthead elements so the client can render:
+- configured logo when present;
+- configured Publication name after successful public data resolution;
+- optional description when present;
+- no invented description or fake icon when optional values are absent.
+
+Use DOM APIs and `textContent`. Never use `innerHTML` or treat Publication data as trusted markup.
+
+Logo behavior:
+- create/use an `<img>` only for validated `logoPath` supplied by the canonical API;
+- set its source to that same-origin path without external rewriting;
+- the textual Publication name remains present, so the logo may be decorative with empty alt text;
+- missing logo collapses cleanly;
+- if the configured same-origin resource fails to load, hide/remove the broken-image presentation while retaining the textual Publication identity;
+- do not add a generic static-directory server, upload endpoint, filesystem path lookup, database binary storage, remote-image proxy, or Phase 15 asset administration.
+
+Accent behavior:
+- expose the validated canonical accent as a presentation custom property/token on an appropriate root/masthead element;
+- treat it only as a restrained branding signal;
+- do not make arbitrary Publication accent the sole focus ring, body text, error text, or other contrast-critical color;
+- when absent, remove/reset the custom property and use application-owned safe defaults.
+
+DOCUMENT TITLE
+After a successful public response, update the document title using the configured Publication name in a stable topic-independent form.
+
+Do not retain stale Publication title/name after a later owned request establishes that the Publication is unavailable/non-public.
+
+INITIAL VS SUBSEQUENT FIRST-PAGE REQUESTS
+Do not conflate "Publication has never resolved" with every later search/filter/history first-page request.
+
+Required behavior:
+- first page load before any successful public Publication response: neutral loading presentation, no Publication branding;
+- after the Publication has successfully resolved once, a later Search/Reset/Back/Forward first-page request may preserve the already-known Publication masthead while feed content/status changes to loading; do not flash generic placeholder branding between queries;
+- if a later owned response is 404/unavailable, clear previously rendered Publication branding so private/non-public configuration is not left displayed;
+- dependency/invalid-discovery states must remain bounded and understandable without leaking backend details;
+- stale older success/error/404 responses must not clear or overwrite a newer owned Publication/feed state.
+
+PHASE 12 REQUEST-STATE PRESERVATION
+Preserve the current first-page and continuation ownership laws:
+- generation counters remain monotonic ownership guards;
+- current AbortController identity remains part of stale-response checks;
+- changing first-page criteria invalidates old continuation state;
+- load-more depth is not added to the root URL;
+- direct URL, Refresh, Search, Reset, Back/Forward behavior remains unchanged;
+- a stale first-page response cannot overwrite newer controls/results/branding;
+- a stale continuation response cannot mutate newer first-page state.
+
+Do not replace this with a new framework/state library or broad client rewrite merely for presentation polish.
+
+FEED PAYLOAD VALIDATION
+Extend client-side successful-payload validation for the four-field Publication shape:
+- required nonblank name;
+- nullable description/logoPath/accentColor with type/shape checks consistent with the public contract;
+- reject malformed successful data as the existing generic error state;
+- keep all untrusted values inert.
+
+Do not duplicate backend business logic or repair malformed API values into a different valid value.
+
+LOADING / STATE STRUCTURE
+Introduce only the minimum CSS needed for a deliberate centered initial loading region and safe show/hide/collapse of masthead elements. Save final typography, surfaces, responsive layout, theme palette, control redesign, and broad accessibility polish for P4/P5.
+
+Keep distinct states for:
+- loading;
+- populated;
+- empty;
+- unavailable;
+- invalid discovery;
+- dependency/error;
+- continuation loading/error.
+
+Continuation failure remains local and must not remove already-rendered rows or Publication branding.
+
+FOCUSED HTTP TESTS — LEVEL 3
+Update `test/integration/public-feed-page-http.test.ts` or current equivalent to prove the literal initial shell:
+- remains canonical `/` and no-store;
+- still does not read the Publication/feed server-side;
+- contains the same-origin stylesheet/client resources;
+- does NOT contain a visible generic `News feed` Publication heading or topic-specific copy;
+- contains the neutral loading/masthead structure expected by the client;
+- preserves CSP and explicit-resource delivery;
+- obsolete slug page remains absent.
+
+FOCUSED BROWSER TESTS — LEVEL 6
+Use Playwright and the existing deferred-response harness to prove at minimum:
+1. initial `/api/feed` held pending:
+   - intentional loading state/status is visible;
+   - no `.feed-row` exists;
+   - no visible `News feed` or configured Publication name/description/logo has been painted;
+   - document title is neutral/unresolved;
+2. resolving a populated response:
+   - configured name becomes visible;
+   - description is rendered as text and omitted when null;
+   - same-origin logo path is applied when present;
+   - broken logo degrades without broken-image chrome;
+   - accent property is applied only when present;
+   - document title reflects the configured Publication;
+3. markup-looking name/description remains inert with no injected element/script execution;
+4. optional fields all null still produce a complete usable masthead with name;
+5. after one successful render, a Search/Reset/history reload preserves known Publication branding while the new first-page feed request is pending;
+6. a later owned 404 clears old branding and shows the generic unavailable state;
+7. stale delayed success/404/error cannot overwrite/clear a newer owned state;
+8. existing UTC date and exact same-context `originalUrl` behavior remains unchanged.
+
+Update existing assertions that previously expected `News feed` placeholder text; do not weaken them into generic existence checks.
+
+R7KM ISSUE BOUNDARY
+Do NOT mark R7KM resolved in this prompt.
+P3 implements the fix and focused regression evidence. Phase 13 P6 owns exact-final-tree proof and may resolve the issue only after the final browser matrix is green.
+
+REGRESSION COVERAGE
+Run at minimum:
+- focused page HTTP tests;
+- focused browser loading/branding tests;
+- `npm run typecheck`;
+- `npm run test:integration`;
+- `npm run test:browser`;
+- `npm run check`.
+
+If Chromium is unavailable, report the missing prerequisite. Do not substitute HTML-source inspection for Level 6 proof.
+
+No PostgreSQL rerun is intrinsically required if P3 does not touch persistence/repository behavior, but ordinary `npm run check` still runs the deterministic aggregate suites. No live-Source validation is required.
+
+PRESERVED BEHAVIOR
+- canonical `/` + `/api/feed`;
+- no server-side Source collection;
+- Phase 12 filters/query/cursor/history/continuation semantics;
+- public/private/absent/error boundaries;
+- UTC date rendering;
+- direct exact stored original publisher links;
+- CSP/same-origin resources;
+- topic-independent shared UI.
+
+NON-GOALS
+Do not implement in P3:
+- System/Light/Dark selection or local storage;
+- final editorial visual system;
+- remote fonts;
+- upload/static filesystem serving subsystem;
+- Publication admin editing;
+- configurable timezone;
+- Article thumbnails/images;
+- changes to discovery or pagination semantics;
+- premature R7KM resolution record;
+- unrelated cleanup.
+
+ACCEPTANCE CRITERIA
+P3 is complete only when:
+- package version is `0.13.3`;
+- initial pending root state never visibly paints generic/unset Publication content;
+- configured Publication name/optional description/logo/accent render safely after owned success;
+- missing/broken optional branding degrades cleanly;
+- private/unavailable transitions clear stale branding;
+- stale first-page/continuation ownership protections remain intact;
+- focused Level 6 browser proof and relevant Phase 12 browser regressions pass;
+- R7KM remains open for P6 final-tree resolution;
+- `git diff --check` is clean.
+
+Report exact files changed and commands actually run. Do not claim final Phase 13 accessibility/theme completion from this prompt.
