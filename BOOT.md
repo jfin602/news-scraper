@@ -421,6 +421,32 @@ Invoking `/docs-apply` explicitly authorizes approved **documentation-only** edi
 
 After applying, report changed files, addressed/unapplied findings, newly discovered conflicts, and remaining validation.
 
+## `/docs-prompt`
+
+`/docs-prompt` is a **docs-only, read-only** alternative application path after explicit approval of a `/docs-review` change group from the current conversation. The two approved paths are:
+
+```text
+/docs-review
+→ explicit approval
+→ /docs-apply (direct repository-editing path)
+
+/docs-review
+→ explicit approval
+→ npm run docs:snapshot
+→ provide/upload news-scraper-docs-context.zip
+→ /docs-prompt
+→ one implementation-ready Codex prompt
+→ Codex applies locally
+```
+
+It requires the generated `news-scraper-docs-context.zip`, created with `npm run docs:snapshot` and provided/uploaded for prompt generation; arbitrary full-repository ZIPs are not a substitute. The supplied ZIP is the repository snapshot used to generate the prompt. Read its `BOOT.md` first and obey its authority and routing rules. The expected snapshot contains tracked root-level repository files and the complete tracked `docs/` tree. If the ZIP is absent, malformed, or lacks this required documentation context, stop rather than guessing.
+
+`/docs-prompt` does not modify the ZIP, GitHub, or repository files. It does not change `package.json` version or advance roadmap, correction, or UI state. It does not invoke or substitute for `/prompt-ass`, `/prompt-plan`, `/prompt-write`, `/ui-plan`, or `/ui-write`.
+
+Its sole implementation artifact is **exactly one implementation-ready Codex prompt**, limited to the approved documentation change. Root documentation such as `BOOT.md`, `README.md`, and `AGENTS.md` may be in scope when approved. Source code, migrations, tests, runtime configuration, dependencies, package version, and unrelated cleanup are forbidden unless separately authorized outside `/docs-prompt`.
+
+The generated prompt must require Codex to re-read the actual local target files before editing, stop and report when repository drift materially invalidates the approved change, make the smallest coherent documentation diff, and perform relevant documentation consistency and diff validation. It must not split one approved documentation change into the normal implementation task-stack pipeline.
+
 # Prompt workflow
 
 Strict order:
@@ -717,6 +743,7 @@ Historical Phase 10 singleton-correction prompts established the smallest canoni
 - A correction stack's final manual closeout validates/clears correction while preserving unchanged package version/active phase.
 - `/docs-review` never writes.
 - `/docs-apply` writes only approved docs; invocation authorizes documentation-only changes on `main` unless branch/PR/isolation is requested.
+- `/docs-prompt` never writes repository files; from an approved docs review and supplied docs snapshot, it emits only one docs-only Codex implementation prompt.
 - `/prompt-ass` and `/prompt-plan` never write.
 - `/prompt-write` writes only approved task files in established phase/correction folder.
 - `/ui-review` never writes.
@@ -726,7 +753,7 @@ Historical Phase 10 singleton-correction prompts established the smallest canoni
 - UI implementation is non-versioned: it MUST NOT change `package.json` version, consume roadmap prompt numbers, advance roadmap/correction state, or create a phase/correction closeout.
 - Do not run UI implementation in the same working tree used by an active phase/correction runner; keep concurrent work isolated on `ui-polish`/its worktree.
 - Do not merge `ui-polish` into `main` automatically; integration requires review and explicit authorization.
-- Documentation/prompt/review activity does not change package version except explicit `/closeout` baseline transition; correction execution and UI work are non-versioned.
+- Documentation/prompt/review activity, including `/docs-prompt`, does not change package version or roadmap/correction/UI state except for an explicit `/closeout` baseline transition; correction execution and UI work are non-versioned.
 - No task writes while `Planning needed` remains unresolved.
 - No speculative compatibility bridges or permanent dual schemas.
 - Before production compatibility is established, delete legacy-only migration/code/API/type/test/fixture/configuration artifacts rather than preserving superseded pre-production behavior in the active tree.

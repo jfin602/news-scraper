@@ -19,8 +19,9 @@ Follow `BOOT.md`.
 - `/closeout` is the phase-handoff command after a roadmap phase has formally closed. It performs a quick closeout/evidence check and, only when green, advances `package.json` to `0.<next phase>.0`.
 - A correction stack may also contain a final manual closeout prompt, but that correction closeout is not `/closeout`; it clears only the correction/gate and preserves the active roadmap phase/package version.
 - `/docs-review` is always a read-only first pass.
-- Do not modify documentation during review/cleanup/alignment until findings are approved or `/docs-apply` is invoked.
+- Do not modify documentation during review/cleanup/alignment until findings are approved and either `/docs-apply` is invoked or a generated docs snapshot is used with `/docs-prompt` to emit one docs-only Codex prompt.
 - `/docs-apply` authorizes only approved documentation changes and may commit them directly to `main` unless the user requests otherwise.
+- `/docs-prompt` is the read-only alternative after approval: run `npm run docs:snapshot`, provide `news-scraper-docs-context.zip`, then use `/docs-prompt` to produce one prompt for Codex to apply locally. `BOOT.md` defines its full contract.
 - Preserve unrelated wording during scoped documentation fixes.
 - Normal phase handoff follows `/closeout` → `/docs-review` → `/docs-apply` → `/prompt-ass` → `/prompt-plan` → `/prompt-write <folder name>`.
 - Parallel UI work is governed by `docs/design/ui-workflow.md` on the permanent `ui-polish` branch/worktree. The normal targeted path is `/ui-plan` → `/ui-write`; when durable design guidance must first change, `/ui-plan` requires `/ui-review` → explicit approval → `/ui-apply` → rerun `/ui-plan` before `/ui-write`.

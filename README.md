@@ -293,9 +293,15 @@ Documentation review/application:
 /docs-review
 → explicit approval
 → /docs-apply
+
+/docs-review
+→ explicit approval
+→ npm run docs:snapshot
+→ /docs-prompt + news-scraper-docs-context.zip
+→ Codex applies locally
 ```
 
-Invoking `/docs-apply` after the review constitutes approval of the reviewed change set unless the user explicitly narrows it.
+`/docs-prompt` is the snapshot-based alternative after `/docs-review` approval: run `npm run docs:snapshot`, provide `news-scraper-docs-context.zip`, then use `/docs-prompt` to generate one Codex prompt for local application. `/docs-apply` remains the direct repository-editing path. `BOOT.md` defines the canonical contract. Invoking `/docs-apply` after the review constitutes approval of the reviewed change set unless the user explicitly narrows it.
 
 Implementation prompt workflow for both roadmap phases and correction stacks:
 
