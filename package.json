@@ -23,6 +23,7 @@
     "editorial:apply": "node --env-file-if-exists=.env scripts/apply-editorial-configuration.ts config/editorial.json",
     "publication:set-public-status": "node --env-file-if-exists=.env scripts/set-publication-public-status.ts",
     "collect:endpoint": "node --env-file-if-exists=.env src/app/worker/collect-main.ts",
+    "docs:snapshot": "node scripts/create-docs-snapshot.mjs",
     "codex:phase": "node scripts/codex-phase.mjs",
     "codex:phase:validate": "node scripts/validate-codex-phase.mjs",
     "start:web": "node --env-file-if-exists=.env src/app/web/main.ts",
