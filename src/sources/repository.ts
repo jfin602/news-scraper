@@ -116,6 +116,9 @@ interface AggregateRow extends SourceRow {
   readonly publication_name: unknown;
   readonly publication_active_for_collection: unknown;
   readonly publication_public_status: unknown;
+  readonly publication_description: unknown;
+  readonly publication_logo_path: unknown;
+  readonly publication_accent_color: unknown;
   readonly publication_created_at: unknown;
   readonly publication_updated_at: unknown;
   readonly endpoint_id: unknown;
@@ -489,6 +492,9 @@ async function findEndpointConfiguration(
        p.name AS publication_name,
        p.active_for_collection AS publication_active_for_collection,
        p.public_status AS publication_public_status,
+       p.description AS publication_description,
+       p.logo_path AS publication_logo_path,
+       p.accent_color AS publication_accent_color,
        p.created_at AS publication_created_at,
        p.updated_at AS publication_updated_at,
        s.id AS id,
@@ -554,6 +560,9 @@ async function findEndpointConfiguration(
     name: row.publication_name,
     active_for_collection: row.publication_active_for_collection,
     public_status: row.publication_public_status,
+    description: row.publication_description,
+    logo_path: row.publication_logo_path,
+    accent_color: row.publication_accent_color,
     created_at: row.publication_created_at,
     updated_at: row.publication_updated_at,
   });

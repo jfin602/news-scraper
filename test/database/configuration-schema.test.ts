@@ -22,6 +22,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
       '0005_categories_and_relevance.sql',
       '0006_mutable_relevance_rule_history.sql',
       '0007_public_feed_discovery_indexes.sql',
+      '0008_publication_presentation.sql',
     ]);
     assert.deepEqual(
       await migrateDatabase({ connectionString: databaseUrl }),
@@ -82,6 +83,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
         { filename: '0005_categories_and_relevance.sql' },
         { filename: '0006_mutable_relevance_rule_history.sql' },
         { filename: '0007_public_feed_discovery_indexes.sql' },
+        { filename: '0008_publication_presentation.sql' },
       ]);
 
       const removedTenancy = await client.query<{
@@ -112,6 +114,23 @@ test('canonical production schema migrates from zero and reruns safely', async (
           publication_id_absent: true,
         },
       ]);
+
+      const presentationColumns = await client.query<{
+        column_name: string;
+        is_nullable: string;
+      }>(
+        `SELECT column_name, is_nullable
+         FROM information_schema.columns
+         WHERE table_schema = 'public'
+           AND table_name = 'publication_settings'
+           AND column_name IN ('description', 'logo_path', 'accent_color')
+         ORDER BY column_name`,
+      );
+      assert.deepEqual(presentationColumns.rows, [
+        { column_name: 'accent_color', is_nullable: 'YES' },
+        { column_name: 'description', is_nullable: 'YES' },
+        { column_name: 'logo_path', is_nullable: 'YES' },
+      ]);
     } finally {
       await client.end();
     }
@@ -139,6 +158,69 @@ test('canonical configuration schema enforces singleton, ownership, state, and p
           `UPDATE publication_settings SET public_status = 'invalid'`,
         ),
       );
+      await rejects(client, () =>
+        client.query(
+          `UPDATE publication_settings SET description = ' Invalid '`,
+        ),
+      );
+      await rejects(client, () =>
+        client.query(`UPDATE publication_settings SET description = $1`, [
+          'a'.repeat(501),
+        ]),
+      );
+      await rejects(client, () =>
+        client.query(
+          `UPDATE publication_settings SET logo_path = 'https://outside.example/logo.svg'`,
+        ),
+      );
+      await rejects(client, () =>
+        client.query(
+          `UPDATE publication_settings SET logo_path = '/logo.svg?cache=1'`,
+        ),
+      );
+      await rejects(client, () =>
+        client.query(
+          `UPDATE publication_settings SET logo_path = '/logo.svg#fragment'`,
+        ),
+      );
+      await rejects(client, () =>
+        client.query(
+          `UPDATE publication_settings SET logo_path = '/\\outside.example/logo.svg'`,
+        ),
+      );
+      await rejects(client, () =>
+        client.query(`UPDATE publication_settings SET logo_path = $1`, [
+          '/logo\u0000.svg',
+        ]),
+      );
+      await rejects(client, () =>
+        client.query(
+          `UPDATE publication_settings SET accent_color = '#abc123'`,
+        ),
+      );
+      await rejects(client, () =>
+        client.query(
+          `UPDATE publication_settings SET accent_color = 'rgb(1, 2, 3)'`,
+        ),
+      );
+      const presentation = await client.query<{
+        description: string | null;
+        logo_path: string | null;
+        accent_color: string | null;
+      }>(
+        `UPDATE publication_settings
+         SET description = 'Canonical description',
+             logo_path = '/assets/logo.svg',
+             accent_color = '#A1B2C3'
+         RETURNING description, logo_path, accent_color`,
+      );
+      assert.deepEqual(presentation.rows, [
+        {
+          description: 'Canonical description',
+          logo_path: '/assets/logo.svg',
+          accent_color: '#A1B2C3',
+        },
+      ]);
 
       await insertSource(client, sourceOne, 'primary_source');
       await insertSource(client, sourceTwo, 'secondary_source');

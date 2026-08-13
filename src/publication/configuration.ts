@@ -7,6 +7,9 @@ export interface PublicationConfiguration {
   readonly name: string;
   readonly activeForCollection: boolean;
   readonly publicStatus: PublicationPublicStatus;
+  readonly description?: string;
+  readonly logoPath?: string;
+  readonly accentColor?: string;
 }
 
 export class ConfigurationValidationError extends Error {
@@ -22,6 +25,9 @@ export class ConfigurationValidationError extends Error {
 }
 
 const PUBLICATION_NAME_MAX_LENGTH = 200;
+const PUBLICATION_DESCRIPTION_MAX_CODE_POINTS = 500;
+const PUBLICATION_LOGO_PATH_MAX_LENGTH = 1024;
+const ACCENT_COLOR_PATTERN = /^#[0-9A-Fa-f]{6}$/u;
 
 export function normalizePublicationConfiguration(
   input: unknown,
@@ -39,10 +45,17 @@ export function normalizePublicationConfiguration(
     );
   }
 
+  const description = optionalDescription(record, 'publication.description');
+  const logoPath = optionalLogoPath(record, 'publication.logoPath');
+  const accentColor = optionalAccentColor(record, 'publication.accentColor');
+
   return Object.freeze({
     name,
     activeForCollection: record.activeForCollection,
     publicStatus: normalizePublicationPublicStatus(record.publicStatus),
+    ...(description === undefined ? {} : { description }),
+    ...(logoPath === undefined ? {} : { logoPath }),
+    ...(accentColor === undefined ? {} : { accentColor }),
   });
 }
 
@@ -79,4 +92,62 @@ function trimmedString(input: unknown, field: string): string {
     throw new ConfigurationValidationError(field, 'must_not_be_blank');
   }
   return value;
+}
+
+function optionalDescription(
+  record: Record<string, unknown>,
+  field: string,
+): string | undefined {
+  if (!(fieldName(field) in record)) return undefined;
+  const value = stringValue(record[fieldName(field)], field).trim();
+  if (value.length === 0) return undefined;
+  if (Array.from(value).length > PUBLICATION_DESCRIPTION_MAX_CODE_POINTS) {
+    throw new ConfigurationValidationError(field, 'too_long');
+  }
+  return value;
+}
+
+function optionalLogoPath(
+  record: Record<string, unknown>,
+  field: string,
+): string | undefined {
+  if (!(fieldName(field) in record)) return undefined;
+  const value = stringValue(record[fieldName(field)], field).trim();
+  if (value.length === 0) return undefined;
+  if (value.length > PUBLICATION_LOGO_PATH_MAX_LENGTH) {
+    throw new ConfigurationValidationError(field, 'too_long');
+  }
+  if (
+    !value.startsWith('/') ||
+    value.startsWith('//') ||
+    /[?#\\]/u.test(value) ||
+    containsControlCharacter(value)
+  ) {
+    throw new ConfigurationValidationError(field, 'invalid_path');
+  }
+  return value;
+}
+
+function containsControlCharacter(value: string): boolean {
+  return Array.from(value).some((character) => {
+    const codePoint = character.codePointAt(0);
+    return codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f);
+  });
+}
+
+function optionalAccentColor(
+  record: Record<string, unknown>,
+  field: string,
+): string | undefined {
+  if (!(fieldName(field) in record)) return undefined;
+  const value = stringValue(record[fieldName(field)], field).trim();
+  if (value.length === 0) return undefined;
+  if (!ACCENT_COLOR_PATTERN.test(value)) {
+    throw new ConfigurationValidationError(field, 'invalid_color');
+  }
+  return value.toUpperCase();
+}
+
+function fieldName(field: string): string {
+  return field.slice(field.lastIndexOf('.') + 1);
 }

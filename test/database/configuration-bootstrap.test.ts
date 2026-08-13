@@ -35,7 +35,11 @@ const fixtureUrl = new URL(
 
 test('bootstrap creates approved configuration idempotently and preserves operator changes', async () => {
   await withMigratedDatabase(async (database) => {
-    const document = await fixtureDocument();
+    const rawDocument = rawFixture();
+    rawDocument.publication.description = 'Bootstrap description';
+    rawDocument.publication.logoPath = '/assets/bootstrap-logo.svg';
+    rawDocument.publication.accentColor = '#aBc123';
+    const document = normalizeBootstrapDocument(rawDocument);
     assert.deepEqual(await bootstrapPublicationTree(database, document), {
       publicationCreated: true,
       sourcesCreated: 2,
@@ -50,6 +54,9 @@ test('bootstrap creates approved configuration idempotently and preserves operat
 
     const publication = await readPublicationSettings(database);
     assert.ok(publication);
+    assert.equal(publication.description, 'Bootstrap description');
+    assert.equal(publication.logoPath, '/assets/bootstrap-logo.svg');
+    assert.equal(publication.accentColor, '#ABC123');
     const source = await findSourceByConfigKey(database, 'circuit_journal');
     assert.ok(source);
     const endpoint = await findSourceEndpointBySourceAndConfigKey(
@@ -63,7 +70,10 @@ test('bootstrap creates approved configuration idempotently and preserves operat
 
     await database.query(
       `UPDATE publication_settings
-       SET name = 'Operator Technology Desk', active_for_collection = false`,
+       SET name = 'Operator Technology Desk', active_for_collection = false,
+           description = 'Operator description',
+           logo_path = '/operator/logo.svg',
+           accent_color = '#0A1B2C'`,
     );
     assert.equal(
       (await setPublicationPublicStatus(database, 'private'))?.publicStatus,
@@ -125,6 +135,9 @@ test('bootstrap creates approved configuration idempotently and preserves operat
     assert.equal(preservedPublication?.name, 'Operator Technology Desk');
     assert.equal(preservedPublication?.activeForCollection, false);
     assert.equal(preservedPublication?.publicStatus, 'private');
+    assert.equal(preservedPublication?.description, 'Operator description');
+    assert.equal(preservedPublication?.logoPath, '/operator/logo.svg');
+    assert.equal(preservedPublication?.accentColor, '#0A1B2C');
     assert.equal(preservedSource?.displayName, 'Operator Circuit Desk');
     assert.equal(
       preservedSource?.siteUrl.value,

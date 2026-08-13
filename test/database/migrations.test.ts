@@ -280,6 +280,7 @@ test('installs only the justified public-feed discovery indexes from zero', asyn
       '0005_categories_and_relevance.sql',
       '0006_mutable_relevance_rule_history.sql',
       '0007_public_feed_discovery_indexes.sql',
+      '0008_publication_presentation.sql',
     ]);
     assert.deepEqual(
       await migrateDatabase({ connectionString: databaseUrl }),

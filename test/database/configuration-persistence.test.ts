@@ -25,6 +25,19 @@ test('configuration repositories round-trip the singleton endpoint aggregate', a
       name: 'General news',
       activeForCollection: true,
       publicStatus: 'private',
+      description: '  Independent reporting.  ',
+      logoPath: ' /assets/logo.svg ',
+      accentColor: '#aBc123',
+    });
+    assert.deepEqual(publication, {
+      name: 'General news',
+      activeForCollection: true,
+      publicStatus: 'private',
+      description: 'Independent reporting.',
+      logoPath: '/assets/logo.svg',
+      accentColor: '#ABC123',
+      createdAt: publication.createdAt,
+      updatedAt: publication.updatedAt,
     });
     const source = await insertSource(
       database,
@@ -89,6 +102,19 @@ test('configuration repositories round-trip the singleton endpoint aggregate', a
         ],
       },
     );
+  });
+});
+
+test('all-null Publication presentation fields map safely', async () => {
+  await withMigratedDatabase(async (database) => {
+    const publication = await insertPublicationSettings(
+      database,
+      publicationInput('without presentation'),
+    );
+    assert.equal(publication.description, null);
+    assert.equal(publication.logoPath, null);
+    assert.equal(publication.accentColor, null);
+    assert.deepEqual(await readPublicationSettings(database), publication);
   });
 });
 
@@ -168,6 +194,13 @@ test('repository writes validate policy before insertion while constraints remai
       insertPublicationSettings(database, {
         ...publicationInput('invalid'),
         name: ' ',
+      }),
+      ConfigurationValidationError,
+    );
+    await assert.rejects(
+      insertPublicationSettings(database, {
+        ...publicationInput('invalid presentation'),
+        logoPath: 'https://outside.example/logo.svg',
       }),
       ConfigurationValidationError,
     );

@@ -68,6 +68,7 @@ export function normalizeBootstrapDocument(
     publicationInput,
     ['name', 'activeForCollection', 'publicStatus'],
     'publication',
+    ['description', 'logoPath', 'accentColor'],
   );
   const publication = normalizePublicationConfiguration(publicationInput);
   const sourceKeys = new Set<string>();
