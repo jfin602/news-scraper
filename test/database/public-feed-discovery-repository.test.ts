@@ -904,7 +904,11 @@ class PublicStateChangingExecutor implements QueryExecutor {
     values?: readonly unknown[],
   ): Promise<QueryResult<Row>> {
     const result = await this.#delegate.query<Row>(text, values);
-    if (!this.#changed && text.includes('SELECT name AS publication_name')) {
+    if (
+      !this.#changed &&
+      text.includes('name AS publication_name') &&
+      text.includes('FROM publication_settings')
+    ) {
       this.#changed = true;
       await this.#client.query(
         "UPDATE publication_settings SET public_status = 'private'",

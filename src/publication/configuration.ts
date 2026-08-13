@@ -12,6 +12,13 @@ export interface PublicationConfiguration {
   readonly accentColor?: string;
 }
 
+export interface PublicationPresentationConfiguration {
+  readonly name: string;
+  readonly description?: string;
+  readonly logoPath?: string;
+  readonly accentColor?: string;
+}
+
 export class ConfigurationValidationError extends Error {
   readonly field: string;
   readonly reason: string;
@@ -33,10 +40,7 @@ export function normalizePublicationConfiguration(
   input: unknown,
 ): Readonly<PublicationConfiguration> {
   const record = configurationRecord(input, 'publication');
-  const name = trimmedString(record.name, 'publication.name');
-  if (name.length > PUBLICATION_NAME_MAX_LENGTH) {
-    throw new ConfigurationValidationError('publication.name', 'too_long');
-  }
+  const presentation = normalizePublicationPresentation(record);
 
   if (typeof record.activeForCollection !== 'boolean') {
     throw new ConfigurationValidationError(
@@ -45,14 +49,28 @@ export function normalizePublicationConfiguration(
     );
   }
 
+  return Object.freeze({
+    ...presentation,
+    activeForCollection: record.activeForCollection,
+    publicStatus: normalizePublicationPublicStatus(record.publicStatus),
+  });
+}
+
+export function normalizePublicationPresentation(
+  input: unknown,
+): Readonly<PublicationPresentationConfiguration> {
+  const record = configurationRecord(input, 'publication');
+  const name = trimmedString(record.name, 'publication.name');
+  if (name.length > PUBLICATION_NAME_MAX_LENGTH) {
+    throw new ConfigurationValidationError('publication.name', 'too_long');
+  }
+
   const description = optionalDescription(record, 'publication.description');
   const logoPath = optionalLogoPath(record, 'publication.logoPath');
   const accentColor = optionalAccentColor(record, 'publication.accentColor');
 
   return Object.freeze({
     name,
-    activeForCollection: record.activeForCollection,
-    publicStatus: normalizePublicationPublicStatus(record.publicStatus),
     ...(description === undefined ? {} : { description }),
     ...(logoPath === undefined ? {} : { logoPath }),
     ...(accentColor === undefined ? {} : { accentColor }),

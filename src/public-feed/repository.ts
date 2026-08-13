@@ -1,4 +1,5 @@
 import type { QueryExecutor } from '../database/database.ts';
+import { normalizePublicationPresentation } from '../publication/configuration.ts';
 import {
   encodePublicDiscoveryCursor,
   type PublicDiscoveryCursorPosition,
@@ -20,6 +21,9 @@ export type PublicFeedDateSource = 'published_at' | 'first_seen_at';
 
 export interface PublicFeedPublication {
   readonly name: string;
+  readonly description: string | null;
+  readonly logoPath: string | null;
+  readonly accentColor: string | null;
 }
 
 export interface PublicFeedItem {
@@ -68,6 +72,9 @@ export class PublicFeedRepositoryError extends Error {
 
 interface PublicPublicationRow {
   readonly publication_name: unknown;
+  readonly publication_description: unknown;
+  readonly publication_logo_path: unknown;
+  readonly publication_accent_color: unknown;
 }
 
 interface PublicFeedItemRow {
@@ -92,7 +99,11 @@ interface MappedPublicFeedItemRow {
 }
 
 const PUBLIC_PUBLICATION_QUERY = `
-  SELECT name AS publication_name
+  SELECT
+    name AS publication_name,
+    description AS publication_description,
+    logo_path AS publication_logo_path,
+    accent_color AS publication_accent_color
   FROM publication_settings
   WHERE public_status = 'public'`;
 
@@ -336,13 +347,57 @@ async function readPublicPublication(
       throw new PublicFeedRepositoryError('invalid_row');
     }
     if (result.rows.length === 0) return undefined;
+    const row = result.rows[0];
+    if (row === undefined) throw new Error();
+    const normalized = normalizePublicationPresentation({
+      name: row.publication_name,
+      ...(row.publication_description === null
+        ? {}
+        : { description: row.publication_description }),
+      ...(row.publication_logo_path === null
+        ? {}
+        : { logoPath: row.publication_logo_path }),
+      ...(row.publication_accent_color === null
+        ? {}
+        : { accentColor: row.publication_accent_color }),
+    });
     return Object.freeze({
-      name: requiredTrimmedString(result.rows[0]?.publication_name),
+      name: canonicalString(row.publication_name, normalized.name),
+      description: canonicalNullableString(
+        row.publication_description,
+        normalized.description,
+      ),
+      logoPath: canonicalNullableString(
+        row.publication_logo_path,
+        normalized.logoPath,
+      ),
+      accentColor: canonicalNullableString(
+        row.publication_accent_color,
+        normalized.accentColor,
+      ),
     });
   } catch (error) {
     if (error instanceof PublicFeedRepositoryError) throw error;
     throw new PublicFeedRepositoryError('invalid_row');
   }
+}
+
+function canonicalString(persisted: unknown, normalized: string): string {
+  if (typeof persisted !== 'string' || persisted !== normalized) {
+    throw new Error();
+  }
+  return persisted;
+}
+
+function canonicalNullableString(
+  persisted: unknown,
+  normalized: string | undefined,
+): string | null {
+  if (persisted === null) return null;
+  if (typeof persisted !== 'string' || persisted !== normalized) {
+    throw new Error();
+  }
+  return persisted;
 }
 
 async function assertSupportedFilters(

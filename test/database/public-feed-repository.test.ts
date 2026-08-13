@@ -26,6 +26,9 @@ type PublishedAtStatus = 'parsed' | 'missing' | 'invalid';
 
 interface SeededPublicationSettings {
   readonly name: string;
+  readonly description: string | null;
+  readonly logoPath: string | null;
+  readonly accentColor: string | null;
 }
 
 interface SeededSource {
@@ -82,6 +85,44 @@ test('readPublicFeed exposes the singleton public Publication and ignores collec
     await client.query('DELETE FROM publication_settings');
     const absentResult = await readPublicFeed(database);
     assert.deepEqual([privateResult, absentResult], [undefined, undefined]);
+  });
+});
+
+test('readPublicFeed returns canonical persisted presentation without changing feed results', async () => {
+  await withPublicFeedDatabase(async ({ client, database }) => {
+    await insertPublicationSettings(client, { name: 'Presentation target' });
+    const source = await insertSource(client, {
+      displayName: 'Presentation source',
+    });
+    await insertArticle(client, source, {
+      displayTitle: 'Presentation-independent headline',
+    });
+
+    const before = requireFeed(await readPublicFeed(database));
+    assert.deepEqual(before.publication, {
+      name: 'Presentation target',
+      description: null,
+      logoPath: null,
+      accentColor: null,
+    });
+
+    await client.query(
+      `UPDATE publication_settings
+       SET description = $1, logo_path = $2, accent_color = $3`,
+      [
+        'Canonical public description.',
+        '/assets/publication-logo.svg',
+        '#1A2B3C',
+      ],
+    );
+    const after = requireFeed(await readPublicFeed(database));
+    assert.deepEqual(after.publication, {
+      name: 'Presentation target',
+      description: 'Canonical public description.',
+      logoPath: '/assets/publication-logo.svg',
+      accentColor: '#1A2B3C',
+    });
+    assert.deepEqual({ ...after, publication: before.publication }, before);
   });
 });
 
@@ -251,7 +292,12 @@ test('readPublicFeed maps canonical dates and only the safe basic public fields'
     );
     assert.equal(invalidItem.feedDateSource, 'first_seen_at');
 
-    assert.deepEqual(Object.keys(feed.publication), ['name']);
+    assert.deepEqual(Object.keys(feed.publication), [
+      'name',
+      'description',
+      'logoPath',
+      'accentColor',
+    ]);
     assert.deepEqual(Object.keys(parsedItem).sort(), [
       'articleId',
       'effectiveFeedDate',
@@ -357,6 +403,9 @@ test('readPublicFeed rejects malformed result rows and database failures through
   const malformedPublicationExecutor = new ScriptedExecutor([
     {
       publication_name: ' Malformed Publication ',
+      publication_description: null,
+      publication_logo_path: null,
+      publication_accent_color: null,
     },
   ]);
   await assertPublicFeedFailure(
@@ -368,6 +417,9 @@ test('readPublicFeed rejects malformed result rows and database failures through
   const malformedRowExecutor = new ScriptedExecutor([
     {
       publication_name: 'Scripted Publication',
+      publication_description: null,
+      publication_logo_path: null,
+      publication_accent_color: null,
       article_id: null,
       effective_feed_date: null,
       feed_date_source: null,
@@ -381,6 +433,27 @@ test('readPublicFeed rejects malformed result rows and database failures through
     'invalid_row',
     'ROW_SHAPE_SECRET',
   );
+
+  for (const malformedPresentation of [
+    { publication_description: ' Noncanonical description ' },
+    { publication_logo_path: 'https://outside.example/logo.svg' },
+    { publication_accent_color: '#abc123' },
+  ]) {
+    const executor = new ScriptedExecutor([
+      {
+        publication_name: 'Scripted Publication',
+        publication_description: null,
+        publication_logo_path: null,
+        publication_accent_color: null,
+        ...malformedPresentation,
+      },
+    ]);
+    await assertPublicFeedFailure(
+      () => readPublicFeed(executor),
+      'invalid_row',
+      String(Object.values(malformedPresentation)[0]),
+    );
+  }
 
   const queryFailureExecutor = new ScriptedExecutor(
     new Error('database error: CONNECTION_SECRET'),
@@ -414,19 +487,29 @@ async function insertPublicationSettings(
     name: string;
     activeForCollection?: boolean;
     publicStatus?: PublicationPublicStatus;
+    description?: string | null;
+    logoPath?: string | null;
+    accentColor?: string | null;
   }>,
 ): Promise<SeededPublicationSettings> {
   const publication: SeededPublicationSettings = {
     name: options.name,
+    description: options.description ?? null,
+    logoPath: options.logoPath ?? null,
+    accentColor: options.accentColor ?? null,
   };
   await client.query(
     `INSERT INTO publication_settings (
-       name, active_for_collection, public_status
-     ) VALUES ($1, $2, $3)`,
+       name, active_for_collection, public_status,
+       description, logo_path, accent_color
+     ) VALUES ($1, $2, $3, $4, $5, $6)`,
     [
       publication.name,
       options.activeForCollection ?? true,
       options.publicStatus ?? 'public',
+      publication.description,
+      publication.logoPath,
+      publication.accentColor,
     ],
   );
   return publication;

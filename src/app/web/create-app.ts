@@ -83,7 +83,12 @@ export function createWebApp(dependencies: WebDependencies): Express {
         return;
       }
       response.status(200).json({
-        publication: { name: feed.publication.name },
+        publication: {
+          name: feed.publication.name,
+          description: feed.publication.description,
+          logoPath: feed.publication.logoPath,
+          accentColor: feed.publication.accentColor,
+        },
         discovery: {
           query: {
             q: discoveryRequest.keywordQuery ?? null,

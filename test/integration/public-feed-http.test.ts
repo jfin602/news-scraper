@@ -12,7 +12,12 @@ import {
 } from '../../src/public-feed/repository.ts';
 import { startWebServer, type WebServer } from '../../src/app/web/server.ts';
 
-const publication = Object.freeze({ name: 'Example Publication' });
+const publication = Object.freeze({
+  name: 'Example Publication',
+  description: null,
+  logoPath: null,
+  accentColor: null,
+});
 const sourceChoices = Object.freeze([
   Object.freeze({ configKey: 'publisher_one', displayName: 'Publisher One' }),
 ]);
@@ -63,6 +68,7 @@ describe('Public feed HTTP endpoint', () => {
       `q=%20Needle%20&source=publisher_one&category=industry_news&cursor=${cursor}`,
     );
     assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
     assert.equal(requests.length, requestsBefore + 1);
     assert.deepEqual(requests.at(-1), {
       keywordQuery: 'Needle',
@@ -92,9 +98,44 @@ describe('Public feed HTTP endpoint', () => {
     const requestsBefore = requests.length;
     const response = await requestFeed();
     assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
     assert.equal(requests.length, requestsBefore + 1);
     assert.deepEqual(requests.at(-1), {});
     assert.deepEqual(await response.json(), publicResponse());
+  });
+
+  it('serializes presentation values as inert JSON without internal leakage', async () => {
+    const inertPublication = Object.freeze({
+      name: '<strong>Markup-looking name</strong>',
+      description: '<script>globalThis.presentationSecret = true</script>',
+      logoPath: '/logo.svg</style><script>',
+      accentColor: '#ABCDEF; background: url(secret)',
+    });
+    outcome = discoveryFeed({
+      publication: Object.freeze({
+        ...inertPublication,
+        activeForCollection: true,
+        publicStatus: 'public',
+        createdAt: new Date('2026-08-13T00:00:00.000Z'),
+        internalPublicationId: 'internal-publication-id',
+      }),
+    });
+
+    const response = await requestFeed('source=publisher_one');
+    assert.equal(response.status, 200);
+    assert.equal(response.headers.get('cache-control'), 'no-store');
+    const body = await response.json();
+    assert.deepEqual(body.publication, inertPublication);
+    assert.deepEqual(Object.keys(body.publication), [
+      'name',
+      'description',
+      'logoPath',
+      'accentColor',
+    ]);
+    assert.doesNotMatch(
+      JSON.stringify(body),
+      /activeForCollection|publicStatus|createdAt|internalPublicationId/u,
+    );
   });
 
   it('forwards each non-cursor criterion on its own', async () => {

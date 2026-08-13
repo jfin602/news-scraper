@@ -11,6 +11,13 @@ import { migrateDatabase } from '../../src/database/migrations.ts';
 import { readPublicFeed } from '../../src/public-feed/repository.ts';
 import { withDisposableDatabase } from '../support/database/disposable-database.ts';
 
+const presentation = Object.freeze({
+  name: 'Public Feed HTTP',
+  description: 'Persisted public presentation.',
+  logoPath: '/assets/public-feed-http.svg',
+  accentColor: '#2A4B6C',
+});
+
 test('serves discovery through the production PostgreSQL reader and HTTP stack', async () => {
   await withDisposableDatabase(async ({ databaseUrl }) => {
     await migrateDatabase({ connectionString: databaseUrl });
@@ -19,7 +26,7 @@ test('serves discovery through the production PostgreSQL reader and HTTP stack',
     await client.connect();
 
     try {
-      await insertPublicationSettings(client, 'Public Feed HTTP');
+      await insertPublicationSettings(client, presentation);
       const source = await insertSource(
         client,
         'http_source',
@@ -63,7 +70,7 @@ test('serves discovery through the production PostgreSQL reader and HTTP stack',
         assert.equal(firstResponse.status, 200);
         assert.equal(firstResponse.headers.get('cache-control'), 'no-store');
         const firstBody = await firstResponse.json();
-        assert.equal(firstBody.publication.name, 'Public Feed HTTP');
+        assert.deepEqual(firstBody.publication, presentation);
         assert.deepEqual(firstBody.discovery.query, {
           q: null,
           source: null,
@@ -91,7 +98,9 @@ test('serves discovery through the production PostgreSQL reader and HTTP stack',
           `${baseUrl}/api/feed?q=HTTP%20HEADLINE&source=http_source&category=industry_news`,
         );
         assert.equal(filteredResponse.status, 200);
+        assert.equal(filteredResponse.headers.get('cache-control'), 'no-store');
         const filteredBody = await filteredResponse.json();
+        assert.deepEqual(filteredBody.publication, presentation);
         assert.deepEqual(filteredBody.discovery.query, {
           q: 'HTTP HEADLINE',
           source: 'http_source',
@@ -108,7 +117,9 @@ test('serves discovery through the production PostgreSQL reader and HTTP stack',
           `${baseUrl}/api/feed?cursor=${firstBody.nextCursor as string}`,
         );
         assert.equal(secondResponse.status, 200);
+        assert.equal(secondResponse.headers.get('cache-control'), 'no-store');
         const secondBody = await secondResponse.json();
+        assert.deepEqual(secondBody.publication, presentation);
         assert.equal(secondBody.items.length, 2);
         assert.equal(secondBody.nextCursor, null);
         assert.equal(
@@ -183,12 +194,19 @@ test('serves discovery through the production PostgreSQL reader and HTTP stack',
 
 async function insertPublicationSettings(
   client: Client,
-  name: string,
+  values: Readonly<{
+    name: string;
+    description: string | null;
+    logoPath: string | null;
+    accentColor: string | null;
+  }>,
 ): Promise<void> {
   await client.query(
-    `INSERT INTO publication_settings (name, active_for_collection, public_status)
-     VALUES ($1, true, 'public')`,
-    [name],
+    `INSERT INTO publication_settings (
+       name, active_for_collection, public_status,
+       description, logo_path, accent_color
+     ) VALUES ($1, true, 'public', $2, $3, $4)`,
+    [values.name, values.description, values.logoPath, values.accentColor],
   );
 }
 

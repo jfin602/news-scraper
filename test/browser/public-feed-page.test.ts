@@ -21,7 +21,12 @@ import type {
   PublicFeedItem,
 } from '../../src/public-feed/repository.ts';
 
-const publication = Object.freeze({ name: 'Example Publication' });
+const publication = Object.freeze({
+  name: 'Example Publication',
+  description: null,
+  logoPath: null,
+  accentColor: null,
+});
 const sourceChoices = Object.freeze([
   Object.freeze({ configKey: 'first_source', displayName: 'First Source' }),
   Object.freeze({ configKey: 'second_source', displayName: 'Second Source' }),
@@ -180,7 +185,12 @@ function deferred<Value>(): Deferred<Value> {
 
 function publicFeedResponse(feed: PublicFeed, query: DiscoveryQuery) {
   return {
-    publication: { name: feed.publication.name },
+    publication: {
+      name: feed.publication.name,
+      description: feed.publication.description,
+      logoPath: feed.publication.logoPath,
+      accentColor: feed.publication.accentColor,
+    },
     discovery: {
       query,
       sources: feed.sourceChoices ?? [],
@@ -259,7 +269,7 @@ describe('Public feed page browser behavior', () => {
     const originalUrl =
       'https://publisher.example.test/original?preserve=exact';
     outcome = populatedFeed({
-      publication: { name: markup },
+      publication: { ...publication, name: markup },
       sourceChoices: Object.freeze([
         Object.freeze({ configKey: 'first_source', displayName: markup }),
       ]),
@@ -638,7 +648,10 @@ describe('Public feed page browser behavior', () => {
       }
       continuationReads += 1;
       return continuationFeed({
-        publication: { name: 'Unexpected continuation name' },
+        publication: {
+          ...publication,
+          name: 'Unexpected continuation name',
+        },
         sourceChoices: Object.freeze([
           Object.freeze({ configKey: 'other_source', displayName: 'Other' }),
         ]),
@@ -1669,7 +1682,9 @@ describe('Public feed page browser behavior', () => {
       await applyKeyword(page, 'fast');
       assert.equal(await page.locator('h1').innerText(), 'Example Publication');
       slow.resolve(
-        populatedFeed({ publication: { name: 'Stale Publication' } }),
+        populatedFeed({
+          publication: { ...publication, name: 'Stale Publication' },
+        }),
       );
       await flushBrowser(page);
       assert.equal(await page.locator('h1').innerText(), 'Example Publication');
@@ -1705,9 +1720,11 @@ describe('Public feed page browser behavior', () => {
       await waitForState(page, 'loading');
       await page.locator('[data-discovery-reset]').click();
       await waitForState(page, 'populated');
-      delayed
-        .get('slow')?.[0]
-        ?.resolve(populatedFeed({ publication: { name: 'Stale Reset' } }));
+      delayed.get('slow')?.[0]?.resolve(
+        populatedFeed({
+          publication: { ...publication, name: 'Stale Reset' },
+        }),
+      );
       await flushBrowser(page);
       assert.equal(await page.locator('h1').innerText(), 'Example Publication');
       await page.locator('[data-discovery-keyword]').fill('alpha');
@@ -1722,7 +1739,9 @@ describe('Public feed page browser behavior', () => {
       await waitForState(page, 'populated');
       for (const pending of delayed.get('alpha') ?? []) {
         pending.resolve(
-          populatedFeed({ publication: { name: 'Stale History' } }),
+          populatedFeed({
+            publication: { ...publication, name: 'Stale History' },
+          }),
         );
       }
       await flushBrowser(page);
