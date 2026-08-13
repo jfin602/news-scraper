@@ -89,6 +89,36 @@ h1 {
   border-bottom: 1px solid rgb(212, 212, 216);
 }
 
+.feed-pagination {
+  display: grid;
+  justify-items: start;
+  gap: 0.5rem;
+  max-width: 100%;
+  margin-top: 1rem;
+}
+
+.feed-pagination p {
+  max-width: 100%;
+  margin: 0;
+  color: rgb(63, 63, 70);
+  overflow-wrap: anywhere;
+}
+
+[data-feed-pagination-error] {
+  color: rgb(153, 27, 27);
+}
+
+[data-feed-load-more] {
+  min-height: 2.5rem;
+  padding: 0.35rem 0.75rem;
+  font: inherit;
+}
+
+[data-feed-pagination][aria-busy='true'] [data-feed-load-more] {
+  cursor: wait;
+  opacity: 0.7;
+}
+
 .feed-row {
   align-items: start;
   padding: 1rem 0.75rem;
@@ -176,5 +206,13 @@ h1 {
 
   [data-discovery-form] {
     grid-template-columns: 1fr;
+  }
+
+  .feed-pagination {
+    justify-items: stretch;
+  }
+
+  [data-feed-load-more] {
+    justify-self: start;
   }
 }
