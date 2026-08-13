@@ -58,7 +58,7 @@ The basic item read model is intentionally small. Each item exposes only the fie
 - Source display name;
 - stored Article `original_url` as the external destination.
 
-The response MAY include minimal descriptive Publication configuration needed by the public UI, such as name and later public branding/presentation values. It MUST NOT expose or depend on a Publication UUID/slug as a routing/scoping identity, and MUST NOT expose Raw items, Article observations, internal identity digests, normalized-title matching fields, database internals, unbounded summaries/content, or other fields merely because they are stored.
+The response MAY include minimal descriptive Publication configuration needed by the public UI before the presentation-polish phase. Once Phase 13 is implemented, the canonical public response MUST expose the bounded public Publication presentation values required by `/`: required `name` plus nullable `description`, `logoPath`, and `accentColor` corresponding to the singleton persisted configuration defined by the domain contract. These values are inert presentation data, not HTML/CSS/code, and do not create a reader-selectable Publication identity. The response MUST NOT expose or depend on a Publication UUID/slug as a routing/scoping identity, and MUST NOT expose Raw items, Article observations, internal identity digests, normalized-title matching fields, database internals, unbounded summaries/content, or other fields merely because they are stored.
 
 Phase 12 extends this same endpoint/read-model boundary with deterministic discovery and pagination. It does not create a parallel feed query, eligibility rule, or alternate public endpoint. Ranking and presentation/theme behavior remain separate concerns.
 
@@ -87,7 +87,7 @@ A lightweight same-origin client that fetches `GET /api/feed` is a valid impleme
 
 The obsolete pre-production route `GET /publications/:publicationSlug` is not a supported public product surface. The Phase 10 entry correction removes that implementation path rather than preserving a compatibility alias without an explicit requirement.
 
-Publication presentation timezone/settings are not persisted yet. Until that later presentation configuration exists, the basic UI MUST render the calendar date from `effectiveFeedDate` in UTC so the same feed item does not shift dates according to the viewer/test machine timezone. A later presentation phase may deliberately replace this fallback with singleton Publication-configured date/time rendering.
+Publication presentation timezone/settings are not persisted yet. Phase 13 does not introduce configurable timezone behavior: through Phase 13 the public UI MUST continue to render the calendar date from `effectiveFeedDate` in UTC so the same feed item does not shift dates according to the viewer/test machine timezone. Phase 15 may deliberately replace this fallback with singleton Publication-configured timezone/date rendering as part of Publication/feed administration.
 
 Phase 12 adds the discovery controls and navigation behavior defined below while preserving this same page/read-model boundary. Final accessibility/responsive polish, completed light/dark theming, duplicate moderation, and admin UI remain later work.
 
@@ -192,22 +192,72 @@ Phase 12 uses bounded keyset/load-more pagination rather than offset-based publi
 - Browser back/forward navigation restores the URL-reflected discovery criteria and corresponding feed state rather than leaving stale controls/results.
 - Empty filtered/search results remain a normal public `200` feed state and do not become Publication-unavailable behavior.
 
-## Theme and branding
+## Theme, branding, and Phase 13 presentation behavior
 
-Completed MVP requires:
+Completed MVP requires configuration-driven public presentation without changing feed semantics.
 
-- light/dark modes;
-- Publication name/logo/accent/descriptive copy/Category labels from singleton Publication configuration;
-- accessible contrast and keyboard focus;
-- no indie-author branding embedded in shared engine/UI logic.
+### Publication presentation configuration
 
-Final theme/branding polish follows the basic public-feed tech-demo milestone as defined by the roadmap.
+Phase 13 uses the singleton Publication presentation fields defined by the domain contract:
+
+- required Publication `name`;
+- optional bounded plain-text `description`;
+- optional bounded same-origin `logo_path`, exposed publicly as `logoPath`;
+- optional canonical sRGB `accent_color` in `#RRGGBB` form, exposed publicly as `accentColor`;
+- Category labels already supplied by the canonical public discovery metadata.
+
+Missing optional branding values MUST degrade to a complete generic presentation rather than causing page/API failure. Publication branding is data/configuration; shared engine/UI code MUST NOT embed indie-author-specific names, copy, logos, colors, or topic conditionals.
+
+Phase 13 introduces the persistence/read-model use of these minimum public values. Phase 15 later provides Cloudflare-protected administrator editing for them; Phase 13 MUST NOT pull the Phase 15 admin control plane forward.
+
+### Theme selection
+
+The public page supports three reader theme selections: `system`, `light`, and `dark`.
+
+- With no saved reader choice, effective presentation follows the browser/OS `prefers-color-scheme` value (`system`).
+- An explicit reader choice overrides the current system preference and is persisted locally in that browser/device.
+- Choosing `system` removes the fixed light/dark override and resumes following the current browser/OS preference.
+- Theme preference is presentation-only local state. It MUST NOT change Publication configuration, feed queries, URL discovery criteria, server-side reader identity, or Article eligibility/order.
+- Both effective light and dark presentations must satisfy the accessibility requirements below.
+
+### Accessibility and responsive target
+
+Phase 13 targets WCAG 2.2 Level AA for the in-scope root public-feed experience. At minimum:
+
+- interactive controls use appropriate native/semantic elements and are operable by keyboard without a keyboard trap;
+- focus order remains coherent and `:focus-visible` or equivalent focus indication is clearly visible in both themes;
+- text, interactive controls, state indicators, and focus treatments satisfy applicable AA contrast requirements;
+- desktop/mobile layouts wrap long headlines, Source names, Category labels, and discovery values without destructive overlap or horizontal page overflow under the supported responsive range;
+- tap/click controls satisfy the applicable WCAG 2.2 AA target-size requirement or permitted spacing exception;
+- status/loading/error presentation remains understandable to assistive technology and does not rely only on color;
+- animation honors `prefers-reduced-motion`; a loading indicator remains understandable without requiring continuous motion.
+
+The exact typography, spacing, visual hierarchy, token values, component shapes, and approved aesthetic treatment belong to durable `docs/design/` guidance and remain subordinate to this behavioral contract.
+
+### Initial loading presentation
+
+While the canonical `/api/feed` request is pending, the visible page MUST present a neutral, intentional loading state and MUST NOT visibly paint generic/unset Publication copy such as a placeholder `News feed` heading that is then replaced by configured Publication content. A centered loading indicator may be used together with an accessible status message. Reduced-motion users MUST receive an equivalent non-motion loading indication. Populated, empty, unavailable, invalid-discovery, continuation-error, and dependency-error behavior must remain distinguishable after the loading state resolves.
+
+### Phase 12 preservation boundary
+
+Phase 13 may refine markup and presentation around the discovery controls/feed, but MUST NOT redefine Phase 12 behavior. In particular it preserves:
+
+- `GET /api/feed` as the one canonical public feed/discovery endpoint and `/` as the canonical page;
+- canonical feed eligibility and effective-date/`first_seen_at`/Article-ID chronological ordering;
+- bounded literal `q`, Source, and Category filtering semantics and immutable `config_key` public identities;
+- opaque query-bound keyset cursor behavior and server-defined page size;
+- URL-reflected `q`/`source`/`category`, criteria-reset behavior, direct navigation/refresh, browser Back/Forward restoration, and non-URL load-more depth;
+- stale request/continuation protection and safe continuation retry behavior;
+- exact stored `original_url` headline destinations.
+
+Presentation work must keep the relevant Phase 12 API/database/browser regressions green rather than replacing those contracts with visually convenient alternatives.
 
 ## External destination behavior
 
 - The Article's stored `original_url` is the primary public destination.
 - `canonical_identity_url` is an identity-comparison field and MUST NOT silently replace `original_url` as the public headline destination.
 - A future separately governed Source-derived public/canonical destination field may change this only through an explicit contract decision; none exists in the basic feed.
+- The default headline activation is an ordinary direct same-context browser navigation to stored `original_url`; Phase 13 MUST NOT force a new browsing context merely for presentation polish. Readers retain their normal browser controls for opening links in another tab/window when desired.
 - UI must not imply Platform authorship of linked content.
 - External navigation is visually/accessibly understandable.
 - Redirector/tracking links are not MVP behavior unless separately approved/documented.

@@ -69,7 +69,9 @@ Approval/trust, configuration lifecycle, operational state, public visibility, m
 Required concepts:
 - `active_for_collection`: whether eligible Sources may be scheduled/fetched;
 - `public_status`: whether the public feed is exposed;
-- name and later branding/feed/presentation configuration.
+- required Publication name;
+- Phase 13 public presentation configuration when that phase is implemented;
+- later administrator-managed feed/timezone/presentation configuration.
 
 The singleton Publication may collect while its public feed is not exposed. Public feed reads require `public_status = public`; `active_for_collection` is a collection-state control and does not independently expose or suppress already-persisted feed rows.
 
@@ -127,8 +129,19 @@ One persisted Publication/settings record contains only the fields actually used
 - name;
 - `active_for_collection`;
 - `public_status`;
-- later description/default timezone/branding/feed/presentation configuration;
+- when Phase 13 is implemented, optional `description`, `logo_path`, and `accent_color` public-presentation values;
+- when Phase 15 is implemented, default presentation timezone/date settings and any additional administrator-managed branding/feed/presentation configuration;
 - created/updated timestamps where useful.
+
+Phase 13 public-presentation field semantics are deliberately small and topic independent:
+
+- `description` is nullable bounded plain text, trimmed at the configuration boundary, with no HTML/markup interpretation; an absent value is distinct from invented generic editorial copy;
+- `logo_path` is nullable bounded same-origin asset-path data beginning with `/`; it is not an arbitrary external URL, data URL, scriptable URL, Publication selector, or HTML fragment;
+- `accent_color` is nullable and normalized/validated as one canonical six-digit sRGB hexadecimal color in `#RRGGBB` form; it is presentation input, not raw CSS;
+- missing optional values are valid and MUST allow a complete generic public presentation using safe application defaults;
+- these values are public presentation configuration once exposed through the canonical feed read model, but they do not create another public routing/scoping identity.
+
+Phase 13 may establish those values through the existing explicit operator/bootstrap configuration mechanisms needed before full admin UX. Phase 15 adds the protected administrator editing surface; ordinary bootstrap no-overwrite behavior remains unchanged.
 
 The concrete table name is an implementation detail. The schema MUST enforce singleton semantics and MUST NOT require a Publication UUID or slug for relational scoping.
 
@@ -385,6 +398,8 @@ The public headline destination is `articles.original_url`; `canonical_identity_
 - Platform `updated_at` = record-change time, never publication time.
 - Public feed uses trusted `published_at`; otherwise `first_seen_at` with detectable fallback metadata.
 - Persist UTC; render according to singleton Publication presentation rules when implemented.
+
+Through Phase 13, no Publication presentation timezone is configured, so the canonical public calendar-date presentation remains the deterministic UTC fallback. Phase 15 may introduce an explicit singleton Publication timezone/date setting and corresponding administrator control; that later change must be deliberate and must not reinterpret stored timestamps.
 
 Phase 6 may parse Source publication/update values into UTC and attach confidence/reason/fallback metadata, but it does not create persistence observation times. Missing or invalid Source publication dates remain distinguishable, and normalization MUST NOT substitute a Collection-run timestamp as `published_at`. Article/observation persistence establishes `first_seen_at`/`last_seen_at` from actual Platform observations.
 
