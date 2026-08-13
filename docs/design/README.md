@@ -8,6 +8,7 @@ For public-feed behavior, `docs/contracts/public-feed-and-admin-contract.md` rem
 
 ## Files
 
+- `public-feed-presentation.md` — durable public-feed visual/presentation guidance for Phase 13 and later presentation work, including layout, typography, themes, states, responsive behavior, accessibility presentation, and design tokens.
 - `ui-workflow.md` — permanent `ui-polish` branch/worktree rules, UI task boundaries, conditional design-guidance review/apply rules, integration/synchronization rules, and `/ui-plan` → `/ui-write` workflow.
 - `tasks/` — created only when `/ui-write` emits targeted single-task Codex prompts. These are non-roadmap, non-versioned UI implementation instructions and are not parsed or executed by `codex:phase`.
 
@@ -22,6 +23,7 @@ Use:
 - `docs/contracts/public-feed-and-admin-contract.md` for supported public-feed behavior, routes, feed semantics, and external-link behavior;
 - `docs/contracts/testing-and-validation-contract.md` for regression/evidence requirements;
 - `docs/design/ui-workflow.md` for parallel UI design review/application, planning, prompt generation, branch scope, and integration discipline;
+- `docs/design/public-feed-presentation.md` for public-feed layout, typography, themes, states, responsive behavior, accessibility presentation, and design tokens;
 - the narrowest additional design specification under `docs/design/` when one exists for the surface being changed.
 
 ## UI workflow

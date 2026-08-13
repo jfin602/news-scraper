@@ -201,4 +201,4 @@ When `main` has changed concurrently, re-synchronize and resolve conflicts on th
 
 ## Relationship to Phase 13
 
-Early UI work does not automatically complete or redefine Phase 13 — Public presentation polish. It may satisfy portions of that future roadmap work. When Phase 13 is reached, assess the then-current integrated implementation against the Phase 13 roadmap exit gate and governing contracts, crediting already-completed compliant presentation work rather than rebuilding it by default.
+Earlier UI work does not automatically complete or redefine Phase 13 — Public presentation polish. Compliant earlier or integrated presentation work may satisfy portions of the current Phase 13 exit gate. During Phase 13, assess the integrated implementation against the roadmap and governing contracts, crediting already-completed compliant work rather than rebuilding it automatically.
