@@ -1,0 +1,268 @@
+TASK: Phase 11 / P4 — Pre-admin editorial configuration
+
+ROADMAP PHASE
+Phase 11 — Categories and configurable Relevance execution.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Sol Light`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P4 adds an explicit transactional operator-edit path with strict parsing, referential validation, idempotent upserts, and rollback requirements, but it does not yet touch collection runtime or Article identity. Terra High is sufficient for correctness while avoiding unnecessary Sol-level cost.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a model/configuration label.
+
+VERSIONING
+- This is Phase 11 prompt 4 and its assigned project version is `0.11.4`.
+- Before editing, confirm P3 left `package.json` at `0.11.3`, or retain `0.11.4` only for a rerun of this same P4.
+- Update only the top-level package version to `0.11.4`; do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- `package.json` remains the sole current-version authority.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, Phase 11 roadmap, and the Phase 11 pre-admin editorial configuration section of `docs/contracts/source-and-collection-contract.md`;
+2. inspect final P1-P3 source/tests, especially P2 configuration/repository APIs and P3 evaluator types;
+3. inspect `src/publication/bootstrap.ts`, `scripts/bootstrap-database.ts`, `scripts/set-publication-public-status.ts`, `config/publication.json`, `package.json`, and `test/unit/package-scripts.test.ts`;
+4. confirm ordinary bootstrap remains strict create-if-absent/no-overwrite and ordinary Web/Worker startup does not apply configuration edits;
+5. stop and report planning drift if a Phase 15-style admin surface or another canonical editorial edit mechanism now exists.
+
+GOAL
+Provide the smallest explicit, topic-independent operator mechanism needed before Phase 15 to deliberately create/update Categories and Relevance rules and set/clear Source/endpoint default Categories, while preserving ordinary bootstrap semantics and never triggering automatic Article reprocessing.
+
+BOUNDARY
+This is an operator command/configuration-file capability, not an admin Web/API feature.
+
+Expected shape:
+- `config/editorial.json` as the first-deployment operator document;
+- `scripts/apply-editorial-configuration.ts` as the explicit command entry point;
+- `npm run editorial:apply` as the command surface;
+- a focused Phase 11 parser/apply service under `src/collection/relevance/`, expected name `operator-configuration.ts` or equivalent.
+
+If the final P2 module layout suggests a slightly different narrow name, keep ownership under Relevance/configuration. Do not put topic-specific vocabulary into shared engine modules.
+
+ORDINARY BOOTSTRAP MUST REMAIN SEPARATE
+Do not turn `db:bootstrap` into an editor.
+
+The existing bootstrap remains responsible for initial singleton Publication/Source/endpoint creation and continues to:
+- run only when explicitly invoked;
+- create-if-absent;
+- leave existing Publication/Source/endpoint state unchanged;
+- avoid silently changing approval, lifecycle, operational state, domains, endpoint URLs, or poll intervals.
+
+P4's editorial command is deliberately different because editing Category/Relevance/default configuration is its purpose. Do not weaken bootstrap to achieve P4.
+
+EDITORIAL DOCUMENT SHAPE
+Use one strict JSON object with explicit top-level arrays/sections equivalent to:
+- `categories`;
+- `rules`;
+- `sourceDefaults`;
+- `endpointDefaults`.
+
+Use exact-key validation consistent with existing bootstrap/operator parsing style. Reject unknown fields rather than silently ignoring them.
+
+Category entry fields should be equivalent to:
+- `configKey`;
+- mutable display label/name.
+
+Rule entry fields should be equivalent to:
+- `configKey`;
+- optional `sourceConfigKey`;
+- predicate type;
+- literal pattern;
+- action;
+- optional `categoryConfigKey` only when categorizing;
+- integer priority;
+- `enabled` boolean;
+- bounded reason.
+
+Source default entries should identify:
+- `sourceConfigKey`;
+- `categoryConfigKey`, allowing explicit `null` to clear the default.
+
+Endpoint default entries should identify:
+- `sourceConfigKey`;
+- `endpointConfigKey` within that Source;
+- `categoryConfigKey`, allowing explicit `null` to clear the default.
+
+Do not require or accept Publication IDs/slugs.
+
+APPLY SEMANTICS
+The whole requested document is one transactional edit.
+
+Before commit:
+1. parse/normalize the complete document;
+2. reject duplicate Category/rule config keys within the request;
+3. reject duplicate default-target entries that would make requested intent ambiguous;
+4. resolve every referenced existing Source/endpoint and every referenced Category identity required by rules/defaults;
+5. ensure endpoint references actually belong to the named Source;
+6. enforce all P2 rule/category validation invariants.
+
+Then atomically:
+- create a listed Category when its config key is absent;
+- otherwise update only its mutable fields while preserving identity;
+- create a listed rule when its config key is absent;
+- otherwise update its mutable fields while preserving identity;
+- explicitly enable/disable from the document's `enabled` field;
+- set, replace, or clear each listed Source/endpoint default;
+- leave every omitted existing Category/rule/default unchanged.
+
+No implicit deletion.
+No implicit disable.
+No inference from collected content.
+No Article scan/re-evaluation.
+
+IDEMPOTENCY
+Applying the same valid document twice should converge without duplicate Categories/rules and should retain the same stable database identities.
+
+An invalid edit must leave all requested edits unapplied.
+
+INITIAL `config/editorial.json`
+Commit only installation-specific data that is already documented as first-deployment configuration.
+
+Include the nine documented Categories:
+- Platforms and Retailers
+- Publishing Industry
+- Author Business
+- Marketing
+- Audiobooks
+- Artificial Intelligence
+- Copyright and Legal
+- Tools and Technology
+- General
+
+Choose canonical lower-underscore config keys derived predictably from those labels, consistent with project key rules.
+
+Do NOT invent publishing/indie-author keyword Relevance rules. Keep the initial `rules` list empty unless a rule was separately owner-approved before execution.
+
+Do NOT invent Source/endpoint defaults. Keep initial default lists empty unless separately owner-approved before execution.
+
+This keeps topic vocabulary in committed installation configuration rather than shared engine behavior.
+
+SCRIPT / COMMAND BEHAVIOR
+`apply-editorial-configuration.ts` should:
+- require exactly one explicit document path argument unless the package script supplies the canonical path;
+- read/parse the file;
+- connect using the existing database config/environment conventions;
+- invoke the transactional editorial apply service;
+- print a bounded deterministic summary of created/updated/default-edit counts without secrets;
+- close the database reliably on success/failure;
+- map known configuration/database/filesystem failures to safe useful messages;
+- return non-zero exit status on failure.
+
+Preferred package script:
+`editorial:apply`: `node --env-file-if-exists=.env scripts/apply-editorial-configuration.ts config/editorial.json`
+
+If current project command conventions materially differ, follow them while preserving explicit invocation.
+
+PACKAGE ENVIRONMENT CONTRACT
+Because this command needs the application database URL, add it to the explicit `.env`-loading command family in `test/unit/package-scripts.test.ts`.
+
+Do not cause ordinary deterministic test commands to load `.env`.
+
+LIKELY / ALLOWED FILES
+Expected primary scope:
+- `package.json`
+- `config/editorial.json` (new)
+- `scripts/apply-editorial-configuration.ts` (new)
+- `src/collection/relevance/operator-configuration.ts` or equivalent new focused file
+- `src/collection/relevance/configuration.ts`
+- `src/collection/relevance/repository.ts`
+- `test/unit/editorial-configuration.test.ts` or equivalent
+- `test/database/editorial-configuration-apply.test.ts` or equivalent
+- `test/unit/package-scripts.test.ts`
+- `README.md` only for a narrow operator command/configuration usage section if needed
+
+Do not modify:
+- Web/Admin routes/UI;
+- Worker startup/runtime to auto-apply editorial config;
+- ordinary Source bootstrap semantics except compile/import-only changes if required;
+- Article persistence;
+- collection Relevance activation;
+- scheduler/jobs.
+
+FOCUSED TESTS
+Parser/unit:
+1. valid full/empty sections parse deterministically;
+2. unknown top-level/entry fields reject;
+3. missing required fields reject;
+4. duplicate Category/rule config keys reject;
+5. duplicate Source/endpoint default targets reject;
+6. invalid Category/rule shapes delegate to/reuse P2 validation;
+7. `null` default means explicit clear rather than missing/unknown;
+8. initial committed editorial config parses and contains exactly the documented Category set plus no invented rules/defaults.
+
+Real PostgreSQL:
+9. first apply creates listed Categories/rules and defaults correctly;
+10. second identical apply is idempotent and preserves stable IDs;
+11. mutable Category/rule edits update fields without changing config identity;
+12. `enabled: false` disables a rule explicitly;
+13. Source-scoped rule resolves only an existing Source;
+14. default Category set/replace/clear works;
+15. endpoint default validates Source ownership;
+16. invalid Source/endpoint/Category anywhere causes complete transaction rollback;
+17. omitted existing Categories/rules/defaults remain unchanged;
+18. applying editorial configuration changes no `articles` or `article_observations` rows;
+19. no bulk historical Relevance operation occurs.
+
+Command/package:
+20. package script uses optional `.env` convention;
+21. ordinary deterministic commands remain free of `.env` loading;
+22. script returns safe failure output for malformed file/config/database failures without secret leakage.
+
+BROADER REGRESSION
+Run:
+- focused P4 unit/database tests;
+- existing bootstrap unit/database tests;
+- existing configuration persistence/schema tests;
+- `test/unit/package-scripts.test.ts`;
+- relevant P2 repository tests.
+
+Also run final-tree:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+
+Use real disposable PostgreSQL for apply semantics. Do not claim the operator command works merely from source inspection.
+
+REQUIRED EVIDENCE LEVELS
+- Level 2 for strict parsing/command contract.
+- Level 4 for transactional editorial application and rollback.
+
+PRESERVED BEHAVIOR
+- `db:bootstrap` remains create-if-absent/no-overwrite;
+- Web/Worker ordinary startup does not apply bootstrap or editorial config;
+- no automatic Source discovery/approval;
+- no Article reprocessing;
+- collection still uses the P3 evaluator only where explicitly injected by current test/runtime composition and is not yet wired to persisted P2 configuration unless previous code already required compile-safe injection;
+- Source-scoped Article identity/public feed/scheduler behavior unchanged.
+
+NON-GOALS
+- no Phase 15 admin UI/API;
+- no browser mutation path or CSRF work;
+- no runtime collection activation;
+- no Article Category/reason persistence;
+- no public Category filters/search;
+- no deletion semantics;
+- no topic keyword inference;
+- no bulk retroactive reprocessing.
+
+ACCEPTANCE CRITERIA
+P4 is complete only when:
+- package version is `0.11.4`;
+- an explicit operator command can transactionally create/update/enable/disable Phase 11 editorial configuration and set/clear defaults;
+- ordinary bootstrap remains unchanged in semantics;
+- the initial config contains only the already-documented first-deployment Categories and no invented rules/defaults;
+- invalid references roll back the whole requested edit;
+- applying configuration never scans or mutates Articles/observations;
+- command/env/package tests and real-PostgreSQL tests pass on the final tree;
+- no package lock or admin/runtime future-phase work is introduced.
+
+FINAL RESPONSE
+Report:
+- files changed;
+- final package version;
+- operator command/document path and apply semantics;
+- initial committed Category keys/labels and confirmation that rules/defaults were not invented;
+- focused and broader commands actually run with results;
+- real PostgreSQL evidence actually observed;
+- explicit confirmation that bootstrap and ordinary startup behavior were preserved.

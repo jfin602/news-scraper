@@ -1,0 +1,294 @@
+TASK: Phase 11 / P7 — Phase 11 closeout validation
+
+ROADMAP PHASE
+Phase 11 — Categories and configurable Relevance execution.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Very High`.
+- Alternative considered: `Terra Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P7 is evidence-heavy final-tree validation rather than architecture invention. Sol Light is appropriate for executing and synthesizing broad deterministic, integration, collection, and real-PostgreSQL proof; if P7 exposes a genuinely architectural or transactional defect, remediate that defect with an appropriately stronger configuration before rerunning P7 instead of redesigning Phase 11 inside the closeout run.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a model/configuration label.
+
+VERSIONING
+- This is Phase 11 prompt 7 and its assigned project version is `0.11.7`.
+- On first execution, confirm P6 left `package.json` at `0.11.6`, then advance only the top-level package version to `0.11.7` before establishing the final Phase 11 candidate source SHA.
+- If this same P7 prompt is rerun and `package.json` is already `0.11.7`, retain `0.11.7`; do not increment again.
+- If another unexpected version exists, stop and report sequence drift.
+- `package.json` remains the sole current-version authority.
+- The repository intentionally does not use npm package locks; do not create, require, regenerate, or validate `package-lock.json` or `npm-shrinkwrap.json`.
+- A later conversational `/closeout`, if Phase 11 is accepted, separately transitions to the Phase 12 baseline `0.12.0`; that transition is NOT part of P7.
+
+MANUAL CLOSEOUT BOUNDARY
+This is the sole final manual closeout prompt for the Phase 11 task stack. The phase runner must stop after P6 and MUST NOT execute P7 automatically.
+
+P7 validates the exact final Phase 11 tree, fixes only bounded defects necessary to satisfy the already-governed Phase 11 contracts/exit gate, and writes the durable validation artifact. It must not invent new Phase 11 scope, pull later roadmap features forward, or silently redefine contracts.
+
+MANDATORY HANDOFF
+Before any P7 version/write action:
+1. read current `BOOT.md`, Phase 11 roadmap, governing Phase 11 contracts, and `docs/contracts/testing-and-validation-contract.md`;
+2. read P1-P6 and inspect the final P1-P6 implementation/tests, not only task prose;
+3. confirm `package.json` is the expected P6 version and no unexpected implementation drift exists outside the Phase 11 sequence;
+4. inspect current migration chain, Relevance configuration/repository/evaluator, editorial operator path, Article persistence, collection integration, manual/scheduled composition, and relevant public-feed consumers;
+5. establish the final candidate source SHA after moving to `0.11.7` and before recording acceptance evidence;
+6. if material design/contract drift or a broad architectural defect is discovered, stop and report the blocker rather than using P7 as an unplanned redesign prompt.
+
+PHASE 11 EXIT GATE TO PROVE
+The final tree must prove:
+- identical Article candidate + effective configuration produces identical Relevance result and persisted reason ordering;
+- the complete documented literal predicate / priority / scope / action / config-key tie / Category / default matrix is deterministic and covered automatically;
+- a separately deployed unrelated Publication/topic can use unrelated Categories/rules without shared-engine topic conditionals;
+- Relevance changes do not redefine Source-scoped Article identity;
+- exclusions terminate before Article identity and persist canonical endpoint/run provenance/reason;
+- rule edits are prospective by default and do not automatically bulk reprocess existing Articles;
+- ordinary later included observations may reconcile current automatic Category membership without turning Category-only changes into Source-content `updated` outcomes;
+- Collection-run `excluded` accounting is exact and participates in the canonical processing arithmetic;
+- manual and scheduled execution share one Relevance-enabled endpoint execution path.
+
+DURABLE VALIDATION ARTIFACT
+Create:
+`docs/validation/phase-11-categories-configurable-relevance-execution.md`
+
+The artifact MUST record:
+- validation date/time and relevant environment details;
+- exact accepted/final source SHA;
+- package version `0.11.7`;
+- P1-P7 scope summarized without pretending unrun evidence passed;
+- exact commands run and their observed results;
+- exact test counts where the command reports them;
+- real PostgreSQL prerequisite/environment used without secrets;
+- any unavailable evidence/prerequisite and its consequence;
+- Phase 11 exit-gate conclusion as GREEN or blocked/red;
+- explicit intended next phase if GREEN: Phase 12 — Feed discovery features;
+- a statement that later conversational `/closeout` is required for the `0.12.0` baseline transition and is not performed by P7.
+
+SOURCE / ARCHITECTURE INSPECTION
+Inspect and record enough final-tree evidence to confirm:
+- no Publication relational tenancy was reintroduced in Phase 11 schema/repositories/APIs;
+- no indie-author/publishing-specific business logic is present in shared `src/` Relevance/collection engine code;
+- allowed predicate vocabulary is exactly `title_contains`, `summary_contains`, `source_category_equals`;
+- no regex/glob/fuzzy/stemming/semantic-AI/general-expression/boost engine was added;
+- ordinary bootstrap remains create-if-absent/no-overwrite;
+- editorial configuration apply is explicit and not invoked by Web/Worker ordinary startup;
+- no automatic bulk Article reprocessing path exists as a side effect of rule edits;
+- manual and scheduled endpoint collection still converge on one canonical service;
+- public Web/API still does not fetch Sources inline.
+
+MIGRATION / SCHEMA EVIDENCE — REAL POSTGRESQL REQUIRED
+Using the existing disposable database harness, prove the exact final migration chain from zero and rerun behavior.
+
+Verify at least:
+- `categories` and `relevance_rules` installation-wide config-key uniqueness/shape;
+- Source scope reference integrity;
+- predicate/action constraints;
+- categorize target invariant;
+- Source/endpoint default Category FKs;
+- Article/Category membership uniqueness;
+- observation Relevance-rule reference integrity;
+- ordered observation Category-reason integrity;
+- pre-identity excluded observation with NULL Article ID is valid while success observations still require Article identity;
+- existing Source/endpoint/run/Article ownership constraints remain valid;
+- no `publication_id` or equivalent tenant scope was introduced.
+
+DETERMINISTIC RELEVANCE MATRIX — UNIT EVIDENCE REQUIRED
+The final automated suite must prove all governed cases, including:
+
+Literal predicates
+- title contains;
+- summary contains;
+- missing summary non-match;
+- Source category equals;
+- missing Source categories non-match;
+- case-insensitive behavior;
+- literal treatment of regex/glob-looking text.
+
+Include/exclude precedence
+- higher priority;
+- Source-scoped at equal priority;
+- exclude over include at equal priority/scope;
+- immutable rule config-key final tie;
+- disabled rules ignored;
+- no-match default include.
+
+Categorization/defaults
+- all matching categorize rules apply;
+- duplicate Category target dedupes membership but retains all reasons;
+- deterministic reason ordering;
+- stable Category assignment ordering;
+- endpoint default fallback;
+- Source default fallback;
+- endpoint default over Source default;
+- any matching categorize rule suppresses default fallback;
+- no rule/default may leave included Article uncategorized.
+
+Topic independence/determinism
+- unrelated topic vocabulary follows identical mechanics;
+- candidate/configuration not mutated;
+- ambient clock/random/env/locale does not alter decisions.
+
+EDITORIAL OPERATOR EVIDENCE
+Prove with unit + real PostgreSQL as applicable:
+- strict document parsing and unknown-field rejection;
+- duplicate request identities/targets reject;
+- first apply creates expected configuration;
+- repeated same apply is idempotent;
+- mutable rule/Category edits preserve immutable config identity;
+- explicit enabled=false works;
+- set/replace/clear Source/endpoint defaults works;
+- invalid Source/endpoint/Category anywhere rolls back the requested edit;
+- omitted existing configuration remains untouched;
+- applying editorial configuration does not change Article/observation cardinality or trigger reprocessing;
+- committed initial config contains the documented first-deployment Categories and no invented Relevance rules/defaults unless separately owner-approved in repository history.
+
+ARTICLE / RELEVANCE PERSISTENCE — REAL POSTGRESQL REQUIRED
+Prove final transactional behavior:
+- included Article create/update/unchanged plus observation plus current Category membership plus all observation reasons commit atomically;
+- Category-only changes remain `unchanged` when Source-derived Article fields match;
+- later included observation replaces stale current automatic Category membership with the then-current evaluated set;
+- empty current Category set can clear prior automatic membership;
+- historical observation reasons remain preserved;
+- multiple reasons can explain one deduplicated Category membership;
+- any failure in observation/membership/reason persistence rolls back the candidate transaction;
+- existing Article external-ID/canonical fallback/promotion/conflict/concurrency identity tests remain green.
+
+EXCLUSION / PROSPECTIVE EVIDENCE — REAL POSTGRESQL REQUIRED
+Prove at minimum this sequence:
+
+1. run/candidate is included and creates/resolves an Article with Category A;
+2. operator config changes categorization and a later included observation applies Category B without increasing Article cardinality and remains `unchanged` when Source fields match;
+3. operator rule changes to exclusion and the same candidate later produces:
+   - one `excluded` observation;
+   - NULL Article ID on that exclusion observation;
+   - persisted exclusion rule/reason;
+   - no Article insert/update/touch/hide/archive;
+   - no Article identity lock/lookup path for exclusion;
+   - existing Article and current Category membership left intact;
+4. later config returns candidate to inclusion and the same Source Article identity resolves normally with then-current Category reconciliation.
+
+This sequence is key proof that Phase 11 edits are prospective and do not redefine Article identity or become retroactive moderation.
+
+COLLECTION INTEGRATION / ACCOUNTING EVIDENCE
+Controlled fixture/integration + real PostgreSQL coverage must prove:
+- Article-link rejection occurs before Relevance;
+- Relevance occurs before identity/persistence;
+- excluded candidates use exclusion persistence and never included Article persistence;
+- included candidates use included persistence;
+- one mixed batch covers created + updated + unchanged + rejected + excluded + failed;
+- `created + updated + unchanged + rejected + excluded + failed = normalized_candidate_count` exactly;
+- persisted Collection-run counters match in-memory result;
+- one successful deterministic exclusion does not fail the run;
+- exclusion persistence failure does not falsely increment excluded;
+- unrelated candidates retain existing isolation behavior;
+- configuration snapshot is loaded once per endpoint execution and shared across that bounded candidate batch.
+
+MANUAL / SCHEDULED / PHASE 10 REGRESSION
+Prove both trigger kinds retain one production composition and share:
+- effective Relevance snapshot loading;
+- P3 evaluator;
+- P5 included/excluded persistence;
+- endpoint lock/capacity;
+- conditional fetch;
+- run accounting;
+- runtime-state reconciliation.
+
+Retain relevant Phase 10 regression evidence for:
+- due scheduling and no-longer-due behavior;
+- durable job claim/attempt flow;
+- retry/cooldown classification;
+- cross-process endpoint/capacity controls;
+- conditional ETag/Last-Modified state;
+- Source/endpoint failure isolation;
+- Worker lifecycle tests touched by shared composition.
+
+PUBLIC FEED REGRESSION
+Phase 11 does not implement Phase 12 filters/search. Run existing public-feed backend regressions to prove:
+- feed eligibility remains based on singleton public status + Source eligibility + Article visibility/group state;
+- Source operational collection state does not incorrectly hide retained public rows;
+- ordering/effective date remains unchanged;
+- headline destination remains stored `original_url`;
+- Category persistence does not accidentally require Category membership for feed eligibility.
+
+REQUIRED COMMAND MATRIX
+Run against the exact final source tree, with prerequisites present:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:collection`
+- `npm run test:db`
+- `npm test`
+- `npm run check`
+
+Run narrower/focused commands as useful during defect triage, but the artifact should clearly distinguish focused runs from the final broad final-tree evidence.
+
+No test suite may silently skip required cases and still count as green evidence.
+
+BROWSER / LIVE-SOURCE POLICY
+Browser and approved live-publisher evidence are not intrinsically required for Phase 11 because P1-P6 should not alter public presentation or publisher transport behavior.
+
+However:
+- if the actual final tree touched public rendering/client behavior, run the relevant browser suite and record it;
+- if the actual final tree changed live transport/parser/network behavior, run the relevant approved live-source evidence if required by the testing contract and prerequisites;
+- otherwise explicitly record browser/live-source suites as not required for the Phase 11 blast radius, not as silently skipped passing evidence.
+
+DEFECT HANDLING
+P7 may fix only bounded defects necessary to make the already-defined Phase 11 implementation satisfy its contracts/tests.
+
+If a fix is made:
+- keep package version `0.11.7`;
+- add focused regression for the defect;
+- rerun every broader suite invalidated by the fix;
+- update the final candidate SHA after the fix;
+- ensure the durable artifact references the exact final tested SHA.
+
+If the defect requires a material redesign, new contract decision, later-phase feature, or broad unplanned migration rewrite, STOP and report Phase 11 closeout blocked rather than stretching P7 scope.
+
+NON-GOALS
+Do not add/fix as Phase 11 scope unless required to restore a regression caused by P1-P6:
+- Phase 12 feed Category/Source filters, keyword search, pagination/load-more changes;
+- Phase 13 presentation polish;
+- Phase 14 Source administration;
+- Phase 15 Publication/Relevance admin UI;
+- Phase 16 duplicate grouping;
+- Phase 17 moderation;
+- HTML collection;
+- ranking/boost;
+- semantic AI Relevance;
+- automatic bulk historical reprocessing.
+
+ACCEPTANCE CRITERIA
+P7 may declare Phase 11 GREEN only when:
+- package version is `0.11.7`;
+- the exact final source SHA is identified;
+- required deterministic, integration, collection, and real-PostgreSQL evidence is green on that exact tree;
+- no required test is skipped/flaky/zero-count;
+- complete Relevance precedence/category/default matrix is automatically proven;
+- current Category state vs historical reason semantics are proven;
+- exclusion is durably pre-identity and prospective behavior is proven;
+- manual/scheduled parity and Phase 10 regressions are green;
+- Article identity/public feed invariants remain intact;
+- topic independence/no Publication tenancy are confirmed;
+- durable validation artifact is committed and accurately states observed evidence/limitations;
+- no package lock is created;
+- no later-phase scope is pulled forward.
+
+FINAL RESPONSE
+If GREEN, report:
+- `Phase 11 closeout: GREEN`;
+- final accepted source SHA;
+- package version `0.11.7`;
+- durable validation artifact path;
+- exact final broad commands and observed results;
+- real PostgreSQL evidence summary;
+- any explicitly not-required browser/live-source evidence;
+- statement that the repository is ready for the separate conversational `/closeout` to enter Phase 12.
+
+If blocked/red, report:
+- `Phase 11 closeout: BLOCKED`;
+- exact failing contract/evidence;
+- source SHA/version tested;
+- whether any bounded P7 fixes were attempted;
+- do not claim Phase 11 complete and do not perform the Phase 12 baseline transition.

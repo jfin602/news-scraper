@@ -11,7 +11,7 @@ import { migrateDatabase } from '../../src/database/migrations.ts';
 import { readPublicFeed } from '../../src/public-feed/repository.ts';
 import { withDisposableDatabase } from '../support/database/disposable-database.ts';
 
-test('serves persisted public Articles through the production reader and HTTP stack', async () => {
+test('serves discovery through the production PostgreSQL reader and HTTP stack', async () => {
   await withDisposableDatabase(async ({ databaseUrl }) => {
     await migrateDatabase({ connectionString: databaseUrl });
     const client = new Client({ connectionString: databaseUrl });
@@ -19,83 +19,147 @@ test('serves persisted public Articles through the production reader and HTTP st
     await client.connect();
 
     try {
-      const publication = await insertPublicationSettings(
+      await insertPublicationSettings(client, 'Public Feed HTTP');
+      const source = await insertSource(
         client,
-        'Public Feed HTTP',
+        'http_source',
+        'HTTP Publisher',
       );
-      const sourceId = randomUUID();
-      await client.query(
-        `INSERT INTO sources (
-           id, config_key, display_name, site_url,
-           approval_state, lifecycle_state, operational_state
-         ) VALUES ($1, 'http_source', 'HTTP Publisher',
-           'https://publisher.example/', 'approved', 'active', 'enabled')`,
-        [sourceId],
+      const category = await insertCategory(
+        client,
+        'industry_news',
+        'Industry news',
       );
-      const articleId = randomUUID();
-      const originalUrl = 'https://publisher.example/canonical-story';
-      await client.query(
-        `INSERT INTO articles (
-           id, source_id, original_url, canonical_identity_url,
-           display_title, normalized_title, published_at_status, published_at,
-           source_updated_at_status, source_updated_at, visibility_state,
-           first_seen_at, last_seen_at
-         ) VALUES (
-           $1, $2, $3, $3, 'Persisted HTTP headline',
-           'persisted http headline', 'parsed', $4, 'missing', NULL, 'visible',
-           $5, $5
-         )`,
-        [
-          articleId,
-          sourceId,
-          originalUrl,
-          new Date('2026-08-10T12:00:00.000Z'),
-          new Date('2026-08-10T13:00:00.000Z'),
-        ],
-      );
+      const specialArticle = await insertArticle(client, source.id, {
+        displayTitle: 'Persisted HTTP headline',
+        normalizedTitle: 'persisted http headline',
+        publishedAt: '2026-08-12T12:00:00.000000Z',
+        firstSeenAt: '2026-08-12T13:00:00.000000Z',
+      });
+      await assignCategory(client, specialArticle.id, category.id);
+      await insertArticle(client, source.id, {
+        displayTitle: 'Hidden Page Needle',
+        normalizedTitle: 'hidden page needle',
+        visibilityState: 'hidden',
+      });
+      for (let index = 0; index <= 100; index += 1) {
+        await insertArticle(client, source.id, {
+          displayTitle: `Page needle ${index}`,
+          normalizedTitle: `page needle ${index}`,
+          firstSeenAt: `2026-08-10T00:00:${String(index % 60).padStart(2, '0')}.${String(index).padStart(6, '0')}Z`,
+        });
+      }
 
       const webServer = await startWebServer(
         createWebApp({
           readiness: { checkReady: async () => true },
-          publicFeed: {
-            read: () => readPublicFeed(database),
-          },
+          publicFeed: { read: (request) => readPublicFeed(database, request) },
         }),
         { host: '127.0.0.1', port: 0 },
       );
       try {
         const baseUrl = `http://${webServer.host}:${webServer.port}`;
-        const response = await fetch(`${baseUrl}/api/feed`);
-        assert.equal(response.status, 200);
-        assert.deepEqual(await response.json(), {
-          publication,
-          items: [
-            {
-              articleId,
-              effectiveFeedDate: '2026-08-10T12:00:00.000Z',
-              feedDateSource: 'published_at',
-              headline: 'Persisted HTTP headline',
-              sourceName: 'HTTP Publisher',
-              originalUrl,
-            },
-          ],
+        const firstResponse = await fetch(`${baseUrl}/api/feed`);
+        assert.equal(firstResponse.status, 200);
+        assert.equal(firstResponse.headers.get('cache-control'), 'no-store');
+        const firstBody = await firstResponse.json();
+        assert.equal(firstBody.publication.name, 'Public Feed HTTP');
+        assert.deepEqual(firstBody.discovery.query, {
+          q: null,
+          source: null,
+          category: null,
         });
+        assert.deepEqual(firstBody.discovery.sources, [
+          { configKey: 'http_source', displayName: 'HTTP Publisher' },
+        ]);
+        assert.deepEqual(firstBody.discovery.categories, [
+          { configKey: 'industry_news', displayName: 'Industry news' },
+        ]);
+        assert.equal(firstBody.items.length, 100);
+        assert.equal(firstBody.items[0].articleId, specialArticle.id);
+        assert.equal(
+          firstBody.items[0].originalUrl,
+          specialArticle.originalUrl,
+        );
+        assert.equal(typeof firstBody.nextCursor, 'string');
+        assert.doesNotMatch(
+          JSON.stringify(firstBody),
+          /normalizedTitle|firstSeen|author|summary|cursor_effective|internal/i,
+        );
+
+        const filteredResponse = await fetch(
+          `${baseUrl}/api/feed?q=HTTP%20HEADLINE&source=http_source&category=industry_news`,
+        );
+        assert.equal(filteredResponse.status, 200);
+        const filteredBody = await filteredResponse.json();
+        assert.deepEqual(filteredBody.discovery.query, {
+          q: 'HTTP HEADLINE',
+          source: 'http_source',
+          category: 'industry_news',
+        });
+        assert.deepEqual(
+          filteredBody.items.map(
+            (item: { articleId: string }) => item.articleId,
+          ),
+          [specialArticle.id],
+        );
+
+        const secondResponse = await fetch(
+          `${baseUrl}/api/feed?cursor=${firstBody.nextCursor as string}`,
+        );
+        assert.equal(secondResponse.status, 200);
+        const secondBody = await secondResponse.json();
+        assert.equal(secondBody.items.length, 2);
+        assert.equal(secondBody.nextCursor, null);
+        assert.equal(
+          new Set([
+            ...firstBody.items.map(
+              (item: { articleId: string }) => item.articleId,
+            ),
+            ...secondBody.items.map(
+              (item: { articleId: string }) => item.articleId,
+            ),
+          ]).size,
+          102,
+        );
+
+        const mismatchResponse = await fetch(
+          `${baseUrl}/api/feed?q=other&cursor=${firstBody.nextCursor as string}`,
+        );
+        assert.equal(mismatchResponse.status, 400);
+        assert.deepEqual(await mismatchResponse.json(), {
+          error: 'invalid_request',
+        });
+
+        const unsupportedResponse = await fetch(
+          `${baseUrl}/api/feed?source=missing_source`,
+        );
+        assert.equal(unsupportedResponse.status, 400);
+        const unsupportedBody = JSON.stringify(
+          await unsupportedResponse.json(),
+        );
+        assert.equal(
+          unsupportedBody,
+          JSON.stringify({ error: 'invalid_request' }),
+        );
+        assert.doesNotMatch(unsupportedBody, /missing_source|postgres|select/i);
 
         await client.query(
           "UPDATE articles SET visibility_state = 'hidden' WHERE id = $1",
-          [articleId],
+          [specialArticle.id],
         );
-        const emptyResponse = await fetch(`${baseUrl}/api/feed`);
-        assert.equal(emptyResponse.status, 200);
-        assert.deepEqual(await emptyResponse.json(), {
-          publication,
-          items: [],
-        });
+        const hiddenResponse = await fetch(
+          `${baseUrl}/api/feed?q=Persisted%20HTTP%20headline`,
+        );
+        assert.equal(hiddenResponse.status, 200);
+        assert.deepEqual((await hiddenResponse.json()).items, []);
 
         await client.query(
           "UPDATE publication_settings SET public_status = 'private'",
         );
-        const privateResponse = await fetch(`${baseUrl}/api/feed`);
+        const privateResponse = await fetch(
+          `${baseUrl}/api/feed?source=missing_source`,
+        );
         assert.equal(privateResponse.status, 404);
         assert.deepEqual(await privateResponse.json(), { error: 'not_found' });
 
@@ -117,13 +181,89 @@ test('serves persisted public Articles through the production reader and HTTP st
   });
 });
 
-async function insertPublicationSettings(client: Client, name: string) {
-  const publication = { name };
+async function insertPublicationSettings(
+  client: Client,
+  name: string,
+): Promise<void> {
   await client.query(
-    `INSERT INTO publication_settings (
-       name, active_for_collection, public_status
-     ) VALUES ($1, true, 'public')`,
-    [publication.name],
+    `INSERT INTO publication_settings (name, active_for_collection, public_status)
+     VALUES ($1, true, 'public')`,
+    [name],
   );
-  return publication;
+}
+
+async function insertSource(
+  client: Client,
+  configKey: string,
+  displayName: string,
+): Promise<{ readonly id: string }> {
+  const id = randomUUID();
+  await client.query(
+    `INSERT INTO sources (
+       id, config_key, display_name, site_url,
+       approval_state, lifecycle_state, operational_state
+     ) VALUES ($1, $2, $3, 'https://publisher.example/',
+       'approved', 'active', 'enabled')`,
+    [id, configKey, displayName],
+  );
+  return { id };
+}
+
+async function insertCategory(
+  client: Client,
+  configKey: string,
+  displayName: string,
+): Promise<{ readonly id: string }> {
+  const id = randomUUID();
+  await client.query(
+    'INSERT INTO categories (id, config_key, display_name) VALUES ($1, $2, $3)',
+    [id, configKey, displayName],
+  );
+  return { id };
+}
+
+async function insertArticle(
+  client: Client,
+  sourceId: string,
+  options: Readonly<{
+    displayTitle: string;
+    normalizedTitle: string;
+    publishedAt?: string;
+    firstSeenAt?: string;
+    visibilityState?: 'visible' | 'hidden';
+  }>,
+): Promise<{ readonly id: string; readonly originalUrl: string }> {
+  const id = randomUUID();
+  const originalUrl = `https://publisher.example/articles/${id}`;
+  await client.query(
+    `INSERT INTO articles (
+       id, source_id, original_url, canonical_identity_url,
+       display_title, normalized_title, published_at_status, published_at,
+       source_updated_at_status, source_updated_at, visibility_state,
+       first_seen_at, last_seen_at
+     ) VALUES ($1, $2, $3, $3, $4, $5, $6, $7, 'missing', NULL, $8, $9, $9)`,
+    [
+      id,
+      sourceId,
+      originalUrl,
+      options.displayTitle,
+      options.normalizedTitle,
+      options.publishedAt === undefined ? 'missing' : 'parsed',
+      options.publishedAt ?? null,
+      options.visibilityState ?? 'visible',
+      options.firstSeenAt ?? '2026-08-10T00:00:00.000000Z',
+    ],
+  );
+  return { id, originalUrl };
+}
+
+async function assignCategory(
+  client: Client,
+  articleId: string,
+  categoryId: string,
+): Promise<void> {
+  await client.query(
+    'INSERT INTO article_categories (article_id, category_id) VALUES ($1, $2)',
+    [articleId, categoryId],
+  );
 }

@@ -269,3 +269,132 @@ test('detects modified and missing applied migration history', async () => {
     );
   });
 });
+
+test('installs only the justified public-feed discovery indexes from zero', async () => {
+  await withDisposableDatabase(async ({ databaseUrl }) => {
+    assert.deepEqual(await migrateDatabase({ connectionString: databaseUrl }), [
+      '0001_initial_schema.sql',
+      '0002_endpoint_runtime_and_run_transport_telemetry.sql',
+      '0003_endpoint_collection_jobs.sql',
+      '0004_canonical_scheduled_execution.sql',
+      '0005_categories_and_relevance.sql',
+      '0006_mutable_relevance_rule_history.sql',
+      '0007_public_feed_discovery_indexes.sql',
+    ]);
+    assert.deepEqual(
+      await migrateDatabase({ connectionString: databaseUrl }),
+      [],
+    );
+
+    const database = createDatabase({ connectionString: databaseUrl });
+    try {
+      const indexes = await database.query<{
+        indexname: string;
+        indexdef: string;
+        expression: string | null;
+        predicate: string | null;
+      }>(
+        `SELECT
+           index_class.relname AS indexname,
+           pg_get_indexdef(index_class.oid) AS indexdef,
+           pg_get_expr(index_definition.indexprs, index_definition.indrelid) AS expression,
+           pg_get_expr(index_definition.indpred, index_definition.indrelid) AS predicate
+         FROM pg_index AS index_definition
+         JOIN pg_class AS index_class
+           ON index_class.oid = index_definition.indexrelid
+         WHERE index_class.relname = ANY($1::text[])
+         ORDER BY index_class.relname`,
+        [
+          [
+            'article_categories_category_article_lookup_idx',
+            'articles_public_feed_visible_order_idx',
+            'articles_source_public_feed_visible_order_idx',
+          ],
+        ],
+      );
+      const byName = new Map(
+        indexes.rows.map((index) => [index.indexname, index]),
+      );
+      assert.deepEqual(
+        [...byName.keys()],
+        [
+          'article_categories_category_article_lookup_idx',
+          'articles_public_feed_visible_order_idx',
+          'articles_source_public_feed_visible_order_idx',
+        ],
+      );
+
+      const canonical = requireIndex(
+        byName,
+        'articles_public_feed_visible_order_idx',
+      );
+      assert.equal(canonical.predicate, "(visibility_state = 'visible'::text)");
+      assert.equal(
+        canonical.expression,
+        "\nCASE\n    WHEN (published_at_status = 'parsed'::text) THEN published_at\n    ELSE first_seen_at\nEND",
+      );
+      assert.match(
+        compactSql(canonical.indexdef),
+        /\(\( ?CASE WHEN \(published_at_status = 'parsed'::text\) THEN published_at ELSE first_seen_at END\) DESC, first_seen_at DESC, id\) WHERE \(visibility_state = 'visible'::text\)$/u,
+      );
+
+      const sourceLeading = requireIndex(
+        byName,
+        'articles_source_public_feed_visible_order_idx',
+      );
+      assert.equal(
+        sourceLeading.predicate,
+        "(visibility_state = 'visible'::text)",
+      );
+      assert.equal(sourceLeading.expression, canonical.expression);
+      assert.match(
+        compactSql(sourceLeading.indexdef),
+        /\(source_id, \( ?CASE WHEN \(published_at_status = 'parsed'::text\) THEN published_at ELSE first_seen_at END\) DESC, first_seen_at DESC, id\) WHERE \(visibility_state = 'visible'::text\)$/u,
+      );
+
+      const categoryLookup = requireIndex(
+        byName,
+        'article_categories_category_article_lookup_idx',
+      );
+      assert.equal(categoryLookup.expression, null);
+      assert.equal(categoryLookup.predicate, null);
+      assert.match(
+        compactSql(categoryLookup.indexdef),
+        /ON public\.article_categories USING btree \(category_id, article_id\)$/u,
+      );
+
+      const extensions = await database.query<{ extname: string }>(
+        `SELECT extname
+         FROM pg_extension
+         WHERE extname = 'pg_trgm'`,
+      );
+      assert.deepEqual(extensions.rows, []);
+      const fullTextOrTrigramIndexes = await database.query<{
+        indexname: string;
+      }>(
+        `SELECT indexname
+         FROM pg_indexes
+         WHERE schemaname = 'public'
+           AND (
+             indexdef ILIKE '%to_tsvector%'
+             OR indexdef ILIKE '%trgm%'
+             OR indexdef ILIKE '%gin%'
+             OR indexdef ILIKE '%gist%'
+           )`,
+      );
+      assert.deepEqual(fullTextOrTrigramIndexes.rows, []);
+    } finally {
+      await database.close();
+    }
+  });
+});
+
+function requireIndex<T>(byName: ReadonlyMap<string, T>, name: string): T {
+  const index = byName.get(name);
+  if (index === undefined) assert.fail(`Expected index ${name}.`);
+  return index;
+}
+
+function compactSql(value: string): string {
+  return value.replaceAll(/\s+/gu, ' ');
+}

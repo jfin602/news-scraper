@@ -58,9 +58,9 @@ The basic item read model is intentionally small. Each item exposes only the fie
 - Source display name;
 - stored Article `original_url` as the external destination.
 
-The response MAY include minimal descriptive Publication configuration needed by the public UI, such as name and later public branding/presentation values. It MUST NOT expose or depend on a Publication UUID/slug as a routing/scoping identity, and MUST NOT expose Raw items, Article observations, internal identity digests, normalized-title matching fields, database internals, unbounded summaries/content, or other fields merely because they are stored.
+The response MAY include minimal descriptive Publication configuration needed by the public UI before the presentation-polish phase. Once Phase 13 is implemented, the canonical public response MUST expose the bounded public Publication presentation values required by `/`: required `name` plus nullable `description`, `logoPath`, and `accentColor` corresponding to the singleton persisted configuration defined by the domain contract. These values are inert presentation data, not HTML/CSS/code, and do not create a reader-selectable Publication identity. The response MUST NOT expose or depend on a Publication UUID/slug as a routing/scoping identity, and MUST NOT expose Raw items, Article observations, internal identity digests, normalized-title matching fields, database internals, unbounded summaries/content, or other fields merely because they are stored.
 
-Keyword search, Source/Category filters, client-controlled cursor/load-more behavior, ranking, and presentation/theme behavior are not part of the basic endpoint. Phase 12 adds deterministic discovery/pagination behavior without changing the eligibility rule.
+Phase 12 extends this same endpoint/read-model boundary with deterministic discovery and pagination. It does not create a parallel feed query, eligibility rule, or alternate public endpoint. Ranking and presentation/theme behavior remain separate concerns.
 
 The accepted Phase 8 validation artifact remains evidence for the slug-scoped endpoint that existed at its accepted source SHA. The Phase 10 entry singleton implementation correction removes that implementation drift and supplies new evidence for this canonical endpoint; the historical artifact is not rewritten.
 
@@ -87,9 +87,9 @@ A lightweight same-origin client that fetches `GET /api/feed` is a valid impleme
 
 The obsolete pre-production route `GET /publications/:publicationSlug` is not a supported public product surface. The Phase 10 entry correction removes that implementation path rather than preserving a compatibility alias without an explicit requirement.
 
-Publication presentation timezone/settings are not persisted yet. Until that later presentation configuration exists, the basic UI MUST render the calendar date from `effectiveFeedDate` in UTC so the same feed item does not shift dates according to the viewer/test machine timezone. A later presentation phase may deliberately replace this fallback with singleton Publication-configured date/time rendering.
+Publication presentation timezone/settings are not persisted yet. Phase 13 does not introduce configurable timezone behavior: through Phase 13 the public UI MUST continue to render the calendar date from `effectiveFeedDate` in UTC so the same feed item does not shift dates according to the viewer/test machine timezone. Phase 15 may deliberately replace this fallback with singleton Publication-configured timezone/date rendering as part of Publication/feed administration.
 
-The basic public page does not add keyword search, Source/Category filters, client-controlled pagination, final accessibility/responsive polish, completed light/dark theming, duplicate moderation, or admin UI.
+Phase 12 adds the discovery controls and navigation behavior defined below while preserving this same page/read-model boundary. Final accessibility/responsive polish, completed light/dark theming, duplicate moderation, and admin UI remain later work.
 
 The accepted Phase 9 validation artifact remains authoritative evidence for the slug-addressed route that was actually tested at its source SHA. It MUST NOT be edited to claim root-route evidence that was not observed; the singleton implementation correction owns the new root-route evidence.
 
@@ -102,7 +102,7 @@ The canonical effective feed date is:
 
 The read model MUST expose which source produced the effective date so fallback use is detectable. Missing or invalid Source publication dates do not become fabricated `published_at` values.
 
-Ordinary rolling-feed ordering is deterministic and reverse chronological by effective feed date. For equal effective dates, Phase 8 orders by `first_seen_at` descending and then stable Article identifier as the final deterministic tie-breaker. Later discovery/pagination work MUST preserve a documented stable ordering compatible with this baseline.
+Ordinary rolling-feed ordering is deterministic and reverse chronological by effective feed date. For equal effective dates, Phase 8 orders by `first_seen_at` descending and then stable Article identifier as the final deterministic tie-breaker. Phase 12 search/filtering and pagination MUST preserve this same ordering; discovery criteria filter the eligible chronological stream rather than reranking it.
 
 Pinning/featured-story ordering is deferred beyond MVP. MVP chronological ordering therefore has no pin exception.
 
@@ -136,35 +136,128 @@ Tap targets, wrapping, Source identification, and external-link behavior must re
 
 The tech-demo milestone may use a basic mobile layout before the later presentation-polish phase completes the full accessibility/responsive pass.
 
-## Search and filters
+## Search, filters, and pagination
 
-Completed MVP MUST support:
+Phase 12 extends `GET /api/feed` and the root page with deterministic discovery behavior while preserving the feed-eligibility and chronological-order laws above.
 
-- Category filter;
-- Source filter;
-- keyword search over normalized/display headline and available safe metadata;
-- deterministic pagination/load-more cursors;
-- filter state reflected in URL where practical;
-- clear reset action.
+### Public discovery inputs
 
-Search results use the same feed-eligibility rule as the rolling feed. These discovery features are not blockers for the earlier basic-feed tech demo.
+The canonical API supports these optional query parameters:
 
-## Theme and branding
+- `q` — bounded keyword search;
+- `source` — one Source filter;
+- `category` — one Category filter;
+- `cursor` — opaque continuation cursor for load-more/keyset pagination.
 
-Completed MVP requires:
+Each discovery parameter represents one logical value. Repeated/ambiguous forms, malformed encodings, unsupported values, invalid cursors, or values outside the implementation's documented bounds MUST fail with bounded generic `400` behavior rather than being silently reinterpreted. Existing generic `404` behavior for absent/non-public singleton Publication state and bounded dependency-error behavior remain unchanged.
 
-- light/dark modes;
-- Publication name/logo/accent/descriptive copy/Category labels from singleton Publication configuration;
-- accessible contrast and keyboard focus;
-- no indie-author branding embedded in shared engine/UI logic.
+When no discovery parameter is supplied, `GET /api/feed` represents the unfiltered first page of the same canonical feed and preserves the established eligibility, ordering, public-state, and error semantics.
 
-Final theme/branding polish follows the basic public-feed tech-demo milestone as defined by the roadmap.
+### Source and Category filters
+
+- Public Source and Category filter identity MUST use immutable `config_key` values, not database UUIDs or mutable display labels.
+- MVP supports at most one Source filter and one Category filter at a time.
+- When multiple discovery dimensions are supplied, `q`, `source`, and `category` compose with logical AND: a returned Article must satisfy every supplied criterion in addition to ordinary feed eligibility.
+- Category filtering uses the Article's current `article_categories` membership. Historical observation/category reasons do not make an Article currently match a Category filter.
+- Source filtering MUST NOT weaken the ordinary Source approval/lifecycle eligibility gates.
+- Public discovery metadata may expose bounded Source/Category choices needed by the UI using only stable public identity and display data such as `{ configKey, displayName }`. Internal database IDs, rule internals, observations, or private configuration are not public filter metadata. Public Source choices MUST NOT expose unapproved or archived Sources.
+
+### Keyword search
+
+Keyword search is a filtering operation, not a ranking operation.
+
+- `q` is trimmed/normalized at the public-input boundary and bounded before it reaches the database query.
+- Matching is deterministic case-insensitive literal substring matching, not regular expression, glob, stemming, fuzzy, semantic/AI, or general expression behavior.
+- Search may inspect the Article headline representations and other explicitly safe normalized textual Article metadata available to the canonical feed query, such as author or summary when present. Missing optional metadata simply does not match.
+- Search MUST NOT expose those internal searchable fields merely because they participate in matching.
+- Search MUST NOT alter the canonical chronological ordering of matching rows.
+
+### Keyset cursor contract
+
+Phase 12 uses bounded keyset/load-more pagination rather than offset-based public pagination.
+
+- Page size remains server-defined and bounded; Phase 12 does not add a public `limit` parameter.
+- A response with more matching rows available exposes a nullable opaque `nextCursor` or equivalent continuation value.
+- Cursor contents are an implementation detail but MUST be versioned/validated and encode enough state to continue strictly after the last returned row under the canonical order tuple: effective feed date descending, `first_seen_at` descending, then stable Article identifier.
+- A cursor MUST be bound to the normalized `q`/`source`/`category` criteria under which it was issued. Reusing it with different discovery criteria is invalid rather than silently continuing a different result set.
+- Under a static database snapshot/result set, walking pages with returned cursors MUST neither repeat nor omit matching rows because of ordering ties.
+- Newly arriving Articles may appear on a later fresh first-page request; pagination does not promise a frozen historical snapshot across concurrent collection. It MUST still preserve keyset ordering and must not reintroduce offset-style instability.
+
+### Browser URL and reset behavior
+
+- The root public page reflects active `q`, `source`, and `category` discovery state in the URL where those controls are active, so direct navigation/refresh can reconstruct the same filters/search.
+- Load-more cursor depth does not need to become canonical shareable URL state in Phase 12.
+- Changing `q`, `source`, or `category` starts again from the first page and discards any previous continuation cursor/items from the earlier criteria.
+- A clear Reset action removes all discovery criteria and returns the page to the unfiltered first-page feed state.
+- Browser back/forward navigation restores the URL-reflected discovery criteria and corresponding feed state rather than leaving stale controls/results.
+- Empty filtered/search results remain a normal public `200` feed state and do not become Publication-unavailable behavior.
+
+## Theme, branding, and Phase 13 presentation behavior
+
+Completed MVP requires configuration-driven public presentation without changing feed semantics.
+
+### Publication presentation configuration
+
+Phase 13 uses the singleton Publication presentation fields defined by the domain contract:
+
+- required Publication `name`;
+- optional bounded plain-text `description`;
+- optional bounded same-origin `logo_path`, exposed publicly as `logoPath`;
+- optional canonical sRGB `accent_color` in `#RRGGBB` form, exposed publicly as `accentColor`;
+- Category labels already supplied by the canonical public discovery metadata.
+
+Missing optional branding values MUST degrade to a complete generic presentation rather than causing page/API failure. Publication branding is data/configuration; shared engine/UI code MUST NOT embed indie-author-specific names, copy, logos, colors, or topic conditionals.
+
+Phase 13 introduces the persistence/read-model use of these minimum public values. Phase 15 later provides Cloudflare-protected administrator editing for them; Phase 13 MUST NOT pull the Phase 15 admin control plane forward.
+
+### Theme selection
+
+The public page supports three reader theme selections: `system`, `light`, and `dark`.
+
+- With no saved reader choice, effective presentation follows the browser/OS `prefers-color-scheme` value (`system`).
+- An explicit reader choice overrides the current system preference and is persisted locally in that browser/device.
+- Choosing `system` removes the fixed light/dark override and resumes following the current browser/OS preference.
+- Theme preference is presentation-only local state. It MUST NOT change Publication configuration, feed queries, URL discovery criteria, server-side reader identity, or Article eligibility/order.
+- Both effective light and dark presentations must satisfy the accessibility requirements below.
+
+### Accessibility and responsive target
+
+Phase 13 targets WCAG 2.2 Level AA for the in-scope root public-feed experience. At minimum:
+
+- interactive controls use appropriate native/semantic elements and are operable by keyboard without a keyboard trap;
+- focus order remains coherent and `:focus-visible` or equivalent focus indication is clearly visible in both themes;
+- text, interactive controls, state indicators, and focus treatments satisfy applicable AA contrast requirements;
+- desktop/mobile layouts wrap long headlines, Source names, Category labels, and discovery values without destructive overlap or horizontal page overflow under the supported responsive range;
+- tap/click controls satisfy the applicable WCAG 2.2 AA target-size requirement or permitted spacing exception;
+- status/loading/error presentation remains understandable to assistive technology and does not rely only on color;
+- animation honors `prefers-reduced-motion`; a loading indicator remains understandable without requiring continuous motion.
+
+The exact typography, spacing, visual hierarchy, token values, component shapes, and approved aesthetic treatment belong to durable `docs/design/` guidance and remain subordinate to this behavioral contract.
+
+### Initial loading presentation
+
+While the canonical `/api/feed` request is pending, the visible page MUST present a neutral, intentional loading state and MUST NOT visibly paint generic/unset Publication copy such as a placeholder `News feed` heading that is then replaced by configured Publication content. A centered loading indicator may be used together with an accessible status message. Reduced-motion users MUST receive an equivalent non-motion loading indication. Populated, empty, unavailable, invalid-discovery, continuation-error, and dependency-error behavior must remain distinguishable after the loading state resolves.
+
+### Phase 12 preservation boundary
+
+Phase 13 may refine markup and presentation around the discovery controls/feed, but MUST NOT redefine Phase 12 behavior. In particular it preserves:
+
+- `GET /api/feed` as the one canonical public feed/discovery endpoint and `/` as the canonical page;
+- canonical feed eligibility and effective-date/`first_seen_at`/Article-ID chronological ordering;
+- bounded literal `q`, Source, and Category filtering semantics and immutable `config_key` public identities;
+- opaque query-bound keyset cursor behavior and server-defined page size;
+- URL-reflected `q`/`source`/`category`, criteria-reset behavior, direct navigation/refresh, browser Back/Forward restoration, and non-URL load-more depth;
+- stale request/continuation protection and safe continuation retry behavior;
+- exact stored `original_url` headline destinations.
+
+Presentation work must keep the relevant Phase 12 API/database/browser regressions green rather than replacing those contracts with visually convenient alternatives.
 
 ## External destination behavior
 
 - The Article's stored `original_url` is the primary public destination.
 - `canonical_identity_url` is an identity-comparison field and MUST NOT silently replace `original_url` as the public headline destination.
 - A future separately governed Source-derived public/canonical destination field may change this only through an explicit contract decision; none exists in the basic feed.
+- The default headline activation is an ordinary direct same-context browser navigation to stored `original_url`; Phase 13 MUST NOT force a new browsing context merely for presentation polish. Readers retain their normal browser controls for opening links in another tab/window when desired.
 - UI must not imply Platform authorship of linked content.
 - External navigation is visually/accessibly understandable.
 - Redirector/tracking links are not MVP behavior unless separately approved/documented.

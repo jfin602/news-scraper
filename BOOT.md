@@ -14,8 +14,7 @@ It establishes project identity, canonical terminology, authority, document rout
 - Deployment cardinality: exactly one Publication/topic per deployed installation
 - Topic reuse model: configure and deploy another installation of the same shared codebase; do not concurrently host multiple topic Publications in one installation
 - Publication data-model role: singleton editorial/configuration state, **not** a relational tenant/ownership key
-- Current phase: **Phase 10 — Automated polling, durable jobs, and endpoint health**
-- Current implementation gate: complete and validate the singleton implementation correction before ordinary Phase 10 scheduler/job implementation
+- Current phase: **Phase 13 — Public presentation polish**
 - Production status: pre-production
 - Pre-production database policy: destructive fresh rebuild from the repository's smallest current canonical migration chain and bootstrap/configuration; databases from older source trees are disposable and legacy-only migration/runtime/test/config structure is removed rather than preserved for compatibility
 - Initial Publication: publishing-industry news relevant to indie authors
@@ -25,19 +24,27 @@ It establishes project identity, canonical terminology, authority, document rout
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication/Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; owner acceptance advances roadmap state without rewriting that evidence.
 
-The canonical architecture is one Publication/topic per installation, singleton Publication editorial configuration without relational tenancy, Source-scoped identity/provenance, canonical `/api/feed`, and canonical root `/`. The current implementation still contains pre-production Publication-scoped schema/selectors and slug-addressed paths from earlier accepted source trees. The Phase 10 entry correction removes that implementation drift; historical validation artifacts remain evidence only for the exact SHAs they recorded.
+The Phase 10 entry singleton implementation correction is complete with durable validation in `docs/validation/single-publication-simplification-correction.md`. It removed obsolete Publication tenancy/scoping/selectors from the supported source/schema/configuration/public/Worker paths and established the canonical singleton migration-from-zero model, `/api/feed`, and root `/` without rewriting historical evidence.
+
+Phase 10 — Automated polling, durable jobs, and endpoint health — is complete with durable validation in `docs/validation/phase-10-automated-polling-durable-jobs-endpoint-health.md`. Durable jobs, due-endpoint scheduling, retry/recovery, conditional-fetch state, shared capacity/locking, Worker orchestration, and baseline endpoint health now surround the same canonical endpoint execution unit proven during the tech-demo path.
+
+Phase 11 — Categories and configurable Relevance execution — is complete with durable validation in `docs/validation/phase-11-categories-configurable-relevance-execution.md`. Persisted installation-wide Categories, deterministic include/exclude/categorize rules, Source/endpoint default Category fallback, stable reasons, prospective exclusions, and the explicit pre-admin editorial configuration path now extend the same pre-identity Relevance boundary.
+
+Phase 12 — Feed discovery features — is complete with durable validation in `docs/validation/phase-12-feed-discovery-features.md`. Deterministic Source/Category filters, bounded literal search, stable keyset pagination/load-more, URL/reset navigation behavior, and MVP-scale query/index behavior now extend the canonical public-feed boundary without changing feed eligibility or chronological ordering.
+
+Phase 13 is the current implementation phase. It owns the minimum singleton Publication public-presentation/branding support, polished responsive desktop/mobile public feed, system/light/dark presentation, accessibility, intentional pending/loading presentation including tracked placeholder-flash issue R7KM, and browser validation while preserving Phase 12 discovery semantics. The roadmap and governing contracts remain the authorities for its exact scope.
+
+The canonical architecture is one Publication/topic per installation, singleton Publication editorial configuration without relational tenancy, Source-scoped identity/provenance, persisted Relevance/Categories, canonical `/api/feed`, canonical root `/`, and durable endpoint scheduling/jobs. Historical validation artifacts remain evidence only for the exact SHAs and environments they recorded.
 
 ## Delivery priority
 
-Phases 1–9 are the tech-demo critical path.
+Phases 1–9 are the historical tech-demo critical path.
 
 The first demonstrable milestone is: at least two real approved RSS/Atom Sources are collected through the Worker, recorded in Collection runs, normalized, passed through the canonical default-include Relevance boundary, persisted idempotently with Article-observation provenance, and displayed in the public feed with original-publisher headline links.
 
-Do not front-load admin convenience, native authentication, feed discovery polish, duplicate moderation, or HTML collection unless a true dependency is demonstrated.
+Phase 11 completed deterministic persisted Categories and configurable Relevance execution. Phase 12 completed deterministic Source/Category filters, bounded literal search, keyset/load-more cursors, and URL/reset navigation behavior. Phase 13 now owns the already-governed public-presentation work while preserving those discovery semantics. Do not pull Phase 14–15 admin UX, Phase 16 duplicate grouping, or later work into Phase 13 unless a true dependency is demonstrated.
 
-Before ordinary Phase 10 implementation, execute the singleton implementation correction. It must remove obsolete Publication tenancy/scoping and selectors from the current source/schema, preserve genuine Source/endpoint/run/Article/observation integrity/provenance, remove Publication selectors from bootstrap/Worker/public supported paths, make `/api/feed` and `/` canonical, establish the canonical singleton schema from a fresh migration-from-zero database, and satisfy the database/regression/browser correction gate in the testing contract.
-
-Because the project is pre-production, the correction MUST destroy/recreate affected development/pre-production databases as needed and MUST delete, squash, replace, or consolidate legacy-only migration files and remove compatibility-only source/API/type/test/fixture/config paths when the canonical system has no independent use for them. It does not preserve data or active implementation history from older pre-production source trees; Git history, superseded ADRs, historical prompts, and validation artifacts preserve that history.
+Because the project is pre-production, databases from superseded source trees remain disposable. Current implementation work may rebuild development/pre-production databases from the canonical migration chain rather than preserving unsupported old schema/data compatibility.
 
 Every implementation phase and correction inherits `docs/contracts/testing-and-validation-contract.md`. Fast delivery does not permit regression protection, persistence proof, network-safety tests, or final-tree validation to be deferred when the corresponding behavior is introduced or changed.
 
@@ -54,7 +61,7 @@ For project-wide work refresh:
 7. relevant implementation/tests
 8. recent commits affecting the area when recency matters
 
-For UI-workstream tasks, additionally read `docs/design/README.md` and `docs/design/ui-workflow.md` before planning or writing a UI prompt.
+For UI-workstream tasks, additionally read `docs/design/README.md` and `docs/design/ui-workflow.md` before planning, design review/application, or writing a UI prompt.
 
 Do not read every document indiscriminately. Use routing below. A full `/docs-review` is the intentional exception.
 
@@ -77,8 +84,8 @@ Governed by `docs/contracts/domain-and-data-contract.md` plus `docs/decisions/si
 - `Duplicate group` = separately stored Articles representing the same underlying published item
 - `Primary article` = one member selected to represent a Duplicate group publicly
 - `Related coverage` = distinct reporting about same subject/event; not a true duplicate
-- `Category` = installation-wide editorial grouping from singleton Publication configuration
-- `Relevance rule` = deterministic installation-wide include/exclude/categorize rule, optionally Source-scoped
+- `Category` = installation-wide editorial grouping from singleton Publication configuration, identified by immutable installation-wide `config_key` once persisted
+- `Relevance rule` = deterministic installation-wide include/exclude/categorize rule, optionally Source-scoped, identified by immutable installation-wide `config_key` once persisted
 - `contract` = behavior implementation must preserve
 - `ADR` = decision record in `docs/decisions/`
 - `task` = roadmap/correction implementation prompt under `docs/tasks/`
@@ -87,7 +94,7 @@ Governed by `docs/contracts/domain-and-data-contract.md` plus `docs/decisions/si
 - `refresh` = re-read current repository sources before answering
 - `lock` = treat a decision as authoritative and identify documents that must reflect it
 
-Do not blur removal of relational Publication tenancy with removal of the singleton Publication editorial/configuration concept. Also keep Source vs endpoint, approval vs lifecycle/operational state, operational state vs health, Article identity vs duplicate identity, Article visibility vs duplicate role, external admin access control vs application resource validation, and source inspection vs executed validation evidence distinct.
+Do not blur removal of relational Publication tenancy with removal of the singleton Publication editorial/configuration concept. Also keep Source vs endpoint, approval vs lifecycle/operational state, operational state vs health, Relevance vs Article identity, Category assignment vs inclusion, Article identity vs duplicate identity, Article visibility vs duplicate role, external admin access control vs application resource validation, and source inspection vs executed validation evidence distinct.
 
 ## Authority and conflicts
 
@@ -105,7 +112,7 @@ Canonical authority is `docs/contracts/project-contract.md`:
 
 `docs/contracts/testing-and-validation-contract.md` governs how implementation behavior is proven and when implementation/correction work may be considered complete. It does not redefine product/domain behavior or outrank the governing behavioral contract being tested.
 
-Design documents under `docs/design/` are presentation/workflow guidance subordinate to the applicable product/domain contracts and roadmap. They may refine presentation, but they do not silently redefine supported behavior or roadmap exit gates.
+Design documents under `docs/design/` are presentation/workflow guidance subordinate to the applicable product/domain contracts, ADRs, roadmap, and testing contract. They may refine presentation, but they do not silently redefine supported behavior or roadmap exit gates.
 
 Observed validation evidence proves behavior only for the source tree/environment/procedure actually tested; it does not outrank or redefine a governing contract. Earlier Phase 3–9 artifacts may accurately describe Publication-scoped schema/routes at their accepted SHAs even though the canonical current architecture does not use those shapes.
 
@@ -119,15 +126,15 @@ Report authoritative conflicts rather than choosing silently.
 | --- | --- |
 | Locked laws / authority / product boundaries | `docs/contracts/project-contract.md` |
 | MVP users / demo-first capabilities / exclusions | `docs/contracts/mvp-scope-and-users.md` |
-| Terminology / singleton model / entities / identity / provenance / database schema | `docs/contracts/domain-and-data-contract.md` |
+| Terminology / singleton model / entities / identity / provenance / Category/Relevance schema | `docs/contracts/domain-and-data-contract.md` |
 | Testing / regression / evidence / DB/fixture/browser/live validation | `docs/contracts/testing-and-validation-contract.md` |
 | Process/module architecture / deployment / Worker / scheduling / transactions | `docs/architecture/system-architecture.md` |
-| Approval / bootstrap / collection / safety / normalization / Relevance / identity / run accounting | `docs/contracts/source-and-collection-contract.md` |
+| Approval / bootstrap / collection / safety / normalization / Relevance / operator configuration / identity / run accounting | `docs/contracts/source-and-collection-contract.md` |
 | Article visibility / duplicate role / review/groups / Primary | `docs/contracts/article-lifecycle-and-deduplication.md` |
 | Public feed / root routing / search / themes / admin UX / change history | `docs/contracts/public-feed-and-admin-contract.md` |
 | UI design / presentation workflow / parallel UI branch | `docs/design/README.md`, then `docs/design/ui-workflow.md` |
 | Admin perimeter / SSRF / content safety / isolation / observability / recovery | `docs/operations/security-reliability-and-operations.md` |
-| Phase sequence / correction gate / exit gates | `docs/roadmap/mvp-roadmap.md` |
+| Phase sequence / correction history / exit gates | `docs/roadmap/mvp-roadmap.md` |
 | Singleton Publication data-model decision | `docs/decisions/single-publication-simplified-data-model.md` |
 | Historical superseded data-model decision | `docs/decisions/topic-independent-publication-model.md` |
 | Whitelist/structured-feed decision | `docs/decisions/whitelist-and-structured-feed-first.md` |
@@ -147,14 +154,14 @@ If a path does not exist, search for its current equivalent before assuming inte
 - Each supported deployed installation hosts exactly one Publication/topic; another topic uses another configured deployment of the same codebase.
 - Singleton Publication configuration owns installation-wide name, collection/public state, branding/presentation, Categories, Relevance, Sources, and Source priority conceptually.
 - Publication is not a relational tenant key. Do not introduce Publication UUIDs, slugs, FKs, joins, composite uniqueness scopes, API/repository parameters, admin authorization scopes, or compatibility aliases solely for hypothetical concurrent hosting.
-- Source `config_key` is installation-wide; endpoint `config_key` remains Source-scoped.
+- Source `config_key` is installation-wide; endpoint `config_key` remains Source-scoped. Category and Relevance-rule `config_key` values are installation-wide and immutable once persisted.
 - Source owns endpoints and Articles; endpoints own Collection runs; observations preserve endpoint/run and Article/Source consistency. Simplification MUST NOT weaken these real relationships.
 - Article candidate provenance excludes Publication identity and retains Source + endpoint + Collection run.
 - Article identity is Source-scoped: strong external ID first, canonical URL fallback second, explicit adapter key only when concrete need exists.
 - Before production database compatibility is established, the active migration chain is the smallest supported schema-from-zero authority. Legacy-only pre-production migration steps and compatibility-only source/API/type/test/fixture/config paths MUST be removed when the canonical current system no longer needs them; older pre-production database contents are disposable and are rebuilt rather than migrated.
 - Canonical public page is `GET /`; canonical basic public feed API is `GET /api/feed`.
 - Accepted Phase 8/9 slug-addressed route evidence remains historical truth for its recorded SHAs and is not rewritten to claim root-route validation.
-- Phase 10 implementation is gated until the singleton implementation correction receives required PostgreSQL/regression/browser evidence and a durable correction validation artifact.
+- The Phase 10 entry singleton implementation correction, Phase 10 scheduler/job/health implementation, and Phase 11 Category/Relevance implementation are complete with durable validation; do not treat them as active gates.
 - Source/endpoint approval/trust, lifecycle (`active/archived`), operational state (`enabled/paused/disabled`), and derived health are distinct.
 - Bootstrap may explicitly create approved configuration as operator input but may not auto-discover/auto-approve, infer approval from fetch success, widen domains silently, or overwrite later operator-managed state on normal startup.
 - Bootstrap/Worker/runtime paths do not select a Publication slug/id; singleton Publication state is installation configuration.
@@ -164,20 +171,30 @@ If a path does not exist, search for its current equivalent before assuming inte
 - Source approved domains are the maximum boundary; endpoint rules may narrow, not silently widen.
 - Parsers output Raw items and never persist Articles directly.
 - Source-shaped data is normalized before Relevance, identity, duplicate, or feed use.
-- Relevance ordering is never bypassed: before configurable rules exist the empty rule set deterministically returns `include`; later rules are installation-wide with optional Source scope.
-- Configurable MVP Relevance edits are prospective by default; automatic bulk historical reprocessing is deferred.
+- Relevance ordering is never bypassed: before configurable rules exist the empty rule set deterministically returns `include`; Phase 11 extends the same boundary rather than replacing it.
+- MVP rule predicates are only literal `title_contains`, `summary_contains`, and `source_category_equals`; missing fields do not match. Regex/glob/fuzzy/stemming/semantic/AI/general-expression behavior is not implied.
+- Matching include/exclude precedence is priority descending → Source-scoped before installation-wide → `exclude` before `include` → immutable rule `config_key` ascending as the final deterministic winning-reason tie-break; if no rule decides, include by default.
+- Matching categorize rules are additive and deduplicated by Category `config_key`; categorize priority orders reasons but does not suppress another matching Category. Endpoint default then Source default are fallback-only when no categorize rule assigns a Category.
+- An excluded candidate stops before Article identity, records the canonical `excluded` outcome with endpoint/run provenance and reason, and does not look up an earlier Article merely to hide/delete/recategorize it.
+- Configurable MVP Relevance edits are prospective by default; automatic bulk historical reprocessing is deferred. An ordinary later included observation may apply then-current Category configuration without constituting a bulk historical scan.
+- Before Phase 15 admin UX, the smallest explicit topic-independent operator mechanism may create/edit Category/Relevance/default-Category configuration. It runs only when invoked explicitly, validates real relationships, does not weaken ordinary bootstrap no-overwrite behavior, and does not trigger automatic bulk reprocessing.
 - Article identity is transactionally idempotent.
 - Article observations preserve endpoint/run provenance.
 - Minimal Collection-run persistence begins with the first real fetch in Phase 5 and expands as pipeline stages are introduced.
-- During Phases 5–9, collection was manually invoked through the Worker; Web/API never fetches Sources inline.
-- Phase 10 adds durable scheduling/jobs around the same endpoint execution unit and does not add multi-Publication scheduling or tenancy.
+- During Phases 5–9, collection was manually invoked through the Worker; Web/API never fetched Sources inline.
+- Phase 10 added durable scheduling/jobs around the same endpoint execution unit and does not add multi-Publication scheduling or tenancy.
 - True-duplicate grouping applies to separately stored Articles; duplicate state is installation-wide and preserves every Article/observation.
 - Article visibility is independent from duplicate role; before Duplicate groups exist, Articles are logically `ungrouped`.
 - Ordinary public-feed eligibility requires singleton `public_status = public`, an approved active Source, and a visible Article that is `ungrouped` or the `primary` member once grouping exists.
 - Publication collection activity, Source operational state, and endpoint approval/lifecycle/operational/health state govern collection and do not by themselves suppress retained otherwise-eligible public rows.
 - Public feed effective date uses parsed `published_at` when available and otherwise `first_seen_at`, with fallback provenance detectable and deterministic tie ordering.
 - Public headline destination is stored Article `original_url`; `canonical_identity_url` remains an identity-comparison field and is not substituted silently.
-- Until Publication presentation timezone/settings exist, the basic public UI renders the calendar date from `effectiveFeedDate` in UTC.
+- Phase 12 discovery extends the canonical `/api/feed` read path rather than creating a second eligibility/query path. Optional public discovery inputs are `q`, `source`, `category`, and `cursor`.
+- Public Source/Category filters use immutable `config_key` identities. MVP supports at most one Source and one Category filter; supplied `q`/Source/Category dimensions compose with AND semantics, and Category filtering uses current `article_categories` membership.
+- Phase 12 keyword search is bounded deterministic case-insensitive literal filtering over safe normalized textual Article metadata; it does not introduce regex/fuzzy/semantic/ranking behavior or alter canonical chronological order.
+- Phase 12 pagination uses bounded server-defined pages and opaque/versioned keyset cursors tied to the canonical effective-date → `first_seen_at` → stable-Article-ID ordering tuple and normalized discovery criteria. Cursor/query mismatch is invalid; no public `limit` is introduced.
+- Phase 12 root-page URL state reflects `q`, `source`, and `category`; criteria changes reset pagination, Reset clears discovery state, and browser back/forward restores URL-reflected discovery state. Load-more cursor depth need not be canonical shareable URL state.
+- Until configurable Publication presentation timezone/date settings exist, the public UI renders the calendar date from `effectiveFeedDate` in UTC.
 - Absent singleton Publication configuration and non-public configuration remain indistinguishable on public page/API and use the same generic unavailable/not-found behavior.
 - Weak duplicate evidence persists as review state; unchanged dismissed evidence does not recur indefinitely.
 - Source runs/jobs fail independently and public-feed reads remain readable during collection failures.
@@ -187,19 +204,21 @@ If a path does not exist, search for its current equivalent before assuming inte
 - Push/webhook adapters and pinning/featured ordering are deferred beyond MVP unless explicitly promoted.
 - Every implementation change requires focused automated coverage and relevant broader regression coverage under the testing contract.
 - Persistence/concurrency/migration claims require the evidence level capable of proving real PostgreSQL behavior; mocks do not substitute for database guarantees.
+- Phase 11 is complete with deterministic predicate/precedence/category/default/prospective/excluded-accounting coverage plus real PostgreSQL proof for Category/rule schema, relationships, uniqueness, membership, and reason persistence.
+- Phase 12 is complete with focused API/database/browser evidence for bounded discovery input, unchanged feed eligibility, Source/Category filtering, literal search, stable keyset pagination, cursor/query mismatch rejection, URL/reset/back-forward behavior, and relevant query/index behavior recorded in `docs/validation/phase-12-feed-discovery-features.md`.
 - Ordinary deterministic validation does not rely on live public Sources and must not weaken production whitelist/SSRF policy.
 - Required suites do not pass by silently skipping prerequisites or selecting zero tests.
 - Validation claims apply to the exact final source tree tested; previous passing evidence does not automatically transfer to later source changes.
 - Phase 9 roadmap progression was explicitly accepted on August 11, 2026 despite the durable artifact recording the incomplete two-Source Level 7 observation; this owner exception does not rewrite the evidence.
-- Roadmap phase closeout and the gating singleton correction closeout require durable `docs/validation/` evidence tied to the exact accepted source tree when required by the testing contract.
+- Roadmap phase closeout and a gating correction closeout require durable `docs/validation/` evidence tied to the exact accepted source tree when required by the testing contract.
 
 ## Roadmap state
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 10 — Automated polling, durable jobs, and endpoint health**.
+Current phase: **Phase 13 — Public presentation polish**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration core, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend are complete with durable closeout validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with the recorded live-source limitation preserved.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration core, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend are complete with durable closeout validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with the recorded live-source limitation preserved. The Phase 10 entry singleton correction, Phase 10 Automated polling/durable jobs/endpoint health, Phase 11 Categories/configurable Relevance execution, and Phase 12 Feed discovery features are complete with durable validation.
 
 ### Tech-demo critical path
 
@@ -213,21 +232,19 @@ Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Databas
 8. Phase 8 — Basic public-feed backend
 9. Phase 9 — Basic public-feed UI and tech demo
 
-### Current implementation gate
+### Completed post-demo work
 
-- **Phase 10 entry singleton implementation correction** — destructively reset pre-production database state; delete/squash/replace legacy-only migrations so migration-from-zero yields the smallest canonical singleton schema; remove obsolete Publication tenancy/scoping/selectors and compatibility-only source/API/type/test/fixture/config paths; preserve Source/endpoint/run/Article/observation integrity; make `/api/feed` and `/` canonical; execute required database/regression/browser validation; write a durable correction validation artifact.
+- Phase 10 entry singleton implementation correction — complete with durable correction validation.
+- Phase 10 — Automated polling, durable jobs, and endpoint health — complete with durable closeout validation.
+- Phase 11 — Categories and configurable Relevance execution — complete with durable closeout validation.
+- Phase 12 — Feed discovery features — complete with durable closeout validation in `docs/validation/phase-12-feed-discovery-features.md`.
 
-This is a non-versioned correction stack, not a new roadmap phase. It preserves the current package version and returns directly to Phase 10 when green. Databases created by older pre-production source trees are destroyed/rebuilt/bootstrapped rather than preserved through compatibility migration code.
+### Current implementation phase
 
-### Current implementation phase after gate
-
-10. Phase 10 — Automated polling, durable jobs, and endpoint health
+13. Phase 13 — Public presentation polish
 
 ### Remaining MVP order
 
-11. Phase 11 — Categories and configurable Relevance execution
-12. Phase 12 — Feed discovery features
-13. Phase 13 — Public presentation polish
 14. Phase 14 — Source administration
 15. Phase 15 — Publication and Relevance administration
 16. Phase 16 — True duplicate detection and grouping
@@ -249,12 +266,12 @@ Do not advance by assumption. Verify each phase/correction exit gate plus the in
 - Prefer smallest correct incremental change and simplest supported architecture over speculative future-proofing.
 - For pre-production canonicalization, prefer deletion over wrappers/aliases: remove legacy-only migrations, code, types, APIs, tests, fixtures, and configuration paths instead of preserving superseded behavior in the active tree.
 - Trace shared helpers/consumers before changes.
-- Before singleton-correction changes trace current migrations/schema → singleton Publication/bootstrap repositories → Source/endpoint repositories → Worker/manual selectors → candidate provenance → Article identity/observations → feed read model/routes/page → fixtures/tests/browser.
-- Before collection changes trace singleton `active_for_collection` → Source/endpoint approval/lifecycle/operational state → execution → lock → Collection run → network safety → fetch/redirect → parse → normalize → Article-link validation → Relevance → Source-scoped identity → observation → run accounting → health → tests.
+- Before Phase 13 public-presentation changes trace singleton Publication presentation settings/read model → `/api/feed` → root page/client → preserved Phase 12 discovery controls/state → theme/loading/accessibility/responsive behavior → browser/API/database regressions.
+- Before collection changes trace singleton `active_for_collection` → Source/endpoint approval/lifecycle/operational state → durable job/scheduler/manual execution → capacity/lock → Collection run → network safety → fetch/redirect → parse → normalize → Article-link validation → Relevance → Source-scoped identity → observation → run accounting → health → tests.
 - Before Article/duplicate changes trace external IDs/canonical URLs/uniqueness → observations → review candidates → groups → Primary → moderation → feed → tests.
 - Before admin changes trace Cloudflare Access perimeter → origin protection → request integrity → real resource relationships/domain invariants → mutation → change history → tests.
 - Before public-route changes trace singleton Publication settings → canonical read model → `/api/feed` → `/` page/client → unavailable/error behavior → external links → browser tests.
-- Before UI changes trace governing public/design behavior → current presentation source → shared frontend consumers → relevant browser/tests, and keep backend/domain behavior unchanged unless the task is routed out of the UI workstream.
+- Before UI changes read `docs/design/README.md` and `docs/design/ui-workflow.md`, trace governing public/design behavior → current `ui-polish` presentation source → shared frontend consumers → relevant browser/tests, and keep backend/domain behavior unchanged unless the task is routed out of the UI workstream.
 - Do not run UI implementation in the same worktree used by an active phase/correction runner.
 - Before approving a change, trace testing blast radius and confirm relevant regression suites were actually executed against the reviewed final tree.
 - For implementation-roadmap phase or gating correction closeout, require observed local terminal evidence and the required durable validation artifact tied to the exact accepted source tree.
@@ -291,10 +308,10 @@ Check implementation/tests against governing contracts/laws.
 Narrow documentation consistency check; does not replace full `/docs-review`.
 
 ### `/source-trace <source or behavior>`
-Trace singleton configuration → Source → endpoint → approval/lifecycle/operational state → execution/lock/run → safety → fetch → parse/normalize → link validation → Relevance → Source-scoped identity/observation → duplicate → run/health → consumers/tests.
+Trace singleton configuration → Source → endpoint → approval/lifecycle/operational state → scheduling/job/manual execution → lock/run → safety → fetch → parse/normalize → link validation → Relevance → Source-scoped identity/observation → duplicate → run/health → consumers/tests.
 
 ### `/article-trace <field or concept>`
-Trace Raw item → candidate → Relevance → Source-scoped Article identity/persistence → observations → overrides → duplicate role → feed/admin/tests.
+Trace Raw item → candidate → Relevance/Category assignment → Source-scoped Article identity/persistence → observations → overrides → duplicate role → feed/admin/tests.
 
 ### `/dedupe-trace <case>`
 Trace Article identity separately from true-duplicate evidence, review state, groups, Primary, safeguards, moderation, feed/tests.
@@ -448,11 +465,10 @@ Correction stacks are for owner-approved bounded implementation gates/regression
 
 - folder canonical `c<roadmap-phase>-<lower-kebab-slug>`, e.g. `c10-single-publication`; referenced phase provides context only;
 - task header exactly `TASK: Correction <phase> / P<number> — <title>` matching folder numeric component;
-- each prompt contains exactly one literal line `- Required unchanged project version: `<version>`.` with one backtick-delimited semantic version;
-- every prompt declares same unchanged version, equal to `package.json` throughout execution;
+- each prompt has exactly one `- Required unchanged project version: `<version>`.` line, every prompt in the stack declares the same version, and that version must equal `package.json` throughout execution;
 - correction prompts MUST NOT contain `assigned project version is` metadata;
 - correction P-numbers are local ordering and do not consume/reserve roadmap patch numbers;
-- correction commit subjects identify correction stack/prompt, e.g. `c10-single-publication/P1: <task title>`;
+- correction commit subjects identify the correction stack/prompt, e.g. `c10-single-publication/P1: <task title>`;
 - correction closeout validates/clears only correction, does not invoke/substitute for `/closeout`, and does not advance package version.
 
 Parser does not infer stack mode/model/version/order/closeout from free-form narrative prose. Machine-significant metadata must use explicit forms above.
@@ -465,7 +481,7 @@ Before `/prompt-write` reports either stack ready:
 4. connector-only work performs equivalent parser-level source check and explicitly says it was source-validated rather than executed;
 5. do not recommend automation while parser/validator inconsistency remains.
 
-Runner fail-closed execution invariants: clean working tree, no `package-lock.json`, coherent `git diff --check`, actual implementation changes, clean single-successor prompt commit boundary. Phase stacks also enforce expected version chain. Correction stacks enforce one unchanged package version before/after every prompt and commit.
+Runner fail-closed execution invariants: clean working tree, no `package-lock.json`, coherent `git diff --check`, actual implementation changes, clean single-successor prompt commit boundary. On a new invocation, the runner detects already completed implementation prompts from exact runner-owned commit subjects reachable from `HEAD`; unrelated committed history may appear before, between, or after those commits. Completion must be an unambiguous contiguous prefix from P1, and `package.json` must match that proven prefix (or the correction stack's unchanged version), otherwise execution stops before Codex starts. A new `.codex-runs` record marks history-detected prompts as `previously_completed` with their commit SHAs; old run metadata is not a completion source. The working tree must still be clean. Phase stacks also enforce the expected version chain from the resume point. Correction stacks enforce one unchanged package version before/after every prompt and commit.
 
 ## Prompt model/reasoning and usage selection
 
@@ -529,7 +545,8 @@ Project versions use `0.<roadmap phase>.<phase prompt number>` for roadmap phase
 - Correction prompts state one required unchanged version, verify it, forbid changing it, avoid lockfile, and validate unchanged-version invariant.
 - Roadmap closeout prompt that owns a version change commits it before final source SHA validation; later `/closeout` performs separate next-phase `.0` transition.
 - Correction closeout never transitions package version and is not automatically followed by `/closeout`.
-- The Phase 10 entry singleton implementation correction is the intended first non-versioned correction stack and must preserve package version throughout.
+- The completed Phase 10 singleton implementation correction is the historical first non-versioned correction stack.
+- Parallel UI work is non-versioned, not a `codex:phase` stack, and MUST NOT modify package version or consume roadmap prompt numbers.
 
 ## `/prompt-ass`
 
@@ -564,9 +581,11 @@ After writing, perform applicable runner prompt-file grammar check before report
 
 # Parallel UI workflow
 
-The UI workstream is governed by `docs/design/ui-workflow.md`. It is intentionally a lightweight targeted single-prompt lane rather than a third `codex:phase` stack type.
+The UI workstream is governed by `docs/design/README.md` and `docs/design/ui-workflow.md`. It exists so presentation work can proceed independently from roadmap/correction implementation without sharing a worktree or consuming roadmap versions.
 
-Canonical flow:
+`main` remains the authoritative integration branch. `ui-polish` is the permanent presentation branch. UI implementation MUST use a separate worktree when roadmap/correction runner work is active. Before each new UI task, refresh remote state and incorporate current `main` into `ui-polish` using a non-destructive strategy; if relevant main changes invalidate the planned task boundary, re-plan. Do not force-update shared history merely to synchronize the UI workstream, and do not merge `ui-polish` into `main` automatically.
+
+The normal implementation path is:
 
 ```text
 /ui-plan <task>
@@ -576,29 +595,68 @@ Canonical flow:
 → integrate when accepted
 ```
 
-`ui-polish` is the permanent parallel UI branch. Use a separate local worktree for it whenever roadmap/correction Codex work is active. Before a new UI task, incorporate current `main` into `ui-polish` using a non-destructive workflow and re-plan if relevant main-lane changes invalidate the task boundary. UI work never owns roadmap state or package version.
+If `/ui-plan` determines durable design guidance is missing, contradictory, materially ambiguous, or must change, the required path is:
+
+```text
+/ui-plan <task>
+→ Planning needed: UI design guidance required
+→ /ui-review <area>
+→ explicit approval
+→ /ui-apply
+→ /ui-plan <task>
+→ /ui-write <lower-kebab-slug>
+→ execute/review/validate
+```
+
+A previous blocked `/ui-plan` does not authorize `/ui-write`; planning must be rerun after the approved design-guidance change.
+
+## `/ui-review <area>`
+
+Read-only design-guidance review. It is the UI counterpart to `/docs-review`, but it is conditional rather than a required preflight for every UI task.
+
+Review the relevant non-task design documents under `docs/design/`, the narrowest higher-authority product/domain/testing documents, and current UI implementation/observable presentation where needed. Do not perform an indiscriminate full-repository documentation review.
+
+Return at minimum the interpreted design scope, reviewed/excluded design docs, existing relevant presentation rules, missing/ambiguous/contradictory/stale guidance, higher-authority conflicts, material implementation/design drift, recommended design-doc changes, application order, and decisions requiring explicit owner approval.
+
+`/ui-review` never modifies files, source, branches, project version, or roadmap state.
+
+## `/ui-apply`
+
+Requires an approved `/ui-review` change group in the current conversation.
+
+Before editing, re-read the approved target design documents and relevant higher-authority guidance, and confirm branch/source drift has not invalidated the review. Apply only the explicitly approved design-document changes on `ui-polish`.
+
+`/ui-apply` may create or update substantive design guidance under `docs/design/`, excluding `docs/design/tasks/`. It MUST NOT implement source/UI changes, create implementation prompts, modify `docs/design/tasks/`, change product/domain contracts unless separately authorized through the normal documentation workflow, change package version or roadmap/correction state, merge branches, or invoke `codex:phase`.
+
+After `/ui-apply`, the next implementation command is `/ui-plan` again, not `/ui-write`.
 
 ## `/ui-plan <task>`
 
-Read-only combined assessment/source-planning pass for one targeted UI task.
+Read-only normal entry point for one targeted UI implementation task. It combines task-boundary assessment with source-level planning and decides whether durable design review/application is required first.
 
-Read `BOOT.md`, `docs/design/README.md`, `docs/design/ui-workflow.md`, the narrowest governing product/design/testing docs, relevant current `ui-polish` source/tests, and relevant `main` drift when freshness matters.
+Before planning:
 
-Return task goal, UI-workstream fit, current/required presentation behavior, likely/allowed files, shared-file risks, preserved behavior, forbidden backend/domain changes, responsive/accessibility considerations, tests/browser evidence, acceptance criteria/non-goals, recommended lower-kebab slug, and recommended configuration/complexity/usage/alternative/efficiency/confidence using the same quality-first policy as implementation planning.
+1. read `BOOT.md`;
+2. read `docs/design/README.md` and `docs/design/ui-workflow.md`;
+3. read the narrowest governing product/design/testing contracts;
+4. inspect current relevant `ui-polish` implementation, tests, and recent changes;
+5. inspect relevant drift from current `main` when branch freshness could affect the task.
 
-If the task requires a material backend/domain/roadmap behavior change, or current branch/source drift makes the boundary unsafe, return `Planning needed` and route/split the work appropriately. `/ui-plan` never writes.
+Return at minimum task goal/UI-workstream fit, current and desired presentation behavior, governing approved design guidance, whether existing design guidance is sufficient or `/ui-review` → `/ui-apply` is required, likely/allowed file scope and shared-file boundaries, preserved contracts/behavior, forbidden backend/domain changes, responsive/accessibility considerations, focused and broader/browser tests, runtime/browser evidence needed, acceptance criteria/non-goals, one recommended lower-kebab slug, and recommended configuration/complexity/usage/alternative/efficiency/confidence using the repository quality-first policy.
+
+If design guidance is missing/conflicting/materially ambiguous or must change, return `Planning needed: UI design guidance required` and identify the required `/ui-review` area. If a required backend/domain behavior change or unsafe branch drift is discovered, return `Planning needed` and route/split the work appropriately. `/ui-plan` never writes.
 
 ## `/ui-write <lower-kebab-slug>`
 
 Requires a completed unblocked `/ui-plan` in the current conversation. Re-read relevant `ui-polish` source/docs/tests and relevant `main` drift before writing.
 
-Write exactly one implementation-ready prompt under `docs/design/tasks/<lower-kebab-slug>.txt`. Do not overwrite an existing task without explicit authorization.
+Write exactly one implementation-ready prompt under `docs/design/tasks/<lower-kebab-slug>.txt`. Do not overwrite an existing UI task without explicit authorization.
 
-The prompt MUST identify `Workstream: UI`, require execution on `ui-polish`, preserve `package.json` version and roadmap state, state allowed/forbidden files/behavior, include finalized model/reasoning/usage guidance, define focused and broader/browser validation, and prohibit unrelated cleanup or phase/correction closeout behavior.
+The prompt MUST identify `Workstream: UI`, require execution on `ui-polish`, preserve `package.json` version and roadmap state, identify governing contracts/design docs/source, state allowed/forbidden files and behavior, include finalized model/reasoning/usage guidance, define focused and broader/browser validation, and prohibit unrelated cleanup, roadmap advancement, phase/correction closeout, or automatic merging.
 
-`/ui-write` writes only the approved UI prompt. It does not run Codex, invoke `codex:phase`, implement source, modify project version, advance roadmap state, or merge branches.
+`/ui-write` writes only the approved UI prompt. It does not run Codex, invoke `codex:phase`, implement source, modify project version, advance roadmap state, merge branches, or create/modify durable design guidance. If missing/contradictory design guidance is discovered during revalidation, return `Planning needed` and route through `/ui-review` → explicit approval → `/ui-apply` → rerun `/ui-plan`.
 
-Early UI work may satisfy portions of future Phase 13, but it does not automatically complete or redefine the Phase 13 roadmap exit gate.
+Earlier compliant UI work may satisfy portions of the current Phase 13 after final-tree assessment, but it does not automatically complete or redefine the Phase 13 roadmap exit gate.
 
 # Review and validation commands
 
@@ -640,9 +698,9 @@ Collection prompts preserve singleton Publication global collection-active state
 
 Persistence/identity prompts preserve Source-scoped Article identity, canonical Relevance ordering, transactional idempotency, Article observations, real-PostgreSQL constraints/concurrency/migration behavior where applicable, and rollback. Publication tenancy is not introduced as future-proofing.
 
-Duplicate prompts preserve every Article/observation, exactly one Primary/group, review-state persistence, false-positive safeguards, manual reversibility, and regression corpus coverage; duplicate state is installation-wide.
+Publication/Relevance prompts preserve topic independence, singleton Publication configuration, immutable installation-wide Category/rule configuration keys, the bounded literal predicate vocabulary, installation-wide plus Source-scoped deterministic precedence, additive categorization/default fallback, pre-identity `excluded` accounting, prospective-by-default edits, and the full Phase 11 deterministic/real-PostgreSQL validation matrix. They do not create Publication tenant FKs/scopes or generic ranking/expression engines.
 
-Publication/Relevance prompts preserve topic independence, singleton Publication configuration, installation-wide plus Source-scoped Relevance, deterministic precedence, prospective-by-default edits, and full precedence-matrix tests. They do not create Publication tenant FKs/scopes.
+Duplicate prompts preserve every Article/observation, exactly one Primary/group, review-state persistence, false-positive safeguards, manual reversibility, and regression corpus coverage; duplicate state is installation-wide.
 
 Public-feed prompts preserve singleton public exposure, Source approval/lifecycle trust, Article visibility + ungrouped-or-Primary eligibility, deterministic published-at/first-seen semantics, bounded safe output, and stored `original_url`. Routing is `GET /` and `GET /api/feed`; no Publication selector/scoping argument.
 
@@ -650,7 +708,7 @@ UI prompts preserve the same public-feed/domain behavior while changing approved
 
 Admin prompts preserve Cloudflare Access/origin protection, request integrity, real resource-relationship/domain-invariant validation, singleton Publication configuration, and prohibition on unnecessary native identity/account work, multi-Publication selectors, or Publication tenant authorization.
 
-The Phase 10 entry singleton correction prompts additionally establish the smallest canonical migration-from-zero schema, delete/squash/replace superseded pre-production migrations, remove Publication tenancy/selectors and legacy-only compatibility source/API/type/test/fixture/config paths throughout the active tree, and must prove database/regression/browser behavior before correction closeout. They MUST NOT add compatibility/data-preservation machinery solely for databases created by older disposable pre-production source trees.
+Historical Phase 10 singleton-correction prompts established the smallest canonical migration-from-zero schema, deleted/squashed/replaced superseded pre-production migrations, removed Publication tenancy/selectors and legacy-only compatibility source/API/type/test/fixture/config paths throughout the active tree, and required database/regression/browser proof before correction closeout. Do not reintroduce that superseded compatibility surface.
 
 # Repository modification rules
 
@@ -661,6 +719,8 @@ The Phase 10 entry singleton correction prompts additionally establish the small
 - `/docs-apply` writes only approved docs; invocation authorizes documentation-only changes on `main` unless branch/PR/isolation is requested.
 - `/prompt-ass` and `/prompt-plan` never write.
 - `/prompt-write` writes only approved task files in established phase/correction folder.
+- `/ui-review` never writes.
+- `/ui-apply` writes only approved substantive design guidance under `docs/design/` excluding `docs/design/tasks/`, on the `ui-polish` workstream; it does not implement source, write prompts, change version/roadmap state, or merge branches.
 - `/ui-plan` never writes.
 - `/ui-write` writes only the approved single UI prompt under `docs/design/tasks/` on the `ui-polish` workstream.
 - UI implementation is non-versioned: it MUST NOT change `package.json` version, consume roadmap prompt numbers, advance roadmap/correction state, or create a phase/correction closeout.
@@ -679,6 +739,8 @@ The Phase 10 entry singleton correction prompts additionally establish the small
 - No parser-to-Article direct persistence.
 - No Web/API inline Source fetching.
 - No bypass of Relevance boundary even before configurable rules exist.
+- No Phase 11 Relevance path that runs after identity merely to make exclusion easier; excluded candidates terminate before identity under the governing contract.
+- No automatic historical Article mutation caused merely by editing a Relevance rule.
 - No deletion of Article/observation provenance because duplicate suppression exists.
 - No weakening identity/duplicate/security/testing boundaries to make tests pass.
 - No silent-green required suite caused by missing prerequisites, skipped coverage, or zero matches.

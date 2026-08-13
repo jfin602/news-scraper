@@ -1,6 +1,6 @@
 {
   "name": "news-scraper",
-  "version": "0.10.0",
+  "version": "0.13.0",
   "private": true,
   "type": "module",
   "engines": {
@@ -20,6 +20,7 @@
     "test:live-sources": "node --env-file-if-exists=.env scripts/run-tests.mjs \"test/live-sources/**/*.test.ts\"",
     "db:migrate": "node --env-file-if-exists=.env scripts/migrate-database.ts",
     "db:bootstrap": "node --env-file-if-exists=.env scripts/bootstrap-database.ts config/publication.json",
+    "editorial:apply": "node --env-file-if-exists=.env scripts/apply-editorial-configuration.ts config/editorial.json",
     "publication:set-public-status": "node --env-file-if-exists=.env scripts/set-publication-public-status.ts",
     "collect:endpoint": "node --env-file-if-exists=.env src/app/worker/collect-main.ts",
     "codex:phase": "node scripts/codex-phase.mjs",

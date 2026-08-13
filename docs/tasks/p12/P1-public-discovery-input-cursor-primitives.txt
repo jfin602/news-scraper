@@ -1,0 +1,249 @@
+TASK: Phase 12 / P1 — Public discovery input and cursor primitives
+
+ROADMAP PHASE
+Phase 12 — Feed discovery features.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Sol Light`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P1 is subtle public-input and cursor-state logic, but it is intentionally pure and isolated from PostgreSQL, Express, and browser orchestration. Terra High provides enough reasoning for strict parsing, normalization, deterministic cursor binding, malformed-encoding handling, and edge-case coverage without spending Sol-level usage on a DB-free task.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a model/configuration label.
+
+VERSIONING
+- This is Phase 12 prompt 1 and its assigned project version is `0.12.1`.
+- Before editing, confirm `package.json` is exactly `0.12.0` on first execution, or already `0.12.1` only for a rerun of this same P1.
+- Update only the top-level package version to `0.12.1`; do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- `package.json` remains the sole current-version authority.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md` and the Phase 12 roadmap entry;
+2. read the search/filter/pagination sections of `docs/contracts/public-feed-and-admin-contract.md` and the Phase 12 matrix in `docs/contracts/testing-and-validation-contract.md`;
+3. inspect `scripts/codex-phase-core.mjs` only to confirm the current task/model/version grammar remains unchanged;
+4. inspect `src/public-feed/repository.ts`, `src/app/web/create-app.ts`, and current public-feed tests so the new discovery boundary fits the existing canonical read path without activating HTTP/SQL behavior early;
+5. inspect current Source/Category `config_key` schema constraints in `migrations/0001_initial_schema.sql` and `migrations/0005_categories_and_relevance.sql`;
+6. stop and report planning drift if the Phase 12 contract, current feed boundary, or current `0.12.0` baseline materially changed after this prompt was written.
+
+GOAL
+Create one pure, topic-independent public discovery input and continuation-cursor module that later Phase 12 repository/API/browser prompts can reuse. P1 must define strict normalization, bounds, duplicate/unknown-input rejection, opaque/versioned cursor encoding/decoding, and cursor/query binding without changing the current public feed query, HTTP route, or browser behavior.
+
+ARCHITECTURAL BOUNDARY
+The P1 discovery module MUST remain:
+- database-free;
+- Express-free;
+- DOM/browser-free;
+- network-free;
+- filesystem-free;
+- clock-free;
+- randomness-free;
+- topic-independent.
+
+It may use deterministic standard-library helpers such as `node:crypto` for a criteria fingerprint.
+
+The later stack must have one canonical logical discovery-request shape. Do not create separate SQL-specific and HTTP-specific interpretations of `q`, `source`, `category`, or `cursor`.
+
+PUBLIC DISCOVERY PARAMETERS
+Support exactly these optional public query parameters:
+- `q`;
+- `source`;
+- `category`;
+- `cursor`.
+
+No `limit`, offset/page number, ranking, sort, Publication selector, slug, or arbitrary query parameter is introduced.
+
+Each supported key represents at most one logical value. Reject repeated forms even when repeated values are identical. Reject unknown parameter names rather than silently ignoring them.
+
+RAW QUERY PARSING
+Provide a pure parser that can consume the raw query-string representation available from the HTTP request before framework coercion loses ambiguity.
+
+Requirements:
+- preserve the ability to detect repeated parameters;
+- reject malformed percent escapes;
+- reject invalid UTF-8 percent-encoded sequences rather than silently replacing them;
+- handle ordinary query `+` space semantics deterministically;
+- reject a raw query string beyond a conservative documented bound before expensive decoding;
+- decode names and values exactly once;
+- do not allow malformed encoding to become a different normalized valid request.
+
+A small manual pair decoder using `decodeURIComponent` with caught URI errors is acceptable if it remains simple and fully tested. Do not build a general-purpose URL parser.
+
+NORMALIZED CRITERIA
+Produce an immutable/frozen logical request shape containing the semantic equivalents of:
+- optional normalized keyword query;
+- optional Source `config_key`;
+- optional Category `config_key`;
+- optional validated continuation position.
+
+Use deterministic normalization:
+- trim `q` at the input boundary;
+- a post-trim empty `q` is equivalent to no keyword criterion;
+- bind cursor identity to a deterministic case-normalized representation of `q` because Phase 12 search is case-insensitive;
+- Source/Category identities are not case-repaired; they must already satisfy the persisted immutable `config_key` grammar;
+- `source` and `category` empty values are invalid rather than meaning no filter.
+
+PUBLIC BOUNDS
+Use small explicit constants with tests. Unless current source/contracts already establish stricter compatible limits, use:
+- raw query string: maximum 8192 characters;
+- normalized `q`: maximum 200 Unicode code points;
+- Source `config_key`: persisted maximum 100 ASCII characters and grammar `^[a-z0-9]+(_[a-z0-9]+)*$`;
+- Category `config_key`: same persisted maximum/grammar;
+- encoded cursor: maximum 2048 ASCII characters before decode.
+
+Do not duplicate these numeric/grammar limits in unrelated modules later; export/narrowly reuse the P1 helpers where appropriate.
+
+CURSOR CONTRACT
+Implement a small opaque base64url-encoded versioned cursor. JSON inside base64url is acceptable because opacity means callers must not depend on its representation; encryption is not required.
+
+The cursor must contain only the semantic equivalents of:
+- cursor format version `1`;
+- deterministic fingerprint/digest of normalized `q`/`source`/`category` criteria;
+- exact effective-feed-date ordering key;
+- exact `first_seen_at` ordering key;
+- stable Article UUID ordering key.
+
+Use a stable criteria representation with explicit field order and null/absent treatment before hashing. SHA-256 hex/base64url is acceptable. Do not use process-random secrets or signatures; the token is validated state, not an authentication credential.
+
+TIMESTAMP PRECISION
+Do NOT define cursor timestamp keys as JavaScript millisecond epoch numbers or ordinary `Date` values only. PostgreSQL `timestamptz` can preserve finer precision than JavaScript `Date`, and losing that precision can create pagination omission/repetition around ties.
+
+Define cursor ordering timestamp keys as a canonical UTC textual representation that can preserve PostgreSQL microseconds, for example exactly `YYYY-MM-DDTHH:mm:ss.ffffffZ`, or another equally precise deterministic representation that P2 can round-trip through PostgreSQL without precision loss.
+
+The pure P1 validator must reject malformed/non-canonical timestamp keys. It may use `Date` only as one validation aid for calendar/range sanity; it must not truncate the stored cursor key to milliseconds.
+
+CURSOR VALIDATION
+Decoder must fail closed on:
+- malformed/non-base64url token;
+- token beyond bound;
+- invalid UTF-8/JSON;
+- non-object or array payload;
+- missing/extra fields when exact shape is expected;
+- unsupported version;
+- invalid criteria fingerprint shape;
+- invalid canonical timestamp keys;
+- invalid Article UUID;
+- cursor fingerprint that does not match the normalized criteria supplied with the request.
+
+All malformed/unsupported discovery-input failures should use one bounded application error type/reason family suitable for P3 to map to a generic public `400`. Do not include attacker-controlled full input or secrets in public-facing error messages.
+
+IMMUTABILITY / DETERMINISM
+- Freeze returned discovery request/cursor position structures consistent with current project conventions.
+- Do not mutate caller-provided data.
+- Repeated parse/encode/decode of equivalent inputs must produce the same semantic result.
+- Cursor encode -> decode -> encode should be deterministic for the same canonical position/criteria.
+- Do not read locale, environment, time, random state, Publication topic, Source display name, or Category display name.
+
+LIKELY / ALLOWED FILES
+Expected primary scope:
+- `package.json`
+- new `src/public-feed/discovery.ts`
+- new `test/unit/public-feed-discovery.test.ts`
+
+A narrowly scoped additional unit test/helper file is allowed if clarity materially improves.
+
+Do not modify in P1:
+- `src/public-feed/repository.ts` behavior except an unavoidable import/type-only compile adjustment;
+- migrations/schema;
+- `src/app/web/create-app.ts` route behavior;
+- `src/app/web/main.ts` runtime composition;
+- public HTML/JS/CSS;
+- browser tests;
+- collection/Worker/Relevance/Article persistence.
+
+FOCUSED UNIT TEST MATRIX — LEVEL 2 REQUIRED
+Prove at minimum:
+
+Raw/query shape
+1. empty query -> no criteria/cursor;
+2. valid `q`;
+3. valid Source key;
+4. valid Category key;
+5. valid combined `q + source + category`;
+6. each repeated supported parameter rejects;
+7. mixed encoded/literal duplicate names still reject;
+8. unknown parameter rejects;
+9. malformed percent escape rejects;
+10. invalid percent-encoded UTF-8 rejects;
+11. normal `+` space decoding is deterministic;
+12. raw query over bound rejects.
+
+Normalization/bounds
+13. surrounding `q` whitespace trims;
+14. blank/whitespace-only `q` becomes absent;
+15. maximum valid `q` accepted;
+16. over-bound `q` rejects;
+17. valid Source/Category config-key boundaries;
+18. empty/uppercase/hyphen/double-underscore/leading-or-trailing-underscore invalid keys reject;
+19. over-100-character key rejects.
+
+Cursor
+20. canonical cursor round trip;
+21. deterministic re-encoding;
+22. malformed base64url rejects;
+23. over-bound cursor rejects;
+24. malformed JSON rejects;
+25. wrong shape/extra fields rejects;
+26. unsupported version rejects;
+27. malformed fingerprint rejects;
+28. malformed/non-canonical effective timestamp rejects;
+29. malformed/non-canonical first-seen timestamp rejects;
+30. invalid Article UUID rejects;
+31. cursor/query fingerprint mismatch rejects;
+32. Source mismatch rejects;
+33. Category mismatch rejects;
+34. case-equivalent keyword criteria bind equivalently after normalized case folding;
+35. timestamp keys preserve six fractional digits through round trip.
+
+Topic independence / purity
+36. unrelated-topic vocabulary follows identical parsing mechanics;
+37. ambient env/clock/random changes do not affect output;
+38. no Publication slug/topic is accepted as discovery input.
+
+BROADER REGRESSION
+Run:
+- focused P1 unit tests;
+- `npm run test:unit`;
+- `npm run format:check`;
+- `npm run lint`;
+- `npm run typecheck`.
+
+No PostgreSQL/browser/live-Source claim belongs to P1 because those layers remain unchanged.
+
+PRESERVED BEHAVIOR
+- `/api/feed` remains parameterless in behavior until P3.
+- `readPublicFeed` still returns the existing unfiltered bounded feed until P2.
+- feed eligibility/order/original-link/error behavior is unchanged.
+- no Source/Category configuration or Article membership is mutated.
+- no public metadata is exposed yet.
+
+NON-GOALS
+- no SQL or query indexes;
+- no Source/Category existence lookup;
+- no HTTP status mapping;
+- no public response-shape change;
+- no browser controls/history/load-more;
+- no offset pagination or public `limit`;
+- no cursor signing/encryption/session storage;
+- no ranking/fuzzy/regex/full-text/semantic search;
+- no UI polish.
+
+ACCEPTANCE CRITERIA
+P1 is complete only when:
+- package version is `0.12.1`;
+- one pure immutable discovery module owns the supported query keys, normalization, bounds, and cursor codec;
+- repeated/unknown/malformed/over-bound input fails closed;
+- cursor criteria binding and exact high-precision ordering keys are deterministic and validated;
+- all focused Level 2 tests and relevant static/unit regressions pass;
+- no SQL/HTTP/browser behavior or later-phase scope is activated;
+- no package lock is created.
+
+FINAL RESPONSE
+Report:
+- files changed;
+- final package version;
+- normalized discovery request shape and chosen explicit bounds;
+- cursor payload semantics/version and exact timestamp representation;
+- focused/broader commands actually run with observed results;
+- any narrow compile/type adjustment outside the expected new module/test.

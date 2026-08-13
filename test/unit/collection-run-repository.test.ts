@@ -29,6 +29,12 @@ test('maps a bounded persisted Collection run and PostgreSQL bigint byte counts'
       http_status_code: 200,
       wire_byte_count: '1234',
       decompressed_byte_count: '5678',
+      redirect_count: 2,
+      transport_elapsed_milliseconds: 12.5,
+      trigger_kind: 'scheduled',
+      outcome_code: 'content',
+      response_etag: '"fixture"',
+      response_last_modified: 'Sat, 08 Aug 2026 12:00:00 GMT',
       raw_item_count: 2,
       normalization_status: 'succeeded',
       normalized_candidate_count: '1',
@@ -39,6 +45,12 @@ test('maps a bounded persisted Collection run and PostgreSQL bigint byte counts'
 
   assert.equal(run.wireByteCount, 1234);
   assert.equal(run.decompressedByteCount, 5678);
+  assert.equal(run.redirectCount, 2);
+  assert.equal(run.transportElapsedMilliseconds, 12.5);
+  assert.equal(run.triggerKind, 'scheduled');
+  assert.equal(run.outcomeCode, 'content');
+  assert.equal(run.responseEtag, '"fixture"');
+  assert.equal(run.responseLastModified, 'Sat, 08 Aug 2026 12:00:00 GMT');
   assert.equal(run.rawItemCount, 2);
   assert.equal(run.normalizedCandidateCount, 1);
   assert.equal(run.normalizationFailureCount, 1);
@@ -51,8 +63,14 @@ test('rejects malformed Collection-run rows at mapping boundaries', () => {
     validRow({ run_status: 'invalid' }),
     validRow({ source_endpoint_id: 'not-a-uuid' }),
     validRow({ execution_id: ' padded_execution' }),
+    validRow({ trigger_kind: 'automatic' }),
+    validRow({ retry_classification: 'sometimes' }),
+    validRow({ outcome_code: 'unknown' }),
+    validRow({ response_etag: 'unsafe\nvalue' }),
     validRow({ http_status_code: 600 }),
     validRow({ wire_byte_count: '-1' }),
+    validRow({ redirect_count: -1 }),
+    validRow({ transport_elapsed_milliseconds: -1 }),
     validRow({ raw_item_count: -1 }),
     validRow({ normalization_status: 'invalid' }),
     validRow({ processing_status: 'invalid' }),
@@ -175,6 +193,7 @@ function validRow(overrides: Partial<CollectionRunRow> = {}): CollectionRunRow {
     id: '00000000-0000-0000-0000-000000000001',
     source_endpoint_id: '00000000-0000-0000-0000-000000000002',
     execution_id: 'worker_execution',
+    trigger_kind: 'manual',
     started_at: new Date('2026-08-08T12:00:00.000Z'),
     finished_at: null,
     run_status: 'running',
@@ -185,6 +204,12 @@ function validRow(overrides: Partial<CollectionRunRow> = {}): CollectionRunRow {
     http_status_code: null,
     wire_byte_count: null,
     decompressed_byte_count: null,
+    redirect_count: null,
+    transport_elapsed_milliseconds: null,
+    retry_classification: null,
+    outcome_code: null,
+    response_etag: null,
+    response_last_modified: null,
     raw_item_count: 0,
     normalized_candidate_count: 0,
     normalization_failure_count: 0,

@@ -51,7 +51,8 @@ MVP MUST provide:
 - Source filtering;
 - basic keyword search;
 - deterministic pagination/load-more;
-- light/dark presentation;
+- light/dark presentation with a system-following default and persistent reader override;
+- configuration-backed public Publication branding/presentation data rather than topic-specific shared UI constants;
 - accessible external-link behavior.
 
 The earlier tech-demo milestone may expose the core `Date | Headline | Source` feed before search, filters, final responsive polish, theming, duplicate grouping, or admin UI are complete; the roadmap defines the exact staged boundary. The canonical backend is the database-backed singleton public read model/API with persisted Article visibility, Publication `public_status` and Source trust/lifecycle gates, and the canonical effective feed date (`published_at` with `first_seen_at` fallback). The canonical customer-visible page is `/` and no public Publication selector exists.
@@ -60,7 +61,7 @@ The earlier tech-demo milestone may expose the core `Date | Headline | Source` f
 MVP MUST provide, after the tech-demo vertical slice:
 
 - Cloudflare Access-protected administrative UI/API routes with direct-origin bypass prevented by the supported deployment;
-- configuration for the installation's singleton Publication settings;
+- configuration for the installation's singleton Publication settings, including the branding/feed/presentation settings introduced before the admin surface;
 - Source/endpoint create, update, approve/unapprove, enable/pause/disable, archive/state management, and manual-check operations;
 - Source priority and approved-domain policy;
 - Source-type/polling configuration;
@@ -110,6 +111,8 @@ Suggested initial Categories:
 - General
 
 These are not global Platform Categories. They are installation-specific configuration for the first deployment and are not shared-engine behavior. Bootstrap contains only configuration needed by implemented behavior; later branding/feed, Category, and Relevance data are introduced in the phases that use them.
+
+Phase 13 introduces the minimum persisted public presentation configuration needed by the customer-facing feed—Publication description, same-origin logo path, and accent color in addition to the existing name—and exposes those values through the canonical public-feed boundary. Phase 15 later adds Cloudflare-protected administrative editing for those settings and introduces configurable presentation timezone/date settings. Until then, the established UTC public-date fallback remains authoritative.
 
 Initial singleton Publication/Source/endpoint configuration may be created through operator-maintained seed/bootstrap tooling before admin UI exists. Bootstrap approval is explicit operator approval, not an eligibility bypass or auto-discovery mechanism. Ordinary bootstrap remains create-if-absent and does not overwrite existing operator-managed state; before full Publication administration exists, the tech-demo path therefore uses the smallest explicit operator-controlled generic state transition needed to expose the Publication deliberately.
 

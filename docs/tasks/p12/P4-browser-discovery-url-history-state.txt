@@ -1,0 +1,338 @@
+TASK: Phase 12 / P4 — Browser discovery controls and URL history state
+
+ROADMAP PHASE
+Phase 12 — Feed discovery features.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Terra Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P4 introduces URL-addressable browser state, accessible discovery controls, bounded error states, and first-page request ownership, but it does not change SQL, persistence, or continuation semantics. Terra High provides enough reasoning for history/navigation and stale-response correctness without spending Ultra-level reasoning before P5's broader asynchronous pagination state machine.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a model/configuration label.
+
+VERSIONING
+- This is Phase 12 prompt 4 and its assigned project version is `0.12.4`.
+- Before editing, confirm P3 left `package.json` at `0.12.3`, or retain `0.12.4` only for a rerun of this same P4.
+- Update only the top-level package version to `0.12.4`; do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- `package.json` remains the sole current-version authority.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the Phase 12 roadmap entry, the public discovery/browser contract, the testing contract, `docs/design/README.md`, and `docs/design/ui-workflow.md` only to preserve the roadmap-vs-parallel-UI boundary;
+2. read P1-P3 and inspect the actual final `/api/feed` request/response/error contract rather than assuming this prompt's provisional field names;
+3. inspect `src/app/web/public-feed-page.ts`, `src/app/web/public/public-feed.js`, `src/app/web/public/public-feed.css`, `test/integration/public-feed-page-http.test.ts`, and `test/browser/public-feed-page.test.ts`;
+4. trace root URL -> first-page API request -> normalized `discovery.query` -> control state -> rendered Articles -> history changes -> subsequent first-page request;
+5. preserve the existing Content Security Policy, same-origin assets, UTC date behavior, exact original publisher links, inert untrusted text, desktop/mobile baseline, and generic unavailable/error behavior;
+6. stop and report planning drift if P3 materially changed the browser-consumable discovery response or if an intervening UI integration on `main` changes the same public-feed client boundary.
+
+GOAL
+Add the minimum functional Phase 12 browser controls for keyword, Source, and Category discovery at canonical root `/`, with direct URL state, refresh reconstruction, Reset, and browser back/forward restoration. P4 owns FIRST-PAGE request concurrency correctness but deliberately leaves continuation/load-more to P5.
+
+ROADMAP / UI WORKSTREAM BOUNDARY
+This is roadmap functionality on `main`, not Phase 13 visual polish and not a parallel `ui-polish` task.
+
+P4 may make the minimal HTML/CSS changes required for usable controls and states, but MUST NOT redesign the publication presentation, add theme systems, implement dark mode, or absorb the known loading-placeholder polish issue.
+
+STATIC PAGE SHELL
+Extend the root page with a small accessible discovery region containing the semantic equivalents of:
+- keyword search input;
+- Source select;
+- Category select;
+- Apply/Search control;
+- Reset control.
+
+Prefer real HTML form/select/input/button semantics and labels. JavaScript may intercept form submission to preserve the SPA-like root shell/history behavior.
+
+The existing CSP currently includes `form-action 'none'`. Keep the CSP at least as restrictive; do not weaken it merely for the controls. If a `<form>` is used, normal scripted submission must call `preventDefault()` and not rely on a network form navigation fallback.
+
+Reset must remain available even when the current URL/API request is invalid so a user can recover to `/`.
+
+API METADATA AS SOURCE OF CHOICES
+Populate Source/Category options only from the P3 public discovery metadata.
+
+Do not hard-code:
+- publisher names/keys;
+- Category names/keys;
+- indie-author/publishing-specific options.
+
+Use `configKey` as option value and `displayName` as visible label.
+
+When the API returns normalized active criteria, use that normalized server response as the authoritative successful-state criteria representation in the controls.
+
+URL STATE CONTRACT
+The canonical root URL reflects only non-empty Phase 12 discovery criteria:
+- `q`;
+- `source`;
+- `category`.
+
+Do not put `cursor`, internal IDs, page depth, sort, limit, or arbitrary client state into the shareable URL.
+
+Use ordinary query parameters on `/`, for example:
+`/?q=contract&source=publisher_key&category=industry_news`
+
+Use deterministic parameter order when the client creates URLs: `q`, then `source`, then `category`.
+
+Initial successful navigation/refresh must reconstruct the same logical criteria from the URL and render the matching first page.
+
+INITIAL RAW URL REQUEST
+For the FIRST load of the page, preserve server ownership of malformed query validation.
+
+Prefer constructing the initial `/api/feed` request from the current root URL query string without silently decoding/re-encoding malformed percent sequences first. This lets the P1/P3 API correctly return `400` for malformed/repeated/unknown discovery URLs rather than a permissive browser parser repairing them.
+
+Once the API returns successful normalized `discovery.query`, use that safe normalized criteria for controls and later client-generated URLs/requests.
+
+If the current root URL includes malformed/unsupported discovery syntax, show the bounded invalid-discovery state and keep Reset usable; do not turn the bad URL into a different valid search automatically.
+
+APPLY / SEARCH BEHAVIOR
+On form submission:
+1. collect the current control values;
+2. trim keyword input;
+3. omit empty keyword/Source/Category values;
+4. build a deterministic root URL using `URL`/`URLSearchParams` from those safe control strings;
+5. `history.pushState` the new root URL only when it represents the newly requested criteria;
+6. invalidate any previous first-page request/result ownership;
+7. clear prior results/pagination state;
+8. request the matching FIRST page from `/api/feed` without cursor;
+9. on success, render using the API's normalized active criteria and metadata.
+
+Do not implement live search on every keystroke. One explicit Apply/Search action is sufficient for Phase 12.
+
+RESET BEHAVIOR
+Reset must:
+1. clear keyword/Source/Category controls;
+2. push or replace the canonical root URL `/` as appropriate for an explicit user action;
+3. invalidate prior request ownership;
+4. clear previous results/pagination state;
+5. fetch the unfiltered first page;
+6. repopulate metadata/control state from that response.
+
+Do not reload the entire document solely to implement Reset unless a materially simpler correct history model requires it; prefer the existing client shell.
+
+BACK / FORWARD BEHAVIOR
+Listen to `popstate`.
+
+On back/forward:
+1. treat the browser URL as the source of requested discovery state;
+2. invalidate any in-flight first-page request from the prior history entry;
+3. clear prior results/pagination state;
+4. request the URL-reflected first page;
+5. restore controls from the successful API-normalized criteria;
+6. never leave stale controls/results from the state being exited.
+
+Do not call `pushState` from the `popstate` handler and create history loops.
+
+FIRST-PAGE REQUEST OWNERSHIP
+P4 MUST already prevent stale first-page responses from overwriting newer URL/control/result state.
+
+Implement one explicit ownership mechanism, preferably:
+- one active `AbortController` per first-page request; and/or
+- a monotonically increasing request generation/token checked before every state commit.
+
+Required properties:
+- Apply during a slow previous request makes the older response irrelevant;
+- Reset during a slow previous request makes the older response irrelevant;
+- back/forward during a slow previous request makes the older response irrelevant;
+- an aborted/stale request must not switch the current UI into error/empty/populated state;
+- only the currently owned request may update Publication name, document title, metadata options, status, rows, or active criteria.
+
+P5 will extend this state model to continuation requests; P4 must not knowingly leave the first-page path racy.
+
+RESPONSE VALIDATION
+Extend the current browser-side `validatedFeed` equivalent to validate the actual P3 response defensively before rendering.
+
+Validate at minimum:
+- Publication object/name;
+- normalized discovery criteria fields;
+- Source/Category option arrays and each `configKey`/`displayName` string;
+- existing item array/item fields;
+- nullable `nextCursor` as a non-empty string when present.
+
+Do not decode `nextCursor` in the browser. P4 may store it in state for P5 but does not render/use continuation yet.
+
+Treat malformed API JSON as generic feed error without rendering partial untrusted structures.
+
+PUBLIC STATES
+Preserve current meanings and add only what discovery needs:
+- `loading` — current first-page request in progress;
+- `populated` — matching first page has Articles;
+- `empty` — public Publication exists but current criteria match zero Articles;
+- `unavailable` — API 404 absent/private Publication;
+- `invalid` — API 400 bounded invalid discovery URL/request;
+- `error` — API 503/network/malformed successful payload/other failure.
+
+Use bounded generic human-readable copy. Do not expose backend error text.
+
+A filtered/search empty result MUST NOT say the Publication is unavailable.
+
+RENDERING / SECURITY
+Continue using DOM APIs such as `textContent`, `setAttribute`, and created elements. Do not switch to HTML string concatenation or `innerHTML` for untrusted Publication/Source/Category/headline values.
+
+Continue validating publisher URLs as HTTP/HTTPS before creating links.
+
+Preserve exact stored `originalUrl` as link destination; do not route through the Platform or canonical identity URL.
+
+Do not expose searchable summary/author/internal fields in the page merely because the backend searches them.
+
+PRESENTATION MINIMUM
+Add only enough CSS to keep controls usable on the current desktop/mobile shell:
+- sensible labels/input/select/button wrapping;
+- no feed-caused horizontal overflow at current 390px browser coverage;
+- visible native/focus styling not suppressed;
+- disabled/loading treatment only where functionally necessary.
+
+Do not perform Phase 13 light/dark/branding/typography/layout redesign.
+
+KNOWN ISSUE BOUNDARY
+Do NOT fix the separately tracked initial generic `News feed`/unset-content flash or replace it with the planned centered loading wheel in this roadmap prompt unless a P4 regression makes a tiny unavoidable adjustment necessary.
+
+That known issue remains presentation-polish work and must not expand the P4 functional boundary.
+
+LIKELY / ALLOWED FILES
+Expected primary scope:
+- `package.json`
+- `src/app/web/public-feed-page.ts`
+- `src/app/web/public/public-feed.js`
+- `src/app/web/public/public-feed.css`
+- `test/integration/public-feed-page-http.test.ts`
+- `test/browser/public-feed-page.test.ts`
+
+Narrow API test updates are allowed only if browser integration reveals a P3 response-contract defect; do not redesign P3 in this task.
+
+Do not modify:
+- migrations/database query/indexes;
+- collection/Worker/Relevance/Article persistence;
+- admin/configuration paths;
+- contracts/roadmap/design docs;
+- package dependencies unless absolutely required (plain browser APIs are expected and preferred).
+
+BROWSER TEST HARNESS
+Extend the existing Playwright suite rather than replacing it.
+
+Update its mock PublicFeed response helpers to include the final P3 discovery metadata/query/nextCursor shape.
+
+Enhance request observation so tests can assert query strings, not only `/api/` pathnames. Preserve current browser context isolation between tests.
+
+FOCUSED LEVEL 6 BROWSER MATRIX
+Prove at minimum:
+
+Baseline regressions
+1. loading remains visible until current owned request resolves;
+2. direct `/` and refresh still work;
+3. Publication name/title and Date/Headline/Source rows remain correct;
+4. UTC dates remain UTC under another browser timezone;
+5. untrusted Publication/headline/Source/Category text is inert;
+6. exact original publisher URL remains link destination;
+7. keyboard focus remains visible;
+8. 390px mobile layout has no feed/control horizontal overflow;
+9. 404 remains generic unavailable;
+10. 503 remains bounded generic error.
+
+Direct URL / refresh
+11. direct `/?q=...` sends matching API criterion and restores keyword control;
+12. direct Source filter restores selected Source;
+13. direct Category filter restores selected Category;
+14. combined URL restores all controls/results;
+15. refresh preserves URL and reconstructed discovery state;
+16. API metadata supplies option labels; no hard-coded options are required.
+
+Apply / Reset
+17. submitting new keyword updates URL deterministically and replaces rows with first-page results;
+18. Source change + Apply updates URL/results;
+19. Category change + Apply updates URL/results;
+20. combined criteria update composes one first-page request;
+21. criteria change replaces prior results rather than appending;
+22. Reset clears controls, returns URL to `/`, and loads unfiltered first page;
+23. Reset remains usable from an invalid direct URL.
+
+History
+24. Apply A -> Apply B -> browser Back restores A controls/results;
+25. Forward restores B;
+26. popstate does not push a new history entry or loop;
+27. URL never gains cursor/page-depth state in P4.
+
+Discovery states
+28. filtered/search zero items -> normal empty state, not unavailable;
+29. direct invalid/repeated/unknown query -> bounded invalid state;
+30. malformed query URL is not silently repaired into another valid request;
+31. malformed successful API discovery metadata -> generic error.
+
+First-page concurrency
+32. slow initial request followed by Apply: old response cannot overwrite new state;
+33. slow Apply request followed by Reset: old response cannot overwrite reset state;
+34. slow request followed by Back/Forward: stale response cannot overwrite current history entry;
+35. aborted/stale request does not produce a spurious error state;
+36. only current request may update Publication title/options/rows.
+
+INTEGRATION PAGE-DELIVERY TESTS — LEVEL 3
+Update `test/integration/public-feed-page-http.test.ts` to prove:
+- root shell includes the required discovery controls/labels/reset affordance without reading the feed server-side;
+- CSP remains unchanged or stricter and same-origin static resources remain explicit;
+- client source uses canonical `/api/feed` and root URL discovery state but does not resurrect slug-addressed routes;
+- unknown static/private source paths remain 404;
+- page shell remains topic-independent.
+
+Avoid brittle full-HTML snapshots; assert durable semantic hooks/attributes.
+
+BROADER REGRESSION
+Run:
+- focused browser suite;
+- `npm run test:browser`;
+- focused page HTTP integration tests;
+- `npm run test:integration`;
+- `npm run test:unit`;
+- `npm test`;
+- `npm run format:check`;
+- `npm run lint`;
+- `npm run typecheck`.
+
+Database tests are not intrinsically required for P4 because P4 does not change repository semantics, but run relevant API/database suites if a bounded P3 defect fix is made.
+
+REQUIRED EVIDENCE LEVEL
+- Level 6 browser evidence is mandatory.
+- Level 3 page-delivery integration evidence is mandatory.
+- No new Level 4 persistence claim is made.
+- Live-Source evidence is not required.
+
+PRESERVED BEHAVIOR
+- canonical root `/` remains server-delivered shell;
+- `/api/feed` remains only feed/discovery API;
+- page shell does not read database state server-side;
+- no Publication slug/tenant selector returns;
+- existing CSP/security headers stay intact;
+- current Date/Headline/Source presentation remains basic but usable;
+- Article destination remains original publisher;
+- no topic-specific engine/UI options are hard-coded.
+
+NON-GOALS
+- no load-more use of `nextCursor` yet;
+- no infinite scroll;
+- no cursor in URL/history;
+- no final responsive/accessibility/theme/branding design pass;
+- no known loading-spinner polish issue;
+- no backend search/filter/index changes;
+- no automatic refresh;
+- no admin/duplicate features.
+
+ACCEPTANCE CRITERIA
+P4 is complete only when:
+- package version is `0.12.4`;
+- first-page keyword/Source/Category controls work only through canonical `/api/feed` metadata/criteria;
+- direct URL, refresh, explicit Apply, Reset, Back, and Forward restore coherent URL/controls/results;
+- malformed direct discovery URLs remain bounded invalid state and are not silently repaired;
+- stale first-page responses cannot overwrite newer navigation state;
+- empty filtered results remain normal public empty state;
+- existing security, original-link, UTC, desktop/mobile, and inert-text browser regressions remain green;
+- focused Level 6/browser + page integration + broader deterministic regressions pass;
+- no package lock, load-more behavior, or Phase 13 polish is introduced.
+
+FINAL RESPONSE
+Report:
+- files changed;
+- final package version;
+- control/URL behavior and deterministic parameter order;
+- request-ownership mechanism used for stale first-page protection;
+- public UI state mapping for 200-empty/400/404/503;
+- focused/broader commands actually run with observed results;
+- confirmation that continuation is stored/validated only as needed and remains deferred to P5.

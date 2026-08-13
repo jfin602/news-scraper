@@ -1,0 +1,195 @@
+TASK: Phase 11 / P1 — Category and Relevance schema foundation
+
+ROADMAP PHASE
+Phase 11 — Categories and configurable Relevance execution.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Sol Light`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P1 is constraint-heavy PostgreSQL foundation work with meaningful future transactional consumers, but it does not yet activate configurable Relevance in the production collection pipeline. Terra High provides enough schema/integrity reasoning without spending Sol-level usage on a deliberately isolated migration task.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a model/configuration label.
+
+VERSIONING
+- This is Phase 11 prompt 1 and its assigned project version is `0.11.1`.
+- Before editing, confirm `package.json` is exactly `0.11.0` on first execution, or already `0.11.1` only for a rerun of this same P1.
+- Update only the top-level package version to `0.11.1`; do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- `package.json` remains the sole current-version authority.
+
+MANDATORY HANDOFF
+Before any version/source change:
+1. read current `BOOT.md` and the Phase 11 roadmap entry;
+2. read `docs/contracts/domain-and-data-contract.md`, `docs/contracts/source-and-collection-contract.md`, `docs/contracts/testing-and-validation-contract.md`, and `docs/architecture/system-architecture.md`;
+3. inspect the current migration chain, especially `migrations/0001_initial_schema.sql` through the current final migration, plus migration infrastructure/tests;
+4. inspect current Source/endpoint, Article, Article-observation, and Collection-run schema/tests;
+5. confirm the current tree is the singleton one-Publication architecture with Source-scoped Article identity and that Phase 10 migrations are accepted current history;
+6. stop and report planning drift if the schema/contracts materially changed after this prompt was written.
+
+GOAL
+Create the complete relational foundation needed by Phase 11 Categories and configurable Relevance while leaving runtime behavior on the existing default-include evaluator until later prompts.
+
+GOVERNING INVARIANTS
+- Categories and Relevance rules are installation-wide singleton Publication configuration and MUST NOT introduce a Publication ID/slug/foreign-key tenancy dimension.
+- Category and Relevance-rule `config_key` values are immutable installation-wide identities.
+- Relevance predicates are only `title_contains`, `summary_contains`, and `source_category_equals`.
+- Relevance actions are only `include`, `exclude`, and `categorize`.
+- A `categorize` rule requires exactly one valid Category target; include/exclude rules must not carry a Category target.
+- A rule may be installation-wide or scoped to one Source.
+- Source default Category and endpoint default Category are optional references to installation-wide Categories.
+- Article/Category membership is unique per Article + Category.
+- `created`, `updated`, and `unchanged` observations continue to require Article identity; pre-identity `excluded` observations may have no Article ID.
+- Article identity, Source/endpoint/run provenance, approval/network-safety behavior, scheduler/jobs, and public-feed behavior are unchanged by P1.
+
+REQUIRED SCHEMA SHAPE
+Add one normal additive Phase 11 migration, expected to be `migrations/0005_categories_and_relevance.sql` if the current chain still ends at `0004`. Do not rewrite/squash the accepted Phase 10 migration lineage merely because development databases are disposable.
+
+The migration should introduce the smallest canonical relational model for:
+
+1. `categories`
+- UUID primary key;
+- immutable installation-wide `config_key` using the same canonical lowercase underscore-delimited key shape already used by Sources;
+- mutable trimmed bounded display label/name;
+- created/updated timestamps where consistent with current configuration tables;
+- unique `config_key`.
+
+2. `relevance_rules`
+- UUID primary key;
+- immutable installation-wide `config_key`;
+- nullable `source_id` FK for Source-scoped rules;
+- predicate type constrained to `title_contains`, `summary_contains`, `source_category_equals`;
+- one trimmed, bounded, non-empty literal pattern;
+- action constrained to `include`, `exclude`, `categorize`;
+- nullable Category target FK with a database CHECK enforcing target presence exactly for `categorize` and target absence for `include`/`exclude`;
+- explicit integer priority;
+- enabled boolean;
+- trimmed bounded explanatory reason/label;
+- timestamps;
+- unique `config_key`.
+
+3. Source and endpoint default Category references
+- add nullable `default_category_id` to `sources`;
+- add nullable `default_category_id` to `source_endpoints`;
+- both reference `categories` and preserve existing ownership/identity relationships.
+
+4. `article_categories`
+- Article FK;
+- Category FK;
+- uniqueness per Article + Category;
+- this table represents current automatically derived Phase 11 Category membership, not historical reasoning.
+
+5. Article-observation include/exclude reason reference
+- add a nullable Relevance-rule FK to `article_observations` for the selected include/exclude rule;
+- retain/reuse the existing bounded observation `reason_code` and `detail` fields rather than inventing another include/exclude-reason table.
+
+6. observation-level Category reasons
+Add a relation, expected name `article_observation_category_reasons`, that can preserve every applied Category rule/default reason for one included observation, including multiple rule reasons that target the same deduplicated Category membership.
+
+It must contain enough data to enforce and later persist:
+- Article-observation FK;
+- Category FK;
+- nullable Relevance-rule FK for rule-driven reasons;
+- deterministic reason position/order;
+- constrained reason kind capable of distinguishing rule-driven, endpoint-default, and Source-default reasons;
+- bounded snapshot detail/reason text;
+- uniqueness sufficient to prevent duplicate reason positions for one observation while still allowing two distinct rules to explain the same Category.
+
+Do not over-model later moderation/manual-category/admin/change-history behavior in P1.
+
+PRE-PRODUCTION MIGRATION POLICY
+- The current accepted migration history is authoritative for the current source tree.
+- Add the new Phase 11 migration normally.
+- Do not add compatibility bridges for unsupported older databases.
+- Do not rewrite prior Phase 10 migrations unless current BOOT/contracts explicitly changed and require a correction; if that unexpected situation exists, stop instead of silently altering history.
+
+LIKELY / ALLOWED FILES
+Primary expected files:
+- `package.json`
+- `migrations/0005_categories_and_relevance.sql`
+- `test/database/configuration-schema.test.ts`
+- `test/database/article-schema.test.ts`
+- a new focused `test/database/relevance-schema.test.ts` if that keeps Phase 11 schema coverage clearer
+- narrow migration test fixtures/helpers only if required by the current test architecture
+
+Do not modify collection runtime, evaluator, Article repository behavior, Worker jobs, Web/API, public feed, or operator configuration in P1.
+
+IMPLEMENTATION CONSTRAINTS
+- Prefer database constraints over application-only assumptions for critical identity/reference/action invariants.
+- Do not add Publication FK columns to any new or existing Phase 11 table.
+- Do not create regex/glob/general-expression/scoring/AI columns.
+- Do not create ranking/boost fields.
+- Do not create duplicate-grouping or moderation schema.
+- Keep new nullable schema additions compatible with current P1 runtime code, which will not yet write Phase 11 data.
+- Avoid speculative abstractions or generic rules-engine metadata.
+
+FOCUSED TESTS — REAL POSTGRESQL REQUIRED
+Using the existing disposable PostgreSQL harness, prove at least:
+1. migrate from zero includes the new Phase 11 migration and reruns safely;
+2. Category config keys are installation-wide unique and shape constrained;
+3. Relevance-rule config keys are installation-wide unique and shape constrained;
+4. only the three allowed predicate types are accepted;
+5. only the three allowed actions are accepted;
+6. rule patterns/reasons enforce trimmed/non-empty/bounded shape;
+7. `categorize` requires a valid Category target;
+8. `include`/`exclude` reject a Category target;
+9. Source-scoped rules reject orphan Source references;
+10. Source/endpoint defaults reject orphan Category references;
+11. Article/Category membership rejects orphan Article/Category references and duplicate membership;
+12. observation Category reasons reject invalid observation/Category/rule references and duplicate reason positions while allowing two different rule reasons for the same Category;
+13. existing Article-observation ownership/provenance constraints remain intact;
+14. structural proof still shows no `publication_id` tenancy column in the canonical schema.
+
+BROADER REGRESSION
+Run the focused database files plus the relevant existing migration/configuration/Article schema suites. If practical for the final P1 tree, run the full `npm run test:db` suite; if a prerequisite prevents it, report that clearly rather than claiming database proof.
+
+Also run:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- relevant deterministic tests needed by touched shared files
+
+REQUIRED EVIDENCE LEVEL
+- Level 4 real PostgreSQL evidence is mandatory for P1 acceptance.
+- Source inspection alone is not proof of schema constraints.
+
+PRESERVED BEHAVIOR
+Explicitly verify that P1 does not change:
+- singleton Publication cardinality;
+- Source/endpoint approval/lifecycle/operational behavior;
+- Article identity keys/uniqueness;
+- Article-link/network-safety rules;
+- Collection-run processing arithmetic;
+- manual/scheduled collection composition;
+- public-feed selection/link behavior.
+
+NON-GOALS
+- no configurable evaluator execution yet;
+- no operator editorial command yet;
+- no persistence integration for Category/reason outcomes yet;
+- no Worker collection integration;
+- no public Category filtering/search;
+- no admin UI/API;
+- no ranking/boost/semantic AI;
+- no bulk historical reprocessing;
+- no duplicate grouping/moderation.
+
+ACCEPTANCE CRITERIA
+P1 is complete only when:
+- package version is `0.11.1`;
+- the canonical migration-from-zero chain creates the Phase 11 schema with no Publication tenancy;
+- all critical Phase 11 relationships/checks/uniqueness are database-enforced and proven with real PostgreSQL;
+- current pre-P1 runtime still works against the new nullable schema without pretending configurable Relevance is active;
+- focused and relevant broader regression tests pass on the final tree;
+- no package lock is created;
+- no unrelated cleanup or future-phase behavior is introduced.
+
+FINAL RESPONSE
+Report:
+- files changed;
+- final package version;
+- exact migration added;
+- schema invariants established;
+- focused and broader commands actually run with results;
+- whether real PostgreSQL evidence was observed;
+- any remaining limitations or deferred behavior.

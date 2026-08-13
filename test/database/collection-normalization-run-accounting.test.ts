@@ -164,9 +164,15 @@ test('canonical normalization persists truthful accounting and real run provenan
 });
 
 const processingDependencies = Object.freeze({
+  async loadRelevanceConfiguration() {
+    return { rules: [] };
+  },
   evaluateRelevance,
   async persistArticle() {
     return { outcome: 'created' } as ArticlePersistenceResult;
+  },
+  async persistExcludedArticle() {
+    throw new Error('default-include fixture cannot be excluded');
   },
   observationTime: () => new Date('2026-08-10T12:00:00.000Z'),
 });

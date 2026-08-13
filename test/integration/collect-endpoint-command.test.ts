@@ -73,25 +73,22 @@ describe('manual Worker endpoint collection command', () => {
   it('reports unknown endpoint keys without collection/network work and closes the database', async () => {
     const output = sink();
     const fake = fakeDatabase();
-    let collectionCalls = 0;
+    let serviceCalls = 0;
     const exitCode = await runCollectEndpointCommand({
       args: KEYS,
       environment: validEnvironment(),
       stdout: output,
       dependencies: {
         createDatabase: () => fake.database,
-        async findEndpointConfiguration() {
-          return undefined;
-        },
         async execute() {
-          collectionCalls += 1;
-          throw new Error('unreachable');
+          serviceCalls += 1;
+          return { status: 'not_found', reason: 'endpoint_not_found' };
         },
       },
     });
 
     assert.equal(exitCode, 1);
-    assert.equal(collectionCalls, 0);
+    assert.equal(serviceCalls, 1);
     assert.equal(fake.closeCalls, 1);
     assert.deepEqual(output.events(), [
       {
@@ -101,6 +98,47 @@ describe('manual Worker endpoint collection command', () => {
         endpointConfigKey: KEYS[1],
         status: 'blocked',
         reason: 'endpoint_not_found',
+      },
+    ]);
+  });
+
+  it('reports capacity contention as a bounded machine-readable failure', async () => {
+    const output = sink();
+    const fake = fakeDatabase();
+    const configuration = aggregate();
+    const exitCode = await runCollectEndpointCommand({
+      args: KEYS,
+      environment: validEnvironment(),
+      stdout: output,
+      dependencies: {
+        createDatabase: () => fake.database,
+        async execute() {
+          return {
+            status: 'capacity_blocked',
+            stage: 'capacity',
+            reason: 'collection_capacity_limited',
+            limitingScope: 'host',
+            sourceId: configuration.source.id,
+            endpointId: configuration.endpoint.id,
+          };
+        },
+      },
+    });
+
+    assert.equal(exitCode, 1);
+    assert.equal(fake.closeCalls, 1);
+    assert.deepEqual(output.events(), [
+      {
+        event: 'endpoint_collection.result',
+        role: 'worker',
+        sourceConfigKey: KEYS[0],
+        endpointConfigKey: KEYS[1],
+        sourceId: configuration.source.id,
+        endpointId: configuration.endpoint.id,
+        status: 'blocked',
+        stage: 'capacity',
+        reason: 'collection_capacity_limited',
+        limitingScope: 'host',
       },
     ]);
   });
@@ -115,26 +153,18 @@ describe('manual Worker endpoint collection command', () => {
       stdout: output,
       dependencies: {
         createDatabase: () => fake.database,
-        async findEndpointConfiguration(
-          _database,
-          sourceConfigKey,
-          endpointConfigKey,
-        ) {
-          assert.equal(sourceConfigKey, KEYS[0]);
-          assert.equal(endpointConfigKey, KEYS[1]);
-          return configuration;
-        },
-        async execute(_configuration, dependencies) {
-          assert.equal(dependencies.executionId(), 'controlled-execution-id');
-          assert.equal(
-            typeof dependencies.normalizeArticleCandidate,
-            'function',
-          );
-          assert.equal(typeof dependencies.applyArticleLinkPolicy, 'function');
-          assert.equal(typeof dependencies.evaluateRelevance, 'function');
-          assert.equal(typeof dependencies.persistArticle, 'function');
-          assert.ok(dependencies.observationTime() instanceof Date);
-          return successfulResult();
+        async execute(_database, request) {
+          assert.equal(request.triggerKind, 'manual');
+          if (request.triggerKind !== 'manual') throw new Error('unexpected');
+          assert.equal(request.executionId, 'controlled-execution-id');
+          assert.equal(request.sourceConfigKey, KEYS[0]);
+          assert.equal(request.endpointConfigKey, KEYS[1]);
+          return {
+            status: 'resolved',
+            sourceId: configuration.source.id,
+            endpointId: configuration.endpoint.id,
+            collection: successfulResult(),
+          };
         },
         executionId: () => 'controlled-execution-id',
       },
@@ -235,11 +265,14 @@ describe('manual Worker endpoint collection command', () => {
         stdout: output,
         dependencies: {
           createDatabase: () => fakeDatabase().database,
-          async findEndpointConfiguration() {
-            return aggregate();
-          },
           async execute() {
-            return Object.freeze(result);
+            const configuration = aggregate();
+            return Object.freeze({
+              status: 'resolved' as const,
+              sourceId: configuration.source.id,
+              endpointId: configuration.endpoint.id,
+              collection: Object.freeze(result),
+            });
           },
         },
       });
@@ -262,9 +295,6 @@ describe('manual Worker endpoint collection command', () => {
       stderr,
       dependencies: {
         createDatabase: () => fake.database,
-        async findEndpointConfiguration() {
-          return aggregate();
-        },
         async execute() {
           throw new Error(secret);
         },

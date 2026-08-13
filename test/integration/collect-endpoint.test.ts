@@ -9,7 +9,10 @@ import {
   type CollectionRunStore,
 } from '../../src/collection/collect-endpoint.ts';
 import { applyArticleLinkPolicy } from '../../src/collection/article-links/policy.ts';
-import type { ArticlePersistenceResult } from '../../src/articles/repository.ts';
+import type {
+  ArticlePersistenceResult,
+  ExcludedArticlePersistenceResult,
+} from '../../src/articles/repository.ts';
 import type { EndpointExecutionLockRunner } from '../../src/collection/execution.ts';
 import type {
   HttpFetcher,
@@ -68,13 +71,21 @@ describe('canonical endpoint collection service', () => {
         events.push('article-link policy');
         return applyArticleLinkPolicy(candidate, context);
       },
-      evaluateRelevance(candidate) {
+      async loadRelevanceConfiguration() {
+        events.push('relevance snapshot');
+        return EMPTY_RELEVANCE_CONFIGURATION;
+      },
+      evaluateRelevance(candidate, configuration) {
         events.push('relevance');
-        return evaluateRelevance(candidate);
+        return evaluateRelevance(candidate, configuration);
       },
       async persistArticle() {
         events.push('persist');
         return persistenceSuccess('created');
+      },
+      async persistExcludedArticle() {
+        events.push('persist excluded');
+        return excludedPersistenceSuccess();
       },
       observationTime() {
         events.push('observation clock');
@@ -93,6 +104,7 @@ describe('canonical endpoint collection service', () => {
       'normalize',
       'article-link policy',
       'article-link policy',
+      'relevance snapshot',
       'relevance',
       'observation clock',
       'persist',
@@ -132,6 +144,9 @@ describe('canonical endpoint collection service', () => {
         httpStatusCode: 200,
         wireByteCount: 321,
         decompressedByteCount: 654,
+        redirectCount: 1,
+        transportElapsedMilliseconds: 12,
+        outcomeCode: 'content',
         rawItemCount: 2,
         normalizationStatus: 'succeeded',
         normalizedCandidateCount: 2,
@@ -235,6 +250,9 @@ describe('canonical endpoint collection service', () => {
         httpStatusCode: 200,
         wireByteCount: 321,
         decompressedByteCount: 654,
+        redirectCount: 1,
+        transportElapsedMilliseconds: 12,
+        outcomeCode: 'content',
         rawItemCount: testCase.expected[0],
         normalizedCandidateCount: testCase.expected[1],
         normalizationFailureCount: testCase.expected[2],
@@ -246,6 +264,20 @@ describe('canonical endpoint collection service', () => {
 
   it('maps Relevance and persistence outcomes in canonical order with item isolation', async () => {
     const events: string[] = [];
+    const snapshot = Object.freeze({
+      rules: Object.freeze([
+        Object.freeze({
+          configKey: 'exclude_item',
+          predicateType: 'title_contains' as const,
+          pattern: 'Excluded',
+          action: 'exclude' as const,
+          priority: 1,
+          enabled: true,
+          reason: 'Excluded fixture item.',
+        }),
+      ]),
+    });
+    const receivedSnapshots: unknown[] = [];
     const result = await collectEndpoint(aggregate(), {
       lockRunner: acquiredLock(events),
       runs: runStore(events),
@@ -267,11 +299,14 @@ describe('canonical endpoint collection service', () => {
         events.push(`policy:${candidate.displayTitle}`);
         return applyArticleLinkPolicy(candidate, context);
       },
-      evaluateRelevance(candidate) {
+      async loadRelevanceConfiguration() {
+        events.push('relevance snapshot');
+        return snapshot;
+      },
+      evaluateRelevance(candidate, configuration) {
         events.push(`relevance:${candidate.displayTitle}`);
-        return candidate.displayTitle === 'Excluded'
-          ? Object.freeze({ included: false as const })
-          : Object.freeze({ included: true as const, candidate });
+        receivedSnapshots.push(configuration);
+        return evaluateRelevance(candidate, configuration);
       },
       async persistArticle(candidate) {
         events.push(`persist:${candidate.displayTitle}`);
@@ -286,6 +321,10 @@ describe('canonical endpoint collection service', () => {
             'created' | 'updated' | 'unchanged',
         );
       },
+      async persistExcludedArticle(candidate) {
+        events.push(`persist excluded:${candidate.displayTitle}`);
+        return excludedPersistenceSuccess();
+      },
       observationTime() {
         events.push('clock');
         return new Date('2026-08-08T12:00:00.000Z');
@@ -296,6 +335,12 @@ describe('canonical endpoint collection service', () => {
     assert.equal(result.status, 'succeeded');
     if (result.status !== 'succeeded') return;
     assert.deepEqual(processingTuple(result), ['succeeded', 1, 1, 1, 1, 1, 1]);
+    assert.equal(
+      events.filter((event) => event === 'relevance snapshot').length,
+      1,
+    );
+    assert.equal(receivedSnapshots.length, 5);
+    assert.ok(receivedSnapshots.every((value) => value === snapshot));
     assert.equal(
       events.some((event) => event === 'relevance:Rejected'),
       false,
@@ -308,6 +353,10 @@ describe('canonical endpoint collection service', () => {
       events.some((event) => event === 'persist:Excluded'),
       false,
     );
+    assert.equal(
+      events.filter((event) => event === 'persist excluded:Excluded').length,
+      1,
+    );
     assert.ok(
       events.indexOf('relevance:Created') < events.indexOf('persist:Created'),
     );
@@ -317,6 +366,101 @@ describe('canonical endpoint collection service', () => {
     );
     assert.ok(events.indexOf('persist:Expected failure') >= 0);
     assert.ok(events.indexOf('persist:Updated') >= 0);
+  });
+
+  it('bounds snapshot, evaluator, excluded-clock, and exclusion-persistence failures with exact accounting', async () => {
+    const stages = [
+      'relevance_configuration_load_execution_failed',
+      'relevance_execution_failed',
+      'observation_clock_execution_failed',
+      'relevance_exclusion_persistence_execution_failed',
+    ] as const;
+
+    for (const stage of stages) {
+      const events: string[] = [];
+      const runs = runStore(events);
+      let relevanceCalls = 0;
+      let clockCalls = 0;
+      let excludedPersistenceCalls = 0;
+      const exclusionSnapshot = Object.freeze({
+        rules: Object.freeze([
+          Object.freeze({
+            configKey: 'exclude_all',
+            predicateType: 'title_contains' as const,
+            pattern: 'Item',
+            action: 'exclude' as const,
+            priority: 1,
+            enabled: true,
+            reason: 'Excluded by fixture.',
+          }),
+        ]),
+      });
+      const result = await collectEndpoint(aggregate(), {
+        lockRunner: acquiredLock(events),
+        runs,
+        fetcher: fetcher(events, contentResult()),
+        rssAtomParser: parser(events, {
+          ok: true,
+          dialect: 'rss',
+          items: [
+            { title: 'Item one', url: 'https://feeds.example.test/one' },
+            { title: 'Item two', url: 'https://feeds.example.test/two' },
+            { title: 'Rejected', url: 'https://outside.test/rejected' },
+          ],
+        }),
+        ...phase6Dependencies,
+        async loadRelevanceConfiguration() {
+          if (stage === 'relevance_configuration_load_execution_failed') {
+            throw new Error('SYNTHETIC_CONFIGURATION_SECRET');
+          }
+          return exclusionSnapshot;
+        },
+        evaluateRelevance(candidate, configuration) {
+          relevanceCalls += 1;
+          if (stage === 'relevance_execution_failed') {
+            throw new Error('SYNTHETIC_EVALUATOR_SECRET');
+          }
+          return evaluateRelevance(candidate, configuration);
+        },
+        observationTime() {
+          clockCalls += 1;
+          if (stage === 'observation_clock_execution_failed') {
+            throw new Error('SYNTHETIC_CLOCK_SECRET');
+          }
+          return new Date('2026-08-08T12:00:00.000Z');
+        },
+        async persistArticle() {
+          throw new Error(
+            'excluded candidates must not use Article persistence',
+          );
+        },
+        async persistExcludedArticle() {
+          excludedPersistenceCalls += 1;
+          if (stage === 'relevance_exclusion_persistence_execution_failed') {
+            throw new Error('SYNTHETIC_DATABASE_SECRET');
+          }
+          return excludedPersistenceSuccess();
+        },
+        executionId: () => EXECUTION_ID,
+      });
+
+      assert.equal(result.status, 'failed', stage);
+      if (result.status !== 'failed') continue;
+      assert.equal(result.reason, stage);
+      assert.equal(result.detail?.includes('SECRET'), false);
+      assert.deepEqual(processingTuple(result), ['failed', 0, 0, 0, 1, 0, 2]);
+      assert.equal(runs.finalizations[0]?.error?.code, stage);
+      if (stage === 'relevance_configuration_load_execution_failed') {
+        assert.equal(relevanceCalls, 0);
+      }
+      if (stage === 'observation_clock_execution_failed') {
+        assert.equal(excludedPersistenceCalls, 0);
+      }
+      if (stage === 'relevance_exclusion_persistence_execution_failed') {
+        assert.equal(clockCalls, 1);
+        assert.equal(excludedPersistenceCalls, 1);
+      }
+    }
   });
 
   it('fully accounts a fatal processing stage and stops remaining persistence', async () => {
@@ -347,6 +491,7 @@ describe('canonical endpoint collection service', () => {
           ],
         }),
         ...phase6Dependencies,
+        ...phase7Dependencies,
         evaluateRelevance(candidate) {
           relevanceCalls += 1;
           if (stage === 'relevance_execution_failed' && relevanceCalls === 2) {
@@ -516,6 +661,10 @@ describe('canonical endpoint collection service', () => {
       httpStatusCode: 200,
       wireByteCount: 321,
       decompressedByteCount: 654,
+      redirectCount: 1,
+      transportElapsedMilliseconds: 12,
+      outcomeCode: 'article_link_policy_failed',
+      retryClassification: 'permanent',
       rawItemCount: 2,
       normalizedCandidateCount: 1,
       normalizationFailureCount: 1,
@@ -618,6 +767,8 @@ describe('canonical endpoint collection service', () => {
         normalizationFailureCount: 0,
         articleLinkRejectionCount: 0,
         ...processingNotRun,
+        outcomeCode: 'network_safety_blocked',
+        retryClassification: 'permanent',
         error: {
           code: 'domain_not_approved',
           detail:
@@ -952,17 +1103,31 @@ const phase6Dependencies = Object.freeze({
 });
 
 const phase7Dependencies = Object.freeze({
+  async loadRelevanceConfiguration() {
+    return EMPTY_RELEVANCE_CONFIGURATION;
+  },
   evaluateRelevance,
   async persistArticle() {
     return persistenceSuccess('created');
   },
+  async persistExcludedArticle() {
+    return excludedPersistenceSuccess();
+  },
   observationTime: () => new Date('2026-08-08T12:00:00.000Z'),
+});
+
+const EMPTY_RELEVANCE_CONFIGURATION = Object.freeze({
+  rules: Object.freeze([]),
 });
 
 function persistenceSuccess(
   outcome: 'created' | 'updated' | 'unchanged',
 ): ArticlePersistenceResult {
   return { outcome } as ArticlePersistenceResult;
+}
+
+function excludedPersistenceSuccess(): ExcludedArticlePersistenceResult {
+  return { outcome: 'excluded' } as ExcludedArticlePersistenceResult;
 }
 
 function acquiredLock(events: string[]): EndpointExecutionLockRunner {
@@ -1069,6 +1234,7 @@ function persistedRun(input: {
     id: input.id,
     sourceEndpointId: input.endpointId,
     executionId: input.executionId,
+    triggerKind: 'manual',
     startedAt: new Date('2026-08-08T12:00:00.000Z'),
     finishedAt:
       finalization === undefined
@@ -1082,6 +1248,10 @@ function persistedRun(input: {
     httpStatusCode: finalization?.httpStatusCode,
     wireByteCount: finalization?.wireByteCount,
     decompressedByteCount: finalization?.decompressedByteCount,
+    retryClassification: finalization?.retryClassification,
+    outcomeCode: finalization?.outcomeCode,
+    responseEtag: finalization?.responseValidators?.etag,
+    responseLastModified: finalization?.responseValidators?.lastModified,
     rawItemCount: finalization?.rawItemCount ?? 0,
     normalizedCandidateCount: finalization?.normalizedCandidateCount ?? 0,
     normalizationFailureCount: finalization?.normalizationFailureCount ?? 0,
