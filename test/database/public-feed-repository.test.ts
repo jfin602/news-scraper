@@ -210,8 +210,20 @@ test('readPublicFeed maps canonical dates and only the safe basic public fields'
 
     const recordingExecutor = new RecordingExecutor(database);
     const feed = requireFeed(await readPublicFeed(recordingExecutor));
-    assert.equal(recordingExecutor.queries.length, 1);
-    assert.equal(recordingExecutor.queries[0]?.values, undefined);
+    assert.equal(recordingExecutor.queries.length, 5);
+    assert.deepEqual(recordingExecutor.queries[0]?.values, undefined);
+    assert.deepEqual(recordingExecutor.queries[1]?.values, [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      101,
+    ]);
+    assert.deepEqual(recordingExecutor.queries[2]?.values, [null, 200]);
+    assert.deepEqual(recordingExecutor.queries[3]?.values, [null, 200]);
+    assert.deepEqual(recordingExecutor.queries[4]?.values, undefined);
     assert.deepEqual(feed.publication, publication);
 
     const parsedItem = requireItem(feed, parsed.id);
@@ -342,6 +354,17 @@ test('readPublicFeed preserves public empty state and limits the canonical windo
 });
 
 test('readPublicFeed rejects malformed result rows and database failures through its bounded error', async () => {
+  const malformedPublicationExecutor = new ScriptedExecutor([
+    {
+      publication_name: ' Malformed Publication ',
+    },
+  ]);
+  await assertPublicFeedFailure(
+    () => readPublicFeed(malformedPublicationExecutor),
+    'invalid_row',
+    'Malformed Publication',
+  );
+
   const malformedRowExecutor = new ScriptedExecutor([
     {
       publication_name: 'Scripted Publication',
