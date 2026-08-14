@@ -1,0 +1,166 @@
+TASK: Phase 14 / P3 — Admin perimeter and request integrity
+
+ROADMAP PHASE
+Phase 14 — Source administration.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol High`.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Alternative considered: `Terra Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P3 introduces the first administrative HTTP boundary and must keep Cloudflare perimeter authentication, direct-origin deployment protection, application request integrity, safe errors, and public-route behavior separate. Sol High gives appropriate security and integration headroom without requiring Ultra for a deliberately small admin shell.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 14 prompt 3 and its assigned project version is `0.14.3`.
+- On first execution, require top-level `package.json` version `0.14.2`; on a rerun of this same P3, `0.14.3` is acceptable.
+- Update only the top-level package version to `0.14.3`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 14 roadmap entry, and completed P1/P2 implementation/tests;
+2. read `docs/decisions/cloudflare-access-admin-perimeter.md`, `docs/operations/security-reliability-and-operations.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, and the administrative perimeter section of `docs/architecture/system-architecture.md`;
+3. inspect `src/app/web/create-app.ts`, `src/app/web/web-config.ts`, `src/app/web/main.ts`, `src/app/web/server.ts`, existing public/static response headers, readiness dependencies, and Express error handling;
+4. inspect current integration/browser helpers so admin middleware can be tested without creating fake product behavior;
+5. confirm there is no existing `src/admin/` implementation, native account/session system, trusted Cloudflare identity layer, or admin HTTP namespace;
+6. confirm current Web configuration contains only the existing runtime/listener settings and there is no separately governed admin enable switch;
+7. stop and report planning drift if a current admin/security implementation or new ADR materially changes this boundary.
+
+GOAL
+Establish the secure application-owned foundation for all later Phase 14 administrative UI/API routes before adding any Source mutation commands.
+
+P3 owns:
+- fail-closed admin route enablement;
+- canonical `/admin` and `/api/admin/*` routing boundary;
+- CSRF/equivalent browser request-integrity checks for unsafe admin API requests;
+- bounded JSON/body/error handling for admin APIs;
+- minimum admin page security headers/assets needed to host the later control surface;
+- regression protection ensuring public routes remain unaffected.
+
+P3 does NOT authenticate administrators itself. Cloudflare Access remains the external authentication/access-control perimeter.
+
+CLOUDFLARE / APPLICATION BOUNDARY
+Preserve the Accepted ADR exactly:
+- all deployed MVP admin UI/API routes are behind Cloudflare Access;
+- supported deployments prevent direct-origin bypass;
+- application-native accounts/passwords/passkeys/login/logout sessions/roles/recovery/per-user Publication authorization are out of scope;
+- Cloudflare identity/access logs are operational evidence, not canonical application identity;
+- request integrity and real resource validation remain application responsibilities.
+
+Do NOT treat the presence of `Cf-Access-*`, `X-Forwarded-*`, `Host`, or another caller-controlled header as sufficient application authorization. Such headers can be spoofed if an origin is exposed. P3 must not create a false sense that Express middleware alone proves the Cloudflare perimeter.
+
+ADMIN ENABLEMENT
+Extend validated Web configuration with one explicit boolean setting:
+
+`NEWS_SCRAPER_ADMIN_ENABLED`
+
+Required semantics:
+- default false when absent;
+- accept only an explicit small boolean vocabulary consistent with existing runtime configuration style; prefer `true` / `false` exactly unless the existing shared parser already governs booleans differently;
+- malformed values fail startup configuration validation;
+- when false, `/admin`, admin assets, and `/api/admin/*` are not mounted/exposed as a usable control plane and return ordinary not-found behavior;
+- when true, the admin shell/routes are mounted;
+- this is a fail-closed deployment switch, NOT authentication and NOT an authorization bypass token.
+
+Do not add a second environment setting that claims to prove Cloudflare or origin-lockdown state.
+
+ADMIN ROUTING FOUNDATION
+Create the smallest coherent admin ownership boundary, preferably under `src/admin/` for product/admin services and a narrow Web router/controller under the existing Web application ownership.
+
+Canonical routes introduced by P3:
+- `GET /admin` — minimal administration shell page;
+- reserved `/api/admin/*` namespace for later prompts.
+
+The `/admin` page may contain only a basic Phase 14 administration shell/heading/status placeholder needed to establish the route and asset/security boundary. Do not build Source/endpoint workflows yet.
+
+Unknown `/api/admin/*` routes must return bounded JSON not-found responses rather than public-page HTML or stack traces.
+
+REQUEST-INTEGRITY CONTROL
+For state-changing admin API methods (`POST`, `PUT`, `PATCH`, `DELETE` when later introduced), establish one reusable middleware/control with all of the following:
+- require JSON request content type for JSON admin commands;
+- require a non-simple same-origin application header, canonically `X-News-Scraper-Admin-Request: 1`;
+- reject missing/wrong header before command execution;
+- do not enable permissive CORS for admin APIs;
+- reject malformed JSON with bounded deterministic 4xx JSON rather than default HTML/stack output;
+- apply a bounded request-body limit appropriate for Source/endpoint configuration; choose a small explicit limit (for example 64 KiB) and test the exact configured bound;
+- safe GET/HEAD admin reads do not require the mutation header merely to render/read data.
+
+The custom header is not a secret and must never be described as authentication. Its purpose is to make ordinary cross-site form submission unable to produce an accepted mutation and to rely on browser same-origin/CORS behavior for scripted cross-origin requests.
+
+If the implementation uses an additional explicit `Origin` validation, it must be based on a trustworthy configured canonical origin rather than blindly trusting `Host`/forwarded headers. Do not invent such a configuration unless needed; the required custom-header + JSON + no-CORS boundary is sufficient for this phase's application request-integrity design.
+
+ADMIN RESPONSE SECURITY
+For `/admin` and same-origin admin assets/API responses where applicable:
+- use `Cache-Control: no-store` for admin page/API data;
+- use a restrictive Content Security Policy suitable for external same-origin JS/CSS only, with `frame-ancestors 'none'`;
+- preserve/refine existing `X-Content-Type-Options`, referrer policy, and other project response-hardening conventions where present;
+- do not introduce inline script requirements merely to make CSP easier;
+- do not leak stack traces, SQL text, secrets, environment values, request headers, or raw exception details to clients.
+
+DEPENDENCY INJECTION / TESTABILITY
+Structure the admin Web router so later P4–P7 can inject admin read/command dependencies without coupling Express directly to PostgreSQL internals.
+
+Do not add fake Source mutation endpoints in P3 just to test the middleware. Test request-integrity behavior through the middleware/router in a controlled integration harness or a test-only mounted handler.
+
+PUBLIC ROUTE REGRESSION LAW
+P3 must not alter:
+- `/` public feed route;
+- `/api/feed`;
+- public assets/themes/discovery/pagination;
+- liveness/readiness meaning except for the existing validated Web configuration startup path;
+- Worker or Source collection behavior.
+
+Admin-disabled deployment must behave as if the admin surface does not exist, without impacting the public application.
+
+TESTING
+Add focused unit/integration coverage at minimum for:
+- admin enable config default false, true, false, malformed values;
+- disabled `/admin` and `/api/admin/*` not exposed;
+- enabled `/admin` returns the bounded shell with no-store/security headers;
+- unknown admin API returns bounded JSON 404;
+- safe admin GET does not require mutation header;
+- unsafe request with required header + JSON reaches a controlled test handler;
+- unsafe request without header is rejected;
+- wrong custom-header value is rejected;
+- form-encoded/text/plain unsafe request is rejected;
+- malformed JSON returns bounded deterministic 4xx JSON;
+- oversized admin JSON body is rejected without reaching the handler;
+- no permissive CORS response enables arbitrary cross-origin admin mutation;
+- public `/`, `/api/feed`, health and public assets preserve existing behavior when admin is enabled and disabled;
+- errors do not expose stack/database/secret detail.
+
+Browser testing is not required for the minimal shell if integration tests prove the request boundary; P7 owns complete browser admin workflows. A small browser smoke may be added only if it materially improves confidence without pulling P7 forward.
+
+PRESERVED BEHAVIOR
+Preserve topic independence, singleton Publication semantics, existing public Web behavior, Worker ownership of collection, Source network safety, and all completed public-feed/presentation behavior.
+
+NON-GOALS
+Do not implement:
+- Source/endpoint CRUD;
+- check-now;
+- health/run admin reads;
+- admin browser forms/workflows;
+- native login/session/account/role identity;
+- Cloudflare token verification inside the app unless a separately approved ADR changes the perimeter design;
+- application storage of Cloudflare identity;
+- Publication/Relevance/Category CRUD;
+- direct-origin deployment configuration itself unless a current repository deployment module already owns it and a true dependency is proven.
+
+REQUIRED VALIDATION
+Run focused tests while developing, then before completion run at least:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm test`
+- `npm run check`
+- `git diff --check`
+
+Confirm `package.json` is `0.14.3`, no npm lockfile exists, and no test/report claims that local Express behavior proves Cloudflare/direct-origin deployment protection.
+
+FINAL REPORT
+Report files changed, admin-enable semantics, request-integrity mechanism, security/error headers, focused/regression commands actually run and results, and the explicit limitation that Cloudflare/direct-origin protection remains an external deployment property to be observed at Phase 14 closeout.
