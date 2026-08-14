@@ -1,9 +1,11 @@
 import { parseDatabaseConfig } from '../../database/config.ts';
 import { createDatabase } from '../../database/database.ts';
 import { createDatabaseDependency } from '../../database/readiness.ts';
+import { createSourceAdministrationService } from '../../admin/source-administration.ts';
 import { readPublicFeed } from '../../public-feed/repository.ts';
 import { createWebApp } from './create-app.ts';
 import { startWebServer } from './server.ts';
+import { registerSourceAdministrationRoutes } from './source-administration-router.ts';
 import { parseWebConfig } from './web-config.ts';
 
 async function main(): Promise<void> {
@@ -22,7 +24,12 @@ async function main(): Promise<void> {
             read: (request) => readPublicFeed(applicationDatabase, request),
           },
         },
-        { adminEnabled: config.adminEnabled },
+        {
+          adminEnabled: config.adminEnabled,
+          registerAdminApiRoutes: registerSourceAdministrationRoutes(
+            createSourceAdministrationService(applicationDatabase),
+          ),
+        },
       ),
       config,
     );
