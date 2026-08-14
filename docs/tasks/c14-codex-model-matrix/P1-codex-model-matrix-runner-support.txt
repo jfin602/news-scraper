@@ -16,7 +16,7 @@ MODEL / REASONING / USAGE
 - Efficiency rationale: the implementation boundary is explicit and testable; no Sol capability is justified.
 
 VERSIONING
-- Required unchanged project version: `0.14.0`.
+- Required unchanged project version: `0.14.7`.
 - This correction MUST NOT change `package.json` version.
 - Do not create `package-lock.json` or `npm-shrinkwrap.json`.
 
@@ -29,7 +29,7 @@ Before editing:
 5. inspect `scripts/validate-codex-phase.mjs` and confirm whether it needs changes or only inherits parser behavior;
 6. inspect `test/unit/codex-phase-runner.test.ts` and `test/unit/codex-phase-prompt-grammar.test.ts`, including every assertion that treats the current configuration set as exact;
 7. inspect current Phase 14 task files and historical correction grammar so existing supported labels remain parseable;
-8. confirm top-level `package.json` is exactly `0.14.0` and stop on unexpected version or runner drift.
+8. confirm top-level `package.json` is exactly `0.14.7` and stop on unexpected version or runner drift.
 
 GOAL
 Make Luna a first-class economical Codex implementation tier and add Medium reasoning choices without weakening the runner's fail-closed task grammar or existing Terra/Sol behavior.
@@ -199,7 +199,7 @@ Run focused tests during implementation, then before completion run at least:
 The correction-folder validator must remain green even though this stack's own P1/P2 metadata uses `Terra High`: the current runner parses the entire stack before P1 executes, so using a newly introduced Luna label in this correction's own metadata would make the pre-change runner reject the stack before it could update itself.
 
 Confirm after validation:
-- top-level `package.json` is still `0.14.0`;
+- top-level `package.json` is still `0.14.7`;
 - no npm lockfile exists;
 - only intended runner/tests/workflow docs changed;
 - Phase 14 task grammar remains valid;
@@ -213,5 +213,5 @@ Report:
 - where in `runCli` the compatibility preflight occurs;
 - focused and broader validation commands actually run/results;
 - documentation files synchronized;
-- confirmation that `package.json` remains `0.14.0`;
+- confirmation that `package.json` remains `0.14.7`;
 - any observed limitation or planning drift.

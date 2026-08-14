@@ -16,7 +16,7 @@ MODEL / REASONING / USAGE
 - Efficiency rationale: validation is explicit and should stop on architectural drift instead of spending a stronger model to redesign unrelated runner behavior.
 
 VERSIONING
-- Required unchanged project version: `0.14.0`.
+- Required unchanged project version: `0.14.7`.
 - This closeout MUST NOT advance the roadmap or change `package.json` version.
 - Do not create `package-lock.json` or `npm-shrinkwrap.json`.
 
@@ -30,7 +30,7 @@ Before any write:
 3. inspect `scripts/codex-phase-core.mjs`, `scripts/codex-phase.mjs`, `scripts/validate-codex-phase.mjs`, `test/unit/codex-phase-runner.test.ts`, and `test/unit/codex-phase-prompt-grammar.test.ts`;
 4. inspect `AGENTS.md`, `docs/README.md`, and `docs/design/ui-workflow.md` for policy consistency;
 5. inspect the current Phase 14 prompt folder and confirm its existing recommendation labels still parse under the new matrix;
-6. confirm `package.json` is exactly `0.14.0` and stop on version drift.
+6. confirm `package.json` is exactly `0.14.7` and stop on version drift.
 
 CLOSEOUT GOAL
 Prove the runner now supports the intended economical Luna/Terra/Sol matrix, preserves all previous runner safety semantics, rejects incompatible GPT-5.6 Codex CLI versions before execution artifacts/processes, and leaves documentation consistent with the executable matrix.
@@ -118,7 +118,7 @@ Do NOT launch a paid/model task merely to prove Luna availability during closeou
 
 FINAL STATE CHECK
 Confirm:
-- `package.json` remains `0.14.0`;
+- `package.json` remains `0.14.7`;
 - no npm lockfile exists;
 - correction changes are limited to runner/tooling tests and workflow docs;
 - current Phase 14 task folder remains parser-valid;
@@ -132,5 +132,5 @@ Report:
 - CLI minimum-version behavior and actual local `codex --version` observation if available;
 - commands run and results;
 - any bounded fixes made during closeout;
-- confirmation that package version remains `0.14.0`;
+- confirmation that package version remains `0.14.7`;
 - next action if GREEN: revalidate unexecuted Phase 14 model ratings against the now-live Luna/Terra/Sol matrix before running Phase 14 implementation.
