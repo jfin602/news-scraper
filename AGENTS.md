@@ -16,14 +16,15 @@ The canonical customer-visible feed is the deployment root `/` and the canonical
 
 Follow `BOOT.md`.
 
-- `/closeout` is the phase-handoff command after a roadmap phase has formally closed. It performs a quick closeout/evidence check and, only when green, advances `package.json` to `0.<next phase>.0`.
+- `/closeout` is the roadmap phase-handoff/terminal command after a phase has formally closed. For a green non-terminal phase it performs the next `0.<phase>.0` version-only transition; for the final documented roadmap phase it performs no package transition and reports roadmap completion instead of inventing a successor.
 - A correction stack may also contain a final manual closeout prompt, but that correction closeout is not `/closeout`; it clears only the correction/gate and preserves the active roadmap phase/package version.
 - `/docs-review` is always a read-only first pass.
 - Do not modify documentation during review/cleanup/alignment until findings are approved and either `/docs-apply` is invoked or a generated docs snapshot is used with `/docs-prompt` to emit one docs-only Codex prompt.
 - `/docs-apply` authorizes only approved documentation changes and may commit them directly to `main` unless the user requests otherwise.
 - `/docs-prompt` is the read-only alternative after approval: run `npm run docs:snapshot`, provide `news-scraper-docs-context.zip`, then use `/docs-prompt` to produce one prompt for Codex to apply locally. `BOOT.md` defines its full contract.
 - Preserve unrelated wording during scoped documentation fixes.
-- Normal phase handoff follows `/closeout` → `/docs-review` → `/docs-apply` → `/prompt-ass` → `/prompt-plan` → `/prompt-write <folder name>`.
+- Normal non-terminal phase handoff follows `/closeout` → `/docs-review` → `/docs-apply` → `/prompt-ass` → `/prompt-plan` → `/prompt-write <folder name>`.
+- Terminal Phase 21 `/closeout` preserves the final package version and reports `Roadmap status: COMPLETE`; any later roadmap work requires explicit owner-approved roadmap extension before a new phase baseline exists.
 - Use `docs/codex-model-selection.md` with `BOOT.md` for the minimum-cost-adequate model-family and reasoning-effort workflow.
 - Parallel UI work is governed by `docs/design/ui-workflow.md` on the permanent `ui-polish` branch/worktree. The normal targeted path is `/ui-plan` → `/ui-write`; when durable design guidance must first change, `/ui-plan` requires `/ui-review` → explicit approval → `/ui-apply` → rerun `/ui-plan` before `/ui-write`.
 
@@ -33,11 +34,12 @@ Follow the canonical versioning and prompt-numbering rules in `BOOT.md`.
 
 - Roadmap phase stack prompt filenames are one-based: `P1`, `P2`, `P3`, and so on; do not create `P0` tasks.
 - Roadmap phase project versions use `0.<roadmap phase>.<phase prompt number>` while pre-1.0.
-- `0.<phase>.0` is the roadmap phase baseline. After a roadmap phase formally closes, `/closeout` is the canonical handoff: it verifies the closeout and, on a green result, performs the next `0.<new phase>.0` transition. That transition consumes no prompt number; P1 still maps to `.1`, P2 to `.2`, and so on.
-- Invoking `/closeout` constitutes explicit repository-owner authorization for its green-path version-only transition. The baseline never changes merely because a phase appears complete.
+- `0.<phase>.0` is a non-terminal roadmap phase baseline. After a non-terminal roadmap phase formally closes, `/closeout` verifies the closeout and, on a green result, performs the next `0.<new phase>.0` transition. That transition consumes no prompt number; P1 still maps to `.1`, P2 to `.2`, and so on.
+- Invoking non-terminal `/closeout` constitutes explicit repository-owner authorization for its green-path version-only transition. The baseline never changes merely because a phase appears complete.
+- Terminal roadmap `/closeout` performs no package write, does not create a successor `.0` baseline, and does not reserve or infer another phase number.
 - `package.json` is the sole authoritative current-version source; do not duplicate the current version in root docs or source constants. Task prompts may declare a target/unchanged version because runner execution validates that metadata against `package.json`.
 - The project intentionally does not use npm package locks. Repository npm configuration disables `package-lock.json` generation; dependency installation uses `package.json` rather than lockfile metadata.
-- Project version changes occur only through execution of a new Codex roadmap-phase prompt, a green `/closeout` transition, or another explicit owner-authorized `.0` transition after the prior phase closes. Other documentation/prompt/review workflow activity does not increment the version.
+- Project version changes occur only through execution of a new Codex roadmap-phase prompt, a green non-terminal `/closeout` transition, or another explicit owner-authorized `.0` transition after the prior phase closes. Other documentation/prompt/review workflow activity, correction work, UI work, and terminal `/closeout` do not increment the version.
 - Non-versioned correction stacks do not change `package.json` version. Their P-numbers are local ordering only and do not consume/reserve roadmap phase patch numbers.
 - Roadmap prompt reruns keep their assigned version. Correction prompt reruns keep their declared unchanged version.
 - The completed Phase 10 entry singleton implementation correction was the first non-versioned correction stack and did not consume Phase 10 patch numbers.
@@ -92,6 +94,7 @@ docs/roadmap/mvp-roadmap.md
 docs/design/README.md
 docs/design/ui-workflow.md
 docs/decisions/single-publication-simplified-data-model.md
+docs/decisions/production-data-and-schema-compatibility.md
 docs/decisions/topic-independent-publication-model.md  # historical superseded ADR
 docs/decisions/whitelist-and-structured-feed-first.md
 docs/decisions/original-link-and-normalized-metadata.md
@@ -118,7 +121,7 @@ If a task conflicts with a locked law in `docs/contracts/project-contract.md`, i
 
 ## Canonical domain law
 
-Use terminology from `docs/contracts/domain-and-data-contract.md` plus the Accepted `docs/decisions/single-publication-simplified-data-model.md`.
+Use terminology from `docs/contracts/domain-and-data-contract.md` plus the Accepted `docs/decisions/single-publication-simplified-data-model.md` and, for post-launch persistence lifecycle, `docs/decisions/production-data-and-schema-compatibility.md`.
 
 High-risk distinctions:
 
@@ -145,6 +148,7 @@ High-risk distinctions:
 - Public feed date uses parsed `published_at` when available and otherwise `first_seen_at`, with the fallback source detectable.
 - The public headline destination is stored Article `original_url`; `canonical_identity_url` remains an identity field.
 - Before production compatibility is established, databases are created fresh from the smallest current canonical migration chain; old pre-production database contents are disposable, and legacy-only migration/code/API/type/test/fixture/configuration artifacts are not retained merely as an upgrade/history surface.
+- Phase 19 establishes and validates production upgrade/restore/rollback procedures; acceptance of Phase 20 establishes the first supported production schema/data baseline. From that point forward, customer production data is durable supported state, supported production migration history must remain upgrade-capable, and normal changes preserve governed data/relationships. Clean migration-from-zero remains required but does not alone prove a production upgrade.
 
 ## Collection law
 
@@ -270,6 +274,8 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 - Phase 12 is complete with durable API/database/browser discovery evidence.
 - Phase 13 is complete with durable persistence/read-model, responsive presentation, branding, theme, accessibility, loading-state, browser, and Phase 12 regression evidence.
 - Phase 14 is complete by explicit repository-owner acceptance on August 14, 2026. Its historical validation artifact remains BLOCKED/RED solely because the Level 8 Cloudflare Access/direct-origin deployment observation was unavailable; the roadmap/testing contract moved that observation to Phase 19 without rewriting historical evidence or claiming it was observed.
+- Phase 19 must validate the production schema-upgrade/restore/rollback procedure before launch; Phase 20 acceptance identifies the supported production baseline.
+- Phase 21 refactors inherit the full applicable regression/evidence matrix. Schema/persisted-state changes require both migration-from-zero and supported Phase 20-baseline upgrade/data preservation; performance/resource claims require materially comparable before/after measurements; final Phase 21 closeout requires Level 8 reference-deployment evidence on the refactored tree.
 
 ## Roadmap law
 
@@ -280,6 +286,16 @@ Current phase: **Phase 16 — True duplicate detection and grouping**.
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with its recorded live-source limitation preserved. The Phase 10 entry singleton correction and Phases 10–15 are complete.
 
 Phase 15 is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 is active and owns true duplicate detection, persisted review/dismissal state, Duplicate groups/memberships, deterministic Primary selection, and ordinary-feed duplicate suppression. Phase 16 P1–P6 are implemented through project version `0.16.6`; the non-versioned `c16-test-efficiency` correction is complete without consuming or renumbering a roadmap prompt. Phase 16 P7 closeout is the next roadmap task and must be revalidated under the validation-efficiency/command-containment policy before manual execution. Do not pull Phase 17 moderation/UI or later work into Phase 16 unless a true dependency or explicit decision requires it.
+
+Remaining roadmap order:
+
+- Phase 17 — Article and duplicate moderation
+- Phase 18 — Configurable HTML collection
+- Phase 19 — Reliability, observability, and production operations
+- Phase 20 — Customer launch validation
+- Phase 21 — Codebase simplification and maintainability hardening
+
+Phase 20 acceptance establishes the first supported production schema/data baseline and begins a feature freeze. No deferred product feature is implemented until Phase 21 closes, except bounded critical production/security/data-integrity/operational fixes. Phase 21 is the terminal documented roadmap phase; closing it does not create Phase 22 or a `0.22.0` baseline. Any later feature roadmap requires explicit repository-owner approval and documentation alignment.
 
 Phases 1–9 remain the tech-demo critical path historically.
 
@@ -294,6 +310,8 @@ Phases 1–9 remain the tech-demo critical path historically.
 - Do not claim runtime/browser/database/live-Source behavior unless actually observed at the corresponding evidence level.
 - Prefer smallest correct changes over speculative abstractions or compatibility bridges.
 - Trace shared helpers/consumers before changing data or collection semantics.
+- After Phase 20, trace the supported production baseline, migration path, persisted relationships, backup/rollback/restore, and affected consumers/tests before approving persistence refactors; never apply the pre-production destructive-reset rule to supported customer data.
+- For Phase 21, derive the task stack from the accepted launched tree and observed maintainability/measurement evidence. Do not manufacture cleanup work, optimize for raw LOC/file/module/dependency counts, or add deferred product capability.
 - Before Phase 16 work trace Source-scoped Article identity → separately persisted Articles → duplicate evidence/signals → canonical review pair/state → Duplicate-group membership → Primary selection → public-feed eligibility/suppression → Collection-run duplicate effects → tests.
 - Before public-route work trace singleton Publication settings → canonical read model → `/api/feed` → `/` page/client → unavailable/error behavior → external links → browser tests.
 - Before UI work read `docs/design/README.md` and `docs/design/ui-workflow.md`, trace presentation source/shared frontend consumers/tests, and keep concurrent UI implementation isolated in the `ui-polish` worktree.
@@ -307,6 +325,12 @@ Phases 1–9 remain the tech-demo critical path historically.
 ## Pre-production compatibility rule
 
 Use one canonical design. Do not add old/new aliases, synchronized duplicate fields, fallback compatibility paths, dormant Publication tenant fields, or speculative migration bridges. Before production database compatibility is established, databases from older source trees are disposable and the active migration/runtime/test/config tree MUST be reduced to the smallest current canonical system. Delete/squash/replace legacy-only migrations, compatibility wrappers/APIs/types, obsolete tests/fixtures, slug-addressed public/runtime routing, Publication-scoped repository APIs, and obsolete configuration paths when they have no independent current purpose. Historical detail belongs in Git history, superseded ADRs, historical prompts, and validation artifacts instead of active compatibility machinery.
+
+This rule applies only before the accepted Phase 20 production baseline and must not be used to destroy/rebuild supported customer production state.
+
+## Production compatibility rule
+
+Phase 19 establishes and validates production backup/restore/deployment/rollback/schema-upgrade procedures. Acceptance of Phase 20 customer launch establishes the first supported production source/version/schema baseline. From that point forward, normal upgrades/refactors preserve customer production data and governed relationships, supported production migration history remains upgrade-capable, and clean migration-from-zero does not substitute for supported-upgrade proof. `docs/decisions/production-data-and-schema-compatibility.md` is authoritative.
 
 ## Repository identity
 
