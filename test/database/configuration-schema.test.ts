@@ -26,6 +26,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
       '0009_source_administration_foundation.sql',
       '0010_endpoint_collection_job_trigger_kind.sql',
       '0011_publication_presentation_timezone.sql',
+      '0012_duplicate_persistence_foundation.sql',
     ]);
     assert.deepEqual(
       await migrateDatabase({ connectionString: databaseUrl }),
@@ -92,6 +93,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
         { filename: '0009_source_administration_foundation.sql' },
         { filename: '0010_endpoint_collection_job_trigger_kind.sql' },
         { filename: '0011_publication_presentation_timezone.sql' },
+        { filename: '0012_duplicate_persistence_foundation.sql' },
       ]);
 
       const removedTenancy = await client.query<{

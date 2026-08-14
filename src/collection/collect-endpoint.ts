@@ -122,6 +122,8 @@ export interface EndpointCollectionAttemptResult {
   readonly rejectedCount: number;
   readonly excludedCount: number;
   readonly failedCount: number;
+  readonly duplicateReviewCreatedCount: number;
+  readonly duplicateGroupedCount: number;
   readonly candidates?: readonly ArticleCandidate[];
   readonly reason?: string;
   readonly detail?: string;
@@ -457,6 +459,8 @@ interface ProcessingAccounting {
   readonly rejectedCount: number;
   readonly excludedCount: number;
   readonly failedCount: number;
+  readonly duplicateReviewCreatedCount: number;
+  readonly duplicateGroupedCount: number;
 }
 
 interface ProcessingResult {
@@ -477,6 +481,8 @@ async function processCandidates(
     rejectedCount: articleLinkRejectionCount,
     excludedCount: 0,
     failedCount: 0,
+    duplicateReviewCreatedCount: 0,
+    duplicateGroupedCount: 0,
   };
 
   if (candidates.length === 0) {
@@ -843,6 +849,9 @@ function resultFromFinalized(
     finalized.rejectedCount !== attempted.rejectedCount ||
     finalized.excludedCount !== attempted.excludedCount ||
     finalized.failedCount !== attempted.failedCount ||
+    finalized.duplicateReviewCreatedCount !==
+      attempted.duplicateReviewCreatedCount ||
+    finalized.duplicateGroupedCount !== attempted.duplicateGroupedCount ||
     finalized.outcomeCode !== attempted.outcome ||
     finalized.retryClassification !== attempted.retryClassification ||
     finalized.responseEtag !== attempted.responseValidators?.etag ||
@@ -915,6 +924,8 @@ const processingNotRun = Object.freeze({
   rejectedCount: 0,
   excludedCount: 0,
   failedCount: 0,
+  duplicateReviewCreatedCount: 0,
+  duplicateGroupedCount: 0,
 });
 
 function parserForEndpoint(

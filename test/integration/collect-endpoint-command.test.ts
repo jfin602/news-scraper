@@ -408,6 +408,8 @@ function successfulResult(): EndpointCollectionAttemptResult {
     rejectedCount: 1,
     excludedCount: 0,
     failedCount: 0,
+    duplicateReviewCreatedCount: 0,
+    duplicateGroupedCount: 0,
     candidates: Object.freeze([0, 1, 2].map(candidate)),
     httpStatusCode: 200,
     wireByteCount: 100,
@@ -440,6 +442,8 @@ function baseAttemptResult(): EndpointCollectionAttemptResult {
     rejectedCount: 0,
     excludedCount: 0,
     failedCount: 0,
+    duplicateReviewCreatedCount: 0,
+    duplicateGroupedCount: 0,
   };
 }
 

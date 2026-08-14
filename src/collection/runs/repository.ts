@@ -63,6 +63,8 @@ export interface PersistedCollectionRun {
   readonly rejectedCount: number;
   readonly excludedCount: number;
   readonly failedCount: number;
+  readonly duplicateReviewCreatedCount: number;
+  readonly duplicateGroupedCount: number;
   readonly errorCode: string | undefined;
   readonly errorDetail: string | undefined;
 }
@@ -101,6 +103,8 @@ export interface FinalizeCollectionRunInput {
   readonly rejectedCount: number;
   readonly excludedCount: number;
   readonly failedCount: number;
+  readonly duplicateReviewCreatedCount?: number;
+  readonly duplicateGroupedCount?: number;
   readonly error?: {
     readonly code: string;
     readonly detail: string;
@@ -139,6 +143,8 @@ export interface CollectionRunRow {
   readonly rejected_count: unknown;
   readonly excluded_count: unknown;
   readonly failed_count: unknown;
+  readonly duplicate_review_created_count: unknown;
+  readonly duplicate_grouped_count: unknown;
   readonly error_code: unknown;
   readonly error_detail: unknown;
 }
@@ -169,6 +175,8 @@ interface ValidatedFinalization {
   readonly rejectedCount: number;
   readonly excludedCount: number;
   readonly failedCount: number;
+  readonly duplicateReviewCreatedCount: number;
+  readonly duplicateGroupedCount: number;
   readonly errorCode: string | null;
   readonly errorDetail: string | null;
 }
@@ -181,7 +189,9 @@ const COLLECTION_RUN_COLUMNS = `
   response_etag, response_last_modified, raw_item_count,
   source_item_filtered_count, normalized_candidate_count, normalization_failure_count,
   article_link_rejection_count, created_count, updated_count, unchanged_count,
-  rejected_count, excluded_count, failed_count, error_code, error_detail`;
+  rejected_count, excluded_count, failed_count,
+  duplicate_review_created_count, duplicate_grouped_count,
+  error_code, error_detail`;
 
 export class CollectionRunPersistenceError extends Error {
   constructor(reason: string) {
@@ -210,8 +220,9 @@ export async function startCollectionRun(
        parser_status, normalization_status, processing_status, raw_item_count,
        source_item_filtered_count, normalized_candidate_count, normalization_failure_count,
        article_link_rejection_count, created_count, updated_count, unchanged_count,
-       rejected_count, excluded_count, failed_count
-     ) VALUES ($1, $2, $3, $4, 'running', 'not_run', 'not_run', 'not_run', 'not_run', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+       rejected_count, excluded_count, failed_count,
+       duplicate_review_created_count, duplicate_grouped_count
+     ) VALUES ($1, $2, $3, $4, 'running', 'not_run', 'not_run', 'not_run', 'not_run', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
      RETURNING ${COLLECTION_RUN_COLUMNS}`,
     [randomUUID(), sourceEndpointId, executionId, triggerKind],
   );
@@ -253,8 +264,10 @@ export async function finalizeCollectionRun(
          rejected_count = $24,
          excluded_count = $25,
          failed_count = $26,
-         error_code = $27,
-         error_detail = $28
+         duplicate_review_created_count = $27,
+         duplicate_grouped_count = $28,
+         error_code = $29,
+         error_detail = $30
      WHERE id = $1 AND run_status = 'running'
      RETURNING ${COLLECTION_RUN_COLUMNS}`,
     [
@@ -284,6 +297,8 @@ export async function finalizeCollectionRun(
       finalization.rejectedCount,
       finalization.excludedCount,
       finalization.failedCount,
+      finalization.duplicateReviewCreatedCount ?? 0,
+      finalization.duplicateGroupedCount ?? 0,
       finalization.errorCode,
       finalization.errorDetail,
     ],
@@ -421,6 +436,12 @@ export function mapCollectionRunRow(
       rejectedCount: requiredNonnegativeInteger(row.rejected_count),
       excludedCount: requiredNonnegativeInteger(row.excluded_count),
       failedCount: requiredNonnegativeInteger(row.failed_count),
+      duplicateReviewCreatedCount: requiredNonnegativeInteger(
+        row.duplicate_review_created_count,
+      ),
+      duplicateGroupedCount: requiredNonnegativeInteger(
+        row.duplicate_grouped_count,
+      ),
       errorCode: nullableErrorCode(row.error_code),
       errorDetail: nullableTrimmedString(
         row.error_detail,
@@ -510,6 +531,14 @@ function validateFinalization(
       rejectedCount: nonnegativeInteger(input.rejectedCount),
       excludedCount: nonnegativeInteger(input.excludedCount),
       failedCount: nonnegativeInteger(input.failedCount),
+      duplicateReviewCreatedCount:
+        input.duplicateReviewCreatedCount === undefined
+          ? 0
+          : nonnegativeInteger(input.duplicateReviewCreatedCount),
+      duplicateGroupedCount:
+        input.duplicateGroupedCount === undefined
+          ? 0
+          : nonnegativeInteger(input.duplicateGroupedCount),
       errorCode:
         error === undefined
           ? null

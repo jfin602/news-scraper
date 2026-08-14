@@ -160,6 +160,8 @@ describe('canonical endpoint collection service', () => {
         rejectedCount: 0,
         excludedCount: 0,
         failedCount: 0,
+        duplicateReviewCreatedCount: 0,
+        duplicateGroupedCount: 0,
       },
     ]);
   });
@@ -347,6 +349,8 @@ describe('canonical endpoint collection service', () => {
       rejectedCount: 0,
       excludedCount: 0,
       failedCount: 0,
+      duplicateReviewCreatedCount: 0,
+      duplicateGroupedCount: 0,
     });
   });
 
@@ -427,6 +431,8 @@ describe('canonical endpoint collection service', () => {
         rejectedCount: testCase.expected[3],
         excludedCount: 0,
         failedCount: 0,
+        duplicateReviewCreatedCount: 0,
+        duplicateGroupedCount: 0,
       };
       assert.deepEqual(processingTuple(result), processingTuple(processing));
       assert.deepEqual(runs.finalizations[0], {
@@ -1468,6 +1474,8 @@ function persistedRun(input: {
     rejectedCount: finalization?.rejectedCount ?? 0,
     excludedCount: finalization?.excludedCount ?? 0,
     failedCount: finalization?.failedCount ?? 0,
+    duplicateReviewCreatedCount: finalization?.duplicateReviewCreatedCount ?? 0,
+    duplicateGroupedCount: finalization?.duplicateGroupedCount ?? 0,
     errorCode: finalization?.error?.code,
     errorDetail: finalization?.error?.detail,
   });
@@ -1481,6 +1489,8 @@ const processingNotRun = {
   rejectedCount: 0,
   excludedCount: 0,
   failedCount: 0,
+  duplicateReviewCreatedCount: 0,
+  duplicateGroupedCount: 0,
 } as const;
 
 function assertProcessingNotRun(result: {

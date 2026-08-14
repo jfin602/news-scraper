@@ -258,6 +258,8 @@ function persistedRun(
     rejectedCount: finalization?.rejectedCount ?? 0,
     excludedCount: finalization?.excludedCount ?? 0,
     failedCount: finalization?.failedCount ?? 0,
+    duplicateReviewCreatedCount: finalization?.duplicateReviewCreatedCount ?? 0,
+    duplicateGroupedCount: finalization?.duplicateGroupedCount ?? 0,
     errorCode: finalization?.error?.code,
     errorDetail: finalization?.error?.detail,
   });
