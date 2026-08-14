@@ -314,6 +314,23 @@ Final-tree validation MUST, as applicable:
 
 Routine implementation review may use observed terminal output in the review session. Implementation-roadmap phase closeout MUST create a durable record under `docs/validation/` tied to the exact accepted source tree and listing the executed commands/procedures, relevant environment/tool versions, results, evidence levels, and limitations. The artifact records evidence; it does not redefine contracts.
 
+### Production-upgrade validation
+
+Before Phase 20 production-baseline acceptance, the pre-production rebuild-from-zero rule remains authoritative and unsupported historical pre-production databases do not require preservation fixtures.
+
+Phase 19 MUST establish and validate the schema-upgrade/rollback/restore procedure that will govern the customer launch. Acceptance of Phase 20 identifies the first supported production schema/data baseline.
+
+From that baseline forward, whenever a change modifies schema, persisted representation, migration history, or data-access behavior in a way that could affect supported stored state:
+
+- migration-from-zero MUST still pass for new/disposable installations;
+- a representative database at the supported production baseline MUST be upgraded through the real migration path;
+- the upgrade MUST preserve governed data, relationships, identities, provenance, moderation state, duplicate state, editorial configuration, and other persistence implicated by the change;
+- rollback/restore behavior required by the operations contract MUST be exercised at the evidence level appropriate to the change;
+- clean-install success MUST NOT be reported as production-upgrade proof;
+- supported production migration history MUST NOT be rewritten merely to make the final schema look cleaner.
+
+Detailed compatibility policy is governed by `docs/decisions/production-data-and-schema-compatibility.md`.
+
 At minimum:
 
 - Phase 1: startup/config/static/test-runner/local-validation foundation;
@@ -335,8 +352,9 @@ At minimum:
 - Phase 16: Level 2 deterministic unit evidence covers strong-vs-weak signal classification; exact canonical-identity URL evidence; normalized-title equality/fuzzy similarity remaining review-only; generic/recurring-title, related-coverage, and other false-positive safeguards; canonical unordered Article-pair ordering; bounded deterministic signal/reason/confidence generation; every deterministic Primary-selection tie-break; safe fallthrough when trustworthy original-publisher metadata is absent rather than inferred; unchanged dismissed evidence remaining suppressed; and materially changed evidence remaining distinguishable. Level 3 component/integration evidence proves duplicate evaluation occurs only after Source-scoped Article identity/persistence; same-Source repeats remain identity/idempotency rather than grouping; weak evidence creates/updates review state without public suppression; strong evidence groups idempotently; the canonical feed read model/API suppresses visible non-Primary members while retaining ungrouped/Primary rows; Source/Category filters, literal search, cursors/load-more, and chronological ordering cannot resurrect non-Primary rows or create another eligibility path; all Article/observation provenance remains available; and duplicate effects compose with, rather than replace, canonical `created`/`updated`/`unchanged` processing outcomes. Level 4 disposable-PostgreSQL evidence proves migration from zero; canonical unordered review-pair uniqueness; review-state/dismissal persistence and unchanged-dismissal idempotency; at-most-one group membership per Article; Primary membership in its own group; exactly one Primary per group; racing candidate creation/grouping; repeated same-group evidence idempotency; atomic strong-evidence merging of existing groups where supported; rollback safety; preservation of every Article/observation with no provenance-destroying cascade/delete; and exact orthogonal `duplicate_review_created`/`duplicate_grouped` Collection-run effect accounting where produced. Mocks do not substitute for these guarantees. Run relevant existing Article-identity, collection, Source, Category/Relevance, public-feed discovery, and browser/public-presentation regressions for the blast radius. Phase 16 does not require Phase 17 review UI/browser evidence, Level 7 live-Source evidence, or Level 8 deployment evidence;
 - Phase 17: reversible moderation and provenance regressions;
 - Phase 18: HTML adapter parity with existing downstream collection tests;
-- Phase 19: security, restore, deployment, and reference-operations validation, including Level 8 observation that unauthenticated admin access is challenged or denied by Cloudflare Access, an authorized operator can reach the admin surface, direct-origin bypass fails, and the actual deployed origin-protection mechanism is identified;
-- Phase 20: launch validation against the final deployment and approved Sources.
+- Phase 19: security, restore, deployment, schema-upgrade/rollback, and reference-operations validation. Phase 19 MUST prove the upgrade/restore procedure intended to establish the production baseline and include Level 8 observation that unauthenticated admin access is challenged or denied by Cloudflare Access, an authorized operator can reach the admin surface, direct-origin bypass fails, and the actual deployed origin-protection mechanism is identified;
+- Phase 20: launch validation against the final deployment and approved Sources, with durable evidence identifying the launched source tree/version/schema state that becomes the first supported production baseline;
+- Phase 21: behavior-preserving whole-codebase simplification and maintainability hardening. Level 1 evidence MUST prove intended removals/consolidations/dependency changes and absence of forbidden topic/compatibility drift; shared-helper, ownership-boundary, orchestration, transaction/resource-lifecycle, or other structural changes require focused tests plus all important producer/consumer regressions they can affect; database-access/persistence refactors require the applicable full Level 4 database matrix; collection-pipeline refactors require relevant Level 5 fixture coverage; public/admin structural refactors require Level 6 browser coverage; security/recovery boundaries require their applicable specialized suites; any Phase 21 schema/persisted-representation change MUST prove both migration from zero and supported upgrade/data preservation from the accepted Phase 20 production baseline under `docs/decisions/production-data-and-schema-compatibility.md`; every claimed runtime/database/Worker/Web/startup/resource optimization MUST record comparable before/after measurements and may not use line/file/module-count reduction as performance evidence; and final closeout MUST rerun the complete applicable deterministic/specialized matrix plus Level 8 reference-deployment validation against the exact refactored tree. The durable Phase 21 artifact MUST record what complexity was removed, what intentionally remains, measured results/limitations, production-upgrade evidence where applicable, and the final integrated evidence set.
 
 Live public-network Source validation is not part of the ordinary deterministic local regression matrix.
 
@@ -374,7 +392,7 @@ A dedicated fresh-database slow path remains REQUIRED when fresh database state 
 - test-admin capability/cleanup behavior;
 - any case where preserving the migrated schema between tests would materially change the behavior being proved.
 
-Migration work that transforms already-populated **supported** state MUST additionally exercise representative fixtures through the real migration path. The current pre-production singleton correction has no such supported old-data input; its contract is fresh rebuild from zero. Tests/fixtures whose only purpose is to migrate or preserve superseded disposable schemas are removed rather than retained as regression obligations.
+Migration work that transforms already-populated **supported** state MUST additionally exercise representative fixtures through the real migration path. Before Phase 20 production-baseline acceptance, the completed pre-production singleton correction has no such supported old-data input and its contract remains fresh rebuild from zero. From the accepted Phase 20 baseline forward, supported production-upgrade fixtures/evidence are required whenever a migration transforms supported persisted state under the production compatibility ADR. Tests/fixtures whose only purpose is to migrate or preserve superseded disposable pre-production schemas remain unnecessary.
 
 Parallel database test files/scopes MUST NOT share mutable schemas/databases unless concurrency between those actors is the behavior under test. Independently parallelized files/scopes each own a separate disposable database. Concurrency MUST be bounded so aggregate PostgreSQL pool/connection pressure does not make the suite unreliable. Phase 4 endpoint-lock validation is an intentional shared-database concurrency case: independent clients/process-equivalent actors MUST contend for the same endpoint lock against the same disposable PostgreSQL database, prove that only one owner succeeds at a time, prove unrelated endpoint locks can proceed independently, and prove release/reacquisition on relevant success/failure paths.
 
@@ -457,7 +475,8 @@ As the relevant phases arrive, tests MUST cover realistic failures such as:
 - overlapping-run prevention;
 - PostgreSQL interruption/recovery;
 - failed admin mutation/request-integrity checks;
-- backup/restore and interrupted-run reconciliation before production launch.
+- backup/restore and interrupted-run reconciliation before production launch;
+- supported production schema-upgrade/rollback failure paths after the production baseline exists.
 
 Failure tests MUST verify preserved invariants and recovery state, not only that an exception was thrown.
 
@@ -491,6 +510,8 @@ Coverage tooling MAY be used to identify gaps, but contract compliance is behavi
 > Every contract-critical invariant touched by implemented behavior must have direct automated protection at the lowest evidence level capable of actually proving it.
 
 Increasing or gaming a line percentage does not substitute for missing idempotency, concurrency, security, provenance, failure-isolation, duplicate, migration, or browser tests.
+
+Likewise, a refactor is not proven better merely because it reduces line count, file count, module count, dependency count, cyclomatic complexity, or another structural metric. Such measurements may support investigation, but acceptance depends on preserved behavior, clearer ownership, removed accidental complexity, and measured operational improvement where performance/resource claims are made.
 
 ## Flaky and skipped-test policy
 
