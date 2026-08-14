@@ -18,6 +18,7 @@ It establishes project identity, canonical terminology, authority, document rout
 - Current implementation gate: **Phase 16 P7 closeout revalidation and manual execution**
 - Production status: pre-production
 - Pre-production database policy: destructive fresh rebuild from the repository's smallest current canonical migration chain and bootstrap/configuration; databases from older source trees are disposable and legacy-only migration/runtime/test/config structure is removed rather than preserved for compatibility
+- Production compatibility boundary: Phase 19 establishes/validates upgrade/restore/rollback procedures; acceptance of Phase 20 customer launch establishes the first supported production schema/data baseline, after which `docs/decisions/production-data-and-schema-compatibility.md` governs preservation and upgrades
 - Initial Publication: publishing-industry news relevant to indie authors
 - Public direction: canonical root `/` rolling recent-headline feed plus canonical basic API `/api/feed`, sending readers to original publishers
 - Admin direction: Cloudflare Access-protected singleton Publication/Source/endpoint/Relevance/Category/Article/duplicate/health/change-history control plane, built after the tech-demo vertical slice
@@ -49,7 +50,9 @@ The first demonstrable milestone is: at least two real approved RSS/Atom Sources
 
 Phase 11 completed deterministic persisted Categories and configurable Relevance execution. Phase 12 completed deterministic Source/Category filters, bounded literal search, keyset/load-more cursors, and URL/reset navigation behavior. Phase 13 completed the governed public-presentation work while preserving those discovery semantics. Phase 14 completed Source administration and the Source RSS/Atom item admission filter by owner acceptance on August 14, 2026, with the historical Level 8 deployment-proof limitation preserved and now governed by Phase 19. Phase 15 completed Publication/Category/Relevance administration. Phase 16 P1–P6 and the non-versioned testing-efficiency correction are complete; P7 closeout remains pending. Do not pull Phase 17 moderation/UI or later work into Phase 16 unless a true dependency is demonstrated.
 
-Because the project is pre-production, databases from superseded source trees remain disposable. Current implementation work may rebuild development/pre-production databases from the canonical migration chain rather than preserving unsupported old schema/data compatibility.
+Because the project is currently pre-production, databases from superseded source trees remain disposable. Current implementation work may rebuild development/pre-production databases from the canonical migration chain rather than preserving unsupported old schema/data compatibility. That destructive reset policy does not apply to accepted customer production state after the Phase 20 production baseline; post-baseline upgrades are governed by `docs/decisions/production-data-and-schema-compatibility.md`.
+
+After Phase 20 customer launch, new product-feature work is frozen until Phase 21 closes. Critical production defects, security fixes, data-integrity fixes, and required operational repairs may use an appropriately bounded fix/correction path; unrelated deferred capability does not. Phase 21 is the terminal roadmap phase unless the repository owner explicitly approves a later roadmap extension.
 
 Every implementation phase and correction inherits `docs/contracts/testing-and-validation-contract.md`. Fast delivery does not permit regression protection, persistence proof, network-safety tests, or final-tree validation to be deferred when the corresponding behavior is introduced or changed. Validation efficiency means eliminating redundant execution and repeated setup while preserving the same applicable evidence coverage.
 
@@ -78,6 +81,7 @@ Governed by `docs/contracts/domain-and-data-contract.md` plus `docs/decisions/si
 - `Platform` = reusable aggregation software deployed/configured separately for different topics
 - `Publication` = the singleton configured news product/editorial configuration for one installation; **not** a relational tenant/ownership key
 - `legacy Publication selector` = obsolete pre-production implementation plumbing such as Publication IDs/slugs/FKs/scopes that the canonical model does not use
+- `production baseline` = the accepted Phase 20 launched source/version/schema state after which customer production data is durable supported state and normal upgrades must preserve it
 - `Source` = configured publisher/outlet; approval state determines whether it is trusted for collection
 - `Source endpoint` = configured feed/API/HTML location owned by a Source
 - `Collection run` = one attempt to collect one endpoint; persisted provenance begins with the first real fetch phase
@@ -128,30 +132,31 @@ Report authoritative conflicts rather than choosing silently.
 
 ## Document routing
 
-| Area                                                                                                                                                         | Read first                                                   |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| Locked laws / authority / product boundaries                                                                                                                 | `docs/contracts/project-contract.md`                         |
-| MVP users / demo-first capabilities / exclusions                                                                                                             | `docs/contracts/mvp-scope-and-users.md`                      |
-| Terminology / singleton model / entities / identity / provenance / Category/Relevance schema                                                                 | `docs/contracts/domain-and-data-contract.md`                 |
-| Testing / regression / evidence / DB/fixture/browser/live validation                                                                                         | `docs/contracts/testing-and-validation-contract.md`          |
-| Process/module architecture / deployment / Worker / scheduling / transactions                                                                                | `docs/architecture/system-architecture.md`                   |
-| Approval / bootstrap / collection / safety / Source RSS/Atom item admission / normalization / Relevance / operator configuration / identity / run accounting | `docs/contracts/source-and-collection-contract.md`           |
-| Article visibility / duplicate role / review/groups / Primary                                                                                                | `docs/contracts/article-lifecycle-and-deduplication.md`      |
-| Public feed / root routing / search / themes / admin UX / change history                                                                                     | `docs/contracts/public-feed-and-admin-contract.md`           |
-| UI design / presentation workflow / parallel UI branch                                                                                                       | `docs/design/README.md`, then `docs/design/ui-workflow.md`   |
-| Admin perimeter / SSRF / content safety / isolation / observability / recovery                                                                               | `docs/operations/security-reliability-and-operations.md`     |
-| Phase sequence / correction history / exit gates                                                                                                             | `docs/roadmap/mvp-roadmap.md`                                |
-| Singleton Publication data-model decision                                                                                                                    | `docs/decisions/single-publication-simplified-data-model.md` |
-| Historical superseded data-model decision                                                                                                                    | `docs/decisions/topic-independent-publication-model.md`      |
-| Whitelist/structured-feed decision                                                                                                                           | `docs/decisions/whitelist-and-structured-feed-first.md`      |
-| Original-link/normalization decision                                                                                                                         | `docs/decisions/original-link-and-normalized-metadata.md`    |
-| Cloudflare Access admin perimeter                                                                                                                            | `docs/decisions/cloudflare-access-admin-perimeter.md`        |
-| Codex model/reasoning selection and prompt efficiency                                                                                                        | `docs/codex-model-selection.md`                              |
-| Documentation index                                                                                                                                          | `docs/README.md`                                             |
-| Specialized validation plans                                                                                                                                 | `docs/testing/` when present                                 |
-| Roadmap/correction implementation prompts                                                                                                                    | `docs/tasks/` when present                                   |
-| Targeted UI prompts                                                                                                                                          | `docs/design/tasks/` when present                            |
-| Durable validation artifacts                                                                                                                                 | `docs/validation/` when present                              |
+| Area                                                                                                                                                         | Read first                                                        |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| Locked laws / authority / product boundaries                                                                                                                 | `docs/contracts/project-contract.md`                              |
+| MVP users / demo-first capabilities / exclusions                                                                                                             | `docs/contracts/mvp-scope-and-users.md`                           |
+| Terminology / singleton model / entities / identity / provenance / Category/Relevance schema                                                                 | `docs/contracts/domain-and-data-contract.md`                      |
+| Testing / regression / evidence / DB/fixture/browser/live validation                                                                                         | `docs/contracts/testing-and-validation-contract.md`               |
+| Process/module architecture / deployment / Worker / scheduling / transactions                                                                                | `docs/architecture/system-architecture.md`                        |
+| Approval / bootstrap / collection / safety / Source RSS/Atom item admission / normalization / Relevance / operator configuration / identity / run accounting | `docs/contracts/source-and-collection-contract.md`                |
+| Article visibility / duplicate role / review/groups / Primary                                                                                                | `docs/contracts/article-lifecycle-and-deduplication.md`           |
+| Public feed / root routing / search / themes / admin UX / change history                                                                                     | `docs/contracts/public-feed-and-admin-contract.md`                |
+| UI design / presentation workflow / parallel UI branch                                                                                                       | `docs/design/README.md`, then `docs/design/ui-workflow.md`        |
+| Admin perimeter / SSRF / content safety / isolation / observability / recovery                                                                               | `docs/operations/security-reliability-and-operations.md`          |
+| Phase sequence / correction history / exit gates                                                                                                             | `docs/roadmap/mvp-roadmap.md`                                     |
+| Singleton Publication data-model decision                                                                                                                    | `docs/decisions/single-publication-simplified-data-model.md`      |
+| Production data/schema compatibility / supported upgrade boundary                                                                                            | `docs/decisions/production-data-and-schema-compatibility.md`      |
+| Historical superseded data-model decision                                                                                                                    | `docs/decisions/topic-independent-publication-model.md`           |
+| Whitelist/structured-feed decision                                                                                                                           | `docs/decisions/whitelist-and-structured-feed-first.md`           |
+| Original-link/normalization decision                                                                                                                         | `docs/decisions/original-link-and-normalized-metadata.md`         |
+| Cloudflare Access admin perimeter                                                                                                                            | `docs/decisions/cloudflare-access-admin-perimeter.md`             |
+| Codex model/reasoning selection and prompt efficiency                                                                                                        | `docs/codex-model-selection.md`                                   |
+| Documentation index                                                                                                                                          | `docs/README.md`                                                  |
+| Specialized validation plans                                                                                                                                 | `docs/testing/` when present                                      |
+| Roadmap/correction implementation prompts                                                                                                                    | `docs/tasks/` when present                                        |
+| Targeted UI prompts                                                                                                                                          | `docs/design/tasks/` when present                                 |
+| Durable validation artifacts                                                                                                                                 | `docs/validation/` when present                                   |
 
 If a path does not exist, search for its current equivalent before assuming intentional deletion.
 
@@ -166,6 +171,8 @@ If a path does not exist, search for its current equivalent before assuming inte
 - Article candidate provenance excludes Publication identity and retains Source + endpoint + Collection run.
 - Article identity is Source-scoped: strong external ID first, canonical URL fallback second, explicit adapter key only when concrete need exists.
 - Before production database compatibility is established, the active migration chain is the smallest supported schema-from-zero authority. Legacy-only pre-production migration steps and compatibility-only source/API/type/test/fixture/config paths MUST be removed when the canonical current system no longer needs them; older pre-production database contents are disposable and are rebuilt rather than migrated.
+- Phase 19 establishes/validates production backup/restore/deployment/rollback/schema-upgrade procedures; accepted Phase 20 customer launch establishes the first supported production baseline. After that baseline, customer data is durable supported state, supported production migration history remains upgrade-capable, and normal changes preserve governed persisted data under `docs/decisions/production-data-and-schema-compatibility.md`.
+- After Phase 20, new product-feature implementation is frozen until terminal Phase 21 closes; only critical production defect/security/data-integrity/operational fixes may interrupt through a bounded fix/correction path. Deferred features do not implicitly create Phase 22.
 - Canonical public page is `GET /`; canonical basic public feed API is `GET /api/feed`.
 - Accepted Phase 8/9 slug-addressed route evidence remains historical truth for its recorded SHAs and is not rewritten to claim root-route validation.
 - The Phase 10 entry singleton implementation correction, Phase 10 scheduler/job/health implementation, and Phase 11 Category/Relevance implementation are complete with durable validation; do not treat them as active gates.
@@ -260,12 +267,15 @@ Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Databas
 
 Current gate: Phase 16 P1–P6 and the non-versioned testing-efficiency correction are complete at package version `0.16.6`. The correction consumed no roadmap prompt number. Revalidate the still-unexecuted P7 closeout prompt under the validation-efficiency/command-containment policy before running it manually; P7 owns the normal `0.16.7` transition.
 
-### Remaining MVP order
+### Remaining roadmap order
 
 17. Phase 17 — Article and duplicate moderation
 18. Phase 18 — Configurable HTML collection
 19. Phase 19 — Reliability, observability, and production operations
 20. Phase 20 — Customer launch validation
+21. Phase 21 — Codebase simplification and maintainability hardening
+
+Phase 21 is the terminal documented roadmap phase. After Phase 20 launch, new product-feature implementation is frozen until Phase 21 closes. Closing Phase 21 does not create a Phase 22 or `0.22.0` baseline; any later roadmap work requires explicit repository-owner approval and documentation alignment first.
 
 Do not advance by assumption. Verify each phase/correction exit gate plus the inherited testing-and-validation gate against the final tree before updating state.
 
@@ -281,6 +291,8 @@ Do not advance by assumption. Verify each phase/correction exit gate plus the in
 - Do not claim runtime/browser/database/live-Source behavior unless observed at the corresponding evidence level.
 - Prefer smallest correct incremental change and simplest supported architecture over speculative future-proofing.
 - For pre-production canonicalization, prefer deletion over wrappers/aliases: remove legacy-only migrations, code, types, APIs, tests, fixtures, and configuration paths instead of preserving superseded behavior in the active tree.
+- After the Phase 20 production baseline, never apply the pre-production destructive-reset rule to supported customer data; trace supported baseline → migrations/persisted representation → data/relationship preservation → backup/rollback/restore → application consumers/tests before approving post-launch persistence refactors.
+- For Phase 21, derive tasks from the accepted launched final tree and observed maintainability/measurement evidence. Do not target arbitrary LOC/file/module/dependency metrics, and do not create cleanup tasks for areas already simple and well-owned.
 - Trace shared helpers/consumers before changes.
 - Before Phase 16 duplicate changes trace Source-scoped Article identity → separately persisted Articles → duplicate evidence/signals → canonical review pair/state → Duplicate-group membership → Primary selection → public-feed eligibility/suppression → Collection-run duplicate effects → tests.
 - Before collection changes trace singleton `active_for_collection` → Source/endpoint approval/lifecycle/operational state → durable job/scheduler/manual execution → capacity/lock → Collection run → network safety → fetch/redirect → parse → optional Source RSS/Atom item admission filter → normalize → Article-link validation → Relevance → Source-scoped identity → observation → run accounting → health → tests.
@@ -352,7 +364,7 @@ Trace suspected regression to likely change, affected invariants, missing test p
 
 # Phase handoff workflow
 
-After an implementation roadmap phase has been formally closed by its closeout task and durable validation record, use:
+After a non-terminal implementation roadmap phase has been formally closed by its closeout task and durable validation record, use:
 
 ```text
 phase implementation / closeout task
@@ -364,29 +376,31 @@ phase implementation / closeout task
 → /prompt-write <folder name>
 ```
 
-A green `/closeout` establishes the next implementation phase by committing its `0.<phase>.0` package baseline. Because `/closeout` is intentionally version-only, roadmap/root phase summaries may still identify the just-completed phase until the immediately following `/docs-review` → `/docs-apply` alignment. This short state is expected and is not itself repository drift.
+A green non-terminal `/closeout` establishes the next implementation phase by committing its `0.<phase>.0` package baseline. Because `/closeout` is intentionally version-only in that case, roadmap/root phase summaries may still identify the just-completed phase until the immediately following `/docs-review` → `/docs-apply` alignment. This short state is expected and is not itself repository drift.
+
+For the final documented roadmap phase, `/closeout` is terminal: it performs the same bounded structural/evidence verification but does **not** change `package.json`, create a next-phase baseline, reserve a new phase number, or report a Next P1 version. A green terminal closeout reports the accepted final SHA/version and `Roadmap status: COMPLETE`; `/docs-review` → `/docs-apply` may then align summaries to completed state. Any future implementation roadmap requires an explicit owner-approved roadmap extension before another phase baseline may be created.
 
 A correction stack has its own final manual closeout prompt, but that prompt is **not** `/closeout`. Correction closeout validates and clears only the named correction/gate while preserving the declared unchanged package version; it does not advance the roadmap phase or create a new `.0` baseline.
 
 ## `/closeout`
 
-`/closeout` is a bounded phase-handoff state transition, not an audit or troubleshooting workflow. Under normal repository/tool conditions, target completion is under 60 seconds.
+`/closeout` is a bounded phase-handoff or terminal-roadmap state transition, not an audit or troubleshooting workflow. Under normal repository/tool conditions, target completion is under 60 seconds.
 
 ### Fast path
 
-1. Read this `/closeout` section and roadmap entries needed to identify the completed phase and intended next phase.
+1. Read this `/closeout` section and roadmap entries needed to identify the completed phase and either its intended next phase or its explicit terminal status.
 2. Read the completed phase's durable validation artifact and extract the accepted/validated implementation source SHA and exit-gate conclusion.
 3. Read `package.json` as sole project-version authority and completed phase task filenames/version sequence. Do not require/search npm lockfile metadata.
 4. Perform one accepted-SHA-to-current-`main` compare to classify post-validation drift. Documentation-only changes and explicitly owner-approved non-executable workflow/tooling-policy changes are non-blocking when they do not modify runtime behavior, tests, migrations, committed configuration, `package.json` dependency/script/engine metadata, or other executable product behavior. Relevant executable drift is blocking.
-5. If green, perform only the next-phase baseline version transition below.
-6. Verify transition diff, then re-read `docs/roadmap/mvp-roadmap.md` and print the complete entry for the phase being entered.
+5. If green and a documented successor phase exists, perform only the next-phase baseline version transition below. If the completed phase is explicitly terminal and no successor phase has been approved, perform no repository write.
+6. For non-terminal handoff, verify transition diff, then re-read `docs/roadmap/mvp-roadmap.md` and print the complete entry for the phase being entered. For terminal closeout, re-read the terminal roadmap entry and report final accepted state without inventing a successor.
 
 Required structural checks:
 
-- completed phase artifact states its exit gate is satisfied and intended next phase is identifiable;
+- completed phase artifact states its exit gate is satisfied and either the intended next phase is identifiable or the roadmap explicitly marks the completed phase terminal with no approved successor;
 - artifact identifies accepted/validated implementation source SHA;
 - single post-validation compare shows no unvalidated executable/dependency/test/migration/runtime/config drift;
-- root/roadmap phase state is coherent enough for handoff even if docs alignment awaits `/docs-apply`;
+- root/roadmap phase state is coherent enough for handoff/terminal completion even if docs alignment awaits `/docs-apply`;
 - `package.json` contains expected completed-phase version;
 - task/version sequence is coherent with no obvious blocking stale artifacts.
 
@@ -399,12 +413,12 @@ The repository intentionally does not use `package-lock.json`; its absence is ex
 - Do not walk every post-validation commit when one range comparison can classify drift.
 - If relevant unvalidated drift exists, report `Closeout check blocked` and stop without root-cause investigation.
 - If required state cannot be established quickly because a safe primitive is unavailable, report blocker rather than expanding into open-ended investigation.
-- The version transition gets one predetermined safe write strategy. Do not cycle alternate write mechanisms or hand-build Git objects to overcome connector limitations.
+- A non-terminal version transition gets one predetermined safe write strategy. Do not cycle alternate write mechanisms or hand-build Git objects to overcome connector limitations.
 - Do not run `npm install` merely to change version.
 
-### Green-path version transition
+### Non-terminal green-path version transition
 
-Invocation of `/closeout` constitutes explicit repository-owner authorization for this version-only transition when structural check is green.
+Invocation of `/closeout` constitutes explicit repository-owner authorization for this version-only transition when the structural check is green and the roadmap identifies an approved successor phase.
 
 Capture pre-transition `main` SHA. Update exactly one JSON value to `0.<next roadmap phase>.0`:
 
@@ -412,14 +426,34 @@ Capture pre-transition `main` SHA. Update exactly one JSON value to `0.<next roa
 
 Preserve every other package value. Commit version-only transition directly to `main` unless branch/PR requested. Immediately compare pre/post SHAs; complete range MUST change only `package.json` and exactly the expected version value. Otherwise report `Closeout transition invalid` and stop.
 
+### Terminal roadmap closeout
+
+When the completed phase is explicitly the final documented roadmap phase and no successor phase has been approved, a green `/closeout` performs **no package or repository transition**.
+
+- Do not change `package.json`.
+- Do not create `0.<next phase>.0`.
+- Do not reserve or infer another phase number from deferred ideas.
+- Do not create a version-only commit merely to mark completion.
+- Report the accepted current `main` SHA and current package version from the validated terminal tree.
+
+A later roadmap extension requires explicit repository-owner approval plus documentation alignment before any new `.0` baseline transition.
+
 ### Required final output
 
-A successful `/closeout` response MUST contain, in order:
+For a successful non-terminal `/closeout`, respond in order:
 
 1. `Closeout check: GREEN`;
 2. resulting baseline transition commit SHA/final SHA;
 3. `Next P1 version: 0.<new phase>.1`;
 4. complete roadmap entry for the phase being entered, freshly re-read rather than summarized from memory.
+
+For a successful terminal `/closeout`, respond in order:
+
+1. `Closeout check: GREEN`;
+2. accepted/final `main` SHA;
+3. `Roadmap status: COMPLETE`;
+4. `Final project version: <package.json version>`;
+5. complete terminal roadmap entry, freshly re-read, plus any explicitly recorded limitations from its accepted durable validation artifact.
 
 # Documentation workflow
 
@@ -614,15 +648,15 @@ Project versions use `0.<roadmap phase>.<phase prompt number>` for roadmap phase
 
 - Prompt numbers one-based; `P0` not used.
 - Roadmap task number maps to version patch number.
-- `0.<phase>.0` is phase baseline established only by green `/closeout` or separately explicit owner-authorized `.0` transition.
+- `0.<phase>.0` is a non-terminal phase baseline established only by green `/closeout` from the prior roadmap phase or separately explicit owner-authorized `.0` transition.
 - `package.json` is sole current-version authority; project intentionally has no npm lockfile.
-- Do not duplicate current version in root summaries/contracts/source constants.
-- Version changes occur only through executed Codex roadmap prompt, green `/closeout`, or separately explicit owner-authorized `.0` transition after prior phase closes.
+- Version changes occur only through executed Codex roadmap prompt, non-terminal green `/closeout`, or separately explicit owner-authorized `.0` transition after prior phase closes.
+- Terminal roadmap `/closeout` does not change `package.json`, create a successor baseline, or reserve a phase number.
 - Non-versioned correction stacks MUST NOT change `package.json`; P-numbers are local sequencing only.
 - Roadmap prompt reruns retain assigned version; correction reruns retain unchanged version.
 - Roadmap prompts verify expected preceding/same-rerun version, update `package.json`, avoid lockfile, and validate versioned tree.
 - Correction prompts state one required unchanged version, verify it, forbid changing it, avoid lockfile, and validate unchanged-version invariant.
-- Roadmap closeout prompt that owns a version change commits it before final source SHA validation; later `/closeout` performs separate next-phase `.0` transition.
+- Roadmap closeout prompt that owns a version change commits it before final source SHA validation; later non-terminal `/closeout` performs separate next-phase `.0` transition. When that roadmap phase is terminal, `/closeout` performs verification only and preserves the final prompt-established package version.
 - Correction closeout never transitions package version and is not automatically followed by `/closeout`.
 - The completed Phase 10 singleton implementation correction is the historical first non-versioned correction stack.
 - Parallel UI work is non-versioned, not a `codex:phase` stack, and MUST NOT modify package version or consume roadmap prompt numbers.
@@ -635,6 +669,8 @@ Return target behavior, constraints, roadmap phase, stack type (`phase` or `corr
 
 Testing is part of task-boundary assessment: each prompt should own focused tests and appropriate broader regression impact without becoming monolithic. Identify which commands are intended for fast iterative feedback versus final-tree evidence and avoid planning redundant aggregate/subordinate final execution.
 
+For Phase 21 specifically, assessment begins from the accepted Phase 20 launched tree and its observed validation/operational evidence. Do not pre-fill a cleanup stack from earlier phases: identify only evidence-backed maintainability, ownership, dependency, resource-lifecycle, testing-structure, or measured performance problems, preserve the production-data compatibility ADR, and keep all new product capability outside the stack.
+
 ## `/prompt-plan`
 
 Requires completed `/prompt-ass` in current conversation. Perform source-level planning for every assessed prompt: contracts/ADRs, implementation, schemas/migrations, process roles, helpers/consumers/tests/recent changes, likely file scope, preserved behavior, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs implications, acceptance criteria, non-goals.
@@ -642,6 +678,8 @@ Requires completed `/prompt-ass` in current conversation. Perform source-level p
 Use observed source evidence to make the final model gate: reassess family, reasoning, complexity, usage, lower-cost alternative, escalation trigger/target, and rationale under the minimum-adequate usage-conservation rule, and record a `Downgraded`, `Unchanged`, or `Escalated` delta from `/prompt-ass`. Preserve the correctness floor, but do not retain an expensive provisional rating merely because it is safer in the abstract. Reconfirm stack type and correction unchanged-version invariant. Material boundary revisions produce `Planning needed`. No writes.
 
 For validation planning, inspect current executable package scripts/runner behavior and produce the smallest non-overlapping final command set that covers the required evidence levels. Focused development commands may be narrower and repeated during iteration; they do not replace the final matrix.
+
+For Phase 21, `/prompt-plan` is the decisive task-boundary gate: trace every proposed refactor through important producers/consumers and prove that it removes observed accidental complexity without changing governed product behavior. Persistence/schema proposals must include supported Phase 20-baseline upgrade/data-preservation evidence in addition to migration-from-zero. Optimization proposals require materially comparable before/after measurements rather than structural metrics alone.
 
 ## `/prompt-write <folder name>`
 
@@ -654,6 +692,8 @@ Each prompt includes the finalized `MODEL / REASONING / USAGE` block and its exa
 Each prompt MUST distinguish focused iterative validation from final-tree validation. The final validation block MUST use the smallest non-overlapping command set established by `/prompt-plan`; do not list a subordinate check/suite alongside an aggregate command that already executes it on the same final tree unless the prompt states the concrete reason that repeated execution is required.
 
 After writing, perform applicable runner prompt-file grammar check before reporting ready. If revalidation reveals materially changed boundary, stack type, unchanged-version invariant, quality floor, or validation containment, return `Planning needed` rather than silently changing approved plan. Do not overwrite existing tasks without explicit authorization.
+
+Phase 21 prompts are behavior-preserving maintainability/optimization work only. They MUST identify the observed problem being removed, preserve the feature freeze and production-data compatibility boundary, forbid unrelated feature development, require the relevant blast-radius regressions, and require before/after measurements for any performance/resource claim.
 
 ## Supporting prompt commands
 
@@ -783,7 +823,7 @@ Every implementation prompt inherits testing contract. Tests are not optional cl
 
 Collection prompts preserve singleton Publication global collection-active state, Source/endpoint approval/lifecycle/operational boundaries, truthful Collection runs, pre-request network safety, run isolation, retry limits, Source-domain policy, optional Source RSS/Atom item admission before normalization, and deterministic collection tests without safety bypasses. They do not add Publication selectors/tenant scopes or conflate Source admission mismatches with Relevance exclusions/Article observations.
 
-Persistence/identity prompts preserve Source-scoped Article identity, canonical Relevance ordering, transactional idempotency, Article observations, real-PostgreSQL constraints/concurrency/migration behavior where applicable, and rollback. Publication tenancy is not introduced as future-proofing.
+Persistence/identity prompts preserve Source-scoped Article identity, canonical Relevance ordering, transactional idempotency, Article observations, real-PostgreSQL constraints/concurrency/migration behavior where applicable, and rollback. Publication tenancy is not introduced as future-proofing. After the Phase 20 production baseline, persistence/schema prompts additionally preserve supported customer data and prove the applicable real upgrade path under `docs/decisions/production-data-and-schema-compatibility.md`; clean migration-from-zero alone is not sufficient production-upgrade evidence.
 
 Publication/Relevance prompts preserve topic independence, singleton Publication configuration, immutable installation-wide Category/rule configuration keys, the bounded literal predicate vocabulary, installation-wide plus Source-scoped deterministic precedence, additive categorization/default fallback, pre-identity `excluded` accounting, prospective-by-default edits, and the full Phase 11 deterministic/real-PostgreSQL validation matrix. They do not create Publication tenant FKs/scopes or generic ranking/expression engines.
 
@@ -795,12 +835,14 @@ UI prompts preserve the same public-feed/domain behavior while changing approved
 
 Admin prompts preserve Cloudflare Access/origin protection, request integrity, real resource-relationship/domain-invariant validation, singleton Publication configuration, Source-owned include-only RSS/Atom admission semantics where applicable, and prohibition on unnecessary native identity/account work, multi-Publication selectors, or Publication tenant authorization.
 
+Phase 21 prompts preserve the complete launched product behavior and supported production data while removing observed accidental complexity or measured inefficiency. They do not add deferred features, do not use arbitrary structural-reduction quotas as acceptance criteria, and require comparable before/after evidence for performance/resource claims.
+
 Historical Phase 10 singleton-correction prompts established the smallest canonical migration-from-zero schema, deleted/squashed/replaced superseded pre-production migrations, removed Publication tenancy/selectors and legacy-only compatibility source/API/type/test/fixture/config paths throughout the active tree, and required database/regression/browser proof before correction closeout. Do not reintroduce that superseded compatibility surface.
 
 # Repository modification rules
 
 - Do not modify/commit unless authorized by current request/command.
-- `/closeout` performs only bounded handoff verification and green-path version-only `package.json` transition.
+- `/closeout` performs bounded handoff/terminal verification; on a green non-terminal phase it performs only the version-only `package.json` successor-baseline transition, while on the final documented roadmap phase it performs no repository write and reports roadmap completion.
 - A correction stack's final manual closeout validates/clears correction while preserving unchanged package version/active phase.
 - `/docs-review` never writes.
 - `/docs-apply` writes only approved docs; invocation authorizes documentation-only changes on `main` unless branch/PR/isolation is requested.
@@ -814,10 +856,11 @@ Historical Phase 10 singleton-correction prompts established the smallest canoni
 - UI implementation is non-versioned: it MUST NOT change `package.json` version, consume roadmap prompt numbers, advance roadmap/correction state, or create a phase/correction closeout.
 - Do not run UI implementation in the same working tree used by an active phase/correction runner; keep concurrent work isolated on `ui-polish`/its worktree.
 - Do not merge `ui-polish` into `main` automatically; integration requires review and explicit authorization.
-- Documentation/prompt/review activity, including `/docs-prompt`, does not change package version or roadmap/correction/UI state except for an explicit `/closeout` baseline transition; correction execution and UI work are non-versioned.
+- Documentation/prompt/review activity, including `/docs-prompt`, does not change package version or roadmap/correction/UI state except for an explicit non-terminal `/closeout` baseline transition; correction execution, terminal `/closeout`, and UI work are non-versioned.
 - No task writes while `Planning needed` remains unresolved.
 - No speculative compatibility bridges or permanent dual schemas.
 - Before production compatibility is established, delete legacy-only migration/code/API/type/test/fixture/configuration artifacts rather than preserving superseded pre-production behavior in the active tree.
+- After the accepted Phase 20 production baseline, preserve supported customer data and supported migration upgradeability under `docs/decisions/production-data-and-schema-compatibility.md`; do not use the earlier destructive-reset rule for customer production state.
 - No topic conditionals in shared engine code.
 - No concurrent multi-topic/multi-Publication hosting behavior inside one installation unless later explicit locked contract/ADR authorizes it.
 - Do not introduce relational Publication tenancy, IDs, slugs, FKs, uniqueness scopes, selector parameters, or authorization scopes solely because concurrent hosting might be useful someday.
@@ -842,6 +885,14 @@ Historical Phase 10 singleton-correction prompts established the smallest canoni
 
 Prefer one canonical design. Do not add old/new aliases, duplicate synchronized fields, fallback paths, dormant tenant columns, or speculative migration compatibility. Before production database compatibility is established, databases created by older source trees are disposable and the active migration/runtime/test/config tree MUST be reduced to the smallest current canonical design. Delete/squash/replace legacy-only migrations, compatibility wrappers/APIs/types, obsolete tests/fixtures, slug-addressed public/runtime routing, Publication-scoped repository APIs, and obsolete configuration paths when they have no independent current purpose. Historical implementation detail remains available in Git history, superseded ADRs, historical task prompts, and validation artifacts instead of active compatibility machinery.
 
+This rule governs only the pre-production lifecycle. It MUST NOT be extended to accepted customer production state after the Phase 20 production baseline.
+
+# Production compatibility rule
+
+Phase 19 establishes and validates the upgrade/backup/restore/rollback procedures required for production. Acceptance of Phase 20 customer launch establishes the first supported production source/version/schema baseline. From that point forward, normal upgrades/refactors preserve supported customer data and governed relationships, supported production migration history remains upgrade-capable, and clean migration-from-zero is required for new/disposable installations but does not substitute for production-upgrade proof. Detailed authority is `docs/decisions/production-data-and-schema-compatibility.md`.
+
+Phase 21 operates entirely under this production compatibility rule. It may simplify source structure aggressively where safe, but it may not destroy the launched customer database or rewrite supported migration history merely to make the final schema appear cleaner.
+
 # Boot maintenance
 
-Update BOOT when phase, core paths, terminology, commands, authority, locked laws, modification conventions, task-stack grammar, UI-workstream workflow/branch rules, versioning/prompt-numbering conventions, branch, repository identity, critical delivery ordering, foundational security/deployment/data-model decisions, or project-wide testing/validation policy changes.
+Update BOOT when phase, core paths, terminology, commands, authority, locked laws, modification conventions, task-stack grammar, UI-workstream workflow/branch rules, versioning/prompt-numbering conventions, branch, repository identity, critical delivery ordering, foundational security/deployment/data-model decisions, production-compatibility boundaries, or project-wide testing/validation policy changes.
