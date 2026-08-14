@@ -4,12 +4,12 @@ ROADMAP PHASE
 Phase 14 — Source administration.
 
 MODEL / REASONING / USAGE
-- Recommended configuration: `Sol High`.
+- Recommended configuration: `Terra High`.
 - Complexity / quality floor: `High`.
-- Estimated usage: `High`.
-- Alternative considered: `Terra Ultra`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Sol High`; rejected because the endpoint safety invariants are explicit and Terra High should handle the bounded transactional work at materially lower expected credit usage.
 - Estimate confidence: `High`.
-- Efficiency rationale: P5 crosses endpoint identity, Source ownership, approval/lifecycle/operational state, domain narrowing, polling, default Category relationships, transactions, and the P3 security boundary. Sol High is appropriate because mistakes can weaken whitelist/network-safety invariants even though the task stays endpoint-focused.
+- Efficiency rationale: P5 is safety-sensitive around Source ownership, domain narrowing, state, and transactions, but the prompt specifies the lock order, validation rules, resource identity, and regression matrix in detail. Terra High is the minimum adequate existing runner configuration; Sol/Ultra escalation is reserved for unexpected ambiguity in shared network-safety or transactional consumers discovered during implementation.
 - If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
 
 VERSIONING

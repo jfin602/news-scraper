@@ -15,6 +15,7 @@ Before production database compatibility is established, the supported persisten
 ```text
 docs/
 ├── README.md
+├── codex-model-selection.md
 ├── contracts/
 │   ├── project-contract.md
 │   ├── mvp-scope-and-users.md
@@ -50,6 +51,7 @@ Git does not track empty directories, so `testing/`, `tasks/`, `design/tasks/`, 
 
 ## Document routing
 
+- `codex-model-selection.md` — detailed minimum-cost-adequate model-family/reasoning policy for `/prompt-ass`, `/prompt-plan`, `/prompt-write`, `/revalidate`, usage estimates, prompt-token discipline, and the target Luna/Terra/Sol runner matrix. `BOOT.md` remains authoritative for executable task grammar, and current `MODEL_CONFIGS` remains authoritative for labels that may actually be written/executed.
 - `contracts/project-contract.md` — locked Platform laws, one-Publication-per-deployment boundary, singleton/configuration-vs-tenancy invariant, authority hierarchy, product boundaries, contract-change process.
 - `contracts/mvp-scope-and-users.md` — MVP users, demo-first capability ordering, single-Publication deployment scope, exclusions, quality targets.
 - `contracts/domain-and-data-contract.md` — canonical terminology, singleton Publication configuration, real entity relationships, state models, Source RSS/Atom item-admission configuration/accounting, Category/Relevance persistence and deterministic rule semantics, identity/provenance invariants, fresh-schema policy, and public-row semantics.
@@ -70,7 +72,7 @@ Git does not track empty directories, so `testing/`, `tasks/`, `design/tasks/`, 
 - `decisions/cloudflare-access-admin-perimeter.md` — MVP admin access boundary and deferred native identity/account system.
 - `decisions/README.md` — ADR status/index.
 
-Use root `BOOT.md` as the session router; it points to the narrowest authoritative document for a task.
+Use root `BOOT.md` as the session router; it points to the narrowest authoritative document for a task. For model/reasoning/usage assessment, use `codex-model-selection.md` as the detailed workflow refinement while preserving BOOT's executable grammar and current runner-label constraints.
 
 ## Normative language
 

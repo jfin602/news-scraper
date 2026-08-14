@@ -7,9 +7,9 @@ MODEL / REASONING / USAGE
 - Recommended configuration: `Terra High`.
 - Complexity / quality floor: `Elevated`.
 - Estimated usage: `Moderate`.
-- Alternative considered: `Sol High`.
+- Alternative considered: `Sol Light`, but its lower reasoning effort does not clearly offset Sol's higher token/credit rate for schema and accounting work.
 - Estimate confidence: `High`.
-- Efficiency rationale: P1 is a bounded schema/configuration task, but it changes Source-owned durable state plus Collection-run accounting constraints that later Worker/admin prompts rely on. Terra High provides enough data-integrity and migration reasoning without spending Sol High on behavior that remains intentionally outside this prompt.
+- Efficiency rationale: P1 is bounded, explicitly specified persistence work with concrete schema, normalization, accounting equations, and PostgreSQL tests. Terra High is already the lowest-cost existing runner configuration with appropriate data-integrity headroom; no Sol or Ultra escalation is justified unless repository drift materially expands the task.
 - If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
 
 VERSIONING

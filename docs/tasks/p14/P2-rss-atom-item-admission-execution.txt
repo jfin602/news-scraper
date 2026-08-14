@@ -4,12 +4,12 @@ ROADMAP PHASE
 Phase 14 — Source administration.
 
 MODEL / REASONING / USAGE
-- Recommended configuration: `Sol High`.
-- Complexity / quality floor: `High`.
-- Estimated usage: `High`.
-- Alternative considered: `Terra Ultra`.
+- Recommended configuration: `Terra High`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Sol Light`, but its lower reasoning effort does not clearly outweigh Sol's higher token/credit rate for this cross-layer task.
 - Estimate confidence: `High`.
-- Efficiency rationale: P2 changes the shared collection pipeline between parsing and normalization and must keep Source admission, run accounting, Relevance, identity, and observation semantics distinct. Sol High gives enough cross-layer reasoning headroom without defaulting to Ultra for a bounded deterministic filter.
+- Efficiency rationale: P2 is cross-layer but unusually well specified: matching is a small deterministic literal filter with explicit pipeline placement, accounting equations, and focused regressions. Terra High is the lowest-cost existing runner configuration with enough headroom for the integration boundary; higher Sol/Ultra configurations are not justified unless implementation drift reveals materially harder coupling.
 - If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
 
 VERSIONING

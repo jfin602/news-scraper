@@ -4,12 +4,12 @@ ROADMAP PHASE
 Phase 14 — Source administration.
 
 MODEL / REASONING / USAGE
-- Recommended configuration: `Sol High`.
-- Complexity / quality floor: `High`.
-- Estimated usage: `High`.
-- Alternative considered: `Sol Ultra`.
+- Recommended configuration: `Terra High`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Sol Light`; rejected because P7 still integrates several protected admin workflows and browser regressions, while Sol's higher token/credit rate makes it a poor default savings choice here.
 - Estimate confidence: `High`.
-- Efficiency rationale: P7 integrates many already-governed admin workflows in a real browser and must preserve request-integrity, state semantics, responsive/accessibility behavior, and public-page isolation. Sol High is sufficient because P3–P6 should have stabilized backend behavior; Ultra is reserved for unexpected architectural drift rather than ordinary UI composition.
+- Efficiency rationale: P7 is mostly composition over already-governed P3–P6 APIs: the workflows, security header behavior, responsive targets, accessibility requirements, and Chromium regression matrix are explicit. Terra High is the minimum adequate existing runner configuration; Sol/Ultra should be reserved for unexpected architectural drift rather than ordinary browser/UI integration.
 - If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
 
 VERSIONING

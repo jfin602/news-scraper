@@ -4,12 +4,12 @@ ROADMAP PHASE
 Phase 14 — Source administration.
 
 MODEL / REASONING / USAGE
-- Recommended configuration: `Sol High`.
+- Recommended configuration: `Terra High`.
 - Complexity / quality floor: `High`.
-- Estimated usage: `Very High`.
-- Alternative considered: `Terra Ultra`.
+- Estimated usage: `High`.
+- Alternative considered: `Sol High`; rejected because P8 is primarily evidence execution and bounded triage, and broad validation volume alone does not justify the higher expected credit rate.
 - Estimate confidence: `High`.
-- Efficiency rationale: P8 is an evidence-heavy exact-final-tree validation across static, collection fixtures, PostgreSQL, durable-job recovery, admin HTTP security, Chromium, and a narrow deployed Cloudflare perimeter check. Sol High is appropriate for broad execution and bounded triage; P8 must stop rather than redesign architecture if a Critical defect appears.
+- Efficiency rationale: P8 has a wide validation matrix but little permission to redesign: it executes explicit static, fixture, PostgreSQL, browser, and deployment checks and must stop on material architectural defects. Terra High is the minimum adequate existing runner configuration for broad evidence synthesis and bounded triage; escalate only if an actual closeout failure requires difficult cross-system root-cause reasoning before the prompt can safely continue.
 - If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
 
 VERSIONING

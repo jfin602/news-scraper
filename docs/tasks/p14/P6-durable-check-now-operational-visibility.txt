@@ -4,12 +4,12 @@ ROADMAP PHASE
 Phase 14 — Source administration.
 
 MODEL / REASONING / USAGE
-- Recommended configuration: `Sol Ultra`.
+- Recommended configuration: `Terra Ultra`.
 - Complexity / quality floor: `High`.
-- Estimated usage: `Very High`.
-- Alternative considered: `Sol High`.
+- Estimated usage: `High`.
+- Alternative considered: `Terra High`.
 - Estimate confidence: `High`.
-- Efficiency rationale: P6 generalizes a durable Phase 10 state machine that currently encodes scheduled-only assumptions across queue persistence, retries, Collection-run attachment, recovery, finalization, scheduler and Worker orchestration. Sol Ultra is justified because provenance/race/recovery mistakes can silently corrupt job/run semantics and the refactor spans several strongly coupled modules.
+- Efficiency rationale: P6 is the Phase 14 exception that still earns Ultra reasoning: it generalizes a durable job state machine across persistence, concurrency, retries, Collection-run ownership, stale recovery, scheduler and Worker orchestration. Terra Ultra preserves extra reasoning headroom for race/provenance correctness while avoiding the substantially higher expected credit cost of Sol Ultra; downgrade to Terra High only if source inspection shows the refactor is more mechanical and localized than planned.
 - If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
 
 VERSIONING
