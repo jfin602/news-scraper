@@ -42,7 +42,27 @@ describe('Public feed page HTTP delivery', () => {
     assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
     assert.match(body, /<link rel="stylesheet" href="\/public-feed\.css">/u);
     assert.match(body, /<script src="\/public-feed\.js" defer><\/script>/u);
-    assert.match(body, /<h1 data-publication-name>News feed<\/h1>/u);
+    assert.match(body, /<title>Loading publication…<\/title>/u);
+    assert.match(
+      body,
+      /<main class="public-feed-shell" data-publication-state="unresolved">/u,
+    );
+    assert.match(
+      body,
+      /<header class="publication-masthead" data-publication-masthead hidden>/u,
+    );
+    assert.match(body, /<h1 data-publication-name><\/h1>/u);
+    assert.match(
+      body,
+      /<p class="publication-description" data-publication-description hidden><\/p>/u,
+    );
+    assert.match(body, /data-feed-status role="status" aria-live="polite"/u);
+    assert.match(
+      body,
+      /<span data-feed-status-message>Loading publication…<\/span>/u,
+    );
+    assert.match(body, /<section data-feed-content data-state="loading"/u);
+    assert.doesNotMatch(body, />\s*News feed\s*</iu);
     assert.match(
       body,
       /<form data-discovery-form aria-label="Discover headlines">/u,

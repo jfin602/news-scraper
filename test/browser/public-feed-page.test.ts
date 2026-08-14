@@ -27,6 +27,12 @@ const publication = Object.freeze({
   logoPath: null,
   accentColor: null,
 });
+const brandedPublication = Object.freeze({
+  name: 'Configured Publication',
+  description: 'Configured publication description.',
+  logoPath: '/publication-logo.svg',
+  accentColor: '#1A2B3C',
+});
 const sourceChoices = Object.freeze([
   Object.freeze({ configKey: 'first_source', displayName: 'First Source' }),
   Object.freeze({ configKey: 'second_source', displayName: 'Second Source' }),
@@ -253,12 +259,111 @@ describe('Public feed page browser behavior', () => {
       await waitForState(page, 'loading');
       assert.equal(
         await page.locator('[data-feed-status]').innerText(),
-        'Loading the latest headlines.',
+        'Loading publication…',
       );
+      assert.equal(await page.locator('[data-feed-status]').isVisible(), true);
       assert.equal(await page.locator('.feed-row').count(), 0);
+      assert.equal(
+        await page.locator('[data-publication-masthead]').isHidden(),
+        true,
+      );
+      assert.equal(
+        await page.locator('[data-publication-name]').innerText(),
+        '',
+      );
+      assert.doesNotMatch(
+        await page.locator('main').innerText(),
+        /News feed/iu,
+      );
+      assert.doesNotMatch(
+        await page.locator('main').innerText(),
+        /Example Publication|Configured publication description/iu,
+      );
+      assert.equal(await page.locator('img').count(), 0);
+      assert.equal(await page.title(), 'Loading publication…');
       resolveFeed?.(populatedFeed());
       await waitForState(page, 'populated');
       assert.deepEqual(apiRequestUrls, ['/api/feed']);
+    } finally {
+      await context.close();
+    }
+  });
+
+  it('renders optional branding, degrades a broken logo, and removes absent optional presentation', async () => {
+    outcome = populatedFeed({ publication: brandedPublication });
+    const { context, page } = await openPage({
+      routeLogo: async (route) => {
+        await route.fulfill({
+          contentType: 'image/svg+xml',
+          body: '<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"></svg>',
+        });
+      },
+    });
+    try {
+      await waitForState(page, 'populated');
+      const masthead = page.locator('[data-publication-masthead]');
+      assert.equal(await masthead.isVisible(), true);
+      assert.equal(
+        await page.locator('[data-publication-name]').innerText(),
+        brandedPublication.name,
+      );
+      assert.equal(
+        await page.locator('[data-publication-description]').innerText(),
+        brandedPublication.description,
+      );
+      const logo = page.locator('.publication-logo-image');
+      assert.equal(await logo.getAttribute('src'), brandedPublication.logoPath);
+      assert.equal(await logo.getAttribute('alt'), '');
+      assert.equal(
+        await masthead.evaluate((element) =>
+          element.style.getPropertyValue('--publication-accent'),
+        ),
+        brandedPublication.accentColor,
+      );
+      assert.equal(
+        await page.title(),
+        `${brandedPublication.name} | News feed`,
+      );
+
+      outcome = populatedFeed({
+        publication: {
+          ...brandedPublication,
+          logoPath: '/missing-publication-logo.svg',
+        },
+      });
+      await page.locator('[data-discovery-keyword]').fill('broken-logo');
+      await submitDiscovery(page);
+      await waitForState(page, 'populated');
+      await page.waitForFunction(
+        () => document.querySelector('.publication-logo-image') === null,
+      );
+      assert.equal(
+        await page.locator('[data-publication-logo]').isHidden(),
+        true,
+      );
+      assert.equal(
+        await page.locator('[data-publication-name]').innerText(),
+        brandedPublication.name,
+      );
+
+      outcome = populatedFeed({ publication });
+      await page.locator('[data-discovery-reset]').click();
+      await waitForState(page, 'populated');
+      assert.equal(
+        await page.locator('[data-publication-name]').innerText(),
+        publication.name,
+      );
+      assert.equal(
+        await page.locator('[data-publication-description]').isHidden(),
+        true,
+      );
+      assert.equal(await page.locator('.publication-logo-image').count(), 0);
+      assert.equal(
+        await masthead.evaluate((element) =>
+          element.style.getPropertyValue('--publication-accent'),
+        ),
+        '',
+      );
     } finally {
       await context.close();
     }
@@ -269,7 +374,7 @@ describe('Public feed page browser behavior', () => {
     const originalUrl =
       'https://publisher.example.test/original?preserve=exact';
     outcome = populatedFeed({
-      publication: { ...publication, name: markup },
+      publication: { ...publication, name: markup, description: markup },
       sourceChoices: Object.freeze([
         Object.freeze({ configKey: 'first_source', displayName: markup }),
       ]),
@@ -293,6 +398,10 @@ describe('Public feed page browser behavior', () => {
       await waitForState(page, 'populated');
       assert.equal(await page.title(), `${markup} | News feed`);
       assert.equal(await page.locator('h1').innerText(), markup);
+      assert.equal(
+        await page.locator('[data-publication-description]').innerText(),
+        markup,
+      );
       assert.equal(
         await page.locator('.feed-date time').innerText(),
         'AUG 6, 2026',
@@ -544,6 +653,125 @@ describe('Public feed page browser behavior', () => {
     }
   });
 
+  it('preserves resolved branding while Search, Reset, and history first pages are pending', async () => {
+    const unfiltered: DiscoveryQuery = Object.freeze({
+      q: null,
+      source: null,
+      category: null,
+    });
+    const alpha: DiscoveryQuery = Object.freeze({
+      q: 'alpha',
+      source: null,
+      category: null,
+    });
+    outcome = populatedFeed();
+    const { context, page } = await openPage({ controlledFetch: true });
+    try {
+      await waitForControlledFetchCount(page, 1);
+      await resolveControlledFetch(
+        page,
+        0,
+        publicFeedResponse(
+          populatedFeed({
+            publication: { ...brandedPublication, logoPath: null },
+          }),
+          unfiltered,
+        ),
+      );
+      await waitForState(page, 'populated');
+
+      await page.locator('[data-discovery-keyword]').fill('alpha');
+      await submitDiscovery(page);
+      await waitForControlledFetchCount(page, 2);
+      await assertPendingBranding(page, brandedPublication);
+      await resolveControlledFetch(
+        page,
+        1,
+        publicFeedResponse(
+          populatedFeed({
+            publication: { ...brandedPublication, logoPath: null },
+          }),
+          alpha,
+        ),
+      );
+      await waitForState(page, 'populated');
+
+      await page.locator('[data-discovery-reset]').click();
+      await waitForControlledFetchCount(page, 3);
+      await assertPendingBranding(page, brandedPublication);
+      await resolveControlledFetch(
+        page,
+        2,
+        publicFeedResponse(
+          populatedFeed({
+            publication: { ...brandedPublication, logoPath: null },
+          }),
+          unfiltered,
+        ),
+      );
+      await waitForState(page, 'populated');
+
+      await page.goBack();
+      await waitForControlledFetchCount(page, 4);
+      await assertPendingBranding(page, brandedPublication);
+      await resolveControlledFetch(
+        page,
+        3,
+        publicFeedResponse(
+          populatedFeed({
+            publication: { ...brandedPublication, logoPath: null },
+          }),
+          alpha,
+        ),
+      );
+      await waitForState(page, 'populated');
+    } finally {
+      await context.close();
+    }
+  });
+
+  it('clears previously resolved branding when an owned response establishes unavailability', async () => {
+    outcome = populatedFeed({
+      publication: { ...brandedPublication, logoPath: null },
+    });
+    const { context, page } = await openPage();
+    try {
+      await waitForState(page, 'populated');
+      outcome = undefined;
+      await page.locator('[data-discovery-keyword]').fill('unavailable');
+      await submitDiscovery(page);
+      await waitForState(page, 'unavailable');
+      assert.equal(
+        await page.locator('[data-publication-masthead]').isHidden(),
+        true,
+      );
+      assert.equal(
+        await page.locator('[data-publication-name]').innerText(),
+        '',
+      );
+      assert.equal(
+        await page.locator('[data-publication-description]').innerText(),
+        '',
+      );
+      assert.equal(await page.locator('.publication-logo-image').count(), 0);
+      assert.equal(
+        await page
+          .locator('[data-publication-masthead]')
+          .evaluate((element) =>
+            element.style.getPropertyValue('--publication-accent'),
+          ),
+        '',
+      );
+      assert.equal(await page.title(), 'Publication unavailable');
+      assert.match(
+        await page.locator('[data-feed-status]').innerText(),
+        /publication is unavailable/i,
+      );
+    } finally {
+      await context.close();
+    }
+  });
+
   it('does not repair malformed raw discovery URLs before the API validates them', async () => {
     outcome = feedFor;
     const { context, page, apiRequestUrls } = await openPage({
@@ -617,6 +845,63 @@ describe('Public feed page browser behavior', () => {
       await waitForState(page, 'error');
     } finally {
       await context.close();
+    }
+  });
+
+  it('rejects malformed successful Publication presentation as a generic error', async () => {
+    const malformedPresentations: readonly Record<string, unknown>[] = [
+      {
+        description: null,
+        logoPath: null,
+        accentColor: null,
+      },
+      {
+        name: 'Valid name',
+        description: 42,
+        logoPath: null,
+        accentColor: null,
+      },
+      {
+        name: 'Valid name',
+        description: null,
+        logoPath: 'https://outside.example/logo.svg',
+        accentColor: null,
+      },
+      {
+        name: 'Valid name',
+        description: null,
+        logoPath: null,
+        accentColor: '#abcdef',
+      },
+    ];
+
+    for (const malformedPublication of malformedPresentations) {
+      outcome = populatedFeed();
+      const { context, page } = await openPage({
+        routeApi: async (route) => {
+          const response = publicFeedResponse(
+            populatedFeed(),
+            Object.freeze({ q: null, source: null, category: null }),
+          );
+          await route.fulfill({
+            contentType: 'application/json',
+            body: JSON.stringify({
+              ...response,
+              publication: malformedPublication,
+            }),
+          });
+        },
+      });
+      try {
+        await waitForState(page, 'error');
+        assert.equal(
+          await page.locator('[data-publication-masthead]').isHidden(),
+          true,
+        );
+        assert.equal(await page.title(), 'Feed unavailable');
+      } finally {
+        await context.close();
+      }
     }
   });
 
@@ -1672,6 +1957,74 @@ describe('Public feed page browser behavior', () => {
     }
   });
 
+  it('does not let stale success, 404, or error responses overwrite newer owned branding', async () => {
+    outcome = populatedFeed();
+    const { context, page } = await openPage({ controlledFetch: true });
+    const presentation = (name: string) => ({
+      ...brandedPublication,
+      name,
+      logoPath: null,
+    });
+    const query = (q: string | null): DiscoveryQuery =>
+      Object.freeze({ q, source: null, category: null });
+    const response = (name: string, q: string | null) =>
+      publicFeedResponse(
+        populatedFeed({ publication: presentation(name) }),
+        query(q),
+      );
+    try {
+      await waitForControlledFetchCount(page, 1);
+      await resolveControlledFetch(page, 0, response('Initial', null));
+      await waitForState(page, 'populated');
+
+      await page.locator('[data-discovery-keyword]').fill('stale-404');
+      await submitDiscovery(page);
+      await waitForControlledFetchCount(page, 2);
+      await page.locator('[data-discovery-keyword]').fill('after-404');
+      await submitDiscovery(page);
+      await waitForControlledFetchCount(page, 3);
+      await resolveControlledFetch(page, 2, response('After 404', 'after-404'));
+      await waitForState(page, 'populated');
+      await resolveControlledFetch(page, 1, { error: 'not_found' }, 404);
+      await flushBrowser(page);
+      await assertCurrentBranding(page, 'After 404');
+
+      await page.locator('[data-discovery-keyword]').fill('stale-error');
+      await submitDiscovery(page);
+      await waitForControlledFetchCount(page, 4);
+      await page.locator('[data-discovery-keyword]').fill('after-error');
+      await submitDiscovery(page);
+      await waitForControlledFetchCount(page, 5);
+      await resolveControlledFetch(
+        page,
+        4,
+        response('After error', 'after-error'),
+      );
+      await waitForState(page, 'populated');
+      await rejectControlledFetch(page, 3);
+      await flushBrowser(page);
+      await assertCurrentBranding(page, 'After error');
+
+      await page.locator('[data-discovery-keyword]').fill('stale-success');
+      await submitDiscovery(page);
+      await waitForControlledFetchCount(page, 6);
+      await page.locator('[data-discovery-keyword]').fill('current');
+      await submitDiscovery(page);
+      await waitForControlledFetchCount(page, 7);
+      await resolveControlledFetch(page, 6, response('Current', 'current'));
+      await waitForState(page, 'populated');
+      await resolveControlledFetch(
+        page,
+        5,
+        response('Stale success', 'stale-success'),
+      );
+      await flushBrowser(page);
+      await assertCurrentBranding(page, 'Current');
+    } finally {
+      await context.close();
+    }
+  });
+
   it('prevents a slow initial response from overwriting a newer Apply result', async () => {
     const slow = deferred<PublicFeed | undefined>();
     outcome = (request) =>
@@ -1765,6 +2118,7 @@ describe('Public feed page browser behavior', () => {
       timezoneId?: string;
       viewport?: { readonly width: number; readonly height: number };
       routeApi?: (route: Route) => Promise<void>;
+      routeLogo?: (route: Route) => Promise<void>;
       controlledFetch?: boolean;
     }> = {},
   ): Promise<{
@@ -1788,6 +2142,8 @@ describe('Public feed page browser behavior', () => {
     });
     if (options.routeApi !== undefined)
       await page.route('**/api/feed**', options.routeApi);
+    if (options.routeLogo !== undefined)
+      await page.route('**/publication-logo.svg', options.routeLogo);
     const response = await page.goto(
       `http://${webServer.host}:${webServer.port}${options.path ?? '/'}`,
     );
@@ -1806,6 +2162,60 @@ async function submitDiscovery(page: Page): Promise<void> {
   await page
     .locator('[data-discovery-form]')
     .evaluate((form) => (form as HTMLFormElement).requestSubmit());
+}
+
+async function assertPendingBranding(
+  page: Page,
+  expected: Readonly<{
+    name: string;
+    description: string;
+    accentColor: string;
+  }>,
+): Promise<void> {
+  await waitForState(page, 'loading');
+  assert.equal(
+    await page.locator('[data-feed-status]').innerText(),
+    'Loading the latest headlines.',
+  );
+  assert.equal(
+    await page.locator('[data-publication-name]').innerText(),
+    expected.name,
+  );
+  assert.equal(
+    await page.locator('[data-publication-description]').innerText(),
+    expected.description,
+  );
+  assert.equal(
+    await page
+      .locator('[data-publication-masthead]')
+      .evaluate((element) =>
+        element.style.getPropertyValue('--publication-accent'),
+      ),
+    expected.accentColor,
+  );
+  assert.equal(await page.title(), `${expected.name} | News feed`);
+  assert.equal(await page.locator('.feed-row').count(), 0);
+}
+
+async function assertCurrentBranding(page: Page, name: string): Promise<void> {
+  assert.equal(
+    await page.locator('[data-feed-content]').getAttribute('data-state'),
+    'populated',
+  );
+  assert.equal(await page.locator('[data-publication-name]').innerText(), name);
+  assert.equal(
+    await page.locator('[data-publication-description]').innerText(),
+    brandedPublication.description,
+  );
+  assert.equal(
+    await page
+      .locator('[data-publication-masthead]')
+      .evaluate((element) =>
+        element.style.getPropertyValue('--publication-accent'),
+      ),
+    brandedPublication.accentColor,
+  );
+  assert.equal(await page.title(), `${name} | News feed`);
 }
 
 function waitForState(page: Page, state: string): Promise<unknown> {
@@ -1890,9 +2300,10 @@ async function resolveControlledFetch(
   page: Page,
   requestIndex: number,
   body: unknown,
+  status = 200,
 ): Promise<void> {
   await page.evaluate(
-    ({ index, responseBody }) => {
+    ({ index, responseBody, responseStatus }) => {
       const requests = (
         globalThis as typeof globalThis & {
           __publicFeedControlledFetchRequests?: unknown[];
@@ -1908,12 +2319,12 @@ async function resolveControlledFetch(
       }
       request.resolve(
         new Response(JSON.stringify(responseBody), {
-          status: 200,
+          status: responseStatus,
           headers: { 'Content-Type': 'application/json' },
         }),
       );
     },
-    { index: requestIndex, responseBody: body },
+    { index: requestIndex, responseBody: body, responseStatus: status },
   );
 }
 

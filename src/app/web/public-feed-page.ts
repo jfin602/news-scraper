@@ -8,13 +8,19 @@ const publicFeedPage = `<!doctype html>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>News feed</title>
+    <title>Loading publication…</title>
     <link rel="stylesheet" href="/public-feed.css">
     <script src="/public-feed.js" defer></script>
   </head>
   <body>
-    <main class="public-feed-shell">
-      <h1 data-publication-name>News feed</h1>
+    <main class="public-feed-shell" data-publication-state="unresolved">
+      <header class="publication-masthead" data-publication-masthead hidden>
+        <div class="publication-logo" data-publication-logo hidden></div>
+        <div class="publication-identity">
+          <h1 data-publication-name></h1>
+          <p class="publication-description" data-publication-description hidden></p>
+        </div>
+      </header>
       <form data-discovery-form aria-label="Discover headlines">
         <div class="discovery-field">
           <label for="discovery-keyword">Keyword</label>
@@ -37,8 +43,11 @@ const publicFeedPage = `<!doctype html>
           <button type="button" data-discovery-reset>Reset</button>
         </div>
       </form>
-      <p data-feed-status role="status" aria-live="polite">Loading the latest headlines.</p>
-      <section data-feed-content aria-label="Latest headlines"></section>
+      <p class="feed-status" data-feed-status role="status" aria-live="polite">
+        <span class="feed-loading-indicator" data-feed-loading-indicator aria-hidden="true"></span>
+        <span data-feed-status-message>Loading publication…</span>
+      </p>
+      <section data-feed-content data-state="loading" aria-label="Latest headlines"></section>
     </main>
   </body>
 </html>`;

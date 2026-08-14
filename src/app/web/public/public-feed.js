@@ -3,8 +3,18 @@
 (() => {
   'use strict';
 
+  const shell = document.querySelector('[data-publication-state]');
+  const masthead = document.querySelector('[data-publication-masthead]');
+  const publicationLogo = document.querySelector('[data-publication-logo]');
   const publicationName = document.querySelector('[data-publication-name]');
+  const publicationDescription = document.querySelector(
+    '[data-publication-description]',
+  );
   const status = document.querySelector('[data-feed-status]');
+  const statusMessage = document.querySelector('[data-feed-status-message]');
+  const loadingIndicator = document.querySelector(
+    '[data-feed-loading-indicator]',
+  );
   const content = document.querySelector('[data-feed-content]');
   const form = document.querySelector('[data-discovery-form]');
   const keyword = document.querySelector('[data-discovery-keyword]');
@@ -13,8 +23,14 @@
   const reset = document.querySelector('[data-discovery-reset]');
 
   if (
+    !(shell instanceof HTMLElement) ||
+    !(masthead instanceof HTMLElement) ||
+    !(publicationLogo instanceof HTMLElement) ||
     !(publicationName instanceof HTMLElement) ||
+    !(publicationDescription instanceof HTMLElement) ||
     !(status instanceof HTMLElement) ||
+    !(statusMessage instanceof HTMLElement) ||
+    !(loadingIndicator instanceof HTMLElement) ||
     !(content instanceof HTMLElement) ||
     !(form instanceof HTMLFormElement) ||
     !(keyword instanceof HTMLInputElement) ||
@@ -26,7 +42,6 @@
   }
 
   const stateMessages = {
-    loading: 'Loading the latest headlines.',
     empty: 'There are no recent headlines yet.',
     unavailable: 'This publication is unavailable.',
     invalid: 'This discovery request is invalid. Reset and try again.',
@@ -34,6 +49,7 @@
   };
 
   const state = {
+    publication: null,
     criteria: null,
     items: [],
     itemIds: new Set(),
@@ -53,7 +69,13 @@
   function setState(viewState) {
     content.replaceChildren();
     content.dataset.state = viewState;
-    status.textContent = stateMessages[viewState] ?? '';
+    loadingIndicator.hidden = viewState !== 'loading';
+    statusMessage.textContent =
+      viewState === 'loading'
+        ? state.publication === null
+          ? 'Loading publication…'
+          : 'Loading the latest headlines.'
+        : (stateMessages[viewState] ?? '');
   }
 
   function formatUtcDate(value) {
@@ -83,6 +105,58 @@
     return value;
   }
 
+  function validatedPublication(value) {
+    if (value === null || typeof value !== 'object') {
+      throw new Error('Invalid feed data.');
+    }
+    const name = requiredString(value.name);
+    if (name.length > 200) throw new Error('Invalid feed data.');
+    return {
+      name,
+      description: validatedDescription(value.description),
+      logoPath: validatedLogoPath(value.logoPath),
+      accentColor: validatedAccentColor(value.accentColor),
+    };
+  }
+
+  function validatedDescription(value) {
+    if (value === null) return null;
+    const description = requiredString(value);
+    if (Array.from(description).length > 500) {
+      throw new Error('Invalid feed data.');
+    }
+    return description;
+  }
+
+  function validatedLogoPath(value) {
+    if (value === null) return null;
+    const logoPath = requiredString(value);
+    if (
+      logoPath.length > 1024 ||
+      !logoPath.startsWith('/') ||
+      logoPath.startsWith('//') ||
+      /[?#\\]/u.test(logoPath) ||
+      Array.from(logoPath).some((character) => {
+        const codePoint = character.codePointAt(0);
+        return (
+          codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f)
+        );
+      })
+    ) {
+      throw new Error('Invalid feed data.');
+    }
+    return logoPath;
+  }
+
+  function validatedAccentColor(value) {
+    if (value === null) return null;
+    const accentColor = requiredString(value);
+    if (!/^#[0-9A-F]{6}$/u.test(accentColor)) {
+      throw new Error('Invalid feed data.');
+    }
+    return accentColor;
+  }
+
   function validOriginalUrl(value) {
     const originalUrl = requiredString(value);
     const url = new URL(originalUrl);
@@ -109,9 +183,7 @@
       throw new Error('Invalid feed data.');
     }
     return {
-      publication: {
-        name: requiredString(value.publication.name),
-      },
+      publication: validatedPublication(value.publication),
       discovery: {
         query: validatedQuery(value.discovery.query),
         sources: value.discovery.sources.map(validatedChoice),
@@ -247,7 +319,8 @@
 
   function updateDisplayedStatus() {
     const count = state.items.length;
-    status.textContent = `${count} headline${count === 1 ? '' : 's'} shown.`;
+    loadingIndicator.hidden = true;
+    statusMessage.textContent = `${count} headline${count === 1 ? '' : 's'} shown.`;
   }
 
   function renderItems() {
@@ -339,9 +412,53 @@
     );
   }
 
-  function resetPublicationPresentation() {
-    publicationName.textContent = 'News feed';
-    document.title = 'News feed';
+  function renderPublicationPresentation(publication) {
+    state.publication = publication;
+    shell.dataset.publicationState = 'resolved';
+    publicationName.textContent = publication.name;
+    publicationDescription.textContent = publication.description ?? '';
+    publicationDescription.hidden = publication.description === null;
+    publicationLogo.replaceChildren();
+    publicationLogo.hidden = publication.logoPath === null;
+    if (publication.logoPath !== null) {
+      const image = document.createElement('img');
+      image.className = 'publication-logo-image';
+      image.alt = '';
+      image.addEventListener('error', () => {
+        if (!publicationLogo.contains(image)) return;
+        image.remove();
+        publicationLogo.hidden = true;
+      });
+      image.src = publication.logoPath;
+      publicationLogo.append(image);
+    }
+    if (publication.accentColor === null) {
+      masthead.style.removeProperty('--publication-accent');
+    } else {
+      masthead.style.setProperty(
+        '--publication-accent',
+        publication.accentColor,
+      );
+    }
+    masthead.hidden = false;
+    document.title = `${publication.name} | News feed`;
+  }
+
+  function clearPublicationPresentation(title) {
+    state.publication = null;
+    shell.dataset.publicationState = 'unresolved';
+    publicationName.textContent = '';
+    publicationDescription.textContent = '';
+    publicationDescription.hidden = true;
+    publicationLogo.replaceChildren();
+    publicationLogo.hidden = true;
+    masthead.style.removeProperty('--publication-accent');
+    masthead.hidden = true;
+    document.title = title;
+  }
+
+  function setUnbrandedDocumentTitle(title) {
+    if (state.publication === null) document.title = title;
   }
 
   function replaceChoices(select, choices, emptyLabel) {
@@ -453,7 +570,7 @@
     const controller = new AbortController();
     state.firstPage.controller = controller;
     clearDiscoveryControls();
-    resetPublicationPresentation();
+    setUnbrandedDocumentTitle('Loading publication…');
     setState('loading');
     try {
       const response = await fetch(path, {
@@ -462,10 +579,12 @@
       });
       if (!isCurrentFirstPage(generation, controller)) return;
       if (response.status === 400) {
+        setUnbrandedDocumentTitle('Invalid discovery request');
         setState('invalid');
         return;
       }
       if (response.status === 404) {
+        clearPublicationPresentation('Publication unavailable');
         setState('unavailable');
         return;
       }
@@ -477,8 +596,7 @@
       state.items = feed.items;
       state.itemIds = itemIds;
       state.nextCursor = feed.nextCursor;
-      publicationName.textContent = feed.publication.name;
-      document.title = `${feed.publication.name} | News feed`;
+      renderPublicationPresentation(feed.publication);
       renderDiscoveryControls(feed.discovery);
       if (feed.items.length === 0) {
         setState('empty');
@@ -487,6 +605,7 @@
       renderItems();
     } catch {
       if (!isCurrentFirstPage(generation, controller)) return;
+      setUnbrandedDocumentTitle('Feed unavailable');
       setState('error');
     } finally {
       if (isCurrentFirstPage(generation, controller)) {
