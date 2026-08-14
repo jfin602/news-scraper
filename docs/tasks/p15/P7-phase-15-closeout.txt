@@ -4,17 +4,17 @@ ROADMAP PHASE
 Phase 15 — Publication and Relevance administration.
 
 MODEL / REASONING / USAGE
-- Recommended configuration: `Luna High`.
-- Model-family basis: Luna is adequate because P7 is an evidence-driven closeout over explicit Phase 15 contracts, with permission only for bounded defects rather than architectural redesign.
-- Reasoning basis: High reasoning is warranted for synthesizing cross-layer Publication/Category/Relevance evidence, detecting regressions, and deciding whether a failure is a bounded closeout fix or a planning/correction blocker.
+- Recommended configuration: `Sol Light`.
+- Model-family basis: closeout is an independent final review boundary, so Sol's stronger base code-reading and review capability is preferred even though the Phase 15 evidence matrix is explicit and bounded.
+- Reasoning basis: Light reasoning is sufficient for the governed two-pass closeout workflow: execute the explicit contract/evidence matrix, then independently inspect the final implementation for code-quality and adversarial review gaps; deeper reasoning is reserved for an observed failure that cannot be confidently classified as a bounded closeout defect.
 - Complexity / quality floor: `High`.
 - Estimated usage: `High`.
-- Lower-cost alternative considered: `Luna Medium`; rejected because final-tree validation spans database referential integrity, public date semantics, protected admin APIs, and real browser workflows with enough defect-triage coupling to require deeper reasoning.
-- Escalation trigger: an actual closeout failure requires difficult cross-subsystem root-cause analysis beyond a bounded Phase 15 defect and before it is clear whether to stop for replanning.
-- Escalation target: `Terra Medium`.
+- Lower-cost alternative considered: `Luna High`; rejected for closeout because the workflow intentionally uses Sol Light as the independent-review baseline to improve the chance of catching implementation-quality gaps left by cheaper implementation prompts without paying for high reasoning by default.
+- Escalation trigger: either closeout pass exposes material architectural ambiguity, difficult cross-subsystem root-cause analysis, concurrency/transaction ownership uncertainty, security-boundary uncertainty, or another defect that cannot be confidently classified and repaired within the bounded Phase 15 closeout contract.
+- Escalation target: `Terra Ultra` when the dominant need is deeper reasoning over explicit state/transaction interactions; use a higher-effort Sol configuration instead if the blocker requires stronger independent cross-system inference or ambiguous contract reconciliation.
 - Estimate confidence: `High`.
-- Efficiency rationale: broad validation volume alone does not justify Terra; Luna High is sufficient to execute the explicit matrix and stop rather than redesign when a material defect is discovered.
-- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+- Efficiency rationale: Sol Light buys stronger independent review capability at low reasoning cost; validation volume alone does not justify a higher-effort model, while the explicit escalation rule prevents the closeout from forcing a weak-reasoning model through a genuinely hard defect.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md`, `docs/codex-model-selection.md`, and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
 
 VERSIONING
 - This is Phase 15 prompt 7 and its assigned project version is `0.15.7`.
@@ -28,13 +28,13 @@ VERSIONING
 MANUAL CLOSEOUT BOUNDARY
 This is the sole final manual closeout prompt for the Phase 15 task stack. `npm run codex:phase -- p15` must stop after P6 and MUST NOT execute P7 automatically.
 
-P7 validates the exact final Phase 15 implementation, fixes only bounded defects necessary to satisfy already-governed Phase 15 contracts/exit gates, writes the durable validation artifact, and records only evidence actually observed.
+P7 validates the exact final Phase 15 implementation, fixes only bounded defects necessary to satisfy already-governed Phase 15 contracts/exit gates, performs a separate code-quality/adversarial review pass, writes the durable validation artifact, and records only evidence actually observed.
 
 Do not invent new Phase 15 scope, pull Phase 16/later behavior forward, or perform the Phase 19 Cloudflare/reference-deployment gate.
 
 MANDATORY HANDOFF
 Before any P7 write/version action:
-1. read current `BOOT.md`, the complete Phase 15 roadmap entry, and P1–P6 tasks;
+1. read current `BOOT.md`, `docs/codex-model-selection.md`, the complete Phase 15 roadmap entry, and P1–P6 tasks;
 2. read `docs/contracts/domain-and-data-contract.md`, `docs/contracts/source-and-collection-contract.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/architecture/system-architecture.md`, and `docs/decisions/cloudflare-access-admin-perimeter.md`;
 3. inspect the actual final P1–P6 implementation/tests rather than assuming task prose describes the resulting source exactly;
 4. inspect the final migration chain, Publication configuration/repository/bootstrap/public read model, public date formatter, Publication admin service/API, editorial Category/Relevance service/API, retained relationship constraints, admin browser resources, and public/collection regressions;
@@ -60,6 +60,7 @@ The artifact must identify at minimum:
 - Relevance relationship/removal/precedence/prospective evidence;
 - request-integrity/admin API evidence;
 - browser viewports/workflows observed;
+- code-quality/adversarial second-pass scope and outcome, including defects found, bounded fixes made, and any unresolved finding requiring replanning/correction;
 - important limitations, retries, skipped/zero-test conditions, or unavailable prerequisites;
 - explicit statement that Level 8 Cloudflare Access/direct-origin observation was not a Phase 15 requirement and remains Phase 19-owned;
 - Phase 15 exit-gate conclusion as GREEN or blocked/red;
@@ -168,6 +169,30 @@ Inspect and record enough final-tree evidence to confirm:
 - Article/duplicate moderation and Phase 16 grouping were not pulled forward;
 - Cloudflare Access remains external admin access control, while Level 8 observation remains Phase 19 work.
 
+CODE QUALITY / ADVERSARIAL SECOND PASS
+After the contract/evidence pass is green on a candidate tree, perform a separate fresh code-reading pass over the complete Phase 15 implementation diff plus important touched producers/consumers. Do not treat rerunning the command matrix as this pass.
+
+At minimum inspect for:
+- duplicated or parallel Publication/Category/Relevance logic that should use the existing canonical path;
+- avoidable complexity, over-abstraction, speculative future-proofing, dead code, or compatibility-only bridges inconsistent with the pre-production simplification policy;
+- service/repository/API/UI responsibility leakage or helpers whose changed behavior affects consumers outside the obvious Phase 15 path;
+- missing validation/error translation, PostgreSQL-detail leakage, partial-mutation risks, or transaction boundaries that do not actually protect multi-step Category/Relevance mutations;
+- stale-reference, race, or consistency assumptions around guarded Category/rule deletion and related retained relationships;
+- accidental weakening of idempotency, Article/observation provenance, Source ownership, Publication singleton semantics, request integrity, or approved-source/network-safety boundaries;
+- brittle tests, tests that assert implementation details instead of contracts, missing negative/rollback coverage, silent skips, or important behavior with no focused regression;
+- admin/browser state-management duplication, inaccessible interaction paths, stale choice data, or error paths that lose operator input/state;
+- logging/observability or error-shaping gaps that would make a realistic Phase 15 failure difficult to diagnose without leaking sensitive/internal detail;
+- documentation/task/implementation drift, including behavior added by P1–P6 that is not governed by Phase 15 or a governed requirement that has no implementation/test evidence.
+
+For every finding, classify it as:
+1. no issue / acceptable tradeoff;
+2. bounded Phase 15 closeout defect that P7 may repair under DEFECT HANDLING; or
+3. material issue requiring stop + escalation/replanning/correction.
+
+If a bounded quality fix is made, add or strengthen focused regression coverage when technically practical and rerun every invalidated broader suite before accepting a new final tree. Record the second-pass findings and disposition in the durable validation artifact even when no defects are found.
+
+Do not assume this second pass makes `Sol Light` equivalent to a higher-reasoning configuration. If the pass uncovers a problem whose correctness depends on difficult concurrency/transaction reasoning, material architecture, security-boundary interpretation, or ambiguous cross-system behavior, stop and use the model escalation rule above rather than guessing through it.
+
 REQUIRED COMMAND MATRIX
 Run on the exact final candidate tree with prerequisites present:
 - `npm run format:check`
@@ -207,12 +232,13 @@ Phase 15 closeout does NOT require Level 8 reference-deployment observation of C
 New Level 7 approved live-publisher collection is not intrinsically required by Phase 15 because this phase changes Publication/editorial administration and presentation timezone, not publisher transport/network behavior. If P1–P6 unexpectedly changed live transport semantics, reassess the governing testing contract and stop rather than assuming historical live-source evidence covers a newly changed transport path.
 
 DEFECT HANDLING
-P7 may fix only bounded defects necessary to make the already-defined Phase 15 implementation satisfy its contracts/tests.
+P7 may fix only bounded defects necessary to make the already-defined Phase 15 implementation satisfy its contracts/tests or remove a concrete code-quality defect discovered by the required second pass without changing governed behavior.
 
 For any bounded fix:
 - keep package version `0.15.7`;
 - add/fix a focused regression for the failed invariant when technically practical;
 - rerun every broader suite invalidated by the fix;
+- repeat the relevant part of the code-quality/adversarial pass when the fix changes reviewed code paths;
 - re-establish the final candidate SHA/tree after the fix;
 - ensure the durable artifact references the exact final tested source.
 
@@ -222,7 +248,8 @@ Examples of bounded P7 fixes:
 - one missing guarded-deletion FK error translation;
 - one Source/Category relationship validation bug;
 - one admin request-integrity route wiring defect;
-- one browser form/focus/choice-refresh regression.
+- one browser form/focus/choice-refresh regression;
+- a small duplicated helper/path or dead compatibility branch introduced in Phase 15 whose removal preserves the governed behavior and can be regression-proven locally.
 
 STOP and report planning/correction need rather than stretching P7 if repair requires:
 - material contract/ADR change;
@@ -233,6 +260,7 @@ STOP and report planning/correction need rather than stretching P7 if repair req
 - automatic historical reprocessing capability;
 - new frontend framework/state architecture;
 - Article/duplicate moderation or Phase 16 grouping;
+- difficult concurrency/transaction redesign or ambiguous cross-subsystem root cause that exceeds the `Sol Light` closeout reasoning boundary;
 - unrelated roadmap work.
 
 NON-GOALS
@@ -256,11 +284,12 @@ P7 may declare Phase 15 GREEN only when:
 - Category/rule relationship and guarded-removal behavior preserves retained data/provenance;
 - exact bounded Relevance semantics and prospective behavior remain unchanged;
 - relevant earlier-phase regressions remain green;
-- `docs/validation/phase-15-publication-relevance-administration.md` accurately records evidence and limitations;
+- the separate code-quality/adversarial second pass completed on the accepted tree and every finding is either resolved as a bounded defect or explicitly determined not to block; no unresolved material finding is carried into GREEN;
+- `docs/validation/phase-15-publication-relevance-administration.md` accurately records evidence, second-pass findings/disposition, and limitations;
 - Level 8 is accurately recorded as Phase 19-owned rather than a Phase 15 blocker;
 - no Phase 16/later behavior was pulled forward;
 - final committed-range diff validation is clean.
 
-If GREEN, report the accepted final SHA/tree, durable validation artifact path, evidence levels/results, and that the next conversational workflow action is `/closeout` for the separate Phase 16 `0.16.0` baseline transition.
+If GREEN, report the accepted final SHA/tree, durable validation artifact path, evidence levels/results, code-quality/adversarial second-pass outcome, and that the next conversational workflow action is `/closeout` for the separate Phase 16 `0.16.0` baseline transition.
 
 Do NOT advance `package.json` to `0.16.0` or rewrite roadmap/root current-phase summaries to Phase 16 inside P7; conversational `/closeout` followed by the normal documentation workflow owns that handoff.
