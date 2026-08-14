@@ -400,6 +400,14 @@ function translateRelevancePersistenceError(
       'relevance_rule_config_key_conflict',
     );
   }
+  if (postgresError(error, '23503', 'relevance_rules_source_id_fkey')) {
+    return new EditorialAdministrationError('relevance_rule_source_not_found');
+  }
+  if (postgresError(error, '23503', 'relevance_rules_category_id_fkey')) {
+    return new EditorialAdministrationError(
+      'relevance_rule_category_not_found',
+    );
+  }
   if (postgresError(error, '23503')) {
     return new EditorialAdministrationError('relevance_rule_in_use');
   }
