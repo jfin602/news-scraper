@@ -21,6 +21,7 @@ Phases are intentionally narrow. Each phase represents one cohesive implementati
 - Native application-managed administrator accounts, passwords/passkeys, sessions, roles, account recovery, Publication-scoped user authorization, and identity-linked audit attribution are outside MVP.
 - MVP admin UI/API routes use Cloudflare Access as the external perimeter; supported deployments MUST prevent direct-origin bypass.
 - Cloudflare Access does not replace request-integrity, resource-validation, fetch/network-safety, output/content-safety, secrets, or origin protections.
+- Observed Level 8 proof that Cloudflare Access protects deployed admin routes and that direct-origin bypass fails is deferred to Phase 19; earlier admin phases still implement and regression-test their application-side security boundaries and do not weaken the deployment invariant.
 - Public-feed and collection behavior should become useful before admin convenience and moderation workflows are expanded.
 - Automated behavioral regression coverage is the primary defense against regressions. Every implementation phase and gating correction inherits `docs/contracts/testing-and-validation-contract.md`.
 
@@ -724,7 +725,7 @@ Turn the working feed into a polished customer-facing publication experience wit
 
 ### Goal
 
-Replace bootstrap/manual Source configuration with a practical control surface protected by Cloudflare Access.
+Replace bootstrap/manual Source configuration with a practical control surface intended for operation behind Cloudflare Access.
 
 ### Depends on
 
@@ -732,8 +733,7 @@ Replace bootstrap/manual Source configuration with a practical control surface p
 
 ### Deliverables
 
-- admin shell with all admin UI/API routes behind Cloudflare Access;
-- supported deployment prevents direct-origin bypass;
+- admin shell and admin UI/API routes structured for the required Cloudflare Access external perimeter;
 - CSRF/equivalent request-integrity protection for state-changing browser actions;
 - real resource-relationship/domain-invariant validation on admin commands;
 - Source/endpoint list/detail/create/update;
@@ -748,7 +748,8 @@ Replace bootstrap/manual Source configuration with a practical control surface p
 - absent phrase configuration preserving collect-all behavior, with no exclude list or independent enabled toggle;
 - pre-normalization `source_item_filtered_count` Collection-run accounting;
 - manual check-now reusing the canonical Worker/job path;
-- recent Collection-run/health visibility.
+- recent Collection-run/health visibility;
+- preserved deployment invariant that supported deployments prevent direct-origin bypass, with observed Cloudflare Access/origin-topology proof deferred to Phase 19.
 
 ### Out of scope
 
@@ -763,7 +764,8 @@ Replace bootstrap/manual Source configuration with a practical control surface p
 - regex/glob/fuzzy/stemming/semantic/AI/general-expression filtering;
 - Article-body fetching for admission matching;
 - automatic historical Article reprocessing or mutation;
-- claiming unsupported future adapter types already use the RSS/Atom filter.
+- claiming unsupported future adapter types already use the RSS/Atom filter;
+- Level 8 reference-deployment observation of Cloudflare Access and direct-origin blocking, which is a Phase 19 validation responsibility.
 
 ### Boundary clarification
 
@@ -772,15 +774,16 @@ Replace bootstrap/manual Source configuration with a practical control surface p
 - Filter changes are prospective and do not rewrite historical Articles, observations, or Collection runs.
 - The filter does not bypass approval/lifecycle/operational eligibility, endpoint locking, network/redirect/fetch/parser safety, admitted-candidate Article-link validation, scheduling, jobs, or provenance.
 - Existing Phase 11 predicates and deterministic precedence/category behavior remain unchanged.
+- Phase 14 closeout proves the application-side admin, request-integrity, resource-boundary, persistence, job, collection-fixture, and browser behavior at the applicable local evidence levels. It does not claim that a deployed Cloudflare Access perimeter or direct-origin block was observed.
 
 ### Exit gate
 
-- Cloudflare-authorized operator can add/operate RSS/Atom Source without code/DB changes.
-- Cloudflare-authorized operator can view/change the optional Source RSS/Atom item admission phrases without code/DB hand-editing, and absent configuration preserves collect-all behavior.
+- The admin Source control surface can add/operate an RSS/Atom Source without code/DB changes.
+- The admin Source control surface can view/change the optional Source RSS/Atom item admission phrases without code/DB hand-editing, and absent configuration preserves collect-all behavior.
 - Deterministic tests prove bounded literal any-match behavior across supported parsed fields, missing/empty/invalid configuration, all-items-filtered accounting, separation from normalization/Relevance/identity/observations, and prospective non-retroactive edits.
 - Admin actions cannot bypass state, real resource relationships, locking, or network safety.
 - Request-integrity/resource-boundary regressions pass.
-- Direct-origin admin bypass is prevented in the supported deployment.
+- Phase 14 closeout does not require Level 8 Cloudflare Access/direct-origin observation; that deployment proof is a blocking Phase 19 exit requirement before production readiness.
 
 ## Phase 15 — Publication and Relevance administration
 
@@ -925,7 +928,7 @@ Add approved non-feed Sources without creating another downstream pipeline.
 
 ### Goal
 
-Make the completed MVP safe to operate continuously and recoverably, strengthening integrated evidence for controls already tested throughout earlier phases.
+Make the completed MVP safe to operate continuously and recoverably, strengthening integrated evidence for controls already tested throughout earlier phases and completing the deferred deployment-perimeter proof before production readiness.
 
 ### Depends on
 
@@ -943,14 +946,14 @@ Make the completed MVP safe to operate continuously and recoverably, strengtheni
 - operational runbooks;
 - monitoring/recovery ownership;
 - explicit Cloudflare Access/origin-protection validation;
-- reference-deployment validation at the appropriate evidence level.
+- Level 8 reference-deployment validation that observes unauthenticated admin denial/challenge, authorized operator access, failed direct-origin bypass, and the actual origin-protection mechanism.
 
 ### Out of scope
 
 - native administrator accounts;
 - self-service tenancy;
 - unrelated post-MVP features;
-- deferring basic security/recovery tests that belonged to earlier phases.
+- deferring basic application-side security/recovery tests that belonged to earlier phases.
 
 ### Exit gate
 
@@ -958,6 +961,7 @@ Make the completed MVP safe to operate continuously and recoverably, strengtheni
 - Source failures/queue delay are observable.
 - Security coverage includes SSRF, unsafe content, secret leakage, fetch limits, admin perimeter/origin assumptions, and request integrity.
 - Deployment/rollback and failure runbooks are usable and validated where practical.
+- Level 8 reference-deployment evidence confirms Cloudflare Access challenges/denies unauthenticated admin access, an authorized operator can reach the admin surface, direct-origin bypass fails, and the deployed origin-protection control is identified.
 - Required deterministic regression suites remain green on the final tree.
 
 ## Phase 20 — Customer launch validation
