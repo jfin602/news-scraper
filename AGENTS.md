@@ -303,3 +303,11 @@ Phases 1–9 remain the tech-demo critical path historically.
 - Every roadmap or correction implementation/closeout prompt follows the `BOOT.md` and `docs/codex-model-selection.md` minimum-cost-adequate family + reasoning policy: start from the lowest expected-credit current configuration that plausibly satisfies the correctness floor, choose family and effort independently, escalate only for a concrete task-specific reason, and record the recommendation, family/effort basis, complexity/quality floor, estimated usage, lower-cost alternative, escalation trigger/target, and efficiency rationale. Prompt length, phase number, broad validation volume, or feature importance alone do not justify a more expensive model.
 - Make a concrete recommendation when asked for the recommended option.
 - Never invent repository state, test results, Source behavior, or history.
+
+## Pre-production compatibility rule
+
+Use one canonical design. Do not add old/new aliases, synchronized duplicate fields, fallback compatibility paths, dormant Publication tenant fields, or speculative migration bridges. Before production database compatibility is established, databases from older source trees are disposable and the active migration/runtime/test/config tree MUST be reduced to the smallest current canonical system. Delete/squash/replace legacy-only migrations, compatibility wrappers/APIs/types, obsolete tests/fixtures, slug-addressed public/runtime routing, Publication-scoped repository APIs, and obsolete configuration paths when they have no independent current purpose. Historical detail belongs in Git history, superseded ADRs, historical prompts, and validation artifacts instead of active compatibility machinery.
+
+## Repository identity
+
+`the repo` / `the source code` = `jfin602/news-scraper`.
