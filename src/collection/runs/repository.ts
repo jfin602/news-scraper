@@ -51,6 +51,7 @@ export interface PersistedCollectionRun {
   readonly responseEtag: string | undefined;
   readonly responseLastModified: string | undefined;
   readonly rawItemCount: number;
+  readonly sourceItemFilteredCount: number;
   readonly normalizedCandidateCount: number;
   readonly normalizationFailureCount: number;
   readonly articleLinkRejectionCount: number;
@@ -88,6 +89,7 @@ export interface FinalizeCollectionRunInput {
     readonly lastModified?: string;
   }>;
   readonly rawItemCount: number;
+  readonly sourceItemFilteredCount: number;
   readonly normalizedCandidateCount: number;
   readonly normalizationFailureCount: number;
   readonly articleLinkRejectionCount: number;
@@ -125,6 +127,7 @@ export interface CollectionRunRow {
   readonly response_etag?: unknown;
   readonly response_last_modified?: unknown;
   readonly raw_item_count: unknown;
+  readonly source_item_filtered_count: unknown;
   readonly normalized_candidate_count: unknown;
   readonly normalization_failure_count: unknown;
   readonly article_link_rejection_count: unknown;
@@ -154,6 +157,7 @@ interface ValidatedFinalization {
   readonly responseEtag: string | null;
   readonly responseLastModified: string | null;
   readonly rawItemCount: number;
+  readonly sourceItemFilteredCount: number;
   readonly normalizedCandidateCount: number;
   readonly normalizationFailureCount: number;
   readonly articleLinkRejectionCount: number;
@@ -173,7 +177,7 @@ const COLLECTION_RUN_COLUMNS = `
   wire_byte_count, decompressed_byte_count, redirect_count,
   transport_elapsed_milliseconds, retry_classification, outcome_code,
   response_etag, response_last_modified, raw_item_count,
-  normalized_candidate_count, normalization_failure_count,
+  source_item_filtered_count, normalized_candidate_count, normalization_failure_count,
   article_link_rejection_count, created_count, updated_count, unchanged_count,
   rejected_count, excluded_count, failed_count, error_code, error_detail`;
 
@@ -202,10 +206,10 @@ export async function startCollectionRun(
     `INSERT INTO collection_runs (
        id, source_endpoint_id, execution_id, trigger_kind, run_status, transport_status,
        parser_status, normalization_status, processing_status, raw_item_count,
-       normalized_candidate_count, normalization_failure_count,
+       source_item_filtered_count, normalized_candidate_count, normalization_failure_count,
        article_link_rejection_count, created_count, updated_count, unchanged_count,
        rejected_count, excluded_count, failed_count
-     ) VALUES ($1, $2, $3, $4, 'running', 'not_run', 'not_run', 'not_run', 'not_run', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+     ) VALUES ($1, $2, $3, $4, 'running', 'not_run', 'not_run', 'not_run', 'not_run', 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
      RETURNING ${COLLECTION_RUN_COLUMNS}`,
     [randomUUID(), sourceEndpointId, executionId, triggerKind],
   );
@@ -237,17 +241,18 @@ export async function finalizeCollectionRun(
          response_etag = $14,
          response_last_modified = $15,
          raw_item_count = $16,
-         normalized_candidate_count = $17,
-         normalization_failure_count = $18,
-         article_link_rejection_count = $19,
-         created_count = $20,
-         updated_count = $21,
-         unchanged_count = $22,
-         rejected_count = $23,
-         excluded_count = $24,
-         failed_count = $25,
-         error_code = $26,
-         error_detail = $27
+         source_item_filtered_count = $17,
+         normalized_candidate_count = $18,
+         normalization_failure_count = $19,
+         article_link_rejection_count = $20,
+         created_count = $21,
+         updated_count = $22,
+         unchanged_count = $23,
+         rejected_count = $24,
+         excluded_count = $25,
+         failed_count = $26,
+         error_code = $27,
+         error_detail = $28
      WHERE id = $1 AND run_status = 'running'
      RETURNING ${COLLECTION_RUN_COLUMNS}`,
     [
@@ -267,6 +272,7 @@ export async function finalizeCollectionRun(
       finalization.responseEtag,
       finalization.responseLastModified,
       finalization.rawItemCount,
+      finalization.sourceItemFilteredCount,
       finalization.normalizedCandidateCount,
       finalization.normalizationFailureCount,
       finalization.articleLinkRejectionCount,
@@ -377,6 +383,9 @@ export function mapCollectionRunRow(
       responseEtag: nullableValidator(row.response_etag),
       responseLastModified: nullableValidator(row.response_last_modified),
       rawItemCount: requiredNonnegativeInteger(row.raw_item_count),
+      sourceItemFilteredCount: requiredNonnegativeInteger(
+        row.source_item_filtered_count,
+      ),
       normalizedCandidateCount: requiredNonnegativeInteger(
         row.normalized_candidate_count,
       ),
@@ -463,6 +472,9 @@ function validateFinalization(
           ? null
           : requiredValidator(input.responseValidators.lastModified),
       rawItemCount: nonnegativeInteger(input.rawItemCount),
+      sourceItemFilteredCount: nonnegativeInteger(
+        input.sourceItemFilteredCount,
+      ),
       normalizedCandidateCount: nonnegativeInteger(
         input.normalizedCandidateCount,
       ),
@@ -607,6 +619,7 @@ function validateRunAccounting(value: {
   readonly normalizationStatus: CollectionRunNormalizationStatus;
   readonly processingStatus: CollectionRunProcessingStatus;
   readonly rawItemCount: number;
+  readonly sourceItemFilteredCount: number;
   readonly normalizedCandidateCount: number;
   readonly normalizationFailureCount: number;
   readonly articleLinkRejectionCount: number;
@@ -618,6 +631,7 @@ function validateRunAccounting(value: {
   readonly failedCount: number;
 }): void {
   if (
+    value.sourceItemFilteredCount > value.rawItemCount ||
     value.articleLinkRejectionCount > value.normalizedCandidateCount ||
     (value.normalizationStatus === 'not_run' &&
       (value.normalizedCandidateCount !== 0 ||
@@ -627,7 +641,9 @@ function validateRunAccounting(value: {
       value.parserStatus !== 'succeeded') ||
     (value.normalizationStatus === 'succeeded' &&
       value.rawItemCount !==
-        value.normalizedCandidateCount + value.normalizationFailureCount) ||
+        value.sourceItemFilteredCount +
+          value.normalizedCandidateCount +
+          value.normalizationFailureCount) ||
     (value.normalizationStatus === 'failed' &&
       value.runStatus === 'succeeded') ||
     (value.processingStatus === 'not_run' &&

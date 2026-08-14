@@ -43,12 +43,17 @@ export interface SourceConfiguration {
   readonly lifecycleState: LifecycleState;
   readonly operationalState: OperationalState;
   readonly domainRules: readonly DomainRule[];
+  readonly priority: number;
+  readonly rssAtomAdmissionPhrases: readonly string[];
 }
 
 const CONFIG_KEY_MAX_LENGTH = 100;
 const URL_MAX_LENGTH = 2048;
 const POLL_INTERVAL_MINIMUM_SECONDS = 60;
 const POLL_INTERVAL_MAXIMUM_SECONDS = 2_592_000;
+const POSTGRES_INTEGER_MAXIMUM = 2_147_483_647;
+const RSS_ATOM_ADMISSION_PHRASE_MAXIMUM_COUNT = 64;
+const RSS_ATOM_ADMISSION_PHRASE_MAXIMUM_LENGTH = 512;
 const CONFIG_KEY_PATTERN = /^[a-z0-9]+(?:_[a-z0-9]+)*$/u;
 const DNS_LABEL_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u;
 
@@ -227,6 +232,63 @@ export function normalizePollIntervalSeconds(input: unknown): number {
   return input;
 }
 
+export function normalizeSourcePriority(input: unknown): number {
+  if (
+    typeof input !== 'number' ||
+    !Number.isSafeInteger(input) ||
+    input < 0 ||
+    input > POSTGRES_INTEGER_MAXIMUM
+  ) {
+    throw new ConfigurationValidationError(
+      'source.priority',
+      'must_be_a_nonnegative_postgresql_integer',
+    );
+  }
+  return input;
+}
+
+export function normalizeRssAtomAdmissionPhrases(
+  input: unknown,
+): readonly string[] {
+  if (!Array.isArray(input)) {
+    throw new ConfigurationValidationError(
+      'source.rssAtomAdmissionPhrases',
+      'must_be_an_array',
+    );
+  }
+  if (
+    input.length === 0 ||
+    input.length > RSS_ATOM_ADMISSION_PHRASE_MAXIMUM_COUNT
+  ) {
+    throw new ConfigurationValidationError(
+      'source.rssAtomAdmissionPhrases',
+      'must_contain_between_1_and_64_phrases',
+    );
+  }
+  return Object.freeze(
+    input.map((value) => {
+      if (typeof value !== 'string') {
+        throw new ConfigurationValidationError(
+          'source.rssAtomAdmissionPhrases',
+          'phrase_must_be_a_string',
+        );
+      }
+      const phrase = value.trim();
+      if (
+        phrase.length === 0 ||
+        phrase.length > RSS_ATOM_ADMISSION_PHRASE_MAXIMUM_LENGTH ||
+        /\p{Cc}/u.test(phrase)
+      ) {
+        throw new ConfigurationValidationError(
+          'source.rssAtomAdmissionPhrases',
+          'invalid_phrase',
+        );
+      }
+      return phrase;
+    }),
+  );
+}
+
 export function normalizeSourceEndpointConfiguration(
   input: unknown,
 ): Readonly<SourceEndpointConfiguration> {
@@ -282,6 +344,11 @@ export function normalizeSourceConfiguration(
     lifecycleState: normalizeLifecycleState(record.lifecycleState),
     operationalState: normalizeOperationalState(record.operationalState),
     domainRules: normalizeDomainRules(record.domainRules),
+    priority: normalizeSourcePriority(record.priority ?? 0),
+    rssAtomAdmissionPhrases:
+      record.rssAtomAdmissionPhrases === undefined
+        ? Object.freeze([])
+        : normalizeRssAtomAdmissionPhrases(record.rssAtomAdmissionPhrases),
   });
 }
 

@@ -23,6 +23,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
       '0006_mutable_relevance_rule_history.sql',
       '0007_public_feed_discovery_indexes.sql',
       '0008_publication_presentation.sql',
+      '0009_source_administration_foundation.sql',
     ]);
     assert.deepEqual(
       await migrateDatabase({ connectionString: databaseUrl }),
@@ -40,6 +41,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
              'publication_settings',
              'sources',
              'source_approved_domain_rules',
+             'source_rss_atom_admission_phrases',
              'source_endpoints',
              'source_endpoint_domain_rules',
              'collection_runs',
@@ -66,6 +68,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
           'source_approved_domain_rules',
           'source_endpoint_domain_rules',
           'source_endpoints',
+          'source_rss_atom_admission_phrases',
           'sources',
         ],
       );
@@ -84,6 +87,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
         { filename: '0006_mutable_relevance_rule_history.sql' },
         { filename: '0007_public_feed_discovery_indexes.sql' },
         { filename: '0008_publication_presentation.sql' },
+        { filename: '0009_source_administration_foundation.sql' },
       ]);
 
       const removedTenancy = await client.query<{

@@ -39,6 +39,8 @@ export interface PersistedSource {
   readonly approvalState: ApprovalState;
   readonly lifecycleState: LifecycleState;
   readonly operationalState: OperationalState;
+  readonly priority: number;
+  readonly rssAtomAdmissionPhrases: readonly string[];
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -81,6 +83,7 @@ interface SourceRow {
   readonly approval_state: unknown;
   readonly lifecycle_state: unknown;
   readonly operational_state: unknown;
+  readonly priority: unknown;
   readonly created_at: unknown;
   readonly updated_at: unknown;
 }
@@ -110,6 +113,11 @@ interface EndpointRow {
 interface DomainRuleRow {
   readonly hostname: unknown;
   readonly include_subdomains: unknown;
+}
+
+interface AdmissionPhraseRow {
+  readonly position: unknown;
+  readonly phrase: unknown;
 }
 
 interface AggregateRow extends SourceRow {
@@ -144,7 +152,7 @@ interface AggregateRow extends SourceRow {
 
 const SOURCE_COLUMNS = `
   id, config_key, display_name, site_url,
-  approval_state, lifecycle_state, operational_state, created_at, updated_at`;
+  approval_state, lifecycle_state, operational_state, priority, created_at, updated_at`;
 const ENDPOINT_COLUMNS = `
   id, source_id, config_key, endpoint_url, endpoint_type,
   approval_state, lifecycle_state, operational_state, poll_interval_seconds,
@@ -188,8 +196,8 @@ export async function createSourceIfAbsent(
   const sourceResult = await executor.query<SourceRow>(
     `INSERT INTO sources (
        id, config_key, display_name, site_url,
-       approval_state, lifecycle_state, operational_state
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+       approval_state, lifecycle_state, operational_state, priority
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      ON CONFLICT (config_key) DO NOTHING
      RETURNING ${SOURCE_COLUMNS}`,
     [
@@ -200,12 +208,21 @@ export async function createSourceIfAbsent(
       source.approvalState,
       source.lifecycleState,
       source.operationalState,
+      source.priority,
     ],
   );
   const inserted = sourceResult.rows[0];
   if (inserted !== undefined) {
-    const value = mapSourceRow(inserted);
+    const value = withAdmissionPhrases(
+      mapSourceRow(inserted),
+      source.rssAtomAdmissionPhrases,
+    );
     await insertSourceDomainRules(executor, value.id, source.domainRules);
+    await insertSourceRssAtomAdmissionPhrases(
+      executor,
+      value.id,
+      source.rssAtomAdmissionPhrases,
+    );
     return Object.freeze({ value, created: true });
   }
   const existing = await findSourceByConfigKey(executor, source.configKey);
@@ -222,8 +239,8 @@ async function insertValidatedSource(
   const sourceResult = await executor.query<SourceRow>(
     `INSERT INTO sources (
        id, config_key, display_name, site_url,
-       approval_state, lifecycle_state, operational_state
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7)
+       approval_state, lifecycle_state, operational_state, priority
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
      RETURNING ${SOURCE_COLUMNS}`,
     [
       randomUUID(),
@@ -233,12 +250,19 @@ async function insertValidatedSource(
       source.approvalState,
       source.lifecycleState,
       source.operationalState,
+      source.priority,
     ],
   );
-  const persisted = mapSourceRow(
-    requiredRow(sourceResult.rows, 'source insert'),
+  const persisted = withAdmissionPhrases(
+    mapSourceRow(requiredRow(sourceResult.rows, 'source insert')),
+    source.rssAtomAdmissionPhrases,
   );
   await insertSourceDomainRules(executor, persisted.id, source.domainRules);
+  await insertSourceRssAtomAdmissionPhrases(
+    executor,
+    persisted.id,
+    source.rssAtomAdmissionPhrases,
+  );
   return persisted;
 }
 
@@ -253,7 +277,12 @@ export async function findSourceByConfigKey(
     [configKey],
   );
   const row = result.rows[0];
-  return row === undefined ? undefined : mapSourceRow(row);
+  if (row === undefined) return undefined;
+  const source = mapSourceRow(row);
+  return withAdmissionPhrases(
+    source,
+    await loadSourceRssAtomAdmissionPhrases(executor, source.id),
+  );
 }
 
 export async function loadSourceApprovedDomainRules(
@@ -268,6 +297,20 @@ export async function loadSourceApprovedDomainRules(
     [sourceId],
   );
   return mapDomainRules(result.rows);
+}
+
+export async function loadSourceRssAtomAdmissionPhrases(
+  executor: QueryExecutor,
+  sourceId: string,
+): Promise<readonly string[]> {
+  const result = await executor.query<AdmissionPhraseRow>(
+    `SELECT position, phrase
+     FROM source_rss_atom_admission_phrases
+     WHERE source_id = $1
+     ORDER BY position ASC`,
+    [sourceId],
+  );
+  return mapAdmissionPhrases(result.rows);
 }
 
 export async function insertSourceEndpoint(
@@ -504,6 +547,7 @@ async function findEndpointConfiguration(
        s.approval_state AS approval_state,
        s.lifecycle_state AS lifecycle_state,
        s.operational_state AS operational_state,
+       s.priority AS priority,
        s.created_at AS created_at,
        s.updated_at AS updated_at,
        e.id AS endpoint_id,
@@ -566,13 +610,18 @@ async function findEndpointConfiguration(
     created_at: row.publication_created_at,
     updated_at: row.publication_updated_at,
   });
-  const [sourceDomainRules, endpointDomainRules] = await Promise.all([
+  const [
+    sourceDomainRules,
+    sourceRssAtomAdmissionPhrases,
+    endpointDomainRules,
+  ] = await Promise.all([
     loadSourceApprovedDomainRules(executor, source.id),
+    loadSourceRssAtomAdmissionPhrases(executor, source.id),
     loadEndpointDomainRules(executor, endpoint.id),
   ]);
   return Object.freeze({
     publication,
-    source,
+    source: withAdmissionPhrases(source, sourceRssAtomAdmissionPhrases),
     sourceDomainRules,
     endpoint,
     endpointDomainRules,
@@ -703,12 +752,24 @@ export function mapSourceRow(row: SourceRow): PersistedSource {
       approvalState: normalizeApprovalState(row.approval_state),
       lifecycleState: normalizeLifecycleState(row.lifecycle_state),
       operationalState: normalizeOperationalState(row.operational_state),
+      priority: requiredNonnegativeInteger(row.priority),
+      rssAtomAdmissionPhrases: Object.freeze([]),
       createdAt: requiredTimestamp(row.created_at),
       updatedAt: requiredTimestamp(row.updated_at),
     });
   } catch {
     throw new ConfigurationPersistenceError('database returned invalid source');
   }
+}
+
+function withAdmissionPhrases(
+  source: PersistedSource,
+  phrases: readonly string[],
+): PersistedSource {
+  return Object.freeze({
+    ...source,
+    rssAtomAdmissionPhrases: Object.freeze([...phrases]),
+  });
 }
 
 export function mapEndpointRow(row: EndpointRow): PersistedSourceEndpoint {
@@ -765,6 +826,21 @@ async function insertSourceDomainRules(
   }
 }
 
+async function insertSourceRssAtomAdmissionPhrases(
+  executor: QueryExecutor,
+  sourceId: string,
+  phrases: readonly string[],
+): Promise<void> {
+  for (const [position, phrase] of phrases.entries()) {
+    await executor.query(
+      `INSERT INTO source_rss_atom_admission_phrases (
+         source_id, position, phrase
+       ) VALUES ($1, $2, $3)`,
+      [sourceId, position, phrase],
+    );
+  }
+}
+
 async function insertEndpointDomainRules(
   executor: QueryExecutor,
   endpointId: string,
@@ -791,6 +867,31 @@ function mapDomainRules(rows: readonly DomainRuleRow[]): readonly DomainRule[] {
   } catch {
     throw new ConfigurationPersistenceError(
       'database returned invalid domain rule',
+    );
+  }
+}
+
+function mapAdmissionPhrases(
+  rows: readonly AdmissionPhraseRow[],
+): readonly string[] {
+  try {
+    const phrases = rows.map((row, position) => {
+      if (requiredNonnegativeInteger(row.position) !== position)
+        throw new Error();
+      const phrase = requiredString(row.phrase);
+      if (
+        phrase !== phrase.trim() ||
+        phrase.length > 512 ||
+        /\p{Cc}/u.test(phrase)
+      ) {
+        throw new Error();
+      }
+      return phrase;
+    });
+    return Object.freeze(phrases);
+  } catch {
+    throw new ConfigurationPersistenceError(
+      'database returned invalid Source RSS/Atom admission phrase',
     );
   }
 }

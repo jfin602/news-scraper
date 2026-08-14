@@ -399,6 +399,8 @@ function aggregate(
       approvalState: overrides.sourceApproval ?? 'approved',
       lifecycleState: overrides.sourceLifecycle ?? 'active',
       operationalState: overrides.sourceOperational ?? 'enabled',
+      priority: 0,
+      rssAtomAdmissionPhrases: [],
       createdAt: timestamp,
       updatedAt: timestamp,
     },

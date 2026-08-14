@@ -14,6 +14,8 @@ import {
   normalizeLifecycleState,
   normalizeOperationalState,
   normalizePollIntervalSeconds,
+  normalizeRssAtomAdmissionPhrases,
+  normalizeSourcePriority,
   normalizeSourceEndpointConfiguration,
   normalizeSourceEndpointConfigurationForSource,
   normalizeSourceConfiguration,
@@ -248,6 +250,8 @@ test('normalizes Source writes and validates endpoint writes against supplied So
       lifecycleState: 'active',
       operationalState: 'enabled',
       domainRules: [{ hostname: 'example.com', includeSubdomains: true }],
+      priority: 0,
+      rssAtomAdmissionPhrases: [],
     },
   );
 
@@ -265,6 +269,30 @@ test('normalizes Source writes and validates endpoint writes against supplied So
       [{ hostname: 'example.com', includeSubdomains: true }],
     ),
   );
+});
+
+test('normalizes bounded Source priority and ordered RSS/Atom admission phrases', () => {
+  for (const priority of [0, 1, 2_147_483_647]) {
+    assert.equal(normalizeSourcePriority(priority), priority);
+  }
+  for (const priority of [-1, 1.5, Number.MAX_SAFE_INTEGER, '1']) {
+    assertConfigurationFailure(() => normalizeSourcePriority(priority));
+  }
+
+  const phrases = normalizeRssAtomAdmissionPhrases(['  Books  ', 'Publishing']);
+  assert.deepEqual(phrases, ['Books', 'Publishing']);
+  assert.ok(Object.isFrozen(phrases));
+  for (const value of [
+    [],
+    Array.from({ length: 65 }, () => 'phrase'),
+    [' '],
+    ['x'.repeat(513)],
+    ['unsafe\nphrase'],
+    [1],
+    'Books',
+  ]) {
+    assertConfigurationFailure(() => normalizeRssAtomAdmissionPhrases(value));
+  }
 });
 
 function assertConfigurationFailure(operation: () => unknown): void {

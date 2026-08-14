@@ -431,6 +431,8 @@ function configuration(path: string): EndpointConfigurationAggregate {
       approvalState: 'approved',
       lifecycleState: 'active',
       operationalState: 'enabled',
+      priority: 0,
+      rssAtomAdmissionPhrases: [],
       createdAt: timestamp,
       updatedAt: timestamp,
     },

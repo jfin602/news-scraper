@@ -11,6 +11,7 @@ import {
 test('maps truthful not-run normalization and processing defaults', () => {
   const run = mapCollectionRunRow(validRow());
   assert.equal(run.normalizationStatus, 'not_run');
+  assert.equal(run.sourceItemFilteredCount, 0);
   assert.equal(run.normalizedCandidateCount, 0);
   assert.equal(run.normalizationFailureCount, 0);
   assert.equal(run.articleLinkRejectionCount, 0);
@@ -35,7 +36,8 @@ test('maps a bounded persisted Collection run and PostgreSQL bigint byte counts'
       outcome_code: 'content',
       response_etag: '"fixture"',
       response_last_modified: 'Sat, 08 Aug 2026 12:00:00 GMT',
-      raw_item_count: 2,
+      raw_item_count: 3,
+      source_item_filtered_count: 1,
       normalization_status: 'succeeded',
       normalized_candidate_count: '1',
       normalization_failure_count: 1,
@@ -51,7 +53,8 @@ test('maps a bounded persisted Collection run and PostgreSQL bigint byte counts'
   assert.equal(run.outcomeCode, 'content');
   assert.equal(run.responseEtag, '"fixture"');
   assert.equal(run.responseLastModified, 'Sat, 08 Aug 2026 12:00:00 GMT');
-  assert.equal(run.rawItemCount, 2);
+  assert.equal(run.rawItemCount, 3);
+  assert.equal(run.sourceItemFilteredCount, 1);
   assert.equal(run.normalizedCandidateCount, 1);
   assert.equal(run.normalizationFailureCount, 1);
   assert.equal(run.articleLinkRejectionCount, 1);
@@ -72,6 +75,8 @@ test('rejects malformed Collection-run rows at mapping boundaries', () => {
     validRow({ redirect_count: -1 }),
     validRow({ transport_elapsed_milliseconds: -1 }),
     validRow({ raw_item_count: -1 }),
+    validRow({ source_item_filtered_count: -1 }),
+    validRow({ raw_item_count: 1, source_item_filtered_count: 2 }),
     validRow({ normalization_status: 'invalid' }),
     validRow({ processing_status: 'invalid' }),
     validRow({ normalized_candidate_count: -1 }),
@@ -150,9 +155,12 @@ test('rejects invalid terminal normalization accounting before querying', async 
     rejectedCount: 0,
     excludedCount: 0,
     failedCount: 0,
+    sourceItemFilteredCount: 0,
   } as const;
   for (const input of [
     { ...valid, normalizationStatus: 'invalid' },
+    { ...valid, sourceItemFilteredCount: -1 },
+    { ...valid, sourceItemFilteredCount: 3 },
     { ...valid, normalizedCandidateCount: -1 },
     { ...valid, normalizationFailureCount: -1 },
     { ...valid, articleLinkRejectionCount: -1 },
@@ -211,6 +219,7 @@ function validRow(overrides: Partial<CollectionRunRow> = {}): CollectionRunRow {
     response_etag: null,
     response_last_modified: null,
     raw_item_count: 0,
+    source_item_filtered_count: 0,
     normalized_candidate_count: 0,
     normalization_failure_count: 0,
     article_link_rejection_count: 0,

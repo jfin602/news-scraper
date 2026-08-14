@@ -200,6 +200,7 @@ function commandResult(
     transportStatus: result.transportStatus,
     parserStatus: result.parserStatus,
     rawItemCount: result.rawItemCount,
+    sourceItemFilteredCount: result.sourceItemFilteredCount,
     normalizationStatus: result.normalizationStatus,
     processingStatus: result.processingStatus,
     normalizedCandidateCount: result.normalizedCandidateCount,

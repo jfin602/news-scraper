@@ -111,6 +111,7 @@ export interface EndpointCollectionAttemptResult {
   readonly normalizationStatus: 'not_run' | 'succeeded' | 'failed';
   readonly processingStatus: CollectionRunProcessingStatus;
   readonly rawItemCount: number;
+  readonly sourceItemFilteredCount: number;
   readonly normalizedCandidateCount: number;
   readonly normalizationFailureCount: number;
   readonly articleLinkRejectionCount: number;
@@ -399,6 +400,7 @@ async function executeAttempt(
       transportStatus: 'succeeded',
       parserStatus: 'succeeded',
       rawItemCount: rawItems.length,
+      sourceItemFilteredCount: 0,
       normalizationStatus: 'succeeded',
       normalizedCandidateCount: normalizedCandidates.length,
       normalizationFailureCount,
@@ -416,6 +418,7 @@ async function executeAttempt(
       transportStatus: 'succeeded',
       parserStatus: 'succeeded',
       rawItemCount: rawItems.length,
+      sourceItemFilteredCount: 0,
       normalizationStatus: 'succeeded',
       normalizedCandidateCount: normalizedCandidates.length,
       normalizationFailureCount,
@@ -648,6 +651,7 @@ function normalizationExecutionFailedDraft(
       parserStatus: 'succeeded',
       normalizationStatus: 'failed',
       rawItemCount,
+      sourceItemFilteredCount: 0,
       normalizedCandidateCount: 0,
       normalizationFailureCount: 0,
       articleLinkRejectionCount: 0,
@@ -663,6 +667,7 @@ function normalizationExecutionFailedDraft(
       parserStatus: 'succeeded',
       normalizationStatus: 'failed',
       rawItemCount,
+      sourceItemFilteredCount: 0,
       normalizedCandidateCount: 0,
       normalizationFailureCount: 0,
       articleLinkRejectionCount: 0,
@@ -696,6 +701,7 @@ function articleLinkPolicyExecutionFailedDraft(
       parserStatus: 'succeeded',
       normalizationStatus: 'succeeded',
       rawItemCount,
+      sourceItemFilteredCount: 0,
       normalizedCandidateCount,
       normalizationFailureCount,
       articleLinkRejectionCount,
@@ -711,6 +717,7 @@ function articleLinkPolicyExecutionFailedDraft(
       parserStatus: 'succeeded',
       normalizationStatus: 'succeeded',
       rawItemCount,
+      sourceItemFilteredCount: 0,
       normalizedCandidateCount,
       normalizationFailureCount,
       articleLinkRejectionCount,
@@ -801,6 +808,7 @@ function resultFromFinalized(
     finalized.transportStatus !== attempted.transportStatus ||
     finalized.parserStatus !== attempted.parserStatus ||
     finalized.rawItemCount !== attempted.rawItemCount ||
+    finalized.sourceItemFilteredCount !== attempted.sourceItemFilteredCount ||
     finalized.normalizationStatus !== attempted.normalizationStatus ||
     finalized.processingStatus !== attempted.processingStatus ||
     finalized.normalizedCandidateCount !== attempted.normalizedCandidateCount ||
@@ -830,6 +838,7 @@ function resultFromFinalized(
     transportStatus: finalized.transportStatus,
     parserStatus: finalized.parserStatus,
     rawItemCount: finalized.rawItemCount,
+    sourceItemFilteredCount: finalized.sourceItemFilteredCount,
     normalizationStatus: finalized.normalizationStatus,
     processingStatus: finalized.processingStatus,
     normalizedCandidateCount: finalized.normalizedCandidateCount,
@@ -871,6 +880,7 @@ function resultFromFinalized(
 
 const normalizationNotRun = Object.freeze({
   normalizationStatus: 'not_run' as const,
+  sourceItemFilteredCount: 0,
   normalizedCandidateCount: 0,
   normalizationFailureCount: 0,
   articleLinkRejectionCount: 0,

@@ -88,6 +88,7 @@ export function normalizeBootstrapDocument(
         'endpoints',
       ],
       sourceField,
+      ['priority', 'rssAtomAdmissionPhrases'],
     );
     if (!Array.isArray(sourceRecord.endpoints)) {
       throw new BootstrapDocumentError('source_endpoints_must_be_an_array');
@@ -191,6 +192,10 @@ function sourcePersistenceInput(source: BootstrapSourceConfiguration) {
     lifecycleState: source.lifecycleState,
     operationalState: source.operationalState,
     domainRules: source.domainRules,
+    priority: source.priority,
+    ...(source.rssAtomAdmissionPhrases.length === 0
+      ? {}
+      : { rssAtomAdmissionPhrases: source.rssAtomAdmissionPhrases }),
   };
 }
 
