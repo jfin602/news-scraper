@@ -6,7 +6,10 @@ import {
   type ArticlePersistenceResult,
 } from '../articles/repository.ts';
 import type { Database } from '../database/database.ts';
-import { attachCollectionRunToEndpointCollectionJob } from '../jobs/endpoint-collection-job-repository.ts';
+import {
+  attachCollectionRunToEndpointCollectionJob,
+  type EndpointCollectionJobTriggerKind,
+} from '../jobs/endpoint-collection-job-repository.ts';
 import {
   applyTerminalCollectionRunToEndpointRuntime,
   findEndpointConfigurationById,
@@ -48,13 +51,15 @@ import { createNodeResolver } from './safety/resolver.ts';
 
 export type EndpointCollectionExecutionRequest =
   | Readonly<{
+      executionKind: 'direct_manual';
       triggerKind: 'manual';
       sourceConfigKey: string;
       endpointConfigKey: string;
       executionId?: string;
     }>
   | Readonly<{
-      triggerKind: 'scheduled';
+      executionKind: 'durable_job';
+      triggerKind: EndpointCollectionJobTriggerKind;
       sourceEndpointId: string;
       jobId: string;
       claimToken: string;
@@ -126,7 +131,7 @@ export async function executeEndpointCollection(
 ): Promise<EndpointCollectionServiceResult> {
   const dependencies = { ...DEFAULT_DEPENDENCIES, ...overrides };
   const configuration =
-    request.triggerKind === 'manual'
+    request.executionKind === 'direct_manual'
       ? await dependencies.findByKeys(
           database,
           request.sourceConfigKey,
@@ -184,6 +189,7 @@ async function executeLoadedEndpointCollection(
   }
 
   if (
+    request.executionKind === 'durable_job' &&
     request.triggerKind === 'scheduled' &&
     request.attemptNumber === 1 &&
     configuration.endpoint.nextDueAt !== undefined &&
@@ -230,8 +236,8 @@ function collectionDependencies(
   dependencies: EndpointCollectionServiceDependencies,
 ): CollectEndpointDependencies {
   const runs =
-    request.triggerKind === 'scheduled'
-      ? createScheduledCollectionRunStore(database, request)
+    request.executionKind === 'durable_job'
+      ? createDurableJobCollectionRunStore(database, request)
       : createCollectionRunStore(database);
   return Object.freeze({
     lockRunner: createEndpointExecutionLockRunner(database),
@@ -276,7 +282,7 @@ function collectionDependencies(
       ),
     observationTime: () => new Date(),
     executionId: () =>
-      request.triggerKind === 'scheduled'
+      request.executionKind === 'durable_job'
         ? request.jobId
         : (request.executionId ?? dependencies.executionId()),
     triggerKind: request.triggerKind,
@@ -293,11 +299,11 @@ function collectionDependencies(
   });
 }
 
-function createScheduledCollectionRunStore(
+function createDurableJobCollectionRunStore(
   database: Database,
   request: Extract<
     EndpointCollectionExecutionRequest,
-    { triggerKind: 'scheduled' }
+    { executionKind: 'durable_job' }
   >,
 ): CollectionRunStore {
   const store: CollectionRunStore = {
@@ -309,10 +315,11 @@ function createScheduledCollectionRunStore(
           request.jobId,
           request.claimToken,
           run.id,
-          request.now,
         );
         if (attached === undefined) {
-          throw new Error('Scheduled Collection run attachment was rejected.');
+          throw new Error(
+            'Durable endpoint job Collection run attachment was rejected.',
+          );
         }
         return run;
       });

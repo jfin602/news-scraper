@@ -9,6 +9,8 @@ const EXECUTION_ID_MAX_LENGTH = 200;
 const ERROR_CODE_MAX_LENGTH = 100;
 const ERROR_DETAIL_MAX_LENGTH = 2000;
 const VALIDATOR_MAX_LENGTH = 1_024;
+export const DEFAULT_RECENT_COLLECTION_RUN_LIMIT = 20;
+export const MAX_RECENT_COLLECTION_RUN_LIMIT = 100;
 
 export type CollectionRunStatus = 'running' | 'succeeded' | 'failed';
 export type CollectionRunTransportStatus =
@@ -309,6 +311,24 @@ export async function findCollectionRunById(
   );
   const row = result.rows[0];
   return row === undefined ? undefined : mapCollectionRunRow(row);
+}
+
+export async function listRecentCollectionRunsForEndpoint(
+  executor: QueryExecutor,
+  sourceEndpointId: string,
+  limit: number = DEFAULT_RECENT_COLLECTION_RUN_LIMIT,
+): Promise<readonly PersistedCollectionRun[]> {
+  const endpointId = requiredUuid(sourceEndpointId, 'source endpoint id');
+  const boundedLimit = requiredRecentCollectionRunLimit(limit);
+  const result = await executor.query<CollectionRunRow>(
+    `SELECT ${COLLECTION_RUN_COLUMNS}
+     FROM collection_runs
+     WHERE source_endpoint_id = $1
+     ORDER BY started_at DESC, id DESC
+     LIMIT $2`,
+    [endpointId, boundedLimit],
+  );
+  return Object.freeze(result.rows.map(mapCollectionRunRow));
 }
 
 export async function reconcileInterruptedCollectionRun(
@@ -759,6 +779,16 @@ function integerInRange(
   const integer = nonnegativeInteger(value);
   if (integer < minimum || integer > maximum) throw new Error();
   return integer;
+}
+
+function requiredRecentCollectionRunLimit(value: unknown): number {
+  try {
+    return integerInRange(value, 1, MAX_RECENT_COLLECTION_RUN_LIMIT);
+  } catch {
+    throw new CollectionRunPersistenceError(
+      'invalid recent Collection run limit',
+    );
+  }
 }
 
 function nullableIntegerInRange(

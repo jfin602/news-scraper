@@ -1,6 +1,6 @@
 import type { Database, QueryExecutor } from '../database/database.ts';
 import { applyCooldownFromFinalCollectionFailure } from '../sources/repository.ts';
-import type { ScheduledJobExecutionResult } from './execute-endpoint-collection-job.ts';
+import type { EndpointCollectionJobExecutionResult } from './execute-endpoint-collection-job.ts';
 import {
   deferClaimedEndpointCollectionJob,
   enqueueEndpointCollectionJob,
@@ -13,21 +13,21 @@ import {
   calculateContentionDeferralMilliseconds,
   calculateRetryDelayMilliseconds,
   COOLDOWN_FAILURE_THRESHOLD,
-  decideScheduledJobDisposition,
+  decideEndpointCollectionJobDisposition,
   MINIMUM_COOLDOWN_MILLISECONDS,
-} from './scheduled-job-policy.ts';
+} from './endpoint-collection-job-policy.ts';
 
 export type ContentionDeferralReason =
   'endpoint_locked' | 'collection_capacity_limited';
 
-export type FinalizedScheduledJobResult =
+export type FinalizedEndpointCollectionJobResult =
   | Readonly<{
       disposition: 'terminal';
       job: PersistedEndpointCollectionJob;
       cooldownUntil?: Date;
     }>
   | Readonly<{
-      disposition: 'retry_scheduled';
+      disposition: 'retry_enqueued';
       job: PersistedEndpointCollectionJob;
       successor: PersistedEndpointCollectionJob;
     }>
@@ -37,13 +37,13 @@ export type FinalizedScheduledJobResult =
       job: PersistedEndpointCollectionJob;
     }>;
 
-export interface FinalizeScheduledJobExecutionInput {
-  readonly result: ScheduledJobExecutionResult;
+export interface FinalizeEndpointCollectionJobExecutionInput {
+  readonly result: EndpointCollectionJobExecutionResult;
   readonly terminalAt: Date;
   readonly random?: () => number;
 }
 
-export interface DeferClaimedScheduledJobInput {
+export interface DeferClaimedEndpointCollectionJobInput {
   readonly jobId: string;
   readonly claimToken: string;
   readonly deferredAt: Date;
@@ -51,21 +51,21 @@ export interface DeferClaimedScheduledJobInput {
   readonly random?: () => number;
 }
 
-export class ScheduledJobFinalizationError extends Error {
+export class EndpointCollectionJobFinalizationError extends Error {
   constructor(reason: string, options?: ErrorOptions) {
-    super(`Scheduled job finalization failed: ${reason}`, options);
-    this.name = 'ScheduledJobFinalizationError';
+    super(`Endpoint collection job finalization failed: ${reason}`, options);
+    this.name = 'EndpointCollectionJobFinalizationError';
   }
 }
 
-export async function finalizeScheduledJobExecution(
+export async function finalizeEndpointCollectionJobExecution(
   database: Database,
-  input: FinalizeScheduledJobExecutionInput,
-): Promise<FinalizedScheduledJobResult> {
+  input: FinalizeEndpointCollectionJobExecutionInput,
+): Promise<FinalizedEndpointCollectionJobResult> {
   const terminalAt = requiredTimestamp(input.terminalAt);
-  const disposition = decideScheduledJobDisposition(input.result);
+  const disposition = decideEndpointCollectionJobDisposition(input.result);
   if (disposition.kind === 'defer') {
-    return deferClaimedScheduledJob(database, {
+    return deferClaimedEndpointCollectionJobExecution(database, {
       jobId: input.result.jobId,
       claimToken: input.result.claimToken,
       deferredAt: terminalAt,
@@ -91,17 +91,18 @@ export async function finalizeScheduledJobExecution(
       if (terminal === undefined) throw ownershipLost();
       const successor = await enqueueEndpointCollectionJob(transaction, {
         sourceEndpointId: terminal.sourceEndpointId,
+        triggerKind: terminal.triggerKind,
         availableAt,
         attemptNumber: terminal.attemptNumber + 1,
         previousJobId: terminal.id,
       });
       if (!successor.created) {
-        throw new ScheduledJobFinalizationError(
+        throw new EndpointCollectionJobFinalizationError(
           'retry successor could not acquire the endpoint job slot',
         );
       }
       return Object.freeze({
-        disposition: 'retry_scheduled' as const,
+        disposition: 'retry_enqueued' as const,
         job: terminal,
         successor: successor.job,
       });
@@ -140,10 +141,10 @@ export async function finalizeScheduledJobExecution(
   });
 }
 
-export async function deferClaimedScheduledJob(
+export async function deferClaimedEndpointCollectionJobExecution(
   database: Database,
-  input: DeferClaimedScheduledJobInput,
-): Promise<FinalizedScheduledJobResult> {
+  input: DeferClaimedEndpointCollectionJobInput,
+): Promise<FinalizedEndpointCollectionJobResult> {
   const deferredAt = requiredTimestamp(input.deferredAt);
   const delay = calculateContentionDeferralMilliseconds(
     randomValue(input.random),
@@ -165,7 +166,7 @@ export async function deferClaimedScheduledJob(
 
 async function requireMatchingCurrentJob(
   executor: QueryExecutor,
-  result: ScheduledJobExecutionResult,
+  result: EndpointCollectionJobExecutionResult,
 ): Promise<void> {
   const job = await findEndpointCollectionJobById(executor, result.jobId);
   if (
@@ -173,6 +174,7 @@ async function requireMatchingCurrentJob(
     job.status !== 'running' ||
     job.claimToken !== result.claimToken ||
     job.sourceEndpointId !== result.endpointId ||
+    job.triggerKind !== result.triggerKind ||
     job.attemptNumber !== result.attemptNumber ||
     job.collectionRunId !== result.collectionRunId
   ) {
@@ -183,14 +185,14 @@ async function requireMatchingCurrentJob(
     (!result.collectionRunOccurred && result.collectionRunId !== undefined) ||
     (result.category === 'failed' && !result.collectionRunOccurred)
   ) {
-    throw new ScheduledJobFinalizationError(
+    throw new EndpointCollectionJobFinalizationError(
       'execution result has inconsistent Collection run state',
     );
   }
 }
 
 function terminalInput(
-  result: ScheduledJobExecutionResult,
+  result: EndpointCollectionJobExecutionResult,
   terminalAt: Date,
   status: EndpointCollectionJobTerminalStatus,
 ) {
@@ -203,7 +205,7 @@ function terminalInput(
 }
 
 function failureStatus(
-  result: ScheduledJobExecutionResult,
+  result: EndpointCollectionJobExecutionResult,
 ): 'failed' | 'abandoned' {
   return result.outcome === 'worker_interrupted' ? 'abandoned' : 'failed';
 }
@@ -212,7 +214,7 @@ function randomValue(random: (() => number) | undefined): number {
   try {
     return (random ?? Math.random)();
   } catch (error) {
-    throw new ScheduledJobFinalizationError('random source failed', {
+    throw new EndpointCollectionJobFinalizationError('random source failed', {
       cause: error,
     });
   }
@@ -220,13 +222,15 @@ function randomValue(random: (() => number) | undefined): number {
 
 function requiredTimestamp(value: unknown): Date {
   if (!(value instanceof Date) || !Number.isFinite(value.getTime())) {
-    throw new ScheduledJobFinalizationError('transition time is invalid');
+    throw new EndpointCollectionJobFinalizationError(
+      'transition time is invalid',
+    );
   }
   return value;
 }
 
-function ownershipLost(): ScheduledJobFinalizationError {
-  return new ScheduledJobFinalizationError(
+function ownershipLost(): EndpointCollectionJobFinalizationError {
+  return new EndpointCollectionJobFinalizationError(
     'current job claim ownership was not verified',
   );
 }

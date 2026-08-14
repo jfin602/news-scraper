@@ -154,8 +154,11 @@ describe('manual Worker endpoint collection command', () => {
       dependencies: {
         createDatabase: () => fake.database,
         async execute(_database, request) {
+          assert.equal(request.executionKind, 'direct_manual');
           assert.equal(request.triggerKind, 'manual');
-          if (request.triggerKind !== 'manual') throw new Error('unexpected');
+          if (request.executionKind !== 'direct_manual') {
+            throw new Error('unexpected durable execution');
+          }
           assert.equal(request.executionId, 'controlled-execution-id');
           assert.equal(request.sourceConfigKey, KEYS[0]);
           assert.equal(request.endpointConfigKey, KEYS[1]);

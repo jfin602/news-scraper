@@ -14,6 +14,7 @@ import {
   enqueueEndpointCollectionJob,
   findEndpointCollectionJobById,
   listExpiredRunningEndpointCollectionJobs,
+  recoverExpiredStartedEndpointCollectionJob,
   renewEndpointCollectionJobLease,
   requeueExpiredUnstartedEndpointCollectionJob,
   terminalizeEndpointCollectionJob,
@@ -33,38 +34,45 @@ const fixtureUrl = new URL(
   '../fixtures/generic-bootstrap.json',
   import.meta.url,
 );
-const T1000 = new Date('2026-08-11T10:00:00.000Z');
-const T1001 = new Date('2026-08-11T10:01:00.000Z');
-const T1002 = new Date('2026-08-11T10:02:00.000Z');
-const T1005 = new Date('2026-08-11T10:05:00.000Z');
-const T1006 = new Date('2026-08-11T10:06:00.000Z');
-const T1010 = new Date('2026-08-11T10:10:00.000Z');
+const TEST_CLOCK = Date.now();
+const T1000 = new Date(TEST_CLOCK);
+const T1001 = new Date(TEST_CLOCK + 60_000);
+const T1002 = new Date(TEST_CLOCK + 120_000);
+const T1005 = new Date(TEST_CLOCK + 300_000);
+const T1006 = new Date(TEST_CLOCK + 360_000);
+const T1010 = new Date(TEST_CLOCK + 600_000);
+const T1015 = new Date(TEST_CLOCK + 900_000);
 
 test('enqueues at most one outstanding job per real endpoint under concurrency', async () => {
   await withJobDatabase(async (database, [endpointA, endpointB]) => {
     const first = await enqueueEndpointCollectionJob(database, {
       sourceEndpointId: endpointA.id,
+      triggerKind: 'scheduled',
       availableAt: T1000,
       attemptNumber: 1,
     });
     assert.equal(first.created, true);
     assert.equal(first.job.status, 'queued');
     assert.equal(first.job.sourceEndpointId, endpointA.id);
+    assert.equal(first.job.triggerKind, 'scheduled');
     assert.equal(first.job.availableAt.toISOString(), T1000.toISOString());
     assert.equal(first.job.attemptNumber, 1);
 
     const duplicate = await enqueueEndpointCollectionJob(database, {
       sourceEndpointId: endpointA.id,
+      triggerKind: 'manual',
       availableAt: T1001,
       attemptNumber: 1,
     });
     assert.equal(duplicate.created, false);
     assert.equal(duplicate.job.id, first.job.id);
+    assert.equal(duplicate.job.triggerKind, 'scheduled');
 
     const racing = await Promise.all(
-      Array.from({ length: 8 }, () =>
+      Array.from({ length: 8 }, (_, index) =>
         enqueueEndpointCollectionJob(database, {
           sourceEndpointId: endpointB.id,
+          triggerKind: index % 2 === 0 ? 'manual' : 'scheduled',
           availableAt: T1000,
           attemptNumber: 1,
         }),
@@ -92,6 +100,7 @@ test('enqueues at most one outstanding job per real endpoint under concurrency',
     await assert.rejects(
       enqueueEndpointCollectionJob(database, {
         sourceEndpointId: randomUUID(),
+        triggerKind: 'manual',
         availableAt: T1000,
         attemptNumber: 1,
       }),
@@ -100,6 +109,7 @@ test('enqueues at most one outstanding job per real endpoint under concurrency',
     await assert.rejects(
       enqueueEndpointCollectionJob(database, {
         sourceEndpointId: endpointA.id,
+        triggerKind: 'manual',
         availableAt: new Date('invalid'),
         attemptNumber: 1,
       }),
@@ -112,11 +122,13 @@ test('claims due jobs deterministically and prevents duplicate concurrent owners
   await withJobDatabase(async (database, [endpointA, endpointB]) => {
     const earlier = await enqueueEndpointCollectionJob(database, {
       sourceEndpointId: endpointA.id,
+      triggerKind: 'manual',
       availableAt: T1000,
       attemptNumber: 1,
     });
     await enqueueEndpointCollectionJob(database, {
       sourceEndpointId: endpointB.id,
+      triggerKind: 'scheduled',
       availableAt: T1010,
       attemptNumber: 1,
     });
@@ -161,21 +173,23 @@ test('claims due jobs deterministically and prevents duplicate concurrent owners
 
     const successor = await enqueueEndpointCollectionJob(database, {
       sourceEndpointId: endpointA.id,
+      triggerKind: earlier.job.triggerKind,
       availableAt: T1010,
       attemptNumber: 2,
       previousJobId: earlier.job.id,
     });
     assert.equal(successor.created, true);
+    assert.equal(successor.job.triggerKind, 'manual');
     const unrelatedClaims = await Promise.all([
       claimNextEndpointCollectionJob(database, {
         workerId: 'worker_b',
         claimedAt: T1010,
-        leaseExpiresAt: new Date('2026-08-11T10:15:00.000Z'),
+        leaseExpiresAt: T1015,
       }),
       claimNextEndpointCollectionJob(database, {
         workerId: 'worker_c',
         claimedAt: T1010,
-        leaseExpiresAt: new Date('2026-08-11T10:15:00.000Z'),
+        leaseExpiresAt: T1015,
       }),
     ]);
     assert.equal(unrelatedClaims.filter((job) => job !== undefined).length, 2);
@@ -187,6 +201,10 @@ test('claims due jobs deterministically and prevents duplicate concurrent owners
       new Set(unrelatedClaims.map((job) => job?.claimToken)).size,
       2,
     );
+    assert.deepEqual(
+      new Set(unrelatedClaims.map((job) => job?.triggerKind)),
+      new Set(['manual', 'scheduled']),
+    );
   });
 });
 
@@ -194,6 +212,7 @@ test('guards lease, run attachment, terminalization, deferral, and successors by
   await withJobDatabase(async (database, [endpointA, endpointB]) => {
     const enqueued = await enqueueEndpointCollectionJob(database, {
       sourceEndpointId: endpointA.id,
+      triggerKind: 'scheduled',
       availableAt: T1000,
       attemptNumber: 1,
     });
@@ -234,10 +253,40 @@ test('guards lease, run attachment, terminalization, deferral, and successors by
         claimed.id,
         claimed.claimToken!,
         wrongEndpointRun.id,
-        T1002,
       ),
       undefined,
     );
+    const wrongExecutionRun = await startCollectionRun(database, {
+      sourceEndpointId: endpointA.id,
+      executionId: 'wrong-execution-run',
+      triggerKind: 'scheduled',
+    });
+    assert.equal(
+      await attachCollectionRunToEndpointCollectionJob(
+        database,
+        claimed.id,
+        claimed.claimToken!,
+        wrongExecutionRun.id,
+      ),
+      undefined,
+    );
+    const wrongTriggerRun = await startCollectionRun(database, {
+      sourceEndpointId: endpointA.id,
+      executionId: claimed.id,
+      triggerKind: 'manual',
+    });
+    assert.equal(
+      await attachCollectionRunToEndpointCollectionJob(
+        database,
+        claimed.id,
+        claimed.claimToken!,
+        wrongTriggerRun.id,
+      ),
+      undefined,
+    );
+    await database.query('DELETE FROM collection_runs WHERE id = $1', [
+      wrongTriggerRun.id,
+    ]);
     const run = await startCollectionRun(database, {
       sourceEndpointId: endpointA.id,
       executionId: claimed.id,
@@ -249,7 +298,6 @@ test('guards lease, run attachment, terminalization, deferral, and successors by
         claimed.id,
         staleToken,
         run.id,
-        T1002,
       ),
       undefined,
     );
@@ -258,9 +306,10 @@ test('guards lease, run attachment, terminalization, deferral, and successors by
       claimed.id,
       claimed.claimToken!,
       run.id,
-      T1002,
     );
     assert.equal(attached?.collectionRunId, run.id);
+    assert.equal(attached?.triggerKind, 'scheduled');
+    assert.equal(attached?.updatedAt.toISOString(), T1001.toISOString());
     assert.equal(
       await deferClaimedEndpointCollectionJob(
         database,
@@ -296,8 +345,19 @@ test('guards lease, run attachment, terminalization, deferral, and successors by
     assert.equal(terminal?.claimWorkerId, 'worker_owner');
     assert.equal(terminal?.collectionRunId, run.id);
 
+    await assert.rejects(
+      enqueueEndpointCollectionJob(database, {
+        sourceEndpointId: endpointA.id,
+        triggerKind: 'manual',
+        availableAt: T1005,
+        attemptNumber: 2,
+        previousJobId: enqueued.job.id,
+      }),
+      EndpointCollectionJobPersistenceError,
+    );
     const successor = await enqueueEndpointCollectionJob(database, {
       sourceEndpointId: endpointA.id,
+      triggerKind: enqueued.job.triggerKind,
       availableAt: T1005,
       attemptNumber: 2,
       previousJobId: enqueued.job.id,
@@ -305,10 +365,12 @@ test('guards lease, run attachment, terminalization, deferral, and successors by
     assert.equal(successor.created, true);
     assert.equal(successor.job.previousJobId, enqueued.job.id);
     assert.equal(successor.job.attemptNumber, 2);
+    assert.equal(successor.job.triggerKind, 'scheduled');
 
     await assert.rejects(
       enqueueEndpointCollectionJob(database, {
         sourceEndpointId: endpointB.id,
+        triggerKind: 'scheduled',
         availableAt: T1005,
         attemptNumber: 2,
         previousJobId: enqueued.job.id,
@@ -322,6 +384,7 @@ test('guards lease, run attachment, terminalization, deferral, and successors by
       await assert.rejects(
         enqueueEndpointCollectionJob(database, {
           sourceEndpointId: endpointB.id,
+          triggerKind: 'scheduled',
           availableAt: T1005,
           ...invalid,
         }),
@@ -331,10 +394,146 @@ test('guards lease, run attachment, terminalization, deferral, and successors by
   });
 });
 
+test('rejects Collection-run attachment after the database wall clock passes the lease', async () => {
+  await withJobDatabase(async (database, [endpointA]) => {
+    const claimedAt = new Date(Date.now() - 60_000);
+    await enqueueEndpointCollectionJob(database, {
+      sourceEndpointId: endpointA.id,
+      triggerKind: 'manual',
+      availableAt: claimedAt,
+      attemptNumber: 1,
+    });
+    const claimed = await claimNextEndpointCollectionJob(database, {
+      workerId: 'expired_attachment_owner',
+      claimedAt,
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+    });
+    assert.ok(claimed?.claimToken);
+    const run = await startCollectionRun(database, {
+      sourceEndpointId: endpointA.id,
+      executionId: claimed.id,
+      triggerKind: 'manual',
+    });
+    await database.query(
+      `UPDATE endpoint_collection_jobs
+       SET lease_expires_at = clock_timestamp() - interval '1 second'
+       WHERE id = $1`,
+      [claimed.id],
+    );
+
+    assert.equal(
+      await attachCollectionRunToEndpointCollectionJob(
+        database,
+        claimed.id,
+        claimed.claimToken,
+        run.id,
+      ),
+      undefined,
+    );
+    assert.equal(
+      (await findEndpointCollectionJobById(database, claimed.id))
+        ?.collectionRunId,
+      undefined,
+    );
+  });
+});
+
+test('samples attachment lease ownership only after a contended job row is locked', async () => {
+  await withJobDatabase(async (database, [endpointA]) => {
+    const claimedAt = new Date(Date.now() - 60_000);
+    await enqueueEndpointCollectionJob(database, {
+      sourceEndpointId: endpointA.id,
+      triggerKind: 'manual',
+      availableAt: claimedAt,
+      attemptNumber: 1,
+    });
+    const claimed = await claimNextEndpointCollectionJob(database, {
+      workerId: 'contended_attachment_owner',
+      claimedAt,
+      leaseExpiresAt: new Date(Date.now() + 60_000),
+    });
+    assert.ok(claimed?.claimToken);
+    const run = await startCollectionRun(database, {
+      sourceEndpointId: endpointA.id,
+      executionId: claimed.id,
+      triggerKind: 'manual',
+    });
+
+    let releaseHolder!: () => void;
+    const releaseSignal = new Promise<void>((resolve) => {
+      releaseHolder = resolve;
+    });
+    let reportLocked!: (leaseExpiresAt: Date) => void;
+    const locked = new Promise<Date>((resolve) => {
+      reportLocked = resolve;
+    });
+    const holder = database.transaction(async (transaction) => {
+      const result = await transaction.query<{ lease_expires_at: Date }>(
+        `UPDATE endpoint_collection_jobs
+         SET lease_expires_at = clock_timestamp() + interval '1 second'
+         WHERE id = $1
+         RETURNING lease_expires_at`,
+        [claimed.id],
+      );
+      reportLocked(new Date(result.rows[0]!.lease_expires_at));
+      await releaseSignal;
+    });
+    const leaseExpiresAt = await locked;
+    const attachment = attachCollectionRunToEndpointCollectionJob(
+      database,
+      claimed.id,
+      claimed.claimToken,
+      run.id,
+    );
+
+    try {
+      let observedLockWait = false;
+      for (let attempt = 0; attempt < 50; attempt += 1) {
+        const waiting = await database.query<{ waiting: boolean }>(
+          `SELECT EXISTS (
+             SELECT 1
+             FROM pg_stat_activity
+             WHERE pid <> pg_backend_pid()
+               AND datname = current_database()
+               AND state = 'active'
+               AND wait_event_type = 'Lock'
+               AND query LIKE '%WITH locked_job AS MATERIALIZED%'
+           ) AS waiting`,
+        );
+        if (waiting.rows[0]?.waiting === true) {
+          observedLockWait = true;
+          break;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      assert.equal(observedLockWait, true);
+
+      for (;;) {
+        const clock = await database.query<{ now: Date }>(
+          'SELECT clock_timestamp() AS now',
+        );
+        if (new Date(clock.rows[0]!.now) >= leaseExpiresAt) break;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+    } finally {
+      releaseHolder();
+      await holder;
+    }
+
+    assert.equal(await attachment, undefined);
+    assert.equal(
+      (await findEndpointCollectionJobById(database, claimed.id))
+        ?.collectionRunId,
+      undefined,
+    );
+  });
+});
+
 test('recovers only expired unstarted claims and rejects the former owner', async () => {
   await withJobDatabase(async (database, [endpointA, endpointB]) => {
     await enqueueEndpointCollectionJob(database, {
       sourceEndpointId: endpointA.id,
+      triggerKind: 'manual',
       availableAt: T1000,
       attemptNumber: 1,
     });
@@ -347,6 +546,7 @@ test('recovers only expired unstarted claims and rejects the former owner', asyn
 
     await enqueueEndpointCollectionJob(database, {
       sourceEndpointId: endpointB.id,
+      triggerKind: 'scheduled',
       availableAt: T1000,
       attemptNumber: 1,
     });
@@ -368,7 +568,6 @@ test('recovers only expired unstarted claims and rejects the former owner', asyn
           started.id,
           started.claimToken!,
           run.id,
-          T1001,
         )
       )?.collectionRunId,
       run.id,
@@ -390,6 +589,13 @@ test('recovers only expired unstarted claims and rejects the former owner', asyn
       new Set(expired.map((job) => job.id)),
       new Set([unstarted.id, started.id]),
     );
+    assert.deepEqual(
+      new Map(expired.map((job) => [job.id, job.triggerKind])),
+      new Map([
+        [unstarted.id, 'manual'],
+        [started.id, 'scheduled'],
+      ]),
+    );
     assert.equal(
       expired.find((job) => job.id === started.id)?.collectionRunId,
       run.id,
@@ -402,6 +608,7 @@ test('recovers only expired unstarted claims and rejects the former owner', asyn
       T1006,
     );
     assert.equal(recovered?.status, 'queued');
+    assert.equal(recovered?.triggerKind, 'manual');
     assert.equal(recovered?.claimToken, undefined);
     assert.equal(
       await requeueExpiredUnstartedEndpointCollectionJob(
@@ -412,6 +619,18 @@ test('recovers only expired unstarted claims and rejects the former owner', asyn
       ),
       undefined,
     );
+    const recoveredStarted = await recoverExpiredStartedEndpointCollectionJob(
+      database,
+      started.id,
+      {
+        workerId: 'recovery_worker',
+        expiredAt: T1006,
+        recoveredAt: T1006,
+        leaseExpiresAt: T1010,
+      },
+    );
+    assert.equal(recoveredStarted?.triggerKind, 'scheduled');
+    assert.equal(recoveredStarted?.collectionRunId, run.id);
     assert.equal(
       (await findEndpointCollectionJobById(database, started.id))?.status,
       'running',
@@ -446,7 +665,71 @@ test('recovers only expired unstarted claims and rejects the former owner', asyn
       leaseExpiresAt: T1010,
     });
     assert.equal(reassigned?.id, unstarted.id);
+    assert.equal(reassigned?.triggerKind, 'manual');
     assert.notEqual(reassigned?.claimToken, unstarted.claimToken);
+  });
+});
+
+test('stale started recovery rejects a mismatched job and Collection-run trigger', async () => {
+  await withJobDatabase(async (database, [endpointA]) => {
+    await enqueueEndpointCollectionJob(database, {
+      sourceEndpointId: endpointA.id,
+      triggerKind: 'manual',
+      availableAt: T1000,
+      attemptNumber: 1,
+    });
+    const claimed = await claimNextEndpointCollectionJob(database, {
+      workerId: 'stale_owner',
+      claimedAt: T1000,
+      leaseExpiresAt: T1005,
+    });
+    assert.ok(claimed);
+    const mismatchedRun = await startCollectionRun(database, {
+      sourceEndpointId: endpointA.id,
+      executionId: claimed.id,
+      triggerKind: 'scheduled',
+    });
+    await database.query(
+      `UPDATE endpoint_collection_jobs
+       SET collection_run_id = $2
+       WHERE id = $1`,
+      [claimed.id, mismatchedRun.id],
+    );
+
+    assert.equal(
+      await recoverExpiredStartedEndpointCollectionJob(database, claimed.id, {
+        workerId: 'recovery_worker',
+        expiredAt: T1006,
+        recoveredAt: T1006,
+        leaseExpiresAt: T1010,
+      }),
+      undefined,
+    );
+    const unchanged = await findEndpointCollectionJobById(database, claimed.id);
+    assert.equal(unchanged?.triggerKind, 'manual');
+    assert.equal(unchanged?.claimWorkerId, 'stale_owner');
+    assert.equal(unchanged?.claimToken, claimed.claimToken);
+
+    const wrongExecutionRun = await startCollectionRun(database, {
+      sourceEndpointId: endpointA.id,
+      executionId: 'different-durable-job',
+      triggerKind: 'manual',
+    });
+    await database.query(
+      `UPDATE endpoint_collection_jobs
+       SET collection_run_id = $2
+       WHERE id = $1`,
+      [claimed.id, wrongExecutionRun.id],
+    );
+    assert.equal(
+      await recoverExpiredStartedEndpointCollectionJob(database, claimed.id, {
+        workerId: 'recovery_worker',
+        expiredAt: T1006,
+        recoveredAt: T1006,
+        leaseExpiresAt: T1010,
+      }),
+      undefined,
+    );
   });
 });
 
@@ -454,6 +737,7 @@ test('defers an active unstarted claim without changing attempt identity', async
   await withJobDatabase(async (database, [endpointA]) => {
     const enqueued = await enqueueEndpointCollectionJob(database, {
       sourceEndpointId: endpointA.id,
+      triggerKind: 'manual',
       availableAt: T1000,
       attemptNumber: 1,
     });
@@ -473,18 +757,20 @@ test('defers an active unstarted claim without changing attempt identity', async
     assert.equal(deferred?.id, enqueued.job.id);
     assert.equal(deferred?.status, 'queued');
     assert.equal(deferred?.attemptNumber, 1);
+    assert.equal(deferred?.triggerKind, 'manual');
     assert.equal(deferred?.availableAt.toISOString(), T1010.toISOString());
     assert.equal(deferred?.claimWorkerId, undefined);
   });
 });
 
 test('rolls back enqueue atomically and enforces bounded diagnostics in PostgreSQL', async () => {
-  await withJobDatabase(async (database, [endpointA]) => {
+  await withJobDatabase(async (database, [endpointA, endpointB]) => {
     const rollback = new Error('synthetic rollback');
     await assert.rejects(
       database.transaction(async (transaction) => {
         await enqueueEndpointCollectionJob(transaction, {
           sourceEndpointId: endpointA.id,
+          triggerKind: 'scheduled',
           availableAt: T1000,
           attemptNumber: 1,
         });
@@ -504,6 +790,7 @@ test('rolls back enqueue atomically and enforces bounded diagnostics in PostgreS
 
     await enqueueEndpointCollectionJob(database, {
       sourceEndpointId: endpointA.id,
+      triggerKind: 'scheduled',
       availableAt: T1000,
       attemptNumber: 1,
     });
@@ -548,6 +835,24 @@ test('rolls back enqueue atomically and enforces bounded diagnostics in PostgreS
              error_detail = $3
          WHERE id = $1`,
         [claimed.id, T1001, 'x'.repeat(2001)],
+      ),
+    );
+
+    const defaultedId = randomUUID();
+    const defaulted = await database.query<{ trigger_kind: string }>(
+      `INSERT INTO endpoint_collection_jobs (
+         id, source_endpoint_id, status, available_at, attempt_number
+       ) VALUES ($1, $2, 'queued', $3, 1)
+       RETURNING trigger_kind`,
+      [defaultedId, endpointB.id, T1000],
+    );
+    assert.equal(defaulted.rows[0]?.trigger_kind, 'scheduled');
+    await assert.rejects(
+      database.query(
+        `UPDATE endpoint_collection_jobs
+         SET trigger_kind = 'automatic'
+         WHERE id = $1`,
+        [defaultedId],
       ),
     );
 

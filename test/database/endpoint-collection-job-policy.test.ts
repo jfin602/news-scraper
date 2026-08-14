@@ -19,13 +19,13 @@ import {
 import { createDatabase, type Database } from '../../src/database/database.ts';
 import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
-  finalizeScheduledJobExecution,
-  ScheduledJobFinalizationError,
+  EndpointCollectionJobFinalizationError,
+  finalizeEndpointCollectionJobExecution,
 } from '../../src/jobs/finalize-endpoint-collection-job.ts';
 import {
   executeClaimedEndpointCollectionJob,
   reconcileExpiredEndpointCollectionJob,
-  type ScheduledJobExecutionResult,
+  type EndpointCollectionJobExecutionResult,
 } from '../../src/jobs/execute-endpoint-collection-job.ts';
 import {
   attachCollectionRunToEndpointCollectionJob,
@@ -52,15 +52,16 @@ const fixtureUrl = new URL(
   '../fixtures/generic-bootstrap.json',
   import.meta.url,
 );
-const T0959 = new Date('2026-08-11T09:59:00.000Z');
-const T1000 = new Date('2026-08-11T10:00:00.000Z');
-const T1001 = new Date('2026-08-11T10:01:00.000Z');
-const T1002 = new Date('2026-08-11T10:02:00.000Z');
-const T1003 = new Date('2026-08-11T10:03:00.000Z');
-const T1004 = new Date('2026-08-11T10:04:00.000Z');
-const T1007 = new Date('2026-08-11T10:07:00.000Z');
-const T1008 = new Date('2026-08-11T10:08:00.000Z');
-const T1100 = new Date('2026-08-11T11:00:00.000Z');
+const TEST_CLOCK = Date.now();
+const T0959 = new Date(TEST_CLOCK - 60_000);
+const T1000 = new Date(TEST_CLOCK);
+const T1001 = new Date(TEST_CLOCK + 60_000);
+const T1002 = new Date(TEST_CLOCK + 120_000);
+const T1003 = new Date(TEST_CLOCK + 180_000);
+const T1004 = new Date(TEST_CLOCK + 240_000);
+const T1007 = new Date(TEST_CLOCK + 420_000);
+const T1008 = new Date(TEST_CLOCK + 480_000);
+const T1100 = new Date(TEST_CLOCK + 3_600_000);
 
 test('transient finalization creates one atomic bounded retry chain while permanent and attempt three stop', async () => {
   await withPolicyDatabase(async (database, [endpointA, endpointB]) => {
@@ -77,22 +78,24 @@ test('transient finalization creates one atomic bounded retry chain while perman
       'transient',
     );
     const [first, competingScheduler] = await Promise.all([
-      finalizeScheduledJobExecution(database, {
+      finalizeEndpointCollectionJobExecution(database, {
         result: attempt.result,
         terminalAt: T1001,
         random: () => 0,
       }),
       runSchedulerPass(database, { now: T1001, random: () => 0 }),
     ]);
-    assert.equal(first.disposition, 'retry_scheduled');
+    assert.equal(first.disposition, 'retry_enqueued');
     assert.deepEqual(competingScheduler, {
       considered: 0,
       enqueued: 0,
       alreadyOutstanding: 0,
     });
-    if (first.disposition !== 'retry_scheduled') return;
+    if (first.disposition !== 'retry_enqueued') return;
     assert.equal(first.job.status, 'failed');
+    assert.equal(first.job.triggerKind, 'scheduled');
     assert.equal(first.successor.attemptNumber, 2);
+    assert.equal(first.successor.triggerKind, 'scheduled');
     assert.equal(first.successor.previousJobId, first.job.id);
     assert.equal(
       first.successor.availableAt.toISOString(),
@@ -106,13 +109,13 @@ test('transient finalization creates one atomic bounded retry chain while perman
       T1002,
       'transient',
     );
-    const second = await finalizeScheduledJobExecution(database, {
+    const second = await finalizeEndpointCollectionJobExecution(database, {
       result: attempt.result,
       terminalAt: T1003,
       random: () => 1,
     });
-    assert.equal(second.disposition, 'retry_scheduled');
-    if (second.disposition !== 'retry_scheduled') return;
+    assert.equal(second.disposition, 'retry_enqueued');
+    if (second.disposition !== 'retry_enqueued') return;
     assert.equal(second.successor.attemptNumber, 3);
     assert.equal(second.successor.previousJobId, second.job.id);
     assert.equal(
@@ -127,7 +130,7 @@ test('transient finalization creates one atomic bounded retry chain while perman
       T1004,
       'transient',
     );
-    const exhausted = await finalizeScheduledJobExecution(database, {
+    const exhausted = await finalizeEndpointCollectionJobExecution(database, {
       result: attempt.result,
       terminalAt: new Date(T1004.getTime() + 1_000),
     });
@@ -143,13 +146,41 @@ test('transient finalization creates one atomic bounded retry chain while perman
       T1002,
       'permanent',
     );
-    const stopped = await finalizeScheduledJobExecution(database, {
+    const stopped = await finalizeEndpointCollectionJobExecution(database, {
       result: permanent.result,
       terminalAt: T1003,
     });
     assert.equal(stopped.disposition, 'terminal');
     assert.equal(stopped.job.status, 'failed');
     assert.equal(await outstandingCount(database, endpointB.id), 0);
+  });
+});
+
+test('manual transient finalization enqueues a retry successor with the inherited trigger', async () => {
+  await withPolicyDatabase(async (database, [endpoint]) => {
+    const attempt = await createFailedClaimedAttempt(
+      database,
+      endpoint,
+      1,
+      undefined,
+      T1000,
+      'transient',
+      'manual',
+    );
+    assert.equal(attempt.job.triggerKind, 'manual');
+    assert.equal(attempt.run.triggerKind, 'manual');
+
+    const final = await finalizeEndpointCollectionJobExecution(database, {
+      result: attempt.result,
+      terminalAt: T1001,
+      random: () => 0,
+    });
+    assert.equal(final.disposition, 'retry_enqueued');
+    if (final.disposition !== 'retry_enqueued') return;
+    assert.equal(final.job.triggerKind, 'manual');
+    assert.equal(final.successor.triggerKind, 'manual');
+    assert.equal(final.successor.attemptNumber, 2);
+    assert.equal(final.successor.previousJobId, final.job.id);
   });
 });
 
@@ -167,11 +198,10 @@ test('successful and superseded jobs terminalize once without successors', async
       succeededJob.id,
       succeededJob.claimToken,
       run.id,
-      T0959,
     );
     await makeTerminalRun(database, run.id, 'succeeded', T1000);
     await applyTerminalCollectionRunToEndpointRuntime(database, run.id);
-    const succeeded = await finalizeScheduledJobExecution(database, {
+    const succeeded = await finalizeEndpointCollectionJobExecution(database, {
       result: successfulResult(succeededJob, run),
       terminalAt: T1001,
     });
@@ -180,7 +210,7 @@ test('successful and superseded jobs terminalize once without successors', async
     assert.equal(await outstandingCount(database, endpointA.id), 0);
 
     const supersededJob = await createClaimedJob(database, endpointB.id, 1);
-    const superseded = await finalizeScheduledJobExecution(database, {
+    const superseded = await finalizeEndpointCollectionJobExecution(database, {
       result: blockedResult(supersededJob, 'no_longer_due'),
       terminalAt: T1001,
     });
@@ -215,7 +245,7 @@ test('unexpected retry successor failure rolls back terminalization', async () =
       FOR EACH ROW EXECUTE FUNCTION reject_retry_successor();
     `);
     await assert.rejects(
-      finalizeScheduledJobExecution(database, {
+      finalizeEndpointCollectionJobExecution(database, {
         result: attempt.result,
         terminalAt: T1001,
         random: () => 0,
@@ -233,15 +263,24 @@ test('unexpected retry successor failure rolls back terminalization', async () =
 
 test('lock deferral requeues the same attempt, rejects the former owner, and waiting retry does not block another endpoint', async () => {
   await withPolicyDatabase(async (database, [endpointA, endpointB]) => {
-    const claimed = await createClaimedJob(database, endpointA.id, 1);
+    const claimed = await createClaimedJob(
+      database,
+      endpointA.id,
+      1,
+      undefined,
+      T0959,
+      T1100,
+      'manual',
+    );
     assert.ok(claimed.claimToken);
-    const deferred = await finalizeScheduledJobExecution(database, {
+    const deferred = await finalizeEndpointCollectionJobExecution(database, {
       result: blockedResult(claimed, 'endpoint_locked'),
       terminalAt: T1001,
       random: () => 1,
     });
     assert.equal(deferred.disposition, 'deferred');
     assert.equal(deferred.job.id, claimed.id);
+    assert.equal(deferred.job.triggerKind, 'manual');
     assert.equal(deferred.job.attemptNumber, 1);
     assert.equal(deferred.job.status, 'queued');
     assert.equal(
@@ -264,6 +303,7 @@ test('lock deferral requeues the same attempt, rejects the former owner, and wai
       leaseExpiresAt: T1100,
     });
     assert.equal(reclaimed?.id, claimed.id);
+    assert.equal(reclaimed?.triggerKind, 'manual');
     assert.notEqual(reclaimed?.claimToken, claimed.claimToken);
     assert.ok(reclaimed?.claimToken);
     await terminalizeEndpointCollectionJob(
@@ -281,14 +321,15 @@ test('lock deferral requeues the same attempt, rejects the former owner, and wai
       T1002,
       'transient',
     );
-    const retried = await finalizeScheduledJobExecution(database, {
+    const retried = await finalizeEndpointCollectionJobExecution(database, {
       result: retrying.result,
       terminalAt: T1003,
       random: () => 1,
     });
-    assert.equal(retried.disposition, 'retry_scheduled');
+    assert.equal(retried.disposition, 'retry_enqueued');
     await enqueueEndpointCollectionJob(database, {
       sourceEndpointId: endpointB.id,
+      triggerKind: 'scheduled',
       availableAt: T1003,
       attemptNumber: 1,
     });
@@ -316,6 +357,7 @@ test('capacity contention requeues the same linked attempt without a run while u
           undefined,
           T0959,
           T1100,
+          'manual',
         );
         assert.ok(previous.claimToken);
         const terminalPrevious = await terminalizeEndpointCollectionJob(
@@ -337,10 +379,12 @@ test('capacity contention requeues the same linked attempt without a run while u
           previous.id,
           T1000,
           T1100,
+          'manual',
         );
         assert.ok(claimed.claimToken);
         const otherEnqueued = await enqueueEndpointCollectionJob(database, {
           sourceEndpointId: endpointB.id,
+          triggerKind: 'scheduled',
           availableAt: T1001,
           attemptNumber: 1,
         });
@@ -360,6 +404,7 @@ test('capacity contention requeues the same linked attempt without a run while u
           jobId: claimed.id,
           attemptNumber: 2,
           endpointId: endpointA.id,
+          triggerKind: 'manual',
           claimToken: claimed.claimToken,
           collectionRunOccurred: false,
           category: 'blocked',
@@ -368,16 +413,20 @@ test('capacity contention requeues the same linked attempt without a run while u
           limitingScope: 'source',
         });
 
-        const deferred = await finalizeScheduledJobExecution(database, {
-          result: execution,
-          terminalAt: T1001,
-          random: () => 1,
-        });
+        const deferred = await finalizeEndpointCollectionJobExecution(
+          database,
+          {
+            result: execution,
+            terminalAt: T1001,
+            random: () => 1,
+          },
+        );
         assert.equal(deferred.disposition, 'deferred');
         assert.equal(deferred.reason, 'collection_capacity_limited');
         assert.equal(deferred.job.id, claimed.id);
         assert.equal(deferred.job.attemptNumber, 2);
         assert.equal(deferred.job.previousJobId, previous.id);
+        assert.equal(deferred.job.triggerKind, 'manual');
         assert.equal(deferred.job.status, 'queued');
         assert.equal(deferred.job.claimWorkerId, undefined);
         assert.equal(deferred.job.claimToken, undefined);
@@ -435,7 +484,7 @@ test('capacity contention requeues the same linked attempt without a run while u
         assert.equal(unrelatedExecution.outcome, 'not_modified');
         assert.ok(unrelatedExecution.collectionRunId);
 
-        const unrelatedFinalized = await finalizeScheduledJobExecution(
+        const unrelatedFinalized = await finalizeEndpointCollectionJobExecution(
           database,
           {
             result: unrelatedExecution,
@@ -479,12 +528,14 @@ test('final repeated failure applies scheduler cooldown and later success clears
       undefined,
       T1002,
       'permanent',
+      'manual',
     );
-    const terminal = await finalizeScheduledJobExecution(database, {
+    const terminal = await finalizeEndpointCollectionJobExecution(database, {
       result: third.result,
       terminalAt: T1003,
     });
     assert.equal(terminal.disposition, 'terminal');
+    assert.equal(terminal.job.triggerKind, 'manual');
     assert.equal(terminal.cooldownUntil?.toISOString(), T1007.toISOString());
     let health = await readEndpointHealth(database, endpoint.id, T1003);
     assert.equal(health?.health, 'unhealthy');
@@ -543,13 +594,14 @@ test('interrupted P4 recovery feeds the retry policy once without duplicating it
       1,
       undefined,
       T0959,
-      T1000,
+      T1100,
+      'manual',
     );
     assert.ok(claimed.claimToken);
     const run = await startCollectionRun(database, {
       sourceEndpointId: endpoint.id,
       executionId: claimed.id,
-      triggerKind: 'scheduled',
+      triggerKind: 'manual',
     });
     await database.query(
       'UPDATE collection_runs SET started_at = $2 WHERE id = $1',
@@ -560,7 +612,10 @@ test('interrupted P4 recovery feeds the retry policy once without duplicating it
       claimed.id,
       claimed.claimToken,
       run.id,
-      T0959,
+    );
+    await database.query(
+      'UPDATE endpoint_collection_jobs SET lease_expires_at = $2 WHERE id = $1',
+      [claimed.id, new Date(T0959.getTime() + 30_000)],
     );
     const recovery = await reconcileExpiredEndpointCollectionJob(database, {
       jobId: claimed.id,
@@ -572,15 +627,17 @@ test('interrupted P4 recovery feeds the retry policy once without duplicating it
     });
     assert.equal(recovery.status, 'reconciled');
     if (recovery.status !== 'reconciled') return;
-    const final = await finalizeScheduledJobExecution(database, {
+    const final = await finalizeEndpointCollectionJobExecution(database, {
       result: recovery.result,
       terminalAt: T1002,
       random: () => 0,
     });
-    assert.equal(final.disposition, 'retry_scheduled');
-    if (final.disposition !== 'retry_scheduled') return;
+    assert.equal(final.disposition, 'retry_enqueued');
+    if (final.disposition !== 'retry_enqueued') return;
     assert.equal(final.job.status, 'abandoned');
+    assert.equal(final.job.triggerKind, 'manual');
     assert.equal(final.successor.attemptNumber, 2);
+    assert.equal(final.successor.triggerKind, 'manual');
     assert.equal(final.successor.previousJobId, claimed.id);
     const runs = await database.query<{ count: string }>(
       'SELECT count(*) AS count FROM collection_runs WHERE execution_id = $1',
@@ -588,12 +645,12 @@ test('interrupted P4 recovery feeds the retry policy once without duplicating it
     );
     assert.equal(Number(runs.rows[0]?.count), 1);
     await assert.rejects(
-      finalizeScheduledJobExecution(database, {
+      finalizeEndpointCollectionJobExecution(database, {
         result: recovery.result,
         terminalAt: T1003,
         random: () => 0,
       }),
-      ScheduledJobFinalizationError,
+      EndpointCollectionJobFinalizationError,
     );
   });
 });
@@ -605,6 +662,7 @@ async function createFailedClaimedAttempt(
   previousJobId: string | undefined,
   finishedAt: Date,
   retryClassification: 'transient' | 'permanent',
+  triggerKind: 'manual' | 'scheduled' = 'scheduled',
 ) {
   const claimed = await createClaimedJob(
     database,
@@ -612,6 +670,8 @@ async function createFailedClaimedAttempt(
     attemptNumber,
     previousJobId,
     new Date(finishedAt.getTime() - 30_000),
+    T1100,
+    triggerKind,
   );
   return failClaimedAttempt(
     database,
@@ -656,7 +716,7 @@ async function failClaimedAttempt(
   const run = await startCollectionRun(database, {
     sourceEndpointId: endpoint.id,
     executionId: job.id,
-    triggerKind: 'scheduled',
+    triggerKind: job.triggerKind,
   });
   await database.query(
     'UPDATE collection_runs SET started_at = $2 WHERE id = $1',
@@ -667,7 +727,6 @@ async function failClaimedAttempt(
     job.id,
     job.claimToken,
     run.id,
-    new Date(finishedAt.getTime() - 1_000),
   );
   await makeTerminalRun(
     database,
@@ -691,9 +750,11 @@ async function createClaimedJob(
   previousJobId?: string,
   claimedAt: Date = T0959,
   leaseExpiresAt: Date = T1100,
+  triggerKind: 'manual' | 'scheduled' = 'scheduled',
 ): Promise<PersistedEndpointCollectionJob> {
   const enqueued = await enqueueEndpointCollectionJob(database, {
     sourceEndpointId: endpointId,
+    triggerKind,
     availableAt: claimedAt,
     attemptNumber,
     ...(previousJobId === undefined ? {} : { previousJobId }),
@@ -713,12 +774,13 @@ function failedResult(
   job: PersistedEndpointCollectionJob,
   run: PersistedCollectionRun,
   retryClassification: 'transient' | 'permanent',
-): ScheduledJobExecutionResult {
+): EndpointCollectionJobExecutionResult {
   assert.ok(job.claimToken);
   return Object.freeze({
     jobId: job.id,
     attemptNumber: job.attemptNumber,
     endpointId: job.sourceEndpointId,
+    triggerKind: job.triggerKind,
     claimToken: job.claimToken,
     collectionRunOccurred: true,
     collectionRunId: run.id,
@@ -732,12 +794,13 @@ function failedResult(
 function successfulResult(
   job: PersistedEndpointCollectionJob,
   run: PersistedCollectionRun,
-): ScheduledJobExecutionResult {
+): EndpointCollectionJobExecutionResult {
   assert.ok(job.claimToken);
   return Object.freeze({
     jobId: job.id,
     attemptNumber: job.attemptNumber,
     endpointId: job.sourceEndpointId,
+    triggerKind: job.triggerKind,
     claimToken: job.claimToken,
     collectionRunOccurred: true,
     collectionRunId: run.id,
@@ -749,12 +812,13 @@ function successfulResult(
 function blockedResult(
   job: PersistedEndpointCollectionJob,
   reason: string,
-): ScheduledJobExecutionResult {
+): EndpointCollectionJobExecutionResult {
   assert.ok(job.claimToken);
   return Object.freeze({
     jobId: job.id,
     attemptNumber: job.attemptNumber,
     endpointId: job.sourceEndpointId,
+    triggerKind: job.triggerKind,
     claimToken: job.claimToken,
     collectionRunOccurred: false,
     category: 'blocked' as const,

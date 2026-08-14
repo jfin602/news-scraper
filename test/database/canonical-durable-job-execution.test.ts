@@ -43,12 +43,13 @@ const fixtureUrl = new URL(
   '../fixtures/generic-bootstrap.json',
   import.meta.url,
 );
-const T1000 = new Date('2026-08-11T10:00:00.000Z');
-const T1001 = new Date('2026-08-11T10:01:00.000Z');
-const T1002 = new Date('2026-08-11T10:02:00.000Z');
-const T1003 = new Date('2026-08-11T10:03:00.000Z');
-const T1005 = new Date('2026-08-11T10:05:00.000Z');
-const T1010 = new Date('2026-08-11T10:10:00.000Z');
+const TEST_CLOCK = Date.now();
+const T1000 = new Date(TEST_CLOCK);
+const T1001 = new Date(TEST_CLOCK + 60_000);
+const T1002 = new Date(TEST_CLOCK + 120_000);
+const T1003 = new Date(TEST_CLOCK + 180_000);
+const T1005 = new Date(TEST_CLOCK + 300_000);
+const T1010 = new Date(TEST_CLOCK + 600_000);
 
 test('canonical execution commits conditional validators only after successful outcomes', async () => {
   await withEndpoint(async (database, endpoint) => {
@@ -64,6 +65,7 @@ test('canonical execution commits conditional validators only after successful o
     const content = await executeEndpointCollection(
       database,
       {
+        executionKind: 'direct_manual',
         triggerKind: 'manual',
         sourceConfigKey: 'circuit_journal',
         endpointConfigKey: 'main_feed',
@@ -96,6 +98,7 @@ test('canonical execution commits conditional validators only after successful o
     const notModified = await executeEndpointCollection(
       database,
       {
+        executionKind: 'direct_manual',
         triggerKind: 'manual',
         sourceConfigKey: 'circuit_journal',
         endpointConfigKey: 'main_feed',
@@ -119,6 +122,7 @@ test('canonical execution commits conditional validators only after successful o
     const parserFailure = await executeEndpointCollection(
       database,
       {
+        executionKind: 'direct_manual',
         triggerKind: 'manual',
         sourceConfigKey: 'circuit_journal',
         endpointConfigKey: 'main_feed',
@@ -143,6 +147,7 @@ test('canonical execution commits conditional validators only after successful o
     const transportFailure = await executeEndpointCollection(
       database,
       {
+        executionKind: 'direct_manual',
         triggerKind: 'manual',
         sourceConfigKey: 'circuit_journal',
         endpointConfigKey: 'main_feed',
@@ -173,6 +178,7 @@ test('scheduled execution atomically correlates one job and run and updates endp
   await withEndpoint(async (database, endpoint) => {
     const enqueued = await enqueueEndpointCollectionJob(database, {
       sourceEndpointId: endpoint.id,
+      triggerKind: 'scheduled',
       availableAt: T1000,
       attemptNumber: 1,
     });
@@ -191,10 +197,12 @@ test('scheduled execution atomically correlates one job and run and updates endp
       },
     });
     assert.equal(execution.category, 'succeeded');
+    assert.equal(execution.triggerKind, 'scheduled');
     assert.equal(execution.collectionRunOccurred, true);
     assert.ok(execution.collectionRunId);
 
     const job = await findEndpointCollectionJobById(database, enqueued.job.id);
+    assert.equal(job?.triggerKind, 'scheduled');
     assert.equal(job?.collectionRunId, execution.collectionRunId);
     const run = await findCollectionRunById(
       database,
@@ -225,6 +233,133 @@ test('scheduled execution atomically correlates one job and run and updates endp
   });
 });
 
+test('first-attempt durable manual execution bypasses due optimization and attaches a manual run', async () => {
+  await withEndpoint(async (database, endpoint) => {
+    await updateEndpointRuntimeState(database, endpoint.id, {
+      nextDueAt: T1010,
+    });
+    const enqueued = await enqueueEndpointCollectionJob(database, {
+      sourceEndpointId: endpoint.id,
+      triggerKind: 'manual',
+      availableAt: T1000,
+      attemptNumber: 1,
+    });
+    const claimed = await claimNextEndpointCollectionJob(database, {
+      workerId: 'manual-job-worker',
+      claimedAt: T1001,
+      leaseExpiresAt: T1010,
+    });
+    assert.equal(claimed?.id, enqueued.job.id);
+    assert.equal(claimed?.triggerKind, 'manual');
+    assert.ok(claimed?.claimToken);
+
+    const execution = await executeClaimedEndpointCollectionJob(database, {
+      jobId: claimed.id,
+      claimToken: claimed.claimToken,
+      now: T1002,
+      serviceDependencies: {
+        createFetcher: () => fetcher(contentResult('"manual-job"')),
+      },
+    });
+    assert.equal(execution.category, 'succeeded');
+    assert.equal(execution.triggerKind, 'manual');
+    assert.equal(execution.collectionRunOccurred, true);
+    assert.ok(execution.collectionRunId);
+    const run = await findCollectionRunById(
+      database,
+      execution.collectionRunId,
+    );
+    assert.equal(run?.triggerKind, 'manual');
+    assert.equal(run?.executionId, claimed.id);
+    assert.equal(
+      (await findEndpointCollectionJobById(database, claimed.id))
+        ?.collectionRunId,
+      run?.id,
+    );
+  });
+});
+
+test('durable job attachment rejects a Collection run trigger mismatch', async () => {
+  await withEndpoint(async (database, endpoint) => {
+    const claimed = await claimedJob(
+      database,
+      endpoint.id,
+      'manual-mismatch-worker',
+      'manual',
+    );
+    assert.ok(claimed.claimToken);
+    const mismatched = await startCollectionRun(database, {
+      sourceEndpointId: endpoint.id,
+      executionId: claimed.id,
+      triggerKind: 'scheduled',
+    });
+    assert.equal(
+      await attachCollectionRunToEndpointCollectionJob(
+        database,
+        claimed.id,
+        claimed.claimToken,
+        mismatched.id,
+      ),
+      undefined,
+    );
+    assert.equal(
+      (await findEndpointCollectionJobById(database, claimed.id))
+        ?.collectionRunId,
+      undefined,
+    );
+  });
+});
+
+test('durable run attachment rejects a claim expired by the database wall clock', async () => {
+  await withEndpoint(async (database, endpoint) => {
+    const claimedAt = new Date(Date.now() - 120_000);
+    const leaseExpiresAt = new Date(Date.now() - 60_000);
+    const executionTime = new Date(Date.now() - 90_000);
+    const enqueued = await enqueueEndpointCollectionJob(database, {
+      sourceEndpointId: endpoint.id,
+      triggerKind: 'manual',
+      availableAt: claimedAt,
+      attemptNumber: 1,
+    });
+    const claimed = await claimNextEndpointCollectionJob(database, {
+      workerId: 'expired-attachment-worker',
+      claimedAt,
+      leaseExpiresAt,
+    });
+    assert.equal(claimed?.id, enqueued.job.id);
+    assert.ok(claimed?.claimToken);
+    let fetchCalls = 0;
+
+    await assert.rejects(
+      executeClaimedEndpointCollectionJob(database, {
+        jobId: claimed.id,
+        claimToken: claimed.claimToken,
+        now: executionTime,
+        serviceDependencies: {
+          createFetcher: () => ({
+            async fetch() {
+              fetchCalls += 1;
+              return contentResult('"expired-lease"');
+            },
+          }),
+        },
+      }),
+      /Collection run attachment was rejected/u,
+    );
+    assert.equal(fetchCalls, 0);
+    assert.equal(
+      (await findEndpointCollectionJobById(database, claimed.id))
+        ?.collectionRunId,
+      undefined,
+    );
+    const runs = await database.query<{ count: string }>(
+      'SELECT count(*) AS count FROM collection_runs WHERE execution_id = $1',
+      [claimed.id],
+    );
+    assert.equal(Number(runs.rows[0]?.count), 0);
+  });
+});
+
 test('manual and scheduled execution share persisted Relevance exclusion semantics', async () => {
   await withEndpoint(async (database, endpoint) => {
     await createRelevanceRule(database, {
@@ -240,6 +375,7 @@ test('manual and scheduled execution share persisted Relevance exclusion semanti
     const manual = await executeEndpointCollection(
       database,
       {
+        executionKind: 'direct_manual',
         triggerKind: 'manual',
         sourceConfigKey: 'circuit_journal',
         endpointConfigKey: 'main_feed',
@@ -259,6 +395,7 @@ test('manual and scheduled execution share persisted Relevance exclusion semanti
 
     const enqueued = await enqueueEndpointCollectionJob(database, {
       sourceEndpointId: endpoint.id,
+      triggerKind: 'scheduled',
       availableAt: T1000,
       attemptNumber: 1,
     });
@@ -310,6 +447,7 @@ test('failed scheduled execution persists retry class and failure state without 
     });
     const enqueued = await enqueueEndpointCollectionJob(database, {
       sourceEndpointId: endpoint.id,
+      triggerKind: 'scheduled',
       availableAt: T1000,
       attemptNumber: 1,
     });
@@ -346,6 +484,7 @@ test('expired jobs requeue before start and reconcile terminal or interrupted ru
       database,
       endpoint.id,
       'unstarted-worker',
+      'manual',
     );
     const requeued = await reconcileExpiredEndpointCollectionJob(database, {
       jobId: unstarted.id,
@@ -356,12 +495,16 @@ test('expired jobs requeue before start and reconcile terminal or interrupted ru
       availableAt: T1003,
     });
     assert.equal(requeued.status, 'requeued');
+    if (requeued.status === 'requeued') {
+      assert.equal(requeued.job.triggerKind, 'manual');
+    }
     const reclaimed = await claimNextEndpointCollectionJob(database, {
       workerId: 'cleanup-worker',
       claimedAt: T1003,
       leaseExpiresAt: T1010,
     });
     assert.ok(reclaimed?.claimToken);
+    assert.equal(reclaimed?.triggerKind, 'manual');
     await terminalizeEndpointCollectionJob(
       database,
       reclaimed.id,
@@ -389,7 +532,6 @@ test('expired jobs requeue before start and reconcile terminal or interrupted ru
       terminalJob.id,
       terminalJob.claimToken,
       terminalRun.id,
-      T1000,
     );
     await makeTerminalRun(database, terminalRun.id, 'succeeded', T1002);
     const terminalRecovered = await reconcileExpiredEndpointCollectionJob(
@@ -426,12 +568,13 @@ test('expired jobs requeue before start and reconcile terminal or interrupted ru
       database,
       endpoint.id,
       'interrupted-worker',
+      'manual',
     );
     assert.ok(interruptedJob.claimToken);
     const interruptedRun = await startCollectionRun(database, {
       sourceEndpointId: endpoint.id,
       executionId: interruptedJob.id,
-      triggerKind: 'scheduled',
+      triggerKind: 'manual',
     });
     await database.query(
       'UPDATE collection_runs SET started_at = $2 WHERE id = $1',
@@ -442,7 +585,6 @@ test('expired jobs requeue before start and reconcile terminal or interrupted ru
       interruptedJob.id,
       interruptedJob.claimToken,
       interruptedRun.id,
-      T1000,
     );
     const interruptedRecovered = await reconcileExpiredEndpointCollectionJob(
       database,
@@ -458,6 +600,7 @@ test('expired jobs requeue before start and reconcile terminal or interrupted ru
     assert.equal(interruptedRecovered.status, 'reconciled');
     if (interruptedRecovered.status === 'reconciled') {
       assert.equal(interruptedRecovered.result.category, 'failed');
+      assert.equal(interruptedRecovered.result.triggerKind, 'manual');
       assert.equal(interruptedRecovered.result.reason, 'worker_interrupted');
       assert.equal(
         interruptedRecovered.result.retryClassification,
@@ -589,9 +732,11 @@ async function claimedJob(
   database: Database,
   endpointId: string,
   workerId: string,
+  triggerKind: 'manual' | 'scheduled' = 'scheduled',
 ) {
   const enqueued = await enqueueEndpointCollectionJob(database, {
     sourceEndpointId: endpointId,
+    triggerKind,
     availableAt: T1000,
     attemptNumber: 1,
   });

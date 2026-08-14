@@ -94,6 +94,56 @@ export function registerEndpointAdministrationRoutes(
         );
       },
     );
+
+    router.post(
+      '/sources/:sourceKey/endpoints/:endpointKey/check-now',
+      async (request, response) => {
+        try {
+          response
+            .status(202)
+            .json(
+              await service.checkNow(sourceKey(request), endpointKey(request)),
+            );
+        } catch (error) {
+          sendEndpointAdministrationError(error, response);
+        }
+      },
+    );
+
+    router.get(
+      '/sources/:sourceKey/endpoints/:endpointKey/health',
+      async (request, response) => {
+        try {
+          response.status(200).json({
+            health: await service.getEndpointHealth(
+              sourceKey(request),
+              endpointKey(request),
+            ),
+          });
+        } catch (error) {
+          sendEndpointAdministrationError(error, response);
+        }
+      },
+    );
+
+    router.get(
+      '/sources/:sourceKey/endpoints/:endpointKey/runs',
+      async (request, response) => {
+        try {
+          response
+            .status(200)
+            .json(
+              await service.listRecentRuns(
+                sourceKey(request),
+                endpointKey(request),
+                request.query.limit,
+              ),
+            );
+        } catch (error) {
+          sendEndpointAdministrationError(error, response);
+        }
+      },
+    );
   };
 }
 
@@ -113,6 +163,14 @@ function sendEndpointAdministrationError(
   response: Response,
 ): void {
   if (!(error instanceof EndpointAdministrationError)) throw error;
+  if (error.code === 'endpoint_not_collectable') {
+    if (error.reason === undefined) throw error;
+    response.status(409).json({
+      error: error.code,
+      reason: error.reason,
+    });
+    return;
+  }
   const status =
     error.code === 'source_not_found' || error.code === 'endpoint_not_found'
       ? 404

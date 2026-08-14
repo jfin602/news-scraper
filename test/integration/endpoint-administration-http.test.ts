@@ -3,6 +3,9 @@ import { describe, it } from 'node:test';
 
 import {
   EndpointAdministrationError,
+  type AdminEndpointCheckNowReadModel,
+  type AdminEndpointCollectionRunsReadModel,
+  type AdminEndpointHealthReadModel,
   type AdminEndpointReadModel,
   type EndpointAdministrationService,
 } from '../../src/admin/endpoint-administration.ts';
@@ -28,6 +31,44 @@ const endpoint: AdminEndpointReadModel = Object.freeze({
   defaultCategory: null,
 });
 
+const checkNow: AdminEndpointCheckNowReadModel = Object.freeze({
+  disposition: 'queued',
+  job: Object.freeze({
+    id: 'b7687522-2ad6-4e76-96e2-457513c30736',
+    triggerKind: 'manual',
+    status: 'queued',
+    availableAt: new Date('2026-08-13T12:00:00.000Z'),
+    attemptNumber: 1,
+  }),
+});
+
+const health: AdminEndpointHealthReadModel = Object.freeze({
+  sourceConfigKey: 'journal',
+  endpointConfigKey: 'main_feed',
+  publicationActiveForCollection: true,
+  sourceApprovalState: 'approved',
+  sourceLifecycleState: 'active',
+  sourceOperationalState: 'enabled',
+  endpointApprovalState: 'approved',
+  endpointLifecycleState: 'active',
+  endpointOperationalState: 'enabled',
+  derivedHealth: 'healthy',
+  lastAttemptAt: new Date('2026-08-13T11:00:00.000Z'),
+  lastSuccessAt: new Date('2026-08-13T11:00:00.000Z'),
+  lastFailureAt: null,
+  nextDueAt: new Date('2026-08-13T11:05:00.000Z'),
+  cooldownUntil: null,
+  consecutiveFailureCount: 0,
+  pollIntervalSeconds: 300,
+});
+
+const recentRuns: AdminEndpointCollectionRunsReadModel = Object.freeze({
+  sourceConfigKey: 'journal',
+  endpointConfigKey: 'main_feed',
+  limit: 5,
+  runs: Object.freeze([]),
+});
+
 describe('Endpoint administration HTTP API', () => {
   it('routes Source-scoped reads and every endpoint command', async () => {
     const calls: string[] = [];
@@ -44,6 +85,25 @@ describe('Endpoint administration HTTP API', () => {
       );
       assert.equal(detail.status, 200);
       assert.deepEqual(await detail.json(), { endpoint });
+
+      const healthResponse = await fetch(
+        `${baseUrl}/api/admin/sources/journal/endpoints/main_feed/health`,
+      );
+      assert.equal(healthResponse.status, 200);
+      assert.deepEqual(await healthResponse.json(), {
+        health: {
+          ...health,
+          lastAttemptAt: '2026-08-13T11:00:00.000Z',
+          lastSuccessAt: '2026-08-13T11:00:00.000Z',
+          nextDueAt: '2026-08-13T11:05:00.000Z',
+        },
+      });
+
+      const runsResponse = await fetch(
+        `${baseUrl}/api/admin/sources/journal/endpoints/main_feed/runs?limit=5`,
+      );
+      assert.equal(runsResponse.status, 200);
+      assert.deepEqual(await runsResponse.json(), recentRuns);
 
       const commands: readonly [string, string, number][] = [
         [
@@ -81,16 +141,36 @@ describe('Endpoint administration HTTP API', () => {
         assert.equal(response.status, status, path);
         assert.deepEqual(await response.json(), { endpoint });
       }
+
+      const checkNowResponse = await fetch(
+        `${baseUrl}/api/admin/sources/journal/endpoints/main_feed/check-now`,
+        {
+          method: 'POST',
+          headers: adminHeaders(),
+          body: '{}',
+        },
+      );
+      assert.equal(checkNowResponse.status, 202);
+      assert.deepEqual(await checkNowResponse.json(), {
+        disposition: 'queued',
+        job: {
+          ...checkNow.job,
+          availableAt: '2026-08-13T12:00:00.000Z',
+        },
+      });
     });
 
     assert.deepEqual(calls, [
       'list:journal',
       'get:journal:main_feed',
+      'health:journal:main_feed',
+      'runs:journal:main_feed:5',
       'create:journal:create',
       'configuration:journal:main_feed:configuration',
       'approval:journal:main_feed:approval',
       'operational:journal:main_feed:operational',
       'lifecycle:journal:main_feed:lifecycle',
+      'check-now:journal:main_feed',
     ]);
   });
 
@@ -112,6 +192,16 @@ describe('Endpoint administration HTTP API', () => {
       });
       assert.equal(malformed.status, 400);
       assert.deepEqual(await malformed.json(), { error: 'invalid_json' });
+
+      const checkNowWithoutHeader = await fetch(
+        `${baseUrl}/api/admin/sources/journal/endpoints/main_feed/check-now`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: '{}',
+        },
+      );
+      assert.equal(checkNowWithoutHeader.status, 403);
     });
     assert.deepEqual(calls, []);
   });
@@ -123,6 +213,12 @@ describe('Endpoint administration HTTP API', () => {
     };
     service.createEndpoint = async () => {
       throw new EndpointAdministrationError('endpoint_config_key_conflict');
+    };
+    service.checkNow = async () => {
+      throw new EndpointAdministrationError(
+        'endpoint_not_collectable',
+        'endpoint_paused',
+      );
     };
     await withAdminServer(service, async (baseUrl) => {
       const missing = await fetch(
@@ -142,6 +238,20 @@ describe('Endpoint administration HTTP API', () => {
       assert.equal(conflict.status, 409);
       assert.deepEqual(await conflict.json(), {
         error: 'endpoint_config_key_conflict',
+      });
+
+      const notCollectable = await fetch(
+        `${baseUrl}/api/admin/sources/journal/endpoints/main_feed/check-now`,
+        {
+          method: 'POST',
+          headers: adminHeaders(),
+          body: '{}',
+        },
+      );
+      assert.equal(notCollectable.status, 409);
+      assert.deepEqual(await notCollectable.json(), {
+        error: 'endpoint_not_collectable',
+        reason: 'endpoint_paused',
       });
 
       const deletion = await fetch(
@@ -197,6 +307,20 @@ function mockService(calls: string[]): EndpointAdministrationService {
         `lifecycle:${String(sourceKey)}:${String(endpointKey)}:${String((input as { command?: unknown }).command)}`,
       );
       return endpoint;
+    },
+    async checkNow(sourceKey, endpointKey) {
+      calls.push(`check-now:${String(sourceKey)}:${String(endpointKey)}`);
+      return checkNow;
+    },
+    async getEndpointHealth(sourceKey, endpointKey) {
+      calls.push(`health:${String(sourceKey)}:${String(endpointKey)}`);
+      return health;
+    },
+    async listRecentRuns(sourceKey, endpointKey, limit) {
+      calls.push(
+        `runs:${String(sourceKey)}:${String(endpointKey)}:${String(limit)}`,
+      );
+      return recentRuns;
     },
   };
 }

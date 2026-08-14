@@ -33,6 +33,7 @@ test('migrates Source administration foundation from zero with canonical constra
       '0007_public_feed_discovery_indexes.sql',
       '0008_publication_presentation.sql',
       '0009_source_administration_foundation.sql',
+      '0010_endpoint_collection_job_trigger_kind.sql',
     ]);
     const database = createDatabase({ connectionString: databaseUrl });
     try {

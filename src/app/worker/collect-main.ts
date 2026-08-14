@@ -72,6 +72,7 @@ export async function runCollectEndpointCommand(
   let exitCode: number;
   try {
     const result = await dependencies.execute(database, {
+      executionKind: 'direct_manual',
       triggerKind: 'manual',
       executionId: dependencies.executionId(),
       sourceConfigKey: args.sourceConfigKey,

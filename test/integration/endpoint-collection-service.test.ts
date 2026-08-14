@@ -15,7 +15,7 @@ import type {
 import type { Database, QueryExecutor } from '../../src/database/database.ts';
 import type { EndpointConfigurationAggregate } from '../../src/sources/repository.ts';
 
-test('manual and scheduled triggers use one production collection composition', async () => {
+test('direct manual and durable scheduled executions use one production collection composition', async () => {
   const base = aggregate();
   const configuration: EndpointConfigurationAggregate = {
     ...base,
@@ -161,6 +161,7 @@ test('manual and scheduled triggers use one production collection composition', 
   const manual = await executeEndpointCollection(
     database,
     {
+      executionKind: 'direct_manual',
       triggerKind: 'manual',
       sourceConfigKey: 'source',
       endpointConfigKey: 'feed',
@@ -171,6 +172,7 @@ test('manual and scheduled triggers use one production collection composition', 
   const scheduled = await executeEndpointCollection(
     database,
     {
+      executionKind: 'durable_job',
       triggerKind: 'scheduled',
       sourceEndpointId: configuration.endpoint.id,
       jobId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -223,22 +225,35 @@ test('manual and scheduled triggers use one production collection composition', 
   }
 });
 
-test('capacity blocks each limiting scope before collection or runtime state', async () => {
+test('direct and durable manual execution share capacity before collection or runtime state', async () => {
   const configuration = aggregate();
   for (const limitingScope of ['global', 'source', 'host'] as const) {
-    let collectCalls = 0;
-    let runtimeCalls = 0;
-    let fetcherCalls = 0;
-    const result = await executeEndpointCollection(
-      {} as Database,
+    for (const request of [
       {
-        triggerKind: 'manual',
+        executionKind: 'direct_manual' as const,
+        triggerKind: 'manual' as const,
         sourceConfigKey: 'source',
         endpointConfigKey: 'feed',
-        executionId: `blocked-${limitingScope}`,
+        executionId: `direct-blocked-${limitingScope}`,
       },
       {
+        executionKind: 'durable_job' as const,
+        triggerKind: 'manual' as const,
+        sourceEndpointId: configuration.endpoint.id,
+        jobId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+        claimToken: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        attemptNumber: 1,
+        now: new Date('2026-08-11T12:00:00.000Z'),
+      },
+    ]) {
+      let collectCalls = 0;
+      let runtimeCalls = 0;
+      let fetcherCalls = 0;
+      const result = await executeEndpointCollection({} as Database, request, {
         async findByKeys() {
+          return configuration;
+        },
+        async findById() {
           return configuration;
         },
         async runWithCapacity(_database, input) {
@@ -265,24 +280,24 @@ test('capacity blocks each limiting scope before collection or runtime state', a
           runtimeCalls += 1;
           throw new Error('capacity-blocked work has no runtime state');
         },
-      },
-    );
+      });
 
-    assert.deepEqual(result, {
-      status: 'capacity_blocked',
-      stage: 'capacity',
-      reason: 'collection_capacity_limited',
-      limitingScope,
-      sourceId: configuration.source.id,
-      endpointId: configuration.endpoint.id,
-    });
-    assert.equal(fetcherCalls, 0);
-    assert.equal(collectCalls, 0);
-    assert.equal(runtimeCalls, 0);
+      assert.deepEqual(result, {
+        status: 'capacity_blocked',
+        stage: 'capacity',
+        reason: 'collection_capacity_limited',
+        limitingScope,
+        sourceId: configuration.source.id,
+        endpointId: configuration.endpoint.id,
+      });
+      assert.equal(fetcherCalls, 0);
+      assert.equal(collectCalls, 0);
+      assert.equal(runtimeCalls, 0);
+    }
   }
 });
 
-test('ineligible configuration is blocked before host normalization or capacity', async () => {
+test('durable manual eligibility is rechecked after enqueue before host normalization or capacity', async () => {
   const base = aggregate();
   const configuration: EndpointConfigurationAggregate = {
     ...base,
@@ -300,12 +315,16 @@ test('ineligible configuration is blocked before host normalization or capacity'
   const result = await executeEndpointCollection(
     {} as Database,
     {
+      executionKind: 'durable_job',
       triggerKind: 'manual',
-      sourceConfigKey: 'source',
-      endpointConfigKey: 'feed',
+      sourceEndpointId: configuration.endpoint.id,
+      jobId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      claimToken: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+      attemptNumber: 1,
+      now: new Date('2026-08-11T12:00:00.000Z'),
     },
     {
-      async findByKeys() {
+      async findById() {
         return configuration;
       },
       async runWithCapacity() {
@@ -333,7 +352,7 @@ test('ineligible configuration is blocked before host normalization or capacity'
   assert.equal(collectCalls, 0);
 });
 
-test('scheduler-root jobs skip obsolete due work while retry successors use availability', async () => {
+test('only first-attempt scheduled jobs skip obsolete due work while retries and manual jobs use availability', async () => {
   const base = aggregate();
   const configuration: EndpointConfigurationAggregate = {
     ...base,
@@ -367,6 +386,7 @@ test('scheduler-root jobs skip obsolete due work while retry successors use avai
     },
   };
   const request = {
+    executionKind: 'durable_job' as const,
     triggerKind: 'scheduled' as const,
     sourceEndpointId: configuration.endpoint.id,
     jobId: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
@@ -390,7 +410,18 @@ test('scheduler-root jobs skip obsolete due work while retry successors use avai
     overrides,
   );
   assert.equal(retry.status, 'resolved');
-  assert.equal(collectionCalls, 1);
+  const manual = await executeEndpointCollection(
+    {} as Database,
+    {
+      ...request,
+      triggerKind: 'manual',
+      jobId: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+      attemptNumber: 1,
+    },
+    overrides,
+  );
+  assert.equal(manual.status, 'resolved');
+  assert.equal(collectionCalls, 2);
 });
 
 function aggregate(): EndpointConfigurationAggregate {

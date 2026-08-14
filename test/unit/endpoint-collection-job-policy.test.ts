@@ -1,15 +1,15 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import type { ScheduledJobExecutionResult } from '../../src/jobs/execute-endpoint-collection-job.ts';
+import type { EndpointCollectionJobExecutionResult } from '../../src/jobs/execute-endpoint-collection-job.ts';
 import {
   calculateContentionDeferralMilliseconds,
   calculateCooldownUntil,
   calculateRetryDelayMilliseconds,
-  decideScheduledJobDisposition,
+  decideEndpointCollectionJobDisposition,
+  MAX_ENDPOINT_COLLECTION_JOB_ATTEMPTS,
   MAX_RETRY_DELAY_MILLISECONDS,
-  MAX_SCHEDULED_COLLECTION_ATTEMPTS,
-} from '../../src/jobs/scheduled-job-policy.ts';
+} from '../../src/jobs/endpoint-collection-job-policy.ts';
 
 const JOB_ID = '11111111-1111-4111-8111-111111111111';
 const ENDPOINT_ID = '22222222-2222-4222-8222-222222222222';
@@ -19,33 +19,49 @@ const RUN_ID = '44444444-4444-4444-8444-444444444444';
 test('only transient actual failures below the maximum attempt are retried', () => {
   for (const attemptNumber of [1, 2]) {
     assert.deepEqual(
-      decideScheduledJobDisposition(failure(attemptNumber, 'transient')),
+      decideEndpointCollectionJobDisposition(
+        failure(attemptNumber, 'transient'),
+      ),
       { kind: 'retry' },
     );
   }
-  assert.equal(MAX_SCHEDULED_COLLECTION_ATTEMPTS, 3);
-  assert.deepEqual(decideScheduledJobDisposition(failure(3, 'transient')), {
-    kind: 'terminal',
-    status: 'failed',
-  });
-  assert.deepEqual(decideScheduledJobDisposition(failure(1, 'permanent')), {
-    kind: 'terminal',
-    status: 'failed',
-  });
-  assert.deepEqual(decideScheduledJobDisposition(success()), {
+  assert.equal(MAX_ENDPOINT_COLLECTION_JOB_ATTEMPTS, 3);
+  assert.deepEqual(
+    decideEndpointCollectionJobDisposition(failure(3, 'transient')),
+    {
+      kind: 'terminal',
+      status: 'failed',
+    },
+  );
+  assert.deepEqual(
+    decideEndpointCollectionJobDisposition(failure(1, 'permanent')),
+    {
+      kind: 'terminal',
+      status: 'failed',
+    },
+  );
+  assert.deepEqual(decideEndpointCollectionJobDisposition(success()), {
     kind: 'terminal',
     status: 'succeeded',
   });
-  assert.deepEqual(decideScheduledJobDisposition(blocked('no_longer_due')), {
-    kind: 'terminal',
-    status: 'skipped',
-  });
-  assert.deepEqual(decideScheduledJobDisposition(blocked('endpoint_locked')), {
-    kind: 'defer',
-    reason: 'endpoint_locked',
-  });
   assert.deepEqual(
-    decideScheduledJobDisposition(blocked('collection_capacity_limited')),
+    decideEndpointCollectionJobDisposition(blocked('no_longer_due')),
+    {
+      kind: 'terminal',
+      status: 'skipped',
+    },
+  );
+  assert.deepEqual(
+    decideEndpointCollectionJobDisposition(blocked('endpoint_locked')),
+    {
+      kind: 'defer',
+      reason: 'endpoint_locked',
+    },
+  );
+  assert.deepEqual(
+    decideEndpointCollectionJobDisposition(
+      blocked('collection_capacity_limited'),
+    ),
     {
       kind: 'defer',
       reason: 'collection_capacity_limited',
@@ -55,13 +71,13 @@ test('only transient actual failures below the maximum attempt are retried', () 
 
 test('worker interruption preserves abandoned status and remains retryable when bounded', () => {
   assert.deepEqual(
-    decideScheduledJobDisposition(
+    decideEndpointCollectionJobDisposition(
       failure(2, 'transient', 'worker_interrupted'),
     ),
     { kind: 'retry' },
   );
   assert.deepEqual(
-    decideScheduledJobDisposition(
+    decideEndpointCollectionJobDisposition(
       failure(3, 'transient', 'worker_interrupted'),
     ),
     { kind: 'terminal', status: 'abandoned' },
@@ -103,11 +119,12 @@ function failure(
   attemptNumber: number,
   retryClassification: 'transient' | 'permanent',
   outcome = 'fetch_failed',
-): ScheduledJobExecutionResult {
+): EndpointCollectionJobExecutionResult {
   return Object.freeze({
     jobId: JOB_ID,
     attemptNumber,
     endpointId: ENDPOINT_ID,
+    triggerKind: 'manual',
     claimToken: CLAIM_TOKEN,
     collectionRunOccurred: true,
     collectionRunId: RUN_ID,
@@ -118,11 +135,12 @@ function failure(
   });
 }
 
-function success(): ScheduledJobExecutionResult {
+function success(): EndpointCollectionJobExecutionResult {
   return Object.freeze({
     jobId: JOB_ID,
     attemptNumber: 1,
     endpointId: ENDPOINT_ID,
+    triggerKind: 'scheduled',
     claimToken: CLAIM_TOKEN,
     collectionRunOccurred: true,
     collectionRunId: RUN_ID,
@@ -131,11 +149,12 @@ function success(): ScheduledJobExecutionResult {
   });
 }
 
-function blocked(reason: string): ScheduledJobExecutionResult {
+function blocked(reason: string): EndpointCollectionJobExecutionResult {
   return Object.freeze({
     jobId: JOB_ID,
     attemptNumber: 1,
     endpointId: ENDPOINT_ID,
+    triggerKind: 'manual',
     claimToken: CLAIM_TOKEN,
     collectionRunOccurred: false,
     category: 'blocked' as const,

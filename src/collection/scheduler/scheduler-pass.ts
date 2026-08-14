@@ -68,6 +68,7 @@ export async function runSchedulerPass(
     }
     const result = await enqueueEndpointCollectionJob(executor, {
       sourceEndpointId: endpoint.id,
+      triggerKind: 'scheduled',
       availableAt,
       attemptNumber: 1,
     });

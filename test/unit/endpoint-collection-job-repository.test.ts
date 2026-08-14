@@ -11,6 +11,7 @@ import {
 test('maps immutable queued, running, and terminal endpoint collection jobs', () => {
   const queued = mapEndpointCollectionJobRow(validRow());
   assert.equal(queued.status, 'queued');
+  assert.equal(queued.triggerKind, 'scheduled');
   assert.equal(queued.attemptNumber, 1);
   assert.equal(queued.claimToken, undefined);
   assert.equal(Object.isFrozen(queued), true);
@@ -18,6 +19,7 @@ test('maps immutable queued, running, and terminal endpoint collection jobs', ()
   const claimedAt = new Date('2026-08-11T12:00:00.000Z');
   const running = mapEndpointCollectionJobRow(
     validRow({
+      trigger_kind: 'manual',
       status: 'running',
       claim_worker_id: 'worker_a',
       claim_token: randomUUID(),
@@ -26,6 +28,7 @@ test('maps immutable queued, running, and terminal endpoint collection jobs', ()
     }),
   );
   assert.equal(running.claimWorkerId, 'worker_a');
+  assert.equal(running.triggerKind, 'manual');
 
   const terminal = mapEndpointCollectionJobRow(
     validRow({
@@ -45,6 +48,7 @@ test('maps immutable queued, running, and terminal endpoint collection jobs', ()
 test('rejects malformed retry, ownership, lease, and terminal row shapes', () => {
   const claimedAt = new Date('2026-08-11T12:00:00.000Z');
   for (const row of [
+    validRow({ trigger_kind: 'automatic' }),
     validRow({ attempt_number: 0 }),
     validRow({ attempt_number: 2 }),
     validRow({ previous_job_id: randomUUID() }),
@@ -77,6 +81,7 @@ function validRow(
   return {
     id: randomUUID(),
     source_endpoint_id: randomUUID(),
+    trigger_kind: 'scheduled',
     status: 'queued',
     enqueued_at: new Date('2026-08-11T11:59:00.000Z'),
     available_at: new Date('2026-08-11T12:00:00.000Z'),

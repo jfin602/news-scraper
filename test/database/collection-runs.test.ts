@@ -5,8 +5,11 @@ import { createDatabase } from '../../src/database/database.ts';
 import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   CollectionRunPersistenceError,
+  DEFAULT_RECENT_COLLECTION_RUN_LIMIT,
   finalizeCollectionRun,
   findCollectionRunById,
+  listRecentCollectionRunsForEndpoint,
+  MAX_RECENT_COLLECTION_RUN_LIMIT,
   startCollectionRun,
 } from '../../src/collection/runs/repository.ts';
 import { insertPublicationSettings } from '../../src/publication/repository.ts';
@@ -345,6 +348,82 @@ test('rejects invalid collection-run repository inputs and nonexistent endpoint 
   });
 });
 
+test('lists bounded recent Collection runs newest-first for one exact endpoint', async () => {
+  await withMigratedDatabase(async (database) => {
+    const endpoint = await createEndpoint(database);
+    const sibling = await createSiblingEndpoint(database, endpoint.id);
+    const base = new Date('2026-08-12T10:00:00.000Z');
+    const recentIndex = await database.query<{ indexdef: string }>(
+      `SELECT indexdef
+       FROM pg_indexes
+       WHERE schemaname = 'public'
+         AND indexname = 'collection_runs_endpoint_recent_idx'`,
+    );
+    assert.equal(recentIndex.rows.length, 1);
+    assert.match(
+      recentIndex.rows[0]!.indexdef,
+      /\(source_endpoint_id, started_at DESC, id DESC\)$/u,
+    );
+
+    for (let index = 0; index < 22; index += 1) {
+      const run = await startCollectionRun(database, {
+        sourceEndpointId: endpoint.id,
+        executionId: `recent_run_${index.toString().padStart(2, '0')}`,
+        triggerKind: index % 2 === 0 ? 'manual' : 'scheduled',
+      });
+      await database.query(
+        'UPDATE collection_runs SET started_at = $2 WHERE id = $1',
+        [run.id, new Date(base.getTime() + index * 1_000)],
+      );
+    }
+    const unrelated = await startCollectionRun(database, {
+      sourceEndpointId: sibling.id,
+      executionId: 'newer_but_unrelated',
+      triggerKind: 'manual',
+    });
+    await database.query(
+      'UPDATE collection_runs SET started_at = $2 WHERE id = $1',
+      [unrelated.id, new Date(base.getTime() + 60_000)],
+    );
+
+    const recent = await listRecentCollectionRunsForEndpoint(
+      database,
+      endpoint.id,
+    );
+    assert.equal(recent.length, DEFAULT_RECENT_COLLECTION_RUN_LIMIT);
+    assert.ok(Object.isFrozen(recent));
+    assert.ok(recent.every((run) => run.sourceEndpointId === endpoint.id));
+    assert.deepEqual(
+      recent.slice(0, 3).map((run) => run.executionId),
+      ['recent_run_21', 'recent_run_20', 'recent_run_19'],
+    );
+    assert.deepEqual(
+      recent.slice(0, 4).map((run) => run.triggerKind),
+      ['scheduled', 'manual', 'scheduled', 'manual'],
+    );
+
+    const limited = await listRecentCollectionRunsForEndpoint(
+      database,
+      endpoint.id,
+      2,
+    );
+    assert.deepEqual(
+      limited.map((run) => run.executionId),
+      ['recent_run_21', 'recent_run_20'],
+    );
+    for (const invalidLimit of [0, 1.5, MAX_RECENT_COLLECTION_RUN_LIMIT + 1]) {
+      await assert.rejects(
+        listRecentCollectionRunsForEndpoint(
+          database,
+          endpoint.id,
+          invalidLimit,
+        ),
+        CollectionRunPersistenceError,
+      );
+    }
+  });
+});
+
 test('database constraints preserve collection-run lifecycle and caller transactions', async () => {
   await withMigratedDatabase(async (database) => {
     const endpoint = await createEndpoint(database);
@@ -491,6 +570,27 @@ async function createEndpoint(database: ReturnType<typeof createDatabase>) {
   return insertSourceEndpoint(database, source.id, {
     configKey: 'collection_run_feed',
     endpointUrl: 'https://feeds.example.com/feed.xml',
+    endpointType: 'rss_atom',
+    approvalState: 'approved',
+    lifecycleState: 'active',
+    operationalState: 'enabled',
+    pollIntervalSeconds: 300,
+  });
+}
+
+async function createSiblingEndpoint(
+  database: ReturnType<typeof createDatabase>,
+  endpointId: string,
+) {
+  const result = await database.query<{ source_id: string }>(
+    'SELECT source_id FROM source_endpoints WHERE id = $1',
+    [endpointId],
+  );
+  const sourceId = result.rows[0]?.source_id;
+  assert.ok(sourceId);
+  return insertSourceEndpoint(database, sourceId, {
+    configKey: 'collection_run_sibling_feed',
+    endpointUrl: 'https://feeds.example.com/sibling.xml',
     endpointType: 'rss_atom',
     approvalState: 'approved',
     lifecycleState: 'active',

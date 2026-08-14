@@ -393,6 +393,29 @@ describe('Endpoint administration database service', () => {
           error: 'endpoint_not_found',
         });
 
+        for (const suffix of ['health', 'runs']) {
+          const response = await fetch(
+            `${baseUrl}/api/admin/sources/other/endpoints/main_feed/${suffix}`,
+          );
+          assert.equal(response.status, 404, suffix);
+          assert.deepEqual(await response.json(), {
+            error: 'endpoint_not_found',
+          });
+        }
+
+        const wrongCheckNow = await fetch(
+          `${baseUrl}/api/admin/sources/other/endpoints/main_feed/check-now`,
+          {
+            method: 'POST',
+            headers: adminJsonHeaders(),
+            body: '{}',
+          },
+        );
+        assert.equal(wrongCheckNow.status, 404);
+        assert.deepEqual(await wrongCheckNow.json(), {
+          error: 'endpoint_not_found',
+        });
+
         for (const [suffix, body] of [
           [
             'configuration',
@@ -426,6 +449,16 @@ describe('Endpoint administration database service', () => {
         );
         assert.equal(rejectedByIntegrity.status, 403);
 
+        const rejectedCheckNowByIntegrity = await fetch(
+          `${baseUrl}/api/admin/sources/owner/endpoints/main_feed/check-now`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: '{}',
+          },
+        );
+        assert.equal(rejectedCheckNowByIntegrity.status, 403);
+
         const ownerDetail = await fetch(
           `${baseUrl}/api/admin/sources/owner/endpoints/main_feed`,
         );
@@ -443,6 +476,10 @@ describe('Endpoint administration database service', () => {
         await endpoints.getEndpoint('owner', 'main_feed'),
         before,
       );
+      const jobs = await database.query<{ readonly count: number }>(
+        'SELECT count(*)::integer AS count FROM endpoint_collection_jobs',
+      );
+      assert.equal(jobs.rows[0]?.count, 0);
     });
   });
 
@@ -497,23 +534,25 @@ describe('Endpoint administration database service', () => {
         );
       }
 
-      const lastAttemptAt = new Date('2026-08-13T13:00:00.000Z');
+      const historyBase = Date.now() - 60_000;
+      const lastAttemptAt = new Date(historyBase + 3_600_000);
       await updateEndpointRuntimeState(database, endpoint.id, {
         completion: { at: lastAttemptAt, outcome: 'succeeded' },
         consecutiveFailureCount: 0,
-        nextDueAt: new Date('2026-08-13T13:05:00.000Z'),
+        nextDueAt: new Date(historyBase + 3_900_000),
         validators: { mode: 'replace', values: { etag: '"history"' } },
       });
 
       const enqueued = await enqueueEndpointCollectionJob(database, {
         sourceEndpointId: endpoint.id,
-        availableAt: new Date('2026-08-13T12:00:00.000Z'),
+        triggerKind: 'scheduled',
+        availableAt: new Date(historyBase),
         attemptNumber: 1,
       });
       const claimed = await claimNextEndpointCollectionJob(database, {
         workerId: 'endpoint-admin-test-worker',
-        claimedAt: new Date('2026-08-13T12:01:00.000Z'),
-        leaseExpiresAt: new Date('2026-08-13T12:11:00.000Z'),
+        claimedAt: new Date(historyBase + 60_000),
+        leaseExpiresAt: new Date(historyBase + 660_000),
       });
       assert.equal(claimed?.id, enqueued.job.id);
       assert.ok(claimed?.claimToken !== undefined);
@@ -528,7 +567,6 @@ describe('Endpoint administration database service', () => {
           enqueued.job.id,
           claimed.claimToken,
           run.id,
-          new Date('2026-08-13T12:02:00.000Z'),
         ),
       );
       const articleId = randomUUID();
@@ -542,7 +580,7 @@ describe('Endpoint administration database service', () => {
            'https://example.com/article', 'Retained article', 'retained article',
            'missing', 'missing', $3, $3, 'visible'
          )`,
-        [articleId, source.id, new Date('2026-08-13T12:03:00.000Z')],
+        [articleId, source.id, new Date(historyBase + 180_000)],
       );
       await database.query(
         `INSERT INTO article_observations (
@@ -555,7 +593,7 @@ describe('Endpoint administration database service', () => {
           endpoint.id,
           run.id,
           articleId,
-          new Date('2026-08-13T12:03:00.000Z'),
+          new Date(historyBase + 180_000),
         ],
       );
       await finalizeCollectionRun(database, run.id, {
@@ -583,7 +621,7 @@ describe('Endpoint administration database service', () => {
           claimed.claimToken,
           {
             status: 'succeeded',
-            terminalAt: new Date('2026-08-13T12:04:00.000Z'),
+            terminalAt: new Date(historyBase + 240_000),
             outcomeCode: 'content',
           },
         ),
@@ -593,7 +631,7 @@ describe('Endpoint administration database service', () => {
         (
           await listDueEndpoints(
             database,
-            new Date('2026-08-13T14:00:00.000Z'),
+            new Date(historyBase + 7_200_000),
             10,
           )
         ).map(({ id }) => id),
@@ -675,6 +713,290 @@ describe('Endpoint administration database service', () => {
       assert.equal(restored.lifecycleState, 'active');
       assert.equal(restored.operationalState, 'disabled');
       assert.equal(restored.approvalState, 'approved');
+    });
+  });
+
+  it('enqueues manual check-now durably, idempotently, and without inline collection work', async () => {
+    await withEndpointAdministration(async ({ database, endpoints }) => {
+      await insertPublicationSettings(database, {
+        name: 'Check now administration',
+        activeForCollection: true,
+        publicStatus: 'private',
+      });
+      const source = await insertAdminSource(database, 'journal');
+      await insertAdminSource(database, 'other');
+      await endpoints.createEndpoint('journal', endpointCreateInput());
+      const endpoint = await requireEndpoint(database, source.id, 'main_feed');
+
+      let contactCount = 0;
+      const server = createServer((_request, response) => {
+        contactCount += 1;
+        response.statusCode = 204;
+        response.end();
+      });
+      await new Promise<void>((resolve) =>
+        server.listen(0, '127.0.0.1', resolve),
+      );
+      try {
+        const address = server.address() as AddressInfo;
+        // A deliberately unsafe persisted URL makes accidental Web-side DNS,
+        // safety, fetch, or execution observable. The Worker owns that gate.
+        await database.query(
+          'UPDATE source_endpoints SET endpoint_url = $2 WHERE id = $1',
+          [
+            endpoint.id,
+            `http://127.0.0.1:${String(address.port)}/must-not-fetch.xml`,
+          ],
+        );
+
+        const requestedAt = new Date('2026-08-13T14:00:00.000Z');
+        const checkNow = createEndpointAdministrationService(database, {
+          now: () => requestedAt,
+        });
+        const results = await Promise.all([
+          checkNow.checkNow('journal', 'main_feed'),
+          checkNow.checkNow('journal', 'main_feed'),
+        ]);
+        assert.deepEqual(results.map(({ disposition }) => disposition).sort(), [
+          'already_outstanding',
+          'queued',
+        ]);
+        assert.equal(results[0]?.job.id, results[1]?.job.id);
+        assert.equal(results[0]?.job.triggerKind, 'manual');
+        assert.equal(results[1]?.job.triggerKind, 'manual');
+        assert.equal(results[0]?.job.attemptNumber, 1);
+        assert.equal(
+          results[0]?.job.availableAt.toISOString(),
+          requestedAt.toISOString(),
+        );
+        assert.equal(contactCount, 0);
+
+        const persisted = await database.query<{
+          readonly job_count: number;
+          readonly run_count: number;
+          readonly trigger_kind: string | null;
+        }>(
+          `SELECT
+             count(job.id)::integer AS job_count,
+             (SELECT count(*)::integer FROM collection_runs run
+              WHERE run.source_endpoint_id = $1) AS run_count,
+             min(job.trigger_kind) AS trigger_kind
+           FROM endpoint_collection_jobs job
+           WHERE job.source_endpoint_id = $1`,
+          [endpoint.id],
+        );
+        assert.deepEqual(persisted.rows[0], {
+          job_count: 1,
+          run_count: 0,
+          trigger_kind: 'manual',
+        });
+
+        await assertEndpointError(
+          checkNow.checkNow('other', 'main_feed'),
+          'endpoint_not_found',
+        );
+
+        await endpoints.createEndpoint(
+          'journal',
+          endpointCreateInput({
+            configKey: 'paused_feed',
+            endpointUrl: 'https://feeds.example.com/paused.xml',
+            operationalState: 'paused',
+          }),
+        );
+        await assert.rejects(
+          checkNow.checkNow('journal', 'paused_feed'),
+          (error: unknown) => {
+            assert.ok(error instanceof EndpointAdministrationError);
+            assert.equal(error.code, 'endpoint_not_collectable');
+            assert.equal(error.reason, 'endpoint_paused');
+            return true;
+          },
+        );
+
+        await endpoints.createEndpoint(
+          'journal',
+          endpointCreateInput({
+            configKey: 'scheduled_feed',
+            endpointUrl: 'https://feeds.example.com/scheduled.xml',
+          }),
+        );
+        const scheduledEndpoint = await requireEndpoint(
+          database,
+          source.id,
+          'scheduled_feed',
+        );
+        const scheduled = await enqueueEndpointCollectionJob(database, {
+          sourceEndpointId: scheduledEndpoint.id,
+          triggerKind: 'scheduled',
+          availableAt: requestedAt,
+          attemptNumber: 1,
+        });
+        const occupied = await checkNow.checkNow('journal', 'scheduled_feed');
+        assert.equal(occupied.disposition, 'already_outstanding');
+        assert.equal(occupied.job.id, scheduled.job.id);
+        assert.equal(occupied.job.triggerKind, 'scheduled');
+
+        const blockedJobCount = await database.query<{
+          readonly count: number;
+        }>(
+          `SELECT count(*)::integer AS count
+           FROM endpoint_collection_jobs job
+           JOIN source_endpoints endpoint ON endpoint.id = job.source_endpoint_id
+           WHERE endpoint.config_key = 'paused_feed'`,
+        );
+        assert.equal(blockedJobCount.rows[0]?.count, 0);
+      } finally {
+        await new Promise<void>((resolve, reject) =>
+          server.close((error) => (error ? reject(error) : resolve())),
+        );
+      }
+    });
+  });
+
+  it('reports state-aware health and bounded newest-first endpoint run history', async () => {
+    await withEndpointAdministration(async ({ database, endpoints }) => {
+      await insertPublicationSettings(database, {
+        name: 'Endpoint visibility',
+        activeForCollection: true,
+        publicStatus: 'private',
+      });
+      const source = await insertAdminSource(database, 'journal');
+      await insertAdminSource(database, 'other');
+      await endpoints.createEndpoint('journal', endpointCreateInput());
+      await endpoints.createEndpoint('other', endpointCreateInput());
+      const endpoint = await requireEndpoint(database, source.id, 'main_feed');
+      await updateEndpointRuntimeState(database, endpoint.id, {
+        completion: {
+          at: new Date('2026-08-13T13:00:00.000Z'),
+          outcome: 'succeeded',
+        },
+        consecutiveFailureCount: 0,
+        nextDueAt: new Date('2026-08-13T13:05:00.000Z'),
+      });
+      await endpoints.setEndpointOperationalState('journal', 'main_feed', {
+        operationalState: 'paused',
+      });
+
+      const visibility = createEndpointAdministrationService(database, {
+        now: () => new Date('2026-08-13T14:00:00.000Z'),
+      });
+      const health = await visibility.getEndpointHealth('journal', 'main_feed');
+      assert.equal(health.endpointOperationalState, 'paused');
+      assert.equal(health.derivedHealth, 'healthy');
+      assert.equal(health.publicationActiveForCollection, true);
+      assert.equal(
+        health.lastAttemptAt?.toISOString(),
+        '2026-08-13T13:00:00.000Z',
+      );
+      assert.equal(
+        health.lastSuccessAt?.toISOString(),
+        '2026-08-13T13:00:00.000Z',
+      );
+      assert.equal(health.lastFailureAt, null);
+      assert.equal(health.pollIntervalSeconds, 300);
+      const otherHealth = await visibility.getEndpointHealth(
+        'other',
+        'main_feed',
+      );
+      assert.equal(otherHealth.sourceConfigKey, 'other');
+      assert.equal(otherHealth.derivedHealth, 'unknown');
+      assert.equal(otherHealth.lastAttemptAt, null);
+      await assertEndpointError(
+        visibility.getEndpointHealth('missing_source', 'main_feed'),
+        'source_not_found',
+      );
+
+      const runTimes = [
+        new Date('2026-08-13T10:00:00.000Z'),
+        new Date('2026-08-13T11:00:00.000Z'),
+        new Date('2026-08-13T12:00:00.000Z'),
+      ];
+      const runs = [];
+      for (const [index, startedAt] of runTimes.entries()) {
+        const run = await startCollectionRun(database, {
+          sourceEndpointId: endpoint.id,
+          executionId: `visibility-${String(index + 1)}`,
+          triggerKind: index === 1 ? 'scheduled' : 'manual',
+        });
+        await finalizeCollectionRun(database, run.id, {
+          runStatus: 'succeeded',
+          transportStatus: 'succeeded',
+          parserStatus: 'succeeded',
+          normalizationStatus: 'succeeded',
+          processingStatus: 'succeeded',
+          httpStatusCode: 200,
+          wireByteCount: 120 + index,
+          decompressedByteCount: 240 + index,
+          redirectCount: index,
+          transportElapsedMilliseconds: 20 + index,
+          outcomeCode: 'content',
+          rawItemCount: 2 + index,
+          sourceItemFilteredCount: index,
+          normalizedCandidateCount: 2,
+          normalizationFailureCount: 0,
+          articleLinkRejectionCount: 0,
+          createdCount: 0,
+          updatedCount: 0,
+          unchangedCount: 2,
+          rejectedCount: 0,
+          excludedCount: 0,
+          failedCount: 0,
+        });
+        await database.query(
+          `UPDATE collection_runs
+           SET started_at = $2, finished_at = $3
+           WHERE id = $1`,
+          [run.id, startedAt, new Date(startedAt.getTime() + 30_000)],
+        );
+        runs.push(run);
+      }
+
+      const newestTwo = await visibility.listRecentRuns(
+        'journal',
+        'main_feed',
+        '2',
+      );
+      assert.equal(newestTwo.limit, 2);
+      assert.deepEqual(
+        newestTwo.runs.map(({ id }) => id),
+        [runs[2]?.id, runs[1]?.id],
+      );
+      assert.equal(newestTwo.runs[0]?.sourceItemFilteredCount, 2);
+      assert.equal(newestTwo.runs[0]?.rawItemCount, 4);
+      assert.equal(newestTwo.runs[0]?.httpStatusCode, 200);
+      assert.equal(newestTwo.runs[0]?.redirectCount, 2);
+      assert.equal(newestTwo.runs[0]?.transportElapsedMilliseconds, 22);
+      assert.equal(
+        newestTwo.runs[0]?.finishedAt?.toISOString(),
+        '2026-08-13T12:00:30.000Z',
+      );
+      assert.equal(newestTwo.runs[1]?.triggerKind, 'scheduled');
+
+      const defaultWindow = await visibility.listRecentRuns(
+        'journal',
+        'main_feed',
+      );
+      assert.equal(defaultWindow.limit, 20);
+      assert.equal(defaultWindow.runs.length, 3);
+      assert.equal(
+        (await visibility.listRecentRuns('other', 'main_feed')).runs.length,
+        0,
+      );
+      await assertEndpointError(
+        visibility.listRecentRuns('missing_source', 'main_feed'),
+        'source_not_found',
+      );
+      for (const invalidLimit of [0, 101, '01', '1.5', '', ['1']]) {
+        await assertEndpointError(
+          visibility.listRecentRuns('journal', 'main_feed', invalidLimit),
+          'invalid_request',
+        );
+      }
+      assert.equal(
+        (await visibility.listRecentRuns('journal', 'main_feed', 100)).limit,
+        100,
+      );
     });
   });
 

@@ -1,13 +1,13 @@
-import type { ScheduledJobExecutionResult } from './execute-endpoint-collection-job.ts';
+import type { EndpointCollectionJobExecutionResult } from './execute-endpoint-collection-job.ts';
 
-export const MAX_SCHEDULED_COLLECTION_ATTEMPTS = 3;
+export const MAX_ENDPOINT_COLLECTION_JOB_ATTEMPTS = 3;
 export const INITIAL_RETRY_DELAY_MILLISECONDS = 30_000;
 export const MAX_RETRY_DELAY_MILLISECONDS = 300_000;
 export const CONTENTION_DEFERRAL_NOMINAL_MILLISECONDS = 5_000;
 export const COOLDOWN_FAILURE_THRESHOLD = 3;
 export const MINIMUM_COOLDOWN_MILLISECONDS = 300_000;
 
-export type ScheduledJobDisposition =
+export type EndpointCollectionJobDisposition =
   | Readonly<{ kind: 'retry' }>
   | Readonly<{
       kind: 'defer';
@@ -18,16 +18,16 @@ export type ScheduledJobDisposition =
       status: 'succeeded' | 'failed' | 'skipped' | 'abandoned';
     }>;
 
-export class ScheduledJobPolicyError extends Error {
+export class EndpointCollectionJobPolicyError extends Error {
   constructor(reason: string) {
-    super(`Scheduled job policy failed: ${reason}`);
-    this.name = 'ScheduledJobPolicyError';
+    super(`Endpoint collection job policy failed: ${reason}`);
+    this.name = 'EndpointCollectionJobPolicyError';
   }
 }
 
-export function decideScheduledJobDisposition(
-  result: ScheduledJobExecutionResult,
-): ScheduledJobDisposition {
+export function decideEndpointCollectionJobDisposition(
+  result: EndpointCollectionJobExecutionResult,
+): EndpointCollectionJobDisposition {
   if (result.category === 'succeeded') {
     return Object.freeze({ kind: 'terminal', status: 'succeeded' });
   }
@@ -43,7 +43,7 @@ export function decideScheduledJobDisposition(
   if (
     result.collectionRunOccurred &&
     result.retryClassification === 'transient' &&
-    result.attemptNumber < MAX_SCHEDULED_COLLECTION_ATTEMPTS
+    result.attemptNumber < MAX_ENDPOINT_COLLECTION_JOB_ATTEMPTS
   ) {
     return Object.freeze({ kind: 'retry' });
   }
@@ -106,7 +106,7 @@ function calculateEqualJitterDelay(
     randomValue < 0 ||
     randomValue > 1
   ) {
-    throw new ScheduledJobPolicyError(
+    throw new EndpointCollectionJobPolicyError(
       'random value must be between zero and one',
     );
   }
@@ -120,21 +120,27 @@ function calculateEqualJitterDelay(
 
 function requiredTimestamp(value: unknown): Date {
   if (!(value instanceof Date) || !Number.isFinite(value.getTime())) {
-    throw new ScheduledJobPolicyError('terminal run finish time is invalid');
+    throw new EndpointCollectionJobPolicyError(
+      'terminal run finish time is invalid',
+    );
   }
   return value;
 }
 
 function requiredPositiveInteger(value: unknown, field: string): number {
   if (!Number.isSafeInteger(value) || (value as number) <= 0) {
-    throw new ScheduledJobPolicyError(`${field} must be a positive integer`);
+    throw new EndpointCollectionJobPolicyError(
+      `${field} must be a positive integer`,
+    );
   }
   return value as number;
 }
 
 function requiredNonnegativeInteger(value: unknown, field: string): number {
   if (!Number.isSafeInteger(value) || (value as number) < 0) {
-    throw new ScheduledJobPolicyError(`${field} must be a nonnegative integer`);
+    throw new EndpointCollectionJobPolicyError(
+      `${field} must be a nonnegative integer`,
+    );
   }
   return value as number;
 }

@@ -15,13 +15,15 @@ import {
   findEndpointCollectionJobById,
   recoverExpiredStartedEndpointCollectionJob,
   requeueExpiredUnstartedEndpointCollectionJob,
+  type EndpointCollectionJobTriggerKind,
   type PersistedEndpointCollectionJob,
 } from './endpoint-collection-job-repository.ts';
 
-export interface ScheduledJobExecutionResult {
+export interface EndpointCollectionJobExecutionResult {
   readonly jobId: string;
   readonly attemptNumber: number;
   readonly endpointId: string;
+  readonly triggerKind: EndpointCollectionJobTriggerKind;
   readonly claimToken: string;
   readonly collectionRunOccurred: boolean;
   readonly collectionRunId?: string;
@@ -42,9 +44,9 @@ export interface ExecuteClaimedEndpointCollectionJobInput {
 export async function executeClaimedEndpointCollectionJob(
   database: Database,
   input: ExecuteClaimedEndpointCollectionJobInput,
-): Promise<ScheduledJobExecutionResult> {
+): Promise<EndpointCollectionJobExecutionResult> {
   if (!(input.now instanceof Date) || !Number.isFinite(input.now.getTime())) {
-    throw new TypeError('Scheduled job execution time is invalid.');
+    throw new TypeError('Endpoint collection job execution time is invalid.');
   }
   const job = await requireCurrentClaim(
     database,
@@ -55,7 +57,8 @@ export async function executeClaimedEndpointCollectionJob(
   const result = await executeEndpointCollection(
     database,
     {
-      triggerKind: 'scheduled',
+      executionKind: 'durable_job',
+      triggerKind: job.triggerKind,
       sourceEndpointId: job.sourceEndpointId,
       jobId: job.id,
       claimToken: input.claimToken,
@@ -87,6 +90,7 @@ export async function executeClaimedEndpointCollectionJob(
     jobId: job.id,
     attemptNumber: job.attemptNumber,
     endpointId: job.sourceEndpointId,
+    triggerKind: job.triggerKind,
     claimToken: input.claimToken,
     collectionRunOccurred: true,
     collectionRunId: collection.collectionRunId,
@@ -106,7 +110,7 @@ export type ExpiredJobReconciliationResult =
     }>
   | Readonly<{
       status: 'reconciled';
-      result: ScheduledJobExecutionResult;
+      result: EndpointCollectionJobExecutionResult;
     }>;
 
 export interface ReconcileExpiredEndpointCollectionJobInput {
@@ -157,7 +161,7 @@ export async function reconcileExpiredEndpointCollectionJob(
       existingRun === undefined ||
       existingRun.sourceEndpointId !== current.sourceEndpointId ||
       existingRun.executionId !== current.id ||
-      existingRun.triggerKind !== 'scheduled'
+      existingRun.triggerKind !== current.triggerKind
     ) {
       throw new Error('Expired job Collection run ownership is invalid.');
     }
@@ -189,7 +193,7 @@ export async function reconcileExpiredEndpointCollectionJob(
 function resultFromPersistedRun(
   job: PersistedEndpointCollectionJob,
   run: PersistedCollectionRun,
-): ScheduledJobExecutionResult {
+): EndpointCollectionJobExecutionResult {
   if (job.claimToken === undefined || run.runStatus === 'running') {
     throw new Error('Recovered job/run state is not terminalizable.');
   }
@@ -197,6 +201,7 @@ function resultFromPersistedRun(
     jobId: job.id,
     attemptNumber: job.attemptNumber,
     endpointId: job.sourceEndpointId,
+    triggerKind: job.triggerKind,
     claimToken: job.claimToken,
     collectionRunOccurred: true,
     collectionRunId: run.id,
@@ -243,11 +248,12 @@ function blockedResult(
   claimToken: string,
   reason: string,
   limitingScope?: CollectionCapacityScope,
-): ScheduledJobExecutionResult {
+): EndpointCollectionJobExecutionResult {
   return Object.freeze({
     jobId: job.id,
     attemptNumber: job.attemptNumber,
     endpointId: job.sourceEndpointId,
+    triggerKind: job.triggerKind,
     claimToken,
     collectionRunOccurred: false,
     category: 'blocked' as const,

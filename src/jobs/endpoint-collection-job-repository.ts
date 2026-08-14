@@ -15,10 +15,12 @@ export type EndpointCollectionJobStatus =
   'queued' | 'running' | EndpointCollectionJobTerminalStatus;
 export type EndpointCollectionJobTerminalStatus =
   'succeeded' | 'failed' | 'skipped' | 'abandoned';
+export type EndpointCollectionJobTriggerKind = 'scheduled' | 'manual';
 
 export interface PersistedEndpointCollectionJob {
   readonly id: string;
   readonly sourceEndpointId: string;
+  readonly triggerKind: EndpointCollectionJobTriggerKind;
   readonly status: EndpointCollectionJobStatus;
   readonly enqueuedAt: Date;
   readonly availableAt: Date;
@@ -39,6 +41,7 @@ export interface PersistedEndpointCollectionJob {
 
 export interface EnqueueEndpointCollectionJobInput {
   readonly sourceEndpointId: string;
+  readonly triggerKind: EndpointCollectionJobTriggerKind;
   readonly availableAt: Date;
   readonly attemptNumber: number;
   readonly previousJobId?: string;
@@ -76,6 +79,7 @@ export interface RecoverExpiredStartedEndpointCollectionJobInput {
 export interface EndpointCollectionJobRow {
   readonly id: unknown;
   readonly source_endpoint_id: unknown;
+  readonly trigger_kind: unknown;
   readonly status: unknown;
   readonly enqueued_at: unknown;
   readonly available_at: unknown;
@@ -99,7 +103,7 @@ interface EnqueueRow extends EndpointCollectionJobRow {
 }
 
 const JOB_COLUMNS = `
-  id, source_endpoint_id, status, enqueued_at, available_at, attempt_number,
+  id, source_endpoint_id, trigger_kind, status, enqueued_at, available_at, attempt_number,
   previous_job_id, claim_worker_id, claim_token, claimed_at, lease_expires_at,
   collection_run_id, terminal_at, outcome_code, reason_code, error_code,
   error_detail, updated_at`;
@@ -121,12 +125,22 @@ export async function enqueueEndpointCollectionJob(
   try {
     result = await executor.query<EnqueueRow>(
       `INSERT INTO endpoint_collection_jobs (
-         id, source_endpoint_id, status, available_at, attempt_number,
+         id, source_endpoint_id, trigger_kind, status, available_at, attempt_number,
          previous_job_id
        )
-       SELECT $1, e.id, 'queued', $3, $4, $5
+       SELECT $1, e.id, $3, 'queued', $4, $5, $6
        FROM source_endpoints e
        WHERE e.id = $2
+         AND (
+           $6::uuid IS NULL
+           OR EXISTS (
+             SELECT 1
+             FROM endpoint_collection_jobs AS previous
+             WHERE previous.id = $6
+               AND previous.source_endpoint_id = e.id
+               AND previous.trigger_kind = $3
+           )
+         )
        ON CONFLICT (source_endpoint_id)
          WHERE status IN ('queued', 'running')
        DO UPDATE SET source_endpoint_id = endpoint_collection_jobs.source_endpoint_id
@@ -134,6 +148,7 @@ export async function enqueueEndpointCollectionJob(
       [
         jobId,
         validated.sourceEndpointId,
+        validated.triggerKind,
         validated.availableAt,
         validated.attemptNumber,
         validated.previousJobId ?? null,
@@ -148,7 +163,7 @@ export async function enqueueEndpointCollectionJob(
   const row = result.rows[0];
   if (row === undefined) {
     throw new EndpointCollectionJobPersistenceError(
-      'source endpoint was not found',
+      'source endpoint or matching retry predecessor was not found',
     );
   }
   return Object.freeze({
@@ -227,27 +242,36 @@ export async function attachCollectionRunToEndpointCollectionJob(
   jobId: string,
   claimToken: string,
   collectionRunId: string,
-  attachedAt: Date,
 ): Promise<PersistedEndpointCollectionJob | undefined> {
   const id = requiredUuid(jobId, 'job id');
   const token = requiredUuid(claimToken, 'claim token');
   const runId = requiredUuid(collectionRunId, 'collection run id');
-  const now = requiredTimestamp(attachedAt);
   const result = await executor.query<EndpointCollectionJobRow>(
-    `UPDATE endpoint_collection_jobs AS job
-     SET collection_run_id = run.id, updated_at = $4
-     FROM collection_runs AS run
-     WHERE job.id = $1
+    `WITH locked_job AS MATERIALIZED (
+       SELECT id
+       FROM endpoint_collection_jobs
+       WHERE id = $1
+       FOR UPDATE
+     ),
+     attachment_clock AS MATERIALIZED (
+       SELECT clock_timestamp() AS attached_at
+       FROM locked_job
+     )
+     UPDATE endpoint_collection_jobs AS job
+     SET collection_run_id = run.id,
+         updated_at = GREATEST(job.updated_at, attachment_clock.attached_at)
+     FROM collection_runs AS run, locked_job, attachment_clock
+     WHERE job.id = locked_job.id
        AND job.status = 'running'
        AND job.claim_token = $2
        AND run.id = $3
        AND run.source_endpoint_id = job.source_endpoint_id
        AND run.execution_id = job.id::text
-       AND run.trigger_kind = 'scheduled'
-       AND job.lease_expires_at > $4
+       AND run.trigger_kind = job.trigger_kind
+       AND job.lease_expires_at > attachment_clock.attached_at
        AND (job.collection_run_id IS NULL OR job.collection_run_id = run.id)
      RETURNING ${qualifiedJobColumns('job')}`,
-    [id, token, runId, now],
+    [id, token, runId],
   );
   return optionalMappedRow(result.rows);
 }
@@ -419,6 +443,14 @@ export async function recoverExpiredStartedEndpointCollectionJob(
        AND status = 'running'
        AND lease_expires_at <= $2
        AND collection_run_id IS NOT NULL
+       AND EXISTS (
+         SELECT 1
+         FROM collection_runs AS run
+         WHERE run.id = endpoint_collection_jobs.collection_run_id
+           AND run.source_endpoint_id = endpoint_collection_jobs.source_endpoint_id
+           AND run.execution_id = endpoint_collection_jobs.id::text
+           AND run.trigger_kind = endpoint_collection_jobs.trigger_kind
+       )
      RETURNING ${JOB_COLUMNS}`,
     [id, expiredAt, workerId, claimToken, recoveredAt, leaseExpiresAt],
   );
@@ -449,6 +481,7 @@ export function mapEndpointCollectionJobRow(
         row.source_endpoint_id,
         'database source endpoint id',
       ),
+      triggerKind: normalizeTriggerKind(row.trigger_kind),
       status: normalizeStatus(row.status),
       enqueuedAt: requiredTimestamp(row.enqueued_at),
       availableAt: requiredTimestamp(row.available_at),
@@ -485,6 +518,7 @@ function validateEnqueueInput(
       input.sourceEndpointId,
       'source endpoint id',
     );
+    const triggerKind = normalizeTriggerKind(input.triggerKind);
     const availableAt = requiredTimestamp(input.availableAt);
     const attemptNumber = requiredPositiveInteger(input.attemptNumber);
     const previousJobId =
@@ -499,6 +533,7 @@ function validateEnqueueInput(
     }
     return Object.freeze({
       sourceEndpointId,
+      triggerKind,
       availableAt,
       attemptNumber,
       ...(previousJobId === undefined ? {} : { previousJobId }),
@@ -610,6 +645,13 @@ function optionalMappedRow(
 function normalizeStatus(value: unknown): EndpointCollectionJobStatus {
   if (value === 'queued' || value === 'running') return value;
   return normalizeTerminalStatus(value);
+}
+
+function normalizeTriggerKind(
+  value: unknown,
+): EndpointCollectionJobTriggerKind {
+  if (value === 'scheduled' || value === 'manual') return value;
+  throw new Error();
 }
 
 function normalizeTerminalStatus(

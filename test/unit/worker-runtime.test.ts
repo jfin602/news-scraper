@@ -7,7 +7,7 @@ import {
   type WorkerRuntimeDependencies,
 } from '../../src/app/worker/runtime.ts';
 import type { WorkerRuntimeTiming } from '../../src/app/worker/runtime-timing.ts';
-import type { ScheduledJobExecutionResult } from '../../src/jobs/execute-endpoint-collection-job.ts';
+import type { EndpointCollectionJobExecutionResult } from '../../src/jobs/execute-endpoint-collection-job.ts';
 import type {
   EndpointCollectionJobStatus,
   PersistedEndpointCollectionJob,
@@ -108,8 +108,8 @@ describe('Worker runtime orchestration', () => {
     const harness = runtimeHarness();
     const jobs = [job(1), job(2), job(3)];
     const gates = [
-      deferred<ScheduledJobExecutionResult>(),
-      deferred<ScheduledJobExecutionResult>(),
+      deferred<EndpointCollectionJobExecutionResult>(),
+      deferred<EndpointCollectionJobExecutionResult>(),
     ];
     let active = 0;
     let maximumActive = 0;
@@ -149,7 +149,7 @@ describe('Worker runtime orchestration', () => {
   it('renews a long-running claim before expiry and finalizes after work settles', async () => {
     const harness = runtimeHarness();
     const claimed = job(1);
-    const execution = deferred<ScheduledJobExecutionResult>();
+    const execution = deferred<EndpointCollectionJobExecutionResult>();
     let returned = false;
     harness.dependencies.claimNext = async () => {
       harness.claimCalls += 1;
@@ -179,7 +179,7 @@ describe('Worker runtime orchestration', () => {
   it('suppresses stale-token finalization after lease ownership is lost', async () => {
     const harness = runtimeHarness();
     const claimed = job(1);
-    const execution = deferred<ScheduledJobExecutionResult>();
+    const execution = deferred<EndpointCollectionJobExecutionResult>();
     let returned = false;
     harness.dependencies.claimNext = async () => {
       harness.claimCalls += 1;
@@ -218,7 +218,7 @@ describe('Worker runtime orchestration', () => {
   it('stops new work on shutdown, waits for in-flight work, then closes and resolves stopped', async () => {
     const harness = runtimeHarness();
     const claimed = job(1);
-    const execution = deferred<ScheduledJobExecutionResult>();
+    const execution = deferred<EndpointCollectionJobExecutionResult>();
     let returned = false;
     harness.dependencies.claimNext = async () => {
       harness.claimCalls += 1;
@@ -468,6 +468,7 @@ function persistedJob(
   return Object.freeze({
     id: idFor(number),
     sourceEndpointId: endpointIdFor(number),
+    triggerKind: number % 2 === 0 ? 'manual' : 'scheduled',
     status,
     enqueuedAt: NOW,
     availableAt: NOW,
@@ -491,11 +492,12 @@ function persistedJob(
 function successfulExecution(
   claimed: PersistedEndpointCollectionJob,
   claimToken: string,
-): ScheduledJobExecutionResult {
+): EndpointCollectionJobExecutionResult {
   return Object.freeze({
     jobId: claimed.id,
     attemptNumber: claimed.attemptNumber,
     endpointId: claimed.sourceEndpointId,
+    triggerKind: claimed.triggerKind,
     claimToken,
     collectionRunOccurred: false,
     category: 'blocked' as const,

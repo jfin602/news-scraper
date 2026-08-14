@@ -50,9 +50,10 @@ test('scheduler selects singleton-eligible initial and elapsed due endpoints wit
     });
     const jobs = await database.query<{
       source_endpoint_id: string;
+      trigger_kind: string;
       available_at: Date;
     }>(
-      `SELECT source_endpoint_id, available_at
+      `SELECT source_endpoint_id, trigger_kind, available_at
        FROM endpoint_collection_jobs
        ORDER BY source_endpoint_id`,
     );
@@ -63,6 +64,10 @@ test('scheduler selects singleton-eligible initial and elapsed due endpoints wit
     assert.deepEqual(
       jobs.rows.map((row) => row.available_at.toISOString()),
       [NOW.toISOString(), NOW.toISOString()],
+    );
+    assert.deepEqual(
+      jobs.rows.map((row) => row.trigger_kind),
+      ['scheduled', 'scheduled'],
     );
     const runtime = await database.query<{
       id: string;
@@ -224,6 +229,7 @@ test('queued and running jobs suppress scheduling while terminal jobs allow a ne
     );
     const queued = await enqueueEndpointCollectionJob(database, {
       sourceEndpointId: endpointA.id,
+      triggerKind: 'manual',
       availableAt: NOW,
       attemptNumber: 1,
     });
@@ -237,6 +243,7 @@ test('queued and running jobs suppress scheduling while terminal jobs allow a ne
       leaseExpiresAt: FUTURE,
     });
     assert.equal(running?.id, queued.job.id);
+    assert.equal(running?.triggerKind, 'manual');
     assert.deepEqual(
       await runSchedulerPass(database, { now: NOW, random: () => 0 }),
       { considered: 0, enqueued: 0, alreadyOutstanding: 0 },
@@ -251,6 +258,13 @@ test('queued and running jobs suppress scheduling while terminal jobs allow a ne
       await runSchedulerPass(database, { now: NOW, random: () => 0 }),
       { considered: 1, enqueued: 1, alreadyOutstanding: 0 },
     );
+    const replacement = await database.query<{ trigger_kind: string }>(
+      `SELECT trigger_kind
+       FROM endpoint_collection_jobs
+       WHERE source_endpoint_id = $1 AND status = 'queued'`,
+      [endpointA.id],
+    );
+    assert.equal(replacement.rows[0]?.trigger_kind, 'scheduled');
   });
 });
 

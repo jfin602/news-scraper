@@ -4,8 +4,30 @@ import {
   findCategoryByConfigKey,
   setEndpointDefaultCategory,
 } from '../collection/relevance/repository.ts';
+import { evaluateCollectionEligibility } from '../collection/eligibility.ts';
+import {
+  DEFAULT_RECENT_COLLECTION_RUN_LIMIT,
+  MAX_RECENT_COLLECTION_RUN_LIMIT,
+  listRecentCollectionRunsForEndpoint,
+  type CollectionRunNormalizationStatus,
+  type CollectionRunOutcomeCode,
+  type CollectionRunParserStatus,
+  type CollectionRunProcessingStatus,
+  type CollectionRunStatus,
+  type CollectionRunTransportStatus,
+  type CollectionRunTriggerKind,
+  type PersistedCollectionRun,
+} from '../collection/runs/repository.ts';
+import type { RetryClassification } from '../collection/fetchers/fetcher.ts';
 import { type Database, type QueryExecutor } from '../database/database.ts';
+import {
+  enqueueEndpointCollectionJob,
+  type EndpointCollectionJobStatus,
+  type EndpointCollectionJobTriggerKind,
+  type PersistedEndpointCollectionJob,
+} from '../jobs/endpoint-collection-job-repository.ts';
 import { ConfigurationValidationError } from '../publication/configuration.ts';
+import { readPublicationSettings } from '../publication/repository.ts';
 import {
   normalizeApprovalState,
   normalizeConfigKey,
@@ -23,9 +45,20 @@ import {
   type OperationalState,
   type SourceEndpointConfiguration,
 } from '../sources/configuration.ts';
-import { insertSourceEndpoint } from '../sources/repository.ts';
+import {
+  findSourceEndpointBySourceAndConfigKey,
+  insertSourceEndpoint,
+} from '../sources/repository.ts';
+import {
+  readEndpointHealth,
+  type EndpointHealth,
+} from '../sources/endpoint-health.ts';
 
 export const ENDPOINT_ADMINISTRATION_LIST_LIMIT = 500;
+export const ENDPOINT_ADMINISTRATION_RECENT_RUNS_DEFAULT_LIMIT =
+  DEFAULT_RECENT_COLLECTION_RUN_LIMIT;
+export const ENDPOINT_ADMINISTRATION_RECENT_RUNS_MAX_LIMIT =
+  MAX_RECENT_COLLECTION_RUN_LIMIT;
 
 export type EndpointAdministrationErrorCode =
   | 'category_not_found'
@@ -33,6 +66,7 @@ export type EndpointAdministrationErrorCode =
   | 'endpoint_config_key_conflict'
   | 'endpoint_domain_policy_conflict'
   | 'endpoint_not_found'
+  | 'endpoint_not_collectable'
   | 'endpoint_url_conflict'
   | 'invalid_request'
   | 'source_archived'
@@ -40,13 +74,29 @@ export type EndpointAdministrationErrorCode =
 
 export class EndpointAdministrationError extends Error {
   readonly code: EndpointAdministrationErrorCode;
+  readonly reason: EndpointNotCollectableReason | undefined;
 
-  constructor(code: EndpointAdministrationErrorCode) {
+  constructor(
+    code: EndpointAdministrationErrorCode,
+    reason?: EndpointNotCollectableReason,
+  ) {
     super(`Endpoint administration command failed: ${code}`);
     this.name = 'EndpointAdministrationError';
     this.code = code;
+    this.reason = reason;
   }
 }
+
+export type EndpointNotCollectableReason =
+  | 'publication_inactive'
+  | 'source_unapproved'
+  | 'source_archived'
+  | 'source_paused'
+  | 'source_disabled'
+  | 'endpoint_unapproved'
+  | 'endpoint_archived'
+  | 'endpoint_paused'
+  | 'endpoint_disabled';
 
 export interface AdminEndpointCategoryChoice {
   readonly configKey: string;
@@ -65,6 +115,78 @@ export interface AdminEndpointReadModel {
   readonly endpointDomainRules: readonly DomainRule[];
   readonly inheritsSourceDomainPolicy: boolean;
   readonly defaultCategory: AdminEndpointCategoryChoice | null;
+}
+
+export interface AdminEndpointCollectionJobReadModel {
+  readonly id: string;
+  readonly triggerKind: EndpointCollectionJobTriggerKind;
+  readonly status: 'queued' | 'running';
+  readonly availableAt: Date;
+  readonly attemptNumber: number;
+}
+
+export interface AdminEndpointCheckNowReadModel {
+  readonly disposition: 'queued' | 'already_outstanding';
+  readonly job: AdminEndpointCollectionJobReadModel;
+}
+
+export interface AdminEndpointHealthReadModel {
+  readonly sourceConfigKey: string;
+  readonly endpointConfigKey: string;
+  readonly publicationActiveForCollection: boolean;
+  readonly sourceApprovalState: ApprovalState;
+  readonly sourceLifecycleState: LifecycleState;
+  readonly sourceOperationalState: OperationalState;
+  readonly endpointApprovalState: ApprovalState;
+  readonly endpointLifecycleState: LifecycleState;
+  readonly endpointOperationalState: OperationalState;
+  readonly derivedHealth: EndpointHealth;
+  readonly lastAttemptAt: Date | null;
+  readonly lastSuccessAt: Date | null;
+  readonly lastFailureAt: Date | null;
+  readonly nextDueAt: Date | null;
+  readonly cooldownUntil: Date | null;
+  readonly consecutiveFailureCount: number;
+  readonly pollIntervalSeconds: number;
+}
+
+export interface AdminEndpointCollectionRunReadModel {
+  readonly id: string;
+  readonly triggerKind: CollectionRunTriggerKind;
+  readonly startedAt: Date;
+  readonly finishedAt: Date | null;
+  readonly runStatus: CollectionRunStatus;
+  readonly transportStatus: CollectionRunTransportStatus;
+  readonly parserStatus: CollectionRunParserStatus;
+  readonly normalizationStatus: CollectionRunNormalizationStatus;
+  readonly processingStatus: CollectionRunProcessingStatus;
+  readonly outcomeCode: CollectionRunOutcomeCode | null;
+  readonly retryClassification: RetryClassification | null;
+  readonly httpStatusCode: number | null;
+  readonly redirectCount: number | null;
+  readonly transportElapsedMilliseconds: number | null;
+  readonly wireByteCount: number | null;
+  readonly decompressedByteCount: number | null;
+  readonly rawItemCount: number;
+  readonly sourceItemFilteredCount: number;
+  readonly normalizedCandidateCount: number;
+  readonly normalizationFailureCount: number;
+  readonly articleLinkRejectionCount: number;
+  readonly createdCount: number;
+  readonly updatedCount: number;
+  readonly unchangedCount: number;
+  readonly rejectedCount: number;
+  readonly excludedCount: number;
+  readonly failedCount: number;
+  readonly errorCode: string | null;
+  readonly errorDetail: string | null;
+}
+
+export interface AdminEndpointCollectionRunsReadModel {
+  readonly sourceConfigKey: string;
+  readonly endpointConfigKey: string;
+  readonly limit: number;
+  readonly runs: readonly AdminEndpointCollectionRunReadModel[];
 }
 
 export interface EndpointAdministrationService {
@@ -99,11 +221,26 @@ export interface EndpointAdministrationService {
     endpointConfigKey: unknown,
     input: unknown,
   ): Promise<AdminEndpointReadModel>;
+  checkNow(
+    sourceConfigKey: unknown,
+    endpointConfigKey: unknown,
+  ): Promise<AdminEndpointCheckNowReadModel>;
+  getEndpointHealth(
+    sourceConfigKey: unknown,
+    endpointConfigKey: unknown,
+  ): Promise<AdminEndpointHealthReadModel>;
+  listRecentRuns(
+    sourceConfigKey: unknown,
+    endpointConfigKey: unknown,
+    limit?: unknown,
+  ): Promise<AdminEndpointCollectionRunsReadModel>;
 }
 
 interface SourceIdentityRow extends QueryResultRow {
   readonly id: unknown;
+  readonly approval_state: unknown;
   readonly lifecycle_state: unknown;
+  readonly operational_state: unknown;
 }
 
 interface EndpointReadRow extends QueryResultRow {
@@ -127,7 +264,9 @@ interface DomainRuleRow extends QueryResultRow {
 
 interface LockedSource {
   readonly id: string;
+  readonly approvalState: ApprovalState;
   readonly lifecycleState: LifecycleState;
+  readonly operationalState: OperationalState;
   readonly domainRules: readonly DomainRule[];
 }
 
@@ -156,6 +295,10 @@ interface NormalizedMutableEndpointConfiguration {
   readonly defaultCategoryConfigKey?: string;
 }
 
+export interface EndpointAdministrationDependencies {
+  readonly now?: () => Date;
+}
+
 const ENDPOINT_CREATE_KEYS = [
   'configKey',
   'endpointUrl',
@@ -177,7 +320,9 @@ const ENDPOINT_CONFIGURATION_KEYS = [
 
 export function createEndpointAdministrationService(
   database: Database,
+  dependencies: EndpointAdministrationDependencies = {},
 ): EndpointAdministrationService {
+  const now = dependencies.now ?? (() => new Date());
   return Object.freeze({
     async listEndpoints(sourceConfigKey: unknown) {
       const sourceKey = normalizedKey(sourceConfigKey);
@@ -368,6 +513,113 @@ export function createEndpointAdministrationService(
         },
       );
     },
+
+    async checkNow(sourceConfigKey: unknown, endpointConfigKey: unknown) {
+      const sourceKey = normalizedKey(sourceConfigKey);
+      const endpointKey = normalizedKey(endpointConfigKey);
+      const requestedAt = requiredDate(now());
+      return database.transaction(async (transaction) => {
+        // Share the P4/P5 Source -> endpoint configuration lock order. This is
+        // deliberately not the Worker collection-run lock.
+        const source = await lockSource(transaction, sourceKey);
+        const endpoint = await lockEndpoint(
+          transaction,
+          source.id,
+          endpointKey,
+        );
+        const publication = await readPublicationSettings(transaction);
+        const eligibility = evaluateCollectionEligibility({
+          publication: {
+            activeForCollection: publication?.activeForCollection === true,
+          },
+          source,
+          endpoint,
+        });
+        if (eligibility.status === 'blocked') {
+          throw new EndpointAdministrationError(
+            'endpoint_not_collectable',
+            endpointNotCollectableReason(eligibility.reason),
+          );
+        }
+        const enqueued = await enqueueEndpointCollectionJob(transaction, {
+          sourceEndpointId: endpoint.id,
+          triggerKind: 'manual',
+          availableAt: requestedAt,
+          attemptNumber: 1,
+        });
+        return Object.freeze({
+          disposition: enqueued.created ? 'queued' : 'already_outstanding',
+          job: mapOutstandingJob(enqueued.job),
+        });
+      });
+    },
+
+    async getEndpointHealth(
+      sourceConfigKey: unknown,
+      endpointConfigKey: unknown,
+    ) {
+      const sourceKey = normalizedKey(sourceConfigKey);
+      const endpointKey = normalizedKey(endpointConfigKey);
+      const endpointId = await resolveEndpointId(
+        database,
+        sourceKey,
+        endpointKey,
+      );
+      const health = await readEndpointHealth(
+        database,
+        endpointId,
+        requiredDate(now()),
+      );
+      if (health === undefined) {
+        throw new EndpointAdministrationError('endpoint_not_found');
+      }
+      return Object.freeze({
+        sourceConfigKey: sourceKey,
+        endpointConfigKey: endpointKey,
+        publicationActiveForCollection:
+          health.configuration.publicationActiveForCollection,
+        sourceApprovalState: health.configuration.sourceApprovalState,
+        sourceLifecycleState: health.configuration.sourceLifecycleState,
+        sourceOperationalState: health.configuration.sourceOperationalState,
+        endpointApprovalState: health.configuration.endpointApprovalState,
+        endpointLifecycleState: health.configuration.endpointLifecycleState,
+        endpointOperationalState: health.configuration.endpointOperationalState,
+        derivedHealth: health.health,
+        lastAttemptAt: health.runtime.lastAttemptAt ?? null,
+        lastSuccessAt: health.runtime.lastSuccessAt ?? null,
+        lastFailureAt: health.runtime.lastFailureAt ?? null,
+        nextDueAt: health.runtime.nextDueAt ?? null,
+        cooldownUntil: health.runtime.cooldownUntil ?? null,
+        consecutiveFailureCount: health.runtime.consecutiveFailureCount,
+        pollIntervalSeconds: health.configuration.pollIntervalSeconds,
+      });
+    },
+
+    async listRecentRuns(
+      sourceConfigKey: unknown,
+      endpointConfigKey: unknown,
+      requestedLimit?: unknown,
+    ) {
+      const sourceKey = normalizedKey(sourceConfigKey);
+      const endpointKey = normalizedKey(endpointConfigKey);
+      const limit = normalizeRecentRunsLimit(requestedLimit);
+      const endpointId = await resolveEndpointId(
+        database,
+        sourceKey,
+        endpointKey,
+      );
+      const runs = await listRecentCollectionRunsForEndpoint(
+        database,
+        endpointId,
+        limit,
+      );
+      return Object.freeze({
+        sourceConfigKey: sourceKey,
+        endpointConfigKey: endpointKey,
+        limit,
+        runs: Object.freeze(runs.map(mapCollectionRun)),
+      });
+    },
   });
 }
 
@@ -402,7 +654,7 @@ async function lockSource(
   sourceConfigKey: string,
 ): Promise<LockedSource> {
   const result = await executor.query<SourceIdentityRow>(
-    `SELECT id, lifecycle_state
+    `SELECT id, approval_state, lifecycle_state, operational_state
      FROM sources
      WHERE config_key = $1
      FOR UPDATE`,
@@ -415,7 +667,9 @@ async function lockSource(
   const id = requiredString(row.id);
   return Object.freeze({
     id,
+    approvalState: normalizeApprovalState(row.approval_state),
     lifecycleState: normalizeLifecycleState(row.lifecycle_state),
+    operationalState: normalizeOperationalState(row.operational_state),
     domainRules: await loadSourceDomainRules(executor, id),
   });
 }
@@ -425,7 +679,7 @@ async function resolveSource(
   sourceConfigKey: string,
 ): Promise<Pick<LockedSource, 'id' | 'lifecycleState'>> {
   const result = await executor.query<SourceIdentityRow>(
-    `SELECT id, lifecycle_state
+    `SELECT id, approval_state, lifecycle_state, operational_state
      FROM sources
      WHERE config_key = $1`,
     [sourceConfigKey],
@@ -438,6 +692,23 @@ async function resolveSource(
     id: requiredString(row.id),
     lifecycleState: normalizeLifecycleState(row.lifecycle_state),
   });
+}
+
+async function resolveEndpointId(
+  executor: QueryExecutor,
+  sourceConfigKey: string,
+  endpointConfigKey: string,
+): Promise<string> {
+  const source = await resolveSource(executor, sourceConfigKey);
+  const endpoint = await findSourceEndpointBySourceAndConfigKey(
+    executor,
+    source.id,
+    endpointConfigKey,
+  );
+  if (endpoint === undefined) {
+    throw new EndpointAdministrationError('endpoint_not_found');
+  }
+  return endpoint.id;
 }
 
 async function lockEndpoint(
@@ -581,6 +852,97 @@ function mapEndpointReadRow(
   } catch {
     throw new Error('Database returned invalid endpoint administration data');
   }
+}
+
+function mapOutstandingJob(
+  job: PersistedEndpointCollectionJob,
+): AdminEndpointCollectionJobReadModel {
+  const status: EndpointCollectionJobStatus = job.status;
+  if (status !== 'queued' && status !== 'running') {
+    throw new Error('Enqueue returned a non-outstanding endpoint job');
+  }
+  return Object.freeze({
+    id: job.id,
+    triggerKind: job.triggerKind,
+    status,
+    availableAt: job.availableAt,
+    attemptNumber: job.attemptNumber,
+  });
+}
+
+function mapCollectionRun(
+  run: PersistedCollectionRun,
+): AdminEndpointCollectionRunReadModel {
+  return Object.freeze({
+    id: run.id,
+    triggerKind: run.triggerKind,
+    startedAt: run.startedAt,
+    finishedAt: run.finishedAt ?? null,
+    runStatus: run.runStatus,
+    transportStatus: run.transportStatus,
+    parserStatus: run.parserStatus,
+    normalizationStatus: run.normalizationStatus,
+    processingStatus: run.processingStatus,
+    outcomeCode: run.outcomeCode ?? null,
+    retryClassification: run.retryClassification ?? null,
+    httpStatusCode: run.httpStatusCode ?? null,
+    redirectCount: run.redirectCount ?? null,
+    transportElapsedMilliseconds: run.transportElapsedMilliseconds ?? null,
+    wireByteCount: run.wireByteCount ?? null,
+    decompressedByteCount: run.decompressedByteCount ?? null,
+    rawItemCount: run.rawItemCount,
+    sourceItemFilteredCount: run.sourceItemFilteredCount,
+    normalizedCandidateCount: run.normalizedCandidateCount,
+    normalizationFailureCount: run.normalizationFailureCount,
+    articleLinkRejectionCount: run.articleLinkRejectionCount,
+    createdCount: run.createdCount,
+    updatedCount: run.updatedCount,
+    unchangedCount: run.unchangedCount,
+    rejectedCount: run.rejectedCount,
+    excludedCount: run.excludedCount,
+    failedCount: run.failedCount,
+    errorCode: run.errorCode ?? null,
+    errorDetail: run.errorDetail ?? null,
+  });
+}
+
+function endpointNotCollectableReason(
+  reason: string,
+): EndpointNotCollectableReason {
+  switch (reason) {
+    case 'publication_inactive':
+    case 'source_unapproved':
+    case 'source_archived':
+    case 'source_paused':
+    case 'source_disabled':
+    case 'endpoint_unapproved':
+    case 'endpoint_archived':
+    case 'endpoint_paused':
+    case 'endpoint_disabled':
+      return reason;
+    default:
+      throw new Error('Eligibility preflight returned a non-state reason');
+  }
+}
+
+export function normalizeRecentRunsLimit(value: unknown): number {
+  if (value === undefined) {
+    return ENDPOINT_ADMINISTRATION_RECENT_RUNS_DEFAULT_LIMIT;
+  }
+  const limit =
+    typeof value === 'number'
+      ? value
+      : typeof value === 'string' && /^[1-9]\d*$/u.test(value)
+        ? Number(value)
+        : Number.NaN;
+  if (
+    !Number.isSafeInteger(limit) ||
+    limit < 1 ||
+    limit > ENDPOINT_ADMINISTRATION_RECENT_RUNS_MAX_LIMIT
+  ) {
+    throw new EndpointAdministrationError('invalid_request');
+  }
+  return limit;
 }
 
 export function normalizeEndpointCreateCommand(
@@ -834,4 +1196,11 @@ function requiredString(value: unknown): string {
 
 function nullableString(value: unknown): string | undefined {
   return value === null ? undefined : requiredString(value);
+}
+
+function requiredDate(value: unknown): Date {
+  if (!(value instanceof Date) || !Number.isFinite(value.getTime())) {
+    throw new TypeError('Endpoint administration clock returned invalid time');
+  }
+  return value;
 }

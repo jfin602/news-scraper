@@ -10,12 +10,12 @@ import type { EndpointCollectionServiceDependencies } from '../../collection/end
 import {
   executeClaimedEndpointCollectionJob,
   reconcileExpiredEndpointCollectionJob,
+  type EndpointCollectionJobExecutionResult,
   type ExpiredJobReconciliationResult,
-  type ScheduledJobExecutionResult,
 } from '../../jobs/execute-endpoint-collection-job.ts';
 import {
-  finalizeScheduledJobExecution,
-  type FinalizedScheduledJobResult,
+  finalizeEndpointCollectionJobExecution,
+  type FinalizedEndpointCollectionJobResult,
 } from '../../jobs/finalize-endpoint-collection-job.ts';
 import {
   claimNextEndpointCollectionJob,
@@ -52,12 +52,12 @@ export interface WorkerRuntimeDependencies {
     jobId: string,
     claimToken: string,
     now: Date,
-  ): Promise<ScheduledJobExecutionResult>;
+  ): Promise<EndpointCollectionJobExecutionResult>;
   finalize(
-    result: ScheduledJobExecutionResult,
+    result: EndpointCollectionJobExecutionResult,
     terminalAt: Date,
     random: () => number,
-  ): Promise<FinalizedScheduledJobResult>;
+  ): Promise<FinalizedEndpointCollectionJobResult>;
   listExpired(
     expiredAt: Date,
     limit: number,
@@ -129,7 +129,7 @@ export function createWorkerRuntimeDependencies(
           : { serviceDependencies: options.serviceDependencies }),
       }),
     finalize: (result, terminalAt, randomSource) =>
-      finalizeScheduledJobExecution(database, {
+      finalizeEndpointCollectionJobExecution(database, {
         result,
         terminalAt,
         random: randomSource,
@@ -309,7 +309,7 @@ async function runClaimedJob(
     },
   );
 
-  let execution: ScheduledJobExecutionResult | undefined;
+  let execution: EndpointCollectionJobExecutionResult | undefined;
   try {
     execution = await dependencies.execute(
       job.id,
@@ -432,7 +432,7 @@ async function runRecoveryLoop(
 
 function emitFinalizedJob(
   dependencies: WorkerRuntimeDependencies,
-  result: FinalizedScheduledJobResult,
+  result: FinalizedEndpointCollectionJobResult,
 ): void {
   const fields = jobFields(result.job);
   switch (result.disposition) {
@@ -445,8 +445,8 @@ function emitFinalizedJob(
         reason: result.reason,
       });
       break;
-    case 'retry_scheduled':
-      emit(dependencies, 'worker.job_retry_scheduled', {
+    case 'retry_enqueued':
+      emit(dependencies, 'worker.job_retry_enqueued', {
         ...fields,
         successorJobId: result.successor.id,
         successorAttemptNumber: result.successor.attemptNumber,
@@ -461,6 +461,7 @@ function jobFields(
   return Object.freeze({
     jobId: job.id,
     endpointId: job.sourceEndpointId,
+    triggerKind: job.triggerKind,
     attemptNumber: job.attemptNumber,
     ...(job.collectionRunId === undefined
       ? {}
