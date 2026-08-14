@@ -14,6 +14,7 @@ describe('package command environment contract', () => {
     const manifest = await readJson<PackageManifest>('package.json');
     const envCommands = [
       'test:db',
+      'test:db:focused',
       'test:live-sources',
       'db:migrate',
       'db:bootstrap',
@@ -79,6 +80,39 @@ describe('package command environment contract', () => {
     assert.match(manifest.version, /^\d+\.\d+\.\d+$/u);
     assert.match(await readFile('.npmrc', 'utf8'), /^package-lock=false$/mu);
     await assert.rejects(access('package-lock.json'));
+  });
+
+  it('assigns explicit conservative file concurrency to every test suite', async () => {
+    const manifest = await readJson<PackageManifest>('package.json');
+
+    const expectedConcurrency: Record<string, number> = {
+      test: 4,
+      'test:unit': 4,
+      'test:integration': 4,
+      'test:collection': 4,
+      'test:browser': 2,
+      'test:db': 1,
+      'test:db:focused': 1,
+      'test:live-sources': 1,
+    };
+
+    for (const [command, concurrency] of Object.entries(expectedConcurrency))
+      assert.match(
+        manifest.scripts[command] ?? '',
+        new RegExp(`--test-concurrency=${String(concurrency)}(?: |$)`, 'u'),
+      );
+  });
+
+  it('keeps focused database execution target-only and on the canonical real-database path', async () => {
+    const manifest = await readJson<PackageManifest>('package.json');
+    const command = manifest.scripts['test:db:focused'] ?? '';
+
+    assert.match(command, /node --env-file-if-exists=\.env /u);
+    assert.match(
+      command,
+      /--test-global-setup=test\/support\/database\/database-test-global-setup\.ts/u,
+    );
+    assert.doesNotMatch(command, /test\/database\/\*\*\/\*\.test\.ts/u);
   });
 });
 
