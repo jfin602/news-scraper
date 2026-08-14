@@ -518,25 +518,32 @@ Runner fail-closed execution invariants: clean working tree, no `package-lock.js
 
 Every implementation and closeout task MUST carry an explicit recommended Codex model/reasoning configuration and token/credit-usage estimate. Model choice and reasoning effort are separate dimensions; there is no repository-defined linear ladder such as `Terra Max` or `Sol Max`.
 
-Use exact model/reasoning labels currently available. Never invent a name.
+Use exact model/reasoning labels currently available in the runner. Never invent a name or assume a more expensive model is inherently the safer recommendation.
 
-### Quality-first selection rule
+### Minimum-adequate usage-conservation rule
 
-1. Determine task complexity/quality floor from correctness risk, security impact, data integrity, architecture/blast radius, concurrency/transaction ownership, failure handling, and validation difficulty.
-2. Identify configurations with enough reasoning headroom.
-3. Only among adequate configurations, prefer expected lower token/credit use.
-4. Never reduce capability/reasoning solely to save tokens when it materially increases implementation/review risk.
+The objective is the **lowest expected total token/credit usage that still gives the task enough capability and reasoning headroom to be reliable**.
 
-Cost is an optimization constraint after quality. Do not assume cheaper-per-token model at max reasoning is cheaper overall than stronger model at lighter reasoning.
+1. Establish the non-negotiable correctness floor from actual security, data-integrity, concurrency/transaction, architecture/blast-radius, failure-handling, and validation risk.
+2. Start from the lowest-expected-cost current configuration that plausibly satisfies that floor; do not start from the strongest model and work downward.
+3. Escalate model capability or reasoning effort only when a concrete task characteristic makes the cheaper configuration materially less reliable. Name that escalation trigger explicitly.
+4. Compare expected total credits/usage, not model prestige or token count in isolation. Current official Codex rates and likely reasoning/output volume both matter.
+5. Never reduce below the correctness floor merely to save usage; when the cheaper option creates material implementation/review risk, use the minimum higher configuration that removes that risk.
+
+The following do **not** independently justify a higher rating: prompt length, phase number, number of acceptance criteria, size of the test matrix, the fact that production code is touched, or the general importance of the feature. Highly explicit prompts often need **less** reasoning because ambiguity has already been removed. A broad but mechanical validation/closeout task may consume many tokens while still needing only a workhorse model.
+
+High-cost recommendations must therefore be earned by concrete evidence such as unresolved architectural choice, materially ambiguous contracts, difficult root-cause debugging, cross-cutting shared-state behavior, concurrency/transaction ownership, high-risk security boundaries, or review work that requires substantial independent inference. Failure or newly discovered ambiguity during execution should trigger a stop/escalation rather than pre-rating every task for a worst-case scenario.
 
 ### Complexity / quality classes
 
+Complexity class describes the task's correctness/risk shape; it does **not** map mechanically to a model tier.
+
 | Class | Typical task shape |
 | --- | --- |
-| `Standard` | Bounded implementation, leaf modules, straightforward migrations/repositories, deterministic tests, contained refactors. |
-| `Elevated` | Subtle validation/state behavior, security-sensitive narrow policy, meaningful persistence semantics, difficult edge cases. |
-| `High` | Cross-cutting integration, multiple interacting modules, concurrency/transaction ownership, shared infrastructure, high-risk security, broad regression surface. |
-| `Critical` | Exceptional work combining several high-risk dimensions where strongest available reasoning is materially justified. |
+| `Standard` | Bounded implementation, leaf modules, straightforward migrations/repositories, deterministic tests, contained refactors. Expect the most economical adequate configuration. |
+| `Elevated` | Subtle validation/state behavior, security-sensitive narrow policy, meaningful persistence semantics, or difficult edge cases. Still prefer an economical workhorse when the behavior is explicit and bounded. |
+| `High` | Cross-cutting integration, multiple interacting modules, concurrency/transaction ownership, shared infrastructure, high-risk security, or broad regression surface. A higher class permits escalation but does not itself prove that Sol/Ultra is needed. |
+| `Critical` | Rare work combining several high-risk dimensions where the strongest available reasoning is materially justified. Treat this classification as exceptional and state why cheaper configurations are inadequate. |
 
 ### Required usage estimate
 
@@ -545,20 +552,34 @@ Cost is an optimization constraint after quality. Do not assume cheaper-per-toke
 - **Recommended configuration:** exact current model + reasoning choice.
 - **Complexity / quality floor:** `Standard`, `Elevated`, `High`, or `Critical`, with concise rationale.
 - **Estimated usage:** `Low`, `Moderate`, `High`, or `Very High`.
-- **Alternative considered:** relevant cheaper/differently balanced configuration.
-- **Efficiency rationale:** why recommendation best balances quality/usage.
+- **Lower-cost alternative considered:** the most relevant cheaper configuration, or state that the recommendation is already the lowest adequate current option.
+- **Escalation trigger:** the concrete reason the lower-cost alternative is inadequate; use `None` when no escalation was needed.
+- **Efficiency rationale:** why this is the minimum adequate configuration rather than merely a safe/powerful choice.
 - **Estimate confidence:** `Low`, `Medium`, or `High` when meaningful.
 
-When current official OpenAI Codex token/credit rates are available, use them instead of stale repository numbers. Do not invent precise counts when uncertain. Expensive recommendations should explicitly consider whether a lower reasoning level or stronger model at lighter reasoning still meets quality floor.
+When current official OpenAI Codex token/credit rates are available, use them instead of stale repository numbers. Do not invent precise counts when uncertain. Reassess relative model pricing when it changes: a lower reasoning level on a more expensive-per-token model is not automatically cheaper than a workhorse model with more reasoning. Expensive recommendations MUST identify a specific lower-cost alternative and explain why it fails the task's actual correctness floor.
+
+### Prompt/token discipline
+
+Prompt quality does not require repeatedly restating the same contract. To reduce input usage while keeping tasks implementation-ready:
+
+- reference governing contracts/ADRs by path and restate only the invariants that materially constrain this task;
+- avoid duplicating the same requirement across Context, Constraints, Preserved behavior, Acceptance criteria, and Final report unless repetition prevents a real failure mode;
+- inspect and list only the source/tests/consumers relevant to the task boundary rather than producing ceremonial exhaustive lists;
+- keep tests explicit, but do not narrate identical test intent multiple times;
+- prefer concise implementation instructions over ornamental rationale once a decision is already governed;
+- do not make a prompt longer merely to make the task appear safer or more sophisticated.
+
+Correctness and validation requirements remain mandatory; this discipline removes redundancy, not evidence.
 
 ### Workflow ownership
 
-- `/prompt-ass` assigns provisional recommendation/complexity/usage/alternative/rationale.
-- `/prompt-plan` reassesses after source-level investigation and may raise or lower cost only while preserving quality floor.
-- `/prompt-write` writes finalized `MODEL / REASONING / USAGE` block.
-- Material boundary/quality change during revalidation returns `Planning needed` rather than silently changing approved plan.
-- `/revalidate` compares existing prompt/stack to current repo/contracts/model-usage policy.
-- Historical completed prompts may retain model/effort wording in force when executed; unexecuted obsolete labels require revalidation.
+- `/prompt-ass` starts from the lowest-cost plausible current configuration and escalates only with an explicit task-specific trigger; it records provisional recommendation/complexity/usage/lower-cost alternative/escalation/rationale.
+- `/prompt-plan` reassesses after source-level investigation. It MUST downgrade when investigation makes the task more bounded/explicit than provisionally assessed, and may upgrade only when newly observed complexity demonstrates that the cheaper configuration is inadequate.
+- `/prompt-write` writes the finalized minimum-adequate `MODEL / REASONING / USAGE` block and keeps implementation prose concise under the token-discipline rules above.
+- Material boundary/quality change during revalidation returns `Planning needed` rather than silently changing approved implementation scope. A model-only downgrade under the same task boundary may be applied during explicit revalidation/owner-authorized task maintenance.
+- `/revalidate` compares existing prompt/stack to current repo/contracts/model-usage policy and actively looks for safe downgrades as well as necessary upgrades.
+- Historical completed prompts may retain model/effort wording in force when executed; unexecuted obsolete or over-provisioned labels require revalidation before execution when the policy has materially changed.
 
 ## Versioning and phase-prompt numbering
 
@@ -583,7 +604,7 @@ Project versions use `0.<roadmap phase>.<phase prompt number>` for roadmap phase
 
 Determine safe task boundaries from established behavior/contracts/roadmap. No writes.
 
-Return target behavior, constraints, roadmap phase, stack type (`phase` or `correction`), prompt count/order, goal/summary/dependencies/boundary rationale/deferred behavior, closeout task when needed, and per-prompt provisional model/complexity/usage/alternative/confidence/rationale. For correction stacks, identify correction slug and package version that must remain unchanged from `package.json`.
+Return target behavior, constraints, roadmap phase, stack type (`phase` or `correction`), prompt count/order, goal/summary/dependencies/boundary rationale/deferred behavior, closeout task when needed, and per-prompt provisional model/complexity/usage/lower-cost alternative/escalation trigger/confidence/rationale. For correction stacks, identify correction slug and package version that must remain unchanged from `package.json`.
 
 Testing is part of task-boundary assessment: each prompt should own focused tests and appropriate broader regression impact without becoming monolithic.
 
@@ -591,7 +612,7 @@ Testing is part of task-boundary assessment: each prompt should own focused test
 
 Requires completed `/prompt-ass` in current conversation. Perform source-level planning for every assessed prompt: contracts/ADRs, implementation, schemas/migrations, process roles, helpers/consumers/tests/recent changes, likely file scope, preserved behavior, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs implications, acceptance criteria, non-goals.
 
-Reassess model/reasoning/complexity/usage/alternative/rationale. Complexity/correctness supersedes estimated cost. Reconfirm stack type and correction unchanged-version invariant. Material boundary revisions produce `Planning needed`. No writes.
+Reassess model/reasoning/complexity/usage/lower-cost alternative/escalation trigger/rationale under the minimum-adequate usage-conservation rule. Preserve the correctness floor, but do not retain an expensive provisional rating merely because it is safer in the abstract. Reconfirm stack type and correction unchanged-version invariant. Material boundary revisions produce `Planning needed`. No writes.
 
 ## `/prompt-write <folder name>`
 
@@ -673,7 +694,7 @@ Before planning:
 4. inspect current relevant `ui-polish` implementation, tests, and recent changes;
 5. inspect relevant drift from current `main` when branch freshness could affect the task.
 
-Return at minimum task goal/UI-workstream fit, current and desired presentation behavior, governing approved design guidance, whether existing design guidance is sufficient or `/ui-review` → `/ui-apply` is required, likely/allowed file scope and shared-file boundaries, preserved contracts/behavior, forbidden backend/domain changes, responsive/accessibility considerations, focused and broader/browser tests, runtime/browser evidence needed, acceptance criteria/non-goals, one recommended lower-kebab slug, and recommended configuration/complexity/usage/alternative/efficiency/confidence using the repository quality-first policy.
+Return at minimum task goal/UI-workstream fit, current and desired presentation behavior, governing approved design guidance, whether existing design guidance is sufficient or `/ui-review` → `/ui-apply` is required, likely/allowed file scope and shared-file boundaries, preserved contracts/behavior, forbidden backend/domain changes, responsive/accessibility considerations, focused and broader/browser tests, runtime/browser evidence needed, acceptance criteria/non-goals, one recommended lower-kebab slug, and recommended configuration/complexity/usage/lower-cost alternative/escalation/efficiency/confidence using the repository minimum-adequate usage-conservation policy.
 
 If design guidance is missing/conflicting/materially ambiguous or must change, return `Planning needed: UI design guidance required` and identify the required `/ui-review` area. If a required backend/domain behavior change or unsafe branch drift is discovered, return `Planning needed` and route/split the work appropriately. `/ui-plan` never writes.
 
