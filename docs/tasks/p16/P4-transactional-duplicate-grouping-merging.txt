@@ -1,0 +1,179 @@
+TASK: Phase 16 / P4 — Transactional Duplicate grouping and merging
+
+ROADMAP PHASE
+Phase 16 — True duplicate detection and grouping.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: P4 is the one Phase 16 task where concurrent shared-state topology mutation and transaction ownership materially exceed a routine bounded Luna change.
+- Reasoning basis: High reasoning is required to derive deterministic lock order, converge racing group creation/merges, preserve exactly-one-Primary and one-group-per-Article invariants, and prove rollback/idempotency against real PostgreSQL.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Luna High`; rejected because two existing groups, crossing evidence pairs, and racing no-group/grouped states require independent concurrency reasoning where a subtle interleaving can violate topology despite correct happy-path SQL.
+- Escalation trigger: source inspection or real concurrency failures show lock ownership spans additional shared state/processes or requires a materially more complex transaction/retry design than the bounded Article/group/candidate topology described here.
+- Escalation target: `Terra Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: Terra High is reserved only for the topology/concurrency core; P1–P3 already establish schema and deterministic evidence so no Sol-class architectural inference should be necessary.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md`, `docs/codex-model-selection.md`, and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 16 prompt 4 and its assigned project version is `0.16.4`.
+- On first execution, require top-level `package.json` version `0.16.3`; on a rerun of this same P4, `0.16.4` is acceptable.
+- Update only the top-level package version to `0.16.4`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 16 roadmap entry, and P1–P3 tasks plus actual implementation/tests;
+2. read `docs/contracts/article-lifecycle-and-deduplication.md`, `docs/contracts/domain-and-data-contract.md`, `docs/contracts/testing-and-validation-contract.md`, and relevant transaction/process guidance in `docs/architecture/system-architecture.md`;
+3. inspect the P1 group/member/candidate schema, especially deferred Primary-membership and one-group-per-Article constraints;
+4. inspect P2 Primary selector and P3 strong pending candidate output/repository APIs; reuse rather than duplicate their rules;
+5. inspect `src/database/database.ts`, existing advisory/transaction lock helpers such as Article identity locking, and their concurrency tests to follow repository conventions without reusing Source-identity keys incorrectly;
+6. inspect Source repository reads needed for current priority values and Article row mapping needed by the P2 Primary comparator;
+7. inspect existing real-PostgreSQL race/rollback test helpers;
+8. stop and report planning drift if P1 constraints cannot support the planned topology or P3 strong-candidate contract materially differs.
+
+GOAL
+Implement the atomic/idempotent topology mutation used when P3 returns current strong deterministic evidence. P4 owns Duplicate-group creation, add-member behavior, existing-group merge, deterministic automatic Primary reselection, candidate `merged` disposition, and real-PostgreSQL concurrency guarantees.
+
+P4 does NOT wire duplicate processing into collection yet and does NOT change public-feed queries or expose human moderation.
+
+TRANSACTION OWNERSHIP
+The canonical grouping primitive must operate against a caller-owned `QueryExecutor` transaction so P5 can compose Article persistence + duplicate work atomically in one candidate transaction.
+
+A top-level `Database.transaction` wrapper may be provided for direct tests/use, but do not require nested transactions when the caller already owns one.
+
+STRONG-CANDIDATE PRECONDITION
+Only a persisted P3 candidate whose current deterministic evidence is strong and whose disposition permits automatic processing may mutate group topology.
+
+Before mutation:
+- lock/re-read the candidate row and relevant signal state;
+- reject/no-op weak evidence;
+- respect unchanged `dismissed` state and never auto-group it;
+- treat already `merged` same-pair evidence idempotently;
+- validate both Articles still exist and remain the exact candidate pair;
+- do not allow same-Source grouping as a workaround for identity conflicts.
+
+LOCKING / RACE STRATEGY
+Design one deterministic cross-process lock order for every Article/group touched by a strong relation.
+
+The implementation must prevent deadlocks/overlap when operations race on pairs such as `A-B`, `B-C`, or when two existing groups are connected concurrently. A sorted Article-ID advisory transaction-lock strategy is acceptable if implemented with a stable database-derived key and collision-safe semantics; deterministic row locking is also acceptable if it proves the same guarantees.
+
+Requirements:
+- acquire locks in stable order before trusting membership topology;
+- after locking, re-read current memberships/groups rather than acting on stale pre-lock state;
+- database uniqueness remains the final guard, not a substitute for convergence logic;
+- harmless lock-key collisions may serialize extra work but must never merge unrelated Articles;
+- do not add process-local mutexes as the correctness boundary.
+
+GROUPING CASES
+After locks/re-read, handle exactly these cases:
+
+1. neither Article grouped
+   - create one group;
+   - insert both memberships;
+   - choose Primary through P2 using current Source priority/Article metadata;
+   - satisfy the deferred Primary-member invariant before commit.
+
+2. one grouped, one ungrouped
+   - add the ungrouped Article to the existing group;
+   - recompute Primary across the full resulting member set using current governed comparator;
+   - preserve all existing members.
+
+3. both already in the same group
+   - no topology duplication;
+   - repeated evidence is idempotent;
+   - a governed reevaluation may recompute Primary from current member/source data, because duplicate processing is legitimately reevaluating this group;
+   - report no new `duplicate_grouped` effect if topology did not change.
+
+4. Articles belong to two different groups
+   - strong evidence authorizes one atomic group merge;
+   - preserve every membership from both groups;
+   - choose a deterministic surviving group identity, for example stable lexical UUID order, so equivalent interleavings converge;
+   - move memberships without creating overlap;
+   - recompute one Primary across the combined member set;
+   - remove only the now-empty losing Duplicate-group container as part of the same transaction;
+   - never delete Articles, observations, review candidates, Category/Relevance provenance, or Source data.
+
+PRIMARY SELECTION
+Always consume P2's canonical selector. Do not duplicate/reorder its tie-break logic in SQL.
+
+Current Source priority is read at legitimate new-group/add-member/strong-merge/same-group reevaluation time. Do not launch an installation-wide historical Primary reselection when Source priority changes.
+
+A hidden Article may remain Primary because visibility is orthogonal. Do not silently replace a hidden Primary merely to ensure a public row; Phase 17 manual moderation later may intentionally change Primary.
+
+CANDIDATE DISPOSITION / EFFECT RESULT
+When a strong candidate is successfully processed:
+- set its disposition to `merged` in the same transaction as any topology mutation/reevaluation;
+- preserve evidence reasons/confidence/fingerprint;
+- do not destroy any prior manual decision fields unless the governing schema explicitly requires a deterministic transition;
+- return an immutable bounded result containing resulting group/Primary identity and whether topology actually changed.
+
+`duplicate_grouped` effect semantics for later P5 accounting:
+- return count/effect 1 when this operation creates a group, adds an ungrouped member, or merges two existing groups;
+- return 0 when evidence merely confirms/re-evaluates members already in the same group without topology change.
+
+One strong pair operation produces at most one grouping effect. Do not count each moved membership as a separate effect.
+
+FAILURE / ROLLBACK
+Any unexpected candidate/topology/reference failure must abort the whole caller transaction. Do not partially move memberships, change Primary, or mark a candidate merged before the rest of the operation is guaranteed to commit.
+
+Translate expected stale/no-longer-actionable states into bounded deterministic no-op/application results where safe. Do not swallow database corruption/invariant failures.
+
+TESTING
+Use real disposable PostgreSQL extensively. At minimum prove:
+- two ungrouped Articles form one group with two memberships and P2-selected Primary;
+- one grouped + one ungrouped adds exactly one member and recomputes Primary correctly;
+- repeated same-pair/same-group evidence is idempotent with no duplicate grouping effect;
+- two existing groups merge atomically, preserve every member, delete only the losing group container, and choose one deterministic Primary;
+- candidate becomes `merged` only with the successful transaction;
+- weak or unchanged-dismissed candidates cannot mutate topology;
+- same-Source pair cannot group;
+- hidden/archived Article visibility state is not changed by grouping or Primary selection;
+- every P2 Primary criterion remains honored when applied to real persisted member/source rows;
+- one Article cannot end in overlapping groups after any operation;
+- Primary is always a member and every committed group has one non-null Primary;
+- concurrent same-pair grouping converges to one group and does not surface a spurious permanent failure;
+- concurrent crossing pairs such as A-B and B-C converge to one valid group containing all justified members without deadlock/overlap;
+- concurrent evidence connecting two existing groups converges deterministically;
+- rollback after an injected failure between membership/Primary/candidate operations restores the entire prior topology/disposition;
+- Article rows and observations/provenance remain byte-for-byte logically retained through group merges;
+- no Publication tenant key or Source-scoped group restriction was introduced.
+
+Run race tests enough times/deterministically enough to exercise actual cross-connection PostgreSQL behavior; a mock Promise race is not proof.
+
+PRESERVED BEHAVIOR
+Preserve:
+- Source-scoped Article identity and Article/observation atomicity;
+- P3 review/dismissal state semantics;
+- P2 strong/weak classification and Primary comparator;
+- independent Article visibility;
+- Source/Category/Relevance/public-feed behavior until later prompts;
+- Source failures and endpoint locks unrelated to duplicate topology.
+
+NON-GOALS
+Do not implement:
+- collection pipeline composition/effect-counter finalization;
+- public-feed suppression;
+- human merge/split/dismiss/choose-Primary API or UI;
+- display overrides/change history;
+- semantic/event clustering/body fetching;
+- background historical regrouping on Source-priority edits.
+
+REQUIRED VALIDATION
+Run focused tests during development, then before completion run at least:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:db`
+- `npm test`
+- `npm run check`
+- `git diff --check`
+
+Confirm `package.json` is `0.16.4`, no npm lockfile exists, all required concurrency tests use disposable PostgreSQL, and no collection/feed/admin wiring was added.
+
+FINAL REPORT
+Report files changed, lock order/strategy, each topology case, Primary reevaluation behavior, race/rollback evidence actually run, test results, and any remaining risk. Do not claim collection or feed integration yet.
