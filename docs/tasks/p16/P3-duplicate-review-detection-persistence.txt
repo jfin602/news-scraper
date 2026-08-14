@@ -1,0 +1,176 @@
+TASK: Phase 16 / P3 — Duplicate review detection and persistence
+
+ROADMAP PHASE
+Phase 16 — True duplicate detection and grouping.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Luna High`.
+- Model-family basis: P3 is bounded repository/service work over explicit P1 schema and P2 pure evidence rules; it does not yet mutate group topology.
+- Reasoning basis: High reasoning is warranted for idempotent review-state transitions, unchanged-dismissal preservation, collision-safe candidate lookup, and transactional repository behavior across repeated observations.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna Medium`; rejected because subtle dismissal/evidence-state mistakes could repeatedly reopen work or accidentally authorize later grouping.
+- Escalation trigger: implementing unchanged-dismissal and candidate upsert safely requires cross-process lock/topology ownership beyond one canonical review row per pair or exposes an unexpected shared transaction boundary.
+- Escalation target: `Terra High`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P1/P2 deliberately remove schema and signal ambiguity, leaving a focused PostgreSQL-backed state machine that Luna High can implement with targeted real-database tests.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md`, `docs/codex-model-selection.md`, and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 16 prompt 3 and its assigned project version is `0.16.3`.
+- On first execution, require top-level `package.json` version `0.16.2`; on a rerun of this same P3, `0.16.3` is acceptable.
+- Update only the top-level package version to `0.16.3`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 16 roadmap entry, and P1–P2 tasks plus actual implementation/tests;
+2. read `docs/contracts/article-lifecycle-and-deduplication.md`, `docs/contracts/domain-and-data-contract.md`, and `docs/contracts/testing-and-validation-contract.md`;
+3. inspect the P1 candidate/signal schema and lookup indexes and P2 pair/evidence APIs instead of recreating them;
+4. inspect `src/articles/repository.ts`, Source mapping, and current `QueryExecutor`/transaction conventions;
+5. inspect Article identity tests to preserve the distinction between same-Source identity and cross-Source duplicate detection;
+6. inspect current database test helpers and migration/schema tests;
+7. confirm P4 group mutation is not yet implemented and keep P3 independent of group-topology writes;
+8. stop and report planning drift if P1/P2 do not expose the expected canonical pair/evidence foundation or if current contracts materially changed.
+
+GOAL
+Add the transaction-scoped detector/repository service that, after Article identity has resolved, finds only plausible cross-Source duplicate pairs, evaluates them with P2, and persists canonical review state idempotently.
+
+P3 owns review-candidate detection, evidence persistence/refresh, and unchanged-dismissal behavior. It returns strong pending relationships for P4 but does NOT create/merge Duplicate groups or suppress feed rows.
+
+TRANSACTION-SCOPED API
+Implement the core detector against `QueryExecutor` so a later caller can compose it inside a larger candidate transaction. Do not force P3 to open a nested database transaction.
+
+A small top-level Database wrapper may be added for focused tests or standalone use, but the canonical core should support a caller-owned transaction.
+
+The detector input is the already-resolved persisted Article identity, preferably its Article ID. It must reload canonical persisted Article/Source values needed for evidence rather than trusting unbounded caller-shaped metadata.
+
+CANDIDATE LOOKUP
+Find potential Articles from different Sources using only the governed indexed exact signals:
+- exact canonical-identity digest lookup followed by full `canonical_identity_url` string equality;
+- exact normalized-title digest lookup followed by full `normalized_title` string equality.
+
+Requirements:
+- exclude the current Article itself;
+- exclude same-Source Articles entirely from true-duplicate review/group processing;
+- never treat digest equality alone as evidence;
+- union/de-duplicate rows reached by more than one lookup so one logical pair is evaluated once;
+- use deterministic ordering so persistence/result ordering does not depend on PostgreSQL row order;
+- do not scan on fuzzy similarity, author, summary, Category, Relevance, Source name, or topic;
+- do not fetch Article bodies or contact publishers.
+
+If implementation needs a bounded safety limit, fail/skip conservatively rather than partially auto-grouping a truncated strong-evidence set; do not silently hide Articles because a candidate query overflowed.
+
+REVIEW UPSERT STATE MACHINE
+For each P2 evidence result, persist exactly one canonical candidate row for the unordered pair and replace its deterministic signal rows atomically when evidence materially changes.
+
+Required behavior:
+
+1. no existing candidate
+   - create `pending`, `automatic` candidate with current fingerprint/confidence/signals;
+   - report one `duplicate_review_created` effect to the caller;
+   - if evidence is strong, also return it as eligible for P4 automatic grouping.
+
+2. existing `pending` with unchanged fingerprint
+   - leave state/evidence stable and produce no new-review effect;
+   - strong evidence may still be returned for idempotent P4 processing.
+
+3. existing `pending` with changed fingerprint
+   - update fingerprint/confidence/signals in place and remain `pending`;
+   - this is an update to existing review state, not creation of a second logical candidate or a new `duplicate_review_created` effect;
+   - strong current evidence may be returned for P4.
+
+4. existing `dismissed` with unchanged fingerprint
+   - remain `dismissed` exactly;
+   - do not recreate/reopen pending work;
+   - do not return the pair for automatic grouping;
+   - produce no effect.
+
+5. existing `dismissed` with materially changed fingerprint
+   - reconsider by updating evidence and moving back to `pending` while preserving the same candidate identity and retained prior decision timestamp/reason as historical fields if the P1 schema supports that without destructive rewrite;
+   - do not count this as creation of a new review row;
+   - current strong evidence may proceed to P4.
+
+6. existing `merged`
+   - do not reopen as pending solely because the same Articles were observed again;
+   - update deterministic evidence only if the schema/contract requires current evidence refresh without losing the merged disposition;
+   - P4 later owns same-group idempotent reevaluation.
+
+7. existing `superseded`
+   - do not automatically turn stale superseded work back into pending unless materially changed evidence now represents current review work and the governing final P1 schema clearly supports that transition; otherwise return a bounded no-op and keep behavior conservative.
+
+Do not create manual dismissal commands, actor identity, audit UI, or generic moderation history in P3.
+
+STRONG VS WEAK OUTPUT
+Return a small immutable result suitable for P5 composition, including:
+- number of newly created review candidates;
+- deterministic identities of strong pending candidates eligible for P4;
+- enough bounded status to distinguish no evidence / weak pending / dismissed unchanged / strong pending without exposing raw SQL rows.
+
+Weak evidence may create/update `pending` review state but MUST NOT be labeled groupable and MUST NOT alter Article visibility or feed eligibility.
+
+PERSISTENCE / CONCURRENCY
+Use the P1 unique canonical-pair constraint as the final race guard. Make insertion/upsert concurrency-safe and deterministic:
+- concurrent evaluation of the same pair must converge to one candidate row;
+- signal replacement and candidate state/fingerprint must not commit partially;
+- do not swallow unexpected uniqueness/foreign-key errors as success;
+- bounded application errors must not leak SQL/internal details through later callers.
+
+P3 does not need to solve cross-group topology races; P4 owns those locks/invariants.
+
+TESTING
+Add focused unit/integration/database tests at minimum for:
+- different-Source canonical match -> one strong persisted candidate with deterministic signals/confidence;
+- title-only match -> weak pending candidate, never groupable;
+- same-Source canonical/title matches create no duplicate review candidate;
+- unrelated/related coverage with no exact governed signal creates no candidate;
+- digest-collision-shaped fixtures require full string equality;
+- duplicate lookup reached through canonical + title produces one logical pair;
+- pair ordering/output ordering is deterministic;
+- repeated unchanged evaluation is idempotent;
+- concurrent same-pair detection creates one candidate row and one logical signal set;
+- pending changed evidence updates in place;
+- dismissed unchanged evidence stays dismissed and is not returned for grouping;
+- materially changed dismissed evidence becomes reconsiderable without a second candidate row;
+- merged unchanged evidence does not recur as pending review work;
+- transaction failure while replacing signals rolls back candidate/signal changes;
+- every stored Article/observation remains untouched by review-state writes;
+- no visibility/group/public-feed behavior changes in P3.
+
+Use real disposable PostgreSQL for uniqueness, transaction, dismissal persistence, and race claims.
+
+PRESERVED BEHAVIOR
+Preserve:
+- existing Source-scoped Article identity/promotion/conflict behavior;
+- Relevance/category persistence ordering before duplicate processing;
+- Article visibility state;
+- Source/endpoint/Collection-run provenance;
+- singleton non-tenant architecture;
+- P2 conservative strong-vs-weak classification.
+
+NON-GOALS
+Do not implement:
+- group creation/add-member/group merge;
+- Primary selection side effects beyond consuming P2 types if necessary;
+- collection-pipeline invocation/counters beyond returning effect data;
+- feed suppression;
+- dismissal/merge/split/choose-Primary admin endpoints or UI;
+- fuzzy/semantic matching or historical bulk scanning.
+
+REQUIRED VALIDATION
+Run focused tests during development, then before completion run at least:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:db`
+- `npm test`
+- `npm run check`
+- `git diff --check`
+
+Confirm `package.json` is `0.16.3`, no npm lockfile exists, and P3 has not changed group topology, public-feed eligibility, or admin/browser behavior.
+
+FINAL REPORT
+Report files changed, indexed lookup strategy, review state transitions, unchanged-dismissal handling, concurrency/rollback proof, tests actually run/results, and any limitation. Do not claim automatic grouping or feed suppression yet.
