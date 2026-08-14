@@ -18,10 +18,16 @@ import {
   type AdminSourceReadModel,
   type SourceAdministrationService,
 } from '../../src/admin/source-administration.ts';
+import {
+  PublicationAdministrationError,
+  type AdminPublicationReadModel,
+  type PublicationAdministrationService,
+} from '../../src/admin/publication-administration.ts';
 import type { EditorialAdministrationService } from '../../src/admin/editorial-administration.ts';
 import { createWebApp } from '../../src/app/web/create-app.ts';
 import { registerEditorialAdministrationRoutes } from '../../src/app/web/editorial-administration-router.ts';
 import { registerEndpointAdministrationRoutes } from '../../src/app/web/endpoint-administration-router.ts';
+import { registerPublicationAdministrationRoutes } from '../../src/app/web/publication-administration-router.ts';
 import { registerSourceAdministrationRoutes } from '../../src/app/web/source-administration-router.ts';
 import { startWebServer, type WebServer } from '../../src/app/web/server.ts';
 import type { PublicFeed } from '../../src/public-feed/repository.ts';
@@ -59,6 +65,16 @@ const initialEndpoint: AdminEndpointReadModel = Object.freeze({
   endpointDomainRules: Object.freeze([]),
   inheritsSourceDomainPolicy: true,
   defaultCategory: category,
+});
+
+const initialPublication: AdminPublicationReadModel = Object.freeze({
+  name: 'Indie publishing news',
+  activeForCollection: true,
+  publicStatus: 'public',
+  description: 'A bounded Publication fixture.',
+  logoPath: '/publication.svg',
+  accentColor: '#164E63',
+  presentationTimezone: null,
 });
 
 const publicFeed: PublicFeed = Object.freeze({
@@ -125,6 +141,162 @@ describe('Source administration page browser behavior', () => {
       await context.close();
       await server.close();
     }
+  });
+
+  it('loads and edits the singleton Publication without losing the Source workspace', async () => {
+    const harness = new AdminHarness();
+    const mutationHeaders: string[] = [];
+    await withAdminPage(
+      browser,
+      harness,
+      { viewport: { width: 1280, height: 900 } },
+      async (page) => {
+        page.on('request', (request) => {
+          if (
+            request.url().includes('/api/admin/publication/configuration') &&
+            request.method() === 'PUT'
+          ) {
+            mutationHeaders.push(
+              request.headers()['x-news-scraper-admin-request'] ?? '',
+            );
+          }
+        });
+        await page.getByRole('tab', { name: /^Publication/u }).click();
+        await page
+          .locator('[data-publication-state][data-publication-state="ready"]')
+          .waitFor();
+        const form = page.locator('[data-publication-form]');
+        assert.equal(
+          await form.locator('[name="name"]').inputValue(),
+          initialPublication.name,
+        );
+        assert.equal(
+          await form.locator('[name="activeForCollection"]').isChecked(),
+          true,
+        );
+        assert.equal(
+          await form.locator('[name="publicStatus"]').inputValue(),
+          'public',
+        );
+        assert.equal(
+          await form.locator('[name="presentationTimezone"]').inputValue(),
+          '',
+        );
+        assert.match(
+          await page.locator('[data-timezone-hint]').innerText(),
+          /calendar dates use UTC/u,
+        );
+
+        await form
+          .locator('[name="name"]')
+          .fill('Updated indie publishing news');
+        await form.locator('[name="description"]').fill('Updated description');
+        await form.locator('[name="activeForCollection"]').uncheck();
+        await form.locator('[name="publicStatus"]').selectOption('private');
+        await form.locator('[name="logoPath"]').fill('/updated-logo.svg');
+        await form.locator('[name="accentColor"]').fill('#abcdef');
+        await form
+          .locator('[name="presentationTimezone"]')
+          .fill('America/Chicago');
+        await page.getByRole('button', { name: 'Save Publication' }).click();
+        await page
+          .locator('[data-admin-status]')
+          .filter({ hasText: 'Publication configuration saved.' })
+          .waitFor();
+
+        assert.deepEqual(harness.publication, {
+          name: 'Updated indie publishing news',
+          activeForCollection: false,
+          publicStatus: 'private',
+          description: 'Updated description',
+          logoPath: '/updated-logo.svg',
+          accentColor: '#ABCDEF',
+          presentationTimezone: 'America/Chicago',
+        });
+        assert.deepEqual(mutationHeaders, ['1']);
+
+        await page.getByRole('tab', { name: /^Sources/u }).click();
+        await waitForSource(page, 'journal');
+        await page.getByRole('button', { name: /main_feed/u }).click();
+        await page.waitForSelector('[data-operational-state="ready"]');
+        assert.equal(
+          await page.locator('[data-endpoint-form]').isVisible(),
+          true,
+        );
+      },
+    );
+  });
+
+  it('keeps Publication values and focus after a server validation error', async () => {
+    const harness = new AdminHarness();
+    harness.rejectNextPublicationUpdate = true;
+    await withAdminPage(browser, harness, {}, async (page) => {
+      await page.getByRole('tab', { name: /^Publication/u }).click();
+      await page
+        .locator('[data-publication-state][data-publication-state="ready"]')
+        .waitFor();
+      const form = page.locator('[data-publication-form]');
+      const unsavedName = 'Unsaved name retained after validation failure';
+      await form.locator('[name="name"]').fill(unsavedName);
+      await form
+        .locator('[name="presentationTimezone"]')
+        .fill('Pacific/Auckland');
+      await page.getByRole('button', { name: 'Save Publication' }).click();
+      await page.locator('[data-publication-form-error]').waitFor();
+      assert.equal(
+        await form.locator('[name="name"]').inputValue(),
+        unsavedName,
+      );
+      assert.equal(
+        await form.locator('[name="presentationTimezone"]').inputValue(),
+        'Pacific/Auckland',
+      );
+      assert.equal(
+        await page.evaluate(
+          () =>
+            document.activeElement ===
+            document.querySelector('[data-publication-form-error]'),
+        ),
+        true,
+      );
+    });
+  });
+
+  it('supports keyboard workspace navigation and contains the Publication editor on mobile', async () => {
+    await withAdminPage(
+      browser,
+      new AdminHarness(),
+      { viewport: { width: 390, height: 844 } },
+      async (page) => {
+        const publicationTab = page.getByRole('tab', { name: /^Publication/u });
+        await publicationTab.focus();
+        assert.equal(
+          await publicationTab.evaluate((element) => {
+            const style = getComputedStyle(element);
+            return (
+              style.outlineStyle !== 'none' && style.outlineWidth !== '0px'
+            );
+          }),
+          true,
+        );
+        await page.keyboard.press('Enter');
+        await page
+          .locator('[data-publication-state][data-publication-state="ready"]')
+          .waitFor();
+        assert.equal(
+          await page
+            .getByRole('tab', { name: /^Publication/u })
+            .getAttribute('aria-selected'),
+          'true',
+        );
+        assert.equal(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= window.innerWidth,
+          ),
+          true,
+        );
+      },
+    );
   });
 
   it('distinguishes empty, error, and ready Source-list states', async () => {
@@ -199,6 +371,10 @@ describe('Source administration page browser behavior', () => {
           .getByRole('button', { name: 'Create Source', exact: true })
           .click();
 
+        await page
+          .locator('[data-admin-status]')
+          .filter({ hasText: 'Source created.' })
+          .waitFor();
         await waitForSource(page, 'new_source');
         assert.deepEqual(harness.source('new_source').rssAtomAdmissionPhrases, [
           'independent publishing',
@@ -510,11 +686,13 @@ interface HarnessOptions {
 
 class AdminHarness {
   readonly categories = [category];
+  publication: AdminPublicationReadModel = initialPublication;
   readonly sources: AdminSourceReadModel[];
   readonly endpoints = new Map<string, AdminEndpointReadModel[]>();
   readonly sourceListError: boolean;
   readonly longRunError: string;
   rejectNextSourceUpdate = false;
+  rejectNextPublicationUpdate = false;
   checkNowIneligible = false;
   checkNowCalls = 0;
   inlineCollectionCalls = 0;
@@ -536,6 +714,29 @@ class AdminHarness {
     if (source === undefined)
       throw new Error(`Missing test Source ${configKey}`);
     return source;
+  }
+
+  publicationService(): PublicationAdministrationService {
+    return {
+      getPublication: async () => this.publication,
+      replacePublication: async (input) => {
+        if (this.rejectNextPublicationUpdate) {
+          this.rejectNextPublicationUpdate = false;
+          throw new PublicationAdministrationError('invalid_request');
+        }
+        const body = record(input);
+        this.publication = Object.freeze({
+          name: String(body.name).trim(),
+          activeForCollection: body.activeForCollection === true,
+          publicStatus: String(body.publicStatus) as 'private' | 'public',
+          description: optionalString(body.description),
+          logoPath: optionalString(body.logoPath),
+          accentColor: optionalString(body.accentColor)?.toUpperCase() ?? null,
+          presentationTimezone: optionalString(body.presentationTimezone),
+        });
+        return this.publication;
+      },
+    };
   }
 
   endpoint(sourceKey: string, endpointKey: string): AdminEndpointReadModel {
@@ -924,6 +1125,11 @@ function record(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+function optionalString(value: unknown): string | null {
+  const normalized = String(value ?? '').trim();
+  return normalized.length === 0 ? null : normalized;
+}
+
 async function startHarnessServer(
   harness: AdminHarness,
   adminEnabled = true,
@@ -937,6 +1143,9 @@ async function startHarnessServer(
   const editorialRoutes = registerEditorialAdministrationRoutes(
     harness.editorialService(),
   );
+  const publicationRoutes = registerPublicationAdministrationRoutes(
+    harness.publicationService(),
+  );
   return startWebServer(
     createWebApp(
       {
@@ -949,6 +1158,7 @@ async function startHarnessServer(
           sourceRoutes(router);
           endpointRoutes(router);
           editorialRoutes(router);
+          publicationRoutes(router);
         },
       },
     ),

@@ -36,7 +36,7 @@ const adminPage = `<!doctype html>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Source administration</title>
+    <title>News Scraper administration</title>
     <link rel="stylesheet" href="/admin/assets/admin.css">
     <script src="/admin/assets/admin.js" defer></script>
   </head>
@@ -44,30 +44,116 @@ const adminPage = `<!doctype html>
     <header class="admin-masthead">
       <div>
         <p class="admin-eyebrow">News Scraper</p>
-        <h1>Source administration</h1>
-        <p>Manage approved RSS/Atom publishers and collection endpoints.</p>
+        <h1>Administration</h1>
+        <p>Manage this installation's Publication and approved collection Sources.</p>
       </div>
       <button type="button" class="button secondary" data-refresh-all>Refresh all</button>
     </header>
 
     <div class="admin-status" role="status" aria-live="polite" data-admin-status>
-      Loading Source administration…
+      Loading administration…
     </div>
 
     <main class="admin-shell">
-      <nav class="panel source-navigation" aria-labelledby="sources-heading">
-        <div class="panel-heading">
-          <div>
-            <p class="section-kicker">Configuration</p>
-            <h2 id="sources-heading">Sources</h2>
-          </div>
-          <button type="button" class="button secondary compact" data-new-source>New Source</button>
+      <nav class="panel workspace-navigation" aria-label="Admin workspaces">
+        <p class="section-kicker">Configuration</p>
+        <div class="workspace-tabs" role="tablist" aria-label="Admin workspaces">
+          <button type="button" class="workspace-tab" role="tab" aria-selected="false" aria-controls="publication-workspace" data-workspace="publication">
+            <span>Publication</span>
+            <span class="workspace-tab-description">Identity, branding, and feed state</span>
+          </button>
+          <button type="button" class="workspace-tab" role="tab" aria-selected="true" aria-controls="sources-workspace" data-workspace="sources">
+            <span>Sources</span>
+            <span class="workspace-tab-description">Publishers and collection endpoints</span>
+          </button>
+          <button type="button" class="workspace-tab" role="tab" aria-selected="false" aria-controls="editorial-workspace" data-workspace="editorial" disabled>
+            <span>Editorial</span>
+            <span class="workspace-tab-description">Categories and Relevance · coming soon</span>
+          </button>
         </div>
-        <div class="list-state" data-source-list-state="loading">Loading Sources…</div>
-        <ul class="selection-list" data-source-list></ul>
       </nav>
 
-      <section class="admin-workspace" aria-label="Selected Source workspace">
+      <section class="admin-content">
+        <section class="workspace-panel" id="publication-workspace" data-workspace-panel="publication" aria-labelledby="publication-heading" hidden>
+          <section class="panel editor-panel publication-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">Singleton configuration</p>
+                <h2 id="publication-heading">Publication</h2>
+              </div>
+            </div>
+            <div class="workspace-state" data-publication-state="loading" role="status" aria-live="polite">Loading Publication…</div>
+            <form data-publication-form hidden>
+              <fieldset>
+                <legend>Publication identity</legend>
+                <div class="form-grid">
+                  <label class="wide-field">Name
+                    <input name="name" autocomplete="organization" required>
+                  </label>
+                  <label class="wide-field">Description
+                    <textarea name="description" rows="4" maxlength="500"></textarea>
+                    <span class="field-help">Optional plain-text description shown with the public feed.</span>
+                  </label>
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend>Collection and public exposure</legend>
+                <label class="choice-row">
+                  <input name="activeForCollection" type="checkbox">
+                  Collection is active
+                </label>
+                <p class="field-help">When active, eligible approved Sources and endpoints may run. This does not make the public feed visible.</p>
+                <label>Public feed status
+                  <select name="publicStatus">
+                    <option value="private">Private</option>
+                    <option value="public">Public</option>
+                  </select>
+                </label>
+                <p class="field-help">Private hides the public feed; it does not pause collection. These two global controls are independent.</p>
+              </fieldset>
+
+              <fieldset>
+                <legend>Presentation</legend>
+                <div class="form-grid">
+                  <label>Logo path
+                    <input name="logoPath" autocomplete="off" placeholder="/logo.svg">
+                    <span class="field-help">Optional same-origin path.</span>
+                  </label>
+                  <label>Accent color
+                    <input name="accentColor" autocomplete="off" placeholder="#164E63">
+                    <span class="field-help">Optional six-digit sRGB color.</span>
+                  </label>
+                  <label class="wide-field">Presentation timezone
+                    <input name="presentationTimezone" autocomplete="off" placeholder="America/Chicago">
+                    <span class="field-help" data-timezone-hint>No timezone configured; calendar dates use UTC. This changes presentation only, not stored timestamps or feed order.</span>
+                  </label>
+                </div>
+              </fieldset>
+
+              <div class="form-message" role="alert" tabindex="-1" data-publication-form-error hidden></div>
+              <div class="form-actions">
+                <button type="submit" class="button primary" data-publication-submit>Save Publication</button>
+              </div>
+            </form>
+          </section>
+        </section>
+
+        <section class="workspace-panel" id="sources-workspace" data-workspace-panel="sources" aria-labelledby="sources-heading">
+          <div class="source-workspace-layout">
+            <nav class="panel source-navigation" aria-labelledby="sources-heading">
+              <div class="panel-heading">
+                <div>
+                  <p class="section-kicker">Collection configuration</p>
+                  <h2 id="sources-heading">Sources</h2>
+                </div>
+                <button type="button" class="button secondary compact" data-new-source>New Source</button>
+              </div>
+              <div class="list-state" data-source-list-state="loading">Loading Sources…</div>
+              <ul class="selection-list" data-source-list></ul>
+            </nav>
+
+            <section class="admin-workspace" aria-label="Selected Source workspace">
         <section class="panel editor-panel" data-source-editor>
           <div class="panel-heading">
             <div>
@@ -264,6 +350,15 @@ const adminPage = `<!doctype html>
             <span>Newest first</span>
           </div>
           <div class="runs-list" data-runs-list></div>
+        </section>
+            </section>
+          </div>
+        </section>
+
+        <section class="workspace-panel panel editorial-placeholder" id="editorial-workspace" data-workspace-panel="editorial" aria-labelledby="editorial-heading" hidden>
+          <p class="section-kicker">Upcoming workspace</p>
+          <h2 id="editorial-heading">Editorial</h2>
+          <p class="section-help">Category and Relevance administration will be available here in the next Phase 15 task.</p>
         </section>
       </section>
     </main>

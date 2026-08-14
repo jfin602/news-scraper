@@ -53,7 +53,10 @@ describe('Admin HTTP perimeter foundation', () => {
       assert.equal(page.status, 200);
       assert.match(page.headers.get('content-type') ?? '', /^text\/html/u);
       assertAdminSecurityHeaders(page);
-      assert.match(body, /<h1>Source administration<\/h1>/u);
+      assert.match(body, /<h1>Administration<\/h1>/u);
+      assert.match(body, /data-workspace="publication"/u);
+      assert.match(body, /data-workspace="sources"/u);
+      assert.match(body, /data-workspace="editorial"/u);
       assert.match(body, /href="\/admin\/assets\/admin\.css"/u);
       assert.match(body, /src="\/admin\/assets\/admin\.js"/u);
       assert.doesNotMatch(body, /<script(?:\s[^>]*)?>[^<]+<\/script>/iu);

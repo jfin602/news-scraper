@@ -1,4 +1,4 @@
-/* global document, fetch, HTMLElement, HTMLButtonElement, HTMLInputElement, HTMLSelectElement */
+/* global document, fetch, HTMLElement, HTMLButtonElement, HTMLInputElement, HTMLSelectElement, HTMLTextAreaElement */
 
 (() => {
   'use strict';
@@ -13,10 +13,21 @@
     sourceMode: 'none',
     endpointMode: 'none',
     mutationInFlight: false,
+    activeWorkspace: 'sources',
+    publication: null,
   };
 
   const elements = {
     status: required('[data-admin-status]'),
+    workspaceTabs: Array.from(document.querySelectorAll('[data-workspace]')),
+    workspacePanels: Array.from(
+      document.querySelectorAll('[data-workspace-panel]'),
+    ),
+    publicationState: required('[data-publication-state]'),
+    publicationForm: required('[data-publication-form]'),
+    publicationFormError: required('[data-publication-form-error]'),
+    publicationSubmit: required('[data-publication-submit]'),
+    timezoneHint: required('[data-timezone-hint]'),
     sourceList: required('[data-source-list]'),
     sourceListState: required('[data-source-list-state]'),
     sourceEditorHeading: required('[data-source-editor-heading]'),
@@ -59,8 +70,17 @@
   void loadAdministration();
 
   function wireEvents() {
+    for (const tab of elements.workspaceTabs) {
+      tab.addEventListener('click', () => {
+        const workspace = tab.dataset.workspace;
+        if (workspace === 'publication' || workspace === 'sources') {
+          void selectWorkspace(workspace);
+        }
+      });
+    }
     required('[data-refresh-all]').addEventListener('click', () => {
       void loadAdministration(state.selectedSource?.configKey);
+      if (state.activeWorkspace === 'publication') void loadPublication();
     });
     required('[data-new-source]').addEventListener('click', beginSourceCreate);
     required('[data-source-cancel]').addEventListener(
@@ -117,10 +137,109 @@
     elements.checkNow.addEventListener('click', () => {
       void checkNow();
     });
+    elements.publicationForm.addEventListener('submit', (event) => {
+      event.preventDefault();
+      void submitPublication(event);
+    });
+  }
+
+  async function selectWorkspace(workspace) {
+    if (workspace !== 'publication' && workspace !== 'sources') return;
+    state.activeWorkspace = workspace;
+    for (const tab of elements.workspaceTabs) {
+      const selected = tab.dataset.workspace === workspace;
+      tab.setAttribute('aria-selected', selected ? 'true' : 'false');
+    }
+    for (const panel of elements.workspacePanels) {
+      panel.hidden = panel.dataset.workspacePanel !== workspace;
+    }
+    const selectedTab = elements.workspaceTabs.find(
+      (tab) => tab.dataset.workspace === workspace,
+    );
+    selectedTab?.focus();
+    if (workspace === 'publication') await loadPublication();
+  }
+
+  async function loadPublication() {
+    setGlobalStatus('loading', 'Loading Publication configuration…');
+    setPublicationState('loading', 'Loading Publication configuration…');
+    elements.publicationForm.hidden = true;
+    hideMessage(elements.publicationFormError);
+    try {
+      const result = await api('/api/admin/publication');
+      state.publication = result.publication;
+      renderPublication();
+      setPublicationState('ready', 'Publication configuration is ready.');
+      setGlobalStatus('ready', 'Publication configuration is ready.');
+    } catch (error) {
+      setPublicationState('error', messageForError(error));
+      setGlobalStatus('error', messageForError(error));
+    }
+  }
+
+  function setPublicationState(kind, message) {
+    elements.publicationState.dataset.publicationState = kind;
+    elements.publicationState.textContent = message;
+    elements.publicationState.hidden = false;
+  }
+
+  function renderPublication() {
+    const publication = state.publication;
+    if (publication === null) return;
+    const form = elements.publicationForm;
+    input(form, 'name').value = publication.name;
+    input(form, 'activeForCollection').checked =
+      publication.activeForCollection;
+    input(form, 'publicStatus').value = publication.publicStatus;
+    input(form, 'description').value = publication.description ?? '';
+    input(form, 'logoPath').value = publication.logoPath ?? '';
+    input(form, 'accentColor').value = publication.accentColor ?? '';
+    input(form, 'presentationTimezone').value =
+      publication.presentationTimezone ?? '';
+    elements.timezoneHint.textContent =
+      publication.presentationTimezone === null
+        ? 'No timezone configured; calendar dates use UTC. This changes presentation only, not stored timestamps or feed order.'
+        : 'Calendar dates use this IANA timezone. This changes presentation only, not stored timestamps or feed order.';
+    form.hidden = false;
+  }
+
+  async function submitPublication(event) {
+    const submitter = event.submitter;
+    const form = elements.publicationForm;
+    hideMessage(elements.publicationFormError);
+    const body = {
+      name: input(form, 'name').value,
+      activeForCollection: input(form, 'activeForCollection').checked,
+      publicStatus: input(form, 'publicStatus').value,
+      description: input(form, 'description').value,
+      logoPath: input(form, 'logoPath').value,
+      accentColor: input(form, 'accentColor').value,
+      presentationTimezone: input(form, 'presentationTimezone').value,
+    };
+    try {
+      const result = await mutate(submitter, () =>
+        api('/api/admin/publication/configuration', {
+          method: 'PUT',
+          body,
+        }),
+      );
+      state.publication = result.publication;
+      renderPublication();
+      setPublicationState('ready', 'Publication configuration is ready.');
+      setGlobalStatus('ready', 'Publication configuration saved.');
+    } catch (error) {
+      showMessage(
+        elements.publicationFormError,
+        messageForError(error),
+        'error',
+      );
+      elements.publicationFormError.focus();
+      setGlobalStatus('error', 'Publication configuration could not be saved.');
+    }
   }
 
   async function loadAdministration(preferredSourceKey) {
-    setGlobalStatus('loading', 'Loading Source administration…');
+    setGlobalStatus('loading', 'Loading Sources…');
     setListState(elements.sourceListState, 'loading', 'Loading Sources…');
     try {
       const [categoriesResult, sourcesResult] = await Promise.all([
@@ -131,7 +250,7 @@
       state.sources = sourcesResult.sources ?? [];
       populateCategorySelects();
       renderSourceList();
-      setGlobalStatus('ready', 'Source administration is ready.');
+      setGlobalStatus('ready', 'Sources workspace is ready.');
       const key =
         preferredSourceKey ??
         state.selectedSource?.configKey ??
@@ -927,6 +1046,8 @@
         'The Source domain change would invalidate a retained endpoint policy.',
       endpoint_domain_policy_conflict:
         'The endpoint domain rules cannot widen the Source-approved boundary.',
+      publication_not_found:
+        'The singleton Publication is not configured. Configure it before editing.',
       source_archived:
         'Restore the Source before changing its active configuration.',
       endpoint_archived:
@@ -1202,7 +1323,8 @@
     const element = form.elements.namedItem(name);
     if (
       !(element instanceof HTMLInputElement) &&
-      !(element instanceof HTMLSelectElement)
+      !(element instanceof HTMLSelectElement) &&
+      !(element instanceof HTMLTextAreaElement)
     ) {
       throw new Error(`Missing administration form control: ${name}`);
     }

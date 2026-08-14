@@ -51,7 +51,7 @@ describe('Web process entrypoint', () => {
       const admin = await fetch(`${baseUrl}/admin`);
       assert.equal(admin.status, 200);
       assert.equal(admin.headers.get('cache-control'), 'no-store');
-      assert.match(await admin.text(), /<h1>Source administration<\/h1>/u);
+      assert.match(await admin.text(), /<h1>Administration<\/h1>/u);
       const stoppedEvent = waitForJsonEvent(child, 'stdout', 'web.stopped');
       const exitEvent = waitForExit(child);
       sendGracefulTermination(child);
