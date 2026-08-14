@@ -137,9 +137,29 @@ Escalation is chosen by the reason the default is insufficient:
 - if the problem itself requires stronger independent cross-system inference or ambiguous contract reconciliation, prefer a higher-effort Sol configuration;
 - validation volume, prompt length, or the importance of closeout alone are never escalation triggers.
 
+### Closeout refactor handoff
+
+A **meaningful behavior-preserving refactor** discovered by either closeout pass is a distinct handoff condition, not an invitation for `Sol Light` to perform structural cleanup. Examples include moving responsibility across modules/layers, consolidating duplicated shared logic used by multiple consumers, replacing or collapsing an abstraction, reorganizing shared state/data flow, changing a transaction boundary while preserving the governed semantics, or another multi-file structural simplification whose safety depends on tracing important producers and consumers. A small local cleanup, dead branch removal, obvious helper deduplication, or similarly bounded change may remain a normal closeout fix when the governing closeout already permits it.
+
+When a meaningful behavior-preserving refactor is needed, the closeout MUST stop before implementing that refactor and output exactly one self-contained **Terra High refactor remediation prompt**. This is a special implementation handoff and is separate from the normal closeout model-escalation rule above. The generated prompt MUST:
+
+- recommend exactly `Terra High` as its starting configuration;
+- state the observed quality problem and concrete evidence that makes structural refactoring necessary;
+- define the smallest behavior-preserving refactor boundary, relevant files/modules, and important producers/consumers to trace;
+- restate the contracts/invariants that must remain unchanged, including security, data integrity, idempotency, provenance, failure isolation, and public/admin behavior when implicated;
+- forbid unrelated cleanup, new product behavior, contract/ADR changes, roadmap expansion, and speculative abstractions;
+- preserve the package version already established/required by the interrupted closeout and consume no roadmap or correction prompt number;
+- require focused tests for the refactored behavior plus every broader regression/evidence level invalidated by the structural change;
+- require a concise implementation report describing the refactor, tests actually run, and any remaining risk, but MUST NOT declare the phase/correction GREEN or finalize the closeout validation artifact;
+- instruct Terra High to stop and report rather than force the refactor if source inspection reveals that the work actually requires a product/contract/ADR change, new roadmap scope, difficult concurrency/transaction redesign beyond Terra High's reliable boundary, or another materially different architecture decision.
+
+The generated Terra High remediation prompt is transient manual closeout output. It is not automatically written under `docs/tasks/`, is not a `codex:phase` stack entry, and does not consume a package-version patch number. After the Terra High remediation has been applied and its implementation-level validation is green, rerun the original closeout prompt from the beginning against the resulting tree. Only that rerun may establish the accepted final source tree, complete the durable closeout evidence, and declare GREEN.
+
+If the discovered issue is not a behavior-preserving refactor but instead requires a contract/ADR change, new feature scope, or a genuinely new architecture decision, do not disguise it as this remediation path; stop for the normal planning/correction workflow.
+
 For model assessment/planning, treat `Sol Light` as the provisional closeout baseline. A lower-family closeout recommendation is not the normal cost optimization path because the independent-review capability is intentional; use one only when the repository owner explicitly changes this policy or `Sol Light` is unavailable and the workflow is revalidated. A stronger recommendation still requires a concrete observed escalation trigger.
 
-For prompt writing, every newly written closeout prompt MUST contain an explicit code-quality/adversarial second-pass section and must require the durable validation/final report to record whether that pass found defects, what bounded fixes were made, and whether any unresolved finding requires replanning or a correction stack.
+For prompt writing, every newly written closeout prompt MUST contain an explicit code-quality/adversarial second-pass section, MUST inherit the Terra High refactor-handoff behavior above, and must require the durable validation/final report to record whether that pass found defects, what bounded fixes were made, whether a refactor handoff occurred before the final rerun, and whether any unresolved finding requires replanning or a correction stack.
 
 ## `/prompt-ass` model-selection contract
 
@@ -233,7 +253,7 @@ Before writing each task file:
 3. if the exact finalized configuration is unsupported, stop with `Planning needed` rather than substituting a guessed label;
 4. if an implementation task boundary is unchanged and only a safe lower-cost configuration has become available, explicit owner-authorized `/revalidate` may downgrade it without reopening implementation scope; closeout prompts remain subject to the `Sol Light` independent-review baseline above;
 5. never silently upgrade because the generated prompt contains many requirements, tests, or validation commands;
-6. for every closeout prompt, add an explicit code-quality/adversarial second-pass section distinct from the contract/evidence validation matrix and require its outcome in the durable validation/final report.
+6. for every closeout prompt, add an explicit code-quality/adversarial second-pass section distinct from the contract/evidence validation matrix, inherit the Terra High refactor-handoff rule above, and require both outcomes in the durable validation/final report.
 
 The final `MODEL / REASONING / USAGE` block SHOULD contain:
 
@@ -262,11 +282,12 @@ Revalidation should answer:
 - Does it still require the same reasoning effort?
 - Has a cheaper supported configuration become available for an implementation task without crossing the correctness floor?
 - For a closeout, is `Sol Light` still available and does observed complexity require escalation above it?
+- Does the closeout still contain/inherit the required Terra High refactor-handoff behavior?
 - Has implementation drift introduced stronger coupling/security/concurrency risk?
 - Is the prompt long because the task is difficult, or merely because it is explicit?
-- Can redundant prompt prose be removed without weakening contracts, tests, evidence requirements, or the distinct closeout code-quality pass?
+- Can redundant prompt prose be removed without weakening contracts, tests, evidence requirements, the distinct closeout code-quality pass, or its refactor handoff?
 
-Historical completed prompts may retain the configuration used when executed. Unexecuted prompts should be revalidated after a material model-policy or runner-matrix change. Unexecuted closeout prompts written under the prior policy should be updated to the `Sol Light` baseline plus explicit code-quality/adversarial pass before execution when practical.
+Historical completed prompts may retain the configuration used when executed. Unexecuted prompts should be revalidated after a material model-policy or runner-matrix change. Unexecuted closeout prompts written under the prior policy should be updated to the `Sol Light` baseline plus explicit code-quality/adversarial pass and Terra High refactor handoff before execution when practical.
 
 ## Prompt-token discipline
 
