@@ -1,0 +1,154 @@
+TASK: Phase 16 / P6 — Public-feed duplicate suppression
+
+ROADMAP PHASE
+Phase 16 — True duplicate detection and grouping.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Luna Medium`.
+- Model-family basis: P6 is a bounded read-model/query change in the one canonical public-feed repository with explicit eligibility semantics and no new write/state machine.
+- Reasoning basis: Medium reasoning is sufficient to place duplicate eligibility at the correct stream boundary while preserving Source/Category/search filters and keyset pagination.
+- Complexity / quality floor: `Standard`.
+- Estimated usage: `Low`.
+- Lower-cost alternative considered: `Luna Low`; rejected because subtle SQL placement could allow filters/cursors to resurrect non-Primary rows or change pagination ordering.
+- Escalation trigger: source drift has introduced multiple independent public-feed eligibility paths or duplicate suppression cannot be expressed in the existing canonical eligible-items query without redesigning feed discovery.
+- Escalation target: `Terra Medium`.
+- Estimate confidence: `High`.
+- Efficiency rationale: one canonical query currently owns public Article eligibility, making the change small and highly testable; a stronger model is not justified absent new drift.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md`, `docs/codex-model-selection.md`, and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 16 prompt 6 and its assigned project version is `0.16.6`.
+- On first execution, require top-level `package.json` version `0.16.5`; on a rerun of this same P6, `0.16.6` is acceptable.
+- Update only the top-level package version to `0.16.6`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 16 roadmap entry, and P1–P5 tasks plus actual implementation/tests;
+2. read `docs/contracts/article-lifecycle-and-deduplication.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/domain-and-data-contract.md`, and `docs/contracts/testing-and-validation-contract.md`;
+3. inspect `src/public-feed/repository.ts` completely, especially the canonical `eligible_items` query, Source/Category/search filters, cursor continuation, final ordering, and discovery-choice queries;
+4. inspect current public API/router and Phase 12 keyset/filter tests plus Phase 13 browser/public presentation tests;
+5. inspect final P1 group/membership schema and P4 invariants so the feed reads one authoritative Primary without inventing duplicate role columns on Articles;
+6. inspect Article visibility behavior and tests, including hidden/archived rows;
+7. confirm no other ordinary public feed path independently selects Articles; if one exists by source drift, trace it before editing and stop if the approved single-boundary plan is invalid;
+8. stop and report planning drift if P1–P5 topology differs materially from the group-primary model assumed here.
+
+GOAL
+Apply Phase 16's canonical ordinary-feed eligibility rule to the existing public read model:
+
+An Article is eligible only when it already passes Publication/Source/visibility gates AND it is either:
+- ungrouped; or
+- the Primary member of its Duplicate group.
+
+Visible non-Primary members remain stored and administratively available but are suppressed from ordinary public rows.
+
+CANONICAL QUERY PLACEMENT
+Modify the existing canonical Article eligibility stream in `src/public-feed/repository.ts`; do not bolt suppression onto serialization after pagination and do not create a second duplicate-aware feed implementation.
+
+The duplicate condition belongs inside the same `eligible_items` relation/selection that already applies Source trust/lifecycle and Article visibility before keyset continuation/limit/order.
+
+Use the persisted P1 topology as authority. A `NOT EXISTS` or equivalent relational predicate that excludes an Article only when it is a membership whose group Primary is a different Article is preferable to materializing a duplicate-role column.
+
+Required consequences:
+- an Article with no membership remains eligible if all existing gates pass;
+- the group's `primary_article_id` remains eligible if visible and otherwise allowed;
+- every other member is excluded before filtering/pagination output is selected;
+- corrupt/missing topology must not be papered over with heuristic fallback; P1/P4 database invariants own topology correctness.
+
+VISIBILITY REMAINS ORTHOGONAL
+Do not reinterpret hidden/archived state when reading groups.
+
+Cases:
+- visible Primary + visible non-Primary -> only Primary may appear;
+- hidden Primary + visible non-Primary -> no row from that group; do NOT silently promote/resurrect the visible non-Primary;
+- visible Primary + hidden non-Primary -> Primary may appear;
+- hidden/archived ungrouped Article remains excluded by existing visibility rules.
+
+P6 does not mutate Primary or visibility.
+
+DISCOVERY / FILTER / SEARCH SEMANTICS
+Source filter, Category filter, literal keyword search, and keyset pagination must operate over the duplicate-suppressed canonical eligible stream.
+
+Specifically:
+- filtering to the Source of a visible non-Primary must not resurrect it;
+- Category membership on a non-Primary must not resurrect it;
+- a keyword matching only a non-Primary must not resurrect it;
+- combined `q + source + category` remains AND behavior over eligible rows;
+- cursor continuation is computed only from rows that are eligible after duplicate suppression;
+- suppression must not create duplicate/omitted rows across pages in a static result set;
+- effective-feed-date -> `first_seen_at` -> Article-ID ordering remains unchanged;
+- cursor encoding/version/query-binding remain unchanged unless source drift proves a concrete compatibility need.
+
+Do not change Source/Category choice metadata merely to hide options that currently have no eligible row; those choices are separately governed public discovery metadata and are not duplicate roles.
+
+PUBLIC DESTINATION / PRESENTATION
+The selected Primary row still uses its own stored `original_url`, display title, Source name, effective date, and current Category membership exactly as existing feed behavior does.
+
+Do not:
+- synthesize an original-publisher destination from another group member;
+- display an “also reported by” aggregate;
+- combine titles/summaries/categories across members;
+- expose group IDs/internal membership in the basic public feed;
+- alter Publication presentation/timezone behavior.
+
+TESTING
+Add focused integration/database regression coverage at minimum for:
+- visible ungrouped Article remains returned;
+- one group with visible Primary + visible non-Primary returns exactly the Primary;
+- a group with three visible members still returns one Primary row;
+- hidden Primary + visible non-Primary returns no row from that group;
+- hidden non-Primary does not affect visible Primary;
+- Source filter targeting non-Primary Source cannot resurrect it;
+- Category filter matching only non-Primary cannot resurrect it;
+- keyword query matching only non-Primary cannot resurrect it;
+- combined discovery filters cannot bypass suppression;
+- keyset pagination with grouped and ungrouped tie-heavy rows has no duplicates/omissions and preserves ordering;
+- changing which Article is Primary through legitimate persisted topology changes changes the eligible row without deleting either Article;
+- every grouped Article and Article observation remains queryable from persistence even when non-Primary is absent from the feed;
+- public headline destination remains the selected Primary's own `original_url`;
+- current public/private Publication, approved/active Source, and Article visibility gates remain unchanged;
+- existing Phase 12 discovery/filter/search/cursor regressions remain green;
+- existing Phase 13 root/public browser regressions remain green.
+
+Use real disposable PostgreSQL for topology/feed eligibility claims. Browser tests need not add Phase 17 moderation UI; run the existing public browser suite for regression coverage.
+
+PRESERVED BEHAVIOR
+Preserve:
+- canonical root `/` and `/api/feed` routes;
+- singleton Publication public gate;
+- Source approval/lifecycle gates;
+- Article visibility semantics;
+- effective date and ordering;
+- Source/Category discovery metadata contract;
+- literal search and cursor validation;
+- original-publisher headline navigation behavior;
+- Phase 13 loading/theme/responsive/accessibility presentation.
+
+NON-GOALS
+Do not implement:
+- group creation/merging or Primary reselection;
+- duplicate admin/review UI/API;
+- “also reported by” presentation;
+- aggregated member metadata;
+- event clustering;
+- display overrides;
+- Source/Category choice suppression based on current result cardinality.
+
+REQUIRED VALIDATION
+Run focused tests during development, then before completion run at least:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:db`
+- `npm run test:browser`
+- `npm test`
+- `npm run check`
+- `git diff --check`
+
+Confirm `package.json` is `0.16.6`, no npm lockfile exists, suppression is inside the canonical feed eligibility path before pagination, and no moderation/UI scope was pulled forward.
+
+FINAL REPORT
+Report files changed, exact feed eligibility predicate placement, visibility/filter/cursor behavior, focused/database/browser regression commands actually run/results, and any limitation. Do not claim Phase 16 closeout until P7 is executed manually.
