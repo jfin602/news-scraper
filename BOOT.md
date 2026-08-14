@@ -76,7 +76,7 @@ Governed by `docs/contracts/domain-and-data-contract.md` plus `docs/decisions/si
 
 - `repo` / `source code` = `jfin602/news-scraper`
 - `Platform` = reusable aggregation software deployed/configured separately for different topics
-- `Publication` = the singleton configured news product/editorial configuration for one installation; **not** a relational tenancy key
+- `Publication` = the singleton configured news product/editorial configuration for one installation; **not** a relational tenant/ownership key
 - `legacy Publication selector` = obsolete pre-production implementation plumbing such as Publication IDs/slugs/FKs/scopes that the canonical model does not use
 - `Source` = configured publisher/outlet; approval state determines whether it is trusted for collection
 - `Source endpoint` = configured feed/API/HTML location owned by a Source
@@ -772,3 +772,76 @@ Recommend the single most logical next task.
 # Command modifiers
 
 `--deep`, `--quick`, `--docs-only`, `--code-only`, `--no-write`, `--prompt-only`, `--file-scoped`, `--regression-safe`, `--latest`, `--browser`, `--db`, `--tests`, `--contracts`, `--sources`, `--dedupe`, `--security`, `--reassess`.
+
+# Codex prompt requirements
+
+Finished implementation prompts normally include Task, Context, Current/Required behavior, roadmap phase, stack type, finalized `MODEL / REASONING / USAGE` block, governing contracts/ADRs/laws, inspected source, allowed/forbidden files, constraints, preserved behavior, applicable security/provenance/idempotency/failure-isolation implications, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs updates, acceptance criteria, and non-goals.
+
+Machine-significant fields are stricter than prose. Every roadmap/correction task uses canonical folder/filename numbering, one canonical `TASK:` header, one exact recommended-configuration line, and filename-plus-`TASK:` closeout convention. Roadmap prompts additionally use exactly one `assigned project version is ...` phrase. Correction prompts instead use exactly one required-unchanged-version line and MUST NOT use assigned-version metadata. Targeted UI prompts under `docs/design/tasks/` are outside this parser grammar and follow `docs/design/ui-workflow.md` instead.
+
+Every implementation prompt inherits testing contract. Tests are not optional cleanup; prerequisites cannot silently skip green; claims cannot exceed evidence. Prompts distinguish focused iterative validation from final-tree validation and use the smallest non-overlapping final command set that covers all applicable evidence.
+
+Collection prompts preserve singleton Publication global collection-active state, Source/endpoint approval/lifecycle/operational boundaries, truthful Collection runs, pre-request network safety, run isolation, retry limits, Source-domain policy, optional Source RSS/Atom item admission before normalization, and deterministic collection tests without safety bypasses. They do not add Publication selectors/tenant scopes or conflate Source admission mismatches with Relevance exclusions/Article observations.
+
+Persistence/identity prompts preserve Source-scoped Article identity, canonical Relevance ordering, transactional idempotency, Article observations, real-PostgreSQL constraints/concurrency/migration behavior where applicable, and rollback. Publication tenancy is not introduced as future-proofing.
+
+Publication/Relevance prompts preserve topic independence, singleton Publication configuration, immutable installation-wide Category/rule configuration keys, the bounded literal predicate vocabulary, installation-wide plus Source-scoped deterministic precedence, additive categorization/default fallback, pre-identity `excluded` accounting, prospective-by-default edits, and the full Phase 11 deterministic/real-PostgreSQL validation matrix. They do not create Publication tenant FKs/scopes or generic ranking/expression engines.
+
+Duplicate prompts preserve every Article/observation, exactly one Primary/group, review-state persistence, false-positive safeguards, manual reversibility, and regression corpus coverage; duplicate state is installation-wide.
+
+Public-feed prompts preserve singleton public exposure, Source approval/lifecycle trust, Article visibility + ungrouped-or-Primary eligibility, deterministic published-at/first-seen semantics, bounded safe output, and stored `original_url`. Routing is `GET /` and `GET /api/feed`; no Publication selector/scoping argument.
+
+UI prompts preserve the same public-feed/domain behavior while changing approved presentation. Shared frontend/runtime files may be changed only when explicitly planned; material backend/domain changes are routed out of the UI workstream. UI prompts never change project version or roadmap state.
+
+Admin prompts preserve Cloudflare Access/origin protection, request integrity, real resource-relationship/domain-invariant validation, singleton Publication configuration, Source-owned include-only RSS/Atom admission semantics where applicable, and prohibition on unnecessary native identity/account work, multi-Publication selectors, or Publication tenant authorization.
+
+Historical Phase 10 singleton-correction prompts established the smallest canonical migration-from-zero schema, deleted/squashed/replaced superseded pre-production migrations, removed Publication tenancy/selectors and legacy-only compatibility source/API/type/test/fixture/config paths throughout the active tree, and required database/regression/browser proof before correction closeout. Do not reintroduce that superseded compatibility surface.
+
+# Repository modification rules
+
+- Do not modify/commit unless authorized by current request/command.
+- `/closeout` performs only bounded handoff verification and green-path version-only `package.json` transition.
+- A correction stack's final manual closeout validates/clears correction while preserving unchanged package version/active phase.
+- `/docs-review` never writes.
+- `/docs-apply` writes only approved docs; invocation authorizes documentation-only changes on `main` unless branch/PR/isolation is requested.
+- `/docs-prompt` never writes repository files; from an approved docs review and supplied docs snapshot, it emits only one docs-only Codex implementation prompt.
+- `/prompt-ass` and `/prompt-plan` never write.
+- `/prompt-write` writes only approved task files in established phase/correction folder.
+- `/ui-review` never writes.
+- `/ui-apply` writes only approved substantive design guidance under `docs/design/` excluding `docs/design/tasks/`, on the `ui-polish` workstream; it does not implement source, write prompts, change version/roadmap state, or merge branches.
+- `/ui-plan` never writes.
+- `/ui-write` writes only the approved single UI prompt under `docs/design/tasks/` on the `ui-polish` workstream.
+- UI implementation is non-versioned: it MUST NOT change `package.json` version, consume roadmap prompt numbers, advance roadmap/correction state, or create a phase/correction closeout.
+- Do not run UI implementation in the same working tree used by an active phase/correction runner; keep concurrent work isolated on `ui-polish`/its worktree.
+- Do not merge `ui-polish` into `main` automatically; integration requires review and explicit authorization.
+- Documentation/prompt/review activity, including `/docs-prompt`, does not change package version or roadmap/correction/UI state except for an explicit `/closeout` baseline transition; correction execution and UI work are non-versioned.
+- No task writes while `Planning needed` remains unresolved.
+- No speculative compatibility bridges or permanent dual schemas.
+- Before production compatibility is established, delete legacy-only migration/code/API/type/test/fixture/configuration artifacts rather than preserving superseded pre-production behavior in the active tree.
+- No topic conditionals in shared engine code.
+- No concurrent multi-topic/multi-Publication hosting behavior inside one installation unless later explicit locked contract/ADR authorizes it.
+- Do not introduce relational Publication tenancy, IDs, slugs, FKs, uniqueness scopes, selector parameters, or authorization scopes solely because concurrent hosting might be useful someday.
+- Do not remove singleton Publication editorial/configuration behavior or genuine Source/endpoint/run/Article/observation integrity while removing tenancy plumbing.
+- No public/Worker/bootstrap runtime Publication selector whose purpose is choosing among topics in one installation.
+- No Source/endpoint approval/state bypass or silent whitelist expansion.
+- No parser-to-Article direct persistence.
+- No Web/API inline Source fetching.
+- No bypass of Relevance boundary even before configurable rules exist.
+- No Phase 11 Relevance path that runs after identity merely to make exclusion easier; excluded candidates terminate before identity under the governing contract.
+- No automatic historical Article mutation caused merely by editing a Relevance rule.
+- No deletion of Article/observation provenance because duplicate suppression exists.
+- No weakening identity/duplicate/security/testing boundaries to make tests pass.
+- No silent-green required suite caused by missing prerequisites, skipped coverage, or zero matches.
+- No MVP native administrator account/session/role subsystem unless explicitly promoted.
+- Search all references before renames.
+- Do not report tests/runtime/browser/database/live-Source behavior as verified unless observed at appropriate evidence level.
+- Do not create PRs, merge, force-update history, or perform non-document history changes unless explicitly instructed.
+- Preserve smallest viable diff for scoped fixes.
+
+# Pre-production compatibility rule
+
+Prefer one canonical design. Do not add old/new aliases, duplicate synchronized fields, fallback paths, dormant tenant columns, or speculative migration compatibility. Before production database compatibility is established, databases created by older source trees are disposable and the active migration/runtime/test/config tree MUST be reduced to the smallest current canonical design. Delete/squash/replace legacy-only migrations, compatibility wrappers/APIs/types, obsolete tests/fixtures, slug-addressed public/runtime routing, Publication-scoped repository APIs, and obsolete configuration paths when they have no independent current purpose. Historical implementation detail remains available in Git history, superseded ADRs, historical task prompts, and validation artifacts instead of active compatibility machinery.
+
+# Boot maintenance
+
+Update BOOT when phase, core paths, terminology, commands, authority, locked laws, modification conventions, task-stack grammar, UI-workstream workflow/branch rules, versioning/prompt-numbering conventions, branch, repository identity, critical delivery ordering, foundational security/deployment/data-model decisions, or project-wide testing/validation policy changes.
