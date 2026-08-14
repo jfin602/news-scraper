@@ -125,29 +125,30 @@ Report authoritative conflicts rather than choosing silently.
 
 ## Document routing
 
-| Area | Read first |
-| --- | --- |
-| Locked laws / authority / product boundaries | `docs/contracts/project-contract.md` |
-| MVP users / demo-first capabilities / exclusions | `docs/contracts/mvp-scope-and-users.md` |
-| Terminology / singleton model / entities / identity / provenance / Category/Relevance schema | `docs/contracts/domain-and-data-contract.md` |
-| Testing / regression / evidence / DB/fixture/browser/live validation | `docs/contracts/testing-and-validation-contract.md` |
-| Process/module architecture / deployment / Worker / scheduling / transactions | `docs/architecture/system-architecture.md` |
-| Approval / bootstrap / collection / safety / Source RSS/Atom item admission / normalization / Relevance / operator configuration / identity / run accounting | `docs/contracts/source-and-collection-contract.md` |
-| Article visibility / duplicate role / review/groups / Primary | `docs/contracts/article-lifecycle-and-deduplication.md` |
-| Public feed / root routing / search / themes / admin UX / change history | `docs/contracts/public-feed-and-admin-contract.md` |
-| UI design / presentation workflow / parallel UI branch | `docs/design/README.md`, then `docs/design/ui-workflow.md` |
-| Admin perimeter / SSRF / content safety / isolation / observability / recovery | `docs/operations/security-reliability-and-operations.md` |
-| Phase sequence / correction history / exit gates | `docs/roadmap/mvp-roadmap.md` |
-| Singleton Publication data-model decision | `docs/decisions/single-publication-simplified-data-model.md` |
-| Historical superseded data-model decision | `docs/decisions/topic-independent-publication-model.md` |
-| Whitelist/structured-feed decision | `docs/decisions/whitelist-and-structured-feed-first.md` |
-| Original-link/normalization decision | `docs/decisions/original-link-and-normalized-metadata.md` |
-| Cloudflare Access admin perimeter | `docs/decisions/cloudflare-access-admin-perimeter.md` |
-| Documentation index | `docs/README.md` |
-| Specialized validation plans | `docs/testing/` when present |
-| Roadmap/correction implementation prompts | `docs/tasks/` when present |
-| Targeted UI prompts | `docs/design/tasks/` when present |
-| Durable validation artifacts | `docs/validation/` when present |
+| Area                                                                                                                                                         | Read first                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| Locked laws / authority / product boundaries                                                                                                                 | `docs/contracts/project-contract.md`                         |
+| MVP users / demo-first capabilities / exclusions                                                                                                             | `docs/contracts/mvp-scope-and-users.md`                      |
+| Terminology / singleton model / entities / identity / provenance / Category/Relevance schema                                                                 | `docs/contracts/domain-and-data-contract.md`                 |
+| Testing / regression / evidence / DB/fixture/browser/live validation                                                                                         | `docs/contracts/testing-and-validation-contract.md`          |
+| Process/module architecture / deployment / Worker / scheduling / transactions                                                                                | `docs/architecture/system-architecture.md`                   |
+| Approval / bootstrap / collection / safety / Source RSS/Atom item admission / normalization / Relevance / operator configuration / identity / run accounting | `docs/contracts/source-and-collection-contract.md`           |
+| Article visibility / duplicate role / review/groups / Primary                                                                                                | `docs/contracts/article-lifecycle-and-deduplication.md`      |
+| Public feed / root routing / search / themes / admin UX / change history                                                                                     | `docs/contracts/public-feed-and-admin-contract.md`           |
+| UI design / presentation workflow / parallel UI branch                                                                                                       | `docs/design/README.md`, then `docs/design/ui-workflow.md`   |
+| Admin perimeter / SSRF / content safety / isolation / observability / recovery                                                                               | `docs/operations/security-reliability-and-operations.md`     |
+| Phase sequence / correction history / exit gates                                                                                                             | `docs/roadmap/mvp-roadmap.md`                                |
+| Singleton Publication data-model decision                                                                                                                    | `docs/decisions/single-publication-simplified-data-model.md` |
+| Historical superseded data-model decision                                                                                                                    | `docs/decisions/topic-independent-publication-model.md`      |
+| Whitelist/structured-feed decision                                                                                                                           | `docs/decisions/whitelist-and-structured-feed-first.md`      |
+| Original-link/normalization decision                                                                                                                         | `docs/decisions/original-link-and-normalized-metadata.md`    |
+| Cloudflare Access admin perimeter                                                                                                                            | `docs/decisions/cloudflare-access-admin-perimeter.md`        |
+| Codex model/reasoning selection and prompt efficiency                                                                                                        | `docs/codex-model-selection.md`                              |
+| Documentation index                                                                                                                                          | `docs/README.md`                                             |
+| Specialized validation plans                                                                                                                                 | `docs/testing/` when present                                 |
+| Roadmap/correction implementation prompts                                                                                                                    | `docs/tasks/` when present                                   |
+| Targeted UI prompts                                                                                                                                          | `docs/design/tasks/` when present                            |
+| Durable validation artifacts                                                                                                                                 | `docs/validation/` when present                              |
 
 If a path does not exist, search for its current equivalent before assuming intentional deletion.
 
@@ -290,41 +291,53 @@ Commands are conversational shorthand, not shell commands.
 ## Context
 
 ### `/boot`
+
 Refresh BOOT, root summaries, project contract, roadmap, and narrow governing docs.
 
 ### `/refresh <area>`
+
 Re-read relevant source/docs/tests/recent commits.
 
 ### `/state`
+
 Summarize implementation state, active phase, completed work, constraints, next logical work.
 
 ### `/route <topic>`
+
 Identify governing contracts/ADRs/source/tests/tasks.
 
 ## Analysis
 
 ### `/audit <area>`
+
 Compare contracts, ADRs, source, tests, recent changes, observable behavior; report disagreements/risks.
 
 ### `/contract-check <area>`
+
 Check implementation/tests against governing contracts/laws.
 
 ### `/doc-check <area>`
+
 Narrow documentation consistency check; does not replace full `/docs-review`.
 
 ### `/source-trace <source or behavior>`
+
 Trace singleton configuration → Source → endpoint → approval/lifecycle/operational state → scheduling/job/manual execution → lock/run → safety → fetch → parse/normalize → link validation → Relevance → Source-scoped identity/observation → duplicate → run/health → consumers/tests.
 
 ### `/article-trace <field or concept>`
+
 Trace Raw item → candidate → Relevance/Category assignment → Source-scoped Article identity/persistence → observations → overrides → duplicate role → feed/admin/tests.
 
 ### `/dedupe-trace <case>`
+
 Trace Article identity separately from true-duplicate evidence, review state, groups, Primary, safeguards, moderation, feed/tests.
 
 ### `/blast-radius <change>`
+
 Identify affected contracts, ADRs, schema/migrations, jobs/services/routes/read models/UI/tests/docs.
 
 ### `/regression <behavior>`
+
 Trace suspected regression to likely change, affected invariants, missing test protection, and evidence level required to prove a fix.
 
 # Phase handoff workflow
@@ -516,9 +529,9 @@ Runner fail-closed execution invariants: clean working tree, no `package-lock.js
 
 ## Prompt model/reasoning and usage selection
 
-Every implementation and closeout task MUST carry an explicit recommended Codex model/reasoning configuration and token/credit-usage estimate. Model choice and reasoning effort are separate dimensions; there is no repository-defined linear ladder such as `Terra Max` or `Sol Max`.
+Every implementation and closeout task MUST carry an explicit recommended Codex model/reasoning configuration and token/credit-usage estimate. Model family and reasoning effort are separate dimensions; there is no repository-defined linear ladder such as `Terra Max` or `Sol Max`. Use `docs/codex-model-selection.md` for the detailed selection workflow.
 
-Use exact model/reasoning labels currently available in the runner. Never invent a name or assume a more expensive model is inherently the safer recommendation.
+Use exact model/reasoning labels currently available in the runner: `Luna Low`, `Luna Medium`, `Luna High`, `Terra Medium`, `Terra High`, `Terra Ultra`, `Sol Light`, `Sol Medium`, `Sol High`, and `Sol Ultra`. Never invent a name or assume a more expensive model is inherently the safer recommendation.
 
 ### Minimum-adequate usage-conservation rule
 
@@ -538,18 +551,20 @@ High-cost recommendations must therefore be earned by concrete evidence such as 
 
 Complexity class describes the task's correctness/risk shape; it does **not** map mechanically to a model tier.
 
-| Class | Typical task shape |
-| --- | --- |
-| `Standard` | Bounded implementation, leaf modules, straightforward migrations/repositories, deterministic tests, contained refactors. Expect the most economical adequate configuration. |
-| `Elevated` | Subtle validation/state behavior, security-sensitive narrow policy, meaningful persistence semantics, or difficult edge cases. Still prefer an economical workhorse when the behavior is explicit and bounded. |
-| `High` | Cross-cutting integration, multiple interacting modules, concurrency/transaction ownership, shared infrastructure, high-risk security, or broad regression surface. A higher class permits escalation but does not itself prove that Sol/Ultra is needed. |
-| `Critical` | Rare work combining several high-risk dimensions where the strongest available reasoning is materially justified. Treat this classification as exceptional and state why cheaper configurations are inadequate. |
+| Class      | Typical task shape                                                                                                                                                                                                                                        |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Standard` | Bounded implementation, leaf modules, straightforward migrations/repositories, deterministic tests, contained refactors. Expect the most economical adequate configuration.                                                                               |
+| `Elevated` | Subtle validation/state behavior, security-sensitive narrow policy, meaningful persistence semantics, or difficult edge cases. Still prefer an economical workhorse when the behavior is explicit and bounded.                                            |
+| `High`     | Cross-cutting integration, multiple interacting modules, concurrency/transaction ownership, shared infrastructure, high-risk security, or broad regression surface. A higher class permits escalation but does not itself prove that Sol/Ultra is needed. |
+| `Critical` | Rare work combining several high-risk dimensions where the strongest available reasoning is materially justified. Treat this classification as exceptional and state why cheaper configurations are inadequate.                                           |
 
 ### Required usage estimate
 
 `/prompt-ass` and `/prompt-plan` provide for each prompt:
 
 - **Recommended configuration:** exact current model + reasoning choice.
+- **Model-family basis:** why Luna, Terra, or Sol capability is needed.
+- **Reasoning basis:** why the selected effort is needed independently of model family.
 - **Complexity / quality floor:** `Standard`, `Elevated`, `High`, or `Critical`, with concise rationale.
 - **Estimated usage:** `Low`, `Moderate`, `High`, or `Very High`.
 - **Lower-cost alternative considered:** the most relevant cheaper configuration, or state that the recommendation is already the lowest adequate current option.
@@ -574,9 +589,9 @@ Correctness and validation requirements remain mandatory; this discipline remove
 
 ### Workflow ownership
 
-- `/prompt-ass` starts from the lowest-cost plausible current configuration and escalates only with an explicit task-specific trigger; it records provisional recommendation/complexity/usage/lower-cost alternative/escalation/rationale.
-- `/prompt-plan` reassesses after source-level investigation. It MUST downgrade when investigation makes the task more bounded/explicit than provisionally assessed, and may upgrade only when newly observed complexity demonstrates that the cheaper configuration is inadequate.
-- `/prompt-write` writes the finalized minimum-adequate `MODEL / REASONING / USAGE` block and keeps implementation prose concise under the token-discipline rules above.
+- `/prompt-ass` starts from the lowest-cost plausible current configuration and escalates only with an explicit task-specific trigger. It records provisional task classification, model-family basis, reasoning basis, recommendation, complexity, usage, lower-cost alternative, escalation trigger/target, and rationale.
+- `/prompt-plan` is the final model gate after source-level investigation. It MUST reassess from observed source evidence, downgrade when investigation makes the task more bounded/explicit than provisionally assessed, and may upgrade only when newly observed complexity demonstrates that the cheaper configuration is inadequate. It records a `Downgraded`, `Unchanged`, or `Escalated` delta.
+- `/prompt-write` consumes the finalized `/prompt-plan` decision, validates its exact label against current `MODEL_CONFIGS`, writes the finalized minimum-adequate `MODEL / REASONING / USAGE` block, and keeps implementation prose concise under the token-discipline rules above. It MUST NOT speculate upward because of prompt length, importance, or validation volume.
 - Material boundary/quality change during revalidation returns `Planning needed` rather than silently changing approved implementation scope. A model-only downgrade under the same task boundary may be applied during explicit revalidation/owner-authorized task maintenance.
 - `/revalidate` compares existing prompt/stack to current repo/contracts/model-usage policy and actively looks for safe downgrades as well as necessary upgrades.
 - Historical completed prompts may retain model/effort wording in force when executed; unexecuted obsolete or over-provisioned labels require revalidation before execution when the policy has materially changed.
@@ -604,7 +619,7 @@ Project versions use `0.<roadmap phase>.<phase prompt number>` for roadmap phase
 
 Determine safe task boundaries from established behavior/contracts/roadmap. No writes.
 
-Return target behavior, constraints, roadmap phase, stack type (`phase` or `correction`), prompt count/order, goal/summary/dependencies/boundary rationale/deferred behavior, closeout task when needed, and per-prompt provisional model/complexity/usage/lower-cost alternative/escalation trigger/confidence/rationale. For correction stacks, identify correction slug and package version that must remain unchanged from `package.json`.
+Return target behavior, constraints, roadmap phase, stack type (`phase` or `correction`), prompt count/order, goal/summary/dependencies/boundary rationale/deferred behavior, closeout task when needed, and per-prompt provisional task classification, model-family basis, reasoning basis, model/effort recommendation, complexity/usage/lower-cost alternative/escalation trigger/target/confidence/rationale. For correction stacks, identify correction slug and package version that must remain unchanged from `package.json`.
 
 Testing is part of task-boundary assessment: each prompt should own focused tests and appropriate broader regression impact without becoming monolithic.
 
@@ -612,7 +627,7 @@ Testing is part of task-boundary assessment: each prompt should own focused test
 
 Requires completed `/prompt-ass` in current conversation. Perform source-level planning for every assessed prompt: contracts/ADRs, implementation, schemas/migrations, process roles, helpers/consumers/tests/recent changes, likely file scope, preserved behavior, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs implications, acceptance criteria, non-goals.
 
-Reassess model/reasoning/complexity/usage/lower-cost alternative/escalation trigger/rationale under the minimum-adequate usage-conservation rule. Preserve the correctness floor, but do not retain an expensive provisional rating merely because it is safer in the abstract. Reconfirm stack type and correction unchanged-version invariant. Material boundary revisions produce `Planning needed`. No writes.
+Use observed source evidence to make the final model gate: reassess family, reasoning, complexity, usage, lower-cost alternative, escalation trigger/target, and rationale under the minimum-adequate usage-conservation rule, and record a `Downgraded`, `Unchanged`, or `Escalated` delta from `/prompt-ass`. Preserve the correctness floor, but do not retain an expensive provisional rating merely because it is safer in the abstract. Reconfirm stack type and correction unchanged-version invariant. Material boundary revisions produce `Planning needed`. No writes.
 
 ## `/prompt-write <folder name>`
 
@@ -620,7 +635,7 @@ Requires completed unblocked `/prompt-plan`. Revalidate current repo/docs and wr
 
 Roadmap phase folders use `p<number>`. Correction folders use `c<roadmap-phase>-<lower-kebab-slug>`.
 
-Each prompt includes finalized `MODEL / REASONING / USAGE` block. Roadmap tasks use assigned-version metadata; correction tasks use required-unchanged-version metadata.
+Each prompt includes the finalized `MODEL / REASONING / USAGE` block and its exact recommendation label MUST exist in current `MODEL_CONFIGS`. Roadmap tasks use assigned-version metadata; correction tasks use required-unchanged-version metadata. Do not upgrade only because prompt length, importance, or validation volume feels substantial.
 
 After writing, perform applicable runner prompt-file grammar check before reporting ready. If revalidation reveals materially changed boundary, stack type, unchanged-version invariant, or quality floor, return `Planning needed` rather than silently changing approved plan. Do not overwrite existing tasks without explicit authorization.
 
@@ -723,15 +738,19 @@ Honor current contracts, state separation, security, provenance, idempotency, fa
 # Decision commands
 
 ### `/lock <decision>`
+
 Treat decision as authoritative direction and identify affected contracts/ADRs/root/task docs. Do not modify files unless instructed. Locked-law amendments use project-contract process.
 
 ### `/recommend`
+
 Choose best option using contracts, architecture, roadmap, user value, security/reliability, implementation risk.
 
 ### `/status`
+
 Return only: Completed / Current / Blocked / Next.
 
 ### `/next`
+
 Recommend the single most logical next task.
 
 # Command modifiers

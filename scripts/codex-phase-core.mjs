@@ -1,16 +1,25 @@
 import { clearScreenDown, cursorTo, moveCursor } from 'node:readline';
 
 export const MODEL_CONFIGS = Object.freeze({
+  'Luna Low': Object.freeze({ model: 'gpt-5.6-luna', reasoning: 'low' }),
+  'Luna Medium': Object.freeze({ model: 'gpt-5.6-luna', reasoning: 'medium' }),
+  'Luna High': Object.freeze({ model: 'gpt-5.6-luna', reasoning: 'high' }),
+  'Terra Medium': Object.freeze({
+    model: 'gpt-5.6-terra',
+    reasoning: 'medium',
+  }),
   'Terra High': Object.freeze({ model: 'gpt-5.6-terra', reasoning: 'high' }),
   'Terra Ultra': Object.freeze({ model: 'gpt-5.6-terra', reasoning: 'ultra' }),
   'Sol Light': Object.freeze({ model: 'gpt-5.6-sol', reasoning: 'low' }),
+  'Sol Medium': Object.freeze({ model: 'gpt-5.6-sol', reasoning: 'medium' }),
   'Sol High': Object.freeze({ model: 'gpt-5.6-sol', reasoning: 'high' }),
   'Sol Ultra': Object.freeze({ model: 'gpt-5.6-sol', reasoning: 'ultra' }),
 });
 
 const VALID_CONCRETE_CONFIGS = Object.freeze({
-  'gpt-5.6-terra': Object.freeze(new Set(['high', 'ultra'])),
-  'gpt-5.6-sol': Object.freeze(new Set(['low', 'high', 'ultra'])),
+  'gpt-5.6-luna': Object.freeze(new Set(['low', 'medium', 'high'])),
+  'gpt-5.6-terra': Object.freeze(new Set(['medium', 'high', 'ultra'])),
+  'gpt-5.6-sol': Object.freeze(new Set(['low', 'medium', 'high', 'ultra'])),
 });
 
 export function resolveModelConfig(recommendation) {

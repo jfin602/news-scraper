@@ -3,6 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { EventEmitter } from 'node:events';
 import { writeFileSync } from 'node:fs';
 import {
+  access,
   mkdir,
   mkdtemp,
   readFile,
@@ -44,8 +45,12 @@ const {
 } = core;
 const {
   buildCodexArguments,
+  assertCodexVersionCompatible,
   checkCodexLauncher,
+  compareNumericVersions,
   commitPromptChanges,
+  MINIMUM_GPT_5_6_CODEX_VERSION,
+  parseCodexCliVersion,
   invokeGit,
   resolveCodexLauncher,
   runCodex,
@@ -58,6 +63,7 @@ const directTestLauncher = Object.freeze({
   type: 'test',
   identity: 'injected test launcher',
 });
+const compatibleCodexVersion = 'codex-cli 0.147.0';
 
 const resolveTestNpmLauncher = (
   checkLauncher: (launcher: {
@@ -152,7 +158,10 @@ const commitMessage = (rootDirectory: string, revision = 'HEAD') => {
   return raw.slice(raw.indexOf('\n\n') + 2);
 };
 
-const createPhaseRepository = async (implementationCount = 2) => {
+const createPhaseRepository = async (
+  implementationCount = 2,
+  config = 'Terra High',
+) => {
   const rootDirectory = await mkdtemp(
     path.join(tmpdir(), 'news-scraper-phase-git-test-'),
   );
@@ -168,13 +177,13 @@ const createPhaseRepository = async (implementationCount = 2) => {
     '.codex-runs/\npackage-lock.json\n.env*\n',
   );
   for (let number = 1; number <= implementationCount; number += 1) {
-    const entry = prompt(number);
+    const entry = prompt(number, { config });
     await writeFile(
       path.join(rootDirectory, 'docs', 'tasks', 'p8', entry.filename),
       entry.text,
     );
   }
-  const closeout = prompt(implementationCount + 1, { closeout: true });
+  const closeout = prompt(implementationCount + 1, { closeout: true, config });
   await writeFile(
     path.join(rootDirectory, 'docs', 'tasks', 'p8', closeout.filename),
     closeout.text,
@@ -262,9 +271,14 @@ const testOutput = (interactive = false) => {
 
 test('resolves every repository recommendation to its verified concrete CLI configuration', () => {
   const expected: Record<string, { model: string; reasoning: string }> = {
+    'Luna Low': { model: 'gpt-5.6-luna', reasoning: 'low' },
+    'Luna Medium': { model: 'gpt-5.6-luna', reasoning: 'medium' },
+    'Luna High': { model: 'gpt-5.6-luna', reasoning: 'high' },
+    'Terra Medium': { model: 'gpt-5.6-terra', reasoning: 'medium' },
     'Terra High': { model: 'gpt-5.6-terra', reasoning: 'high' },
     'Terra Ultra': { model: 'gpt-5.6-terra', reasoning: 'ultra' },
     'Sol Light': { model: 'gpt-5.6-sol', reasoning: 'low' },
+    'Sol Medium': { model: 'gpt-5.6-sol', reasoning: 'medium' },
     'Sol High': { model: 'gpt-5.6-sol', reasoning: 'high' },
     'Sol Ultra': { model: 'gpt-5.6-sol', reasoning: 'ultra' },
   };
@@ -282,6 +296,71 @@ test('unknown recommendations still fail closed', () => {
     () => parsePrompt('P1-task.txt', prompt(1, { config: 'Terra Max' }).text),
     /Unknown/,
   );
+});
+
+test('GPT-5.6 Codex CLI versions are parsed and compared numerically', () => {
+  assert.deepEqual(parseCodexCliVersion('codex-cli 0.144.0'), [0, 144, 0]);
+  assert.deepEqual(parseCodexCliVersion('codex-cli 0.147.3'), [0, 147, 3]);
+  assert.equal(
+    compareNumericVersions([0, 144, 0], MINIMUM_GPT_5_6_CODEX_VERSION),
+    0,
+  );
+  assert.equal(
+    compareNumericVersions([0, 145, 0], MINIMUM_GPT_5_6_CODEX_VERSION),
+    1,
+  );
+  assert.equal(
+    compareNumericVersions([0, 143, 9], MINIMUM_GPT_5_6_CODEX_VERSION),
+    -1,
+  );
+  assert.equal(parseCodexCliVersion('codex-cli latest'), undefined);
+
+  const plan = buildPlan([prompt(1), prompt(2, { closeout: true })], 'p8');
+  assert.doesNotThrow(() =>
+    assertCodexVersionCompatible(plan, 'codex-cli 0.144.0'),
+  );
+  assert.doesNotThrow(() =>
+    assertCodexVersionCompatible(plan, 'codex-cli 1.0.0'),
+  );
+  assert.throws(
+    () => assertCodexVersionCompatible(plan, 'codex-cli 0.143.9'),
+    /0\.143\.9.*>= 0\.144\.0/,
+  );
+  assert.throws(
+    () => assertCodexVersionCompatible(plan, 'unparseable'),
+    /Cannot verify GPT-5\.6 compatibility.*>= 0\.144\.0/,
+  );
+});
+
+test('incompatible GPT-5.6 CLI versions fail before Codex or run artifacts', async () => {
+  const rootDirectory = await createPhaseRepository(1, 'Luna Medium');
+  let codexCalls = 0;
+  try {
+    for (const [version, expectedError] of [
+      ['codex-cli 0.143.9', /0\.143\.9.*>= 0\.144\.0/],
+      ['unparseable version', /Cannot verify GPT-5\.6 compatibility/],
+    ] as const) {
+      await assert.rejects(
+        runCli(['p8'], {
+          rootDirectory,
+          stdout: testOutput(false),
+          resolveLauncher: async () => ({
+            launcher: directTestLauncher,
+            version,
+          }),
+          runCodexProcess: async () => {
+            codexCalls += 1;
+            throw new Error('Codex must not run for an incompatible CLI.');
+          },
+        }),
+        expectedError,
+      );
+    }
+    assert.equal(codexCalls, 0);
+    await assert.rejects(access(path.join(rootDirectory, '.codex-runs')));
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
 });
 
 test('resolves an invocable Windows native codex.exe before npm shims', async () => {
@@ -760,17 +839,29 @@ test('runCodex rejects malformed output emitted immediately before child close',
   }
 });
 
-test('Codex arguments retain JSON events, exact model effort, and native final output', () => {
-  const parsed = parsePrompt(
-    prompt(1, { config: 'Sol Ultra' }).filename,
-    prompt(1, { config: 'Sol Ultra' }).text,
-  );
-  const arguments_ = buildCodexArguments(
-    parsed,
+test('Codex arguments retain JSON events and exact model efforts', () => {
+  const lunaMedium = prompt(1, { config: 'Luna Medium' });
+  const lunaArguments = buildCodexArguments(
+    parsePrompt(lunaMedium.filename, lunaMedium.text),
     'C:\\repo',
     'C:\\run\\final.txt',
   );
-  assert.deepEqual(arguments_.slice(0, 6), [
+  assert.deepEqual(lunaArguments.slice(0, 6), [
+    'exec',
+    '--json',
+    '--model',
+    'gpt-5.6-luna',
+    '-c',
+    'model_reasoning_effort="medium"',
+  ]);
+
+  const ultra = prompt(1, { config: 'Sol Ultra' });
+  const ultraArguments = buildCodexArguments(
+    parsePrompt(ultra.filename, ultra.text),
+    'C:\\repo',
+    'C:\\run\\final.txt',
+  );
+  assert.deepEqual(ultraArguments.slice(0, 6), [
     'exec',
     '--json',
     '--model',
@@ -778,7 +869,7 @@ test('Codex arguments retain JSON events, exact model effort, and native final o
     '-c',
     'model_reasoning_effort="ultra"',
   ]);
-  assert.deepEqual(arguments_.slice(6, 8), [
+  assert.deepEqual(ultraArguments.slice(6, 8), [
     '--output-last-message',
     'C:\\run\\final.txt',
   ]);
@@ -1332,7 +1423,7 @@ test('phase loop commits each prompt before the next starts with exact multiline
       stdout: output,
       resolveLauncher: async () => ({
         launcher: directTestLauncher,
-        version: 'codex-test 1.0.0',
+        version: compatibleCodexVersion,
       }),
       spawnSyncProcess: (
         command: string,
@@ -1525,7 +1616,7 @@ test('roadmap resume skips a proven prefix across unrelated commits and records 
       stdout: output,
       resolveLauncher: async () => ({
         launcher: directTestLauncher,
-        version: 'codex-test 1.0.0',
+        version: compatibleCodexVersion,
       }),
       runCodexProcess: async (parsedPrompt: { number: number }) => {
         codexCalls.push(parsedPrompt.number);
@@ -1592,7 +1683,7 @@ test('roadmap resume after P1 starts P2 even when an unrelated commit is newer',
       stdout: testOutput(false),
       resolveLauncher: async () => ({
         launcher: directTestLauncher,
-        version: 'test',
+        version: compatibleCodexVersion,
       }),
       runCodexProcess: async (parsedPrompt: { number: number }) => {
         codexCalls.push(parsedPrompt.number);
@@ -1629,7 +1720,7 @@ test('all completed roadmap prompts launch no Codex process and retain manual cl
         stdout: output,
         resolveLauncher: async () => ({
           launcher: directTestLauncher,
-          version: 'test',
+          version: compatibleCodexVersion,
         }),
         runCodexProcess: async () => {
           codexCalls += 1;
@@ -1664,7 +1755,7 @@ test('correction resume uses the exact subject and tolerates a newer unrelated c
       stdout: testOutput(false),
       resolveLauncher: async () => ({
         launcher: directTestLauncher,
-        version: 'test',
+        version: compatibleCodexVersion,
       }),
       runCodexProcess: async (parsedPrompt: { number: number }) => {
         codexCalls.push(parsedPrompt.number);
@@ -1696,7 +1787,7 @@ test('dirty working tree still prevents resume inspection from launching Codex',
         stdout: testOutput(false),
         resolveLauncher: async () => ({
           launcher: directTestLauncher,
-          version: 'test',
+          version: compatibleCodexVersion,
         }),
         runCodexProcess: async () => {
           codexCalls += 1;
@@ -1725,7 +1816,7 @@ test('correction loop commits multiple prompts at one unchanged version and leav
       stdout: output,
       resolveLauncher: async () => ({
         launcher: directTestLauncher,
-        version: 'codex-test 1.0.0',
+        version: compatibleCodexVersion,
       }),
       runCodexProcess: async (parsedPrompt: { number: number }) => {
         codexCalls.push(parsedPrompt.number);
@@ -1825,7 +1916,7 @@ test('correction version mutation fails before commit and blocks every later pro
         stdout: testOutput(false),
         resolveLauncher: async () => ({
           launcher: directTestLauncher,
-          version: 'codex-test 1.0.0',
+          version: compatibleCodexVersion,
         }),
         runCodexProcess: async (parsedPrompt: { number: number }) => {
           codexCalls.push(parsedPrompt.number);
@@ -1876,7 +1967,7 @@ test('correction run refuses a mismatched starting version before Codex starts',
         stdout: testOutput(false),
         resolveLauncher: async () => ({
           launcher: directTestLauncher,
-          version: 'codex-test 1.0.0',
+          version: compatibleCodexVersion,
         }),
         runCodexProcess: async (parsedPrompt: { number: number }) => {
           codexCalls.push(parsedPrompt.number);
@@ -1902,7 +1993,7 @@ test('correction post-commit version mismatch fails closed before the next promp
         stdout: testOutput(false),
         resolveLauncher: async () => ({
           launcher: directTestLauncher,
-          version: 'codex-test 1.0.0',
+          version: compatibleCodexVersion,
         }),
         spawnSyncProcess: (
           command: string,
@@ -1958,7 +2049,7 @@ test('a failed correction Codex process prevents every later implementation prom
         stdout: testOutput(false),
         resolveLauncher: async () => ({
           launcher: directTestLauncher,
-          version: 'codex-test 1.0.0',
+          version: compatibleCodexVersion,
         }),
         runCodexProcess: async (parsedPrompt: { number: number }) => {
           codexCalls.push(parsedPrompt.number);
@@ -2067,7 +2158,7 @@ test('commit failure prevents every later implementation prompt', async () => {
         stdout: testOutput(false),
         resolveLauncher: async () => ({
           launcher: directTestLauncher,
-          version: 'codex-test 1.0.0',
+          version: compatibleCodexVersion,
         }),
         spawnSyncProcess: (
           command: string,
@@ -2121,7 +2212,7 @@ test('commit verification and dirty-tree failures prevent every later prompt', a
           stdout: testOutput(false),
           resolveLauncher: async () => ({
             launcher: directTestLauncher,
-            version: 'codex-test 1.0.0',
+            version: compatibleCodexVersion,
           }),
           spawnSyncProcess: (
             command: string,
@@ -2184,7 +2275,7 @@ test('package-lock creation fails before commit and prevents later prompts', asy
         stdout: testOutput(false),
         resolveLauncher: async () => ({
           launcher: directTestLauncher,
-          version: 'codex-test 1.0.0',
+          version: compatibleCodexVersion,
         }),
         runCodexProcess: async (parsedPrompt: { number: number }) => {
           codexCalls.push(parsedPrompt.number);

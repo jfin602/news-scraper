@@ -79,6 +79,47 @@ const withoutPromptText = (prompt) => {
 };
 
 const WINDOWS_NPM_ENTRYPOINT = 'node_modules/@openai/codex/bin/codex.js';
+export const MINIMUM_GPT_5_6_CODEX_VERSION = Object.freeze([0, 144, 0]);
+
+export function parseCodexCliVersion(versionOutput) {
+  const match = /(?:^|\s)(\d+)\.(\d+)\.(\d+)(?=\s|$)/.exec(
+    String(versionOutput),
+  );
+  return match
+    ? Object.freeze(match.slice(1).map((part) => Number(part)))
+    : undefined;
+}
+
+export function compareNumericVersions(left, right) {
+  for (let index = 0; index < 3; index += 1) {
+    const difference = left[index] - right[index];
+    if (difference !== 0) return Math.sign(difference);
+  }
+  return 0;
+}
+
+function formatNumericVersion(version) {
+  return version.join('.');
+}
+
+export function assertCodexVersionCompatible(plan, versionOutput) {
+  if (
+    !plan.implementations.some((prompt) => prompt.model.startsWith('gpt-5.6-'))
+  )
+    return;
+  const observed = parseCodexCliVersion(versionOutput);
+  const minimum = formatNumericVersion(MINIMUM_GPT_5_6_CODEX_VERSION);
+  if (!observed) {
+    throw new Error(
+      `Cannot verify GPT-5.6 compatibility from Codex CLI version output ${JSON.stringify(String(versionOutput))}; require Codex CLI >= ${minimum}.`,
+    );
+  }
+  if (compareNumericVersions(observed, MINIMUM_GPT_5_6_CODEX_VERSION) < 0) {
+    throw new Error(
+      `Codex CLI ${formatNumericVersion(observed)} is incompatible with GPT-5.6 tasks; require Codex CLI >= ${minimum}.`,
+    );
+  }
+}
 
 function codexLauncher(command, prefixArguments, type, identity) {
   return Object.freeze({
@@ -595,6 +636,7 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
     await packageVersion(rootDirectory),
   );
   const { launcher, version: codexVersion } = await resolveLauncher();
+  assertCodexVersionCompatible(plan, codexVersion);
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const runDirectory = path.join(

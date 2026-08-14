@@ -154,7 +154,7 @@ Return at minimum:
 - runtime/browser evidence needed for acceptance;
 - acceptance criteria and non-goals;
 - one recommended lower-kebab task slug;
-- recommended model/reasoning configuration, complexity/quality floor, estimated usage, alternative considered, efficiency rationale, and estimate confidence using the repository quality-first policy.
+- recommended configuration using the same `docs/codex-model-selection.md` minimum-cost-adequate family + reasoning policy, including family basis, reasoning basis, complexity/quality floor, estimated usage, lower-cost alternative, escalation trigger/target, efficiency rationale, and estimate confidence.
 
 If existing approved design guidance is sufficient, `/ui-plan` may complete normally and enable `/ui-write`. If design guidance is missing, conflicting, materially ambiguous, or must be changed to support the request, return `Planning needed: UI design guidance required`, identify the required `/ui-review` area, and stop. `/ui-write` remains blocked until `/ui-review` → explicit approval → `/ui-apply` completes and `/ui-plan` is rerun successfully.
 
@@ -182,7 +182,7 @@ The prompt must include:
 - required execution branch/worktree: `ui-polish`;
 - a requirement to synchronize/verify the task against current `main` before source implementation when needed;
 - explicit statement that the task is non-versioned and `package.json` version must remain unchanged;
-- finalized model/reasoning/usage recommendation;
+- finalized model/reasoning/usage recommendation following `docs/codex-model-selection.md`, including family basis, reasoning basis, lower-cost alternative, escalation trigger/target, estimated usage, and confidence;
 - governing contracts/design docs and inspected source;
 - exact/likely allowed files and forbidden areas;
 - required behavior, preserved behavior, constraints, risks, acceptance criteria, and non-goals;

@@ -24,6 +24,7 @@ Follow `BOOT.md`.
 - `/docs-prompt` is the read-only alternative after approval: run `npm run docs:snapshot`, provide `news-scraper-docs-context.zip`, then use `/docs-prompt` to produce one prompt for Codex to apply locally. `BOOT.md` defines its full contract.
 - Preserve unrelated wording during scoped documentation fixes.
 - Normal phase handoff follows `/closeout` → `/docs-review` → `/docs-apply` → `/prompt-ass` → `/prompt-plan` → `/prompt-write <folder name>`.
+- Use `docs/codex-model-selection.md` with `BOOT.md` for the minimum-cost-adequate model-family and reasoning-effort workflow.
 - Parallel UI work is governed by `docs/design/ui-workflow.md` on the permanent `ui-polish` branch/worktree. The normal targeted path is `/ui-plan` → `/ui-write`; when durable design guidance must first change, `/ui-plan` requires `/ui-review` → explicit approval → `/ui-apply` → rerun `/ui-plan` before `/ui-write`.
 
 ## Versioning Workflow
@@ -293,7 +294,7 @@ Phases 1–9 remain the tech-demo critical path historically.
 - Confirm applicable local validation commands/suites were actually executed against the final tree before approval.
 - Confirm each Codex roadmap phase prompt uses its assigned one-based prompt number/version; confirm each correction prompt preserves its declared unchanged version; `package.json` remains authoritative in both modes.
 - Before declaring a task folder automation-ready, validate its exact machine-parsed grammar against the current runner; do not infer parser compatibility from visual similarity to historical prompts.
-- Every roadmap or correction implementation/closeout prompt follows the `BOOT.md` minimum-adequate usage-conservation policy: start from the lowest expected-credit current configuration that plausibly satisfies the correctness floor, escalate only for a concrete task-specific reason, and record the recommendation, complexity/quality floor, estimated usage, lower-cost alternative, escalation trigger, and efficiency rationale. Prompt length, phase number, broad validation volume, or feature importance alone do not justify a more expensive model.
+- Every roadmap or correction implementation/closeout prompt follows the `BOOT.md` and `docs/codex-model-selection.md` minimum-cost-adequate family + reasoning policy: start from the lowest expected-credit current configuration that plausibly satisfies the correctness floor, choose family and effort independently, escalate only for a concrete task-specific reason, and record the recommendation, family/effort basis, complexity/quality floor, estimated usage, lower-cost alternative, escalation trigger/target, and efficiency rationale. Prompt length, phase number, broad validation volume, or feature importance alone do not justify a more expensive model.
 - Make a concrete recommendation when asked for the recommended option.
 - Never invent repository state, test results, Source behavior, or history.
 

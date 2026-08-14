@@ -26,11 +26,11 @@ Current official OpenAI Codex pricing/model guidance SHOULD be consulted when av
 
 The GPT-5.6 family is treated as three capability/cost bands:
 
-| Family | Default repository role | Use when |
-| --- | --- | --- |
-| `Luna` | economical implementation tier | work is explicit, bounded, deterministic, high-volume, mechanical, or locally nontrivial without requiring strong independent architectural inference |
-| `Terra` | balanced engineering workhorse | work requires meaningful cross-file/state/data-integrity reasoning, subtle validation, security-sensitive bounded behavior, or broader integration judgment |
-| `Sol` | exceptional capability tier | work requires difficult independent architecture, ambiguous contract reconciliation, hard root-cause debugging, novel cross-system inference, or unusually high-risk security/review reasoning |
+| Family  | Default repository role        | Use when                                                                                                                                                                                       |
+| ------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Luna`  | economical implementation tier | work is explicit, bounded, deterministic, high-volume, mechanical, or locally nontrivial without requiring strong independent architectural inference                                          |
+| `Terra` | balanced engineering workhorse | work requires meaningful cross-file/state/data-integrity reasoning, subtle validation, security-sensitive bounded behavior, or broader integration judgment                                    |
+| `Sol`   | exceptional capability tier    | work requires difficult independent architecture, ambiguous contract reconciliation, hard root-cause debugging, novel cross-system inference, or unusually high-risk security/review reasoning |
 
 Do not select Sol merely because code is production-facing, a phase is important, a prompt is long, or a test matrix is broad.
 
@@ -38,31 +38,33 @@ Do not select Sol merely because code is production-facing, a phase is important
 
 Reasoning effort is selected independently from family:
 
-| Effort | Default repository role |
-| --- | --- |
-| `Low` / existing runner label `Light` | mechanical execution, obvious localized edits, simple deterministic transformations |
-| `Medium` | ordinary implementation reasoning, several related files, routine test adaptation, explicit state transitions |
-| `High` | subtle invariants, meaningful edge cases, nontrivial persistence/security/integration reasoning |
-| `Ultra` | exceptional concurrency/recovery/transaction/state-machine or architecture reasoning where additional exploration materially improves reliability |
+| Effort                                | Default repository role                                                                                                                           |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Low` / existing runner label `Light` | mechanical execution, obvious localized edits, simple deterministic transformations                                                               |
+| `Medium`                              | ordinary implementation reasoning, several related files, routine test adaptation, explicit state transitions                                     |
+| `High`                                | subtle invariants, meaningful edge cases, nontrivial persistence/security/integration reasoning                                                   |
+| `Ultra`                               | exceptional concurrency/recovery/transaction/state-machine or architecture reasoning where additional exploration materially improves reliability |
 
 `Ultra` is repository runner vocabulary already in use. Runner implementation/tests remain the authority for its concrete Codex CLI mapping.
 
-## Target runner matrix
+## Current runner matrix
 
-The intended economical matrix is:
+The runner currently accepts this economical matrix:
 
-- `Luna Low`
-- `Luna Medium`
-- `Luna High`
-- `Terra Medium`
-- `Terra High`
-- `Terra Ultra`
-- existing `Sol Light`
-- `Sol Medium`
-- `Sol High`
-- `Sol Ultra`
+| Label          | Model           | Reasoning effort |
+| -------------- | --------------- | ---------------- |
+| `Luna Low`     | `gpt-5.6-luna`  | `low`            |
+| `Luna Medium`  | `gpt-5.6-luna`  | `medium`         |
+| `Luna High`    | `gpt-5.6-luna`  | `high`           |
+| `Terra Medium` | `gpt-5.6-terra` | `medium`         |
+| `Terra High`   | `gpt-5.6-terra` | `high`           |
+| `Terra Ultra`  | `gpt-5.6-terra` | `ultra`          |
+| `Sol Light`    | `gpt-5.6-sol`   | `low`            |
+| `Sol Medium`   | `gpt-5.6-sol`   | `medium`         |
+| `Sol High`     | `gpt-5.6-sol`   | `high`           |
+| `Sol Ultra`    | `gpt-5.6-sol`   | `ultra`          |
 
-The runner correction that introduces Luna/Medium support MUST verify the exact concrete Codex model and reasoning values before making these labels executable. Until that correction is applied, `/prompt-write` and task maintenance may use only labels actually present in current `MODEL_CONFIGS`.
+Each label maps to its GPT-5.6 family and independently selected reasoning effort in current `MODEL_CONFIGS`; prompt writing and task maintenance may use only those executable labels.
 
 Do not add `Luna Ultra` by default. Luna's primary role is economical bounded work; if a task appears to require extreme reasoning, explicitly compare Luna High against Terra High/Ultra instead of assuming maximum effort on the cheapest family is the best total-cost choice.
 
@@ -97,15 +99,15 @@ Always ask both questions separately:
 
 Before selecting a configuration, classify the task on these dimensions. The classification is engineering evidence, not a score that mechanically maps to one model.
 
-| Dimension | Values |
-| --- | --- |
-| Task shape | `Mechanical` / `Bounded` / `Cross-cutting` / `Investigative` |
-| Specification clarity | `Explicit` / `Some ambiguity` / `Material ambiguity` |
-| State coupling | `Low` / `Moderate` / `High` |
-| Integrity risk | `Low` / `Moderate` / `High` |
-| Concurrency | `None` / `Local` / `Cross-process` |
-| Security | `Ordinary` / `Sensitive` / `Architectural` |
-| Novel inference | `Low` / `Moderate` / `High` |
+| Dimension             | Values                                                       |
+| --------------------- | ------------------------------------------------------------ |
+| Task shape            | `Mechanical` / `Bounded` / `Cross-cutting` / `Investigative` |
+| Specification clarity | `Explicit` / `Some ambiguity` / `Material ambiguity`         |
+| State coupling        | `Low` / `Moderate` / `High`                                  |
+| Integrity risk        | `Low` / `Moderate` / `High`                                  |
+| Concurrency           | `None` / `Local` / `Cross-process`                           |
+| Security              | `Ordinary` / `Sensitive` / `Architectural`                   |
+| Novel inference       | `Low` / `Moderate` / `High`                                  |
 
 Interpretation rules:
 
