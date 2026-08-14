@@ -1,12 +1,55 @@
 :root {
+  --page-bg: rgb(247, 244, 238);
+  --surface: rgb(255, 253, 248);
+  --surface-subtle: rgb(239, 234, 225);
+  --text-primary: rgb(36, 33, 30);
+  --text-muted: rgb(98, 93, 85);
+  --border: rgb(190, 181, 168);
+  --link: rgb(29, 79, 120);
+  --focus-ring: rgb(37, 99, 235);
+  --brand-accent: rgb(124, 63, 43);
+  --danger: rgb(180, 35, 24);
+  --control-bg: rgb(255, 253, 248);
   color-scheme: light;
   font-family: system-ui, sans-serif;
 }
 
+:root[data-theme='dark'] {
+  --page-bg: rgb(27, 26, 24);
+  --surface: rgb(36, 34, 31);
+  --surface-subtle: rgb(45, 42, 38);
+  --text-primary: rgb(244, 239, 231);
+  --text-muted: rgb(187, 177, 164);
+  --border: rgb(81, 75, 68);
+  --link: rgb(142, 197, 234);
+  --focus-ring: rgb(147, 197, 253);
+  --brand-accent: rgb(210, 139, 112);
+  --danger: rgb(255, 155, 144);
+  --control-bg: rgb(41, 38, 34);
+  color-scheme: dark;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --page-bg: rgb(27, 26, 24);
+    --surface: rgb(36, 34, 31);
+    --surface-subtle: rgb(45, 42, 38);
+    --text-primary: rgb(244, 239, 231);
+    --text-muted: rgb(187, 177, 164);
+    --border: rgb(81, 75, 68);
+    --link: rgb(142, 197, 234);
+    --focus-ring: rgb(147, 197, 253);
+    --brand-accent: rgb(210, 139, 112);
+    --danger: rgb(255, 155, 144);
+    --control-bg: rgb(41, 38, 34);
+    color-scheme: dark;
+  }
+}
+
 body {
   margin: 0;
-  background: rgb(250, 250, 250);
-  color: rgb(24, 24, 27);
+  background: var(--page-bg);
+  color: var(--text-primary);
 }
 
 [hidden] {
@@ -18,6 +61,73 @@ body {
   max-width: 72rem;
   margin: 0 auto;
   padding: 2rem;
+}
+
+.theme-control {
+  display: grid;
+  justify-content: end;
+  gap: 0.35rem;
+  min-width: 0;
+  padding: 0;
+  margin: 0 0 1rem auto;
+  border: 0;
+  color: var(--text-muted);
+}
+
+.theme-control legend {
+  width: 100%;
+  padding: 0;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-align: right;
+}
+
+.theme-options {
+  display: inline-grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 0.2rem;
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  background: var(--control-bg);
+}
+
+.theme-options label {
+  position: relative;
+  min-width: 0;
+  cursor: pointer;
+}
+
+.theme-options input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.theme-options span {
+  display: grid;
+  place-items: center;
+  min-width: 3.25rem;
+  min-height: 2.25rem;
+  padding-inline: 0.45rem;
+  border-radius: 0.3rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.theme-options input:checked + span {
+  background: var(--surface-subtle);
+  box-shadow: inset 0 -0.18rem var(--brand-accent);
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.theme-options input:focus-visible + span {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 h1 {
@@ -32,7 +142,7 @@ h1 {
   gap: 1rem;
   align-items: center;
   padding-bottom: 1rem;
-  border-bottom: 0.25rem solid var(--publication-accent, rgb(63, 63, 70));
+  border-bottom: 0.25rem solid var(--publication-accent, var(--brand-accent));
 }
 
 .publication-identity {
@@ -54,7 +164,7 @@ h1 {
 .publication-description {
   max-width: 60rem;
   margin: 0.5rem 0 0;
-  color: rgb(63, 63, 70);
+  color: var(--text-muted);
   overflow-wrap: anywhere;
 }
 
@@ -86,6 +196,22 @@ h1 {
   font: inherit;
 }
 
+.discovery-field input,
+.discovery-field select {
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  background: var(--control-bg);
+  color: var(--text-primary);
+}
+
+.discovery-field input:focus-visible,
+.discovery-field select:focus-visible,
+.discovery-actions button:focus-visible,
+[data-feed-load-more]:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 .discovery-actions {
   display: flex;
   flex-wrap: wrap;
@@ -94,6 +220,16 @@ h1 {
 
 .discovery-actions button {
   padding: 0.35rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  background: var(--surface-subtle);
+  color: var(--text-primary);
+}
+
+.discovery-actions button[type='submit'] {
+  border-color: var(--text-primary);
+  background: var(--text-primary);
+  color: var(--page-bg);
 }
 
 .feed-status {
@@ -101,15 +237,15 @@ h1 {
   gap: 0.6rem;
   align-items: center;
   margin: 0.75rem 0 1.5rem;
-  color: rgb(63, 63, 70);
+  color: var(--text-muted);
 }
 
 .feed-loading-indicator {
   width: 0.7rem;
   height: 0.7rem;
   flex: 0 0 auto;
-  border: 0.15rem solid rgb(161, 161, 170);
-  border-top-color: rgb(63, 63, 70);
+  border: 0.15rem solid var(--border);
+  border-top-color: var(--text-muted);
   border-radius: 50%;
 }
 
@@ -134,14 +270,14 @@ h1 {
 
 .feed-column-headings {
   padding: 0 0.75rem 0.5rem;
-  border-bottom: 2px solid rgb(161, 161, 170);
-  color: rgb(63, 63, 70);
+  border-bottom: 2px solid var(--border);
+  color: var(--text-muted);
   font-size: 0.875rem;
   font-weight: 700;
 }
 
 .feed-list {
-  border-bottom: 1px solid rgb(212, 212, 216);
+  border-bottom: 1px solid var(--border);
 }
 
 .feed-pagination {
@@ -155,18 +291,22 @@ h1 {
 .feed-pagination p {
   max-width: 100%;
   margin: 0;
-  color: rgb(63, 63, 70);
+  color: var(--text-muted);
   overflow-wrap: anywhere;
 }
 
 [data-feed-pagination-error] {
-  color: rgb(153, 27, 27);
+  color: var(--danger);
 }
 
 [data-feed-load-more] {
   min-height: 2.5rem;
   padding: 0.35rem 0.75rem;
   font: inherit;
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  background: var(--control-bg);
+  color: var(--text-primary);
 }
 
 [data-feed-pagination][aria-busy='true'] [data-feed-load-more] {
@@ -177,7 +317,7 @@ h1 {
 .feed-row {
   align-items: start;
   padding: 1rem 0.75rem;
-  border-top: 1px solid rgb(212, 212, 216);
+  border-top: 1px solid var(--border);
 }
 
 .feed-row:first-child {
@@ -186,11 +326,11 @@ h1 {
 
 .feed-date,
 .feed-source {
-  color: rgb(63, 63, 70);
+  color: var(--text-muted);
 }
 
 .feed-headline-link {
-  color: rgb(24, 24, 27);
+  color: var(--link);
   font-size: 1.125rem;
   font-weight: 700;
   line-height: 1.4;
@@ -203,11 +343,11 @@ h1 {
 }
 
 .feed-headline-link:hover {
-  color: rgb(30, 64, 175);
+  color: var(--text-primary);
 }
 
 .feed-headline-link:focus-visible {
-  outline: 3px solid rgb(37, 99, 235);
+  outline: 3px solid var(--focus-ring);
   outline-offset: 3px;
 }
 
@@ -226,6 +366,15 @@ h1 {
 @media (max-width: 42rem) {
   .public-feed-shell {
     padding: 1.25rem;
+  }
+
+  .theme-control {
+    justify-content: stretch;
+    margin-left: 0;
+  }
+
+  .theme-control legend {
+    text-align: left;
   }
 
   .feed-column-headings {

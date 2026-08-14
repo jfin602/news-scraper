@@ -40,8 +40,19 @@ describe('Public feed page HTTP delivery', () => {
       contentSecurityPolicy,
     );
     assert.equal(response.headers.get('x-content-type-options'), 'nosniff');
+    assert.match(body, /<script src="\/public-theme\.js"><\/script>/u);
     assert.match(body, /<link rel="stylesheet" href="\/public-feed\.css">/u);
     assert.match(body, /<script src="\/public-feed\.js" defer><\/script>/u);
+    const themeIndex = body.indexOf('<script src="/public-theme.js">');
+    const stylesheetIndex = body.indexOf(
+      '<link rel="stylesheet" href="/public-feed.css">',
+    );
+    const feedClientIndex = body.indexOf(
+      '<script src="/public-feed.js" defer>',
+    );
+    assert.ok(themeIndex > 0);
+    assert.ok(themeIndex < stylesheetIndex);
+    assert.ok(stylesheetIndex < feedClientIndex);
     assert.match(body, /<title>Loading publication…<\/title>/u);
     assert.match(
       body,
@@ -51,6 +62,14 @@ describe('Public feed page HTTP delivery', () => {
       body,
       /<header class="publication-masthead" data-publication-masthead hidden>/u,
     );
+    assert.match(body, /<fieldset class="theme-control" data-theme-control>/u);
+    assert.match(body, /<legend>Theme<\/legend>/u);
+    assert.match(
+      body,
+      /name="reader-theme" value="system" data-theme-option checked/u,
+    );
+    assert.match(body, /name="reader-theme" value="light" data-theme-option/u);
+    assert.match(body, /name="reader-theme" value="dark" data-theme-option/u);
     assert.match(body, /<h1 data-publication-name><\/h1>/u);
     assert.match(
       body,
@@ -122,9 +141,29 @@ describe('Public feed page HTTP delivery', () => {
     assert.match(clientSource, /window\.location\.search/u);
     assert.match(clientSource, /history\.pushState/u);
 
+    const theme = await request('/public-theme.js');
+    assert.equal(theme.status, 200);
+    assert.match(
+      theme.headers.get('content-type') ?? '',
+      /^(application|text)\/javascript/u,
+    );
+    assert.equal(theme.headers.get('cache-control'), 'no-store');
+    assert.equal(theme.headers.get('x-content-type-options'), 'nosniff');
+    const themeSource = await theme.text();
+    assert.match(themeSource, /news-scraper\.reader-theme/u);
+    assert.match(themeSource, /prefers-color-scheme: dark/u);
+    assert.doesNotMatch(themeSource, /fetch|\/api\/feed|pushState/u);
+
     const unknown = await request('/public/private-source-file.ts');
     assert.equal(unknown.status, 404);
     assert.doesNotMatch(await unknown.text(), /public-feed-shell|box-sizing/u);
+
+    const unknownThemeMap = await request('/public-theme.js.map');
+    assert.equal(unknownThemeMap.status, 404);
+    assert.doesNotMatch(
+      await unknownThemeMap.text(),
+      /news-scraper\.reader-theme/u,
+    );
   });
 
   function request(path: string): Promise<Response> {

@@ -34,11 +34,18 @@ if (resolve(topLevel) !== resolve(repoRoot)) {
   fail('run this command from the repository root');
 }
 
-if (!existsSync(resolve(repoRoot, 'BOOT.md')) || !existsSync(resolve(repoRoot, 'docs'))) {
+if (
+  !existsSync(resolve(repoRoot, 'BOOT.md')) ||
+  !existsSync(resolve(repoRoot, 'docs'))
+) {
   fail('BOOT.md and docs/ must exist at the repository root');
 }
 
-const dirty = runGit(['status', '--porcelain', '--untracked-files=normal']).trim();
+const dirty = runGit([
+  'status',
+  '--porcelain',
+  '--untracked-files=normal',
+]).trim();
 if (dirty !== '') {
   fail(
     'working tree must be clean so the snapshot exactly matches the committed repository state',

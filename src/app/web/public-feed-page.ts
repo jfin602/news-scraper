@@ -9,11 +9,29 @@ const publicFeedPage = `<!doctype html>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Loading publication…</title>
+    <script src="/public-theme.js"></script>
     <link rel="stylesheet" href="/public-feed.css">
     <script src="/public-feed.js" defer></script>
   </head>
   <body>
     <main class="public-feed-shell" data-publication-state="unresolved">
+      <fieldset class="theme-control" data-theme-control>
+        <legend>Theme</legend>
+        <div class="theme-options">
+          <label>
+            <input type="radio" name="reader-theme" value="system" data-theme-option checked>
+            <span>System</span>
+          </label>
+          <label>
+            <input type="radio" name="reader-theme" value="light" data-theme-option>
+            <span>Light</span>
+          </label>
+          <label>
+            <input type="radio" name="reader-theme" value="dark" data-theme-option>
+            <span>Dark</span>
+          </label>
+        </div>
+      </fieldset>
       <header class="publication-masthead" data-publication-masthead hidden>
         <div class="publication-logo" data-publication-logo hidden></div>
         <div class="publication-identity">
