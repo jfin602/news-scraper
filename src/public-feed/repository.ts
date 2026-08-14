@@ -162,6 +162,14 @@ const PUBLIC_FEED_ITEMS_QUERY = `
     WHERE source.approval_state = 'approved'
       AND source.lifecycle_state = 'active'
       AND article.visibility_state = 'visible'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM duplicate_group_memberships AS membership
+        JOIN duplicate_groups AS duplicate_group
+          ON duplicate_group.id = membership.group_id
+        WHERE membership.article_id = article.id
+          AND duplicate_group.primary_article_id <> article.id
+      )
       AND (
         $1::text IS NULL
         OR source.config_key = $1::text

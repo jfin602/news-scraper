@@ -52,6 +52,8 @@ interface SeededCategory {
 interface SeededArticle {
   readonly id: string;
   readonly sourceId: string;
+  readonly originalUrl: string;
+  readonly canonicalIdentityUrl: string;
 }
 
 let sourceSequence = 0;
@@ -204,6 +206,198 @@ test('filters the one eligible stream by selectable Source and current Category 
       await readPublicFeed(database, { categoryConfigKey: category.configKey }),
       undefined,
     );
+  });
+});
+
+test('suppresses visible non-Primary members before discovery while retaining topology and the Primary destination', async () => {
+  await withDiscoveryDatabase(async ({ client, database }) => {
+    await insertPublicPublication(client, 'Duplicate suppression publication');
+    const primarySource = await insertSource(client, {
+      configKey: 'duplicate_primary_source',
+      displayName: 'Primary Source',
+    });
+    const nonPrimarySource = await insertSource(client, {
+      configKey: 'duplicate_non_primary_source',
+      displayName: 'Non-Primary Source',
+    });
+    const thirdSource = await insertSource(client, {
+      configKey: 'duplicate_third_source',
+      displayName: 'Third Source',
+    });
+    const hiddenPrimarySource = await insertSource(client, {
+      configKey: 'hidden_primary_source',
+      displayName: 'Hidden Primary Source',
+    });
+    const hiddenNonPrimarySource = await insertSource(client, {
+      configKey: 'hidden_non_primary_source',
+      displayName: 'Hidden Non-Primary Source',
+    });
+    const category = await insertCategory(client, {
+      configKey: 'duplicate_only_category',
+      displayName: 'Duplicate-only Category',
+    });
+
+    const primary = await insertArticle(client, primarySource, {
+      displayTitle: 'Primary headline',
+      originalUrl: 'https://publisher.example.test/primary-story',
+      firstSeenAt: '2026-08-10T00:00:03.000000Z',
+    });
+    const nonPrimary = await insertArticle(client, nonPrimarySource, {
+      displayTitle: 'Suppressed-only keyword',
+      normalizedTitle: 'suppressed-only keyword',
+      originalUrl: 'https://publisher.example.test/non-primary-story',
+      firstSeenAt: '2026-08-10T00:00:02.000000Z',
+    });
+    const thirdMember = await insertArticle(client, thirdSource, {
+      displayTitle: 'Third duplicate headline',
+      firstSeenAt: '2026-08-10T00:00:01.000000Z',
+    });
+    const visibleGroupId = await insertDuplicateGroup(client, primary, [
+      primary,
+      nonPrimary,
+      thirdMember,
+    ]);
+    await assignCategory(client, nonPrimary, category);
+
+    const hiddenPrimary = await insertArticle(client, hiddenPrimarySource, {
+      visibilityState: 'hidden',
+    });
+    const visibleNonPrimary = await insertArticle(
+      client,
+      hiddenNonPrimarySource,
+    );
+    await insertDuplicateGroup(client, hiddenPrimary, [
+      hiddenPrimary,
+      visibleNonPrimary,
+    ]);
+
+    const visiblePrimary = await insertArticle(client, primarySource, {
+      displayTitle: 'Visible primary with hidden member',
+    });
+    const hiddenNonPrimary = await insertArticle(client, thirdSource, {
+      visibilityState: 'hidden',
+    });
+    await insertDuplicateGroup(client, visiblePrimary, [
+      visiblePrimary,
+      hiddenNonPrimary,
+    ]);
+
+    const ungroupedVisible = await insertArticle(client, primarySource, {
+      displayTitle: 'Ungrouped remains visible',
+    });
+    await insertArticle(client, primarySource, {
+      visibilityState: 'archived',
+    });
+
+    const feed = requireFeed(await readPublicFeed(database));
+    assert.deepEqual(
+      new Set(feed.items.map((item) => item.articleId)),
+      new Set([primary.id, visiblePrimary.id, ungroupedVisible.id]),
+    );
+    assert.equal(
+      feed.items.find((item) => item.articleId === primary.id)?.originalUrl,
+      primary.originalUrl,
+    );
+    assert.deepEqual(
+      itemIds(
+        await readPublicFeed(database, {
+          sourceConfigKey: nonPrimarySource.configKey,
+        }),
+      ),
+      [],
+    );
+    assert.deepEqual(
+      itemIds(
+        await readPublicFeed(database, {
+          categoryConfigKey: category.configKey,
+        }),
+      ),
+      [],
+    );
+    assert.deepEqual(
+      itemIds(
+        await readPublicFeed(database, { keywordQuery: 'suppressed-only' }),
+      ),
+      [],
+    );
+    assert.deepEqual(
+      itemIds(
+        await readPublicFeed(database, {
+          keywordQuery: 'suppressed-only',
+          sourceConfigKey: nonPrimarySource.configKey,
+          categoryConfigKey: category.configKey,
+        }),
+      ),
+      [],
+    );
+    assert.equal(
+      feed.sourceChoices.some(
+        (choice) => choice.configKey === nonPrimarySource.configKey,
+      ),
+      true,
+    );
+    assert.equal(
+      feed.categoryChoices.some(
+        (choice) => choice.configKey === category.configKey,
+      ),
+      true,
+    );
+
+    await insertHistoricalCategoryReason(
+      client,
+      primarySource,
+      primary,
+      category,
+    );
+    await insertHistoricalCategoryReason(
+      client,
+      nonPrimarySource,
+      nonPrimary,
+      category,
+    );
+    await insertHistoricalCategoryReason(
+      client,
+      thirdSource,
+      thirdMember,
+      category,
+    );
+    const retained = await client.query<{
+      article_count: string;
+      observation_count: string;
+    }>(
+      `SELECT
+         (SELECT count(*)::text FROM articles WHERE id = ANY($1::uuid[])) AS article_count,
+         (SELECT count(*)::text FROM article_observations WHERE article_id = ANY($1::uuid[])) AS observation_count`,
+      [[primary.id, nonPrimary.id, thirdMember.id]],
+    );
+    assert.deepEqual(retained.rows[0], {
+      article_count: '3',
+      observation_count: '3',
+    });
+
+    await client.query(
+      `UPDATE duplicate_groups
+       SET primary_article_id = $2
+       WHERE id = $1`,
+      [visibleGroupId, nonPrimary.id],
+    );
+    const afterPrimaryChange = requireFeed(await readPublicFeed(database));
+    assert.equal(
+      afterPrimaryChange.items.some((item) => item.articleId === primary.id),
+      false,
+    );
+    assert.equal(
+      afterPrimaryChange.items.find((item) => item.articleId === nonPrimary.id)
+        ?.originalUrl,
+      nonPrimary.originalUrl,
+    );
+    const retainedAfterPrimaryChange = await client.query<{ count: string }>(
+      `SELECT count(*)::text AS count
+       FROM articles
+       WHERE id = ANY($1::uuid[])`,
+      [[primary.id, nonPrimary.id, thirdMember.id]],
+    );
+    assert.equal(retainedAfterPrimaryChange.rows[0]?.count, '3');
   });
 });
 
@@ -498,6 +692,68 @@ test('keeps an active selected Source or configured selected Category in bounded
   });
 });
 
+test('applies duplicate suppression before tie-heavy keyset pagination without omissions or repetitions', async () => {
+  await withDiscoveryDatabase(async ({ client, database }) => {
+    await insertPublicPublication(client, 'Duplicate keyset publication');
+    const groupedSource = await insertSource(client, {
+      configKey: 'duplicate_keyset_grouped_source',
+      displayName: 'Grouped Source',
+    });
+    const memberSource = await insertSource(client, {
+      configKey: 'duplicate_keyset_member_source',
+      displayName: 'Member Source',
+    });
+    const tieTime = '2026-08-10T00:00:00.000000Z';
+    const primary = await insertArticle(client, groupedSource, {
+      id: '10000000-0000-4000-8000-000000000001',
+      firstSeenAt: tieTime,
+    });
+    const firstNonPrimary = await insertArticle(client, memberSource, {
+      id: '10000000-0000-4000-8000-000000000002',
+      firstSeenAt: tieTime,
+    });
+    const secondNonPrimary = await insertArticle(client, memberSource, {
+      id: '10000000-0000-4000-8000-000000000003',
+      firstSeenAt: tieTime,
+    });
+    await insertDuplicateGroup(client, primary, [
+      primary,
+      firstNonPrimary,
+      secondNonPrimary,
+    ]);
+
+    const ungrouped: SeededArticle[] = [];
+    for (let index = 1; index <= 101; index += 1) {
+      ungrouped.push(
+        await insertArticle(client, groupedSource, {
+          id: `20000000-0000-4000-8000-${index.toString().padStart(12, '0')}`,
+          firstSeenAt: tieTime,
+        }),
+      );
+    }
+
+    const expectedIds = [primary, ...ungrouped]
+      .map((article) => article.id)
+      .sort();
+    const firstPage = requireFeed(await readPublicFeed(database));
+    assert.equal(firstPage.items.length, PUBLIC_FEED_PAGE_SIZE);
+    assert.notEqual(firstPage.nextCursor, null);
+    const secondPage = requireFeed(
+      await readPublicFeed(
+        database,
+        requestAfterCursor({}, firstPage.nextCursor),
+      ),
+    );
+    const walkedIds = [
+      ...firstPage.items.map((item) => item.articleId),
+      ...secondPage.items.map((item) => item.articleId),
+    ];
+    assert.deepEqual(walkedIds, expectedIds);
+    assert.equal(new Set(walkedIds).size, expectedIds.length);
+    assert.equal(secondPage.nextCursor, null);
+  });
+});
+
 test('walks ordinary keyset pages without omissions, repetitions, or lookahead cursor drift', async () => {
   await withDiscoveryDatabase(async ({ client, database }) => {
     await insertPublicPublication(client, 'Keyset walk publication');
@@ -754,6 +1010,8 @@ async function insertArticle(
     normalizedTitle?: string;
     author?: string;
     summary?: string;
+    originalUrl?: string;
+    canonicalIdentityUrl?: string;
     publishedAtStatus?: PublishedAtStatus;
     publishedAt?: TimestampInput;
     visibilityState?: VisibilityState;
@@ -769,7 +1027,13 @@ async function insertArticle(
     throw new Error('Only parsed Article fixtures may have publishedAt.');
   }
   const firstSeenAt = options.firstSeenAt ?? '2026-08-10T00:00:00.000000Z';
-  const article = { id, sourceId: source.id };
+  const article = {
+    id,
+    sourceId: source.id,
+    originalUrl: options.originalUrl ?? `https://article.example.test/${id}`,
+    canonicalIdentityUrl:
+      options.canonicalIdentityUrl ?? `https://article.example.test/${id}`,
+  };
   await client.query(
     `INSERT INTO articles (
        id, source_id, original_url, canonical_identity_url,
@@ -777,12 +1041,13 @@ async function insertArticle(
        published_at_status, published_at, source_updated_at_status,
        source_updated_at, visibility_state, first_seen_at, last_seen_at
      ) VALUES (
-       $1, $2, $3, $3, $4, $5, $6, $7, $8, $9, 'missing', NULL, $10, $11, $11
-     )`,
+       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'missing', NULL, $11, $12, $12
+      )`,
     [
       article.id,
       article.sourceId,
-      `https://article.example.test/${article.id}`,
+      article.originalUrl,
+      article.canonicalIdentityUrl,
       options.displayTitle ?? `Headline ${article.id}`,
       options.normalizedTitle ?? `headline ${article.id}`,
       options.author ?? null,
@@ -794,6 +1059,33 @@ async function insertArticle(
     ],
   );
   return Object.freeze(article);
+}
+
+async function insertDuplicateGroup(
+  client: Client,
+  primary: SeededArticle,
+  members: readonly SeededArticle[],
+): Promise<string> {
+  const groupId = randomUUID();
+  const values = members.map((_, index) => `($1, $${index + 2})`).join(', ');
+  await client.query('BEGIN');
+  try {
+    await client.query(
+      `INSERT INTO duplicate_groups (id, primary_article_id)
+       VALUES ($1, $2)`,
+      [groupId, primary.id],
+    );
+    await client.query(
+      `INSERT INTO duplicate_group_memberships (group_id, article_id)
+       VALUES ${values}`,
+      [groupId, ...members.map((article) => article.id)],
+    );
+    await client.query('COMMIT');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    throw error;
+  }
+  return groupId;
 }
 
 async function assignCategory(
