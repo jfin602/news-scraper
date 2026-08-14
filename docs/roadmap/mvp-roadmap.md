@@ -15,6 +15,7 @@ Phases are intentionally narrow. Each phase represents one cohesive implementati
 - Publication is a singleton editorial/configuration concept, not a relational tenancy key. Do not introduce Publication IDs, slugs, foreign keys, joins, uniqueness scopes, or compatibility plumbing solely for hypothetical concurrent hosting.
 - Real Source/endpoint/run/Article/observation relationships remain explicit where they protect identity, provenance, safety, lifecycle, or data integrity.
 - Before production database compatibility is established, the supported persistence setup is a fresh database built from the repository's current migration chain and bootstrap/configuration. Pre-production schema corrections are destructive resets: legacy-only migrations, compatibility code, selector APIs, tests/fixtures, and obsolete configuration paths are removed when the current canonical system no longer needs them, and databases created by older source trees are rebuilt rather than preserved.
+- Phase 19 establishes and validates production backup/restore, deployment/rollback, and schema-upgrade procedures. Acceptance of Phase 20 customer launch establishes the first supported production schema/data baseline; from that baseline forward `docs/decisions/production-data-and-schema-compatibility.md` governs data preservation and supported upgrades.
 - Network safety, Source approval boundaries, Collection-run provenance, normalization, Relevance ordering, and idempotent Article identity are not deferred for the tech demo because they are expensive and risky to retrofit.
 - Before configurable Relevance rules exist, the canonical Relevance boundary runs with an empty rule set and deterministically includes safe candidates by default.
 - The optional Source RSS/Atom item admission filter is Source-owned, topic-independent, include-only configuration evaluated over parsed Raw-item editorial text before Article-candidate normalization; it is distinct from Phase 11 Relevance.
@@ -24,6 +25,8 @@ Phases are intentionally narrow. Each phase represents one cohesive implementati
 - Observed Level 8 proof that Cloudflare Access protects deployed admin routes and that direct-origin bypass fails is deferred to Phase 19; earlier admin phases still implement and regression-test their application-side security boundaries and do not weaken the deployment invariant.
 - Public-feed and collection behavior should become useful before admin convenience and moderation workflows are expanded.
 - Automated behavioral regression coverage is the primary defense against regressions. Every implementation phase and gating correction inherits `docs/contracts/testing-and-validation-contract.md`.
+- After Phase 20 customer launch, new product-feature implementation is frozen until Phase 21 closes. Critical production defects, security fixes, data-integrity fixes, and required operational repairs remain permitted through the appropriate correction/fix workflow; unrelated new capability does not.
+- Phase 21 is the terminal roadmap phase unless the repository owner explicitly approves a later roadmap extension. Deferred feature ideas do not implicitly create Phase 22.
 
 ## Global phase validation gate
 
@@ -1003,6 +1006,8 @@ Make the completed MVP safe to operate continuously and recoverably, strengtheni
 - backup/restore procedure and tested restore;
 - retention jobs/policies;
 - deployment/rollback process;
+- supported schema-upgrade procedure from the deployment state intended to become the production baseline;
+- observed schema-upgrade/data-preservation and rollback/restore evidence sufficient for customer launch;
 - operational runbooks;
 - monitoring/recovery ownership;
 - explicit Cloudflare Access/origin-protection validation;
@@ -1021,6 +1026,7 @@ Make the completed MVP safe to operate continuously and recoverably, strengtheni
 - Source failures/queue delay are observable.
 - Security coverage includes SSRF, unsafe content, secret leakage, fetch limits, admin perimeter/origin assumptions, and request integrity.
 - Deployment/rollback and failure runbooks are usable and validated where practical.
+- The schema-upgrade/rollback/restore procedure intended to govern production is exercised against representative supported pre-launch state, with preservation evidence adequate for Phase 20 to establish the first production baseline.
 - Level 8 reference-deployment evidence confirms Cloudflare Access challenges/denies unauthenticated admin access, an authorized operator can reach the admin surface, direct-origin bypass fails, and the deployed origin-protection control is identified.
 - Required deterministic regression suites remain green on the final tree.
 
@@ -1045,7 +1051,7 @@ Configure, validate, and hand off the first real Publication without adding new 
 - monitoring/recovery ownership confirmation;
 - post-launch metric baseline;
 - documented known limitations;
-- final validation record tied to the launched commit/deployment.
+- final validation record tied to the launched commit/deployment, including the launched schema state/version that establishes the first supported production baseline.
 
 ### Out of scope
 
@@ -1057,12 +1063,79 @@ Configure, validate, and hand off the first real Publication without adding new 
 
 - Customer/operator can manage Sources and moderate feed through Cloudflare-protected admin interface.
 - Public links, dates, Sources, and duplicate suppression are accurate in sampled approved-live-Source validation.
-- Final deterministic regression, browser, recovery, and reference-deployment evidence required by the testing contract is recorded for the launched tree.
+- Final deterministic regression, browser, recovery, schema-upgrade/rollback, and reference-deployment evidence required by the testing contract is recorded for the launched tree.
 - Known limitations and production ownership are documented.
+- The accepted launch evidence identifies the first supported production source tree/version/schema baseline. From this point forward customer production data is durable supported state under `docs/decisions/production-data-and-schema-compatibility.md`.
+- New product-feature implementation remains frozen until Phase 21 closes; only critical defect/security/data-integrity/operations fixes may interrupt that freeze through an appropriate bounded fix/correction path.
+
+## Phase 21 — Codebase simplification and maintainability hardening
+
+### Goal
+
+Perform a final behavior-preserving engineering pass over the completed, launched Platform so the maintained codebase is simpler, clearer, safer to extend, and operationally efficient without adding new product capability or weakening production-data compatibility.
+
+### Depends on
+
+- accepted Phase 20 customer launch and production baseline.
+
+### Planning boundary
+
+Phase 21 scope is deliberately defined now, but its exact implementation prompt stack MUST NOT be predetermined from the Phase 16 source tree. Phases 17–20 will materially change the implementation.
+
+After Phase 20 closes, `/prompt-ass` and especially `/prompt-plan` MUST inspect the accepted launched source tree, important producers/consumers, tests, runtime evidence, dependencies, database/query behavior, Worker/Web ownership, and actual measured bottlenecks. They then derive the smallest number of independently reviewable Phase 21 prompts that address evidence-backed maintainability or efficiency problems.
+
+Do not manufacture cleanup tasks merely to create a large Phase 21 stack. Areas already simple and well-owned remain unchanged.
+
+### Deliverables
+
+As justified by final-tree evidence:
+
+- remove dead, unreachable, obsolete, redundant, compatibility-only, and no-longer-justified code while preserving required supported production compatibility;
+- consolidate genuinely duplicated semantic behavior into one canonical owner without creating speculative generic abstractions;
+- simplify orchestration, module responsibilities, data/control flow, and error propagation where ownership is needlessly indirect or difficult to reason about;
+- correct poor TypeScript, resource-lifecycle, transaction, connection, lock, timer/listener/process, and error-handling practices discovered by the final-tree assessment;
+- remove unnecessary production dependencies and test-support leakage from production modules;
+- simplify test helpers/harness structure where possible without reducing behavioral coverage, isolation, failure detection, or evidence quality;
+- preserve topic independence, Source approval/network safety, idempotency, provenance, Article identity, duplicate integrity, feed/admin contracts, failure isolation, request integrity, and operational observability;
+- preserve the supported production data/schema baseline and implement forward data-preserving migrations for any justified persisted-representation change;
+- measure and optimize actual database/query, Worker, Web/API, startup, memory/resource, or scheduling bottlenecks only where comparable evidence demonstrates a real problem and the change is behavior-preserving;
+- remove unnecessary complexity without targeting arbitrary line-count, file-count, module-count, dependency-count, or complexity-score quotas;
+- leave durable code/architecture/test structure that future feature work can extend without immediately recreating the removed accidental complexity.
+
+### Feature freeze
+
+Until Phase 21 closes:
+
+- no deferred product feature is promoted or implemented merely because customer launch is complete;
+- critical production defects, security issues, data-integrity problems, and required operational repairs may be addressed through an appropriately scoped fix/correction workflow;
+- such repairs must preserve or update the Phase 21 assessment rather than silently turning Phase 21 into a feature-development phase.
+
+### Out of scope
+
+- any new customer-facing or administrator-facing product capability;
+- native administrator identity/accounts;
+- ranking, personalization, newsletters, AI summaries, push adapters, related-story clustering, featured ordering, API products, multilingual support, or other deferred features;
+- changing locked product/domain behavior merely to make implementation smaller;
+- flattening real Source/endpoint/run/Article/observation relationships, security boundaries, transaction guarantees, provenance, or duplicate topology for cosmetic simplicity;
+- destructive rebuild of the launched production database;
+- arbitrary rewrites, framework migrations, or dependency substitutions without a concrete maintainability/correctness/measurement case;
+- optimization claims based only on fewer lines/files/modules or synthetic microbenchmarks that do not represent the affected workload.
+
+### Exit gate
+
+- Every Phase 21 change is traceable to an observed final-tree maintainability, correctness-risk, structural, or measured operational problem rather than speculative cleanup.
+- The final implementation has no known unnecessary duplicate authority, dead/compatibility-only path, avoidable production test leakage, or unjustified abstraction/dependency identified by the approved Phase 21 assessment left unresolved without an explicit documented reason.
+- Governing product/domain/security/data-integrity behavior remains unchanged except for separately authorized critical fixes; all applicable focused and broader regression suites pass against the exact final Phase 21 tree.
+- Any schema/persisted-representation change proves both migration from zero and supported upgrade/data preservation from the accepted Phase 20 production baseline; clean-install success alone is insufficient.
+- Every claimed runtime/database/Worker/Web/startup/resource optimization includes materially comparable before/after measurements and records environment/workload/limitations.
+- Relevant database, collection-fixture, browser, security, recovery, and other specialized evidence required by the testing contract is green on the final tree.
+- A final Level 8 reference-deployment validation observes the refactored build operating against preserved production-compatible state and the governed public/admin/Worker boundaries.
+- A durable Phase 21 validation artifact records the accepted source tree, what complexity was removed, what intentionally remains and why, tests/procedures actually executed, production-upgrade evidence where applicable, before/after measurements, evidence levels, and limitations.
+- Phase 21 closes with no deferred feature automatically promoted and no implicit Phase 22. The roadmap is complete unless the repository owner later approves an explicit roadmap extension.
 
 ## Deferred roadmap candidates
 
-After MVP evidence supports them:
+After Phase 21 closes and evidence supports promoting new work:
 
 - native application-managed administrator accounts/identity;
 - passwords/passkeys or application-managed identity-provider integration;
@@ -1082,4 +1155,4 @@ After MVP evidence supports them:
 - API access;
 - multilingual feeds.
 
-Deferred features reuse normalized Articles and singleton Publication configuration rather than bypassing them. Any future proposal for concurrent multi-Publication hosting within one installation requires an explicit future contract/ADR and deliberate data-model work; it is not inferred from the MVP architecture.
+Deferred features reuse normalized Articles and singleton Publication configuration rather than bypassing them. Any future proposal for concurrent multi-Publication hosting within one installation requires an explicit future contract/ADR and deliberate data-model work; it is not inferred from the MVP architecture. A deferred feature becomes roadmap work only through explicit owner-approved roadmap extension; the existence of this list does not reserve Phase 22 or any package-version baseline.
