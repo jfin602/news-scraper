@@ -15,29 +15,31 @@ const publicFeedPage = `<!doctype html>
   </head>
   <body>
     <main class="public-feed-shell" data-publication-state="unresolved">
-      <fieldset class="theme-control" data-theme-control>
-        <legend>Theme</legend>
-        <div class="theme-options">
-          <label>
-            <input type="radio" name="reader-theme" value="system" data-theme-option checked>
-            <span>System</span>
-          </label>
-          <label>
-            <input type="radio" name="reader-theme" value="light" data-theme-option>
-            <span>Light</span>
-          </label>
-          <label>
-            <input type="radio" name="reader-theme" value="dark" data-theme-option>
-            <span>Dark</span>
-          </label>
+      <header class="publication-header">
+        <div class="publication-masthead" data-publication-masthead hidden>
+          <div class="publication-logo" data-publication-logo hidden></div>
+          <div class="publication-identity">
+            <h1 data-publication-name></h1>
+            <p class="publication-description" data-publication-description hidden></p>
+          </div>
         </div>
-      </fieldset>
-      <header class="publication-masthead" data-publication-masthead hidden>
-        <div class="publication-logo" data-publication-logo hidden></div>
-        <div class="publication-identity">
-          <h1 data-publication-name></h1>
-          <p class="publication-description" data-publication-description hidden></p>
-        </div>
+        <fieldset class="theme-control" data-theme-control>
+          <legend>Theme</legend>
+          <div class="theme-options">
+            <label>
+              <input type="radio" name="reader-theme" value="system" data-theme-option checked>
+              <span>System</span>
+            </label>
+            <label>
+              <input type="radio" name="reader-theme" value="light" data-theme-option>
+              <span>Light</span>
+            </label>
+            <label>
+              <input type="radio" name="reader-theme" value="dark" data-theme-option>
+              <span>Dark</span>
+            </label>
+          </div>
+        </fieldset>
       </header>
       <form data-discovery-form aria-label="Discover headlines">
         <div class="discovery-field">

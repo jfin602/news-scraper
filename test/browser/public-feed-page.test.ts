@@ -435,7 +435,7 @@ describe('Public feed page browser behavior', () => {
         await page
           .locator('.feed-row')
           .evaluate((element) => getComputedStyle(element).display),
-        'block',
+        'grid',
       );
       assert.equal(
         await page.evaluate(
@@ -452,6 +452,202 @@ describe('Public feed page browser behavior', () => {
       );
       await link.click({ noWaitAfter: true });
       assert.equal((await destinationRequest).url(), originalUrl);
+    } finally {
+      await context.close();
+    }
+  });
+
+  it('presents a wrapping editorial index at representative desktop and mobile widths', async () => {
+    const longHeadline =
+      'A deliberately long editorial headline that must wrap naturally without colliding with its publication date or the exceptionally detailed Source attribution beside it';
+    const longSource =
+      'The International Independent Publishing Research and Standards Review';
+    const longChoice =
+      'A deliberately long discovery option label that must remain inside the viewport';
+    outcome = populatedFeed({
+      publication: {
+        ...brandedPublication,
+        logoPath: null,
+        description:
+          'A considered publication description that explains the desk without competing with the headlines.',
+      },
+      sourceChoices: Object.freeze([
+        Object.freeze({ configKey: 'long_source', displayName: longChoice }),
+      ]),
+      categoryChoices: Object.freeze([
+        Object.freeze({ configKey: 'long_category', displayName: longChoice }),
+      ]),
+      items: Object.freeze([
+        Object.freeze({
+          ...populatedFeed().items[0]!,
+          headline: longHeadline,
+          sourceName: longSource,
+        }),
+      ]),
+      nextCursor: 'presentation-cursor',
+    });
+
+    for (const viewport of [
+      { width: 1280, height: 900, mobile: false },
+      { width: 390, height: 844, mobile: true },
+    ] as const) {
+      const { context, page } = await openPage({ viewport });
+      try {
+        await waitForState(page, 'populated');
+        await page
+          .locator('[data-discovery-source]')
+          .selectOption('long_source');
+        await page
+          .locator('[data-discovery-category]')
+          .selectOption('long_category');
+        assert.equal(await hasHorizontalDocumentOverflow(page), false);
+        assert.deepEqual(
+          await page
+            .locator('.feed-row')
+            .evaluate((row) =>
+              Array.from(row.children, (child) => child.className),
+            ),
+          ['feed-date', 'feed-source', 'feed-headline'],
+        );
+
+        const headings = page.locator('.feed-column-headings');
+        if (viewport.mobile) {
+          assert.equal(await headings.isHidden(), true);
+          const placement = await page.locator('.feed-row').evaluate((row) => {
+            const date = row
+              .querySelector('.feed-date')
+              ?.getBoundingClientRect();
+            const source = row
+              .querySelector('.feed-source')
+              ?.getBoundingClientRect();
+            const headline = row
+              .querySelector('.feed-headline')
+              ?.getBoundingClientRect();
+            if (
+              date === undefined ||
+              source === undefined ||
+              headline === undefined
+            )
+              throw new Error('Missing mobile feed field.');
+            return {
+              dateTop: date.top,
+              sourceTop: source.top,
+              metadataBottom: Math.max(date.bottom, source.bottom),
+              headlineTop: headline.top,
+            };
+          });
+          assert.ok(Math.abs(placement.dateTop - placement.sourceTop) < 2);
+          assert.ok(placement.headlineTop >= placement.metadataBottom);
+          assert.ok(
+            (await page.locator('[data-discovery-form]').boundingBox())!.width >
+              300,
+          );
+          const mastheadBox = await page
+            .locator('[data-publication-masthead]')
+            .boundingBox();
+          const themeBox = await page
+            .locator('[data-theme-control]')
+            .boundingBox();
+          assert.ok(
+            mastheadBox !== null &&
+              themeBox !== null &&
+              themeBox.y >= mastheadBox.y + mastheadBox.height,
+          );
+        } else {
+          assert.equal(await headings.isVisible(), true);
+          assert.deepEqual(await headings.allTextContents(), [
+            'DateHeadlineSource',
+          ]);
+          const placement = await page.locator('.feed-row').evaluate((row) => {
+            const date = row
+              .querySelector('.feed-date')
+              ?.getBoundingClientRect();
+            const headline = row
+              .querySelector('.feed-headline')
+              ?.getBoundingClientRect();
+            const source = row
+              .querySelector('.feed-source')
+              ?.getBoundingClientRect();
+            if (
+              date === undefined ||
+              headline === undefined ||
+              source === undefined
+            )
+              throw new Error('Missing desktop feed field.');
+            return { dateX: date.x, headlineX: headline.x, sourceX: source.x };
+          });
+          assert.ok(placement.dateX < placement.headlineX);
+          assert.ok(placement.headlineX < placement.sourceX);
+        }
+
+        assert.equal(
+          await page.locator('.feed-headline-link').innerText(),
+          longHeadline,
+        );
+        assert.equal(
+          await page
+            .locator('.feed-source > span:last-child')
+            .evaluate((element) => element.textContent),
+          longSource,
+        );
+        await assertMinimumTargetSizes(page);
+        for (const selector of [
+          '[data-discovery-keyword]',
+          '[data-discovery-source]',
+          '[data-discovery-category]',
+          '.discovery-actions button[type="submit"]',
+          '[data-discovery-reset]',
+          '[data-theme-option][value="system"] + span',
+          '[data-theme-option][value="light"] + span',
+          '[data-theme-option][value="dark"] + span',
+          '.feed-headline-link',
+          '[data-feed-load-more]',
+        ]) {
+          assert.equal(
+            await elementFitsViewport(page, selector),
+            true,
+            selector,
+          );
+        }
+      } finally {
+        await context.close();
+      }
+    }
+  });
+
+  it('keeps a static understandable loading state with reduced motion', async () => {
+    outcome = new Promise<PublicFeed | undefined>(() => undefined);
+    const { context, page } = await openPage({
+      reducedMotion: 'reduce',
+      viewport: { width: 390, height: 844 },
+    });
+    try {
+      await waitForState(page, 'loading');
+      assert.equal(
+        await page.locator('[data-feed-status-message]').innerText(),
+        'Loading publication…',
+      );
+      assert.equal(
+        await page.locator('[data-feed-status]').getAttribute('role'),
+        'status',
+      );
+      assert.deepEqual(
+        await page.locator('[data-feed-loading-indicator]').evaluate((node) => {
+          const style = getComputedStyle(node);
+          return {
+            animationName: style.animationName,
+            transitionDuration: style.transitionDuration,
+          };
+        }),
+        { animationName: 'none', transitionDuration: '0s' },
+      );
+      assert.equal(
+        await page
+          .locator('.discovery-actions button[type="submit"]')
+          .evaluate((node) => getComputedStyle(node).transitionDuration),
+        '0s',
+      );
+      assert.equal(await hasHorizontalDocumentOverflow(page), false);
     } finally {
       await context.close();
     }
@@ -629,11 +825,23 @@ describe('Public feed page browser behavior', () => {
         await page.locator('[data-feed-status]').innerText(),
         /no recent headlines/i,
       );
+      assert.equal(
+        await page.locator('[data-feed-status]').getAttribute('role'),
+        'status',
+      );
       await page.goto(
         `http://${webServer.host}:${webServer.port}/?q=one&q=two`,
       );
       await waitForState(page, 'invalid');
       assert.match(await page.locator('main').innerText(), /invalid/i);
+      assert.equal(
+        await page.locator('[data-discovery-reset]').isVisible(),
+        true,
+      );
+      assert.ok(
+        (await page.locator('[data-discovery-reset]').boundingBox())!.height >=
+          44,
+      );
       outcome = undefined;
       await page.goto(`http://${webServer.host}:${webServer.port}/`);
       await waitForState(page, 'unavailable');
@@ -1064,9 +1272,13 @@ describe('Public feed page browser behavior', () => {
         const url = new URL(request.url());
         return url.pathname === '/api/feed' && url.searchParams.has('cursor');
       });
+      const idleButtonBox = await loadMore.boundingBox();
       await page.keyboard.press('Enter');
       await continuationRequest;
+      const busyButtonBox = await loadMore.boundingBox();
       assert.equal(await loadMore.isDisabled(), true);
+      assert.equal(await loadMore.innerText(), 'Loading…');
+      assert.deepEqual(busyButtonBox, idleButtonBox);
       assert.equal(
         await page.locator('[data-feed-pagination-status]').innerText(),
         'Loading more headlines.',
@@ -2117,6 +2329,7 @@ describe('Public feed page browser behavior', () => {
       path?: string;
       timezoneId?: string;
       viewport?: { readonly width: number; readonly height: number };
+      reducedMotion?: 'reduce' | 'no-preference';
       routeApi?: (route: Route) => Promise<void>;
       routeLogo?: (route: Route) => Promise<void>;
       controlledFetch?: boolean;
@@ -2131,6 +2344,9 @@ describe('Public feed page browser behavior', () => {
         ? {}
         : { timezoneId: options.timezoneId }),
       ...(options.viewport === undefined ? {} : { viewport: options.viewport }),
+      ...(options.reducedMotion === undefined
+        ? {}
+        : { reducedMotion: options.reducedMotion }),
     });
     const page = await context.newPage();
     if (options.controlledFetch === true) await installControlledFetch(page);
@@ -2156,6 +2372,41 @@ async function applyKeyword(page: Page, value: string): Promise<void> {
   await page.locator('[data-discovery-keyword]').fill(value);
   await submitDiscovery(page);
   await waitForState(page, 'populated');
+}
+
+async function hasHorizontalDocumentOverflow(page: Page): Promise<boolean> {
+  return page.evaluate(
+    () => document.documentElement.scrollWidth > window.innerWidth,
+  );
+}
+
+async function elementFitsViewport(
+  page: Page,
+  selector: string,
+): Promise<boolean> {
+  return page.locator(selector).evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    return box.left >= 0 && box.right <= window.innerWidth;
+  });
+}
+
+async function assertMinimumTargetSizes(page: Page): Promise<void> {
+  for (const selector of [
+    '[data-discovery-keyword]',
+    '[data-discovery-source]',
+    '[data-discovery-category]',
+    '.discovery-actions button[type="submit"]',
+    '[data-discovery-reset]',
+    '[data-theme-option][value="system"] + span',
+    '[data-theme-option][value="light"] + span',
+    '[data-theme-option][value="dark"] + span',
+    '.feed-headline-link',
+    '[data-feed-load-more]',
+  ]) {
+    const box = await page.locator(selector).boundingBox();
+    assert.ok(box !== null && box.height >= 44, `${selector} target height`);
+    assert.ok(box !== null && box.width >= 24, `${selector} target width`);
+  }
 }
 
 async function submitDiscovery(page: Page): Promise<void> {

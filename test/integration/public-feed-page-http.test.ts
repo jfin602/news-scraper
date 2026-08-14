@@ -58,9 +58,10 @@ describe('Public feed page HTTP delivery', () => {
       body,
       /<main class="public-feed-shell" data-publication-state="unresolved">/u,
     );
+    assert.match(body, /<header class="publication-header">/u);
     assert.match(
       body,
-      /<header class="publication-masthead" data-publication-masthead hidden>/u,
+      /<div class="publication-masthead" data-publication-masthead hidden>/u,
     );
     assert.match(body, /<fieldset class="theme-control" data-theme-control>/u);
     assert.match(body, /<legend>Theme<\/legend>/u);

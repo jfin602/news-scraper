@@ -293,8 +293,8 @@
 
     row.append(
       feedField('Date', 'date', time),
-      feedField('Headline', 'headline', link),
       feedField('Source', 'source', sourceName),
+      feedField('Headline', 'headline', link),
     );
     return row;
   }
@@ -311,6 +311,7 @@
     heading.setAttribute('aria-hidden', 'true');
     for (const label of ['Date', 'Headline', 'Source']) {
       const column = document.createElement('span');
+      column.className = `feed-column-heading feed-column-heading-${label.toLowerCase()}`;
       column.textContent = label;
       heading.append(column);
     }
@@ -406,6 +407,9 @@
         ? ''
         : 'Unable to load more headlines. Please try again.';
     loadMore.disabled = state.continuation.loading;
+    loadMore.textContent = state.continuation.loading
+      ? 'Loading\u2026'
+      : 'Load more';
     loadMore.setAttribute(
       'aria-disabled',
       state.continuation.loading ? 'true' : 'false',

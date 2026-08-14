@@ -259,6 +259,171 @@ describe('Public feed reader theme browser behavior', () => {
     }
   });
 
+  it('keeps application-owned contrast and visible focus safe in Light and Dark', async () => {
+    outcome = Object.freeze({
+      ...populatedFeed,
+      publication: Object.freeze({
+        ...populatedFeed.publication,
+        accentColor: '#FFFFFF',
+      }),
+      nextCursor: 'presentation-cursor',
+    });
+    const { context, page } = await openThemePage({ colorScheme: 'light' });
+    try {
+      await waitForState(page, 'populated');
+      const presentations: Record<string, Record<string, string>> = {};
+
+      for (const theme of ['light', 'dark'] as const) {
+        await chooseTheme(page, theme);
+        presentations[theme] = await page.evaluate(() => {
+          const rootStyle = getComputedStyle(document.documentElement);
+          const masthead = document.querySelector(
+            '[data-publication-masthead]',
+          );
+          if (!(masthead instanceof HTMLElement))
+            throw new Error('Missing masthead.');
+          const value = (name: string) =>
+            rootStyle.getPropertyValue(name).trim();
+          return {
+            page: value('--page-bg'),
+            surface: value('--surface'),
+            subtle: value('--surface-subtle'),
+            text: value('--text-primary'),
+            muted: value('--text-muted'),
+            link: value('--link'),
+            focus: value('--focus-ring'),
+            danger: value('--danger'),
+            border: value('--border'),
+            control: value('--control-bg'),
+            accent: getComputedStyle(masthead, '::before').backgroundColor,
+          };
+        });
+        const tokens = presentations[theme]!;
+        assertContrastAtLeast(tokens.text!, tokens.page!, 4.5, `${theme} text`);
+        assertContrastAtLeast(
+          tokens.muted!,
+          tokens.page!,
+          4.5,
+          `${theme} metadata`,
+        );
+        assertContrastAtLeast(
+          tokens.muted!,
+          tokens.subtle!,
+          4.5,
+          `${theme} filter metadata`,
+        );
+        assertContrastAtLeast(tokens.link!, tokens.page!, 4.5, `${theme} link`);
+        assertContrastAtLeast(
+          tokens.danger!,
+          tokens.page!,
+          4.5,
+          `${theme} error`,
+        );
+        assertContrastAtLeast(
+          tokens.text!,
+          tokens.control!,
+          4.5,
+          `${theme} control text`,
+        );
+        assertContrastAtLeast(
+          tokens.border!,
+          tokens.control!,
+          3,
+          `${theme} control boundary`,
+        );
+        assertContrastAtLeast(
+          tokens.border!,
+          tokens.subtle!,
+          3,
+          `${theme} control boundary against filter surface`,
+        );
+        assertContrastAtLeast(tokens.focus!, tokens.page!, 3, `${theme} focus`);
+        assertContrastAtLeast(
+          tokens.focus!,
+          tokens.subtle!,
+          3,
+          `${theme} focus against filter surface`,
+        );
+        assert.equal(tokens.accent, 'rgb(255, 255, 255)');
+        assert.notEqual(tokens.text, tokens.accent);
+        assert.notEqual(tokens.focus, tokens.accent);
+        assert.notEqual(tokens.danger, tokens.accent);
+
+        await page.keyboard.press('Tab');
+        for (const selector of [
+          '[data-theme-option][value="system"]',
+          '[data-theme-option][value="light"]',
+          '[data-theme-option][value="dark"]',
+          '[data-discovery-keyword]',
+          '[data-discovery-source]',
+          '[data-discovery-category]',
+          '.discovery-actions button[type="submit"]',
+          '[data-discovery-reset]',
+          '.feed-headline-link',
+          '[data-feed-load-more]',
+        ]) {
+          const control = page.locator(selector);
+          await control.focus();
+          const focusPresentation = await control.evaluate((element) => {
+            const target = element.matches('[data-theme-option]')
+              ? element.nextElementSibling
+              : element;
+            if (!(target instanceof HTMLElement))
+              throw new Error('Missing focus presentation target.');
+            const style = getComputedStyle(target);
+            return {
+              style: style.outlineStyle,
+              width: Number.parseFloat(style.outlineWidth),
+              color: style.outlineColor,
+            };
+          });
+          assert.equal(focusPresentation.style, 'solid', selector);
+          assert.ok(focusPresentation.width >= 3, selector);
+          assert.equal(focusPresentation.color, tokens.focus, selector);
+        }
+      }
+
+      assert.notEqual(presentations.light!.page, presentations.dark!.page);
+      assert.notEqual(presentations.light!.text, presentations.dark!.text);
+      assert.notEqual(
+        presentations.light!.control,
+        presentations.dark!.control,
+      );
+    } finally {
+      await context.close();
+    }
+  });
+
+  it('traverses theme, discovery, headline, and pagination controls without a keyboard trap', async () => {
+    outcome = Object.freeze({
+      ...populatedFeed,
+      nextCursor: 'presentation-cursor',
+    });
+    const { context, page } = await openThemePage({ colorScheme: 'light' });
+    try {
+      await waitForState(page, 'populated');
+      const order: string[] = [];
+      for (let index = 0; index < 8; index += 1) {
+        await page.keyboard.press('Tab');
+        order.push(await focusedControl(page));
+      }
+      assert.deepEqual(order, [
+        'theme:system',
+        'keyword',
+        'source',
+        'category',
+        'button:Search',
+        'button:Reset',
+        'headline',
+        'button:Load more',
+      ]);
+      await page.keyboard.press('Shift+Tab');
+      assert.equal(await focusedControl(page), 'headline');
+    } finally {
+      await context.close();
+    }
+  });
+
   it('keeps Dark coherent in every public state and preserves UTC dates and exact links', async () => {
     outcome = populatedFeed;
     const { context, page } = await openThemePage({
@@ -474,4 +639,54 @@ function articleValues(page: Page): Promise<readonly string[]> {
       (row) => row.textContent ?? '',
     ),
   );
+}
+
+function focusedControl(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const active = document.activeElement;
+    if (!(active instanceof HTMLElement)) return 'none';
+    if (active.matches('[data-theme-option]'))
+      return `theme:${(active as HTMLInputElement).value}`;
+    if (active.matches('[data-discovery-keyword]')) return 'keyword';
+    if (active.matches('[data-discovery-source]')) return 'source';
+    if (active.matches('[data-discovery-category]')) return 'category';
+    if (active.matches('.feed-headline-link')) return 'headline';
+    if (active instanceof HTMLButtonElement)
+      return `button:${active.innerText}`;
+    return active.tagName.toLowerCase();
+  });
+}
+
+function assertContrastAtLeast(
+  foreground: string,
+  background: string,
+  minimum: number,
+  label: string,
+): void {
+  const ratio = contrastRatio(foreground, background);
+  assert.ok(ratio >= minimum, `${label} contrast ${ratio} is below ${minimum}`);
+}
+
+function contrastRatio(first: string, second: string): number {
+  const firstLuminance = relativeLuminance(first);
+  const secondLuminance = relativeLuminance(second);
+  const lighter = Math.max(firstLuminance, secondLuminance);
+  const darker = Math.min(firstLuminance, secondLuminance);
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function relativeLuminance(color: string): number {
+  const channels = color
+    .match(/[\d.]+/gu)
+    ?.slice(0, 3)
+    .map(Number);
+  if (channels === undefined || channels.length !== 3)
+    throw new Error(`Unsupported color: ${color}`);
+  const linear = channels.map((channel) => {
+    const normalized = channel / 255;
+    return normalized <= 0.04045
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * linear[0]! + 0.7152 * linear[1]! + 0.0722 * linear[2]!;
 }
