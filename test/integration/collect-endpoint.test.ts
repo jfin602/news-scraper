@@ -166,6 +166,73 @@ describe('canonical endpoint collection service', () => {
     ]);
   });
 
+  it('accumulates committed included duplicate effects without changing Article outcome arithmetic', async () => {
+    const events: string[] = [];
+    const runs = runStore(events);
+    const result = await collectEndpoint(observedAggregate(events), {
+      lockRunner: acquiredLock(events),
+      runs,
+      fetcher: fetcher(events, contentResult()),
+      rssAtomParser: parser(events, {
+        ok: true,
+        dialect: 'rss',
+        items: [
+          {
+            title: 'Strong fixture',
+            url: 'https://feeds.example.test/strong',
+          },
+          {
+            title: 'Weak fixture',
+            url: 'https://feeds.example.test/weak',
+          },
+        ],
+      }),
+      normalizeArticleCandidate,
+      applyArticleLinkPolicy,
+      async loadRelevanceConfiguration() {
+        return EMPTY_RELEVANCE_CONFIGURATION;
+      },
+      evaluateRelevance,
+      async persistArticle() {
+        throw new Error('legacy Article persistence path was used');
+      },
+      async processIncludedArticle(candidate) {
+        events.push(`included:${candidate.displayTitle}`);
+        return {
+          outcome: 'created',
+          duplicateReviewCreatedCount:
+            candidate.displayTitle === 'Strong fixture' ? 1 : 2,
+          duplicateGroupedCount:
+            candidate.displayTitle === 'Strong fixture' ? 1 : 0,
+        } as never;
+      },
+      async persistExcludedArticle() {
+        return excludedPersistenceSuccess();
+      },
+      observationTime: () => new Date('2026-08-08T12:00:00.000Z'),
+      executionId: () => EXECUTION_ID,
+    });
+
+    assert.equal(result.status, 'succeeded');
+    if (result.status !== 'succeeded') return;
+    assert.deepEqual(processingTuple(result), ['succeeded', 2, 0, 0, 0, 0, 0]);
+    assert.equal(result.duplicateReviewCreatedCount, 3);
+    assert.equal(result.duplicateGroupedCount, 1);
+    assert.deepEqual(
+      events.filter((event) => event.startsWith('included:')),
+      ['included:Strong fixture', 'included:Weak fixture'],
+    );
+    assert.ok(
+      events.indexOf('included:Strong fixture') <
+        events.indexOf('included:Weak fixture'),
+    );
+    assert.ok(
+      events.indexOf('included:Weak fixture') < events.indexOf('run.finalize'),
+    );
+    assert.equal(runs.finalizations[0]?.duplicateReviewCreatedCount, 3);
+    assert.equal(runs.finalizations[0]?.duplicateGroupedCount, 1);
+  });
+
   it('filters mismatching Raw items before normalization and all candidate work', async () => {
     const events: string[] = [];
     const runs = runStore(events);
@@ -278,6 +345,9 @@ describe('canonical endpoint collection service', () => {
         async persistArticle() {
           return unreachable();
         },
+        async processIncludedArticle() {
+          return unreachable();
+        },
         async persistExcludedArticle() {
           return unreachable();
         },
@@ -326,6 +396,8 @@ describe('canonical endpoint collection service', () => {
       ],
     );
     assert.equal(downstreamCalls, 0);
+    assert.equal(result.duplicateReviewCreatedCount, 0);
+    assert.equal(result.duplicateGroupedCount, 0);
     assert.deepEqual(runs.finalizations[0], {
       runStatus: 'succeeded',
       transportStatus: 'succeeded',

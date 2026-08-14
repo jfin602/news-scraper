@@ -260,73 +260,111 @@ export async function persistIncludedArticle(
   const relevance = validateRelevanceDecision(candidate, decision, true);
 
   try {
-    return await database.transaction(async (transaction) => {
-      await acquireArticleIdentityLocks(transaction, {
-        sourceId: validatedCandidate.sourceId,
-        ...(validatedCandidate.externalId === undefined
-          ? {}
-          : { externalId: validatedCandidate.externalId }),
-        canonicalIdentityUrl: validatedCandidate.canonicalIdentityUrl,
-      });
-
-      const provenance = await loadProvenanceContext(
-        transaction,
-        validatedCandidate,
-      );
-      if (provenance === undefined) {
-        return PROVENANCE_MISMATCH_RESULT;
-      }
-
-      const resolution = await resolveIdentity(transaction, validatedCandidate);
-      if (resolution === undefined) return IDENTITY_CONFLICT_RESULT;
-
-      const persisted = await persistResolvedArticle(
+    return await database.transaction((transaction) =>
+      persistIncludedArticleInTransactionValidated(
         transaction,
         validatedCandidate,
         observedAt,
-        resolution,
-      );
-      const insertedObservation = await insertObservation(
-        transaction,
-        validatedCandidate,
-        persisted.article,
-        persisted.outcome,
-        observedAt,
-      );
-      const resolvedRelevance = await resolveRelevancePersistenceInput(
-        transaction,
-        validatedCandidate,
-        provenance,
         relevance,
-      );
-      const observation = mapIncludedObservationRow(
-        await persistObservationDecisionReason(
-          transaction,
-          insertedObservation.id,
-          resolvedRelevance,
-        ),
-      );
-      await reconcileArticleCategories(
-        transaction,
-        persisted.article.id,
-        resolvedRelevance.categoryIds,
-      );
-      await persistCategoryReasons(
-        transaction,
-        observation.id,
-        resolvedRelevance.categoryReasons,
-      );
-      return Object.freeze({
-        outcome: persisted.outcome,
-        article: persisted.article,
-        observation,
-      });
-    });
+      ),
+    );
   } catch (error) {
-    if (isIdentityConstraintConflict(error)) return IDENTITY_CONFLICT_RESULT;
+    if (isArticleIdentityConstraintConflict(error))
+      return IDENTITY_CONFLICT_RESULT;
     if (error instanceof ArticlePersistenceError) throw error;
     throw new ArticlePersistenceError('transaction_failed', { cause: error });
   }
+}
+
+/**
+ * Persists one included Article and its observation in a caller-owned
+ * transaction. Duplicate processing composes after this helper returns so
+ * Article identity, provenance, Relevance/category state, and duplicate
+ * state share one commit or rollback boundary.
+ */
+export async function persistIncludedArticleInTransaction(
+  executor: QueryExecutor,
+  candidate: ArticleCandidate,
+  observationTime: Date,
+  decision: RelevanceDecision = defaultIncludeDecision(candidate),
+): Promise<ArticlePersistenceResult> {
+  const validatedCandidate = validateCandidate(candidate);
+  const observedAt = validateObservationTime(observationTime);
+  const relevance = validateRelevanceDecision(candidate, decision, true);
+  return persistIncludedArticleInTransactionValidated(
+    executor,
+    validatedCandidate,
+    observedAt,
+    relevance,
+  );
+}
+
+async function persistIncludedArticleInTransactionValidated(
+  transaction: QueryExecutor,
+  validatedCandidate: ValidatedCandidate,
+  observedAt: Date,
+  relevance: ValidatedRelevancePersistenceInput,
+): Promise<ArticlePersistenceResult> {
+  await acquireArticleIdentityLocks(transaction, {
+    sourceId: validatedCandidate.sourceId,
+    ...(validatedCandidate.externalId === undefined
+      ? {}
+      : { externalId: validatedCandidate.externalId }),
+    canonicalIdentityUrl: validatedCandidate.canonicalIdentityUrl,
+  });
+
+  const provenance = await loadProvenanceContext(
+    transaction,
+    validatedCandidate,
+  );
+  if (provenance === undefined) {
+    return PROVENANCE_MISMATCH_RESULT;
+  }
+
+  const resolution = await resolveIdentity(transaction, validatedCandidate);
+  if (resolution === undefined) return IDENTITY_CONFLICT_RESULT;
+
+  const persisted = await persistResolvedArticle(
+    transaction,
+    validatedCandidate,
+    observedAt,
+    resolution,
+  );
+  const insertedObservation = await insertObservation(
+    transaction,
+    validatedCandidate,
+    persisted.article,
+    persisted.outcome,
+    observedAt,
+  );
+  const resolvedRelevance = await resolveRelevancePersistenceInput(
+    transaction,
+    validatedCandidate,
+    provenance,
+    relevance,
+  );
+  const observation = mapIncludedObservationRow(
+    await persistObservationDecisionReason(
+      transaction,
+      insertedObservation.id,
+      resolvedRelevance,
+    ),
+  );
+  await reconcileArticleCategories(
+    transaction,
+    persisted.article.id,
+    resolvedRelevance.categoryIds,
+  );
+  await persistCategoryReasons(
+    transaction,
+    observation.id,
+    resolvedRelevance.categoryReasons,
+  );
+  return Object.freeze({
+    outcome: persisted.outcome,
+    article: persisted.article,
+    observation,
+  });
 }
 
 export async function persistExcludedArticleObservation(
@@ -1395,7 +1433,7 @@ function timestampsEqual(
     : right !== undefined && left.getTime() === right.getTime();
 }
 
-function isIdentityConstraintConflict(error: unknown): boolean {
+export function isArticleIdentityConstraintConflict(error: unknown): boolean {
   if (error === null || typeof error !== 'object') return false;
   return (
     Reflect.get(error, 'code') === '23505' &&

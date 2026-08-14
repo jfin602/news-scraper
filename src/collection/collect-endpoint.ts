@@ -3,6 +3,7 @@ import type {
   ArticlePersistenceResult,
   ExcludedArticlePersistenceResult,
 } from '../articles/repository.ts';
+import type { IncludedArticleProcessingResult } from './included-article-processing.ts';
 import type { EndpointConfigurationAggregate } from '../sources/repository.ts';
 import { isSourceRssAtomItemAdmitted } from './admission/source-rss-atom-item-filter.ts';
 import type { CollectionBlockedDecision } from './decision.ts';
@@ -79,6 +80,11 @@ export interface CollectEndpointDependencies {
     observationTime: Date,
     decision: Extract<RelevanceDecision, { readonly included: true }>,
   ) => Promise<ArticlePersistenceResult>;
+  readonly processIncludedArticle?: (
+    candidate: ArticleCandidate,
+    observationTime: Date,
+    decision: Extract<RelevanceDecision, { readonly included: true }>,
+  ) => Promise<IncludedArticleProcessingResult>;
   readonly persistExcludedArticle: (
     candidate: ArticleCandidate,
     observationTime: Date,
@@ -577,13 +583,11 @@ async function processCandidates(
       continue;
     }
 
-    let persistence: ArticlePersistenceResult;
+    let persistence: ArticlePersistenceResult | IncludedArticleProcessingResult;
     try {
-      persistence = await dependencies.persistArticle(
-        relevance.candidate,
-        observationTime,
-        relevance,
-      );
+      persistence = await (
+        dependencies.processIncludedArticle ?? dependencies.persistArticle
+      )(relevance.candidate, observationTime, relevance);
       if (!isArticlePersistenceResult(persistence)) {
         throw new TypeError('Invalid Article persistence result.');
       }
@@ -596,6 +600,21 @@ async function processCandidates(
       );
     }
 
+    if (persistence.outcome !== 'failed') {
+      try {
+        const effects = includedProcessingEffects(persistence);
+        counters.duplicateReviewCreatedCount +=
+          effects.duplicateReviewCreatedCount;
+        counters.duplicateGroupedCount += effects.duplicateGroupedCount;
+      } catch {
+        return processingFailure(
+          counters,
+          candidates.length - index,
+          'included_article_processing_result_invalid',
+          'Included Article processing returned invalid duplicate effects.',
+        );
+      }
+    }
     if (persistence.outcome === 'failed') {
       counters.failedCount += 1;
     } else if (persistence.outcome === 'created') {
@@ -638,6 +657,36 @@ function isArticlePersistenceResult(
   if (outcome !== 'failed') return false;
   const reason = Reflect.get(value, 'reason');
   return reason === 'identity_conflict' || reason === 'provenance_mismatch';
+}
+
+function includedProcessingEffects(
+  value: ArticlePersistenceResult | IncludedArticleProcessingResult,
+): {
+  readonly duplicateReviewCreatedCount: number;
+  readonly duplicateGroupedCount: number;
+} {
+  const duplicateReviewCreatedCount = Reflect.get(
+    value,
+    'duplicateReviewCreatedCount',
+  );
+  const duplicateGroupedCount = Reflect.get(value, 'duplicateGroupedCount');
+  return {
+    duplicateReviewCreatedCount:
+      duplicateReviewCreatedCount === undefined
+        ? 0
+        : requiredEffectCount(duplicateReviewCreatedCount),
+    duplicateGroupedCount:
+      duplicateGroupedCount === undefined
+        ? 0
+        : requiredEffectCount(duplicateGroupedCount),
+  };
+}
+
+function requiredEffectCount(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
+    throw new TypeError('Invalid included Article effect count.');
+  }
+  return value;
 }
 
 function processingFailure(

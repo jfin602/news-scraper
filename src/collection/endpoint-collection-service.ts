@@ -5,6 +5,10 @@ import {
   persistIncludedArticle,
   type ArticlePersistenceResult,
 } from '../articles/repository.ts';
+import {
+  processIncludedArticle,
+  type IncludedArticleProcessingResult,
+} from './included-article-processing.ts';
 import type { Database } from '../database/database.ts';
 import {
   attachCollectionRunToEndpointCollectionJob,
@@ -106,6 +110,7 @@ export interface EndpointCollectionServiceDependencies {
   readonly loadRelevanceConfiguration: typeof loadEffectiveRelevanceConfiguration;
   readonly evaluateRelevance: typeof evaluateRelevance;
   readonly persistIncludedArticle: typeof persistIncludedArticle;
+  readonly processIncludedArticle?: typeof processIncludedArticle;
   readonly persistExcludedArticle: typeof persistExcludedArticleObservation;
 }
 
@@ -121,6 +126,7 @@ const DEFAULT_DEPENDENCIES: EndpointCollectionServiceDependencies =
     loadRelevanceConfiguration: loadEffectiveRelevanceConfiguration,
     evaluateRelevance,
     persistIncludedArticle,
+    processIncludedArticle,
     persistExcludedArticle: persistExcludedArticleObservation,
   });
 
@@ -264,6 +270,17 @@ function collectionDependencies(
       decision: Extract<RelevanceDecision, { readonly included: true }>,
     ): Promise<ArticlePersistenceResult> =>
       dependencies.persistIncludedArticle(
+        database,
+        candidate,
+        observationTime,
+        decision,
+      ),
+    processIncludedArticle: (
+      candidate: ArticleCandidate,
+      observationTime: Date,
+      decision: Extract<RelevanceDecision, { readonly included: true }>,
+    ): Promise<IncludedArticleProcessingResult> =>
+      (dependencies.processIncludedArticle ?? processIncludedArticle)(
         database,
         candidate,
         observationTime,

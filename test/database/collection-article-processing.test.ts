@@ -6,6 +6,8 @@ import {
   persistIncludedArticle,
   type ArticlePersistenceResult,
 } from '../../src/articles/repository.ts';
+import { processIncludedArticle } from '../../src/collection/included-article-processing.ts';
+import { detectDuplicateReviewsInTransaction } from '../../src/deduplication/repository.ts';
 import { applyArticleLinkPolicy } from '../../src/collection/article-links/policy.ts';
 import {
   collectEndpoint,
@@ -32,7 +34,12 @@ import {
   createRelevanceRule,
   updateRelevanceRule,
 } from '../../src/collection/relevance/repository.ts';
-import { findCollectionRunById } from '../../src/collection/runs/repository.ts';
+import {
+  finalizeCollectionRun,
+  findCollectionRunById,
+  startCollectionRun,
+  type FinalizeCollectionRunInput,
+} from '../../src/collection/runs/repository.ts';
 import { createDatabase, type Database } from '../../src/database/database.ts';
 import { migrateDatabase } from '../../src/database/migrations.ts';
 import { insertPublicationSettings } from '../../src/publication/repository.ts';
@@ -229,6 +236,217 @@ test('canonical collection persists idempotent Articles and isolated outcomes wi
       assert.deepEqual(await cardinality(database), {
         articles: 5,
         observations: 9,
+      });
+    } finally {
+      await database.close();
+    }
+  });
+});
+
+test('included Article processing commits duplicate effects atomically and accounts them independently', async () => {
+  await withDisposableDatabase(async ({ databaseUrl }) => {
+    await migrateDatabase({ connectionString: databaseUrl });
+    const database = createDatabase({ connectionString: databaseUrl });
+    try {
+      const firstConfiguration = await createConfiguration(database);
+      const initial = await execute(
+        database,
+        firstConfiguration,
+        'duplicate-first',
+        [item('duplicate-first', 'Shared story', '../articles/shared')],
+        { observationTime: () => FIRST_OBSERVATION },
+      );
+      assertAttempt(initial, ['succeeded', 1, 0, 0, 0, 0, 0]);
+
+      const second = await createAdditionalSource(database, 'duplicate_second');
+      const secondRun = await startCollectionRun(database, {
+        sourceEndpointId: second.endpointId,
+        executionId: 'duplicate-second-run',
+      });
+      const secondCandidate = normalizedCandidate(
+        second.sourceId,
+        second.endpointId,
+        secondRun.id,
+        'Shared story',
+        'https://feeds.example.test/articles/shared',
+      );
+      const included = evaluateRelevance(
+        secondCandidate,
+        emptyRelevanceConfiguration(second.sourceId, second.endpointId),
+      );
+      assert.equal(included.included, true);
+      if (!included.included) return;
+
+      const firstProcessing = await processIncludedArticle(
+        database,
+        secondCandidate,
+        SECOND_OBSERVATION,
+        included,
+      );
+      assert.equal(firstProcessing.outcome, 'created');
+      assert.equal(firstProcessing.duplicateReviewCreatedCount, 1);
+      assert.equal(firstProcessing.duplicateGroupedCount, 1);
+      await finalizeCollectionRun(
+        database,
+        secondRun.id,
+        finalization({
+          createdCount: 1,
+          duplicateReviewCreatedCount: 1,
+          duplicateGroupedCount: 1,
+        }),
+      );
+      const persistedSecondRun = await findCollectionRunById(
+        database,
+        secondRun.id,
+      );
+      assert.equal(persistedSecondRun?.duplicateReviewCreatedCount, 1);
+      assert.equal(persistedSecondRun?.duplicateGroupedCount, 1);
+
+      const repeatRun = await startCollectionRun(database, {
+        sourceEndpointId: second.endpointId,
+        executionId: 'duplicate-repeat-run',
+      });
+      const repeatCandidate = normalizedCandidate(
+        second.sourceId,
+        second.endpointId,
+        repeatRun.id,
+        'Shared story',
+        'https://feeds.example.test/articles/shared',
+      );
+      const repeatDecision = evaluateRelevance(
+        repeatCandidate,
+        emptyRelevanceConfiguration(second.sourceId, second.endpointId),
+      );
+      assert.equal(repeatDecision.included, true);
+      if (!repeatDecision.included) return;
+      const repeated = await processIncludedArticle(
+        database,
+        repeatCandidate,
+        new Date('2026-08-10T14:00:00.000Z'),
+        repeatDecision,
+      );
+      assert.equal(repeated.outcome, 'unchanged');
+      assert.equal(repeated.duplicateReviewCreatedCount, 0);
+      assert.equal(repeated.duplicateGroupedCount, 0);
+
+      const third = await createAdditionalSource(database, 'duplicate_third');
+      const thirdRun = await startCollectionRun(database, {
+        sourceEndpointId: third.endpointId,
+        executionId: 'duplicate-third-run',
+      });
+      const weakCandidate = normalizedCandidate(
+        third.sourceId,
+        third.endpointId,
+        thirdRun.id,
+        'Shared story',
+        'https://feeds.example.test/articles/related',
+      );
+      const weakDecision = evaluateRelevance(
+        weakCandidate,
+        emptyRelevanceConfiguration(third.sourceId, third.endpointId),
+      );
+      assert.equal(weakDecision.included, true);
+      if (!weakDecision.included) return;
+      const weak = await processIncludedArticle(
+        database,
+        weakCandidate,
+        new Date('2026-08-10T15:00:00.000Z'),
+        weakDecision,
+      );
+      assert.equal(weak.outcome, 'created');
+      assert.equal(weak.duplicateReviewCreatedCount, 2);
+      assert.equal(weak.duplicateGroupedCount, 0);
+
+      const counts = await database.query<{
+        articles: string;
+        observations: string;
+      }>(
+        `SELECT (SELECT count(*) FROM articles) AS articles,
+                (SELECT count(*) FROM article_observations) AS observations`,
+      );
+      assert.deepEqual(counts.rows[0], { articles: '3', observations: '4' });
+    } finally {
+      await database.close();
+    }
+  });
+});
+
+test('duplicate failure rolls back the current Article and observation transaction', async () => {
+  await withDisposableDatabase(async ({ databaseUrl }) => {
+    await migrateDatabase({ connectionString: databaseUrl });
+    const database = createDatabase({ connectionString: databaseUrl });
+    try {
+      const firstConfiguration = await createConfiguration(database);
+      const initial = await execute(
+        database,
+        firstConfiguration,
+        'duplicate-rollback-first',
+        [item('rollback-first', 'Rollback story', '../articles/rollback')],
+        { observationTime: () => FIRST_OBSERVATION },
+      );
+      assertAttempt(initial, ['succeeded', 1, 0, 0, 0, 0, 0]);
+      const second = await createAdditionalSource(database, 'rollback_second');
+      const run = await startCollectionRun(database, {
+        sourceEndpointId: second.endpointId,
+        executionId: 'duplicate-rollback-run',
+      });
+      const candidate = normalizedCandidate(
+        second.sourceId,
+        second.endpointId,
+        run.id,
+        'Rollback story',
+        'https://feeds.example.test/articles/rollback',
+      );
+      const decision = evaluateRelevance(
+        candidate,
+        emptyRelevanceConfiguration(second.sourceId, second.endpointId),
+      );
+      assert.equal(decision.included, true);
+      if (!decision.included) return;
+
+      await assert.rejects(
+        processIncludedArticle(
+          database,
+          candidate,
+          SECOND_OBSERVATION,
+          decision,
+          {
+            detectDuplicateReviews: async () => {
+              throw new Error('synthetic P3 failure');
+            },
+            groupStrongDuplicateCandidate: async () => {
+              throw new Error('not reached');
+            },
+          },
+        ),
+      );
+      await assert.rejects(
+        processIncludedArticle(
+          database,
+          candidate,
+          SECOND_OBSERVATION,
+          decision,
+          {
+            detectDuplicateReviews: detectDuplicateReviewsInTransaction,
+            groupStrongDuplicateCandidate: async () => {
+              throw new Error('synthetic P4 failure');
+            },
+          },
+        ),
+      );
+      const counts = await database.query<{
+        articles: string;
+        observations: string;
+        reviews: string;
+      }>(
+        `SELECT (SELECT count(*) FROM articles) AS articles,
+                (SELECT count(*) FROM article_observations) AS observations,
+                (SELECT count(*) FROM duplicate_review_candidates) AS reviews`,
+      );
+      assert.deepEqual(counts.rows[0], {
+        articles: '1',
+        observations: '1',
+        reviews: '0',
       });
     } finally {
       await database.close();
@@ -709,6 +927,88 @@ async function articleState(database: Database): Promise<unknown> {
 
 function item(externalId: string, title: string, url: string): RawItem {
   return Object.freeze({ externalId, title, url });
+}
+
+async function createAdditionalSource(
+  database: Database,
+  configKey: string,
+): Promise<{ sourceId: string; endpointId: string }> {
+  const source = await insertSource(database, {
+    configKey,
+    displayName: configKey,
+    siteUrl: 'https://feeds.example.test/',
+    approvalState: 'approved',
+    lifecycleState: 'active',
+    operationalState: 'enabled',
+    domainRules: [{ hostname: 'feeds.example.test', includeSubdomains: false }],
+  });
+  const endpoint = await insertSourceEndpoint(database, source.id, {
+    configKey: `${configKey}_feed`,
+    endpointUrl: 'https://feeds.example.test/feed.xml',
+    endpointType: 'rss_atom',
+    approvalState: 'approved',
+    lifecycleState: 'active',
+    operationalState: 'enabled',
+    pollIntervalSeconds: 300,
+  });
+  return { sourceId: source.id, endpointId: endpoint.id };
+}
+
+function normalizedCandidate(
+  sourceId: string,
+  sourceEndpointId: string,
+  collectionRunId: string,
+  title: string,
+  url: string,
+): Parameters<typeof processIncludedArticle>[1] {
+  const normalized = normalizeArticleCandidate(
+    { title, url },
+    { sourceId, sourceEndpointId, collectionRunId, terminalFeedUrl: url },
+  );
+  assert.equal(normalized.ok, true);
+  if (!normalized.ok) throw new Error('fixture candidate did not normalize');
+  return normalized.candidate;
+}
+
+function emptyRelevanceConfiguration(
+  sourceId: string,
+  sourceEndpointId: string,
+): EffectiveRelevanceConfiguration {
+  return Object.freeze({
+    sourceId,
+    sourceEndpointId,
+    rules: Object.freeze([]),
+  });
+}
+
+function finalization(
+  overrides: Readonly<{
+    readonly createdCount: number;
+    readonly duplicateReviewCreatedCount: number;
+    readonly duplicateGroupedCount: number;
+  }>,
+): FinalizeCollectionRunInput {
+  return {
+    runStatus: 'succeeded',
+    transportStatus: 'succeeded',
+    parserStatus: 'succeeded',
+    normalizationStatus: 'succeeded',
+    processingStatus: 'succeeded',
+    rawItemCount: 1,
+    sourceItemFilteredCount: 0,
+    normalizedCandidateCount: 1,
+    normalizationFailureCount: 0,
+    articleLinkRejectionCount: 0,
+    createdCount: overrides.createdCount,
+    updatedCount: 0,
+    unchangedCount: 0,
+    rejectedCount: 0,
+    excludedCount: 0,
+    failedCount: 0,
+    duplicateReviewCreatedCount: overrides.duplicateReviewCreatedCount,
+    duplicateGroupedCount: overrides.duplicateGroupedCount,
+    outcomeCode: 'content',
+  };
 }
 
 function parser(items: readonly RawItem[]): FeedParser {
