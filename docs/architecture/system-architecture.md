@@ -133,6 +133,23 @@ Rules:
 - Article observations preserve endpoint/run provenance independently from Article cardinality.
 - Publication identifiers/slugs are not passed through domain/application layers merely as an installation scope token.
 
+## Maintainability and simplification principles
+
+Architecture quality is judged by clear ownership, preserved invariants, and understandable behavior rather than by minimizing raw line count, file count, module count, or abstraction count.
+
+- Prefer simple explicit ownership and control flow over speculative abstraction.
+- Introduce or retain an abstraction only when it represents a real stable boundary, isolates a meaningful dependency, or owns genuinely shared semantic behavior; similar-looking code alone is not sufficient justification.
+- A governed business rule SHOULD have one canonical implementation path. Consolidate duplicated semantic behavior when doing so removes competing authorities without creating an overly generic helper.
+- Keep orchestration readable: coordinating modules should expose the high-level sequence while stage-specific validation, persistence, network, and transformation behavior remains owned by the narrowest appropriate module.
+- Transaction, connection, endpoint-lock, timer, listener, stream, child-process, and other resource ownership MUST be explicit enough that acquisition, release, interruption, retry, and failure behavior can be reasoned about locally.
+- Production modules MUST NOT carry helpers or branches whose only purpose is test convenience; test-only support belongs in test infrastructure unless the same boundary is genuinely part of production design.
+- Dead code, obsolete compatibility-only code, superseded wrappers, commented-out implementations, and unused dependencies SHOULD be removed rather than retained as informal history. Git and durable documentation provide history.
+- Do not add a third-party dependency merely to replace a small, clear, well-tested local behavior unless the dependency materially improves correctness, safety, interoperability, or maintenance.
+- Optimize runtime, database, Worker, Web/API, startup, and resource behavior from observed measurements and real bottlenecks rather than speculative caching, concurrency, batching, or complexity.
+- Behavior-preserving simplification MUST NOT flatten or weaken genuine Source/endpoint/run/Article/observation, transaction, security, provenance, idempotency, or duplicate-integrity boundaries merely because fewer types/joins/modules would result.
+
+Phase 21 performs the deliberate whole-codebase application of these principles after customer launch. Later feature work inherits them; Phase 21 is not a one-time permission to simplify at the expense of governed behavior.
+
 ## Collection pipeline
 
 ```mermaid
@@ -219,7 +236,7 @@ From Phase 10 onward:
 - Once Article persistence exists, Collection-run accounting uses the canonical post-identity outcome taxonomy from the domain contract.
 - Database constraints are preferred over application-only assumptions for critical identity/uniqueness rules.
 
-When production database compatibility is later established, upgrade/data-preservation guarantees require an explicit contract and migration strategy.
+Phase 19 establishes and validates the production backup/restore, deployment/rollback, and schema-upgrade procedures. Acceptance of Phase 20 establishes the first supported production schema/data baseline. From that baseline forward, `docs/decisions/production-data-and-schema-compatibility.md` governs upgrades: supported production state is preserved, supported migration history remains upgrade-capable, and clean migration-from-zero continues for new/disposable installations but is not sufficient evidence for production upgrade safety.
 
 ## Administrative perimeter
 
