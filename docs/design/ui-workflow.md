@@ -199,6 +199,8 @@ Review UI work against both visual intent and preserved behavior. Browser/runtim
 
 When `main` has changed concurrently, re-synchronize and resolve conflicts on the UI branch before integration, then re-run the validation affected by those conflict resolutions. Do not treat validation from the pre-sync UI tree as proof for the integrated final tree.
 
-## Relationship to Phase 13
+## Relationship to the integrated presentation baseline and Phase 14
 
-Earlier UI work does not automatically complete or redefine Phase 13 — Public presentation polish. Compliant earlier or integrated presentation work may satisfy portions of the current Phase 13 exit gate. During Phase 13, assess the integrated implementation against the roadmap and governing contracts, crediting already-completed compliant work rather than rebuilding it automatically.
+Accepted Phase 13 public-presentation work is the integrated presentation baseline on `main`. Ordinary later presentation-only refinements may continue through the `ui-polish` workflow under the boundaries above.
+
+Phase 14 Source administration is roadmap-owned implementation work, including the protected admin shell, Source/endpoint behavior, and Source RSS/Atom item admission filter. It MUST NOT be silently recast as a generic parallel UI task. A strictly presentation-only refinement to an already-governed admin surface may use the UI workstream only when `/ui-plan` proves it does not redefine roadmap-owned behavior, API contracts, security, lifecycle, collection, or configuration semantics.

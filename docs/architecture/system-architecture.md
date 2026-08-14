@@ -22,7 +22,8 @@ flowchart LR
     G --> F[Fetcher]
     F --> S[Approved Active Enabled Source Endpoint]
     F --> R[Parser Adapter]
-    R --> N[Normalizer]
+    R --> A[Optional Source RSS/Atom Item Admission Filter]
+    A --> N[Normalizer]
     N --> L[Article-link / Source Policy Validation]
     L --> V[Installation Relevance + Categories]
     V --> I[Source-scoped Article Identity Resolution]
@@ -123,6 +124,7 @@ The layout above is a target ownership map, not a requirement to create empty di
 Rules:
 
 - Source-specific retrieval/parsing lives behind fetcher/parser adapter interfaces established with the first RSS/Atom implementation.
+- The optional Source RSS/Atom item admission filter is Source-owned include-only configuration evaluated over existing parsed RSS/Atom Raw-item text before Article-candidate normalization; it is distinct from downstream Relevance.
 - Public-feed code consumes normalized Article read models only.
 - Admin controllers do not perform collection inline; manual check-now requests the same governed endpoint execution/job path rather than a second collector.
 - Deduplication logic does not depend on topic-specific keywords.
@@ -145,7 +147,8 @@ flowchart TD
     E -- Not modified --> F[Successful no-change transport result]
     E -- Failure --> H[Record isolated failure]
     E -- Content --> I[Parse Raw items]
-    I --> J[Normalize Article candidates]
+    I --> A[Apply optional Source RSS/Atom item admission filter]
+    A --> J[Normalize admitted Article candidates]
     J --> K[Validate normalized Article-link/source-domain policy]
     K --> L[Evaluate installation/Source-scoped Relevance + Categories]
     L --> M[Resolve Article identity within Source]
@@ -165,6 +168,7 @@ The pipeline grew by phase without inventing outcomes for stages that did not ex
 - Phase 7 added Article identity/persistence, observations, and canonical post-identity outcomes.
 - Phase 10 added durable scheduling/jobs, conditional-fetch state, retry/recovery, concurrency controls, and endpoint health around the same endpoint execution unit.
 - Phase 11 extended the existing pre-identity Relevance boundary with persisted installation-wide/Source-scoped include/exclude/categorize rules, Category/default assignment, deterministic persisted reasons, exact pre-identity `excluded` accounting, and the explicit pre-admin editorial-configuration path.
+- Phase 14 adds the optional Source RSS/Atom item admission filter before normalization, with distinct `source_item_filtered_count` accounting and no Article observation or Relevance `excluded` outcome for a mismatch.
 - Later duplicate phases add duplicate effects/grouping without redefining Article identity.
 
 ## Scheduling model

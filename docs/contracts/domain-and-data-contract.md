@@ -11,7 +11,7 @@ The one configured news product for a deployed installation. Publication owns to
 A supported installation has exactly one Publication configuration. Publication is an editorial/configuration boundary, **not** a tenancy or relational ownership key.
 
 ### Source
-A configured publisher or outlet in the installation. Approval state determines whether the Platform trusts/collects it. A Source owns one or more Source endpoints and defines public Source identity for accepted Articles.
+A configured publisher or outlet in the installation. Approval state determines whether the Platform trusts/collects it. A Source owns one or more Source endpoints, defines public Source identity for accepted Articles, and may own optional topic-independent collection configuration such as the Source RSS/Atom item admission filter.
 
 ### Source endpoint
 A configured machine-readable feed, API URL, or HTML listing page belonging to a Source. Approval, lifecycle/operational state, polling state, HTTP cache metadata, parser settings, and derived health are endpoint-level concerns.
@@ -70,7 +70,7 @@ Required concepts:
 - `active_for_collection`: whether eligible Sources may be scheduled/fetched;
 - `public_status`: whether the public feed is exposed;
 - required Publication name;
-- Phase 13 public presentation configuration when that phase is implemented;
+- Phase 13 public presentation configuration;
 - later administrator-managed feed/timezone/presentation configuration.
 
 The singleton Publication may collect while its public feed is not exposed. Public feed reads require `public_status = public`; `active_for_collection` is a collection-state control and does not independently expose or suppress already-persisted feed rows.
@@ -84,6 +84,7 @@ Required concepts:
 - operational state while active: `enabled`, `paused`, or `disabled`;
 - Source priority within the installation;
 - approved public-domain policy.
+- optional Source RSS/Atom item admission phrase configuration.
 
 Approval authorizes trust. Lifecycle controls whether configuration is current/retired. Operational state controls whether active approved configuration currently runs.
 
@@ -129,7 +130,7 @@ One persisted Publication/settings record contains only the fields actually used
 - name;
 - `active_for_collection`;
 - `public_status`;
-- when Phase 13 is implemented, optional `description`, `logo_path`, and `accent_color` public-presentation values;
+- Phase 13 optional `description`, `logo_path`, and `accent_color` public-presentation values;
 - when Phase 15 is implemented, default presentation timezone/date settings and any additional administrator-managed branding/feed/presentation configuration;
 - created/updated timestamps where useful.
 
@@ -141,7 +142,7 @@ Phase 13 public-presentation field semantics are deliberately small and topic in
 - missing optional values are valid and MUST allow a complete generic public presentation using safe application defaults;
 - these values are public presentation configuration once exposed through the canonical feed read model, but they do not create another public routing/scoping identity.
 
-Phase 13 may establish those values through the existing explicit operator/bootstrap configuration mechanisms needed before full admin UX. Phase 15 adds the protected administrator editing surface; ordinary bootstrap no-overwrite behavior remains unchanged.
+Phase 13 established those values through the existing explicit operator/bootstrap configuration mechanisms needed before full admin UX. Phase 15 adds the protected administrator editing surface; ordinary bootstrap no-overwrite behavior remains unchanged.
 
 The concrete table name is an implementation detail. The schema MUST enforce singleton semantics and MUST NOT require a Publication UUID or slug for relational scoping.
 
@@ -157,7 +158,10 @@ The concrete table name is an implementation detail. The schema MUST enforce sin
 - installation-wide Source priority;
 - optional default Category reference;
 - optional Source-scoped Relevance settings;
+- optional bounded Source RSS/Atom item admission phrases;
 - created/updated timestamps.
+
+The optional Source RSS/Atom item admission filter is Source configuration, not endpoint configuration or Publication tenancy. No configured phrases means collect all otherwise-valid parsed RSS/Atom Raw items. One or more phrases use deterministic case-insensitive literal any-match semantics over existing parsed title, summary/content text, and Source-provided category labels. The logical contract does not require a particular SQL representation.
 
 ### `source_endpoints`
 
@@ -177,6 +181,7 @@ The concrete table name is an implementation detail. The schema MUST enforce sin
 
 Configuration inheritance:
 - Source approved domains define the maximum permitted destination boundary;
+- Source RSS/Atom item admission phrases apply consistently to supported RSS/Atom endpoints owned by that Source; endpoint configuration does not override them;
 - endpoint redirect/Article-domain configuration may only narrow the Source boundary unless Source policy itself is explicitly expanded/approved;
 - endpoint default Category overrides Source default for that endpoint; Source default is fallback.
 
@@ -186,6 +191,7 @@ Configuration inheritance:
 - start/finish timestamps;
 - terminal run/transport status;
 - parser/normalization stage status/counts where applicable;
+- `source_item_filtered_count` when Source RSS/Atom item admission filtering exists;
 - HTTP/transport metadata where applicable;
 - processing-outcome counters once Article persistence exists;
 - orthogonal effect counters once those effects exist;
@@ -194,17 +200,18 @@ Configuration inheritance:
 
 A minimal Collection run exists from the first real transport implementation. Before Article persistence exists it records only the stages that actually exist and MUST NOT pretend post-identity outcomes have occurred.
 
-Phase 6 pre-persistence accounting uses the normalization stage vocabulary defined by the Source/collection contract:
+Pre-normalization and Phase 6 accounting use the stage vocabulary defined by the Source/collection contract:
 
+- `source_item_filtered_count` counts successfully parsed Raw items rejected by the configured Source RSS/Atom item admission filter before Article-candidate normalization;
 - normalization status is `not_run`, `succeeded`, or `failed`;
 - `normalized_candidate_count` counts Raw items that complete normalization into an Article candidate before the separate Article-link policy decision;
 - `normalization_failure_count` counts Raw items that cannot produce an Article candidate because normalization fails or required candidate data is malformed, invalid, or out of bounds;
 - `article_link_rejection_count` counts normalized Article candidates rejected by the separate Article-link/domain policy gate;
-- when a parsed content batch completes, `raw_item_count = normalized_candidate_count + normalization_failure_count`, and `article_link_rejection_count <= normalized_candidate_count`;
+- when a parsed content batch completes, `raw_item_count = source_item_filtered_count + normalized_candidate_count + normalization_failure_count`, `source_item_filtered_count <= raw_item_count`, and `article_link_rejection_count <= normalized_candidate_count`;
 - the candidate count safe for the next stage is `normalized_candidate_count - article_link_rejection_count`;
 - item-level normalization failures or link rejections do not by themselves mean the normalization stage failed; stage-level failure means the bounded batch could not complete.
 
-These values are stage accounting only. They are not aliases for the post-identity processing outcomes introduced when Article persistence exists.
+These values are stage accounting only. They are not aliases for the post-identity processing outcomes introduced when Article persistence exists. A Source-filtered Raw item never becomes an Article candidate, does not receive a Relevance `excluded` outcome, and does not create an Article observation solely for accounting.
 
 Once Article persistence exists, every successfully normalized candidate has exactly one **processing outcome**:
 
@@ -220,6 +227,8 @@ Therefore:
 `created + updated + unchanged + rejected + excluded + failed = normalized_candidate_count`.
 
 Normalization failures remain pre-candidate stage failures and do not receive a post-normalization processing outcome. An Article-link-policy rejection is retained in `article_link_rejection_count` and maps that same candidate to processing outcome `rejected`; the values describe different accounting dimensions rather than two candidates. Before configurable Relevance rules exist, safe link-accepted candidates pass the empty-rule boundary and `excluded` is zero.
+
+Source-item filter mismatches are also pre-candidate outcomes. They count only in `source_item_filtered_count`, not in `normalization_failure_count`, `excluded`, or any Article-observation outcome. Accounting remains truthful when every parsed Raw item is filtered.
 
 Accepted Article processing may also produce zero or more **orthogonal effects**, which do not replace the processing outcome:
 
@@ -264,6 +273,8 @@ Observation invariants:
 - when an Article is referenced, the Article Source MUST match the candidate and endpoint provenance;
 - any directly stored observation Source identifier MUST agree with the endpoint/Article Source relationships rather than act as an independent ownership dimension;
 - Article identity resolution plus Article create/update and its successful identity-resolving observation are atomic for that candidate.
+
+A Raw item rejected by the Source RSS/Atom item admission filter is not a candidate outcome and MUST NOT create a synthetic Article observation.
 
 ### `categories` and `article_categories`
 

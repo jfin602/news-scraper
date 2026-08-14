@@ -8,7 +8,7 @@ Publication is the singleton editorial/configuration concept for the installed n
 
 ## Current project state
 
-Current phase: **Phase 13 — Public presentation polish**.
+Current phase: **Phase 14 — Source administration**.
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation and closeout validation are complete. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; that accepted limitation is not rewritten as passing evidence.
 
@@ -20,7 +20,9 @@ Phase 11 — Categories and configurable Relevance execution — is complete wit
 
 Phase 12 — Feed discovery features — is complete with durable validation in `docs/validation/phase-12-feed-discovery-features.md`. It extended the canonical public-feed boundary with deterministic Source/Category filters, bounded literal keyword search, stable keyset pagination/load-more, URL/reset navigation behavior, and MVP-scale query/index tuning without changing feed eligibility or chronological ordering.
 
-Phase 13 now owns public presentation polish: minimum singleton Publication branding/read-model support, final responsive desktop/mobile presentation, light/dark theme behavior, accessibility, intentional loading presentation, and browser validation while preserving Phase 12 discovery semantics.
+Phase 13 — Public presentation polish — is complete with durable validation in `docs/validation/phase-13-public-presentation-polish.md`. Minimum singleton Publication branding/read-model support, responsive desktop/mobile presentation, system/light/dark behavior, accessibility, intentional loading presentation, and preserved Phase 12 discovery semantics now form the integrated public baseline.
+
+Phase 14 — Source administration — is current. It owns the Cloudflare Access-protected Source/endpoint control surface and the optional topic-independent Source RSS/Atom item admission filter; implementation has not yet completed.
 
 ## Delivery priority
 
@@ -138,6 +140,8 @@ Cloudflare Access-protected Admin UI/API       Root Public Feed
                               |
                   Parser -> Raw item
                               |
+       optional Source RSS/Atom item admission filter
+                              |
             Normalizer -> Article candidate
                               |
              Article-link policy validation
@@ -157,7 +161,7 @@ During Phases 5–9 the Worker was invoked manually for configured endpoints. Ph
 
 The scheduler operates directly on due endpoints when singleton Publication collection is active. There is no supported requirement to schedule or switch among multiple topic Publications inside one deployment.
 
-Minimal Collection runs begin with the first real fetch in Phase 5. Before configurable Relevance rules exist, safe candidates pass through the canonical empty-rule/default-include decision before identity. Phase 11 extends that same boundary rather than introducing a parallel relevance path.
+Minimal Collection runs begin with the first real fetch in Phase 5. Phase 14 adds optional Source-owned RSS/Atom item admission between parsing and normalization; absence preserves collect-all behavior, and mismatches are counted separately without becoming Relevance exclusions or Article observations. Before configurable Relevance rules exist, safe candidates pass through the canonical empty-rule/default-include decision before identity. Phase 11 extends that same boundary rather than introducing a parallel relevance path.
 
 ## Identity versus duplicates
 
@@ -172,7 +176,7 @@ Initial singleton Publication/Source configuration may be supplied through idemp
 
 Phase 11 provides the smallest explicit topic-independent pre-admin operator mechanism for Categories, Relevance rules, and Source/endpoint default Category references. It is invoked deliberately, never on ordinary Web/Worker startup, validates real Source/Category relationships, and does not weaken ordinary bootstrap or trigger automatic bulk historical Relevance reprocessing.
 
-Bootstrap/runtime selection does not use a Publication slug. MVP Source admin UI begins in Phase 14, after the working public vertical slice. Admin navigation/configuration operates on the installation's one configured news product rather than a multi-Publication selector.
+Bootstrap/runtime selection does not use a Publication slug. Phase 14 now owns MVP Source administration, including Source-owned optional RSS/Atom admission phrases with collect-all behavior when absent. Admin navigation/configuration operates on the installation's one configured news product rather than a multi-Publication selector.
 
 MVP admin UI/API routes:
 
@@ -369,14 +373,14 @@ Completed after the tech-demo milestone:
 - **Phase 10 — Automated polling, durable jobs, and endpoint health** — complete with durable phase validation.
 - **Phase 11 — Categories and configurable Relevance execution** — complete with durable phase validation.
 - **Phase 12 — Feed discovery features** — complete with durable phase validation.
+- **Phase 13 — Public presentation polish** — complete with durable phase validation.
 
 Current:
 
-- **Phase 13 — Public presentation polish**
+- **Phase 14 — Source administration**
 
 Then:
 
-- Phase 14 — Source administration
 - Phase 15 — Publication and Relevance administration
 - Phase 16 — True duplicate detection and grouping
 - Phase 17 — Article and duplicate moderation

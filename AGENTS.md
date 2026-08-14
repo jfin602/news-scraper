@@ -158,6 +158,7 @@ Governed by `docs/contracts/source-and-collection-contract.md`, `docs/architectu
 - Structured-first order: RSS/Atom → stable API/feed → HTML extraction → custom adapter → browser fallback.
 - Adapter interfaces are established with RSS/Atom and reused by later Source types.
 - Parsers produce Raw items and never persist Articles directly.
+- An optional Source-owned RSS/Atom item admission filter uses one or more bounded non-empty include phrases with deterministic case-insensitive literal any-match semantics over existing parsed title, summary/content, and Source-provided category labels. No configured phrases preserves collect-all behavior. Filter mismatches terminate before normalization and are not Relevance `excluded` outcomes or Article observations.
 - Normalization precedes Relevance, identity, duplicate, and feed behavior.
 - Before configurable Relevance rules exist, the canonical Relevance boundary runs with an empty rule set and returns deterministic default `include`.
 - Phase 11 MVP Relevance predicates are only literal `title_contains`, `summary_contains`, and `source_category_equals`. Missing fields do not match; regex/glob/fuzzy/semantic/general expression behavior is not implied.
@@ -261,17 +262,19 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 - The Phase 10 entry singleton correction is complete and its durable validation artifact remains authoritative for the corrected singleton migration/identity/collection/public-browser evidence actually observed.
 - Phase 10 is complete with durable scheduler/job/retry/overlap/recovery validation evidence.
 - Phase 11 is complete with durable deterministic literal-predicate/precedence/category/default/prospective/excluded-accounting and real-PostgreSQL Category/rule persistence evidence.
-- Phase 12 requires focused API/database/browser evidence for bounded discovery input, unchanged feed eligibility, Source/Category filtering, literal search, stable keyset pagination, cursor/query mismatch rejection, URL/reset/back-forward behavior, and relevant query/index behavior.
+- Phase 12 is complete with durable API/database/browser discovery evidence.
+- Phase 13 is complete with durable persistence/read-model, responsive presentation, branding, theme, accessibility, loading-state, browser, and Phase 12 regression evidence.
+- Phase 14 requires focused Source-admin API/database/browser evidence plus deterministic Source RSS/Atom item-admission matching, pipeline/accounting, prospective behavior, and collection-fixture evidence.
 
 ## Roadmap law
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 12 — Feed discovery features**.
+Current phase: **Phase 14 — Source administration**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with its recorded live-source limitation preserved. The Phase 10 entry singleton correction, Phase 10 Automated polling/durable jobs/endpoint health, and Phase 11 Categories/configurable Relevance execution are complete with durable validation.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with its recorded live-source limitation preserved. The Phase 10 entry singleton correction, Phase 10 Automated polling/durable jobs/endpoint health, Phase 11 Categories/configurable Relevance execution, Phase 12 Feed discovery features, and Phase 13 Public presentation polish are complete with durable validation.
 
-Phase 12 is active. Do not pull Phase 13 presentation polish, Phase 14–15 admin UX, Phase 16 duplicate grouping, or later work into Phase 12 unless a true dependency or explicit decision requires it.
+Phase 14 is active. It owns Source administration and the optional Source RSS/Atom item admission filter. Do not pull Phase 15 Publication/Relevance administration, Phase 16 duplicate grouping, or later work into Phase 14 unless a true dependency or explicit decision requires it.
 
 Phases 1–9 remain the tech-demo critical path historically.
 
@@ -284,7 +287,7 @@ Phases 1–9 remain the tech-demo critical path historically.
 - Do not claim runtime/browser/database/live-Source behavior unless actually observed at the corresponding evidence level.
 - Prefer smallest correct changes over speculative abstractions or compatibility bridges.
 - Trace shared helpers/consumers before changing data or collection semantics.
-- Before Phase 12 discovery work trace singleton public state → canonical feed eligibility/read model → Source/Category public identities and current membership → bounded search/filter input validation → database query/indexes → canonical ordering/keyset cursor → `/api/feed` response → root client → URL/reset/back-forward/load-more behavior → integration/database/browser tests.
+- Before Phase 14 work trace Cloudflare Access/origin protection → request integrity → Source/endpoint configuration and lifecycle → Source-owned RSS/Atom admission phrases → real resource relationships/domain invariants → canonical job/manual execution → collection pipeline/accounting/health → admin API/UI → integration/database/fixture/browser tests.
 - Before public-route work trace singleton Publication settings → canonical read model → `/api/feed` → `/` page/client → unavailable/error behavior → external links → browser tests.
 - Before UI work read `docs/design/README.md` and `docs/design/ui-workflow.md`, trace presentation source/shared frontend consumers/tests, and keep concurrent UI implementation isolated in the `ui-polish` worktree.
 - Confirm applicable local validation commands/suites were actually executed against the final tree before approval.

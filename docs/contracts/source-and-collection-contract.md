@@ -32,7 +32,7 @@ Bootstrap identity is stable and configuration-owned:
 - each Source has an immutable `config_key` unique across the installation;
 - each Source endpoint has an immutable `config_key` unique within its Source.
 
-Ordinary bootstrap execution is create-if-absent by those stable identities. If singleton Publication settings or a matching Source/endpoint already exist, bootstrap MUST leave the existing record unchanged, including later operator-managed collection/public state, approval, lifecycle, operational state, approved domains, endpoint URL, and polling configuration. A rerun therefore MUST NOT recreate an obsolete seeded endpoint merely because an operator later changed its URL.
+Ordinary bootstrap execution is create-if-absent by those stable identities. If singleton Publication settings or a matching Source/endpoint already exist, bootstrap MUST leave the existing record unchanged, including later operator-managed collection/public state, approval, lifecycle, operational state, approved domains, Source RSS/Atom item admission phrases, endpoint URL, and polling configuration. A rerun therefore MUST NOT recreate an obsolete seeded endpoint merely because an operator later changed its URL.
 
 Bootstrap tooling:
 
@@ -171,6 +171,7 @@ Source configuration owns:
 - approved-domain maximum boundary;
 - Source priority value within the installation;
 - optional default Category fallback;
+- optional Source RSS/Atom item admission phrases;
 - Source scope for otherwise installation-defined Relevance rules.
 
 Endpoint configuration owns:
@@ -185,6 +186,41 @@ Endpoint configuration owns:
 - optional parser/header settings that do not leak secrets to logs.
 
 Default Category resolution is fallback-only: if no matching categorize rule assigns a Category, endpoint default wins when present and Source default is the fallback. A matching categorize rule set suppresses default fallback for that candidate rather than automatically adding a generic default Category alongside specific rule assignments.
+
+## Source RSS/Atom item admission filter
+
+Phase 14 adds one optional, topic-independent Source-level admission filter for parsed RSS/Atom Raw items. It is Source configuration, not endpoint configuration, a Publication tenancy mechanism, a public-feed search filter, or a second Relevance-rule engine. Future adapters may explicitly adopt the same conceptual Source filter later, but unsupported adapter types do not use it automatically.
+
+A configured filter contains one or more bounded, trimmed, non-empty keyword/phrase literals:
+
+- no configured phrases means admit every otherwise-valid parsed RSS/Atom Raw item, preserving collect-all behavior;
+- when phrases are configured, an item is admitted when any configured phrase matches;
+- matching is deterministic case-insensitive literal substring matching, not regex, glob, fuzzy, stemming, semantic/AI, or general-expression behavior;
+- matching may inspect only existing RSS/Atom parser editorial text corresponding to title, summary/content text, and Source-provided category labels;
+- missing fields do not match, and the filter does not fetch or inspect the Article page or full Article body;
+- text may be normalized only as needed for deterministic safe comparison at this boundary; canonical Article-candidate normalization remains a later stage.
+
+There is no Phase 14 exclude-phrase list and no independently persisted enabled toggle. Absence of phrase configuration is the disabled/collect-all state.
+
+The canonical supported order is:
+
+```text
+fetch
+→ RSS/Atom parse
+→ Raw item
+→ optional Source RSS/Atom item admission filter
+→ Article-candidate normalization
+→ Article-link policy
+→ Phase 11 Relevance/Categories
+→ Source-scoped Article identity/persistence
+→ downstream behavior
+```
+
+The feed is still fetched and safely parsed before item text can be evaluated. The filter controls only whether an individual successfully parsed Raw item enters candidate processing. It does not bypass Source/endpoint approval or lifecycle/operational eligibility, endpoint locking, network safety, redirect validation, fetch bounds, parser safety, Article-link validation for admitted candidates, Phase 11 Relevance, Source-scoped identity, provenance, scheduling, or jobs.
+
+A mismatching Raw item terminates before Article-candidate normalization. It is not a normalized candidate, does not receive the Relevance outcome `excluded`, does not run Article identity, and does not create an Article observation. It does not create, update, hide, delete, or recategorize an Article, including an Article persisted by an earlier admitted observation. Existing Relevance predicates remain exactly `title_contains`, `summary_contains`, and `source_category_equals`; Source admission does not add a Relevance predicate.
+
+Source-filter edits are prospective. Creating, changing, or removing the filter affects future RSS/Atom collection attempts only and MUST NOT automatically bulk reprocess historical Articles, delete/hide/recategorize Articles, alter earlier observations, or rewrite historical Collection runs. Persisted Articles remain governed by ordinary Article/public-feed lifecycle behavior unless a later admitted observation or separately authorized moderation capability changes them.
 
 ## Fetch contract
 
@@ -337,14 +373,15 @@ True duplicate grouping between separately stored Articles is governed by the Ar
 
 A minimal persisted Collection run begins with the first real transport/parser phase. It records the endpoint, start/finish timing, transport/parser status, bounded errors, and stage counts that actually exist.
 
-When normalization is introduced, the same run model gains a normalization stage status plus bounded pre-persistence item counts:
+When Source RSS/Atom item admission filtering and normalization are introduced, the same run model gains a normalization stage status plus bounded pre-persistence item counts:
 
+- `source_item_filtered_count` counts successfully parsed Raw items rejected by the configured Source RSS/Atom item admission filter before Article-candidate normalization;
 - normalization stage status uses `not_run`, `succeeded`, or `failed`;
 - `normalized_candidate_count` counts Raw items that complete normalization into an Article candidate before the separate Article-link policy decision;
 - `normalization_failure_count` counts Raw items that cannot produce an Article candidate because normalization fails or required candidate data is malformed/invalid/out of bounds;
 - `article_link_rejection_count` counts normalized Article candidates rejected by the separate Article-link/domain policy gate.
 
-For a parsed content run that completes the Phase 6 batch, `raw_item_count` MUST equal `normalized_candidate_count + normalization_failure_count`, and `article_link_rejection_count` MUST NOT exceed `normalized_candidate_count`. The number of candidates safe to hand to the next pipeline stage is therefore `normalized_candidate_count - article_link_rejection_count`. Item-level normalization failures or link-policy rejections do not by themselves make the normalization stage `failed`; stage-level `failed` is reserved for an execution failure that prevents the normalizer from completing its bounded batch contract. Unrelated Raw items continue processing when safely possible.
+For a parsed content run that completes the bounded batch, `raw_item_count` MUST equal `source_item_filtered_count + normalized_candidate_count + normalization_failure_count`, `source_item_filtered_count` MUST NOT exceed `raw_item_count`, and `article_link_rejection_count` MUST NOT exceed `normalized_candidate_count`. The number of candidates safe to hand to the next pipeline stage is therefore `normalized_candidate_count - article_link_rejection_count`. Source-filter mismatches are not normalization failures. Item-level normalization failures or link-policy rejections do not by themselves make the normalization stage `failed`; stage-level `failed` is reserved for an execution failure that prevents the normalizer from completing its bounded batch contract. Unrelated Raw items continue processing when safely possible, and accounting remains truthful when every Raw item is filtered.
 
 After Article persistence is active, every successfully normalized candidate has exactly one processing outcome:
 
@@ -360,6 +397,8 @@ The post-normalization outcome counters MUST therefore satisfy:
 `created + updated + unchanged + rejected + excluded + failed = normalized_candidate_count`.
 
 Normalization failures do not receive a processing outcome because no Article candidate exists. Article-link-policy rejection remains counted in `article_link_rejection_count` and maps that same candidate to processing outcome `rejected`. Link-accepted candidates then pass Relevance before identity. Before configurable rules exist, the empty-rule decision is deterministic `include`, so `excluded = 0`. Once configurable rules exist, every deterministic Relevance exclusion maps exactly one normalized candidate to `excluded`; it does not also count as `rejected`, `failed`, or an identity-resolving outcome.
+
+Source-filter mismatches count only in `source_item_filtered_count`. They do not enter the downstream processing-outcome equation, do not count as Relevance `excluded` or normalization failures, and do not create Article observations solely for accounting.
 
 Accepted Article processing may additionally produce zero or more orthogonal effects:
 

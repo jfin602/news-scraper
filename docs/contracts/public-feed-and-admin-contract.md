@@ -58,7 +58,7 @@ The basic item read model is intentionally small. Each item exposes only the fie
 - Source display name;
 - stored Article `original_url` as the external destination.
 
-The response MAY include minimal descriptive Publication configuration needed by the public UI before the presentation-polish phase. Once Phase 13 is implemented, the canonical public response MUST expose the bounded public Publication presentation values required by `/`: required `name` plus nullable `description`, `logoPath`, and `accentColor` corresponding to the singleton persisted configuration defined by the domain contract. These values are inert presentation data, not HTML/CSS/code, and do not create a reader-selectable Publication identity. The response MUST NOT expose or depend on a Publication UUID/slug as a routing/scoping identity, and MUST NOT expose Raw items, Article observations, internal identity digests, normalized-title matching fields, database internals, unbounded summaries/content, or other fields merely because they are stored.
+The canonical public response exposes the bounded public Publication presentation values required by `/`: required `name` plus nullable `description`, `logoPath`, and `accentColor` corresponding to the singleton persisted configuration defined by the domain contract. These values are inert presentation data, not HTML/CSS/code, and do not create a reader-selectable Publication identity. The response MUST NOT expose or depend on a Publication UUID/slug as a routing/scoping identity, and MUST NOT expose Raw items, Article observations, internal identity digests, normalized-title matching fields, database internals, unbounded summaries/content, or other fields merely because they are stored.
 
 Phase 12 extends this same endpoint/read-model boundary with deterministic discovery and pagination. It does not create a parallel feed query, eligibility rule, or alternate public endpoint. Ranking and presentation/theme behavior remain separate concerns.
 
@@ -208,7 +208,7 @@ Phase 13 uses the singleton Publication presentation fields defined by the domai
 
 Missing optional branding values MUST degrade to a complete generic presentation rather than causing page/API failure. Publication branding is data/configuration; shared engine/UI code MUST NOT embed indie-author-specific names, copy, logos, colors, or topic conditionals.
 
-Phase 13 introduces the persistence/read-model use of these minimum public values. Phase 15 later provides Cloudflare-protected administrator editing for them; Phase 13 MUST NOT pull the Phase 15 admin control plane forward.
+Phase 13 introduced the persistence/read-model use of these minimum public values. Phase 15 later provides Cloudflare-protected administrator editing for them; the completed Phase 13 work did not pull the Phase 15 admin control plane forward.
 
 ### Theme selection
 
@@ -300,6 +300,7 @@ Navigation is single-Publication and does not expose a topic switcher. Applicati
 Once the Source-administration phase is complete, authorized operators MUST be able to view/change:
 
 - Source name/site URL/approved domains/Source priority/default Category;
+- optional Source-level RSS/Atom item admission phrases;
 - Source approval state and operational state;
 - endpoint URL/type/parser configuration/poll interval;
 - endpoint approval state and operational state;
@@ -310,7 +311,9 @@ Once the Source-administration phase is complete, authorized operators MUST be a
 - manual check-now;
 - approve/unapprove, enable, pause, disable, and archive/state-management actions as permitted.
 
-Physical deletion is not generic CRUD behavior when retained provenance depends on the Source/endpoint.
+The Source editor/API presents the admission filter as an include-only Source setting: no configured phrases means collect/process all otherwise-valid RSS/Atom items, while one or more bounded non-empty phrases admit an item when any phrase matches. It MUST NOT expose an exclude-phrase list or an independent enabled toggle, and MUST NOT store the configuration on individual endpoints. This is collection admission before normalization, not public-feed filtering or Phase 11 Relevance management.
+
+Physical deletion is not generic CRUD behavior when retained provenance depends on the Source/endpoint. An endpoint with no retained dependent history MAY be physically removed if the implementation supports removal. Once Collection runs, observations, or other retained provenance depend on an endpoint, an operator-facing remove action MUST preserve the record through archive/retirement semantics rather than destroying referenced provenance. Restoring archived Source/endpoint configuration continues to obey the ordinary approval, lifecycle, operational, and collectability laws and MUST NOT implicitly resume collection.
 
 ## Article management UI
 

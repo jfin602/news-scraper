@@ -14,7 +14,7 @@ It establishes project identity, canonical terminology, authority, document rout
 - Deployment cardinality: exactly one Publication/topic per deployed installation
 - Topic reuse model: configure and deploy another installation of the same shared codebase; do not concurrently host multiple topic Publications in one installation
 - Publication data-model role: singleton editorial/configuration state, **not** a relational tenant/ownership key
-- Current phase: **Phase 13 — Public presentation polish**
+- Current phase: **Phase 14 — Source administration**
 - Production status: pre-production
 - Pre-production database policy: destructive fresh rebuild from the repository's smallest current canonical migration chain and bootstrap/configuration; databases from older source trees are disposable and legacy-only migration/runtime/test/config structure is removed rather than preserved for compatibility
 - Initial Publication: publishing-industry news relevant to indie authors
@@ -32,7 +32,9 @@ Phase 11 — Categories and configurable Relevance execution — is complete wit
 
 Phase 12 — Feed discovery features — is complete with durable validation in `docs/validation/phase-12-feed-discovery-features.md`. Deterministic Source/Category filters, bounded literal search, stable keyset pagination/load-more, URL/reset navigation behavior, and MVP-scale query/index behavior now extend the canonical public-feed boundary without changing feed eligibility or chronological ordering.
 
-Phase 13 is the current implementation phase. It owns the minimum singleton Publication public-presentation/branding support, polished responsive desktop/mobile public feed, system/light/dark presentation, accessibility, intentional pending/loading presentation including tracked placeholder-flash issue R7KM, and browser validation while preserving Phase 12 discovery semantics. The roadmap and governing contracts remain the authorities for its exact scope.
+Phase 13 — Public presentation polish — is complete with durable validation in `docs/validation/phase-13-public-presentation-polish.md`. Minimum singleton Publication public-presentation/branding support, polished responsive desktop/mobile presentation, system/light/dark modes, accessibility behavior, intentional pending/loading presentation including resolved issue R7KM, and preserved Phase 12 discovery semantics now form the integrated public-presentation baseline.
+
+Phase 14 is the current implementation phase. It owns the Cloudflare Access-protected Source/endpoint administration surface and the optional topic-independent Source RSS/Atom item admission filter defined by the governing contracts. The roadmap and governing contracts remain the authorities for its exact scope.
 
 The canonical architecture is one Publication/topic per installation, singleton Publication editorial configuration without relational tenancy, Source-scoped identity/provenance, persisted Relevance/Categories, canonical `/api/feed`, canonical root `/`, and durable endpoint scheduling/jobs. Historical validation artifacts remain evidence only for the exact SHAs and environments they recorded.
 
@@ -42,7 +44,7 @@ Phases 1–9 are the historical tech-demo critical path.
 
 The first demonstrable milestone is: at least two real approved RSS/Atom Sources are collected through the Worker, recorded in Collection runs, normalized, passed through the canonical default-include Relevance boundary, persisted idempotently with Article-observation provenance, and displayed in the public feed with original-publisher headline links.
 
-Phase 11 completed deterministic persisted Categories and configurable Relevance execution. Phase 12 completed deterministic Source/Category filters, bounded literal search, keyset/load-more cursors, and URL/reset navigation behavior. Phase 13 now owns the already-governed public-presentation work while preserving those discovery semantics. Do not pull Phase 14–15 admin UX, Phase 16 duplicate grouping, or later work into Phase 13 unless a true dependency is demonstrated.
+Phase 11 completed deterministic persisted Categories and configurable Relevance execution. Phase 12 completed deterministic Source/Category filters, bounded literal search, keyset/load-more cursors, and URL/reset navigation behavior. Phase 13 completed the governed public-presentation work while preserving those discovery semantics. Phase 14 now owns Source administration and the Source RSS/Atom item admission filter. Do not pull Phase 15 Publication/Relevance administration, Phase 16 duplicate grouping, or later work into Phase 14 unless a true dependency is demonstrated.
 
 Because the project is pre-production, databases from superseded source trees remain disposable. Current implementation work may rebuild development/pre-production databases from the canonical migration chain rather than preserving unsupported old schema/data compatibility.
 
@@ -77,6 +79,7 @@ Governed by `docs/contracts/domain-and-data-contract.md` plus `docs/decisions/si
 - `Source endpoint` = configured feed/API/HTML location owned by a Source
 - `Collection run` = one attempt to collect one endpoint; persisted provenance begins with the first real fetch phase
 - `Raw item` = minimally interpreted parser output
+- `Source RSS/Atom item admission filter` = optional Source-owned include-phrase gate over parsed RSS/Atom Raw-item editorial text, before Article-candidate normalization and distinct from Relevance
 - `Article candidate` = normalized but not yet accepted; provenance is Source + endpoint + Collection run
 - `Article` = persisted normalized Source instance; identity is Source-scoped
 - `Article observation` = endpoint/run provenance for an Article/candidate outcome, preserving Source consistency
@@ -129,7 +132,7 @@ Report authoritative conflicts rather than choosing silently.
 | Terminology / singleton model / entities / identity / provenance / Category/Relevance schema | `docs/contracts/domain-and-data-contract.md` |
 | Testing / regression / evidence / DB/fixture/browser/live validation | `docs/contracts/testing-and-validation-contract.md` |
 | Process/module architecture / deployment / Worker / scheduling / transactions | `docs/architecture/system-architecture.md` |
-| Approval / bootstrap / collection / safety / normalization / Relevance / operator configuration / identity / run accounting | `docs/contracts/source-and-collection-contract.md` |
+| Approval / bootstrap / collection / safety / Source RSS/Atom item admission / normalization / Relevance / operator configuration / identity / run accounting | `docs/contracts/source-and-collection-contract.md` |
 | Article visibility / duplicate role / review/groups / Primary | `docs/contracts/article-lifecycle-and-deduplication.md` |
 | Public feed / root routing / search / themes / admin UX / change history | `docs/contracts/public-feed-and-admin-contract.md` |
 | UI design / presentation workflow / parallel UI branch | `docs/design/README.md`, then `docs/design/ui-workflow.md` |
@@ -170,6 +173,7 @@ If a path does not exist, search for its current equivalent before assuming inte
 - Parsed Article links pass a separate post-normalization Source/domain gate.
 - Source approved domains are the maximum boundary; endpoint rules may narrow, not silently widen.
 - Parsers output Raw items and never persist Articles directly.
+- An optional Source RSS/Atom item admission filter uses bounded non-empty phrases with deterministic case-insensitive literal any-match semantics over existing parsed title, summary/content text, and Source-provided category labels. No configured phrases preserves collect-all behavior. A mismatch terminates before normalization and is not a Relevance `excluded` outcome or Article observation.
 - Source-shaped data is normalized before Relevance, identity, duplicate, or feed use.
 - Relevance ordering is never bypassed: before configurable rules exist the empty rule set deterministically returns `include`; Phase 11 extends the same boundary rather than replacing it.
 - MVP rule predicates are only literal `title_contains`, `summary_contains`, and `source_category_equals`; missing fields do not match. Regex/glob/fuzzy/stemming/semantic/AI/general-expression behavior is not implied.
@@ -206,6 +210,7 @@ If a path does not exist, search for its current equivalent before assuming inte
 - Persistence/concurrency/migration claims require the evidence level capable of proving real PostgreSQL behavior; mocks do not substitute for database guarantees.
 - Phase 11 is complete with deterministic predicate/precedence/category/default/prospective/excluded-accounting coverage plus real PostgreSQL proof for Category/rule schema, relationships, uniqueness, membership, and reason persistence.
 - Phase 12 is complete with focused API/database/browser evidence for bounded discovery input, unchanged feed eligibility, Source/Category filtering, literal search, stable keyset pagination, cursor/query mismatch rejection, URL/reset/back-forward behavior, and relevant query/index behavior recorded in `docs/validation/phase-12-feed-discovery-features.md`.
+- Phase 13 is complete with durable persistence/read-model, responsive presentation, branding, theme, accessibility, loading-state, browser, and Phase 12 regression evidence recorded in `docs/validation/phase-13-public-presentation-polish.md`.
 - Ordinary deterministic validation does not rely on live public Sources and must not weaken production whitelist/SSRF policy.
 - Required suites do not pass by silently skipping prerequisites or selecting zero tests.
 - Validation claims apply to the exact final source tree tested; previous passing evidence does not automatically transfer to later source changes.
@@ -216,9 +221,9 @@ If a path does not exist, search for its current equivalent before assuming inte
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 13 — Public presentation polish**.
+Current phase: **Phase 14 — Source administration**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration core, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend are complete with durable closeout validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with the recorded live-source limitation preserved. The Phase 10 entry singleton correction, Phase 10 Automated polling/durable jobs/endpoint health, Phase 11 Categories/configurable Relevance execution, and Phase 12 Feed discovery features are complete with durable validation.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration core, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend are complete with durable closeout validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with the recorded live-source limitation preserved. The Phase 10 entry singleton correction, Phase 10 Automated polling/durable jobs/endpoint health, Phase 11 Categories/configurable Relevance execution, Phase 12 Feed discovery features, and Phase 13 Public presentation polish are complete with durable validation.
 
 ### Tech-demo critical path
 
@@ -238,14 +243,14 @@ Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Databas
 - Phase 10 — Automated polling, durable jobs, and endpoint health — complete with durable closeout validation.
 - Phase 11 — Categories and configurable Relevance execution — complete with durable closeout validation.
 - Phase 12 — Feed discovery features — complete with durable closeout validation in `docs/validation/phase-12-feed-discovery-features.md`.
+- Phase 13 — Public presentation polish — complete with durable closeout validation in `docs/validation/phase-13-public-presentation-polish.md`.
 
 ### Current implementation phase
 
-13. Phase 13 — Public presentation polish
+14. Phase 14 — Source administration
 
 ### Remaining MVP order
 
-14. Phase 14 — Source administration
 15. Phase 15 — Publication and Relevance administration
 16. Phase 16 — True duplicate detection and grouping
 17. Phase 17 — Article and duplicate moderation
@@ -266,8 +271,8 @@ Do not advance by assumption. Verify each phase/correction exit gate plus the in
 - Prefer smallest correct incremental change and simplest supported architecture over speculative future-proofing.
 - For pre-production canonicalization, prefer deletion over wrappers/aliases: remove legacy-only migrations, code, types, APIs, tests, fixtures, and configuration paths instead of preserving superseded behavior in the active tree.
 - Trace shared helpers/consumers before changes.
-- Before Phase 13 public-presentation changes trace singleton Publication presentation settings/read model → `/api/feed` → root page/client → preserved Phase 12 discovery controls/state → theme/loading/accessibility/responsive behavior → browser/API/database regressions.
-- Before collection changes trace singleton `active_for_collection` → Source/endpoint approval/lifecycle/operational state → durable job/scheduler/manual execution → capacity/lock → Collection run → network safety → fetch/redirect → parse → normalize → Article-link validation → Relevance → Source-scoped identity → observation → run accounting → health → tests.
+- Before Phase 14 Source-administration changes trace Cloudflare Access/origin protection → request integrity → Source/endpoint configuration and lifecycle → Source-owned RSS/Atom admission phrases → real resource relationships/domain invariants → canonical job/manual execution → collection/run/health consumers → tests.
+- Before collection changes trace singleton `active_for_collection` → Source/endpoint approval/lifecycle/operational state → durable job/scheduler/manual execution → capacity/lock → Collection run → network safety → fetch/redirect → parse → optional Source RSS/Atom item admission filter → normalize → Article-link validation → Relevance → Source-scoped identity → observation → run accounting → health → tests.
 - Before Article/duplicate changes trace external IDs/canonical URLs/uniqueness → observations → review candidates → groups → Primary → moderation → feed → tests.
 - Before admin changes trace Cloudflare Access perimeter → origin protection → request integrity → real resource relationships/domain invariants → mutation → change history → tests.
 - Before public-route changes trace singleton Publication settings → canonical read model → `/api/feed` → `/` page/client → unavailable/error behavior → external links → browser tests.
@@ -682,7 +687,7 @@ The prompt MUST identify `Workstream: UI`, require execution on `ui-polish`, pre
 
 `/ui-write` writes only the approved UI prompt. It does not run Codex, invoke `codex:phase`, implement source, modify project version, advance roadmap state, merge branches, or create/modify durable design guidance. If missing/contradictory design guidance is discovered during revalidation, return `Planning needed` and route through `/ui-review` → explicit approval → `/ui-apply` → rerun `/ui-plan`.
 
-Earlier compliant UI work may satisfy portions of the current Phase 13 after final-tree assessment, but it does not automatically complete or redefine the Phase 13 roadmap exit gate.
+The accepted Phase 13 public-presentation implementation is the integrated presentation baseline. Later presentation-only refinements may continue through this UI workflow, but roadmap-owned Phase 14 Source administration and its domain behavior must not be recast as generic parallel UI work.
 
 # Review and validation commands
 
@@ -720,7 +725,7 @@ Machine-significant fields are stricter than prose. Every roadmap/correction tas
 
 Every implementation prompt inherits testing contract. Tests are not optional cleanup; prerequisites cannot silently skip green; claims cannot exceed evidence.
 
-Collection prompts preserve singleton Publication global collection-active state, Source/endpoint approval/lifecycle/operational boundaries, truthful Collection runs, pre-request network safety, run isolation, retry limits, Source-domain policy, and deterministic collection tests without safety bypasses. They do not add Publication selectors/tenant scopes.
+Collection prompts preserve singleton Publication global collection-active state, Source/endpoint approval/lifecycle/operational boundaries, truthful Collection runs, pre-request network safety, run isolation, retry limits, Source-domain policy, optional Source RSS/Atom item admission before normalization, and deterministic collection tests without safety bypasses. They do not add Publication selectors/tenant scopes or conflate Source admission mismatches with Relevance exclusions/Article observations.
 
 Persistence/identity prompts preserve Source-scoped Article identity, canonical Relevance ordering, transactional idempotency, Article observations, real-PostgreSQL constraints/concurrency/migration behavior where applicable, and rollback. Publication tenancy is not introduced as future-proofing.
 
@@ -732,7 +737,7 @@ Public-feed prompts preserve singleton public exposure, Source approval/lifecycl
 
 UI prompts preserve the same public-feed/domain behavior while changing approved presentation. Shared frontend/runtime files may be changed only when explicitly planned; material backend/domain changes are routed out of the UI workstream. UI prompts never change project version or roadmap state.
 
-Admin prompts preserve Cloudflare Access/origin protection, request integrity, real resource-relationship/domain-invariant validation, singleton Publication configuration, and prohibition on unnecessary native identity/account work, multi-Publication selectors, or Publication tenant authorization.
+Admin prompts preserve Cloudflare Access/origin protection, request integrity, real resource-relationship/domain-invariant validation, singleton Publication configuration, Source-owned include-only RSS/Atom admission semantics where applicable, and prohibition on unnecessary native identity/account work, multi-Publication selectors, or Publication tenant authorization.
 
 Historical Phase 10 singleton-correction prompts established the smallest canonical migration-from-zero schema, deleted/squashed/replaced superseded pre-production migrations, removed Publication tenancy/selectors and legacy-only compatibility source/API/type/test/fixture/config paths throughout the active tree, and required database/regression/browser proof before correction closeout. Do not reintroduce that superseded compatibility surface.
 

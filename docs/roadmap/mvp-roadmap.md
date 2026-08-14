@@ -17,6 +17,7 @@ Phases are intentionally narrow. Each phase represents one cohesive implementati
 - Before production database compatibility is established, the supported persistence setup is a fresh database built from the repository's current migration chain and bootstrap/configuration. Pre-production schema corrections are destructive resets: legacy-only migrations, compatibility code, selector APIs, tests/fixtures, and obsolete configuration paths are removed when the current canonical system no longer needs them, and databases created by older source trees are rebuilt rather than preserved.
 - Network safety, Source approval boundaries, Collection-run provenance, normalization, Relevance ordering, and idempotent Article identity are not deferred for the tech demo because they are expensive and risky to retrofit.
 - Before configurable Relevance rules exist, the canonical Relevance boundary runs with an empty rule set and deterministically includes safe candidates by default.
+- The optional Source RSS/Atom item admission filter is Source-owned, topic-independent, include-only configuration evaluated over parsed Raw-item editorial text before Article-candidate normalization; it is distinct from Phase 11 Relevance.
 - Native application-managed administrator accounts, passwords/passkeys, sessions, roles, account recovery, Publication-scoped user authorization, and identity-linked audit attribution are outside MVP.
 - MVP admin UI/API routes use Cloudflare Access as the external perimeter; supported deployments MUST prevent direct-origin bypass.
 - Cloudflare Access does not replace request-integrity, resource-validation, fetch/network-safety, output/content-safety, secrets, or origin protections.
@@ -667,7 +668,7 @@ Make the growing feed easy to explore without changing eligibility semantics.
 
 ## Phase 13 — Public presentation polish
 
-**Status:** Current roadmap phase.
+**Status:** Complete with durable validation recorded in `docs/validation/phase-13-public-presentation-polish.md`.
 
 ### Goal
 
@@ -692,9 +693,9 @@ Turn the working feed into a polished customer-facing publication experience wit
 
 ### Boundary clarification
 
-- Phase 13 is presentation polish plus the smallest Publication presentation persistence/public-read support required by that polish. It does not create a parallel feed query, routing surface, ranking model, or reader account/session system.
+- Phase 13 was presentation polish plus the smallest Publication presentation persistence/public-read support required by that polish. It did not create a parallel feed query, routing surface, ranking model, or reader account/session system.
 - The canonical `/api/feed` eligibility/order/search/filter/keyset semantics and root URL/history/reset/load-more behavior from Phase 12 remain unchanged. Presentation/markup changes must preserve the relevant Phase 12 API, database, and browser regression coverage.
-- Phase 13 introduces/uses the minimum public branding data, but Phase 15 owns the Cloudflare-protected administrator editing surface for those values.
+- Phase 13 introduced/used the minimum public branding data, but Phase 15 owns the Cloudflare-protected administrator editing surface for those values.
 - Configurable presentation timezone/date behavior remains deferred to Phase 15; Phase 13 preserves the established UTC calendar-date fallback.
 - Earlier compliant presentation changes already integrated from the parallel `ui-polish` workstream may satisfy portions of this phase and should be credited after final-tree assessment rather than rebuilt automatically.
 
@@ -719,6 +720,8 @@ Turn the working feed into a polished customer-facing publication experience wit
 
 ## Phase 14 — Source administration
 
+**Status:** Current roadmap phase.
+
 ### Goal
 
 Replace bootstrap/manual Source configuration with a practical control surface protected by Cloudflare Access.
@@ -740,6 +743,10 @@ Replace bootstrap/manual Source configuration with a practical control surface p
 - approved-domain/narrowing configuration;
 - polling controls;
 - Source priority;
+- optional Source-level RSS/Atom item admission phrases configured through the Source editor/API;
+- include-only any-match behavior using bounded, trimmed, non-empty phrases with deterministic case-insensitive literal matching over parsed title, summary/content text, and Source-provided category labels;
+- absent phrase configuration preserving collect-all behavior, with no exclude list or independent enabled toggle;
+- pre-normalization `source_item_filtered_count` Collection-run accounting;
 - manual check-now reusing the canonical Worker/job path;
 - recent Collection-run/health visibility.
 
@@ -750,11 +757,27 @@ Replace bootstrap/manual Source configuration with a practical control surface p
 - account recovery;
 - identity-linked audit attribution;
 - Publication tenant authorization/scoping;
-- Article/duplicate moderation.
+- Article/duplicate moderation;
+- Phase 15 Publication/Category/Relevance administration or any new Relevance predicate;
+- endpoint-specific admission filters;
+- regex/glob/fuzzy/stemming/semantic/AI/general-expression filtering;
+- Article-body fetching for admission matching;
+- automatic historical Article reprocessing or mutation;
+- claiming unsupported future adapter types already use the RSS/Atom filter.
+
+### Boundary clarification
+
+- The Source RSS/Atom item admission filter runs after safe fetch and RSS/Atom parse but before Article-candidate normalization, Article-link policy, Phase 11 Relevance/Categories, Source-scoped identity, and persistence.
+- A mismatch is a filtered Raw item, not a normalized candidate, Relevance `excluded` outcome, normalization failure, or Article observation. It does not run identity or mutate a previously persisted Article.
+- Filter changes are prospective and do not rewrite historical Articles, observations, or Collection runs.
+- The filter does not bypass approval/lifecycle/operational eligibility, endpoint locking, network/redirect/fetch/parser safety, admitted-candidate Article-link validation, scheduling, jobs, or provenance.
+- Existing Phase 11 predicates and deterministic precedence/category behavior remain unchanged.
 
 ### Exit gate
 
 - Cloudflare-authorized operator can add/operate RSS/Atom Source without code/DB changes.
+- Cloudflare-authorized operator can view/change the optional Source RSS/Atom item admission phrases without code/DB hand-editing, and absent configuration preserves collect-all behavior.
+- Deterministic tests prove bounded literal any-match behavior across supported parsed fields, missing/empty/invalid configuration, all-items-filtered accounting, separation from normalization/Relevance/identity/observations, and prospective non-retroactive edits.
 - Admin actions cannot bypass state, real resource relationships, locking, or network safety.
 - Request-integrity/resource-boundary regressions pass.
 - Direct-origin admin bypass is prevented in the supported deployment.

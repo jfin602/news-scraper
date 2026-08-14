@@ -63,6 +63,7 @@ MVP MUST provide, after the tech-demo vertical slice:
 - Cloudflare Access-protected administrative UI/API routes with direct-origin bypass prevented by the supported deployment;
 - configuration for the installation's singleton Publication settings, including the branding/feed/presentation settings introduced before the admin surface;
 - Source/endpoint create, update, approve/unapprove, enable/pause/disable, archive/state management, and manual-check operations;
+- optional Source-level RSS/Atom item admission phrase configuration, with no phrases preserving collect-all behavior and one or more phrases admitting an item when any phrase matches;
 - Source priority and approved-domain policy;
 - Source-type/polling configuration;
 - Category and include/exclude/categorize Relevance-rule management;
@@ -78,6 +79,7 @@ State-changing browser actions MUST use CSRF protection or an equivalent request
 MVP MUST provide:
 
 - RSS/Atom collection;
+- optional topic-independent Source RSS/Atom item admission filtering over existing parsed item metadata before Article-candidate normalization;
 - conditional HTTP fetching where supported;
 - configurable polling;
 - pre-fetch/redirect SSRF and approved-domain validation;
@@ -112,7 +114,9 @@ Suggested initial Categories:
 
 These are not global Platform Categories. They are installation-specific configuration for the first deployment and are not shared-engine behavior. Bootstrap contains only configuration needed by implemented behavior; later branding/feed, Category, and Relevance data are introduced in the phases that use them.
 
-Phase 13 introduces the minimum persisted public presentation configuration needed by the customer-facing feed—Publication description, same-origin logo path, and accent color in addition to the existing name—and exposes those values through the canonical public-feed boundary. Phase 15 later adds Cloudflare-protected administrative editing for those settings and introduces configurable presentation timezone/date settings. Until then, the established UTC public-date fallback remains authoritative.
+Phase 13 introduced the minimum persisted public presentation configuration needed by the customer-facing feed—Publication description, same-origin logo path, and accent color in addition to the existing name—and exposed those values through the canonical public-feed boundary. Phase 15 later adds Cloudflare-protected administrative editing for those settings and introduces configurable presentation timezone/date settings. Until then, the established UTC public-date fallback remains authoritative.
+
+Phase 14 adds optional Source-owned RSS/Atom item admission phrases and the protected Source-management surface needed to configure them without code or direct database editing. The first Publication's actual phrases are installation configuration, never shared Platform logic. Absence of the optional filter preserves the current collect-all behavior.
 
 Initial singleton Publication/Source/endpoint configuration may be created through operator-maintained seed/bootstrap tooling before admin UI exists. Bootstrap approval is explicit operator approval, not an eligibility bypass or auto-discovery mechanism. Ordinary bootstrap remains create-if-absent and does not overwrite existing operator-managed state; before full Publication administration exists, the tech-demo path therefore uses the smallest explicit operator-controlled generic state transition needed to expose the Publication deliberately.
 

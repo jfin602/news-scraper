@@ -22,22 +22,16 @@ This file is the running feature idea log for ideas proposed in this chat.
 - Initial scope stores the remote image URL only; it does not download, proxy, cache, transform, or host publisher image bytes. A controlled image proxy/cache may be considered separately if hotlink reliability, privacy, or content-delivery requirements justify it.
 - Keep extraction and normalization topic independent and preserve existing Source approval, provenance, network-safety, idempotency, and feed behavior.
 
-### +W6HF — 2026-08-13 — Source item include/exclude filtering
+## Promoted Ideas
 
-- **Status:** Proposed
-- Add an optional Source-level item filter for RSS/Atom collection. Filtering is explicitly disabled by default so newly configured Sources preserve current collect-all behavior unless an administrator turns it on.
-- Store the enabled state independently from the configured patterns so an administrator may temporarily disable filtering without losing the saved include/exclude phrases.
-- Support independently optional include and exclude phrase lists:
-  - with only include phrases configured, admit an item when it matches any include phrase;
-  - with only exclude phrases configured, admit everything except items matching any exclude phrase;
-  - with both configured, require an include match and no exclude match;
-  - exclude matches take precedence over include matches.
-- Matching should be deterministic, case-insensitive, bounded, topic independent, and operate on appropriate normalized editorial text such as title, summary/content, and Source-provided category labels. Avoid regex, fuzzy, stemming, semantic/AI, or arbitrary-expression behavior unless deliberately introduced later.
-- Apply filtering prospectively during future collection runs only. Enabling or editing a filter must not automatically delete, hide, or bulk-reprocess previously persisted Articles.
-- Filtered items should terminate before Article identity/persistence while preserving truthful Collection-run/observation accounting with stable machine-readable exclusion reasons rather than disappearing silently from parser/run counts.
-- Keep the filter as Source configuration rather than endpoint-specific or indie-author-specific engine logic. The initial implementation applies to RSS/Atom items, while the conceptual model should remain reusable for future structured adapters when explicitly supported.
-- Before full admin UX exists, provide the smallest explicit operator configuration path needed to configure/edit the filter without weakening ordinary bootstrap create-if-absent/no-overwrite semantics.
-- Expose the same Source item-filter model in the protected admin Source editor when Source administration is implemented, including an **Enable item filtering** toggle (off by default), include-phrase management, exclude-phrase management, validation, and concise explanation of effective matching behavior.
+### +W6HF — 2026-08-13 — Source RSS/Atom item admission filter
+
+- **Status:** Approved for Phase 14; governing behavior is now in the Source/collection, domain/data, admin, testing, architecture, and roadmap documents.
+- The approved model is one optional Source-owned include-phrase list for RSS/Atom items. No configured phrases preserves collect-all behavior; one or more bounded, trimmed, non-empty phrases admit a parsed item when any phrase matches.
+- Matching is deterministic case-insensitive literal substring matching over existing parsed title, summary/content text, and Source-provided category labels before Article-candidate normalization.
+- There is no exclude-phrase list and no independent enabled toggle. The older include/exclude/toggle proposal is superseded and is not a compatibility mode.
+- Filtered Raw items count in `source_item_filtered_count`; they are not normalization failures, Relevance `excluded` outcomes, or Article observations.
+- Changes affect future collection only and do not automatically mutate historical Articles, observations, or Collection runs.
 
 ## Shipped Ideas
 
