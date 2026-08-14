@@ -1,0 +1,234 @@
+TASK: Phase 14 / P7 — Source administration browser UI
+
+ROADMAP PHASE
+Phase 14 — Source administration.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol High`.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Alternative considered: `Sol Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P7 integrates many already-governed admin workflows in a real browser and must preserve request-integrity, state semantics, responsive/accessibility behavior, and public-page isolation. Sol High is sufficient because P3–P6 should have stabilized backend behavior; Ultra is reserved for unexpected architectural drift rather than ordinary UI composition.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 14 prompt 7 and its assigned project version is `0.14.7`.
+- On first execution, require top-level `package.json` version `0.14.6`; on a rerun of this same P7, `0.14.7` is acceptable.
+- Update only the top-level package version to `0.14.7`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, complete Phase 14 roadmap entry, and P1–P6 tasks plus actual implementation/tests;
+2. read `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/design/ui-workflow.md`, and the Cloudflare admin ADR;
+3. inspect P3 `/admin` shell/assets/request-integrity implementation and P4–P6 admin API/read-model contracts as actually implemented;
+4. inspect all current admin integration tests and existing public browser tests/helpers;
+5. inspect Phase 13 public presentation resources only to avoid accidental shared-resource regressions; do not turn the admin UI into a public-feed redesign;
+6. inspect current `createWebApp()` dependency injection so browser tests can provide deterministic admin data without requiring public internet access;
+7. confirm `ui-polish` is a separate non-versioned workstream and Phase 14 Source administration UI is roadmap-owned implementation on `main`;
+8. stop and report planning drift if P3–P6 APIs/security semantics are incomplete/incompatible or if durable design guidance now requires a separate approved UI review before implementing this already-governed functional admin shell.
+
+GOAL
+Deliver the practical operator-facing browser control surface required by the Phase 14 exit gate using the protected admin APIs established by P3–P6.
+
+The UI must let a Cloudflare-authorized operator manage approved RSS/Atom Sources/endpoints without code or database hand-editing while accurately presenting approval, lifecycle, operational state, health, filter configuration, check-now, and recent Collection-run information.
+
+This is a functional administrative interface, not a new product-wide design-system phase.
+
+ADMIN PAGE OWNERSHIP
+Keep admin presentation separate from the public feed.
+
+Prefer dedicated same-origin resources such as:
+- admin page renderer/template under the established Web/admin ownership;
+- `/admin/admin.js` or an equivalent dedicated script route;
+- `/admin/admin.css` or an equivalent dedicated stylesheet route.
+
+Do not merge admin application state into `public-feed.js` or make public-feed CSS the admin stylesheet merely to reduce file count.
+
+Preserve P3 restrictive CSP/no-store/request-integrity behavior. Avoid inline scripts/styles that weaken CSP.
+
+ADMIN NAVIGATION / INFORMATION ARCHITECTURE
+A single deployed installation contains one Publication/topic, so the admin UI has no Publication/topic switcher.
+
+Use a compact responsive admin layout with at least:
+- Source list/navigation;
+- Source create/edit view;
+- endpoint list within selected Source;
+- endpoint create/edit view;
+- operational status/health/recent-run area for selected endpoint.
+
+The exact visual composition may be simple, but the state hierarchy must be obvious and the page must remain usable on desktop and mobile.
+
+SOURCE WORKFLOWS
+Expose P4 capabilities:
+- list Sources;
+- create Source;
+- edit display name/site URL;
+- edit Source approved domains;
+- edit Source priority;
+- assign/clear an existing default Category;
+- edit Source RSS/Atom admission phrases;
+- approve/unapprove;
+- enable/pause/disable;
+- archive;
+- restore.
+
+For Source state display, show distinct concepts rather than one overloaded badge:
+- approval;
+- lifecycle;
+- operational state.
+
+Archive/restore controls must make clear that restore does not automatically resume collection.
+
+SOURCE FILTER EDITOR
+The Source filter UI must reflect the exact include-only contract:
+- label it as RSS/Atom item admission/include phrases rather than Relevance rules;
+- allow zero or more phrases up to P1 bounds;
+- empty list visibly means all otherwise-valid RSS/Atom items are admitted;
+- one or more phrases means ANY phrase may match title, summary/content, or Source category labels;
+- no exclude list;
+- no enabled checkbox/toggle;
+- no regex/fuzzy/AI language;
+- errors from phrase bounds/invalid input are shown safely and preserve the operator's unsaved form state.
+
+Do not expose first-publication topic phrases from code; all entered values are operator configuration.
+
+ENDPOINT WORKFLOWS
+Expose P5 capabilities under the selected Source:
+- list endpoints;
+- create endpoint;
+- edit URL/type/poll interval;
+- edit endpoint approved-domain narrowing/inherit Source maximum;
+- assign/clear existing default Category;
+- approve/unapprove;
+- enable/pause/disable;
+- archive;
+- restore.
+
+Do not show a physical Delete action. Archive is the Phase 14 retirement behavior.
+
+Make inherited Source-domain policy versus explicit endpoint narrowing understandable without implying endpoint rules can widen Source policy.
+
+OPERATIONAL WORKFLOWS
+Expose P6 capabilities:
+- endpoint `Check now` action;
+- endpoint derived health;
+- last attempt/success/failure;
+- next due/cooldown/consecutive failures where present;
+- recent Collection runs newest-first;
+- run trigger (`manual` / `scheduled`);
+- key stage statuses/counts including `sourceItemFilteredCount` and processing outcomes;
+- bounded failure reason/detail where supplied.
+
+`Check now` behavior:
+- send one protected POST through the P3 request-integrity mechanism;
+- show queued/already-outstanding/ineligible results accurately;
+- never assume the HTTP response means collection completed;
+- offer an explicit refresh/update of operational data after enqueue; bounded short UI refresh is acceptable, but do not create an uncontrolled background polling loop merely to wait indefinitely;
+- do not call publisher endpoints from browser JavaScript.
+
+REQUEST-INTEGRITY CLIENT BEHAVIOR
+Every state-changing admin API call must:
+- use same-origin fetch;
+- send JSON where required;
+- send `X-News-Scraper-Admin-Request: 1` exactly as established by P3;
+- never place mutation data/secrets in query strings;
+- handle bounded non-2xx JSON errors without rendering server-provided content as HTML.
+
+Do not store Cloudflare identity/access tokens or administrator credentials in localStorage/sessionStorage/page markup.
+
+FORM / CLIENT STATE
+Keep the client implementation dependency-light and consistent with the public project's lightweight browser approach.
+
+Requirements:
+- deterministic selected Source/endpoint state;
+- disable duplicate submit buttons while a mutation is in flight;
+- preserve useful form input on validation errors;
+- refresh canonical server state after successful mutations;
+- distinguish loading, empty, error and ready states;
+- Source archive/restore or relationship changes cannot leave the page pretending an endpoint is still mutable when server state says otherwise;
+- no optimistic state that can bypass/redefine server domain/state validation.
+
+ACCESSIBILITY / RESPONSIVE BASELINE
+At minimum:
+- semantic headings/landmarks/forms/labels;
+- keyboard-operable controls;
+- visible focus;
+- sensible tab order;
+- status/error messaging exposed in an accessible way without excessive live-region noise;
+- minimum practical touch target sizing consistent with the Phase 13 baseline;
+- no information conveyed by color alone;
+- destructive/operationally significant archive/disable actions clearly named;
+- long Source names, URLs, domains, phrases, error detail and run metadata wrap safely;
+- no horizontal page overflow at tested mobile width;
+- admin controls remain usable at representative 390x844 mobile and 1280x900 desktop viewports.
+
+The admin page may use its own neutral light/dark-compatible palette if the existing global/theme primitives make that cheap, but P7 does not need to expand the Publication's public branding/theme contract. Do not let arbitrary Publication accent color control security/error/focus contrast.
+
+BROWSER TESTING
+Add a dedicated real Chromium admin suite rather than overloading public-feed tests with admin-specific logic.
+
+Use deterministic injected admin service/API state and/or disposable PostgreSQL where appropriate; ordinary browser tests must not depend on live publishers or Cloudflare.
+
+At minimum observe in Chromium:
+- admin-disabled route remains unavailable;
+- admin-enabled Source list ready/empty/error states;
+- create Source;
+- edit Source configuration;
+- add/remove RSS admission phrases and show collect-all meaning when empty;
+- Source approval/operational/archive/restore actions;
+- create/edit endpoint;
+- endpoint narrowing/poll/default Category edit;
+- endpoint state actions;
+- check-now request includes P3 mutation header and UI distinguishes queued/already-outstanding/error;
+- health/recent runs render trigger/state/counts accurately;
+- validation/API failure preserves usable form state;
+- keyboard focus remains visible through main workflows;
+- mobile layout does not horizontally overflow;
+- long content wraps safely;
+- public root/feed page still renders/behaves as before.
+
+Where browser mocks intercept HTTP, also retain integration/database tests from P4–P6 as the proof of actual command/persistence behavior. Browser UI success does not replace those levels.
+
+PUBLIC PRESENTATION NON-REGRESSION
+P7 must not redesign or semantically alter:
+- canonical public `/` page;
+- public `/api/feed`;
+- Phase 12 discovery/search/pagination;
+- Phase 13 loading/theme/responsive presentation;
+- original publisher navigation.
+
+Shared Web helper changes require existing public integration/browser regression coverage.
+
+NON-GOALS
+Do not add:
+- Publication branding/settings editor;
+- Category CRUD;
+- Relevance-rule CRUD;
+- Article moderation;
+- duplicate moderation;
+- native admin accounts/login/roles;
+- physical Source/endpoint deletion;
+- topic selector;
+- live publisher collection in browser tests;
+- parallel `ui-polish` task/version behavior.
+
+REQUIRED VALIDATION
+Run focused browser/integration checks during development, then before completion run at least:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:db`
+- `npm run test:browser`
+- `npm test`
+- `npm run check`
+- `git diff --check`
+
+Confirm `package.json` is `0.14.7`, no npm lockfile exists, admin browser evidence comes from real Chromium, and existing public browser tests remain green.
+
+FINAL REPORT
+Report files changed, admin information architecture/workflows, request-integrity client behavior, responsive/accessibility/browser evidence with exact tested viewports, focused/regression commands actually run/results, and any remaining deployment limitation. Do not mark Phase 14 complete; P8 owns final validation.
