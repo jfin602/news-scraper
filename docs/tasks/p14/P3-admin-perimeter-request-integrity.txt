@@ -4,12 +4,12 @@ ROADMAP PHASE
 Phase 14 — Source administration.
 
 MODEL / REASONING / USAGE
-- Recommended configuration: `Sol High`.
+- Recommended configuration: `Terra High`.
 - Complexity / quality floor: `High`.
-- Estimated usage: `High`.
-- Alternative considered: `Terra Ultra`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Sol High`; rejected because the security boundary is explicit and bounded, so the materially higher expected credit cost is not justified up front.
 - Estimate confidence: `High`.
-- Efficiency rationale: P3 introduces the first administrative HTTP boundary and must keep Cloudflare perimeter authentication, direct-origin deployment protection, application request integrity, safe errors, and public-route behavior separate. Sol High gives appropriate security and integration headroom without requiring Ultra for a deliberately small admin shell.
+- Efficiency rationale: P3 is security-sensitive, but the governing ADR and prompt define a deliberately small admin shell, exact fail-closed configuration, request-integrity mechanism, safe-error behavior, and public-route regressions. Terra High provides adequate security/integration reasoning at substantially lower expected usage; escalate only if source inspection exposes ambiguous trust boundaries or materially broader deployment coupling.
 - If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
 
 VERSIONING
