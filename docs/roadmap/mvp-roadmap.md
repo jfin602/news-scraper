@@ -37,7 +37,7 @@ Every implementation phase MUST also satisfy the testing and validation contract
 - real disposable PostgreSQL evidence for persistence/concurrency/migration claims;
 - deterministic collection-fixture evidence rather than live-public-network dependence in ordinary deterministic validation;
 - browser evidence for browser-dependent behavior;
-- repeatable local static/test/runtime validation executed against the exact final tree;
+- repeatable local static/test/runtime validation executed against the exact final tree using a non-overlapping command set where aggregate commands already contain subordinate checks/suites;
 - no skipped/flaky/zero-selected suite standing in for required proof;
 - terminal evidence and limitations reported explicitly;
 - a durable closeout validation artifact when required by the phase/correction gate.
@@ -829,7 +829,7 @@ Expose the installation's singleton Publication/editorial configuration, Categor
 
 ## Phase 16 — True duplicate detection and grouping
 
-**Status:** Current roadmap phase.
+**Status:** Current roadmap phase. P1–P3 are implemented; P4 is blocked until the Phase 16 testing-efficiency correction below closes.
 
 ### Goal
 
@@ -866,6 +866,57 @@ Suppress true duplicate public rows while preserving every Article instance/prov
 - Related coverage remains separate.
 - Unchanged dismissed evidence does not recur indefinitely.
 - Inherited Phase 16 validation covers strong-vs-weak classification, canonical pairs/dismissal, every Primary tie-break, post-identity composition, feed/discovery suppression, Collection-run effects, and real-PostgreSQL uniqueness/concurrency/topology/rollback/provenance invariants.
+- The Phase 16 testing-efficiency correction has closed before P4 execution; that correction does not consume or renumber Phase 16 roadmap prompts.
+
+## Phase 16 mid-phase testing-efficiency correction
+
+**Status:** Current non-versioned gating correction before Phase 16 P4.
+
+This correction is implementation/tooling work under the non-versioned correction-stack workflow. It preserves the active Phase 16 roadmap phase and the package version established by completed P3; it does not consume Phase 16 P4's roadmap patch number.
+
+### Goal
+
+Reduce local/Codex validation wall-clock time substantially without reducing test accuracy, behavioral coverage, PostgreSQL fidelity, failure detection, or final-tree evidence quality.
+
+### Depends on
+
+- Phase 16 P1–P3 implemented and committed;
+- `docs/contracts/testing-and-validation-contract.md` validation-efficiency and PostgreSQL-isolation rules.
+
+### Deliverables
+
+- runner support for bounded/configurable file-level concurrency rather than unconditional serialization of every suite;
+- safe parallel execution for deterministic unit/integration/collection suites and conservative browser execution where isolation/resource behavior is proven;
+- live-Source validation remaining conservative/serial unless an explicit source-safe procedure establishes otherwise;
+- focused database-test execution for iterative development that preserves `.env` loading, test-admin prerequisite enforcement, zero-match failure, real PostgreSQL, and normal isolation guarantees;
+- reusable ordinary PostgreSQL test harness using one unique migrated disposable database per independently executed test file/equivalent scope with deterministic application-state reset between test cases;
+- dedicated fresh-database slow path retained for migration, disposable-database lifecycle/cleanup, schema-mutation, and other tests whose claim depends on fresh database state;
+- bounded database-file concurrency only after each independently parallelized file owns a separate mutable disposable database;
+- runner/test updates that preserve deterministic selection/assertions/outcomes without requiring deterministic inter-process stdout completion order;
+- prompt/final-validation behavior that uses focused tests during iteration and the smallest non-overlapping final-tree command set covering every required evidence level;
+- before/after wall-clock measurements for applicable suites on the same machine/environment, recorded at correction closeout.
+
+### Out of scope
+
+- deleting meaningful behavioral assertions merely to make suites faster;
+- replacing real PostgreSQL persistence/concurrency evidence with mocks;
+- weakening migration-from-zero, transaction, lock, race, cleanup, browser, collection-fixture, or other required evidence;
+- product/domain/feed/duplicate behavior changes;
+- package-version changes;
+- rewriting completed Phase 16 P1–P3 task prompts or historical validation artifacts;
+- silently editing still-unexecuted Phase 16 P4–P7 task prompts outside the prompt workflow.
+
+### Exit gate
+
+- Existing contract-critical coverage remains substantively intact and all newly introduced runner/harness behavior has focused regression tests.
+- Migration/disposable-database lifecycle suites still exercise genuine fresh databases where fresh state is the behavior under test.
+- Ordinary persistence tests use reusable per-file/equivalent isolated migrated databases where safe, with deterministic between-case reset and no cross-file mutable database sharing under parallel execution.
+- Focused database invocation fails clearly for missing prerequisites and zero selected tests and never silently substitutes mocks/skips.
+- Bounded suite concurrency is proven regression-safe; resource-heavy suites remain conservatively limited and live-Source validation remains safely isolated.
+- Final correction validation uses aggregate-command containment rather than redundant subordinate reruns while still executing the complete applicable ordinary, database, browser, and other specialized deterministic matrices.
+- Before/after wall-clock timing is recorded for applicable suites on the same machine/environment. The evidence should demonstrate material improvement; absolute portable time thresholds are not a correctness contract.
+- A durable correction closeout artifact under `docs/validation/` records the exact accepted source tree, commands/procedures, results, benchmark environment/timings, evidence levels, and limitations.
+- `package.json` remains unchanged throughout the correction. After green correction closeout, Phase 16 resumes at P4 with its existing roadmap version assignment.
 
 ## Phase 17 — Article and duplicate moderation
 
