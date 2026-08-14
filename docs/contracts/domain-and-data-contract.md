@@ -468,11 +468,26 @@ Before production database compatibility is established:
 - compatibility columns, dual schemas, data-copy bridges, transformation migrations, upgrade fixtures/tests, or other compatibility machinery MUST NOT be retained solely to preserve disposable pre-production database contents;
 - migration-from-zero MUST establish singleton Publication semantics, installation-wide Source uniqueness, Source-scoped Article identity, and all Source/endpoint/run/Article/observation integrity constraints required by implemented behavior.
 
-When production compatibility is later established, schema evolution and data-preservation guarantees MUST be governed explicitly rather than inferred from this pre-production rebuild rule.
+The pre-production rule remains authoritative through the pre-launch roadmap. Phase 19 establishes and validates the operational schema-upgrade/rollback/restore procedures required for production; acceptance of Phase 20 customer launch establishes the first supported production schema/data baseline.
+
+## Production database schema contract
+
+From the accepted Phase 20 production baseline forward, `docs/decisions/production-data-and-schema-compatibility.md` governs schema/data compatibility.
+
+At minimum:
+
+- customer production data and governed relationships are durable supported state and MUST be preserved by normal upgrades/refactors;
+- supported production migration history MUST remain capable of upgrading supported deployed state and MUST NOT be squashed, reordered, deleted, or rewritten in a way that breaks that upgrade path;
+- migration-from-zero remains required for new installations and disposable tests, but clean-install evidence does not substitute for production-upgrade evidence;
+- schema changes after the production baseline require forward migration and data-preservation validation from the supported deployed baseline;
+- development/test databases may remain disposable when they are not supported production state;
+- destructive customer-data reset or incompatible data/schema transitions require a separately explicit approved decision rather than ordinary refactor/cleanup authority.
+
+The production compatibility boundary protects supported persisted state; it does not require retaining unrelated dead code, obsolete wrappers, speculative aliases, or unsupported pre-production compatibility artifacts.
 
 ## Retention and deletion principles
 
-These rules govern data managed inside a supported current database. They do not restrict destroying/recreating an entire development or pre-production database under the pre-production rebuild-from-zero policy above.
+These rules govern data managed inside a supported current database. Before the production baseline they do not restrict destroying/recreating an entire development or pre-production database under the pre-production rebuild-from-zero policy above. After the production baseline, customer production data is additionally governed by the production compatibility contract above.
 
 - Provenance needed for change history, identity, or duplicate handling is not discarded because an Article is hidden/suppressed.
 - Source/endpoint administration uses create/update, approval, enable/pause/disable, and archive lifecycle management rather than unconstrained physical deletion.
