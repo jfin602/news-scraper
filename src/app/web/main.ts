@@ -2,10 +2,12 @@ import { parseDatabaseConfig } from '../../database/config.ts';
 import { createDatabase } from '../../database/database.ts';
 import { createDatabaseDependency } from '../../database/readiness.ts';
 import { createEndpointAdministrationService } from '../../admin/endpoint-administration.ts';
+import { createPublicationAdministrationService } from '../../admin/publication-administration.ts';
 import { createSourceAdministrationService } from '../../admin/source-administration.ts';
 import { readPublicFeed } from '../../public-feed/repository.ts';
 import { createWebApp } from './create-app.ts';
 import { registerEndpointAdministrationRoutes } from './endpoint-administration-router.ts';
+import { registerPublicationAdministrationRoutes } from './publication-administration-router.ts';
 import { startWebServer } from './server.ts';
 import { registerSourceAdministrationRoutes } from './source-administration-router.ts';
 import { parseWebConfig } from './web-config.ts';
@@ -24,6 +26,9 @@ async function main(): Promise<void> {
     const registerEndpointRoutes = registerEndpointAdministrationRoutes(
       createEndpointAdministrationService(applicationDatabase),
     );
+    const registerPublicationRoutes = registerPublicationAdministrationRoutes(
+      createPublicationAdministrationService(applicationDatabase),
+    );
     const webServer = await startWebServer(
       createWebApp(
         {
@@ -37,6 +42,7 @@ async function main(): Promise<void> {
           registerAdminApiRoutes: (router) => {
             registerSourceRoutes(router);
             registerEndpointRoutes(router);
+            registerPublicationRoutes(router);
           },
         },
       ),

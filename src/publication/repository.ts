@@ -119,6 +119,23 @@ export async function setPublicationPublicStatus(
   return row === undefined ? undefined : mapPublicationSettingsRow(row);
 }
 
+export async function replacePublicationSettings(
+  executor: QueryExecutor,
+  input: unknown,
+): Promise<PersistedPublicationSettings | undefined> {
+  const settings = normalizePublicationConfiguration(input);
+  const result = await executor.query<PublicationSettingsRow>(
+    `UPDATE publication_settings
+     SET name = $1, active_for_collection = $2, public_status = $3,
+         description = $4, logo_path = $5, accent_color = $6,
+         presentation_timezone = $7, updated_at = now()
+     RETURNING ${PUBLICATION_SETTINGS_COLUMNS}`,
+    publicationSettingsValues(settings),
+  );
+  const row = result.rows[0];
+  return row === undefined ? undefined : mapPublicationSettingsRow(row);
+}
+
 export function mapPublicationSettingsRow(
   row: PublicationSettingsRow,
 ): PersistedPublicationSettings {
