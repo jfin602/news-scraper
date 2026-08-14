@@ -1,0 +1,169 @@
+TASK: Phase 14 / P1 — Source administration persistence foundation
+
+ROADMAP PHASE
+Phase 14 — Source administration.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Alternative considered: `Sol High`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P1 is a bounded schema/configuration task, but it changes Source-owned durable state plus Collection-run accounting constraints that later Worker/admin prompts rely on. Terra High provides enough data-integrity and migration reasoning without spending Sol High on behavior that remains intentionally outside this prompt.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 14 prompt 1 and its assigned project version is `0.14.1`.
+- On first execution, require top-level `package.json` version `0.14.0`; on a rerun of this same P1, `0.14.1` is acceptable.
+- Update only the top-level package version to `0.14.1`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md` and the complete Phase 14 roadmap entry;
+2. read `docs/contracts/domain-and-data-contract.md`, `docs/contracts/source-and-collection-contract.md`, and `docs/contracts/testing-and-validation-contract.md` for Source/filter/run-accounting law;
+3. inspect `docs/decisions/single-publication-simplified-data-model.md` and preserve singleton/non-tenant behavior;
+4. inspect current migration discovery/checksum behavior and the complete migration chain, especially `migrations/0008_publication_presentation.sql` and schema-history tests;
+5. inspect `src/sources/configuration.ts`, `src/sources/repository.ts`, `src/publication/bootstrap.ts`, `src/collection/runs/repository.ts`, and `src/collection/collect-endpoint.ts`;
+6. inspect `config/publication.json`, `test/fixtures/generic-bootstrap.json`, and focused Source/bootstrap/Collection-run database tests;
+7. confirm current Source persistence does not yet store Phase 14 Source priority/admission phrases and Collection runs do not yet persist `source_item_filtered_count`;
+8. stop and report planning drift if the Phase 14 contracts, migration chain, `0.14.0` baseline, or current persistence model materially differ from this handoff.
+
+GOAL
+Add the minimum durable, topic-independent persistence/configuration foundation required by later Phase 14 prompts:
+- Source priority;
+- optional Source RSS/Atom item admission phrases;
+- `source_item_filtered_count` on Collection runs;
+- aggregate/repository mapping so later collection/admin code can consume those values.
+
+P1 owns durable representation, normalization, bootstrap initialization/no-overwrite compatibility, repository mapping, accounting validation, and focused real-PostgreSQL proof. P1 does NOT perform Raw-item matching and does NOT add admin routes.
+
+MIGRATION
+Add exactly one new forward migration after the current `0008_publication_presentation.sql`:
+
+`migrations/0009_source_administration_foundation.sql`
+
+Do not edit previously tracked migration SQL. Migration checksums are current behavior and must remain meaningful.
+
+The migration must canonically add:
+
+1. `sources.priority`
+   - PostgreSQL integer;
+   - NOT NULL;
+   - existing/current Sources receive `0`;
+   - CHECK non-negative;
+   - priority is persisted/operator-managed configuration only in P1; do not alter feed/scheduler ordering yet.
+
+2. Source RSS/Atom admission phrase persistence
+   - use a normalized child table rather than JSON/JSONB or an array column;
+   - each row belongs to exactly one Source through a real FK;
+   - preserve deterministic operator ordering with an integer position/ordinal unique within one Source;
+   - phrase must be trimmed, non-empty, control-character-free, and at most 512 characters;
+   - support at most 64 phrases per Source through the application normalization boundary; database constraints must protect individual row shape/order integrity without inventing trigger-heavy machinery merely to enforce the aggregate count;
+   - zero rows is the canonical no-filter/collect-all representation;
+   - no exclude-phrase storage and no separate enabled flag.
+
+3. `collection_runs.source_item_filtered_count`
+   - NOT NULL non-negative integer with default zero for existing/new runs;
+   - replace the old pre-normalization accounting constraint so, when parser/normalization accounting is applicable, the canonical equation is:
+     `raw_item_count = source_item_filtered_count + normalized_candidate_count + normalization_failure_count`;
+   - preserve `source_item_filtered_count <= raw_item_count` and existing Article-link/downstream outcome invariants;
+   - do not change the downstream processing equation:
+     `created + updated + unchanged + rejected + excluded + failed = normalized_candidate_count`.
+
+SOURCE CONFIGURATION
+Extend the Source configuration boundary with topic-independent values such as:
+- `priority: number`;
+- `rssAtomAdmissionPhrases: readonly string[]`.
+
+Normalization requirements:
+- missing priority in bootstrap-compatible input normalizes to `0`;
+- priority must be a safe integer, non-negative, and within PostgreSQL integer range;
+- missing admission phrases normalizes to an immutable empty array;
+- when supplied, admission phrases must be an array of 1..64 strings;
+- each phrase trims to a non-empty value, contains no control characters, and is <=512 characters;
+- preserve phrase order;
+- duplicate phrases need not acquire special semantic behavior in this prompt; do not introduce fuzzy/case-folded uniqueness constraints not required by the governing contract;
+- normalized results remain immutable/frozen as current configuration boundaries do.
+
+BOOTSTRAP
+Extend bootstrap exact-key handling so Source objects may optionally contain priority and RSS/Atom admission phrases while old valid bootstrap documents continue to normalize unchanged.
+
+Bootstrap persistence must initialize these fields only when a Source is first created. Ordinary create-if-absent reruns MUST NOT overwrite later operator-managed priority, phrases, approval/lifecycle/operational state, approved domains, defaults, endpoints, or other existing Source configuration.
+
+Do not add topic-specific phrases to `config/publication.json` as part of this persistence task. The first Publication remains configuration, and Phase 14 admin behavior will manage Source filters later.
+
+SOURCE REPOSITORY / AGGREGATES
+Update Source persistence/read mapping so the canonical persisted Source shape exposes priority and immutable ordered admission phrases.
+
+Requirements:
+- Source creation inserts Source row + approved-domain rules + admission phrases atomically when used inside the existing caller transaction;
+- Source lookup/list/endpoint configuration aggregates return the persisted Source priority and phrase snapshot;
+- all RSS/Atom endpoints owned by one Source consume the same Source-owned phrase configuration later; do not create endpoint overrides;
+- preserve Source `config_key` installation-wide immutability and endpoint Source-scoped identity;
+- preserve Source/endpoint approved-domain relationship checks;
+- expose existing Source default Category identity only through the existing Phase 11 relationship; do not create another default-Category storage path.
+
+COLLECTION-RUN PERSISTENCE
+Extend all `PersistedCollectionRun`, row mapping, start/finalize SQL, validation, and unit-test fixtures with `sourceItemFilteredCount` / `source_item_filtered_count`.
+
+Before P2 starts filtering, ordinary collection behavior must write zero for this field everywhere and remain behaviorally unchanged.
+
+All draft/finalization helper shapes in `collect-endpoint.ts` that must carry a zero count to satisfy the new required persistence contract may be updated mechanically in P1. Do not add admission matching or skip normalization yet.
+
+TESTING
+Add focused tests at the lowest meaningful layer plus real disposable PostgreSQL proof.
+
+At minimum prove:
+- Source priority default/bounds normalization;
+- optional phrase array normalization, immutable output, phrase count/length/blank/control rejection;
+- old bootstrap fixture remains valid with omitted Phase 14 fields;
+- bootstrap accepts Phase 14 fields when present;
+- bootstrap create-if-absent rerun does not overwrite operator-managed priority/phrases;
+- migration-from-zero creates canonical Source/filter/run schema;
+- Source creation/read round-trips ordered phrases and priority;
+- malformed Source/filter rows are rejected where the database contract can enforce them;
+- Collection-run start/read/finalize round-trips zero/nonzero filtered counts;
+- revised raw-item accounting accepts valid filtered accounting and rejects invalid sums;
+- downstream processing-outcome accounting remains unchanged;
+- existing Source/domain/default-Category/Collection-run behavior remains green.
+
+Use existing disposable PostgreSQL helpers; mocks do not prove migration constraints or transactional persistence.
+
+PRESERVED BEHAVIOR
+Do not change:
+- one-Publication-per-installation architecture;
+- Source/endpoint approval, lifecycle, operational or health semantics;
+- approved-domain maximum/narrowing rules;
+- Worker ownership of collection;
+- network-safety behavior;
+- Phase 11 Relevance predicates/precedence/defaults;
+- Article identity, observations, public feed, or Phase 13 presentation;
+- bootstrap no-overwrite semantics.
+
+NON-GOALS
+Do not implement:
+- Raw-item filtering/matching;
+- Source/endpoint admin API/UI;
+- exclude phrases, regex/fuzzy/AI matching, or a filter-enabled toggle;
+- physical Source/endpoint deletion;
+- Source-priority consumption in duplicate selection or public ordering;
+- Publication/Relevance administration;
+- historical Article reprocessing.
+
+REQUIRED VALIDATION
+Run the narrowest focused tests during development, then before completion run at least:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:db`
+- `npm test`
+- `npm run check`
+- `git diff --check`
+
+Also confirm `package.json` is `0.14.1`, no npm lockfile exists, and only P1-owned implementation/test/migration/version changes are present.
+
+FINAL REPORT
+Report files changed, migration/schema decisions, Source/filter normalization behavior, Collection-run accounting change, focused/database/regression commands actually run and results, and any remaining limitation. Do not claim Source filtering or admin behavior exists yet.
