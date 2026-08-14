@@ -240,6 +240,17 @@ export async function listRelevanceRules(
   return Object.freeze(result.rows.map(mapRuleRow));
 }
 
+export async function deleteRelevanceRule(
+  executor: QueryExecutor,
+  configKey: unknown,
+): Promise<boolean> {
+  const result = await executor.query<{ readonly id: unknown }>(
+    `DELETE FROM relevance_rules WHERE config_key = $1 RETURNING id`,
+    [normalizeConfigKey(configKey)],
+  );
+  return result.rows.length > 0;
+}
+
 export async function setSourceDefaultCategory(
   executor: QueryExecutor,
   sourceId: unknown,

@@ -211,9 +211,12 @@ function canonicalNullableValue(
 }
 
 export class ConfigurationPersistenceError extends Error {
+  readonly reason: string;
+
   constructor(reason: string) {
     super(`Configuration persistence failed: ${reason}`);
     this.name = 'ConfigurationPersistenceError';
+    this.reason = reason;
   }
 }
 

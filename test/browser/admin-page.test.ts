@@ -616,6 +616,22 @@ class AdminHarness {
       deleteCategory: async () => {
         throw new Error('not used');
       },
+      listRelevanceRules: async () => [],
+      createRelevanceRule: async () => {
+        throw new Error('not used');
+      },
+      getRelevanceRule: async () => {
+        throw new Error('not used');
+      },
+      updateRelevanceRule: async () => {
+        throw new Error('not used');
+      },
+      setRelevanceRuleEnabled: async () => {
+        throw new Error('not used');
+      },
+      deleteRelevanceRule: async () => {
+        throw new Error('not used');
+      },
     };
   }
 
