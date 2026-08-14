@@ -1,0 +1,168 @@
+TASK: Phase 16 / P2 — Deterministic duplicate evidence and Primary selection
+
+ROADMAP PHASE
+Phase 16 — True duplicate detection and grouping.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Luna Medium`.
+- Model-family basis: P2 is intentionally persistence-free deterministic domain logic with explicit signal classes and tie-break ordering, which fits Luna's economical implementation role.
+- Reasoning basis: Medium reasoning is sufficient for canonical pair/evidence fingerprints, false-positive safeguards, and a fully specified comparator whose edge cases can be exhaustively unit tested.
+- Complexity / quality floor: `Standard`.
+- Estimated usage: `Low`.
+- Lower-cost alternative considered: `Luna Low`; rejected because Primary selection has multiple ordered criteria and evidence fingerprint stability needs more than a purely mechanical transformation.
+- Escalation trigger: current Article/Source shapes expose materially ambiguous metadata semantics that would require inventing trustworthy original-publisher status or redefining Source priority instead of implementing the governed fallback order.
+- Escalation target: `Terra Medium`.
+- Estimate confidence: `High`.
+- Efficiency rationale: no database, network, concurrency, or UI behavior belongs in this prompt; concise pure functions and exhaustive deterministic tests keep Luna Medium adequate.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md`, `docs/codex-model-selection.md`, and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 16 prompt 2 and its assigned project version is `0.16.2`.
+- On first execution, require top-level `package.json` version `0.16.1`; on a rerun of this same P2, `0.16.2` is acceptable.
+- Update only the top-level package version to `0.16.2`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 16 roadmap entry, and P1 plus its actual implementation/tests;
+2. read `docs/contracts/article-lifecycle-and-deduplication.md`, `docs/contracts/domain-and-data-contract.md`, and `docs/contracts/testing-and-validation-contract.md`;
+3. inspect current Article persisted fields/mapping in `src/articles/repository.ts` and Source priority semantics/storage in `src/sources/configuration.ts` and `src/sources/repository.ts`;
+4. inspect the existing Relevance priority comparator only as a repository convention reference; do not couple duplicate logic to Relevance;
+5. inspect current URL normalization/canonical identity behavior so duplicate evidence compares persisted canonical identity rather than reimplementing Article URL normalization;
+6. confirm no governed trustworthy original-publisher/syndication metadata exists in the current Article schema; if such metadata has been added by repository drift, stop and reassess rather than ignoring it;
+7. stop and report planning drift if P1 persistence types or the Phase 16 signal/Primary contract materially differ from this prompt.
+
+GOAL
+Implement the persistence-free deterministic domain logic that P3/P4 will consume:
+- canonical unordered Article-pair identity;
+- strong-vs-weak duplicate evidence classification;
+- bounded deterministic reasons/confidence and stable evidence fingerprinting;
+- deterministic automatic Primary selection across existing Article/Source metadata.
+
+P2 must not read/write PostgreSQL, mutate groups/review state, or alter collection/public-feed behavior.
+
+PAIR IDENTITY
+Create a small topic-independent module under `src/deduplication/` that canonicalizes two distinct Article UUIDs into stable low/high ordering.
+
+Requirements:
+- reject identical IDs and malformed IDs through the module's normal validation/error contract;
+- `(A,B)` and `(B,A)` produce exactly the same canonical pair;
+- pair ordering is stable and deterministic and matches the persistence ordering expected by P1;
+- do not derive pair identity from Source, title, URL, Publication, or mutable metadata.
+
+DETERMINISTIC EVIDENCE
+Automatic grouping is conservative.
+
+Implement only evidence currently available from governed persisted fields:
+
+1. `canonical_identity_url_equal`
+   - strong evidence only when two distinct persisted Articles from different Sources have exactly equal full `canonicalIdentityUrl` strings;
+   - digest equality alone never counts as evidence; full persisted value equality is required;
+   - this signal may authorize automatic grouping later.
+
+2. `normalized_title_equal`
+   - weak review-only evidence when two different-Source Articles have exactly equal non-empty persisted `normalizedTitle` strings;
+   - it never becomes strong because author/date/summary also resemble each other;
+   - it may create persisted review work later but cannot suppress public rows by itself.
+
+Same-Source pairs are ineligible for Phase 16 true-duplicate grouping/review detection. Same-Source repeat/conflict behavior stays in Article identity and must not be routed around Source-scoped identity invariants.
+
+Do not add fuzzy similarity, edit distance, token scores, embeddings, semantic matching, body fetching, publisher reputation heuristics, domain-name inference, or cross-Source external-ID assumptions.
+
+FALSE-POSITIVE SAFEGUARDS
+Unit behavior must make these consequences explicit:
+- equal/generic/recurring titles without strong canonical evidence remain weak only;
+- same topic/event with different URLs/titles remains separate;
+- matching author/date/summary cannot independently promote a weak pair to strong;
+- distinct canonical identity URLs do not become strong merely because titles match;
+- uncertainty favors preserving separate public Articles.
+
+EVIDENCE RESULT / CONFIDENCE
+Return one immutable deterministic evidence object suitable for persistence by P3.
+
+Use a small documented confidence scale, consistent with P1 storage. A simple deterministic baseline is acceptable:
+- strong canonical equality: 100;
+- weak exact normalized-title equality without strong evidence: 50;
+- no governed signal: no review candidate/evidence result rather than a zero-confidence row.
+
+If both strong and weak signals exist, preserve both reasons in deterministic order but strength remains strong and confidence remains the governed strong value. Do not accumulate weak points until they cross an automatic-grouping threshold.
+
+EVIDENCE FINGERPRINT
+Generate a stable evidence fingerprint from the canonical pair plus the exact deterministic evidence material used by P2, not from transient timestamps or database row order.
+
+The fingerprint must change when materially used evidence changes even if the reason-code set happens to remain the same; for example, if two equal normalized titles later change together to a different equal normalized title, unchanged-dismissal logic must be able to distinguish the new evidence.
+
+Use a deterministic bounded representation and cryptographic digest already available in Node; do not persist unbounded serialized Article objects. Signal order must not change the fingerprint.
+
+PRIMARY SELECTION
+Implement a pure deterministic comparator/selector over the current persisted Article plus Source-priority context.
+
+The governing order is:
+1. trustworthy explicit original-publisher/canonical metadata when it genuinely exists through a governed contract;
+2. Source priority;
+3. metadata completeness and destination quality;
+4. earliest credible Source publication time;
+5. persisted timing/stable identity fallback;
+6. stable Article ID final tie-break.
+
+Current repository constraint: as of the P2 handoff, there is no governed persisted trustworthy original-publisher/syndication field. Do NOT invent one or infer it from Source name/domain/reputation. Therefore current selection safely falls through to Source priority.
+
+For current numeric Source priority consumption, use the repository's existing higher-number-wins priority convention: a larger persisted `sources.priority` value is more preferred. If current governing docs/source have explicitly established the opposite direction by execution time, treat that as planning drift and stop rather than silently diverging.
+
+Define the remaining criteria narrowly and transparently:
+- metadata completeness: prefer more present optional Source-derived metadata among `author`, `summary`, `imageUrl`, and `language`; do not count publication time here because it is a later criterion;
+- destination quality: when completeness ties, prefer an HTTPS `originalUrl` over HTTP; do not replace `originalUrl` with canonical identity or infer publisher quality from hostname;
+- credible publication time: a persisted `publishedAtStatus = parsed` timestamp outranks missing/invalid; when both are parsed, earlier publication time wins;
+- persisted fallback: earlier `firstSeenAt`, then earlier `createdAt`;
+- final tie: lexical/stable Article UUID ordering.
+
+Do not use visibility, Category, Relevance, Source display name/config key, title similarity, last-seen time, or mutable UI labels as hidden Primary criteria.
+
+The selector must be order-independent: selecting from the same member set in any input order produces the same Primary.
+
+TESTING
+Add focused deterministic unit tests covering at minimum:
+- canonical unordered pair ordering and self-pair rejection;
+- same-source ineligibility;
+- exact canonical equality as strong;
+- digest/collision-shaped inputs still require full string equality at consumers;
+- exact normalized-title equality as weak only;
+- both signals preserve deterministic ordered reasons without weak-to-strong scoring;
+- no-signal/related-coverage cases produce no automatic grouping evidence;
+- generic/recurring equal titles remain review-only;
+- evidence fingerprint is input-order independent, stable for unchanged evidence, and changes for materially changed evidence;
+- Primary selection exercises every criterion independently and proves later criteria cannot override an earlier winner;
+- equal Source priority falls through correctly;
+- higher numeric Source priority wins;
+- metadata completeness and HTTPS destination quality behavior;
+- parsed/earlier publication-time behavior and missing/invalid fallthrough;
+- first-seen, created-at, and Article-ID tie-breaks;
+- current absence of trustworthy original-publisher metadata causes safe fallthrough rather than heuristic inference;
+- member input order does not affect the Primary.
+
+NON-GOALS
+Do not implement:
+- database candidate queries or persistence;
+- candidate dismissal/reevaluation;
+- group creation/membership/merging;
+- Collection-run counters;
+- public-feed suppression;
+- admin/API/browser moderation;
+- speculative original-publisher fields;
+- fuzzy/semantic/AI matching.
+
+REQUIRED VALIDATION
+Run focused tests during development, then before completion run at least:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm test`
+- `npm run check`
+- `git diff --check`
+
+Confirm `package.json` is `0.16.2`, no npm lockfile exists, and P2 contains no database/network/UI side effects.
+
+FINAL REPORT
+Report files changed, signal vocabulary/strength behavior, evidence fingerprint material, exact Primary tie-break implementation, unit/regression commands actually run and results, and any limitation. Do not claim persisted review/group behavior exists yet.
