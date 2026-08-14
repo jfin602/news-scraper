@@ -1,0 +1,204 @@
+TASK: Phase 14 / P2 — RSS/Atom item admission execution
+
+ROADMAP PHASE
+Phase 14 — Source administration.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol High`.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Alternative considered: `Terra Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P2 changes the shared collection pipeline between parsing and normalization and must keep Source admission, run accounting, Relevance, identity, and observation semantics distinct. Sol High gives enough cross-layer reasoning headroom without defaulting to Ultra for a bounded deterministic filter.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 14 prompt 2 and its assigned project version is `0.14.2`.
+- On first execution, require top-level `package.json` version `0.14.1`; on a rerun of this same P2, `0.14.2` is acceptable.
+- Update only the top-level package version to `0.14.2`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 14 roadmap entry, and P1 task/implementation/tests;
+2. read the Source RSS/Atom admission and run-accounting sections of `docs/contracts/source-and-collection-contract.md`, `docs/contracts/domain-and-data-contract.md`, and `docs/contracts/testing-and-validation-contract.md`;
+3. inspect `src/collection/raw-item.ts`, `src/collection/parsers/rss-atom-parser.ts`, `src/collection/normalization/normalizer.ts`, `src/collection/collect-endpoint.ts`, and `src/collection/endpoint-collection-service.ts`;
+4. inspect P1 Source aggregate/repository changes and verify endpoint execution can see the Source-owned immutable admission phrase snapshot;
+5. inspect current Relevance loading/evaluation and Article persistence/observation paths so mismatches cannot accidentally enter them;
+6. inspect existing unit/collection/database tests for parser-to-normalizer flow, normalization accounting, Relevance, Article persistence, and deterministic RSS/Atom fixtures;
+7. confirm P1 left ordinary collection writing `source_item_filtered_count = 0` without implementing matching;
+8. stop and report planning drift if P1, the `0.14.1` baseline, or the governing pipeline order materially differs.
+
+GOAL
+Implement the optional topic-independent Source RSS/Atom item admission filter in the one canonical Worker collection pipeline.
+
+Canonical order after this prompt:
+
+fetch
+→ RSS/Atom parse
+→ Raw item
+→ optional Source RSS/Atom item admission filter
+→ Article-candidate normalization
+→ Article-link policy
+→ Phase 11 Relevance/Categories
+→ Source-scoped Article identity/persistence
+→ downstream behavior
+
+No configured phrases preserves current collect-all behavior exactly.
+
+TEXT NORMALIZATION FOR MATCHING
+The parser's Raw-item `content` may contain Source markup. Admission matching must compare human editorial text rather than matching HTML tag names, attributes, script/style content, or entity spelling.
+
+Extract/refactor the current pure plain-text conversion used by Article normalization into the smallest shared collection helper appropriate for both normalization and Source admission matching.
+
+The helper must preserve existing normalization behavior:
+- strip CDATA wrappers where applicable;
+- remove script/style executable content;
+- remove markup/comments;
+- decode the existing bounded entity forms safely;
+- collapse whitespace and trim;
+- remain deterministic and side-effect free.
+
+Do not move canonical Article-candidate normalization earlier in the pipeline. This helper is only text preparation for safe deterministic comparison and existing normalization reuse.
+
+SOURCE ADMISSION EVALUATOR
+Add one focused module under a suitable collection ownership path, for example:
+
+`src/collection/admission/source-rss-atom-item-filter.ts`
+
+The evaluator consumes:
+- one `RawItem`;
+- the Source-owned normalized admission phrase list.
+
+Required semantics:
+- empty phrase list => admit;
+- one or more phrases => admit when ANY phrase matches ANY permitted editorial field;
+- fields are Raw-item title, summary/content text, and Source-provided category labels only;
+- missing fields simply do not match;
+- comparisons are case-insensitive deterministic literal substring comparisons;
+- normalize both phrase and field comparison text consistently with Unicode NFKC plus lowercase/case normalization suitable to the existing runtime;
+- phrase characters that have regex/glob meaning remain ordinary literal characters;
+- do not perform regex, glob, fuzzy, stemming, tokenization, semantic/AI, or general-expression evaluation;
+- do not fetch or inspect the Article page/full body;
+- do not inspect URL, author, date, diagnostics, language, image URL, or external ID as matching surfaces.
+
+Keep the production evaluator small and pure. Do not create a second Relevance engine or generic policy framework.
+
+PIPELINE INTEGRATION
+Insert admission evaluation after successful RSS/Atom parsing and before the call to `normalizeArticleCandidate()`.
+
+For each mismatching Raw item:
+- increment `source_item_filtered_count` exactly once;
+- do not call candidate normalization;
+- do not call Article-link policy;
+- do not load/evaluate Relevance for that item;
+- do not call Article identity/persistence;
+- do not create an Article observation.
+
+For each admitted Raw item, preserve the existing downstream path unchanged.
+
+All Raw items are already parser-bounded. Preserve the parser's item/field bounds and do not add a competing unbounded text source.
+
+ACCOUNTING
+Every successful parsed batch must satisfy:
+
+`raw_item_count = source_item_filtered_count + normalized_candidate_count + normalization_failure_count`
+
+Preserve:
+- `source_item_filtered_count <= raw_item_count`;
+- `article_link_rejection_count <= normalized_candidate_count`;
+- `created + updated + unchanged + rejected + excluded + failed = normalized_candidate_count`.
+
+A filter mismatch is NOT:
+- a normalization failure;
+- an Article-link rejection;
+- a Relevance `excluded` outcome;
+- a processing `failed` outcome.
+
+Propagate the filtered count consistently through collection attempt results, Collection-run finalization, failure/result helper drafts that represent already-parsed batches, and persisted run mapping.
+
+ALL-ITEMS-FILTERED BEHAVIOR
+A parsed feed in which every Raw item is filtered is a successful content Collection run unless another stage-level failure occurs.
+
+Required result:
+- parser status succeeded;
+- normalization stage completed successfully with zero candidates;
+- `source_item_filtered_count = raw_item_count`;
+- `normalized_candidate_count = 0`;
+- all downstream candidate processing counters zero;
+- no Article observations;
+- do not load Relevance configuration merely because the existing processing helper historically loads it before iterating candidates.
+
+Refactor the candidate-processing helper so an empty accepted-candidate batch does not require a Relevance snapshot. Preserve current behavior for non-empty batches.
+
+PROSPECTIVE-ONLY LAW
+Changing Source phrases later affects only future RSS/Atom collection attempts.
+
+P2 MUST NOT add any historical scan or mutation. A Source item filtered today must not hide/delete/recategorize an Article persisted by an earlier admitted observation.
+
+TESTING
+Add focused unit tests for the evaluator and pipeline tests that prove the actual boundary.
+
+At minimum cover:
+- empty filter admits all;
+- title matching;
+- visible summary/content matching;
+- category matching;
+- case-insensitive matching;
+- NFKC-equivalent deterministic comparison where appropriate;
+- multiple phrases use ANY-match semantics;
+- missing fields do not create matches;
+- regex/glob-looking characters are literal;
+- markup/tag/style/script text does not produce artificial editorial matches;
+- HTML/entity/plain-text normalization stays consistent with Article normalization;
+- partial filtering calls normalization only for admitted items;
+- all-items-filtered skips candidate/Relevance/persistence work and remains a successful content run;
+- mismatches do not produce `excluded`, `failed`, normalization-failure, link-rejection, identity, or observation effects;
+- exact filtered/raw/normalized accounting;
+- no-filter path preserves existing collected Articles and run accounting apart from explicit zero filtered count.
+
+Add deterministic Level 5 RSS and Atom fixture coverage. Exercise real parser output, not only synthetic Raw items.
+
+Add/adjust real PostgreSQL tests where needed to prove the persisted run count and observation cardinality produced by filtered versus admitted items.
+
+PRESERVED BEHAVIOR
+Preserve:
+- eligibility, endpoint locking, capacity limits and network safety;
+- fetch/redirect/conditional-request behavior;
+- parser bounds/security;
+- Article-link policy for admitted candidates;
+- exact Phase 11 Relevance vocabulary and precedence;
+- Source-scoped Article identity and idempotency;
+- observation provenance;
+- scheduler/manual Worker execution paths;
+- Source/endpoint failure isolation;
+- public feed and presentation.
+
+NON-GOALS
+Do not add:
+- admin UI/API;
+- endpoint-specific filters;
+- exclude phrases or enable toggle;
+- Relevance predicates;
+- topic-specific keywords;
+- Article-body HTTP fetching;
+- retroactive Article reprocessing;
+- Source-priority behavior.
+
+REQUIRED VALIDATION
+Run focused tests while developing, then before completion run at least:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:collection`
+- `npm run test:db`
+- `npm test`
+- `npm run check`
+- `git diff --check`
+
+Confirm `package.json` is `0.14.2`, no npm lockfile exists, and collection regression coverage includes both filtered and legacy no-filter paths.
+
+FINAL REPORT
+Report files changed, matching/text-normalization semantics, pipeline placement, accounting behavior, focused/fixture/database/regression commands actually run and results, and any remaining limitation. Do not claim Source filter administration exists yet.
