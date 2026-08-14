@@ -535,17 +535,19 @@ Every implementation and closeout task MUST carry an explicit recommended Codex 
 
 Use exact model/reasoning labels currently available in the runner: `Luna Low`, `Luna Medium`, `Luna High`, `Terra Medium`, `Terra High`, `Terra Ultra`, `Sol Light`, `Sol Medium`, `Sol High`, and `Sol Ultra`. Never invent a name or assume a more expensive model is inherently the safer recommendation.
 
+Roadmap-phase and gating-correction closeout prompts use `Sol Light` as the default independent-review baseline while that label remains available. Closeout must have two distinct passes: first contract/evidence validation against the exact final tree, then a separate code-quality/adversarial code-reading pass over the final implementation diff and important producers/consumers. The second pass is not a test rerun. If either pass exposes a problem requiring difficult concurrency/transaction reasoning, material architecture/security-boundary interpretation, hard cross-subsystem root cause, or ambiguous contract reconciliation, stop and escalate to the minimum adequate higher-reasoning configuration rather than forcing `Sol Light` through it. `docs/codex-model-selection.md` defines the detailed closeout escalation and second-pass requirements.
+
 ### Minimum-adequate usage-conservation rule
 
 The objective is the **lowest expected total token/credit usage that still gives the task enough capability and reasoning headroom to be reliable**.
 
 1. Establish the non-negotiable correctness floor from actual security, data-integrity, concurrency/transaction, architecture/blast-radius, failure-handling, and validation risk.
-2. Start from the lowest-expected-cost current configuration that plausibly satisfies that floor; do not start from the strongest model and work downward.
-3. Escalate model capability or reasoning effort only when a concrete task characteristic makes the cheaper configuration materially less reliable. Name that escalation trigger explicitly.
+2. For implementation prompts, start from the lowest-expected-cost current configuration that plausibly satisfies that floor; do not start from the strongest model and work downward. Closeout prompts use the explicit `Sol Light` independent-review baseline above rather than re-running the implementation cost search.
+3. Escalate model capability or reasoning effort only when a concrete task characteristic makes the cheaper/default configuration materially less reliable. Name that escalation trigger explicitly.
 4. Compare expected total credits/usage, not model prestige or token count in isolation. Current official Codex rates and likely reasoning/output volume both matter.
 5. Never reduce below the correctness floor merely to save usage; when the cheaper option creates material implementation/review risk, use the minimum higher configuration that removes that risk.
 
-The following do **not** independently justify a higher rating: prompt length, phase number, number of acceptance criteria, size of the test matrix, the fact that production code is touched, or the general importance of the feature. Highly explicit prompts often need **less** reasoning because ambiguity has already been removed. A broad but mechanical validation/closeout task may consume many tokens while still needing only a workhorse model.
+The following do **not** independently justify a higher rating: prompt length, phase number, number of acceptance criteria, size of the test matrix, the fact that production code is touched, or the general importance of the feature. Highly explicit prompts often need **less** reasoning because ambiguity has already been removed. A broad but mechanical closeout still defaults to `Sol Light`; breadth/validation volume alone does not justify increasing its reasoning effort above Light.
 
 High-cost recommendations must therefore be earned by concrete evidence such as unresolved architectural choice, materially ambiguous contracts, difficult root-cause debugging, cross-cutting shared-state behavior, concurrency/transaction ownership, high-risk security boundaries, or review work that requires substantial independent inference. Failure or newly discovered ambiguity during execution should trigger a stop/escalation rather than pre-rating every task for a worst-case scenario.
 
@@ -570,7 +572,7 @@ Complexity class describes the task's correctness/risk shape; it does **not** ma
 - **Complexity / quality floor:** `Standard`, `Elevated`, `High`, or `Critical`, with concise rationale.
 - **Estimated usage:** `Low`, `Moderate`, `High`, or `Very High`.
 - **Lower-cost alternative considered:** the most relevant cheaper configuration, or state that the recommendation is already the lowest adequate current option.
-- **Escalation trigger:** the concrete reason the lower-cost alternative is inadequate; use `None` when no escalation was needed.
+- **Escalation trigger:** the concrete reason the lower-cost alternative/default is inadequate; use `None` when no escalation was needed.
 - **Efficiency rationale:** why this is the minimum adequate configuration rather than merely a safe/powerful choice.
 - **Estimate confidence:** `Low`, `Medium`, or `High` when meaningful.
 
@@ -591,11 +593,11 @@ Correctness and validation requirements remain mandatory; this discipline remove
 
 ### Workflow ownership
 
-- `/prompt-ass` starts from the lowest-cost plausible current configuration and escalates only with an explicit task-specific trigger. It records provisional task classification, model-family basis, reasoning basis, recommendation, complexity, usage, lower-cost alternative, escalation trigger/target, and rationale.
-- `/prompt-plan` is the final model gate after source-level investigation. It MUST reassess from observed source evidence, downgrade when investigation makes the task more bounded/explicit than provisionally assessed, and may upgrade only when newly observed complexity demonstrates that the cheaper configuration is inadequate. It records a `Downgraded`, `Unchanged`, or `Escalated` delta.
-- `/prompt-write` consumes the finalized `/prompt-plan` decision, validates its exact label against current `MODEL_CONFIGS`, writes the finalized minimum-adequate `MODEL / REASONING / USAGE` block, and keeps implementation prose concise under the token-discipline rules above. It MUST NOT speculate upward because of prompt length, importance, or validation volume.
-- Material boundary/quality change during revalidation returns `Planning needed` rather than silently changing approved implementation scope. A model-only downgrade under the same task boundary may be applied during explicit revalidation/owner-authorized task maintenance.
-- `/revalidate` compares existing prompt/stack to current repo/contracts/model-usage policy and actively looks for safe downgrades as well as necessary upgrades.
+- `/prompt-ass` starts implementation prompts from the lowest-cost plausible current configuration and escalates only with an explicit task-specific trigger; closeout prompts start from the `Sol Light` independent-review baseline. It records provisional task classification, model-family basis, reasoning basis, recommendation, complexity, usage, lower-cost alternative, escalation trigger/target, and rationale.
+- `/prompt-plan` is the final model gate after source-level investigation. It MUST reassess from observed source evidence, downgrade implementation prompts when investigation makes them more bounded/explicit than provisionally assessed, retain `Sol Light` as the normal closeout floor, and upgrade any prompt only when newly observed complexity demonstrates that the cheaper/default configuration is inadequate. It records a `Downgraded`, `Unchanged`, or `Escalated` delta.
+- `/prompt-write` consumes the finalized `/prompt-plan` decision, validates its exact label against current `MODEL_CONFIGS`, writes the finalized `MODEL / REASONING / USAGE` block, and keeps implementation prose concise under the token-discipline rules above. Every closeout prompt MUST also contain an explicit code-quality/adversarial second-pass section and require that pass's findings/disposition in its durable validation/final report. `/prompt-write` MUST NOT speculate upward because of prompt length, importance, or validation volume.
+- Material boundary/quality change during revalidation returns `Planning needed` rather than silently changing approved implementation scope. A model-only downgrade under the same implementation-task boundary may be applied during explicit revalidation/owner-authorized task maintenance; unexecuted closeout prompts preserve the `Sol Light` baseline unless the owner changes that policy or the label becomes unavailable.
+- `/revalidate` compares existing prompt/stack to current repo/contracts/model-usage policy and actively looks for safe implementation-task downgrades as well as necessary upgrades. Unexecuted closeout prompts written under the prior policy should be updated to the `Sol Light` baseline plus the explicit second pass before execution when practical.
 - Historical completed prompts may retain model/effort wording in force when executed; unexecuted obsolete or over-provisioned labels require revalidation before execution when the policy has materially changed.
 
 ## Versioning and phase-prompt numbering
@@ -629,7 +631,7 @@ Testing is part of task-boundary assessment: each prompt should own focused test
 
 Requires completed `/prompt-ass` in current conversation. Perform source-level planning for every assessed prompt: contracts/ADRs, implementation, schemas/migrations, process roles, helpers/consumers/tests/recent changes, likely file scope, preserved behavior, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs implications, acceptance criteria, non-goals.
 
-Use observed source evidence to make the final model gate: reassess family, reasoning, complexity, usage, lower-cost alternative, escalation trigger/target, and rationale under the minimum-adequate usage-conservation rule, and record a `Downgraded`, `Unchanged`, or `Escalated` delta from `/prompt-ass`. Preserve the correctness floor, but do not retain an expensive provisional rating merely because it is safer in the abstract. Reconfirm stack type and correction unchanged-version invariant. Material boundary revisions produce `Planning needed`. No writes.
+Use observed source evidence to make the final model gate: reassess family, reasoning, complexity, usage, lower-cost alternative, escalation trigger/target, and rationale under the minimum-adequate usage-conservation rule, and record a `Downgraded`, `Unchanged`, or `Escalated` delta from `/prompt-ass`. Preserve the correctness floor, but do not retain an expensive provisional implementation rating merely because it is safer in the abstract. For closeout prompts, apply the governed `Sol Light` baseline and escalate only on a concrete deeper-reasoning trigger. Reconfirm stack type and correction unchanged-version invariant. Material boundary revisions produce `Planning needed`. No writes.
 
 ## `/prompt-write <folder name>`
 
@@ -637,7 +639,7 @@ Requires completed unblocked `/prompt-plan`. Revalidate current repo/docs and wr
 
 Roadmap phase folders use `p<number>`. Correction folders use `c<roadmap-phase>-<lower-kebab-slug>`.
 
-Each prompt includes the finalized `MODEL / REASONING / USAGE` block and its exact recommendation label MUST exist in current `MODEL_CONFIGS`. Roadmap tasks use assigned-version metadata; correction tasks use required-unchanged-version metadata. Do not upgrade only because prompt length, importance, or validation volume feels substantial.
+Each prompt includes the finalized `MODEL / REASONING / USAGE` block and its exact recommendation label MUST exist in current `MODEL_CONFIGS`. Roadmap tasks use assigned-version metadata; correction tasks use required-unchanged-version metadata. Do not upgrade only because prompt length, importance, or validation volume feels substantial. Every closeout prompt MUST include a distinct code-quality/adversarial second pass in addition to contract/evidence validation, plus escalation/stop criteria for findings beyond bounded closeout repair.
 
 After writing, perform applicable runner prompt-file grammar check before reporting ready. If revalidation reveals materially changed boundary, stack type, unchanged-version invariant, or quality floor, return `Planning needed` rather than silently changing approved plan. Do not overwrite existing tasks without explicit authorization.
 
@@ -758,76 +760,3 @@ Recommend the single most logical next task.
 # Command modifiers
 
 `--deep`, `--quick`, `--docs-only`, `--code-only`, `--no-write`, `--prompt-only`, `--file-scoped`, `--regression-safe`, `--latest`, `--browser`, `--db`, `--tests`, `--contracts`, `--sources`, `--dedupe`, `--security`, `--reassess`.
-
-# Codex prompt requirements
-
-Finished implementation prompts normally include Task, Context, Current/Required behavior, roadmap phase, stack type, finalized `MODEL / REASONING / USAGE` block, governing contracts/ADRs/laws, inspected source, allowed/forbidden files, constraints, preserved behavior, applicable security/provenance/idempotency/failure-isolation implications, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs updates, acceptance criteria, and non-goals.
-
-Machine-significant fields are stricter than prose. Every roadmap/correction task uses canonical folder/filename numbering, one canonical `TASK:` header, one exact recommended-configuration line, and filename-plus-`TASK:` closeout convention. Roadmap prompts additionally use exactly one `assigned project version is ...` phrase. Correction prompts instead use exactly one required-unchanged-version line and MUST NOT use assigned-version metadata. Targeted UI prompts under `docs/design/tasks/` are outside this parser grammar and follow `docs/design/ui-workflow.md` instead.
-
-Every implementation prompt inherits testing contract. Tests are not optional cleanup; prerequisites cannot silently skip green; claims cannot exceed evidence.
-
-Collection prompts preserve singleton Publication global collection-active state, Source/endpoint approval/lifecycle/operational boundaries, truthful Collection runs, pre-request network safety, run isolation, retry limits, Source-domain policy, optional Source RSS/Atom item admission before normalization, and deterministic collection tests without safety bypasses. They do not add Publication selectors/tenant scopes or conflate Source admission mismatches with Relevance exclusions/Article observations.
-
-Persistence/identity prompts preserve Source-scoped Article identity, canonical Relevance ordering, transactional idempotency, Article observations, real-PostgreSQL constraints/concurrency/migration behavior where applicable, and rollback. Publication tenancy is not introduced as future-proofing.
-
-Publication/Relevance prompts preserve topic independence, singleton Publication configuration, immutable installation-wide Category/rule configuration keys, the bounded literal predicate vocabulary, installation-wide plus Source-scoped deterministic precedence, additive categorization/default fallback, pre-identity `excluded` accounting, prospective-by-default edits, and the full Phase 11 deterministic/real-PostgreSQL validation matrix. They do not create Publication tenant FKs/scopes or generic ranking/expression engines.
-
-Duplicate prompts preserve every Article/observation, exactly one Primary/group, review-state persistence, false-positive safeguards, manual reversibility, and regression corpus coverage; duplicate state is installation-wide.
-
-Public-feed prompts preserve singleton public exposure, Source approval/lifecycle trust, Article visibility + ungrouped-or-Primary eligibility, deterministic published-at/first-seen semantics, bounded safe output, and stored `original_url`. Routing is `GET /` and `GET /api/feed`; no Publication selector/scoping argument.
-
-UI prompts preserve the same public-feed/domain behavior while changing approved presentation. Shared frontend/runtime files may be changed only when explicitly planned; material backend/domain changes are routed out of the UI workstream. UI prompts never change project version or roadmap state.
-
-Admin prompts preserve Cloudflare Access/origin protection, request integrity, real resource-relationship/domain-invariant validation, singleton Publication configuration, Source-owned include-only RSS/Atom admission semantics where applicable, and prohibition on unnecessary native identity/account work, multi-Publication selectors, or Publication tenant authorization.
-
-Historical Phase 10 singleton-correction prompts established the smallest canonical migration-from-zero schema, deleted/squashed/replaced superseded pre-production migrations, removed Publication tenancy/selectors and legacy-only compatibility source/API/type/test/fixture/config paths throughout the active tree, and required database/regression/browser proof before correction closeout. Do not reintroduce that superseded compatibility surface.
-
-# Repository modification rules
-
-- Do not modify/commit unless authorized by current request/command.
-- `/closeout` performs only bounded handoff verification and green-path version-only `package.json` transition.
-- A correction stack's final manual closeout validates/clears correction while preserving unchanged package version/active phase.
-- `/docs-review` never writes.
-- `/docs-apply` writes only approved docs; invocation authorizes documentation-only changes on `main` unless branch/PR/isolation is requested.
-- `/docs-prompt` never writes repository files; from an approved docs review and supplied docs snapshot, it emits only one docs-only Codex implementation prompt.
-- `/prompt-ass` and `/prompt-plan` never write.
-- `/prompt-write` writes only approved task files in established phase/correction folder.
-- `/ui-review` never writes.
-- `/ui-apply` writes only approved substantive design guidance under `docs/design/` excluding `docs/design/tasks/`, on the `ui-polish` workstream; it does not implement source, write prompts, change version/roadmap state, or merge branches.
-- `/ui-plan` never writes.
-- `/ui-write` writes only the approved single UI prompt under `docs/design/tasks/` on the `ui-polish` workstream.
-- UI implementation is non-versioned: it MUST NOT change `package.json` version, consume roadmap prompt numbers, advance roadmap/correction state, or create a phase/correction closeout.
-- Do not run UI implementation in the same working tree used by an active phase/correction runner; keep concurrent work isolated on `ui-polish`/its worktree.
-- Do not merge `ui-polish` into `main` automatically; integration requires review and explicit authorization.
-- Documentation/prompt/review activity, including `/docs-prompt`, does not change package version or roadmap/correction/UI state except for an explicit `/closeout` baseline transition; correction execution and UI work are non-versioned.
-- No task writes while `Planning needed` remains unresolved.
-- No speculative compatibility bridges or permanent dual schemas.
-- Before production compatibility is established, delete legacy-only migration/code/API/type/test/fixture/configuration artifacts rather than preserving superseded pre-production behavior in the active tree.
-- No topic conditionals in shared engine code.
-- No concurrent multi-topic/multi-Publication hosting behavior inside one installation unless later explicit locked contract/ADR authorizes it.
-- Do not introduce relational Publication tenancy, IDs, slugs, FKs, uniqueness scopes, selector parameters, or authorization scopes solely because concurrent hosting might be useful someday.
-- Do not remove singleton Publication editorial/configuration behavior or genuine Source/endpoint/run/Article/observation integrity while removing tenancy plumbing.
-- No public/Worker/bootstrap runtime Publication selector whose purpose is choosing among topics in one installation.
-- No Source/endpoint approval/state bypass or silent whitelist expansion.
-- No parser-to-Article direct persistence.
-- No Web/API inline Source fetching.
-- No bypass of Relevance boundary even before configurable rules exist.
-- No Phase 11 Relevance path that runs after identity merely to make exclusion easier; excluded candidates terminate before identity under the governing contract.
-- No automatic historical Article mutation caused merely by editing a Relevance rule.
-- No deletion of Article/observation provenance because duplicate suppression exists.
-- No weakening identity/duplicate/security/testing boundaries to make tests pass.
-- No silent-green required suite caused by missing prerequisites, skipped coverage, or zero matches.
-- No MVP native administrator account/session/role subsystem unless explicitly promoted.
-- Search all references before renames.
-- Do not report tests/runtime/browser/database/live-Source behavior as verified unless observed at appropriate evidence level.
-- Do not create PRs, merge, force-update history, or perform non-document history changes unless explicitly instructed.
-- Preserve smallest viable diff for scoped fixes.
-
-# Pre-production compatibility rule
-
-Prefer one canonical design. Do not add old/new aliases, duplicate synchronized fields, fallback paths, dormant tenant columns, or speculative migration compatibility. Before production database compatibility is established, databases created by older source trees are disposable and the active migration/runtime/test/config tree MUST be reduced to the smallest current canonical design. Delete/squash/replace legacy-only migrations, compatibility wrappers/APIs/types, obsolete tests/fixtures, slug-addressed public/runtime routing, Publication-scoped repository APIs, and obsolete configuration paths when they have no independent current purpose. Historical implementation detail remains available in Git history, superseded ADRs, historical task prompts, and validation artifacts instead of active compatibility machinery.
-
-# Boot maintenance
-
-Update BOOT when phase, core paths, terminology, commands, authority, locked laws, modification conventions, task-stack grammar, UI-workstream workflow/branch rules, versioning/prompt-numbering conventions, branch, repository identity, critical delivery ordering, foundational security/deployment/data-model decisions, or project-wide testing/validation policy changes.
