@@ -24,7 +24,7 @@ Phase 13 — Public presentation polish — is complete with durable validation 
 
 Phase 14 — Source administration — is complete by explicit repository-owner acceptance on August 14, 2026. Its historical validation artifact retains its original BLOCKED/RED determination: the then-required Level 8 Cloudflare Access/direct-origin deployment observation was unavailable, despite the recorded local/static/unit/integration/database/fixture/browser evidence. The governing roadmap and testing contract moved that deployment proof to Phase 19; acceptance did not rewrite the artifact or claim Level 8 was observed.
 
-Phase 15 — Publication and Relevance administration — is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 is current and owns true duplicate detection, persisted review/dismissal state, Duplicate groups/memberships, deterministic Primary selection, and ordinary-feed duplicate suppression. Phase 17 moderation and later work remain deferred.
+Phase 15 — Publication and Relevance administration — is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 is current and owns true duplicate detection, persisted review/dismissal state, Duplicate groups/memberships, deterministic Primary selection, and ordinary-feed duplicate suppression. The roadmap continues through Phase 21; Phase 21 is the terminal codebase-simplification/maintainability phase after customer launch.
 
 ## Delivery priority
 
@@ -189,6 +189,20 @@ MVP admin UI/API routes:
 
 Native application-managed administrator accounts, sessions, roles, account recovery, per-user Publication authorization, and identity-linked audit attribution are deferred beyond MVP.
 
+## Production data lifecycle
+
+Before customer launch, the existing pre-production reset policy remains intentional: superseded development/pre-production databases may be rebuilt from the current canonical migration chain instead of carrying unsupported compatibility machinery.
+
+Phase 19 establishes and validates production backup/restore, deployment/rollback, and schema-upgrade procedures. Acceptance of Phase 20 customer launch establishes the first supported production source/version/schema baseline. From that point forward:
+
+- customer production data and governed relationships are durable supported state;
+- normal upgrades/refactors preserve that state;
+- supported production migration history remains capable of upgrading supported deployed state;
+- clean migration-from-zero remains required for new/disposable installations but does not alone prove production upgrade safety;
+- destructive customer-data reset is not an ordinary cleanup/refactor option.
+
+`docs/decisions/production-data-and-schema-compatibility.md` is the detailed authority.
+
 ## Testing and regression policy
 
 `docs/contracts/testing-and-validation-contract.md` is the project-wide testing authority.
@@ -213,6 +227,8 @@ The completed Phase 10 entry singleton correction required real PostgreSQL migra
 Phase 11 closeout additionally required deterministic proof of literal predicate/missing-field behavior, the complete include/exclude precedence/tie matrix, all-matching categorize/default fallback semantics, stable reason ordering, exact `excluded` accounting before identity, prospective non-retroactive behavior, and real PostgreSQL proof for Category/rule schema, uniqueness, relationships, memberships, and reason persistence.
 
 Phase 12 closeout proved search/filter parameter validation, unchanged feed eligibility, Source/Category filtering, literal keyword search, stable keyset pagination, cursor/query consistency, URL/reset/back-forward navigation, load-more behavior, and the indexes/query shape needed for MVP-scale discovery across the required API/database/browser regression evidence.
+
+After the Phase 20 production baseline, schema/persisted-representation changes additionally require supported upgrade/data-preservation evidence from the accepted baseline; migration-from-zero alone is insufficient. Phase 21 refactor/optimization claims also require the applicable full blast-radius regression evidence, and performance/resource improvements require materially comparable before/after measurements.
 
 Dependency installation intentionally uses `package.json` without an npm package lock. Repository npm configuration disables `package-lock.json` generation, so clean installs use `npm install` rather than `npm ci`. Because declared dependency ranges may resolve to different compatible versions over time, validation applies to the exact source tree and recorded Node/npm environment that was actually tested rather than claiming byte-for-byte dependency reproducibility.
 
@@ -242,7 +258,7 @@ Baseline controls are implemented with the surfaces they protect, not postponed 
 - Cloudflare Access/origin/request-integrity controls when admin surfaces arrive;
 - focused and regression testing for contract-critical security/reliability behavior as each capability is introduced.
 
-Phase 19 hardens/operationalizes these controls with dashboards, alerts, restore testing, abuse regression tests, retention jobs, deployment/rollback validation, and runbooks.
+Phase 19 hardens/operationalizes these controls with dashboards, alerts, restore testing, abuse regression tests, retention jobs, deployment/rollback/schema-upgrade validation, and runbooks.
 
 ## Documentation map
 
@@ -270,6 +286,7 @@ docs/
 │   └── tasks/            # targeted non-versioned UI prompts when present
 └── decisions/
     ├── single-publication-simplified-data-model.md
+    ├── production-data-and-schema-compatibility.md
     ├── topic-independent-publication-model.md  # historical superseded ADR
     ├── whitelist-and-structured-feed-first.md
     ├── original-link-and-normalized-metadata.md
@@ -280,7 +297,7 @@ docs/
 
 ## Repository workflow
 
-Phase handoff after a roadmap phase has formally closed:
+Normal non-terminal phase handoff after a roadmap phase has formally closed:
 
 ```text
 /closeout
@@ -291,7 +308,7 @@ Phase handoff after a roadmap phase has formally closed:
 → /prompt-write <folder name>
 ```
 
-`/closeout` performs a quick structural/evidence check of the completed roadmap phase and, only when green, advances `package.json` to the next `0.<phase>.0` baseline. A correction stack's final manual closeout is different: it validates/clears only the correction and does not advance the roadmap phase or package version.
+For a non-terminal phase, `/closeout` performs a quick structural/evidence check and, only when green, advances `package.json` to the next `0.<phase>.0` baseline. For terminal Phase 21, `/closeout` performs the same bounded verification but does not change `package.json`, create a successor phase, or reserve a new version baseline; it reports `Roadmap status: COMPLETE` with the accepted final SHA/version. A correction stack's final manual closeout remains different: it validates/clears only the correction and does not advance roadmap phase or package version.
 
 Documentation review/application:
 
@@ -389,8 +406,11 @@ Then:
 - Phase 18 — Configurable HTML collection
 - Phase 19 — Reliability, observability, and production operations
 - Phase 20 — Customer launch validation
+- Phase 21 — Codebase simplification and maintainability hardening
 
-Deferred: native administrator identity/accounts, historical Relevance bulk reprocessing, push/webhook adapters, AI summaries, related-story clustering, public personalization, outbound publishing, self-service tenancy, generic relevance ranking/boost scoring, pinning/featured ordering, API access, multilingual feeds. Concurrent multi-Publication hosting inside one installation is not deferred-by-default behavior; it would require an explicit future contract/ADR and deliberate data-model work.
+Phase 20 acceptance establishes the first supported production baseline and begins the feature freeze. Phase 21 is behavior-preserving final-tree simplification/optimization derived from the launched implementation and measured evidence; its exact prompt stack is intentionally not predetermined now. Phase 21 is terminal unless the repository owner later approves an explicit roadmap extension.
+
+Deferred after Phase 21: native administrator identity/accounts, historical Relevance bulk reprocessing, push/webhook adapters, AI summaries, related-story clustering, public personalization, outbound publishing, self-service tenancy, generic relevance ranking/boost scoring, pinning/featured ordering, API access, multilingual feeds. Concurrent multi-Publication hosting inside one installation is not deferred-by-default behavior; it would require an explicit future contract/ADR and deliberate data-model work. Deferred ideas do not reserve or imply Phase 22.
 
 ## Repository
 
