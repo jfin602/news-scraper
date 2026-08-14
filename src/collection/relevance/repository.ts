@@ -139,6 +139,20 @@ export async function listCategories(
   return Object.freeze(result.rows.map(mapCategoryRow));
 }
 
+export async function deleteCategory(
+  executor: QueryExecutor,
+  configKey: unknown,
+): Promise<PersistedCategory | undefined> {
+  const result = await executor.query<CategoryRow>(
+    `DELETE FROM categories
+     WHERE config_key = $1
+     RETURNING ${CATEGORY_COLUMNS}`,
+    [normalizeConfigKey(configKey)],
+  );
+  const row = result.rows[0];
+  return row === undefined ? undefined : mapCategoryRow(row);
+}
+
 export async function createRelevanceRule(
   executor: QueryExecutor,
   input: unknown,

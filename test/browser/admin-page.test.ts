@@ -18,7 +18,9 @@ import {
   type AdminSourceReadModel,
   type SourceAdministrationService,
 } from '../../src/admin/source-administration.ts';
+import type { EditorialAdministrationService } from '../../src/admin/editorial-administration.ts';
 import { createWebApp } from '../../src/app/web/create-app.ts';
+import { registerEditorialAdministrationRoutes } from '../../src/app/web/editorial-administration-router.ts';
 import { registerEndpointAdministrationRoutes } from '../../src/app/web/endpoint-administration-router.ts';
 import { registerSourceAdministrationRoutes } from '../../src/app/web/source-administration-router.ts';
 import { startWebServer, type WebServer } from '../../src/app/web/server.ts';
@@ -547,7 +549,6 @@ class AdminHarness {
 
   sourceService(): SourceAdministrationService {
     return {
-      listCategories: async () => this.categories,
       listSources: async () => {
         if (this.sourceListError) throw new Error('private database failure');
         return this.sources;
@@ -596,6 +597,24 @@ class AdminHarness {
             'active' | 'archived',
           operationalState: 'disabled',
         });
+      },
+    };
+  }
+
+  editorialService(): EditorialAdministrationService {
+    return {
+      listCategories: async () => this.categories,
+      createCategory: async () => {
+        throw new Error('not used');
+      },
+      getCategory: async () => {
+        throw new Error('not used');
+      },
+      updateCategory: async () => {
+        throw new Error('not used');
+      },
+      deleteCategory: async () => {
+        throw new Error('not used');
       },
     };
   }
@@ -899,6 +918,9 @@ async function startHarnessServer(
   const endpointRoutes = registerEndpointAdministrationRoutes(
     harness.endpointService(),
   );
+  const editorialRoutes = registerEditorialAdministrationRoutes(
+    harness.editorialService(),
+  );
   return startWebServer(
     createWebApp(
       {
@@ -910,6 +932,7 @@ async function startHarnessServer(
         registerAdminApiRoutes: (router) => {
           sourceRoutes(router);
           endpointRoutes(router);
+          editorialRoutes(router);
         },
       },
     ),

@@ -4,7 +4,6 @@ import { type Database, type QueryExecutor } from '../database/database.ts';
 import { ConfigurationValidationError } from '../publication/configuration.ts';
 import {
   findCategoryByConfigKey,
-  listCategories,
   setSourceDefaultCategory,
 } from '../collection/relevance/repository.ts';
 import {
@@ -65,7 +64,6 @@ export interface AdminSourceReadModel {
 }
 
 export interface SourceAdministrationService {
-  listCategories(): Promise<readonly AdminCategoryChoice[]>;
   listSources(): Promise<readonly AdminSourceReadModel[]>;
   getSource(sourceConfigKey: unknown): Promise<AdminSourceReadModel>;
   createSource(input: unknown): Promise<AdminSourceReadModel>;
@@ -151,18 +149,6 @@ export function createSourceAdministrationService(
   database: Database,
 ): SourceAdministrationService {
   return Object.freeze({
-    async listCategories() {
-      const categories = await listCategories(database);
-      return Object.freeze(
-        categories.map((category) =>
-          Object.freeze({
-            configKey: category.configKey,
-            displayName: category.displayName,
-          }),
-        ),
-      );
-    },
-
     async listSources() {
       return readSources(database);
     },

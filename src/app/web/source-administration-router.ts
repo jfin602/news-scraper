@@ -11,16 +11,6 @@ export function registerSourceAdministrationRoutes(
   service: SourceAdministrationService,
 ): AdminApiRouteRegistrar {
   return (router: Router) => {
-    router.get('/categories', async (_request, response) => {
-      try {
-        response
-          .status(200)
-          .json({ categories: await service.listCategories() });
-      } catch (error) {
-        sendSourceAdministrationError(error, response);
-      }
-    });
-
     router.get('/sources', async (_request, response) => {
       try {
         response.status(200).json({ sources: await service.listSources() });

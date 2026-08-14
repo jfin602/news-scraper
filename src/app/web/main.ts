@@ -1,11 +1,13 @@
 import { parseDatabaseConfig } from '../../database/config.ts';
 import { createDatabase } from '../../database/database.ts';
 import { createDatabaseDependency } from '../../database/readiness.ts';
+import { createEditorialAdministrationService } from '../../admin/editorial-administration.ts';
 import { createEndpointAdministrationService } from '../../admin/endpoint-administration.ts';
 import { createPublicationAdministrationService } from '../../admin/publication-administration.ts';
 import { createSourceAdministrationService } from '../../admin/source-administration.ts';
 import { readPublicFeed } from '../../public-feed/repository.ts';
 import { createWebApp } from './create-app.ts';
+import { registerEditorialAdministrationRoutes } from './editorial-administration-router.ts';
 import { registerEndpointAdministrationRoutes } from './endpoint-administration-router.ts';
 import { registerPublicationAdministrationRoutes } from './publication-administration-router.ts';
 import { startWebServer } from './server.ts';
@@ -29,6 +31,9 @@ async function main(): Promise<void> {
     const registerPublicationRoutes = registerPublicationAdministrationRoutes(
       createPublicationAdministrationService(applicationDatabase),
     );
+    const registerEditorialRoutes = registerEditorialAdministrationRoutes(
+      createEditorialAdministrationService(applicationDatabase),
+    );
     const webServer = await startWebServer(
       createWebApp(
         {
@@ -43,6 +48,7 @@ async function main(): Promise<void> {
             registerSourceRoutes(router);
             registerEndpointRoutes(router);
             registerPublicationRoutes(router);
+            registerEditorialRoutes(router);
           },
         },
       ),

@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { createEditorialAdministrationService } from '../../src/admin/editorial-administration.ts';
 import {
   createSourceAdministrationService,
   SourceAdministrationError,
@@ -12,6 +13,7 @@ import {
   ADMIN_REQUEST_HEADER_VALUE,
 } from '../../src/app/web/admin-router.ts';
 import { startWebServer } from '../../src/app/web/server.ts';
+import { registerEditorialAdministrationRoutes } from '../../src/app/web/editorial-administration-router.ts';
 import { registerSourceAdministrationRoutes } from '../../src/app/web/source-administration-router.ts';
 import { createCategory } from '../../src/collection/relevance/repository.ts';
 import { createDatabase } from '../../src/database/database.ts';
@@ -31,9 +33,10 @@ describe('Source administration database service', () => {
         configKey: 'industry',
         displayName: 'Industry',
       });
-      assert.deepEqual(await service.listCategories(), [
-        { configKey: 'industry', displayName: 'Industry' },
-      ]);
+      assert.deepEqual(
+        await createEditorialAdministrationService(database).listCategories(),
+        [{ configKey: 'industry', displayName: 'Industry' }],
+      );
 
       const created = await service.createSource(
         sourceCreateInput({
@@ -260,138 +263,148 @@ describe('Source administration HTTP API', () => {
         configKey: 'industry',
         displayName: 'Industry',
       });
-      await withAdminServer(true, service, async (baseUrl) => {
-        const withoutHeader = await fetch(`${baseUrl}/api/admin/sources`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(sourceCreateInput()),
-        });
-        assert.equal(withoutHeader.status, 403);
-        assert.deepEqual(await service.listSources(), []);
+      const editorialService = createEditorialAdministrationService(database);
+      await withAdminServer(
+        true,
+        service,
+        async (baseUrl) => {
+          const withoutHeader = await fetch(`${baseUrl}/api/admin/sources`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(sourceCreateInput()),
+          });
+          assert.equal(withoutHeader.status, 403);
+          assert.deepEqual(await service.listSources(), []);
 
-        const wrongHeader = await fetch(`${baseUrl}/api/admin/sources`, {
-          method: 'POST',
-          headers: adminJsonHeaders('wrong'),
-          body: JSON.stringify(sourceCreateInput()),
-        });
-        assert.equal(wrongHeader.status, 403);
+          const wrongHeader = await fetch(`${baseUrl}/api/admin/sources`, {
+            method: 'POST',
+            headers: adminJsonHeaders('wrong'),
+            body: JSON.stringify(sourceCreateInput()),
+          });
+          assert.equal(wrongHeader.status, 403);
 
-        const malformed = await fetch(`${baseUrl}/api/admin/sources`, {
-          method: 'POST',
-          headers: adminJsonHeaders(),
-          body: '{',
-        });
-        assert.equal(malformed.status, 400);
-        assert.deepEqual(await malformed.json(), { error: 'invalid_json' });
-
-        const created = await fetch(`${baseUrl}/api/admin/sources`, {
-          method: 'POST',
-          headers: adminJsonHeaders(),
-          body: JSON.stringify(
-            sourceCreateInput({ defaultCategoryConfigKey: 'industry' }),
-          ),
-        });
-        assert.equal(created.status, 201);
-        assert.equal((await created.json()).source.configKey, 'journal');
-
-        const categories = await fetch(`${baseUrl}/api/admin/categories`);
-        assert.equal(categories.status, 200);
-        assert.deepEqual(await categories.json(), {
-          categories: [{ configKey: 'industry', displayName: 'Industry' }],
-        });
-        const categoryMutation = await fetch(
-          `${baseUrl}/api/admin/categories`,
-          {
+          const malformed = await fetch(`${baseUrl}/api/admin/sources`, {
             method: 'POST',
             headers: adminJsonHeaders(),
-            body: JSON.stringify({
+            body: '{',
+          });
+          assert.equal(malformed.status, 400);
+          assert.deepEqual(await malformed.json(), { error: 'invalid_json' });
+
+          const created = await fetch(`${baseUrl}/api/admin/sources`, {
+            method: 'POST',
+            headers: adminJsonHeaders(),
+            body: JSON.stringify(
+              sourceCreateInput({ defaultCategoryConfigKey: 'industry' }),
+            ),
+          });
+          assert.equal(created.status, 201);
+          assert.equal((await created.json()).source.configKey, 'journal');
+
+          const categories = await fetch(`${baseUrl}/api/admin/categories`);
+          assert.equal(categories.status, 200);
+          assert.deepEqual(await categories.json(), {
+            categories: [{ configKey: 'industry', displayName: 'Industry' }],
+          });
+          const categoryMutation = await fetch(
+            `${baseUrl}/api/admin/categories`,
+            {
+              method: 'POST',
+              headers: adminJsonHeaders(),
+              body: JSON.stringify({
+                configKey: 'not_owned_by_phase_14',
+                displayName: 'Not created',
+              }),
+            },
+          );
+          assert.equal(categoryMutation.status, 201);
+          assert.deepEqual(await editorialService.listCategories(), [
+            { configKey: 'industry', displayName: 'Industry' },
+            {
               configKey: 'not_owned_by_phase_14',
               displayName: 'Not created',
-            }),
-          },
-        );
-        assert.equal(categoryMutation.status, 404);
-        assert.deepEqual(await service.listCategories(), [
-          { configKey: 'industry', displayName: 'Industry' },
-        ]);
-        const detail = await fetch(`${baseUrl}/api/admin/sources/journal`);
-        assert.equal(detail.status, 200);
-        assert.equal((await detail.json()).source.endpointCount, 0);
-        const list = await fetch(`${baseUrl}/api/admin/sources`);
-        assert.equal(list.status, 200);
-        assert.equal((await list.json()).sources.length, 1);
+            },
+          ]);
+          const detail = await fetch(`${baseUrl}/api/admin/sources/journal`);
+          assert.equal(detail.status, 200);
+          assert.equal((await detail.json()).source.endpointCount, 0);
+          const list = await fetch(`${baseUrl}/api/admin/sources`);
+          assert.equal(list.status, 200);
+          assert.equal((await list.json()).sources.length, 1);
 
-        const configured = await fetch(
-          `${baseUrl}/api/admin/sources/journal/configuration`,
-          {
-            method: 'PUT',
-            headers: adminJsonHeaders(),
-            body: JSON.stringify({
-              ...sourceConfigurationInput(),
-              displayName: 'HTTP Updated Journal',
-              defaultCategoryConfigKey: null,
-              rssAtomAdmissionPhrases: [],
-            }),
-          },
-        );
-        assert.equal(configured.status, 200);
-        assert.equal(
-          (await configured.json()).source.displayName,
-          'HTTP Updated Journal',
-        );
-        const unapproved = await fetch(
-          `${baseUrl}/api/admin/sources/journal/approval`,
-          {
-            method: 'PUT',
-            headers: adminJsonHeaders(),
-            body: JSON.stringify({ approvalState: 'unapproved' }),
-          },
-        );
-        assert.equal(unapproved.status, 200);
-        assert.equal(
-          (await unapproved.json()).source.approvalState,
-          'unapproved',
-        );
-        const paused = await fetch(
-          `${baseUrl}/api/admin/sources/journal/operational-state`,
-          {
-            method: 'PUT',
-            headers: adminJsonHeaders(),
-            body: JSON.stringify({ operationalState: 'paused' }),
-          },
-        );
-        assert.equal(paused.status, 200);
-        assert.equal((await paused.json()).source.operationalState, 'paused');
+          const configured = await fetch(
+            `${baseUrl}/api/admin/sources/journal/configuration`,
+            {
+              method: 'PUT',
+              headers: adminJsonHeaders(),
+              body: JSON.stringify({
+                ...sourceConfigurationInput(),
+                displayName: 'HTTP Updated Journal',
+                defaultCategoryConfigKey: null,
+                rssAtomAdmissionPhrases: [],
+              }),
+            },
+          );
+          assert.equal(configured.status, 200);
+          assert.equal(
+            (await configured.json()).source.displayName,
+            'HTTP Updated Journal',
+          );
+          const unapproved = await fetch(
+            `${baseUrl}/api/admin/sources/journal/approval`,
+            {
+              method: 'PUT',
+              headers: adminJsonHeaders(),
+              body: JSON.stringify({ approvalState: 'unapproved' }),
+            },
+          );
+          assert.equal(unapproved.status, 200);
+          assert.equal(
+            (await unapproved.json()).source.approvalState,
+            'unapproved',
+          );
+          const paused = await fetch(
+            `${baseUrl}/api/admin/sources/journal/operational-state`,
+            {
+              method: 'PUT',
+              headers: adminJsonHeaders(),
+              body: JSON.stringify({ operationalState: 'paused' }),
+            },
+          );
+          assert.equal(paused.status, 200);
+          assert.equal((await paused.json()).source.operationalState, 'paused');
 
-        const duplicate = await fetch(`${baseUrl}/api/admin/sources`, {
-          method: 'POST',
-          headers: adminJsonHeaders(),
-          body: JSON.stringify(sourceCreateInput()),
-        });
-        const duplicateBody = await duplicate.text();
-        assert.equal(duplicate.status, 409);
-        assert.deepEqual(JSON.parse(duplicateBody), {
-          error: 'source_config_key_conflict',
-        });
-        assert.doesNotMatch(
-          duplicateBody,
-          /23505|sources_config_key_unique|INSERT INTO|stack/iu,
-        );
-
-        const archived = await fetch(
-          `${baseUrl}/api/admin/sources/journal/lifecycle`,
-          {
-            method: 'PUT',
+          const duplicate = await fetch(`${baseUrl}/api/admin/sources`, {
+            method: 'POST',
             headers: adminJsonHeaders(),
-            body: JSON.stringify({ lifecycleState: 'archived' }),
-          },
-        );
-        assert.equal(archived.status, 200);
-        assert.equal(
-          (await archived.json()).source.operationalState,
-          'disabled',
-        );
-      });
+            body: JSON.stringify(sourceCreateInput()),
+          });
+          const duplicateBody = await duplicate.text();
+          assert.equal(duplicate.status, 409);
+          assert.deepEqual(JSON.parse(duplicateBody), {
+            error: 'source_config_key_conflict',
+          });
+          assert.doesNotMatch(
+            duplicateBody,
+            /23505|sources_config_key_unique|INSERT INTO|stack/iu,
+          );
+
+          const archived = await fetch(
+            `${baseUrl}/api/admin/sources/journal/lifecycle`,
+            {
+              method: 'PUT',
+              headers: adminJsonHeaders(),
+              body: JSON.stringify({ lifecycleState: 'archived' }),
+            },
+          );
+          assert.equal(archived.status, 200);
+          assert.equal(
+            (await archived.json()).source.operationalState,
+            'disabled',
+          );
+        },
+        editorialService,
+      );
     });
   });
 
@@ -468,7 +481,16 @@ async function withAdminServer(
   adminEnabled: boolean,
   service: SourceAdministrationService,
   work: (baseUrl: string) => Promise<void>,
+  editorialService?: ReturnType<typeof createEditorialAdministrationService>,
 ): Promise<void> {
+  const sourceRoutes = registerSourceAdministrationRoutes(service);
+  const registerAdminApiRoutes =
+    editorialService === undefined
+      ? sourceRoutes
+      : (router: Parameters<typeof sourceRoutes>[0]) => {
+          sourceRoutes(router);
+          registerEditorialAdministrationRoutes(editorialService)(router);
+        };
   const server = await startWebServer(
     createWebApp(
       {
@@ -477,7 +499,7 @@ async function withAdminServer(
       },
       {
         adminEnabled,
-        registerAdminApiRoutes: registerSourceAdministrationRoutes(service),
+        registerAdminApiRoutes,
       },
     ),
     { host: '127.0.0.1', port: 0 },
