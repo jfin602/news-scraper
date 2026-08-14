@@ -10,6 +10,7 @@ describe('parseWebConfig', () => {
       nodeEnv: 'test',
       host: '127.0.0.1',
       port: 3000,
+      adminEnabled: false,
     });
   });
 
@@ -23,10 +24,31 @@ describe('parseWebConfig', () => {
         nodeEnv: 'development',
         host: 'localhost',
         port: 8123,
+        adminEnabled: false,
       },
     );
     assert.equal(parseWebConfig({ NEWS_SCRAPER_WEB_PORT: '0' }).port, 0);
   });
+
+  it('accepts only explicit true and false admin enablement values', () => {
+    assert.equal(
+      parseWebConfig({ NEWS_SCRAPER_ADMIN_ENABLED: 'true' }).adminEnabled,
+      true,
+    );
+    assert.equal(
+      parseWebConfig({ NEWS_SCRAPER_ADMIN_ENABLED: 'false' }).adminEnabled,
+      false,
+    );
+  });
+
+  for (const value of ['', 'TRUE', '1', 'yes', ' private-value ']) {
+    it(`rejects malformed admin enablement ${JSON.stringify(value)} safely`, () => {
+      assertSafeError(
+        () => parseWebConfig({ NEWS_SCRAPER_ADMIN_ENABLED: value }),
+        'NEWS_SCRAPER_ADMIN_ENABLED',
+      );
+    });
+  }
 
   for (const port of ['-1', '65536', '1.5', 'not-a-number', '']) {
     it(`rejects invalid port ${JSON.stringify(port)} safely`, () => {

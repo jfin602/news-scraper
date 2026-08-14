@@ -1,0 +1,18 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0;
+}
+
+.admin-shell {
+  margin: 0 auto;
+  max-width: 64rem;
+  padding: 2rem;
+}
+
+.admin-shell h1 {
+  margin-block-start: 0;
+}

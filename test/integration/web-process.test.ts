@@ -16,6 +16,7 @@ describe('Web process entrypoint', () => {
       NODE_ENV: 'test',
       NEWS_SCRAPER_WEB_HOST: '127.0.0.1',
       NEWS_SCRAPER_WEB_PORT: '0',
+      NEWS_SCRAPER_ADMIN_ENABLED: 'true',
       NEWS_SCRAPER_DATABASE_URL:
         'postgresql://synthetic-secret@127.0.0.1:1/unavailable',
     });
@@ -47,6 +48,10 @@ describe('Web process entrypoint', () => {
       const feedBody = await feed.text();
       assert.deepEqual(JSON.parse(feedBody), { error: 'service_unavailable' });
       assert.doesNotMatch(feedBody, /synthetic-secret/u);
+      const admin = await fetch(`${baseUrl}/admin`);
+      assert.equal(admin.status, 200);
+      assert.equal(admin.headers.get('cache-control'), 'no-store');
+      assert.match(await admin.text(), /<h1>Administration<\/h1>/u);
       const stoppedEvent = waitForJsonEvent(child, 'stdout', 'web.stopped');
       const exitEvent = waitForExit(child);
       sendGracefulTermination(child);
@@ -68,6 +73,18 @@ describe('Web process entrypoint', () => {
   it('fails predictably for malformed Web configuration', async () => {
     const child = spawnRole('web', {
       NEWS_SCRAPER_WEB_PORT: 'private-value',
+    });
+    assert.deepEqual(
+      await waitForJsonEvent(child, 'stderr', 'web.start_failed'),
+      { event: 'web.start_failed', role: 'web' },
+    );
+    disconnectTestIpc(child);
+    assert.deepEqual(await waitForExit(child), { code: 1, signal: null });
+  });
+
+  it('fails predictably for malformed admin enablement', async () => {
+    const child = spawnRole('web', {
+      NEWS_SCRAPER_ADMIN_ENABLED: 'yes',
     });
     assert.deepEqual(
       await waitForJsonEvent(child, 'stderr', 'web.start_failed'),

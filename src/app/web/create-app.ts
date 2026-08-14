@@ -12,6 +12,11 @@ import {
   type PublicDiscoveryChoice,
   type PublicFeed,
 } from '../../public-feed/repository.ts';
+import {
+  createAdminApiRouter,
+  createAdminPageRouter,
+  type AdminApiRouteRegistrar,
+} from './admin-router.ts';
 import { sendPublicFeedPage } from './public-feed-page.ts';
 
 const publicFeedStylesheet = readFileSync(
@@ -40,7 +45,15 @@ export interface WebDependencies {
   readonly publicFeed: PublicFeedDependency;
 }
 
-export function createWebApp(dependencies: WebDependencies): Express {
+export interface WebOptions {
+  readonly adminEnabled?: boolean;
+  readonly registerAdminApiRoutes?: AdminApiRouteRegistrar;
+}
+
+export function createWebApp(
+  dependencies: WebDependencies,
+  options: WebOptions = {},
+): Express {
   const app = express();
   app.disable('x-powered-by');
   app.use((_request, response, next) => {
@@ -64,6 +77,11 @@ export function createWebApp(dependencies: WebDependencies): Express {
     }
     response.status(503).json({ status: 'not_ready', role: 'web' });
   });
+
+  if (options.adminEnabled === true) {
+    app.use('/admin', createAdminPageRouter());
+    app.use('/api/admin', createAdminApiRouter(options.registerAdminApiRoutes));
+  }
 
   app.get('/api/feed', async (request, response) => {
     response.set('Cache-Control', 'no-store');

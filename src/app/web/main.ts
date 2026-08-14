@@ -15,12 +15,15 @@ async function main(): Promise<void> {
     database = applicationDatabase;
     const dependency = createDatabaseDependency(applicationDatabase);
     const webServer = await startWebServer(
-      createWebApp({
-        readiness: dependency,
-        publicFeed: {
-          read: (request) => readPublicFeed(applicationDatabase, request),
+      createWebApp(
+        {
+          readiness: dependency,
+          publicFeed: {
+            read: (request) => readPublicFeed(applicationDatabase, request),
+          },
         },
-      }),
+        { adminEnabled: config.adminEnabled },
+      ),
       config,
     );
     writeEvent({

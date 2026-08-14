@@ -12,6 +12,7 @@ const hostnamePattern =
 export interface WebConfig extends RuntimeConfig {
   readonly host: string;
   readonly port: number;
+  readonly adminEnabled: boolean;
 }
 
 export function parseWebConfig(
@@ -20,6 +21,9 @@ export function parseWebConfig(
   const common = parseRuntimeConfig(environment);
   const host = environment.NEWS_SCRAPER_WEB_HOST ?? '127.0.0.1';
   const portText = environment.NEWS_SCRAPER_WEB_PORT;
+  const adminEnabled = parseAdminEnabled(
+    environment.NEWS_SCRAPER_ADMIN_ENABLED,
+  );
 
   if (
     host !== host.trim() ||
@@ -39,5 +43,14 @@ export function parseWebConfig(
     );
   }
 
-  return Object.freeze({ ...common, host, port });
+  return Object.freeze({ ...common, host, port, adminEnabled });
+}
+
+function parseAdminEnabled(value: string | undefined): boolean {
+  if (value === undefined || value === 'false') return false;
+  if (value === 'true') return true;
+  throw new RuntimeConfigError(
+    'NEWS_SCRAPER_ADMIN_ENABLED',
+    'must be true or false',
+  );
 }
