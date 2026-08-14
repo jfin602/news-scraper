@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import { Client, type QueryResult, type QueryResultRow } from 'pg';
 
@@ -9,7 +9,6 @@ import {
   type Database,
   type QueryExecutor,
 } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   decodePublicDiscoveryCursor,
   type PublicDiscoveryRequest,
@@ -20,7 +19,11 @@ import {
   PublicFeedRepositoryError,
   readPublicFeed,
 } from '../../src/public-feed/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
+
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 type PublicDiscoveryFeed = NonNullable<
   Awaited<ReturnType<typeof readPublicFeed>>
@@ -923,8 +926,7 @@ test('preserves PostgreSQL microsecond cursor keys across a page boundary', asyn
 async function withDiscoveryDatabase(
   work: (context: DiscoveryDatabaseContext) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const client = new Client({ connectionString: databaseUrl });
     const database = createDatabase({ connectionString: databaseUrl });
     try {

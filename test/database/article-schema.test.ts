@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import { Client } from 'pg';
 
-import { migrateDatabase } from '../../src/database/migrations.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 
 interface Fixture {
   sourceOne: string;
@@ -18,6 +17,10 @@ interface Fixture {
   runTwo: string;
   runThree: string;
 }
+
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('article schema stores valid Article and terminal observation provenance', async () => {
   await withArticleDatabase(async (client, fixture) => {
@@ -294,8 +297,7 @@ test('article checks reject contradictory dates, observation order, and destruct
 async function withArticleDatabase(
   callback: (client: Client, fixture: Fixture) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const client = new Client({ connectionString: databaseUrl });
     try {
       await client.connect();

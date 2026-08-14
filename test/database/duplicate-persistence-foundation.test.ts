@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import { randomUUID } from 'node:crypto';
 import { Client } from 'pg';
@@ -13,6 +13,7 @@ import {
   finalizeCollectionRun,
   startCollectionRun,
 } from '../../src/collection/runs/repository.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 import { withDisposableDatabase } from '../support/database/disposable-database.ts';
 
 const IDS = Object.freeze({
@@ -26,6 +27,9 @@ const IDS = Object.freeze({
   articleTwo: '40000000-0000-4000-8000-000000000002',
   articleThree: '40000000-0000-4000-8000-000000000003',
 });
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('migration from zero creates and reruns the complete duplicate foundation', async () => {
   await withDisposableDatabase(async ({ databaseUrl }) => {
@@ -253,8 +257,7 @@ test('group topology enforces one membership per Article and deferred Primary me
 });
 
 test('Collection-run duplicate effects default to zero and remain orthogonal', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       await insertCollectionFixture(database);
@@ -301,8 +304,7 @@ test('Collection-run duplicate effects default to zero and remain orthogonal', a
 async function withFoundationDatabase(
   callback: (client: Client) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const client = new Client({ connectionString: databaseUrl });
     try {
       await client.connect();

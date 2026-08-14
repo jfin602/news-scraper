@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import {
   COLLECTION_CAPACITY_LIMITS,
@@ -18,11 +18,14 @@ import {
   type Database,
   type QueryExecutor,
 } from '../../src/database/database.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 
 const SHARED_SOURCE = sourceId(1);
 const SHARED_HOST = 'shared-capacity.example';
 const ENDPOINT_ID = endpointId(1);
+const databaseTestScope = createDatabaseTestScope('bare');
+
+after(async () => databaseTestScope.dispose());
 
 test('global capacity admits exactly four independent actors and blocks the next', async () => {
   await withDatabaseActors(5, async (actors) => {
@@ -557,7 +560,7 @@ async function withDatabaseActors(
   count: number,
   work: (actors: readonly Database[]) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const actors = Array.from({ length: count }, () =>
       createDatabase({ connectionString: databaseUrl }),
     );

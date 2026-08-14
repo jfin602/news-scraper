@@ -1,11 +1,10 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import { startCollectionRun } from '../../src/collection/runs/repository.ts';
 import { createDatabase, type Database } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   attachCollectionRunToEndpointCollectionJob,
   claimNextEndpointCollectionJob,
@@ -28,7 +27,7 @@ import {
   findSourceEndpointBySourceAndConfigKey,
   type PersistedSourceEndpoint,
 } from '../../src/sources/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 
 const fixtureUrl = new URL(
   '../fixtures/generic-bootstrap.json',
@@ -42,6 +41,9 @@ const T1005 = new Date(TEST_CLOCK + 300_000);
 const T1006 = new Date(TEST_CLOCK + 360_000);
 const T1010 = new Date(TEST_CLOCK + 600_000);
 const T1015 = new Date(TEST_CLOCK + 900_000);
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('enqueues at most one outstanding job per real endpoint under concurrency', async () => {
   await withJobDatabase(async (database, [endpointA, endpointB]) => {
@@ -875,8 +877,7 @@ async function withJobDatabase(
     endpoints: readonly [PersistedSourceEndpoint, PersistedSourceEndpoint],
   ) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       const document = parseBootstrapDocument(

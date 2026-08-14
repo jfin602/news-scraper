@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { after, describe, it } from 'node:test';
 
 import { createEditorialAdministrationService } from '../../src/admin/editorial-administration.ts';
 import {
@@ -17,14 +17,17 @@ import { registerEditorialAdministrationRoutes } from '../../src/app/web/editori
 import { registerSourceAdministrationRoutes } from '../../src/app/web/source-administration-router.ts';
 import { createCategory } from '../../src/collection/relevance/repository.ts';
 import { createDatabase } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   findSourceByConfigKey,
   insertSourceEndpoint,
   loadEndpointDomainRules,
   loadSourceApprovedDomainRules,
 } from '../../src/sources/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
+
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 describe('Source administration database service', () => {
   it('creates and reads complete Source configuration with immutable identity and Category reuse', async () => {
@@ -463,8 +466,7 @@ async function withSourceAdministration(
     service: SourceAdministrationService;
   }) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       await work({

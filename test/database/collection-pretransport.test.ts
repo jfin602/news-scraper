@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import {
   createEndpointExecutionLockRunner,
@@ -8,7 +8,6 @@ import {
 import { reachValidatedOutboundBoundary } from '../../src/collection/safety/outbound-boundary.ts';
 import type { DestinationResolver } from '../../src/collection/safety/resolver.ts';
 import { createDatabase } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   bootstrapPublicationTree,
   parseBootstrapDocument,
@@ -17,11 +16,14 @@ import {
   findEndpointConfigurationByKeys,
   type EndpointConfigurationAggregate,
 } from '../../src/sources/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
+
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('persisted aggregate composes with real endpoint locking and controlled outbound safety', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const actorA = createDatabase({ connectionString: databaseUrl });
     const actorB = createDatabase({ connectionString: databaseUrl });
     const releaseOwner = deferred<void>();

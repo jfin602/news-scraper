@@ -2,10 +2,9 @@ import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import { createDatabase, type Database } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   bootstrapPublicationTree,
   parseBootstrapDocument,
@@ -21,13 +20,16 @@ import {
   loadEndpointDomainRules,
   loadSourceApprovedDomainRules,
 } from '../../src/sources/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 
 const execFileAsync = promisify(execFile);
 const bootstrapConfigUrl = new URL(
   '../../config/publication.json',
   import.meta.url,
 );
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('committed initial Publication bootstrap persists exactly the approved tree and preserves operator changes', async () => {
   await withMigratedDatabase(async (database) => {
@@ -124,8 +126,7 @@ test('committed initial Publication bootstrap persists exactly the approved tree
 });
 
 test('db:bootstrap invokes the committed config through the root command', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const first = await runRootBootstrap(databaseUrl);
     const second = await runRootBootstrap(databaseUrl);
     assert.match(first.stdout, /publication=created/u);
@@ -257,8 +258,7 @@ async function runRootBootstrap(databaseUrl: string) {
 async function withMigratedDatabase(
   work: (database: Database) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       await work(database);

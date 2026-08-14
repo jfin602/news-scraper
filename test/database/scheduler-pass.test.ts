@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import {
   listDueEndpoints,
@@ -13,7 +13,6 @@ import {
   type Database,
   type QueryExecutor,
 } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   claimNextEndpointCollectionJob,
   enqueueEndpointCollectionJob,
@@ -28,7 +27,7 @@ import {
   findSourceEndpointBySourceAndConfigKey,
   type PersistedSourceEndpoint,
 } from '../../src/sources/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 
 const fixtureUrl = new URL(
   '../fixtures/generic-bootstrap.json',
@@ -36,6 +35,9 @@ const fixtureUrl = new URL(
 );
 const NOW = new Date('2026-08-11T12:00:00.000Z');
 const FUTURE = new Date('2026-08-11T12:10:00.000Z');
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('scheduler selects singleton-eligible initial and elapsed due endpoints without advancing due state', async () => {
   await withSchedulerDatabase(async (database, [endpointA, endpointB]) => {
@@ -313,8 +315,7 @@ async function withSchedulerDatabase(
     endpoints: readonly [PersistedSourceEndpoint, PersistedSourceEndpoint],
   ) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       const document = parseBootstrapDocument(

@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import { createDatabase } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   CollectionRunPersistenceError,
   DEFAULT_RECENT_COLLECTION_RUN_LIMIT,
@@ -17,7 +16,11 @@ import {
   insertSource,
   insertSourceEndpoint,
 } from '../../src/sources/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
+
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('starts, finds, and finalizes a successful collection run exactly once', async () => {
   await withMigratedDatabase(async (database) => {
@@ -523,8 +526,7 @@ test('database constraints preserve collection-run lifecycle and caller transact
 async function withMigratedDatabase(
   work: (database: ReturnType<typeof createDatabase>) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       await work(database);

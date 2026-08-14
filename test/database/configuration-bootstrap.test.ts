@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import {
   bootstrapPublicationTree,
@@ -14,7 +14,6 @@ import {
   type BootstrapDocument,
 } from '../../src/publication/bootstrap.ts';
 import { createDatabase, type Database } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   readPublicationSettings,
   setPublicationPublicStatus,
@@ -25,13 +24,16 @@ import {
   loadEndpointDomainRules,
   loadSourceApprovedDomainRules,
 } from '../../src/sources/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 
 const execFileAsync = promisify(execFile);
 const fixtureUrl = new URL(
   '../fixtures/generic-bootstrap.json',
   import.meta.url,
 );
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('bootstrap creates approved configuration idempotently and preserves operator changes', async () => {
   await withMigratedDatabase(async (database) => {
@@ -241,8 +243,7 @@ test('persisted Source policy governs new endpoints and failure rolls back the w
 });
 
 test('concurrent bootstraps converge on one complete stable tree', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const first = createDatabase({ connectionString: databaseUrl });
     const second = createDatabase({ connectionString: databaseUrl });
     try {
@@ -259,8 +260,7 @@ test('concurrent bootstraps converge on one complete stable tree', async () => {
 });
 
 test('generic CLI persists the synthetic tree and reruns idempotently', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const environment = {
       ...process.env,
       NEWS_SCRAPER_DATABASE_URL: databaseUrl,
@@ -371,8 +371,7 @@ function fixturePath(): string {
 async function withMigratedDatabase(
   work: (database: Database) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       await work(database);

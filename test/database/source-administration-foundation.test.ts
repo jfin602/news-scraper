@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import { createDatabase } from '../../src/database/database.ts';
 import { migrateDatabase } from '../../src/database/migrations.ts';
@@ -19,7 +19,12 @@ import {
   insertSource,
   insertSourceEndpoint,
 } from '../../src/sources/repository.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('migrates Source administration foundation from zero with canonical constraints', async () => {
   await withDisposableDatabase(async ({ databaseUrl }) => {
@@ -205,8 +210,7 @@ test('Collection-run filtered-item accounting round-trips and preserves downstre
 async function withMigratedDatabase(
   work: (database: ReturnType<typeof createDatabase>) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       await work(database);

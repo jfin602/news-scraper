@@ -1,19 +1,18 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import {
   createDatabase,
   type QueryExecutor,
 } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   groupStrongDuplicateCandidate,
   groupStrongDuplicateCandidateInTransaction,
 } from '../../src/deduplication/grouping.ts';
 import { canonicalizeArticlePair } from '../../src/deduplication/evidence.ts';
 import { detectDuplicateReviews } from '../../src/deduplication/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 
 const ids = Object.freeze({
   sourceA: '10000000-0000-4000-8000-000000000001',
@@ -35,6 +34,9 @@ const ids = Object.freeze({
   weak: '40000000-0000-4000-8000-000000000005',
   sameSource: '40000000-0000-4000-8000-000000000006',
 });
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('groups, adds, merges, and retains Article provenance with P2 Primary selection', async () => {
   await withGroupingDatabase(async (database) => {
@@ -181,8 +183,7 @@ test('same-group reevaluation uses the P2 selector against current persisted row
 });
 
 test('cross-connection same and crossing strong pairs converge without overlap', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const first = createDatabase({ connectionString: databaseUrl });
     const second = createDatabase({ connectionString: databaseUrl });
     try {
@@ -205,8 +206,7 @@ test('cross-connection same and crossing strong pairs converge without overlap',
 });
 
 test('concurrent connections between two existing groups choose one survivor', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const first = createDatabase({ connectionString: databaseUrl });
     const second = createDatabase({ connectionString: databaseUrl });
     try {
@@ -263,8 +263,7 @@ test('an injected candidate-write failure rolls back all topology and dispositio
 async function withGroupingDatabase(
   callback: (database: ReturnType<typeof createDatabase>) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       await insertFixture(database);

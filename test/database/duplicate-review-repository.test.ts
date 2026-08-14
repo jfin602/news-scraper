@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import {
   createDatabase,
@@ -9,8 +9,7 @@ import {
   detectDuplicateReviews,
   detectDuplicateReviewsInTransaction,
 } from '../../src/deduplication/repository.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 
 const IDS = {
   sourceOne: '51000000-0000-4000-8000-000000000001',
@@ -28,10 +27,12 @@ const IDS = {
   sameSource: '54000000-0000-4000-8000-000000000004',
   unrelated: '54000000-0000-4000-8000-000000000005',
 } as const;
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('detects exact cross-Source evidence and persists one ordered review set', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       await insertFixture(database);
@@ -157,8 +158,7 @@ test('detects exact cross-Source evidence and persists one ordered review set', 
 });
 
 test('preserves dismissal, reconsiders changed evidence, and keeps merged rows non-pending', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       await insertFixture(database);
@@ -234,8 +234,7 @@ test('preserves dismissal, reconsiders changed evidence, and keeps merged rows n
 });
 
 test('updates pending evidence in place and rolls back signal replacement atomically', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       await insertFixture(database);
@@ -301,8 +300,7 @@ test('updates pending evidence in place and rolls back signal replacement atomic
 });
 
 test('concurrent same-pair detection converges to one candidate and signal set', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const firstDatabase = createDatabase({ connectionString: databaseUrl });
     const secondDatabase = createDatabase({ connectionString: databaseUrl });
     try {

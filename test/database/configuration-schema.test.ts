@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import { Client } from 'pg';
 
 import { migrateDatabase } from '../../src/database/migrations.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 import { withDisposableDatabase } from '../support/database/disposable-database.ts';
 
 const sourceOne = '00000000-0000-0000-0000-000000000011';
@@ -11,6 +12,9 @@ const sourceTwo = '00000000-0000-0000-0000-000000000012';
 const endpointOne = '00000000-0000-0000-0000-000000000021';
 const endpointTwo = '00000000-0000-0000-0000-000000000022';
 const endpointThree = '00000000-0000-0000-0000-000000000023';
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('canonical production schema migrates from zero and reruns safely', async () => {
   await withDisposableDatabase(async ({ databaseUrl }) => {
@@ -149,8 +153,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
 });
 
 test('canonical configuration schema enforces singleton, ownership, state, and policy invariants', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const client = new Client({ connectionString: databaseUrl });
     try {
       await client.connect();

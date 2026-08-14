@@ -1,10 +1,9 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 import { promisify } from 'node:util';
 
 import { createDatabase } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   applyEditorialConfiguration,
   normalizeEditorialConfigurationDocument,
@@ -20,13 +19,15 @@ import {
   insertSource,
   insertSourceEndpoint,
 } from '../../src/sources/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 
 const execFileAsync = promisify(execFile);
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('explicit operator command applies the canonical document against PostgreSQL', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const result = await execFileAsync(
       process.execPath,
       ['scripts/apply-editorial-configuration.ts', 'config/editorial.json'],
@@ -237,8 +238,7 @@ test('leaves omitted editorial state and Articles untouched without historical r
 async function withMigratedDatabase(
   work: (database: ReturnType<typeof createDatabase>) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       await work(database);

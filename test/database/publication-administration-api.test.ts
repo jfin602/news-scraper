@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { after, describe, it } from 'node:test';
 
 import {
   createPublicationAdministrationService,
@@ -8,15 +8,17 @@ import {
 import { createWebApp } from '../../src/app/web/create-app.ts';
 import { registerPublicationAdministrationRoutes } from '../../src/app/web/publication-administration-router.ts';
 import { createDatabase } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import { insertPublicationSettings } from '../../src/publication/repository.ts';
 import { startWebServer } from '../../src/app/web/server.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
+
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 describe('Publication administration API', () => {
   it('reads and atomically replaces the complete singleton configuration', async () => {
-    await withDisposableDatabase(async ({ databaseUrl }) => {
-      await migrateDatabase({ connectionString: databaseUrl });
+    await databaseTestScope.use(async ({ databaseUrl }) => {
       const database = createDatabase({ connectionString: databaseUrl });
       try {
         await insertPublicationSettings(database, publicationInput());
@@ -57,8 +59,7 @@ describe('Publication administration API', () => {
   });
 
   it('returns bounded HTTP errors and enforces mutation integrity', async () => {
-    await withDisposableDatabase(async ({ databaseUrl }) => {
-      await migrateDatabase({ connectionString: databaseUrl });
+    await databaseTestScope.use(async ({ databaseUrl }) => {
       const database = createDatabase({ connectionString: databaseUrl });
       const service = createPublicationAdministrationService(database);
       const server = await startWebServer(

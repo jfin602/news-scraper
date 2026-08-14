@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { describe, it } from 'node:test';
+import { after, describe, it } from 'node:test';
 
 import {
   createEndpointAdministrationService,
@@ -28,7 +28,6 @@ import {
 } from '../../src/collection/runs/repository.ts';
 import { listDueEndpoints } from '../../src/collection/scheduler/due-endpoint-repository.ts';
 import { createDatabase } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   attachCollectionRunToEndpointCollectionJob,
   claimNextEndpointCollectionJob,
@@ -43,7 +42,11 @@ import {
   insertSource,
   updateEndpointRuntimeState,
 } from '../../src/sources/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
+
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 describe('Endpoint administration database service', () => {
   it('creates Source-scoped endpoints and reuses the existing default Category relationship', async () => {
@@ -1048,8 +1051,7 @@ async function withEndpointAdministration(
     sources: SourceAdministrationService;
   }) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       await work({

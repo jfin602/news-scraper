@@ -1,15 +1,14 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import { Client } from 'pg';
 
 import { createWebApp } from '../../src/app/web/create-app.ts';
 import { startWebServer } from '../../src/app/web/server.ts';
 import { createDatabase } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import { readPublicFeed } from '../../src/public-feed/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 
 const presentation = Object.freeze({
   name: 'Public Feed HTTP',
@@ -18,10 +17,12 @@ const presentation = Object.freeze({
   accentColor: '#2A4B6C',
   presentationTimezone: 'America/Chicago',
 });
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('serves discovery through the production PostgreSQL reader and HTTP stack', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const client = new Client({ connectionString: databaseUrl });
     const database = createDatabase({ connectionString: databaseUrl });
     await client.connect();

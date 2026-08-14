@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import { createEditorialAdministrationService } from '../../src/admin/editorial-administration.ts';
 import { createWebApp } from '../../src/app/web/create-app.ts';
@@ -15,12 +15,15 @@ import {
   createRelevanceRule,
 } from '../../src/collection/relevance/repository.ts';
 import { createDatabase } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   insertSource,
   insertSourceEndpoint,
 } from '../../src/sources/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
+
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('Relevance-rule admin API exposes the bounded rule model and mutations', async () => {
   await withRuleAdmin(async ({ baseUrl, database }) => {
@@ -384,8 +387,7 @@ async function withRuleAdmin(
     baseUrl: string;
   }) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     const routes = registerEditorialAdministrationRoutes(
       createEditorialAdministrationService(database),

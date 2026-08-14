@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import {
   collectEndpoint,
@@ -16,7 +16,6 @@ import { RssAtomParser } from '../../src/collection/parsers/rss-atom-parser.ts';
 import { normalizeArticleCandidate } from '../../src/collection/normalization/normalizer.ts';
 import { evaluateRelevance } from '../../src/collection/relevance/evaluator.ts';
 import { createDatabase, type Database } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   bootstrapPublicationTree,
   parseBootstrapDocument,
@@ -25,11 +24,14 @@ import {
   findEndpointConfigurationByKeys,
   type EndpointConfigurationAggregate,
 } from '../../src/sources/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
+
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('canonical collection coordinates real endpoint locks, aggregate loading, and truthful runs', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const actorA = createDatabase({ connectionString: databaseUrl });
     const actorB = createDatabase({ connectionString: databaseUrl });
     const releaseOwner = deferred<void>();

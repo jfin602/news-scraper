@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import { createDatabase } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   bootstrapPublicationTree,
   parseBootstrapDocument,
@@ -13,12 +12,15 @@ import {
   findSourceEndpointBySourceAndConfigKey,
   updateEndpointRuntimeState,
 } from '../../src/sources/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 
 const fixtureUrl = new URL(
   '../fixtures/generic-bootstrap.json',
   import.meta.url,
 );
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('persists endpoint runtime state without bootstrap or configuration overwrite', async () => {
   await withMigratedDatabase(async (database) => {
@@ -172,8 +174,7 @@ test('rejects unsafe endpoint validators and negative runtime counters in reposi
 async function withMigratedDatabase(
   work: (database: ReturnType<typeof createDatabase>) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       await work(database);

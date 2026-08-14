@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import {
   persistExcludedArticleObservation,
@@ -41,7 +41,6 @@ import {
   type FinalizeCollectionRunInput,
 } from '../../src/collection/runs/repository.ts';
 import { createDatabase, type Database } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import { insertPublicationSettings } from '../../src/publication/repository.ts';
 import {
   findEndpointConfigurationByKeys,
@@ -49,14 +48,16 @@ import {
   insertSourceEndpoint,
   type EndpointConfigurationAggregate,
 } from '../../src/sources/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 
 const FIRST_OBSERVATION = new Date('2026-08-10T12:00:00.000Z');
 const SECOND_OBSERVATION = new Date('2026-08-10T13:00:00.000Z');
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('canonical collection persists idempotent Articles and isolated outcomes with real PostgreSQL', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       const configuration = await createConfiguration(database);
@@ -244,8 +245,7 @@ test('canonical collection persists idempotent Articles and isolated outcomes wi
 });
 
 test('included Article processing commits duplicate effects atomically and accounts them independently', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       const firstConfiguration = await createConfiguration(database);
@@ -372,8 +372,7 @@ test('included Article processing commits duplicate effects atomically and accou
 });
 
 test('duplicate failure rolls back the current Article and observation transaction', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       const firstConfiguration = await createConfiguration(database);
@@ -455,8 +454,7 @@ test('duplicate failure rolls back the current Article and observation transacti
 });
 
 test('Source admission persists filtered run accounting without Article observations or historical mutation', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       const configuration = await createConfiguration(database, ['admit']);
@@ -543,8 +541,7 @@ test('Source admission persists filtered run accounting without Article observat
 });
 
 test('persisted Relevance configuration drives durable prospective collection outcomes', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       const configuration = await createConfiguration(database);

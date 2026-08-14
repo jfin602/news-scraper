@@ -2,10 +2,9 @@ import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { readFile } from 'node:fs/promises';
 import { promisify } from 'node:util';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import { createDatabase, type Database } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import { ConfigurationValidationError } from '../../src/publication/configuration.ts';
 import {
   insertPublicationSettings,
@@ -18,13 +17,16 @@ import {
 } from '../../src/sources/repository.ts';
 import { parseBootstrapDocument } from '../../src/publication/bootstrap.ts';
 import { bootstrapPublicationTree } from '../../src/publication/bootstrap.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 
 const execFileAsync = promisify(execFile);
 const fixtureUrl = new URL(
   '../fixtures/generic-bootstrap.json',
   import.meta.url,
 );
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('setPublicationPublicStatus updates singleton settings and preserves Source configuration', async () => {
   await withMigratedDatabase(async (database) => {
@@ -121,8 +123,7 @@ test('setPublicationPublicStatus rejects invalid states and reports absent setti
 });
 
 test('publication:set-public-status changes both canonical states through the actual command', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const document = parseBootstrapDocument(await readFile(fixtureUrl, 'utf8'));
     const database = createDatabase({ connectionString: databaseUrl });
     try {
@@ -166,8 +167,7 @@ test('publication:set-public-status rejects invalid input and does not leak data
     /Usage: set-publication-public-status\.ts/u,
   );
 
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const invalidStatus = await runCommandFailure(databaseUrl, 'published');
     assert.match(invalidStatus.stderr, /Invalid publication public status\./u);
     const missingPublication = await runCommandFailure(databaseUrl, 'public');
@@ -238,8 +238,7 @@ function runNpmCommand(databaseUrl: string | undefined, arguments_: string[]) {
 async function withMigratedDatabase(
   work: (database: Database) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       await work(database);

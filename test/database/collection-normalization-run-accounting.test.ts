@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import { applyArticleLinkPolicy } from '../../src/collection/article-links/policy.ts';
 import type { ArticlePersistenceResult } from '../../src/articles/repository.ts';
@@ -17,18 +17,20 @@ import { evaluateRelevance } from '../../src/collection/relevance/evaluator.ts';
 import type { FeedParser } from '../../src/collection/parsers/parser.ts';
 import { findCollectionRunById } from '../../src/collection/runs/repository.ts';
 import { createDatabase } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import { insertPublicationSettings } from '../../src/publication/repository.ts';
 import {
   findEndpointConfigurationByKeys,
   insertSource,
   insertSourceEndpoint,
 } from '../../src/sources/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
+
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('canonical normalization persists truthful accounting and real run provenance', async () => {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       const configuration = await createConfiguration(database);

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import { Client, type QueryResult, type QueryResultRow } from 'pg';
 
@@ -9,12 +9,15 @@ import {
   type Database,
   type QueryExecutor,
 } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   PublicFeedRepositoryError,
   readPublicFeed,
 } from '../../src/public-feed/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
+
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 type PublicFeed = NonNullable<Awaited<ReturnType<typeof readPublicFeed>>>;
 type ApprovalState = 'approved' | 'unapproved';
@@ -525,8 +528,7 @@ test('readPublicFeed rejects malformed result rows and database failures through
 async function withPublicFeedDatabase(
   work: (context: PublicFeedDatabaseContext) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const client = new Client({ connectionString: databaseUrl });
     const database = createDatabase({ connectionString: databaseUrl });
     try {

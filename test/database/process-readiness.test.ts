@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
-import { describe, it } from 'node:test';
+import { after, describe, it } from 'node:test';
 
-import { migrateDatabase } from '../../src/database/migrations.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 import { withDisposableDatabase } from '../support/database/disposable-database.ts';
 import {
   cleanupChild,
@@ -13,11 +13,13 @@ import {
   waitForJsonEvent,
 } from '../support/process.ts';
 
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
+
 describe('real process database readiness', () => {
   it('starts and stops Web and Worker against a current database', async () => {
-    await withDisposableDatabase(async ({ databaseUrl }) => {
-      await migrateDatabase({ connectionString: databaseUrl });
-
+    await databaseTestScope.use(async ({ databaseUrl }) => {
       const web = spawnDatabaseRole('web', databaseUrl);
       const worker = spawnDatabaseRole('worker', databaseUrl);
       try {
@@ -127,8 +129,7 @@ describe('real process database readiness', () => {
   });
 
   it('stops the active Worker runtime cleanly on SIGINT', async () => {
-    await withDisposableDatabase(async ({ databaseUrl }) => {
-      await migrateDatabase({ connectionString: databaseUrl });
+    await databaseTestScope.use(async ({ databaseUrl }) => {
       const worker = spawnDatabaseRole('worker', databaseUrl);
       try {
         assert.deepEqual(

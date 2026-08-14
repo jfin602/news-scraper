@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import { executeEndpointCollection } from '../../src/collection/endpoint-collection-service.ts';
 import { createRelevanceRule } from '../../src/collection/relevance/repository.ts';
@@ -14,7 +14,6 @@ import {
   startCollectionRun,
 } from '../../src/collection/runs/repository.ts';
 import { createDatabase, type Database } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   executeClaimedEndpointCollectionJob,
   reconcileExpiredEndpointCollectionJob,
@@ -37,12 +36,15 @@ import {
   updateEndpointRuntimeState,
   type PersistedSourceEndpoint,
 } from '../../src/sources/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 
 const fixtureUrl = new URL(
   '../fixtures/generic-bootstrap.json',
   import.meta.url,
 );
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 const TEST_CLOCK = Date.now();
 const T1000 = new Date(TEST_CLOCK);
 const T1001 = new Date(TEST_CLOCK + 60_000);
@@ -811,8 +813,7 @@ async function withEndpoint(
     endpoint: PersistedSourceEndpoint,
   ) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       const document = parseBootstrapDocument(

@@ -91,7 +91,7 @@ describe('package command environment contract', () => {
       'test:integration': 4,
       'test:collection': 4,
       'test:browser': 2,
-      'test:db': 1,
+      'test:db': 2,
       'test:db:focused': 1,
       'test:live-sources': 1,
     };
