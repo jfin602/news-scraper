@@ -3,50 +3,65 @@
 ## Canonical terminology
 
 ### Platform
+
 The reusable software system that hosts collection, normalization, identity resolution, deduplication, administration, and public-feed capabilities.
 
 ### Publication
-The one configured news product for a deployed installation. Publication owns topic-specific editorial configuration such as name, collection/public state, branding, timezone/presentation settings, Categories, Relevance rules, Sources, Source priority, and public-feed settings.
+
+The one configured news product for a deployed installation. Publication owns topic-specific editorial configuration such as name, collection/public state, branding, optional presentation timezone, Categories, Relevance rules, Sources, Source priority, and public-feed settings.
 
 A supported installation has exactly one Publication configuration. Publication is an editorial/configuration boundary, **not** a tenancy or relational ownership key.
 
 ### Source
+
 A configured publisher or outlet in the installation. Approval state determines whether the Platform trusts/collects it. A Source owns one or more Source endpoints, defines public Source identity for accepted Articles, and may own optional topic-independent collection configuration such as the Source RSS/Atom item admission filter.
 
 ### Source endpoint
+
 A configured machine-readable feed, API URL, or HTML listing page belonging to a Source. Approval, lifecycle/operational state, polling state, HTTP cache metadata, parser settings, and derived health are endpoint-level concerns.
 
 ### Collection run
+
 One attempt to collect one Source endpoint. It records timing, transport/stage status, processing outcomes/effects where those stages exist, and bounded error information.
 
 ### Raw item
+
 Minimally interpreted parser output. Raw items are untrusted and retained only as needed for diagnostics/reprocessing.
 
 ### Article candidate
+
 A normalized but not yet accepted record produced from a Raw item. Safety, Relevance, identity, and duplicate decisions operate on candidates.
 
 ### Article
+
 A persisted normalized Source instance representing one discovered Article URL or reliable Source-provided item identity.
 
 ### Article observation
+
 A provenance record linking an Article or candidate outcome to the Source endpoint and Collection run that observed it. Observations preserve run/endpoint history without duplicating the logical Article.
 
 ### Duplicate review candidate
+
 A persisted possible true-duplicate relationship that requires or records a deterministic automatic/manual decision. It stores compared Articles, signals, confidence/reason, and disposition so dismissed pairs do not recur indefinitely.
 
 ### Duplicate group
+
 A set of separately stored Article instances determined to represent the same underlying published item.
 
 ### Primary article
+
 The one Article selected to represent a Duplicate group in public output.
 
 ### Related coverage
+
 Distinct reporting about the same event or subject. Related coverage is not a true duplicate and remains separately visible.
 
 ### Category
+
 An installation-wide editorial grouping owned by the singleton Publication configuration. Each persisted Category has an immutable installation-wide `config_key` so configuration, rule targets, and reasons do not depend on mutable display labels or database-generated identifiers.
 
 ### Relevance rule
+
 An installation-wide deterministic rule used to include, exclude, or categorize candidates, optionally scoped to one Source. Each persisted rule has an immutable installation-wide `config_key`. MVP uses a deliberately bounded literal predicate vocabulary rather than a generic expression, fuzzy, regex, semantic, or ranking engine.
 
 ## Relationship boundaries
@@ -66,19 +81,23 @@ Do not introduce Publication UUIDs, slugs, foreign keys, composite uniqueness sc
 Approval/trust, configuration lifecycle, operational state, public visibility, moderation, and derived health are separate concepts.
 
 ### Publication configuration
+
 Required concepts:
+
 - `active_for_collection`: whether eligible Sources may be scheduled/fetched;
 - `public_status`: whether the public feed is exposed;
 - required Publication name;
-- Phase 13 public presentation configuration;
-- later administrator-managed feed/timezone/presentation configuration.
+- optional Phase 13 public presentation configuration: `description`, `logo_path`, and `accent_color`;
+- optional `presentation_timezone` administrator configuration in Phase 15.
 
 The singleton Publication may collect while its public feed is not exposed. Public feed reads require `public_status = public`; `active_for_collection` is a collection-state control and does not independently expose or suppress already-persisted feed rows.
 
 The persisted representation MUST enforce singleton semantics. It does not expose a dynamic Publication identifier or slug to other domain records merely for scoping.
 
 ### Source
+
 Required concepts:
+
 - approval/trust state: `approved` or `unapproved`;
 - lifecycle state: `active` or `archived`;
 - operational state while active: `enabled`, `paused`, or `disabled`;
@@ -89,7 +108,9 @@ Required concepts:
 Approval authorizes trust. Lifecycle controls whether configuration is current/retired. Operational state controls whether active approved configuration currently runs.
 
 ### Source endpoint
+
 Required concepts:
+
 - approval/trust state: `approved` or `unapproved`;
 - lifecycle state: `active` or `archived`;
 - operational state while active: `enabled`, `paused`, or `disabled`;
@@ -104,11 +125,13 @@ Archival makes Source/endpoint configuration non-collectable regardless of retai
 These are orthogonal.
 
 Visibility/moderation state:
+
 - `visible`;
 - `hidden`;
 - `archived`.
 
 Duplicate role:
+
 - `ungrouped`;
 - `primary` member of a Duplicate group;
 - `non_primary` member of a Duplicate group.
@@ -131,7 +154,7 @@ One persisted Publication/settings record contains only the fields actually used
 - `active_for_collection`;
 - `public_status`;
 - Phase 13 optional `description`, `logo_path`, and `accent_color` public-presentation values;
-- when Phase 15 is implemented, default presentation timezone/date settings and any additional administrator-managed branding/feed/presentation configuration;
+- optional Phase 15 `presentation_timezone` configuration;
 - created/updated timestamps where useful.
 
 Phase 13 public-presentation field semantics are deliberately small and topic independent:
@@ -143,6 +166,8 @@ Phase 13 public-presentation field semantics are deliberately small and topic in
 - these values are public presentation configuration once exposed through the canonical feed read model, but they do not create another public routing/scoping identity.
 
 Phase 13 established those values through the existing explicit operator/bootstrap configuration mechanisms needed before full admin UX. Phase 15 adds the protected administrator editing surface; ordinary bootstrap no-overwrite behavior remains unchanged.
+
+`presentation_timezone` is optional and, when configured, MUST be a valid IANA time-zone identifier. Its absence preserves the UTC calendar-date fallback. It changes presentation/calendar-date interpretation only: it MUST NOT rewrite persisted timestamps, change canonical feed ordering, create locale or arbitrary date/time-format configuration, or become Publication routing or tenancy identity.
 
 The concrete table name is an implementation detail. The schema MUST enforce singleton semantics and MUST NOT require a Publication UUID or slug for relational scoping.
 
@@ -180,6 +205,7 @@ The optional Source RSS/Atom item admission filter is Source configuration, not 
 - optional default Category reference.
 
 Configuration inheritance:
+
 - Source approved domains define the maximum permitted destination boundary;
 - Source RSS/Atom item admission phrases apply consistently to supported RSS/Atom endpoints owned by that Source; endpoint configuration does not override them;
 - endpoint redirect/Article-domain configuration may only narrow the Source boundary unless Source policy itself is explicitly expanded/approved;
@@ -278,9 +304,11 @@ A Raw item rejected by the Source RSS/Atom item admission filter is not a candid
 
 ### `categories` and `article_categories`
 
-Categories are installation-wide Publication configuration. Each Category has an immutable installation-wide `config_key`, a mutable/display label, and any later presentation metadata introduced by the phase that uses it. Articles may have multiple Categories; the singleton Publication may define a preferred display Category.
+Categories are installation-wide Publication configuration. Each Category has an immutable installation-wide `config_key`, a mutable bounded display label, and any later presentation metadata introduced by the phase that uses it. Articles may have multiple Categories; the singleton Publication may define a preferred display Category. Phase 15 supports Category creation, read, and update; it does not invent a Category archive/lifecycle state.
 
 Article/Category membership is unique per Article + Category. A Category referenced by a Relevance rule or Source/endpoint default MUST exist in the same installation. No Publication foreign key is required because another Publication cannot exist in the same supported installation.
+
+Physical Category removal is permitted only when transactionally shown to be unreferenced. Removal MUST be atomically rejected while any retained relationship requires the Category, including a `categorize` rule target, Source or endpoint default, current Article/Category membership, or retained observation/category-reason provenance. A removal path MUST NOT silently null, cascade away, or rewrite retained Article, provenance, or editorial relationships; operators first explicitly clear or change removable configuration references. Article moderation/manual recategorization remains Phase 17.
 
 For ordinary Phase 11 candidate processing, Category assignment is determined as follows:
 
@@ -313,6 +341,7 @@ MVP predicate semantics are intentionally narrow and deterministic:
 - missing candidate fields do not match rather than being coerced to empty strings with special meaning.
 
 Deterministic MVP include/exclude procedure:
+
 1. Collect applicable enabled matching include/exclude rules.
 2. Highest explicit priority wins.
 3. At equal priority, Source-scoped rule wins over installation-wide rule.
@@ -327,6 +356,8 @@ Applied categorize-rule reasons are ordered by priority descending, Source-scope
 Before configurable Relevance-rule persistence exists, the canonical Relevance boundary still executes with an empty rule set. Safe normalized candidates receive deterministic default `include` rather than bypassing Relevance evaluation.
 
 MVP Relevance-rule edits are prospective by default. They affect future candidate processing and MUST NOT cause automatic bulk retroactive re-evaluation of previously persisted Articles. Because Relevance precedes Article identity, a newly excluded future observation terminates before Article identity and MUST NOT look up an earlier Article merely to hide, delete, or recategorize it. A previously persisted Article remains in its prior persisted state unless an explicit moderation or dedicated future reprocessing capability changes it. A later included observation may apply then-current Category assignment through the ordinary candidate pipeline; that normal observation is not a bulk historical scan.
+
+Phase 15 administrator mutation exposes only this bounded model. A Source scope, when set, MUST reference a real Source. A `categorize` action MUST reference a real Category; `include` and `exclude` MUST NOT carry a Category target. Multi-resource changes validate relationships transactionally and roll back invalid combinations. Enabled/disabled is the ordinary non-destructive rule operation; no archive state is implied. Physical rule removal, if exposed, is permitted only when retained relationships, reasons, and provenance permit it. If retained history references the rule, removal MUST be rejected rather than cascading or rewriting history.
 
 Generic `boost`/ranking behavior is deferred until a ranking/scoring contract exists.
 
@@ -410,7 +441,7 @@ The public headline destination is `articles.original_url`; `canonical_identity_
 - Public feed uses trusted `published_at`; otherwise `first_seen_at` with detectable fallback metadata.
 - Persist UTC; render according to singleton Publication presentation rules when implemented.
 
-Through Phase 13, no Publication presentation timezone is configured, so the canonical public calendar-date presentation remains the deterministic UTC fallback. Phase 15 may introduce an explicit singleton Publication timezone/date setting and corresponding administrator control; that later change must be deliberate and must not reinterpret stored timestamps.
+Through Phase 13, no Publication presentation timezone is configured, so the canonical public calendar-date presentation remains the deterministic UTC fallback. Phase 15 may introduce only the optional singleton `presentation_timezone` setting and corresponding administrator control: it must be a valid IANA identifier, retains UTC when absent, changes calendar-date presentation only, and must not reinterpret stored timestamps or canonical feed ordering.
 
 Phase 6 may parse Source publication/update values into UTC and attach confidence/reason/fallback metadata, but it does not create persistence observation times. Missing or invalid Source publication dates remain distinguishable, and normalization MUST NOT substitute a Collection-run timestamp as `published_at`. Article/observation persistence establishes `first_seen_at`/`last_seen_at` from actual Platform observations.
 

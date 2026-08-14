@@ -87,7 +87,7 @@ A lightweight same-origin client that fetches `GET /api/feed` is a valid impleme
 
 The obsolete pre-production route `GET /publications/:publicationSlug` is not a supported public product surface. The Phase 10 entry correction removes that implementation path rather than preserving a compatibility alias without an explicit requirement.
 
-Publication presentation timezone/settings are not persisted yet. Phase 13 does not introduce configurable timezone behavior: through Phase 13 the public UI MUST continue to render the calendar date from `effectiveFeedDate` in UTC so the same feed item does not shift dates according to the viewer/test machine timezone. Phase 15 may deliberately replace this fallback with singleton Publication-configured timezone/date rendering as part of Publication/feed administration.
+Publication presentation timezone is not persisted yet. Phase 13 does not introduce configurable timezone behavior: through Phase 13 the public UI MUST continue to render the calendar date from `effectiveFeedDate` in UTC so the same feed item does not shift dates according to the viewer/test machine timezone. Phase 15 may add only optional singleton `presentation_timezone` rendering: a valid IANA identifier changes calendar-date presentation only, and absence preserves UTC. It does not rewrite stored timestamps, change canonical feed ordering, create routing/tenancy identity, or introduce locale, arbitrary date-template, time-format, or general formatting configuration.
 
 Phase 12 adds the discovery controls and navigation behavior defined below while preserving this same page/read-model boundary. Final accessibility/responsive polish, completed light/dark theming, duplicate moderation, and admin UI remain later work.
 
@@ -110,8 +110,8 @@ Pinning/featured-story ordering is deferred beyond MVP. MVP chronological orderi
 
 The default desktop presentation MUST support the customer's core three-column concept:
 
-| Date | Headline | Source |
-|---|---|---|
+| Date         | Headline                 | Source      |
+| ------------ | ------------------------ | ----------- |
 | Aug. 6, 2026 | Linked original headline | Source name |
 
 Requirements:
@@ -314,6 +314,16 @@ Once the Source-administration phase is complete, authorized operators MUST be a
 The Source editor/API presents the admission filter as an include-only Source setting: no configured phrases means collect/process all otherwise-valid RSS/Atom items, while one or more bounded non-empty phrases admit an item when any phrase matches. It MUST NOT expose an exclude-phrase list or an independent enabled toggle, and MUST NOT store the configuration on individual endpoints. This is collection admission before normalization, not public-feed filtering or Phase 11 Relevance management.
 
 Physical deletion is not generic CRUD behavior when retained provenance depends on the Source/endpoint. An endpoint with no retained dependent history MAY be physically removed if the implementation supports removal. Once Collection runs, observations, or other retained provenance depend on an endpoint, an operator-facing remove action MUST preserve the record through archive/retirement semantics rather than destroying referenced provenance. Restoring archived Source/endpoint configuration continues to obey the ordinary approval, lifecycle, operational, and collectability laws and MUST NOT implicitly resume collection.
+
+## Phase 15 Publication, Category, and Relevance administration
+
+Authorized administrators can manage the singleton Publication `name`, `active_for_collection`, `public_status`, existing optional `description`, `logo_path`, and `accent_color` values, and optional valid-IANA `presentation_timezone`. Existing Phase 13 bounds remain in force. Absent timezone preserves UTC calendar-date presentation; a configured timezone changes presentation only, not timestamps, canonical ordering, routing, or tenancy.
+
+Administrators can create, read, and update Categories with immutable installation-wide `config_key` and mutable bounded display labels. No Category archive state is introduced. Physical removal is allowed only when unreferenced; commands reject removal atomically while a rule target, Source/endpoint default, Article membership, retained category reason, or other retained relationship requires it. They never null, cascade, or rewrite retained Article/provenance/editorial relationships to make deletion succeed.
+
+Administrators can manage the existing Relevance rules with immutable installation-wide `config_key`, optional real-Source scope, the existing literal predicate vocabulary, action, pattern, priority, enabled state, explanatory label/reason, and a Category target only for `categorize`. `include` and `exclude` have no Category target. Existing deterministic precedence, categorization/default fallback, and prospective-only behavior remain unchanged. Enable/disable is the ordinary non-destructive operation; destructive removal must preserve retained reason/provenance history and is rejected when it cannot. All multi-resource mutations validate relationships transactionally and roll back invalid combinations.
+
+Phase 15 integrates the managed Category set with existing Source/endpoint default-Category controls: endpoint default overrides Source default, and defaults apply only when no categorize rule assigns a Category. Source priority and Source/endpoint administration remain Phase 14-owned. Phase 15 does not add Article or duplicate moderation, a Publication switcher, tenant scope, native accounts/sessions/roles, or Level 8 Cloudflare deployment-observation work; that observation remains Phase 19.
 
 ## Article management UI
 

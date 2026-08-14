@@ -60,7 +60,7 @@ That operator path is distinct from ordinary Source/endpoint bootstrap semantics
 - it MUST NOT weaken ordinary bootstrap's create-if-absent/no-overwrite guarantee for existing Publication/Source/endpoint configuration;
 - it MUST NOT perform automatic bulk historical Article reprocessing as a side effect of a rule edit.
 
-Phase 15 may later expose the same governed configuration through the Cloudflare-protected admin control plane without creating a second rule model.
+Phase 15 exposes the same governed Category and Relevance configuration through the Cloudflare-protected admin control plane without creating a second rule model. It manages the valid Category set used by the existing Source/endpoint default-Category selectors; it does not duplicate Phase 14 Source administration or Source-priority controls.
 
 ## Approved-domain policy
 

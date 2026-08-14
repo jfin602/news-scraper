@@ -697,13 +697,13 @@ Turn the working feed into a polished customer-facing publication experience wit
 - Phase 13 was presentation polish plus the smallest Publication presentation persistence/public-read support required by that polish. It did not create a parallel feed query, routing surface, ranking model, or reader account/session system.
 - The canonical `/api/feed` eligibility/order/search/filter/keyset semantics and root URL/history/reset/load-more behavior from Phase 12 remain unchanged. Presentation/markup changes must preserve the relevant Phase 12 API, database, and browser regression coverage.
 - Phase 13 introduced/used the minimum public branding data, but Phase 15 owns the Cloudflare-protected administrator editing surface for those values.
-- Configurable presentation timezone/date behavior remains deferred to Phase 15; Phase 13 preserves the established UTC calendar-date fallback.
+- Optional `presentation_timezone` remains deferred to Phase 15; Phase 13 preserves the established UTC calendar-date fallback.
 - Earlier compliant presentation changes already integrated from the parallel `ui-polish` workstream may satisfy portions of this phase and should be credited after final-tree assessment rather than rebuilt automatically.
 
 ### Out of scope
 
 - admin UX or branding-setting administration;
-- configurable presentation timezone/date settings;
+- optional `presentation_timezone` configuration;
 - duplicate moderation;
 - Article-body republishing;
 - featured ordering;
@@ -721,7 +721,7 @@ Turn the working feed into a polished customer-facing publication experience wit
 
 ## Phase 14 — Source administration
 
-**Status:** Current roadmap phase.
+**Status:** Complete by explicit repository-owner acceptance on August 14, 2026.
 
 ### Goal
 
@@ -774,7 +774,7 @@ Replace bootstrap/manual Source configuration with a practical control surface i
 - Filter changes are prospective and do not rewrite historical Articles, observations, or Collection runs.
 - The filter does not bypass approval/lifecycle/operational eligibility, endpoint locking, network/redirect/fetch/parser safety, admitted-candidate Article-link validation, scheduling, jobs, or provenance.
 - Existing Phase 11 predicates and deterministic precedence/category behavior remain unchanged.
-- Phase 14 closeout proves the application-side admin, request-integrity, resource-boundary, persistence, job, collection-fixture, and browser behavior at the applicable local evidence levels. It does not claim that a deployed Cloudflare Access perimeter or direct-origin block was observed.
+- Phase 14's recorded application-side admin, request-integrity, resource-boundary, persistence, job, collection-fixture, and browser evidence remains historical evidence of its original BLOCKED/RED closeout determination. Its sole blocker was the then-required but unavailable Level 8 Cloudflare Access/direct-origin deployment observation. That observation is now a blocking Phase 19 responsibility; owner acceptance advanced Phase 14 without rewriting the artifact or claiming deployed-perimeter proof.
 
 ### Exit gate
 
@@ -783,13 +783,15 @@ Replace bootstrap/manual Source configuration with a practical control surface i
 - Deterministic tests prove bounded literal any-match behavior across supported parsed fields, missing/empty/invalid configuration, all-items-filtered accounting, separation from normalization/Relevance/identity/observations, and prospective non-retroactive edits.
 - Admin actions cannot bypass state, real resource relationships, locking, or network safety.
 - Request-integrity/resource-boundary regressions pass.
-- Phase 14 closeout does not require Level 8 Cloudflare Access/direct-origin observation; that deployment proof is a blocking Phase 19 exit requirement before production readiness.
+- The unobserved Level 8 Cloudflare Access/direct-origin proof is a blocking Phase 19 exit requirement before production readiness; it was not observed or retrospectively made green for Phase 14.
 
 ## Phase 15 — Publication and Relevance administration
 
+**Status:** Current roadmap phase.
+
 ### Goal
 
-Expose the installation's singleton Publication/editorial configuration through the Cloudflare-protected control plane.
+Expose the installation's singleton Publication/editorial configuration, Categories, and the bounded existing Relevance model through the Cloudflare-protected control plane.
 
 ### Depends on
 
@@ -797,14 +799,14 @@ Expose the installation's singleton Publication/editorial configuration through 
 
 ### Deliverables
 
-- singleton Publication name/settings;
-- collection/public controls;
-- branding/feed configuration, including editing the public presentation values introduced in Phase 13;
-- configurable Publication presentation timezone/date settings replacing the earlier UTC-only fallback when explicitly configured;
-- Category management;
-- Relevance-rule management;
-- Source priority/default Category controls;
-- deterministic rule-precedence explanation/validation.
+- singleton Publication `name`, `active_for_collection`, `public_status`, and the existing optional `description`, `logo_path`, and `accent_color` presentation values, preserving their established bounds and ordinary bootstrap no-overwrite behavior;
+- one optional `presentation_timezone`: a valid IANA time-zone identifier that changes calendar-date presentation only; absent configuration preserves UTC, and edits do not rewrite stored timestamps, feed ordering, routing, or tenancy identity;
+- Category create/read/update with immutable installation-wide `config_key`, mutable bounded display label, transactional relationship validation, and physical removal only when genuinely unreferenced without nulling, cascading, or rewriting retained configuration, Article membership, or provenance;
+- management of the existing bounded Relevance model: immutable installation-wide `config_key`; optional real-Source scope; only `title_contains`, `summary_contains`, and `source_category_equals` literal predicates; action, literal pattern, priority, enabled state, explanatory label/reason, and a real Category target only for `categorize`;
+- preserved include/exclude/categorize semantics, deterministic precedence, additive categorization, endpoint-default then Source-default fallback, prospective edits, and no automatic bulk historical reprocessing;
+- enable/disable as the ordinary non-destructive rule operation, with physical rule removal only when retained reasons/provenance permit it and never through cascade/history rewrite;
+- Category-set integration for the existing Phase 14 Source/endpoint default-Category selectors; Source priority and Source administration remain Phase 14-owned;
+- deterministic rule-precedence explanation and validation.
 
 ### Out of scope
 
@@ -818,8 +820,11 @@ Expose the installation's singleton Publication/editorial configuration through 
 
 ### Exit gate
 
-- Authorized operator configures branding/Categories/Relevance without code changes.
-- Admin browser/API validation preserves real resource relationships and request-integrity boundaries.
+- Authorized operator configures the governed Publication settings, Categories, and existing Relevance rules without code changes.
+- Admin browser/API/database validation preserves request integrity, real resource relationships, rollback, retained Article/provenance integrity, and Source/endpoint default-Category behavior.
+- Presentation-timezone validation proves invalid IANA identifiers are rejected, absence retains UTC, and configured calendar-date rendering does not change persisted timestamps or canonical feed ordering.
+- Relevance validation proves the established literal vocabulary, action/target compatibility, Source/Category relationships, prospective behavior, and deterministic precedence/default semantics remain unchanged.
+- Phase 15 closeout does not require Level 8 Cloudflare Access/direct-origin deployment observation; Phase 19 remains responsible for that proof.
 - A separately deployed unrelated Publication remains generic and requires no aggregation-engine topic changes.
 
 ## Phase 16 — True duplicate detection and grouping

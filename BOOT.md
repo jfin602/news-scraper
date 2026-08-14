@@ -14,7 +14,7 @@ It establishes project identity, canonical terminology, authority, document rout
 - Deployment cardinality: exactly one Publication/topic per deployed installation
 - Topic reuse model: configure and deploy another installation of the same shared codebase; do not concurrently host multiple topic Publications in one installation
 - Publication data-model role: singleton editorial/configuration state, **not** a relational tenant/ownership key
-- Current phase: **Phase 14 — Source administration**
+- Current phase: **Phase 15 — Publication and Relevance administration**
 - Production status: pre-production
 - Pre-production database policy: destructive fresh rebuild from the repository's smallest current canonical migration chain and bootstrap/configuration; databases from older source trees are disposable and legacy-only migration/runtime/test/config structure is removed rather than preserved for compatibility
 - Initial Publication: publishing-industry news relevant to indie authors
@@ -34,7 +34,9 @@ Phase 12 — Feed discovery features — is complete with durable validation in 
 
 Phase 13 — Public presentation polish — is complete with durable validation in `docs/validation/phase-13-public-presentation-polish.md`. Minimum singleton Publication public-presentation/branding support, polished responsive desktop/mobile presentation, system/light/dark modes, accessibility behavior, intentional pending/loading presentation including resolved issue R7KM, and preserved Phase 12 discovery semantics now form the integrated public-presentation baseline.
 
-Phase 14 is the current implementation phase. It owns the Cloudflare Access-protected Source/endpoint administration surface and the optional topic-independent Source RSS/Atom item admission filter defined by the governing contracts. The roadmap and governing contracts remain the authorities for its exact scope.
+Phase 14 — Source administration — is complete by explicit repository-owner acceptance on August 14, 2026. Its historical validation artifact remains truthful evidence of the recorded passing local/static/unit/integration/database/fixture/browser evidence and its original BLOCKED/RED determination: the then-required Level 8 Cloudflare Access/direct-origin deployment observation was unavailable. The governing roadmap and testing contract subsequently moved that observation to Phase 19; owner acceptance advanced the roadmap without rewriting the historical artifact or claiming Level 8 was observed.
+
+Phase 15 is the current implementation phase. It owns singleton Publication, Category, and Relevance administration; Phase 16 duplicate grouping and later work remain outside its scope unless explicitly required.
 
 The canonical architecture is one Publication/topic per installation, singleton Publication editorial configuration without relational tenancy, Source-scoped identity/provenance, persisted Relevance/Categories, canonical `/api/feed`, canonical root `/`, and durable endpoint scheduling/jobs. Historical validation artifacts remain evidence only for the exact SHAs and environments they recorded.
 
@@ -44,7 +46,7 @@ Phases 1–9 are the historical tech-demo critical path.
 
 The first demonstrable milestone is: at least two real approved RSS/Atom Sources are collected through the Worker, recorded in Collection runs, normalized, passed through the canonical default-include Relevance boundary, persisted idempotently with Article-observation provenance, and displayed in the public feed with original-publisher headline links.
 
-Phase 11 completed deterministic persisted Categories and configurable Relevance execution. Phase 12 completed deterministic Source/Category filters, bounded literal search, keyset/load-more cursors, and URL/reset navigation behavior. Phase 13 completed the governed public-presentation work while preserving those discovery semantics. Phase 14 now owns Source administration and the Source RSS/Atom item admission filter. Do not pull Phase 15 Publication/Relevance administration, Phase 16 duplicate grouping, or later work into Phase 14 unless a true dependency is demonstrated.
+Phase 11 completed deterministic persisted Categories and configurable Relevance execution. Phase 12 completed deterministic Source/Category filters, bounded literal search, keyset/load-more cursors, and URL/reset navigation behavior. Phase 13 completed the governed public-presentation work while preserving those discovery semantics. Phase 14 completed Source administration and the Source RSS/Atom item admission filter by owner acceptance on August 14, 2026, with the historical Level 8 deployment-proof limitation preserved and now governed by Phase 19. Do not pull Phase 16 duplicate grouping or later work into Phase 15 unless a true dependency is demonstrated.
 
 Because the project is pre-production, databases from superseded source trees remain disposable. Current implementation work may rebuild development/pre-production databases from the canonical migration chain rather than preserving unsupported old schema/data compatibility.
 
@@ -199,7 +201,7 @@ If a path does not exist, search for its current equivalent before assuming inte
 - Phase 12 keyword search is bounded deterministic case-insensitive literal filtering over safe normalized textual Article metadata; it does not introduce regex/fuzzy/semantic/ranking behavior or alter canonical chronological order.
 - Phase 12 pagination uses bounded server-defined pages and opaque/versioned keyset cursors tied to the canonical effective-date → `first_seen_at` → stable-Article-ID ordering tuple and normalized discovery criteria. Cursor/query mismatch is invalid; no public `limit` is introduced.
 - Phase 12 root-page URL state reflects `q`, `source`, and `category`; criteria changes reset pagination, Reset clears discovery state, and browser back/forward restores URL-reflected discovery state. Load-more cursor depth need not be canonical shareable URL state.
-- Until configurable Publication presentation timezone/date settings exist, the public UI renders the calendar date from `effectiveFeedDate` in UTC.
+- Until optional Publication `presentation_timezone` is configured, the public UI renders the calendar date from `effectiveFeedDate` in UTC; a configured valid IANA timezone changes calendar-date presentation only.
 - Absent singleton Publication configuration and non-public configuration remain indistinguishable on public page/API and use the same generic unavailable/not-found behavior.
 - Weak duplicate evidence persists as review state; unchanged dismissed evidence does not recur indefinitely.
 - Source runs/jobs fail independently and public-feed reads remain readable during collection failures.
@@ -222,9 +224,9 @@ If a path does not exist, search for its current equivalent before assuming inte
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 14 — Source administration**.
+Current phase: **Phase 15 — Publication and Relevance administration**.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration core, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend are complete with durable closeout validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with the recorded live-source limitation preserved. The Phase 10 entry singleton correction, Phase 10 Automated polling/durable jobs/endpoint health, Phase 11 Categories/configurable Relevance execution, Phase 12 Feed discovery features, and Phase 13 Public presentation polish are complete with durable validation.
+Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration core, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend are complete with durable closeout validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with the recorded live-source limitation preserved. The Phase 10 entry singleton correction, Phase 10 Automated polling/durable jobs/endpoint health, Phase 11 Categories/configurable Relevance execution, Phase 12 Feed discovery features, Phase 13 Public presentation polish, and Phase 14 Source administration are complete. Phase 14 was accepted on August 14, 2026 while preserving its historical BLOCKED/RED Level 8 Cloudflare Access/direct-origin deployment observation; that proof is now a Phase 19 responsibility.
 
 ### Tech-demo critical path
 
@@ -245,14 +247,14 @@ Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Databas
 - Phase 11 — Categories and configurable Relevance execution — complete with durable closeout validation.
 - Phase 12 — Feed discovery features — complete with durable closeout validation in `docs/validation/phase-12-feed-discovery-features.md`.
 - Phase 13 — Public presentation polish — complete with durable closeout validation in `docs/validation/phase-13-public-presentation-polish.md`.
+- Phase 14 — Source administration — complete by explicit repository-owner acceptance on August 14, 2026; its historical BLOCKED/RED Level 8 deployment-observation artifact remains unchanged, and Phase 19 owns that proof.
 
 ### Current implementation phase
 
-14. Phase 14 — Source administration
+15. Phase 15 — Publication and Relevance administration
 
 ### Remaining MVP order
 
-15. Phase 15 — Publication and Relevance administration
 16. Phase 16 — True duplicate detection and grouping
 17. Phase 17 — Article and duplicate moderation
 18. Phase 18 — Configurable HTML collection
@@ -272,7 +274,7 @@ Do not advance by assumption. Verify each phase/correction exit gate plus the in
 - Prefer smallest correct incremental change and simplest supported architecture over speculative future-proofing.
 - For pre-production canonicalization, prefer deletion over wrappers/aliases: remove legacy-only migrations, code, types, APIs, tests, fixtures, and configuration paths instead of preserving superseded behavior in the active tree.
 - Trace shared helpers/consumers before changes.
-- Before Phase 14 Source-administration changes trace Cloudflare Access/origin protection → request integrity → Source/endpoint configuration and lifecycle → Source-owned RSS/Atom admission phrases → real resource relationships/domain invariants → canonical job/manual execution → collection/run/health consumers → tests.
+- Before Phase 15 Publication/Category/Relevance-administration changes trace Cloudflare Access/origin protection → request integrity → singleton Publication settings and presentation timezone → Category/Source/endpoint references → Relevance rule integrity and precedence → prospective collection behavior → real resource relationships/domain invariants → admin API/UI → integration/database/browser tests.
 - Before collection changes trace singleton `active_for_collection` → Source/endpoint approval/lifecycle/operational state → durable job/scheduler/manual execution → capacity/lock → Collection run → network safety → fetch/redirect → parse → optional Source RSS/Atom item admission filter → normalize → Article-link validation → Relevance → Source-scoped identity → observation → run accounting → health → tests.
 - Before Article/duplicate changes trace external IDs/canonical URLs/uniqueness → observations → review candidates → groups → Primary → moderation → feed → tests.
 - Before admin changes trace Cloudflare Access perimeter → origin protection → request integrity → real resource relationships/domain invariants → mutation → change history → tests.
@@ -723,7 +725,7 @@ The prompt MUST identify `Workstream: UI`, require execution on `ui-polish`, pre
 
 `/ui-write` writes only the approved UI prompt. It does not run Codex, invoke `codex:phase`, implement source, modify project version, advance roadmap state, merge branches, or create/modify durable design guidance. If missing/contradictory design guidance is discovered during revalidation, return `Planning needed` and route through `/ui-review` → explicit approval → `/ui-apply` → rerun `/ui-plan`.
 
-The accepted Phase 13 public-presentation implementation is the integrated presentation baseline. Later presentation-only refinements may continue through this UI workflow, but roadmap-owned Phase 14 Source administration and its domain behavior must not be recast as generic parallel UI work.
+The accepted Phase 13 public-presentation implementation is the integrated presentation baseline. Later presentation-only refinements may continue through this UI workflow, but roadmap-owned administration and its domain behavior must not be recast as generic parallel UI work.
 
 # Review and validation commands
 

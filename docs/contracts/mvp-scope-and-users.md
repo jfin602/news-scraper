@@ -16,9 +16,11 @@ A deployed installation hosts exactly one Publication/topic. Topic independence 
 ## Primary users
 
 ### Public reader
+
 A reader wants to answer quickly: “What relevant stories were published recently, where did they come from, and where can I read the original?” No account is required in MVP. The reader enters the site at the deployment root `/`; there is no public Publication/topic selector.
 
 ### Publication administrator/operator
+
 An authorized operator controls:
 
 - singleton Publication name, branding, public state, and collection state;
@@ -33,11 +35,13 @@ An authorized operator controls:
 MVP administrative UI/API routes are protected by Cloudflare Access as defined by the accepted admin-perimeter ADR. The application does not provide native administrator accounts, passwords/passkeys, sessions, roles, account recovery, per-user Publication authorization, or canonical internal administrator identity in MVP.
 
 ### Operator/developer
+
 An operator needs telemetry to diagnose Source failures, parser changes, delayed collection, identity behavior, duplicate decisions, and failed jobs without manual database inspection.
 
 ## Required MVP capabilities
 
 ### Public feed
+
 MVP MUST provide:
 
 - a canonical public feed at the deployment root `/` for the installation's singleton Publication configuration;
@@ -58,6 +62,7 @@ MVP MUST provide:
 The earlier tech-demo milestone may expose the core `Date | Headline | Source` feed before search, filters, final responsive polish, theming, duplicate grouping, or admin UI are complete; the roadmap defines the exact staged boundary. The canonical backend is the database-backed singleton public read model/API with persisted Article visibility, Publication `public_status` and Source trust/lifecycle gates, and the canonical effective feed date (`published_at` with `first_seen_at` fallback). The canonical customer-visible page is `/` and no public Publication selector exists.
 
 ### Administration
+
 MVP MUST provide, after the tech-demo vertical slice:
 
 - Cloudflare Access-protected administrative UI/API routes with direct-origin bypass prevented by the supported deployment;
@@ -76,6 +81,7 @@ MVP MUST provide, after the tech-demo vertical slice:
 State-changing browser actions MUST use CSRF protection or an equivalent request-integrity control when introduced. Administrative commands MUST validate real resource relationships and domain invariants even though MVP has no per-user permission system.
 
 ### Collection engine
+
 MVP MUST provide:
 
 - RSS/Atom collection;
@@ -94,6 +100,7 @@ MVP MUST provide:
 Before configurable Relevance rules exist, safe normalized candidates use the canonical empty-rule/default-include decision rather than bypassing the Relevance boundary.
 
 ### HTML Source support
+
 Configurable HTML-listing extraction is an MVP capability only after structured-feed collection is stable. It uses the same adapter boundaries. Browser automation is a justified fallback only and not a default collector.
 
 ## Initial Publication configuration
@@ -114,7 +121,7 @@ Suggested initial Categories:
 
 These are not global Platform Categories. They are installation-specific configuration for the first deployment and are not shared-engine behavior. Bootstrap contains only configuration needed by implemented behavior; later branding/feed, Category, and Relevance data are introduced in the phases that use them.
 
-Phase 13 introduced the minimum persisted public presentation configuration needed by the customer-facing feed—Publication description, same-origin logo path, and accent color in addition to the existing name—and exposed those values through the canonical public-feed boundary. Phase 15 later adds Cloudflare-protected administrative editing for those settings and introduces configurable presentation timezone/date settings. Until then, the established UTC public-date fallback remains authoritative.
+Phase 13 introduced the minimum persisted public presentation configuration needed by the customer-facing feed—Publication description, same-origin logo path, and accent color in addition to the existing name—and exposed those values through the canonical public-feed boundary. Phase 15 adds Cloudflare-protected administrative editing for those settings and optional `presentation_timezone`: a valid IANA identifier that changes calendar-date presentation only. Until configured, the established UTC public-date fallback remains authoritative.
 
 Phase 14 adds optional Source-owned RSS/Atom item admission phrases and the protected Source-management surface needed to configure them without code or direct database editing. The first Publication's actual phrases are installation configuration, never shared Platform logic. Absence of the optional filter preserves the current collect-all behavior.
 

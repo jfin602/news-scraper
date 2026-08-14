@@ -8,7 +8,7 @@ Publication is the singleton editorial/configuration concept for the installed n
 
 ## Current project state
 
-Current phase: **Phase 14 — Source administration**.
+Current phase: **Phase 15 — Publication and Relevance administration**.
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation and closeout validation are complete. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; that accepted limitation is not rewritten as passing evidence.
 
@@ -22,7 +22,9 @@ Phase 12 — Feed discovery features — is complete with durable validation in 
 
 Phase 13 — Public presentation polish — is complete with durable validation in `docs/validation/phase-13-public-presentation-polish.md`. Minimum singleton Publication branding/read-model support, responsive desktop/mobile presentation, system/light/dark behavior, accessibility, intentional loading presentation, and preserved Phase 12 discovery semantics now form the integrated public baseline.
 
-Phase 14 — Source administration — is current. It owns the Cloudflare Access-protected Source/endpoint control surface and the optional topic-independent Source RSS/Atom item admission filter; implementation has not yet completed.
+Phase 14 — Source administration — is complete by explicit repository-owner acceptance on August 14, 2026. Its historical validation artifact retains its original BLOCKED/RED determination: the then-required Level 8 Cloudflare Access/direct-origin deployment observation was unavailable, despite the recorded local/static/unit/integration/database/fixture/browser evidence. The governing roadmap and testing contract moved that deployment proof to Phase 19; acceptance did not rewrite the artifact or claim Level 8 was observed.
+
+Phase 15 — Publication and Relevance administration — is current. It owns singleton Publication settings, Categories, and Relevance administration; duplicate grouping and later work remain deferred.
 
 ## Delivery priority
 
@@ -176,7 +178,7 @@ Initial singleton Publication/Source configuration may be supplied through idemp
 
 Phase 11 provides the smallest explicit topic-independent pre-admin operator mechanism for Categories, Relevance rules, and Source/endpoint default Category references. It is invoked deliberately, never on ordinary Web/Worker startup, validates real Source/Category relationships, and does not weaken ordinary bootstrap or trigger automatic bulk historical Relevance reprocessing.
 
-Bootstrap/runtime selection does not use a Publication slug. Phase 14 now owns MVP Source administration, including Source-owned optional RSS/Atom admission phrases with collect-all behavior when absent. Admin navigation/configuration operates on the installation's one configured news product rather than a multi-Publication selector.
+Bootstrap/runtime selection does not use a Publication slug. Phase 14 owns MVP Source administration, including Source-owned optional RSS/Atom admission phrases with collect-all behavior when absent. Admin navigation/configuration operates on the installation's one configured news product rather than a multi-Publication selector.
 
 MVP admin UI/API routes:
 
@@ -374,14 +376,14 @@ Completed after the tech-demo milestone:
 - **Phase 11 — Categories and configurable Relevance execution** — complete with durable phase validation.
 - **Phase 12 — Feed discovery features** — complete with durable phase validation.
 - **Phase 13 — Public presentation polish** — complete with durable phase validation.
+- **Phase 14 — Source administration** — complete by explicit repository-owner acceptance on August 14, 2026; its historical BLOCKED/RED Level 8 deployment-proof artifact remains unchanged, and Phase 19 owns the deferred observation.
 
 Current:
 
-- **Phase 14 — Source administration**
+- **Phase 15 — Publication and Relevance administration**
 
 Then:
 
-- Phase 15 — Publication and Relevance administration
 - Phase 16 — True duplicate detection and grouping
 - Phase 17 — Article and duplicate moderation
 - Phase 18 — Configurable HTML collection

@@ -22,18 +22,13 @@ This file is the running feature idea log for ideas proposed in this chat.
 - Initial scope stores the remote image URL only; it does not download, proxy, cache, transform, or host publisher image bytes. A controlled image proxy/cache may be considered separately if hotlink reliability, privacy, or content-delivery requirements justify it.
 - Keep extraction and normalization topic independent and preserve existing Source approval, provenance, network-safety, idempotency, and feed behavior.
 
-## Promoted Ideas
+## Shipped Ideas
 
 ### +W6HF — 2026-08-13 — Source RSS/Atom item admission filter
 
-- **Status:** Approved for Phase 14; governing behavior is now in the Source/collection, domain/data, admin, testing, architecture, and roadmap documents.
-- The approved model is one optional Source-owned include-phrase list for RSS/Atom items. No configured phrases preserves collect-all behavior; one or more bounded, trimmed, non-empty phrases admit a parsed item when any phrase matches.
-- Matching is deterministic case-insensitive literal substring matching over existing parsed title, summary/content text, and Source-provided category labels before Article-candidate normalization.
-- There is no exclude-phrase list and no independent enabled toggle. The older include/exclude/toggle proposal is superseded and is not a compatibility mode.
-- Filtered Raw items count in `source_item_filtered_count`; they are not normalization failures, Relevance `excluded` outcomes, or Article observations.
-- Changes affect future collection only and do not automatically mutate historical Articles, observations, or Collection runs.
-
-## Shipped Ideas
+- **Status:** Shipped 2026-08-14 as part of Phase 14.
+- The Source-owned RSS/Atom item admission filter uses optional bounded include phrases with deterministic case-insensitive literal any-match behavior; absent phrases preserve collect-all behavior.
+- Filtered Raw items are accounted in `source_item_filtered_count`, not as normalization failures, Relevance `excluded` outcomes, or Article observations.
 
 ## Maintenance Notes
 
