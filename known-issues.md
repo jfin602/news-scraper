@@ -4,16 +4,13 @@ This file is the running issue log for problems reported in this chat.
 
 ## Open Issues
 
+## Resolved Issues
+
 ### R7KM — 2026-08-11 — Public feed flashes unset placeholder content before loading
 
-- **Status:** Open
-- **Summary:** On the public feed at `/`, the initial document briefly renders generic/unset placeholder content such as `News Feed` before the canonical `/api/feed` response finishes loading and the real Publication content replaces it.
-- **Observed behavior:** A user can see the incorrect placeholder state flash during page startup before `Indie Author Publishing News` and the populated headline list appear.
-- **Expected behavior:** The initial page state should show a centered loading indicator while the canonical feed request is pending. Generic placeholder titles or unset content should not be visibly painted before the Publication/feed state is known.
-- **Regression coverage:** Browser coverage should prove the loading state is visible while `/api/feed` is pending, placeholder/unset content is not exposed during that interval, and populated, empty, unavailable, and error states still render correctly on desktop and mobile without changing canonical `/` or `/api/feed` behavior.
-- **User impact:** The flash makes the public page look unfinished and creates visible layout/content jank even though the final loaded feed is correct.
-
-## Resolved Issues
+- **Status:** Resolved on 2026-08-13
+- **Resolution:** Exact-final-source Chromium validation deliberately held the initial `/api/feed` response pending and observed an intentional neutral loading state with no visible generic/unset Publication heading, configured branding, or fake headline content. The configured Publication presentation appeared only after the owned response resolved, and later pending navigation preserved already-known public branding.
+- **Regression coverage:** `npm run test:browser` covers delayed initial loading, reduced motion, populated/null/broken/inert branding, owned unavailable-state clearing, and stale success/error/404 protection.
 
 ## Maintenance Notes
 
