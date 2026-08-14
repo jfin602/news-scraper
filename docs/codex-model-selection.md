@@ -118,18 +118,21 @@ Interpretation rules:
 - Roadmap/correction closeout prompts are the deliberate exception to the normal implementation cost-search baseline: default them to `Sol Light` so the final independent review gets Sol's stronger base code-reading/review capability without automatically paying for deep reasoning.
 - `Ultra` requires an actual reasoning-depth need such as concurrency, recovery, transaction/state-machine interactions, or comparable complexity. Validation volume alone is not a reason.
 
-## Closeout default and two-pass review contract
+## Closeout default and three-pass hardening contract
 
-Roadmap-phase and gating-correction closeout prompts SHOULD default to `Sol Light` when that label remains available in the runner. The closeout boundary is an independent final review of work produced by earlier implementation prompts, so stronger base review capability is intentionally preferred even when the validation matrix itself is explicit and mechanical. Low reasoning keeps that review economical.
+Roadmap-phase and gating-correction closeout prompts SHOULD default to `Sol Light` when that label remains available in the runner. The closeout boundary is an independent final review of work produced by earlier implementation prompts. Its purpose is not merely to certify that the requested feature exists; it deliberately hardens the integrated result against mistakes, missed failure modes, weak edge-case coverage, and structural quality problems that may survive focused implementation prompts. Sol's stronger base code-reading/review capability is therefore intentionally preferred while Light reasoning keeps the normal review economical.
 
-This default does **not** mean repeated low-reasoning passes are equivalent to a deeper model. Every closeout must use two distinct passes:
+This default does **not** mean repeated low-reasoning passes are equivalent to a deeper model. Every closeout must use three distinct passes:
 
 1. **Contract / evidence pass** — verify the implemented final tree against governing contracts, roadmap exit gates, required evidence levels, focused tests, broader regressions, runtime/database/browser/live prerequisites as applicable, and the exact accepted source tree.
-2. **Code-quality / adversarial pass** — independently inspect the final implementation diff plus important touched producers/consumers for quality issues that a checklist-only validation can miss. At minimum consider unnecessary duplication, avoidable complexity, dead or compatibility-only code, speculative abstractions, leaky module boundaries, weak error handling, transaction/concurrency assumptions, idempotency/provenance risks, unsafe trust-boundary shortcuts, brittle or missing tests, observability gaps, and documentation/task drift.
+2. **Error / edge-case adversarial pass** — independently derive realistic ways the actual implementation could fail even when the happy path and existing tests are green. Trace the changed behavior through important producers/consumers and deliberately examine applicable invalid/malformed/empty/null/boundary inputs, missing or partial state, repeated/duplicate/idempotent operations, ordering and state-transition combinations, rollback/partial-failure paths, interruption/retry/restart behavior, stale references or race windows where relevant, dependency failures/timeouts, error translation and leakage, authorization/request-integrity boundaries, and interactions with preserved earlier behavior. This pass MUST reason from the implementation and contracts rather than merely checking whether somebody already wrote an edge-case test.
+3. **Code-quality / structural pass** — independently inspect the final implementation diff plus important touched producers/consumers for unnecessary duplication, avoidable complexity, dead or compatibility-only code, speculative abstractions, leaky module boundaries, weak ownership boundaries, brittle or missing tests, observability gaps, documentation/task drift, and meaningful behavior-preserving refactors that should use the Terra High handoff below.
 
-The second pass must not be described or executed as merely rerunning the same tests. It is a fresh code-reading/review pass whose purpose is to compensate for gaps that may remain after implementation by cheaper models.
+The three passes are intentionally different. Rerunning the command matrix does not satisfy either adversarial review pass. A closeout should actively generate plausible failure hypotheses and structural concerns, then determine from source, tests, and executed evidence whether those concerns are already protected, require a bounded repair/test improvement, require a Terra High refactor handoff, or require deeper escalation/replanning.
 
-Closeout prompts may fix only bounded defects already permitted by their governing closeout scope. If either pass exposes material architectural ambiguity, difficult cross-subsystem root cause, concurrency/transaction ownership uncertainty, security-boundary uncertainty, or another defect that cannot be confidently classified and repaired within the bounded closeout contract, stop and escalate rather than attempting to make `Sol Light` reason through a problem that requires deeper analysis.
+A closeout MAY add or strengthen focused regression coverage and fix a concrete bounded defect discovered by any pass when the repair is already inside the governing closeout scope, behavior is unambiguous, and the affected broader evidence can be rerun. Typical examples include a missing boundary validation, incorrect bounded error mapping, one rollback omission, one idempotency/retry bug, a small state-preservation regression, or a missing focused negative test for behavior the current code already intends to guarantee.
+
+If any pass exposes material architectural ambiguity, difficult cross-subsystem root cause, concurrency/transaction ownership uncertainty, security-boundary uncertainty, or another defect that cannot be confidently classified and repaired within the bounded closeout contract, stop and escalate rather than attempting to make `Sol Light` reason through a problem that requires deeper analysis.
 
 Escalation is chosen by the reason the default is insufficient:
 
@@ -139,7 +142,7 @@ Escalation is chosen by the reason the default is insufficient:
 
 ### Closeout refactor handoff
 
-A **meaningful behavior-preserving refactor** discovered by either closeout pass is a distinct handoff condition, not an invitation for `Sol Light` to perform structural cleanup. Examples include moving responsibility across modules/layers, consolidating duplicated shared logic used by multiple consumers, replacing or collapsing an abstraction, reorganizing shared state/data flow, changing a transaction boundary while preserving the governed semantics, or another multi-file structural simplification whose safety depends on tracing important producers and consumers. A small local cleanup, dead branch removal, obvious helper deduplication, or similarly bounded change may remain a normal closeout fix when the governing closeout already permits it.
+A **meaningful behavior-preserving refactor** discovered by any closeout pass is a distinct handoff condition, not an invitation for `Sol Light` to perform structural cleanup. Examples include moving responsibility across modules/layers, consolidating duplicated shared logic used by multiple consumers, replacing or collapsing an abstraction, reorganizing shared state/data flow, changing a transaction boundary while preserving the governed semantics, or another multi-file structural simplification whose safety depends on tracing important producers and consumers. A small local cleanup, dead branch removal, obvious helper deduplication, or similarly bounded change may remain a normal closeout fix when the governing closeout already permits it.
 
 When a meaningful behavior-preserving refactor is needed, the closeout MUST stop before implementing that refactor and output exactly one self-contained **Terra High refactor remediation prompt**. This is a special implementation handoff and is separate from the normal closeout model-escalation rule above. The generated prompt MUST:
 
@@ -159,7 +162,7 @@ If the discovered issue is not a behavior-preserving refactor but instead requir
 
 For model assessment/planning, treat `Sol Light` as the provisional closeout baseline. A lower-family closeout recommendation is not the normal cost optimization path because the independent-review capability is intentional; use one only when the repository owner explicitly changes this policy or `Sol Light` is unavailable and the workflow is revalidated. A stronger recommendation still requires a concrete observed escalation trigger.
 
-For prompt writing, every newly written closeout prompt MUST contain an explicit code-quality/adversarial second-pass section, MUST inherit the Terra High refactor-handoff behavior above, and must require the durable validation/final report to record whether that pass found defects, what bounded fixes were made, whether a refactor handoff occurred before the final rerun, and whether any unresolved finding requires replanning or a correction stack.
+For prompt writing, every newly written closeout prompt MUST contain distinct contract/evidence, error/edge-case adversarial, and code-quality/structural pass sections, MUST inherit the Terra High refactor-handoff behavior above, and must require the durable validation/final report to record the scope/findings/disposition of both adversarial passes, bounded defects and tests added, whether a refactor handoff occurred before the final rerun, and whether any unresolved finding requires escalation, replanning, or a correction stack.
 
 ## `/prompt-ass` model-selection contract
 
@@ -253,7 +256,7 @@ Before writing each task file:
 3. if the exact finalized configuration is unsupported, stop with `Planning needed` rather than substituting a guessed label;
 4. if an implementation task boundary is unchanged and only a safe lower-cost configuration has become available, explicit owner-authorized `/revalidate` may downgrade it without reopening implementation scope; closeout prompts remain subject to the `Sol Light` independent-review baseline above;
 5. never silently upgrade because the generated prompt contains many requirements, tests, or validation commands;
-6. for every closeout prompt, add an explicit code-quality/adversarial second-pass section distinct from the contract/evidence validation matrix, inherit the Terra High refactor-handoff rule above, and require both outcomes in the durable validation/final report.
+6. for every closeout prompt, add distinct error/edge-case adversarial and code-quality/structural review sections after the contract/evidence validation matrix, inherit the Terra High refactor-handoff rule above, permit only governed bounded repairs/test strengthening, and require all three pass outcomes in the durable validation/final report.
 
 The final `MODEL / REASONING / USAGE` block SHOULD contain:
 
@@ -282,12 +285,13 @@ Revalidation should answer:
 - Does it still require the same reasoning effort?
 - Has a cheaper supported configuration become available for an implementation task without crossing the correctness floor?
 - For a closeout, is `Sol Light` still available and does observed complexity require escalation above it?
-- Does the closeout still contain/inherit the required Terra High refactor-handoff behavior?
+- Does the closeout contain the required independent error/edge-case adversarial pass rather than relying on the existing test matrix?
+- Does the closeout contain the required code-quality/structural pass and Terra High refactor-handoff behavior?
 - Has implementation drift introduced stronger coupling/security/concurrency risk?
 - Is the prompt long because the task is difficult, or merely because it is explicit?
-- Can redundant prompt prose be removed without weakening contracts, tests, evidence requirements, the distinct closeout code-quality pass, or its refactor handoff?
+- Can redundant prompt prose be removed without weakening contracts, tests, evidence requirements, either adversarial closeout pass, or its refactor handoff?
 
-Historical completed prompts may retain the configuration used when executed. Unexecuted prompts should be revalidated after a material model-policy or runner-matrix change. Unexecuted closeout prompts written under the prior policy should be updated to the `Sol Light` baseline plus explicit code-quality/adversarial pass and Terra High refactor handoff before execution when practical.
+Historical completed prompts may retain the configuration used when executed. Unexecuted prompts should be revalidated after a material model-policy or runner-matrix change. Unexecuted closeout prompts written under a prior policy should be updated to the `Sol Light` baseline plus the explicit three-pass hardening flow and Terra High refactor handoff before execution when practical.
 
 ## Prompt-token discipline
 
