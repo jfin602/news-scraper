@@ -1,0 +1,174 @@
+TASK: Phase 16 / P5 — Collection duplicate integration and effect accounting
+
+ROADMAP PHASE
+Phase 16 — True duplicate detection and grouping.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Luna High`.
+- Model-family basis: the integration boundary is explicit and uses existing Article, collection, P3 review, and P4 grouping primitives; Luna remains appropriate when transaction ownership is kept narrow.
+- Reasoning basis: High reasoning is needed to compose duplicate processing after Source-scoped identity without creating partial Article/observation commits, preserve canonical processing outcomes, and thread orthogonal effect counters through Collection-run finalization.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna Medium`; rejected because Article persistence currently owns its transaction and naive post-commit duplicate processing would create inconsistent failure/accounting states.
+- Escalation trigger: preserving one atomic candidate transaction requires a materially broader Article-persistence redesign, changes unrelated callers' semantics, or exposes transaction/concurrency ownership beyond the narrow extraction described below.
+- Escalation target: `Terra High`.
+- Estimate confidence: `Medium`.
+- Efficiency rationale: the prompt specifies the intended transaction composition and forbids architectural expansion; Luna High should be enough unless source drift invalidates that seam.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md`, `docs/codex-model-selection.md`, and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 16 prompt 5 and its assigned project version is `0.16.5`.
+- On first execution, require top-level `package.json` version `0.16.4`; on a rerun of this same P5, `0.16.5` is acceptable.
+- Update only the top-level package version to `0.16.5`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 16 roadmap entry, and P1–P4 tasks plus actual implementation/tests;
+2. read `docs/contracts/article-lifecycle-and-deduplication.md`, `docs/contracts/source-and-collection-contract.md`, `docs/contracts/domain-and-data-contract.md`, and `docs/contracts/testing-and-validation-contract.md`;
+3. inspect `src/articles/repository.ts` completely, especially its current transaction boundary, identity-lock/error mapping, observation/Relevance/category writes, and all important callers/tests;
+4. inspect `src/collection/collect-endpoint.ts` candidate processing/accounting and `src/collection/endpoint-collection-service.ts` dependency composition;
+5. inspect `src/collection/runs/repository.ts` and the P1 duplicate-effect fields through every start/finalize/read path;
+6. inspect P3 transaction-scoped detector and P4 transaction-scoped grouping primitive/results;
+7. trace excluded/rejected candidates so duplicate evaluation is never inserted before Relevance/identity or run for candidates that intentionally do not reach Article identity;
+8. stop and report planning drift if P3/P4 cannot participate in a caller-owned transaction, or if preserving Article persistence semantics would require a broader architecture rewrite than this prompt.
+
+GOAL
+Wire Phase 16 duplicate processing into the canonical Worker collection path only after an included candidate has completed Source-scoped Article identity/persistence, while keeping the Article outcome and duplicate effects distinct and transactionally coherent.
+
+After P5, ordinary collection may create/update review candidates and strongly group duplicates in the same candidate transaction. Public feed suppression remains P6.
+
+ATOMIC CANDIDATE COMPOSITION
+Do not implement duplicate detection as an unrelated best-effort action after `persistIncludedArticle()` has already committed. That would allow a Collection-run item to report duplicate-processing failure after its Article/observation permanently committed and would make retry/accounting semantics ambiguous.
+
+Instead preserve the existing Article repository behavior while extracting the narrow reusable transaction-scoped core needed for composition:
+
+- keep the existing exported `persistIncludedArticle(database, candidate, observationTime, decision)` API and observable behavior for current callers/tests;
+- extract/refactor its existing transaction body into a transaction-scoped helper that accepts `QueryExecutor` and performs the same identity locks, provenance validation, Article create/update/unchanged, observation, Relevance reason/category, and rollback behavior;
+- the normal exported Article API continues to wrap that helper in `database.transaction` and preserve current error/result mapping;
+- create one collection-owned included-Article processing orchestrator that opens the candidate transaction, calls the transaction-scoped Article persistence core, and only after successful identity-resolving persistence invokes P3 duplicate detection and P4 strong grouping using that SAME transaction;
+- do not move duplicate-domain logic into the Article repository itself; the extraction is only transaction composition infrastructure.
+
+If a clean equivalent design already exists after P1–P4, use it instead. The invariant is one atomic included-candidate transaction, not a specific helper name.
+
+PROCESSING ORDER
+For one link-accepted, Relevance-included candidate the canonical order becomes:
+
+1. Source-scoped identity resolution and Article create/update/unchanged;
+2. successful Article observation + Relevance/category provenance persistence;
+3. P3 deterministic duplicate review detection over the resolved persisted Article;
+4. P4 processing of every returned strong actionable candidate in deterministic order;
+5. commit the candidate transaction;
+6. report the original canonical Article processing outcome plus orthogonal duplicate effects.
+
+Duplicate work MUST NOT run:
+- before Relevance;
+- before Article identity;
+- for Source-item-filtered Raw items;
+- for normalization/link-policy rejection;
+- for Relevance `excluded` candidates;
+- when Article persistence returns a deterministic identity/provenance failure.
+
+Same-Source repeats remain Article `updated`/`unchanged` identity behavior and P3 must continue excluding same-Source grouping.
+
+FAILURE SEMANTICS
+If P3/P4 throws or an invariant fails inside the composed transaction:
+- roll back the Article/observation/category changes from that candidate as well as all duplicate changes;
+- surface the failure through the existing collection item-processing failure boundary rather than committing a canonical success outcome with missing required duplicate work;
+- do not let one failed candidate rewrite accounting for candidates already committed before it;
+- preserve existing endpoint/run failure isolation and bounded error-detail conventions.
+
+Do not swallow duplicate failures as zero-effect success, and do not invent a second out-of-band retry queue in Phase 16.
+
+COLLECTION PROCESSING RESULT
+Extend only the collection-level included processing result as needed so each successful canonical Article outcome can additionally carry immutable effect counts, at minimum:
+- `duplicateReviewCreatedCount`;
+- `duplicateGroupedCount`.
+
+Do not redefine `ArticlePersistenceSuccessOutcome`; canonical outcomes remain exactly `created`, `updated`, or `unchanged`.
+
+Per-candidate effect accounting:
+- P3 new candidate rows contribute to `duplicate_review_created_count` exactly as P3 reports;
+- P4 topology-changing operations contribute to `duplicate_grouped_count` exactly as P4 reports;
+- a strong first-time pair may legitimately contribute both one review-created effect and one grouped effect;
+- an unchanged weak/pending review, unchanged dismissed pair, or same-group repeated strong evidence contributes zero new effect as defined by P3/P4;
+- counts may exceed one per accepted Article if multiple distinct review relationships are created; do not force a one-effect-per-candidate equation.
+
+COLLECTION-RUN ACCOUNTING
+Thread both counters through `processCandidates`, attempt drafts/results/finalization, `FinalizeCollectionRunInput`, persisted run mapping, and all relevant tests.
+
+Requirements:
+- counters begin at zero for every attempt path;
+- parser/fetch/normalization failures and not-modified/all-filtered/no-candidate runs keep them zero;
+- excluded/rejected/failed-before-identity candidates cannot create duplicate effects;
+- committed included candidates accumulate effects exactly once;
+- if a candidate transaction rolls back, its duplicate effects do not enter final run counters;
+- existing processing equation remains unchanged and does not include effect counters;
+- existing `created`/`updated`/`unchanged` counts remain based solely on canonical Article outcome.
+
+DEPENDENCY COMPOSITION / TESTABILITY
+Expose duplicate processing through the existing collection/service dependency-injection style so integration tests can prove order/failure behavior without weakening production ownership.
+
+Avoid parallel duplicate pipelines in Web/API. Collection remains Worker-owned and the Web process must not fetch publishers or perform inline collection.
+
+Do not add scheduler behavior or a historical duplicate sweep. Repeated future collection observations naturally re-evaluate affected persisted Articles idempotently.
+
+TESTING
+Add focused unit/integration/collection/database coverage at minimum for:
+- included created Article with no duplicate evidence preserves `created` and zero duplicate effects;
+- included updated/unchanged Article still evaluates duplicates after identity;
+- strong first-time cross-Source match returns canonical Article outcome plus review-created/grouped effects and commits Article/observation/group atomically;
+- weak title-only match commits Article/observation + pending review, increments review-created only, and does not group;
+- repeated unchanged weak review produces no new effect;
+- unchanged dismissed evidence produces no new effect/group;
+- repeated same-group strong evidence preserves canonical Article outcome and reports zero topology-change effect;
+- one Article producing multiple new weak review pairs increments review-created by actual relationship count without breaking processing arithmetic;
+- same-Source repeat never reaches duplicate grouping;
+- Relevance excluded candidate does not invoke P3/P4;
+- source-filtered/normalization/link-rejected candidates keep duplicate counters zero;
+- injected P3 failure rolls back the current Article/observation/category transaction and records no duplicate effects;
+- injected P4 failure likewise rolls back current Article + duplicate state;
+- earlier successfully committed candidates in the same endpoint run remain intact when a later candidate fails according to existing collection failure semantics;
+- run finalization round-trips exact duplicate effect counters against disposable PostgreSQL;
+- existing Article identity/promotion/conflict/concurrency and observation rollback tests remain green;
+- existing Relevance/category and Source RSS/Atom admission accounting remain unchanged.
+
+Use real disposable PostgreSQL for the atomic Article+duplicate rollback and persisted run-counter claims. Controlled collection fixtures/injected adapters should prove pipeline ordering without public-network dependency.
+
+PRESERVED BEHAVIOR
+Do not change:
+- Source/endpoint approval, safety, locking, scheduling/jobs, retry, health;
+- parser/normalization/link-policy behavior;
+- Relevance precedence/category defaults/exclusion semantics;
+- Source-scoped Article identity order or public `original_url` destination;
+- Article visibility state;
+- collection run processing-outcome arithmetic;
+- P3 dismissal logic or P4 topology/Primary rules.
+
+NON-GOALS
+Do not implement:
+- public-feed suppression;
+- duplicate moderation/admin UI/API;
+- manual merge/split/dismiss/Primary override;
+- historical bulk scan/reprocess;
+- event clustering/semantic matching;
+- independent duplicate worker/job queue.
+
+REQUIRED VALIDATION
+Run focused tests during development, then before completion run at least:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:collection`
+- `npm run test:db`
+- `npm test`
+- `npm run check`
+- `git diff --check`
+
+Confirm `package.json` is `0.16.5`, no npm lockfile exists, duplicate processing is only on the canonical included Article path after identity, and Collection-run counters reflect only committed effects.
+
+FINAL REPORT
+Report files changed, transaction-composition design, processing order, failure/rollback semantics, run-counter integration, focused/database/collection regression commands actually run/results, and any remaining limitation. Do not claim public duplicate suppression until P6.
