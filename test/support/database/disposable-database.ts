@@ -13,6 +13,10 @@ export interface DisposableDatabase {
   databaseUrl: string;
 }
 
+export interface OwnedDisposableDatabase extends DisposableDatabase {
+  dispose(): Promise<void>;
+}
+
 export function generateDisposableDatabaseName(): string {
   return `news_scraper_test_${randomUUID().replaceAll('-', '')}`;
 }
@@ -86,29 +90,40 @@ async function dropAndVerifyDatabase(
   }
 }
 
-export async function withDisposableDatabase<T>(
-  callback: (database: DisposableDatabase) => Promise<T>,
-): Promise<T> {
+export async function createDisposableDatabase(): Promise<OwnedDisposableDatabase> {
   const adminUrl = readTestDatabaseAdminUrl();
   await preflightTestDatabaseAdminCapabilities(adminUrl);
   const databaseName = generateDisposableDatabaseName();
   assertDisposableDatabaseName(databaseName);
   await createDatabase(adminUrl, databaseName);
 
+  let disposePromise: Promise<void> | undefined;
+  return {
+    databaseName,
+    databaseUrl: databaseUrlFor(adminUrl, databaseName),
+    dispose: () => {
+      disposePromise ??= dropAndVerifyDatabase(adminUrl, databaseName);
+      return disposePromise;
+    },
+  };
+}
+
+export async function withDisposableDatabase<T>(
+  callback: (database: DisposableDatabase) => Promise<T>,
+): Promise<T> {
+  const database = await createDisposableDatabase();
+
   let callbackResult: T | undefined;
   let callbackError: unknown;
   try {
-    callbackResult = await callback({
-      databaseName,
-      databaseUrl: databaseUrlFor(adminUrl, databaseName),
-    });
+    callbackResult = await callback(database);
   } catch (error) {
     callbackError = error;
   }
 
   let cleanupError: unknown;
   try {
-    await dropAndVerifyDatabase(adminUrl, databaseName);
+    await database.dispose();
   } catch (error) {
     cleanupError = error;
   }

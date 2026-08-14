@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
-import { test } from 'node:test';
+import { after, test } from 'node:test';
 
 import { createDatabase } from '../../src/database/database.ts';
-import { migrateDatabase } from '../../src/database/migrations.ts';
 import {
   insertPublicationSettings,
   readPublicationSettings,
@@ -17,7 +16,11 @@ import {
   loadEndpointDomainRules,
   loadSourceApprovedDomainRules,
 } from '../../src/sources/repository.ts';
-import { withDisposableDatabase } from '../support/database/disposable-database.ts';
+import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
+
+const databaseTestScope = createDatabaseTestScope('migrated');
+
+after(async () => databaseTestScope.dispose());
 
 test('configuration repositories round-trip the singleton endpoint aggregate', async () => {
   await withMigratedDatabase(async (database) => {
@@ -338,8 +341,7 @@ test('caller-owned transactions roll configuration trees back without independen
 async function withMigratedDatabase(
   work: (database: ReturnType<typeof createDatabase>) => Promise<void>,
 ): Promise<void> {
-  await withDisposableDatabase(async ({ databaseUrl }) => {
-    await migrateDatabase({ connectionString: databaseUrl });
+  await databaseTestScope.use(async ({ databaseUrl }) => {
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       await work(database);
