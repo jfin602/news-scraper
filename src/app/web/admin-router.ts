@@ -66,7 +66,7 @@ const adminPage = `<!doctype html>
             <span>Sources</span>
             <span class="workspace-tab-description">Publishers and collection endpoints</span>
           </button>
-          <button type="button" class="workspace-tab" role="tab" aria-selected="false" aria-controls="editorial-workspace" data-workspace="editorial" disabled>
+          <button type="button" class="workspace-tab" role="tab" aria-selected="false" aria-controls="editorial-workspace" data-workspace="editorial">
             <span>Editorial</span>
             <span class="workspace-tab-description">Categories and Relevance · coming soon</span>
           </button>
@@ -355,10 +355,20 @@ const adminPage = `<!doctype html>
           </div>
         </section>
 
-        <section class="workspace-panel panel editorial-placeholder" id="editorial-workspace" data-workspace-panel="editorial" aria-labelledby="editorial-heading" hidden>
-          <p class="section-kicker">Upcoming workspace</p>
-          <h2 id="editorial-heading">Editorial</h2>
-          <p class="section-help">Category and Relevance administration will be available here in the next Phase 15 task.</p>
+        <section class="workspace-panel" id="editorial-workspace" data-workspace-panel="editorial" aria-labelledby="editorial-heading" hidden>
+          <div class="editorial-workspace-layout">
+            <nav class="panel editorial-navigation" aria-label="Editorial resources">
+              <div class="panel-heading"><div><p class="section-kicker">Editorial configuration</p><h2 id="editorial-heading">Editorial</h2></div></div>
+              <button type="button" class="button secondary compact" data-new-category>New Category</button>
+              <div class="list-state" data-category-list-state="loading">Loading Categories…</div><ul class="selection-list" data-category-list></ul>
+              <button type="button" class="button secondary compact" data-new-rule>New Relevance rule</button>
+              <div class="list-state" data-rule-list-state="loading">Loading Relevance rules…</div><ul class="selection-list" data-rule-list></ul>
+            </nav>
+            <section class="admin-workspace" aria-label="Editorial editor">
+              <section class="panel editor-panel"><div class="panel-heading"><div><p class="section-kicker">Categories</p><h2 data-category-editor-heading>Select a Category</h2></div></div><p class="section-help" data-category-editor-help>Create a bounded editorial grouping for default and rule assignments.</p><form data-category-form hidden><fieldset><legend>Category configuration</legend><div class="form-grid"><label>Configuration key<input name="configKey" required autocomplete="off"><span class="field-help">Immutable after creation.</span></label><label>Display name<input name="displayName" required autocomplete="off"></label></div></fieldset><div class="form-message" role="alert" tabindex="-1" data-category-form-error hidden></div><div class="form-actions"><button type="submit" class="button primary" data-category-submit>Save Category</button><button type="button" class="button secondary" data-category-cancel>Cancel</button><button type="button" class="button danger" data-category-delete hidden>Remove Category</button></div></form></section>
+              <section class="panel editor-panel"><div class="panel-heading"><div><p class="section-kicker">Bounded literal rules</p><h2 data-rule-editor-heading>Select a Relevance rule</h2></div></div><p class="section-help" data-rule-editor-help>Rules are applied prospectively during collection.</p><form data-rule-form hidden><fieldset><legend>Rule configuration</legend><div class="form-grid"><label>Configuration key<input name="configKey" required autocomplete="off"><span class="field-help">Immutable after creation.</span></label><label>Predicate<select name="predicateType"><option value="title_contains">Title contains</option><option value="summary_contains">Summary contains</option><option value="source_category_equals">Source category equals</option></select></label><label>Action<select name="action"><option value="include">Include</option><option value="exclude">Exclude</option><option value="categorize">Categorize</option></select></label><label>Priority<input name="priority" type="number" step="1" value="0" required></label><label class="wide-field">Literal pattern<input name="pattern" required autocomplete="off"></label><label class="wide-field">Reason / label<input name="reason" required autocomplete="off"></label></div></fieldset><fieldset><legend>Scope and Category target</legend><label>Scope<select name="scope"><option value="installation">Installation-wide</option><option value="source">One Source</option></select></label><label data-rule-source-field hidden>Source<select name="sourceConfigKey" data-rule-source-select></select></label><label data-rule-category-field hidden>Category target<select name="categoryConfigKey" data-rule-category-select></select></label></fieldset><div class="form-message" role="alert" tabindex="-1" data-rule-form-error hidden></div><div class="form-actions"><button type="submit" class="button primary" data-rule-submit>Save Relevance rule</button><button type="button" class="button secondary" data-rule-cancel>Cancel</button><button type="button" class="button secondary" data-rule-enabled hidden></button><button type="button" class="button danger" data-rule-delete hidden>Remove rule</button></div></form><aside class="precedence-guidance"><h3>How rules apply</h3><p>All applicable enabled literal rules are evaluated deterministically. Include/exclude precedence uses priority, Source scope, action, then immutable key tie rules. Matching categorize rules all add their Categories. If none assigns a Category, the endpoint default wins over the Source default. Edits apply prospectively and do not rescan historical Articles.</p></aside></section>
+            </section>
+          </div>
         </section>
       </section>
     </main>

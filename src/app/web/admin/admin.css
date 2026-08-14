@@ -212,6 +212,28 @@ select:disabled {
 .editorial-placeholder {
   min-height: 12rem;
 }
+.editorial-workspace-layout {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr);
+}
+.editorial-navigation {
+  align-self: start;
+  display: grid;
+  gap: 0.65rem;
+  position: sticky;
+  top: 1rem;
+}
+.precedence-guidance {
+  background: var(--surface-subtle);
+  border-left: 0.25rem solid var(--primary);
+  border-radius: 0.3rem;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+}
+.precedence-guidance h3 {
+  margin-top: 0;
+}
 
 .source-workspace-layout {
   display: grid;
@@ -636,6 +658,12 @@ select {
 
   .source-workspace-layout {
     grid-template-columns: 1fr;
+  }
+  .editorial-workspace-layout {
+    grid-template-columns: 1fr;
+  }
+  .editorial-navigation {
+    position: static;
   }
 
   .selection-list {

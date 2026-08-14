@@ -23,7 +23,11 @@ import {
   type AdminPublicationReadModel,
   type PublicationAdministrationService,
 } from '../../src/admin/publication-administration.ts';
-import type { EditorialAdministrationService } from '../../src/admin/editorial-administration.ts';
+import {
+  EditorialAdministrationError,
+  type AdminRelevanceRuleReadModel,
+  type EditorialAdministrationService,
+} from '../../src/admin/editorial-administration.ts';
 import { createWebApp } from '../../src/app/web/create-app.ts';
 import { registerEditorialAdministrationRoutes } from '../../src/app/web/editorial-administration-router.ts';
 import { registerEndpointAdministrationRoutes } from '../../src/app/web/endpoint-administration-router.ts';
@@ -221,6 +225,53 @@ describe('Source administration page browser behavior', () => {
         await page.waitForSelector('[data-operational-state="ready"]');
         assert.equal(
           await page.locator('[data-endpoint-form]').isVisible(),
+          true,
+        );
+      },
+    );
+  });
+
+  it('manages Categories and bounded Relevance rules in the Editorial workspace', async () => {
+    const harness = new AdminHarness();
+    await withAdminPage(
+      browser,
+      harness,
+      { viewport: { width: 390, height: 844 } },
+      async (page) => {
+        await page.getByRole('tab', { name: /^Editorial/u }).click();
+        await page.getByRole('button', { name: 'New Category' }).click();
+        await page
+          .locator('[data-category-form] [name="configKey"]')
+          .fill('markets');
+        await page
+          .locator('[data-category-form] [name="displayName"]')
+          .fill('Markets');
+        await page.locator('[data-category-submit]').click();
+        await page.getByRole('button', { name: /Markets/u }).click();
+        assert.equal(
+          await page
+            .locator('[data-category-form] [name="configKey"]')
+            .isDisabled(),
+          true,
+        );
+        await page.getByRole('button', { name: 'New Relevance rule' }).click();
+        const rule = page.locator('[data-rule-form]');
+        await rule.locator('[name="configKey"]').fill('include_markets');
+        await rule.locator('[name="pattern"]').fill('market');
+        await rule.locator('[name="reason"]').fill('Market coverage');
+        await page.locator('[data-rule-submit]').click();
+        await page
+          .getByRole('button', { name: /Include: Market coverage/u })
+          .click();
+        await page.getByRole('button', { name: 'Disable rule' }).click();
+        assert.match(
+          await page.locator('.precedence-guidance').innerText(),
+          /endpoint default wins over the Source default/u,
+        );
+        assert.equal(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= window.innerWidth,
+          ),
           true,
         );
       },
@@ -685,7 +736,10 @@ interface HarnessOptions {
 }
 
 class AdminHarness {
-  readonly categories = [category];
+  readonly categories: { configKey: string; displayName: string }[] = [
+    { ...category },
+  ];
+  readonly relevanceRules: AdminRelevanceRuleReadModel[] = [];
   publication: AdminPublicationReadModel = initialPublication;
   readonly sources: AdminSourceReadModel[];
   readonly endpoints = new Map<string, AdminEndpointReadModel[]>();
@@ -805,35 +859,97 @@ class AdminHarness {
   editorialService(): EditorialAdministrationService {
     return {
       listCategories: async () => this.categories,
-      createCategory: async () => {
-        throw new Error('not used');
+      createCategory: async (input) => {
+        const value = record(input);
+        const category = {
+          configKey: String(value.configKey),
+          displayName: String(value.displayName),
+        };
+        this.categories.push(category);
+        return category;
       },
-      getCategory: async () => {
-        throw new Error('not used');
+      getCategory: async (key) => this.category(String(key)),
+      updateCategory: async (key, input) => {
+        const current = this.category(String(key));
+        current.displayName = String(record(input).displayName);
+        return current;
       },
-      updateCategory: async () => {
-        throw new Error('not used');
+      deleteCategory: async (key) => {
+        const index = this.categories.findIndex(
+          (value) => value.configKey === String(key),
+        );
+        if (index < 0)
+          throw new EditorialAdministrationError('category_not_found');
+        this.categories.splice(index, 1);
       },
-      deleteCategory: async () => {
-        throw new Error('not used');
+      listRelevanceRules: async () => this.relevanceRules,
+      createRelevanceRule: async (input) => {
+        const value = record(input);
+        const rule: AdminRelevanceRuleReadModel = {
+          configKey: String(value.configKey),
+          predicateType: String(
+            value.predicateType,
+          ) as AdminRelevanceRuleReadModel['predicateType'],
+          pattern: String(value.pattern),
+          action: String(value.action) as AdminRelevanceRuleReadModel['action'],
+          priority: Number(value.priority),
+          enabled: true,
+          reason: String(value.reason),
+          ...(typeof value.sourceConfigKey === 'string' && value.sourceConfigKey
+            ? { sourceConfigKey: value.sourceConfigKey }
+            : {}),
+          ...(typeof value.categoryConfigKey === 'string' &&
+          value.categoryConfigKey
+            ? { categoryConfigKey: value.categoryConfigKey }
+            : {}),
+        };
+        this.relevanceRules.push(rule);
+        return rule;
       },
-      listRelevanceRules: async () => [],
-      createRelevanceRule: async () => {
-        throw new Error('not used');
+      getRelevanceRule: async (key) => this.rule(String(key)),
+      updateRelevanceRule: async (key, input) => {
+        const rule = this.rule(String(key));
+        Object.assign(rule, record(input));
+        return rule;
       },
-      getRelevanceRule: async () => {
-        throw new Error('not used');
+      setRelevanceRuleEnabled: async (key, input) => {
+        const rule = this.rule(String(key));
+        const replacement = {
+          ...rule,
+          enabled: record(input).enabled === true,
+        };
+        this.relevanceRules.splice(
+          this.relevanceRules.indexOf(rule),
+          1,
+          replacement,
+        );
+        return replacement;
       },
-      updateRelevanceRule: async () => {
-        throw new Error('not used');
-      },
-      setRelevanceRuleEnabled: async () => {
-        throw new Error('not used');
-      },
-      deleteRelevanceRule: async () => {
-        throw new Error('not used');
+      deleteRelevanceRule: async (key) => {
+        const index = this.relevanceRules.findIndex(
+          (value) => value.configKey === String(key),
+        );
+        if (index < 0)
+          throw new EditorialAdministrationError('relevance_rule_not_found');
+        this.relevanceRules.splice(index, 1);
       },
     };
+  }
+
+  private category(key: string) {
+    const value = this.categories.find(
+      (candidate) => candidate.configKey === key,
+    );
+    if (!value) throw new EditorialAdministrationError('category_not_found');
+    return value;
+  }
+  private rule(key: string) {
+    const value = this.relevanceRules.find(
+      (candidate) => candidate.configKey === key,
+    );
+    if (!value)
+      throw new EditorialAdministrationError('relevance_rule_not_found');
+    return value;
   }
 
   endpointService(): EndpointAdministrationService {
