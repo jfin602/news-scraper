@@ -1,0 +1,278 @@
+TASK: Correction 16 / P4 — Testing efficiency closeout
+
+CORRECTION SCOPE
+Final manual closeout for the non-versioned Phase 16 testing-efficiency correction. Phase 16 P1–P6 product implementation is already present at the correction baseline; this closeout validates only the P1–P3 testing/tooling correction, preserves package version `0.16.6`, clears the testing-efficiency gate if GREEN, and returns the roadmap to the still-unexecuted Phase 16 P7 closeout.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra Ultra`.
+- Model-family basis: the repository owner explicitly selected Terra-family execution for this correction, including closeout, and the final review must independently challenge shared runner/database-test infrastructure without relying on the implementation prompts' conclusions.
+- Reasoning basis: Ultra is justified by PostgreSQL lifecycle/isolation, cross-file concurrency, multi-client/process tests, false-green risk, performance benchmarking, and the need to distinguish bounded defects from structural remediation.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High` to `Very High`.
+- Lower-cost alternative considered: `Terra High`; rejected because this is the acceptance boundary for machinery used to establish correctness across subsequent work and must deeply inspect contamination, race, cleanup, and evidence-preservation failure modes.
+- Escalation trigger: a discovered issue requires a new product/contract/ADR decision, a materially different test architecture, or unresolved concurrency/transaction ownership beyond the already-approved per-file isolation design.
+- Escalation target: stop and report planning need; meaningful behavior-preserving structural refactors use the mandatory Terra High remediation handoff below rather than being improvised inside final certification.
+- Estimate confidence: `High`.
+- Efficiency rationale: spend the highest reasoning effort once at the integrated correction boundary, while using command containment so the closeout itself does not recreate the redundant validation problem it is intended to fix.
+
+VERSIONING
+- Required unchanged project version: `0.16.6`.
+- This closeout MUST NOT change `package.json` version.
+- It does not execute or substitute for Phase 16 P7 and does not consume `0.16.7`.
+- It does not invoke conversational `/closeout` and does not advance to Phase 17.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANUAL CLOSEOUT BOUNDARY
+This is the sole final manual closeout prompt for correction `c16-test-efficiency`. `npm run codex:phase -- c16-test-efficiency` must execute P1–P3 only and stop before P4.
+
+P4 is a verification, adversarial review, benchmark, bounded-fix, and durable-evidence task. It is not a fourth feature implementation prompt.
+
+MANDATORY HANDOFF
+Before any closeout write:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/codex-model-selection.md`, `docs/contracts/testing-and-validation-contract.md`, and the current Phase 16 roadmap/correction entries;
+2. read P1–P3 task files and inspect their actual committed implementation/tests rather than trusting their final reports;
+3. inspect current `package.json`, `scripts/run-tests.mjs`, `test/support/database/**`, all changed database-test files, and runner/package-script tests;
+4. inspect `scripts/codex-phase-core.mjs` so the correction folder/closeout grammar and version metadata remain machine-valid;
+5. inspect current `docs/tasks/p16/P7-phase-16-closeout.txt` only to understand the next roadmap gate and its required evidence; do not edit P7 in this correction closeout;
+6. identify from Git history the exact runner-owned P1 implementation commit and use its immediate pre-P1 executable source tree as the performance baseline. Prompt-writing/documentation-only commits may exist before P1 and do not themselves change executable test performance;
+7. confirm the baseline and final correction tree both retain Phase 16 P1–P6 product behavior and package `0.16.6`;
+8. stop and report sequence/planning drift if P1–P3 are incomplete, P7 already executed, package version differs, or the implemented correction architecture materially differs from the governed design.
+
+CLOSEOUT GOAL
+Prove that the optimized test system is materially faster while preserving the same meaningful evidence coverage, real-PostgreSQL fidelity, cleanup/isolation guarantees, browser evidence, failure visibility, and Phase 16 product behavior.
+
+The correction is GREEN only if both are true:
+- the test system remains trustworthy;
+- the optimization produces meaningful measured wall-clock improvement without hidden test removal, skipping, retries, or contamination.
+
+PASS 1 — CONTRACT / EVIDENCE REVIEW
+Review the complete P1–P3 range against the testing contract and actual current source.
+
+A. RUNNER / COMMAND EVIDENCE
+Verify:
+- file discovery remains deterministic and de-duplicated;
+- zero patterns/zero matches fail visibly;
+- malformed/duplicate concurrency options fail before execution;
+- global setup is preserved exactly once;
+- child execution errors/nonzero status propagate;
+- `NODE_TEST_CONTEXT` inheritance handling remains intentional;
+- default wrapper concurrency remains 1;
+- ordinary unit/integration/collection suite concurrency is explicitly bounded;
+- browser concurrency remains conservative and bounded;
+- full DB and focused DB have distinct intentional concurrency values;
+- live-source execution remains serial;
+- `test:db:focused` retains `.env`, global DB prerequisite, real PostgreSQL, target requirement, and zero-match failure;
+- `npm run check` still contains format, lint, typecheck, and ordinary `npm test` exactly as current scripts state.
+
+B. POSTGRESQL HARNESS EVIDENCE
+Verify from source and real executed tests:
+- every reusable independently executed DB file/scope owns its own unique physical database;
+- migrated scope runs the production migration path once per physical scope, not once per test case;
+- application-data reset excludes `news_scraper_schema_migrations` and preserves schema/indexes/constraints;
+- reset reliably clears all current application tables, including Phase 16 duplicate/group tables and future tables discoverable under the helper's metadata rule;
+- identity/sequence reset behavior is correct;
+- case-owned clients/pools/processes close before reset;
+- leaked/blocking transactions fail within a bounded timeout rather than hanging;
+- one scope cannot be used concurrently;
+- final cleanup force-drops and verifies database absence;
+- callback/reset/cleanup failures cannot become silent green results;
+- no outer transaction is being used as a fake universal reset mechanism.
+
+C. FILE CLASSIFICATION / EVIDENCE PRESERVATION
+Inspect every DB test file and verify its final classification is justified by what it proves.
+
+In particular, confirm fresh/uninitialized evidence remains for:
+- migration ordering/from-zero/history/checksum/rollback;
+- disposable database creation/isolation/forced cleanup;
+- uninitialized readiness behavior;
+- any schema mutation/probe whose meaning would change under reusable state.
+
+Confirm current Phase 16 P4–P6 DB tests still prove duplicate group topology/concurrency, collection atomic rollback/effect accounting, and feed duplicate suppression/keyset/filter behavior with real PostgreSQL.
+
+D. TEST COUNT / COVERAGE PRESERVATION
+Compare baseline and final suite results sufficiently to establish:
+- no meaningful test file was deleted to gain speed;
+- no substantive assertion was removed/weakened merely for speed;
+- no required test was converted into a silent skip;
+- no automatic retry masks flaky failures;
+- ordinary, DB, and browser suites still execute their expected current files and produce plausible test counts;
+- any test-count change is explained by added harness/runner regression coverage or another intentional current-tree change.
+
+PASS 2 — ERROR / EDGE-CASE ADVERSARIAL REVIEW
+Independently derive and investigate plausible ways the optimized system could be falsely green or flaky even if the main matrix passes.
+
+At minimum investigate:
+- one file leaving rows that affect the next case;
+- one file leaving an open transaction/client that blocks reset;
+- migration ledger accidentally truncated or mutated;
+- reset table discovery missing a current application table;
+- table identifier quoting/order problems;
+- sequences/identity state leaking between tests;
+- a failed callback leaving state that the next case observes;
+- two callbacks sharing one scope concurrently;
+- two parallel files accidentally sharing one database name/state;
+- full DB concurrency oversubscribing PostgreSQL enough to cause intermittent failures;
+- database name collisions or cleanup races;
+- advisory-lock tests interacting across independent databases unexpectedly;
+- process-based readiness/Worker tests surviving beyond callback cleanup;
+- hybrid files accidentally migrating a fixture intended to remain uninitialized;
+- full migration/lifecycle tests accidentally routed through reusable migrated state;
+- focused DB command with no target or a miss reporting success;
+- runner option parsing treating an option as a glob or vice versa;
+- a concurrent child failure being hidden by another passing child;
+- browser concurrency causing shared port/global-state interference;
+- output scheduling assumptions remaining in tests;
+- live-source tests accidentally becoming concurrent;
+- final aggregate validation scripts no longer containing the evidence the prompt assumes.
+
+For each plausible issue, determine from source/tests/executed evidence whether it is protected, requires a bounded fix/test, requires the Terra High refactor handoff, or requires replanning.
+
+A passing command matrix alone does not satisfy this pass.
+
+PASS 3 — CODE-QUALITY / STRUCTURAL REVIEW
+Inspect the full correction diff plus important consumers for maintainability.
+
+Look specifically for:
+- duplicated DB create/drop/reset SQL;
+- one-off local test helpers that should use the canonical scope;
+- unnecessary abstractions or generic frameworks beyond the correction's needs;
+- hard-coded application table lists that will drift;
+- shared mutable process-global DB state;
+- hidden environment/config branches that make local vs CI behavior differ;
+- concurrency constants duplicated in multiple places without need;
+- brittle tests that assert completion timing/order rather than behavior;
+- compatibility-only bridges retaining both old and new DB-test lifecycles where one has no independent current purpose;
+- comments/docs that describe obsolete before-P4 correction placement after the repo advanced through P6;
+- unnecessary production source changes.
+
+Small local cleanups or bounded defects directly inside this correction MAY be fixed with focused regression coverage and affected broader final evidence rerun.
+
+TERRA HIGH REFACTOR HANDOFF
+If PASS 2 or PASS 3 discovers a meaningful behavior-preserving structural refactor, STOP before implementing that refactor and output exactly one self-contained Terra High remediation prompt, following `docs/codex-model-selection.md`.
+
+The remediation prompt must:
+- recommend exactly `Terra High`;
+- describe the observed structural problem and evidence;
+- define the smallest behavior-preserving refactor boundary and affected producers/consumers;
+- preserve test semantics, real PostgreSQL evidence, cleanup/isolation, package `0.16.6`, and all product behavior;
+- forbid product/contract/ADR/roadmap expansion and speculative cleanup;
+- require focused tests plus every invalidated broader suite;
+- not declare this correction GREEN or finalize the validation artifact;
+- instruct Terra High to stop if the work actually requires a new architecture/product/contract decision.
+
+After remediation is applied and implementation-level validation is green, rerun this P4 closeout from the beginning. Only that rerun may certify the final correction.
+
+PERFORMANCE BENCHMARK
+Benchmark the exact pre-P1 executable baseline and final correction tree on the same machine/environment.
+
+Use an isolated temporary worktree or equivalent safe checkout for the baseline. Do not reset/rewind the active correction tree.
+
+Record at minimum:
+- baseline SHA/tree;
+- final candidate SHA/tree before validation-artifact commit, with the final artifact tied clearly to the accepted resulting tree/range;
+- OS/hardware context useful to interpret timings;
+- Node and npm versions;
+- PostgreSQL version/config/host used for DB tests;
+- Playwright/Chromium version where observed;
+- relevant concurrency values;
+- exact command timing method;
+- command result/test counts.
+
+Install dependencies as needed before timing, but do not include dependency-install time in suite wall-clock measurements. News Scraper has no lockfile, so record the actual environment rather than claiming byte-for-byte dependency reproducibility.
+
+Run the same benchmark command set on baseline and final:
+- `npm run check`
+- `npm run test:db`
+- `npm run test:browser`
+
+The final executions of those three commands MAY serve simultaneously as the final correctness matrix below when run against the exact final unchanged source tree. Do not run them once for benchmarking and again solely to duplicate evidence.
+
+The primary performance target is the DB suite because that was the observed bottleneck. A same-machine DB time under roughly one minute is a useful aspiration, with roughly 30–45 seconds desirable, but NO absolute wall-clock threshold is a portable correctness gate. If improvement is smaller than expected, diagnose where time remains and record it truthfully rather than weakening tests.
+
+FINAL-TREE VALIDATION
+Against the exact final candidate tree after every bounded closeout fix, execute exactly the smallest non-overlapping required matrix:
+- `npm run check`
+- `npm run test:db`
+- `npm run test:browser`
+- committed correction-range `git diff --check` or an equivalent command that actually inspects the accepted P1–P4 range
+
+Use the final benchmark executions of `check`, `test:db`, and `test:browser` as this evidence when they already ran on the exact unchanged final tree.
+
+Do NOT separately run `format:check`, `lint`, `typecheck`, `test:unit`, `test:integration`, `test:collection`, or `npm test` solely to reproduce subordinate evidence already executed by `npm run check`.
+
+`npm run test:live-sources` is not required for this correction because no live publisher collection behavior changes. Confirm the live-source command remains serial, but do not depend on the public internet for correction acceptance.
+
+DURABLE VALIDATION ARTIFACT
+Create/update only after the final candidate evidence is gathered:
+
+`docs/validation/phase-16-testing-efficiency-correction.md`
+
+Record at minimum:
+- correction purpose and scope;
+- baseline and final source/range SHAs;
+- package version `0.16.6` preserved;
+- environment/tool versions relevant to timing/evidence;
+- baseline/final wall-clock results for `npm run check`, `npm run test:db`, and `npm run test:browser`;
+- ordinary/DB/browser test counts or equivalent evidence that coverage did not disappear;
+- final runner concurrency policy;
+- final reusable/fresh/hybrid DB-file classification and meaningful exceptions;
+- reset/migration/cleanup strategy;
+- focused DB command behavior;
+- PASS 1 contract/evidence findings;
+- PASS 2 adversarial hypotheses/findings/disposition and any bounded fixes/tests;
+- PASS 3 structural findings/disposition;
+- whether a Terra High refactor handoff occurred and was completed before the final rerun;
+- exact final validation commands/results and evidence levels;
+- important limitations/flakiness/retries/unavailable prerequisites;
+- performance conclusion without treating a portable wall-clock number as correctness;
+- correction conclusion GREEN or blocked/red.
+
+GATE / ROUTING ALIGNMENT ON GREEN
+Because repository implementation advanced through Phase 16 P6 while this correction was being planned, root/roadmap routing may still contain the older wording that the correction gates P4.
+
+If and only if closeout is GREEN, make the smallest documentation-only routing/status alignment needed so current docs truthfully state:
+- Phase 16 P1–P6 are implemented;
+- the testing-efficiency correction is complete;
+- Phase 16 P7 closeout is the next roadmap task;
+- package remains `0.16.6` until P7 runs;
+- this correction did not consume/renumber a Phase 16 prompt.
+
+Likely current-state files are `BOOT.md`, `AGENTS.md`, and `docs/roadmap/mvp-roadmap.md`; change only those that actually contain stale correction-gate wording. Do not rewrite historical validation artifacts.
+
+Do NOT edit `docs/tasks/p16/P7-phase-16-closeout.txt` during this correction. Task prompts are owned by the prompt workflow.
+
+After GREEN correction closeout, the next action is to revalidate the still-unexecuted Phase 16 P7 prompt against the new validation-efficiency/command-containment policy, then run P7 manually if revalidation is green. P7 remains responsible for its normal `0.16.7` Phase 16 closeout transition.
+
+PRESERVED BEHAVIOR / NON-GOALS
+Do not:
+- change aggregation/product behavior;
+- change duplicate evidence/grouping/Primary/feed semantics;
+- modify production migrations/schema to accelerate tests;
+- replace PostgreSQL tests with mocks;
+- weaken Source approval/network-safety/idempotency/provenance behavior;
+- add Phase 17 moderation/UI scope;
+- alter P7 or consume `0.16.7`;
+- advance roadmap phase/package version;
+- claim browser/database/runtime evidence not actually observed.
+
+FINAL STATE CHECK
+Confirm:
+- top-level `package.json` remains `0.16.6`;
+- no npm lockfile exists;
+- P1–P3 implementation is limited to test runner/package scripts/test-support/tests plus necessary correction docs/evidence;
+- full DB file concurrency is bounded at the final accepted value and focused/live-source values remain intentional;
+- all created disposable DBs from validation were cleaned up or any cleanup defect is explicitly blocking;
+- current Phase 16 P7 remains unexecuted and unchanged by this correction.
+
+FINAL REPORT
+Report:
+- closeout result `GREEN` or blocked;
+- exact baseline/final SHAs and benchmark table;
+- files changed by any bounded closeout fix/documentation alignment;
+- final runner and DB concurrency policy;
+- final DB lifecycle classification summary;
+- PASS 1/2/3 findings and disposition;
+- whether a Terra High refactor handoff occurred;
+- final commands/results/test counts actually observed;
+- confirmation package remains `0.16.6` and P7 remains pending;
+- if GREEN, next action: revalidate Phase 16 P7 under the new validation-efficiency policy before executing it.
