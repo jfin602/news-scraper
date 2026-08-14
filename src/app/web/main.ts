@@ -1,9 +1,11 @@
 import { parseDatabaseConfig } from '../../database/config.ts';
 import { createDatabase } from '../../database/database.ts';
 import { createDatabaseDependency } from '../../database/readiness.ts';
+import { createEndpointAdministrationService } from '../../admin/endpoint-administration.ts';
 import { createSourceAdministrationService } from '../../admin/source-administration.ts';
 import { readPublicFeed } from '../../public-feed/repository.ts';
 import { createWebApp } from './create-app.ts';
+import { registerEndpointAdministrationRoutes } from './endpoint-administration-router.ts';
 import { startWebServer } from './server.ts';
 import { registerSourceAdministrationRoutes } from './source-administration-router.ts';
 import { parseWebConfig } from './web-config.ts';
@@ -16,6 +18,12 @@ async function main(): Promise<void> {
     const applicationDatabase = createDatabase(databaseConfig);
     database = applicationDatabase;
     const dependency = createDatabaseDependency(applicationDatabase);
+    const registerSourceRoutes = registerSourceAdministrationRoutes(
+      createSourceAdministrationService(applicationDatabase),
+    );
+    const registerEndpointRoutes = registerEndpointAdministrationRoutes(
+      createEndpointAdministrationService(applicationDatabase),
+    );
     const webServer = await startWebServer(
       createWebApp(
         {
@@ -26,9 +34,10 @@ async function main(): Promise<void> {
         },
         {
           adminEnabled: config.adminEnabled,
-          registerAdminApiRoutes: registerSourceAdministrationRoutes(
-            createSourceAdministrationService(applicationDatabase),
-          ),
+          registerAdminApiRoutes: (router) => {
+            registerSourceRoutes(router);
+            registerEndpointRoutes(router);
+          },
         },
       ),
       config,
