@@ -17,6 +17,8 @@ Ordinary public rows require all of the following:
 
 Visible `non_primary` members remain stored and administratively accessible but are duplicate-suppressed from ordinary rows. Hidden/archived Articles are not feed-eligible.
 
+Source/Category filters, literal keyword search, and keyset pagination operate only over this canonical feed-eligible stream. They MUST NOT resurrect a visible `non_primary` member, and duplicate processing MUST NOT create a parallel public-feed query or eligibility path. Related coverage remains separate and stored `original_url` remains the headline destination.
+
 Before duplicate grouping exists, visible persisted Articles are logically `ungrouped` and therefore use the same eligibility rule rather than a temporary feed-only exception. Phase 8 MUST NOT invent duplicate-group/role persistence before the duplicate-grouping roadmap phase.
 
 Collection eligibility and public-feed eligibility are separate. `active_for_collection`, Source operational state (`enabled`/`paused`/`disabled`), endpoint operational/lifecycle/health state, and the success/failure of current collection attempts do not by themselves suppress an already-persisted otherwise-eligible Article. Retained provenance remains readable while collection is paused or failing. Source approval and Source lifecycle remain public-row trust/lifecycle gates as stated above.
@@ -87,7 +89,7 @@ A lightweight same-origin client that fetches `GET /api/feed` is a valid impleme
 
 The obsolete pre-production route `GET /publications/:publicationSlug` is not a supported public product surface. The Phase 10 entry correction removes that implementation path rather than preserving a compatibility alias without an explicit requirement.
 
-Publication presentation timezone is not persisted yet. Phase 13 does not introduce configurable timezone behavior: through Phase 13 the public UI MUST continue to render the calendar date from `effectiveFeedDate` in UTC so the same feed item does not shift dates according to the viewer/test machine timezone. Phase 15 may add only optional singleton `presentation_timezone` rendering: a valid IANA identifier changes calendar-date presentation only, and absence preserves UTC. It does not rewrite stored timestamps, change canonical feed ordering, create routing/tenancy identity, or introduce locale, arbitrary date-template, time-format, or general formatting configuration.
+Optional singleton `presentation_timezone` is persisted and editable through the protected Phase 15 administrator surface. When configured it MUST be a valid IANA time-zone identifier; absence preserves UTC calendar-date presentation from `effectiveFeedDate`. It changes presentation only and MUST NOT rewrite stored timestamps, change canonical feed ordering, create routing/tenancy identity, or introduce locale, arbitrary date-template, time-format, or general formatting configuration.
 
 Phase 12 adds the discovery controls and navigation behavior defined below while preserving this same page/read-model boundary. Final accessibility/responsive polish, completed light/dark theming, duplicate moderation, and admin UI remain later work.
 
@@ -208,7 +210,7 @@ Phase 13 uses the singleton Publication presentation fields defined by the domai
 
 Missing optional branding values MUST degrade to a complete generic presentation rather than causing page/API failure. Publication branding is data/configuration; shared engine/UI code MUST NOT embed indie-author-specific names, copy, logos, colors, or topic conditionals.
 
-Phase 13 introduced the persistence/read-model use of these minimum public values. Phase 15 later provides Cloudflare-protected administrator editing for them; the completed Phase 13 work did not pull the Phase 15 admin control plane forward.
+Phase 13 introduced the persistence/read-model use of these minimum public values. Phase 15 provides Cloudflare-protected administrator editing for them; the completed Phase 13 work did not pull that admin control plane forward.
 
 ### Theme selection
 

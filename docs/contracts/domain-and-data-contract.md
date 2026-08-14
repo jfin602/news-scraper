@@ -42,7 +42,7 @@ A provenance record linking an Article or candidate outcome to the Source endpoi
 
 ### Duplicate review candidate
 
-A persisted possible true-duplicate relationship that requires or records a deterministic automatic/manual decision. It stores compared Articles, signals, confidence/reason, and disposition so dismissed pairs do not recur indefinitely.
+A persisted possible true-duplicate relationship over a canonical unordered Article pair. It stores deterministic bounded signals, confidence/reasons, evidence identity, and disposition so unchanged dismissed evidence remains dismissed rather than recurring indefinitely.
 
 ### Duplicate group
 
@@ -71,7 +71,7 @@ An installation-wide deterministic rule used to include, exclude, or categorize 
 - A Source endpoint owns collection scheduling/cache/health state and Collection runs.
 - An Article belongs to one Source.
 - Article observations link Articles/candidate outcomes to the Source endpoint and Collection run that produced them and preserve Source consistency where stored directly.
-- Duplicate groups and Duplicate review candidates relate Articles within the one installation; cross-Publication checks are structurally unnecessary because the installation cannot contain another Publication domain.
+- Duplicate groups and Duplicate review candidates relate Articles within the one installation; an Article belongs to at most one Duplicate group, and cross-Publication checks are structurally unnecessary because the installation cannot contain another Publication domain.
 - Administrative commands validate real resource relationships and domain invariants even though MVP does not implement per-user authorization.
 
 Do not introduce Publication UUIDs, slugs, foreign keys, composite uniqueness scopes, repository arguments, or compatibility aliases solely to model concurrent Publications that the supported product does not host.
@@ -88,7 +88,7 @@ Required concepts:
 - `public_status`: whether the public feed is exposed;
 - required Publication name;
 - optional Phase 13 public presentation configuration: `description`, `logo_path`, and `accent_color`;
-- optional `presentation_timezone` administrator configuration in Phase 15.
+- optional valid-IANA `presentation_timezone` administrator configuration, exposed through the Phase 15 protected editing surface.
 
 The singleton Publication may collect while its public feed is not exposed. Public feed reads require `public_status = public`; `active_for_collection` is a collection-state control and does not independently expose or suppress already-persisted feed rows.
 
@@ -154,7 +154,7 @@ One persisted Publication/settings record contains only the fields actually used
 - `active_for_collection`;
 - `public_status`;
 - Phase 13 optional `description`, `logo_path`, and `accent_color` public-presentation values;
-- optional Phase 15 `presentation_timezone` configuration;
+- optional valid-IANA `presentation_timezone` configuration;
 - created/updated timestamps where useful.
 
 Phase 13 public-presentation field semantics are deliberately small and topic independent:
@@ -165,7 +165,7 @@ Phase 13 public-presentation field semantics are deliberately small and topic in
 - missing optional values are valid and MUST allow a complete generic public presentation using safe application defaults;
 - these values are public presentation configuration once exposed through the canonical feed read model, but they do not create another public routing/scoping identity.
 
-Phase 13 established those values through the existing explicit operator/bootstrap configuration mechanisms needed before full admin UX. Phase 15 adds the protected administrator editing surface; ordinary bootstrap no-overwrite behavior remains unchanged.
+Phase 13 established those values through the existing explicit operator/bootstrap configuration mechanisms needed before full admin UX. Phase 15 provides the protected administrator editing surface; ordinary bootstrap no-overwrite behavior remains unchanged.
 
 `presentation_timezone` is optional and, when configured, MUST be a valid IANA time-zone identifier. Its absence preserves the UTC calendar-date fallback. It changes presentation/calendar-date interpretation only: it MUST NOT rewrite persisted timestamps, change canonical feed ordering, create locale or arbitrary date/time-format configuration, or become Publication routing or tenancy identity.
 
@@ -363,9 +363,10 @@ Generic `boost`/ranking behavior is deferred until a ranking/scoring contract ex
 
 ### `duplicate_review_candidates`
 
-- compared Article identifiers;
+- canonically ordered compared Article identifiers, preventing `(A, B)` and `(B, A)` from becoming distinct logical candidates;
 - deterministic signals/reason codes;
 - confidence;
+- deterministic evidence/signals identity sufficient to distinguish materially changed from unchanged evidence without prescribing a hash algorithm;
 - state such as `pending`, `dismissed`, `merged`, `superseded`;
 - automatic/manual origin;
 - manual decision time/reason where applicable.
@@ -378,7 +379,7 @@ Generic `boost`/ranking behavior is deferred until a ranking/scoring contract ex
 - group timestamps;
 - membership records preserving every Article instance.
 
-Exactly one member is Primary. No Publication foreign key or cross-Publication membership check is needed in the supported singleton installation.
+Each Article belongs to at most one group. Exactly one member is Primary, and the Primary identifier MUST reference a member of that same group. Repeated same-group evidence is idempotent. Strong-evidence merging of two groups is atomic/idempotent, preserves all Articles/observations/memberships, and leaves one deterministic Primary; weak evidence cannot merge groups automatically. Membership and Primary changes do not alter Article visibility or delete provenance. Prefer database constraints for expressible uniqueness/integrity and transactions for the complete topology invariant. No Publication foreign key or cross-Publication membership check is needed in the supported singleton installation.
 
 ### `audit_events`
 

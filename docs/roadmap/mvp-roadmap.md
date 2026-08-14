@@ -787,7 +787,7 @@ Replace bootstrap/manual Source configuration with a practical control surface i
 
 ## Phase 15 — Publication and Relevance administration
 
-**Status:** Current roadmap phase.
+**Status:** Complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`.
 
 ### Goal
 
@@ -829,6 +829,8 @@ Expose the installation's singleton Publication/editorial configuration, Categor
 
 ## Phase 16 — True duplicate detection and grouping
 
+**Status:** Current roadmap phase.
+
 ### Goal
 
 Suppress true duplicate public rows while preserving every Article instance/provenance.
@@ -839,10 +841,10 @@ Suppress true duplicate public rows while preserving every Article instance/prov
 
 ### Deliverables
 
-- deterministic duplicate signals;
-- persisted review candidates/dismissals;
-- installation-wide Duplicate groups/memberships without Publication tenant key;
-- Primary selection with original-publisher metadata, Source priority, completeness/time/tie-breaks;
+- strong deterministic automatic evidence limited to exact canonical-identity URL equality and genuinely governed trustworthy canonical/syndication/original-publisher metadata; weak title/content resemblance remains review-only;
+- canonical unordered persisted review candidates, bounded deterministic reasons/confidence, and durable unchanged-evidence dismissal semantics;
+- installation-wide Duplicate groups/memberships without Publication tenant key, with at-most-one group per Article, exactly one member Primary, and atomic/idempotent strong-evidence group merging;
+- deterministic automatic Primary selection through trustworthy explicit metadata when available, existing Source priority, completeness/destination quality, credible publication time, persisted timing/identity fallback, and stable Article-ID tie-break;
 - reason/confidence records;
 - ordinary-feed suppression for visible non-primary duplicates;
 - exactly-one-Primary invariant;
@@ -851,8 +853,10 @@ Suppress true duplicate public rows while preserving every Article instance/prov
 ### Out of scope
 
 - human review UI;
+- merge/split/dismiss/choose-Primary operator controls;
 - display overrides;
 - event clustering;
+- semantic/AI detection or Article-body fetching;
 - deletion of non-primary provenance.
 
 ### Exit gate
@@ -861,7 +865,7 @@ Suppress true duplicate public rows while preserving every Article instance/prov
 - Ungrouped Articles remain eligible.
 - Related coverage remains separate.
 - Unchanged dismissed evidence does not recur indefinitely.
-- Duplicate fixture/case coverage includes false-positive safeguards and real-PostgreSQL Primary/group invariants.
+- Inherited Phase 16 validation covers strong-vs-weak classification, canonical pairs/dismissal, every Primary tie-break, post-identity composition, feed/discovery suppression, Collection-run effects, and real-PostgreSQL uniqueness/concurrency/topology/rollback/provenance invariants.
 
 ## Phase 17 — Article and duplicate moderation
 

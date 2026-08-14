@@ -5,11 +5,13 @@
 Article moderation/visibility and duplicate-group membership are orthogonal dimensions.
 
 Visibility states:
+
 - `visible`;
 - `hidden`;
 - `archived`.
 
 Duplicate roles:
+
 - `ungrouped`;
 - `primary` member of a Duplicate group;
 - `non_primary` member of a Duplicate group.
@@ -64,36 +66,49 @@ Publication identity is not part of Article identity because the supported insta
 ## Duplicate classes
 
 ### Exact repeat
+
 The same Source item is encountered again. This is Article identity, not a new Duplicate-group member.
 
 ### Alternate URL from the same Source
+
 Tracking/print/mobile/listing aliases may converge on one Article identity when canonicalization is reliable.
 
 ### Republished or syndicated identical item
+
 Separate Article instances reproduce the same underlying published item. These may form one Duplicate group while all Articles remain stored.
 
 ### Related coverage
+
 Different reporting about the same event/subject is not a true duplicate and remains separately visible.
 
 ### Updated/corrected Article
+
 A Source updates an existing Article. Source-derived values update on the existing Article and an Article observation records the event. It is not a new Article unless the Source intentionally publishes a distinct identity.
 
 ## Duplicate candidate detection
 
-Signals may include:
+Automatic grouping is permitted only from strong, deterministic evidence that identifies the same underlying published item, not merely similar subject matter. In the MVP baseline, exact canonical-identity URL equality across separately persisted Article instances is strong evidence when valid under the URL/identity contracts. Explicit trustworthy canonical, syndication, or original-publisher metadata is strong only when it genuinely exists through a governed Source/adapter contract.
 
-- exact canonical URL across separate Article instances;
-- explicit canonical/syndication metadata;
-- normalized title equality;
-- high title similarity within a bounded time window;
+Phase 16 MUST NOT invent speculative metadata fields, fetch or scrape Article bodies, heuristically infer an original publisher, or pretend unavailable syndication metadata exists to improve grouping.
+
+The following are weak corroborating/review signals and MUST NOT automatically group or hide Articles by themselves:
+
+- normalized-title equality;
+- fuzzy or high title similarity;
 - matching author/date/summary fingerprints;
-- known syndication metadata.
+- generic or recurring titles;
+- topic/event similarity;
+- other content resemblance that does not independently identify the same published item.
+
+A bounded combination of weak signals may create or update a persisted Duplicate review candidate with deterministic confidence/reasons, but accumulating weak scores does not become automatic suppression unless a future explicit contract promotes a concrete deterministic signal. Weak evidence MUST NOT automatically merge existing Duplicate groups.
 
 Signals used for **Article identity** must not be mislabeled as true-duplicate logic. A shared external identifier is a cross-Article duplicate signal only when known to be meaningful across those separate Source instances.
 
-Weak similarity creates or updates a persisted Duplicate review candidate rather than suppressing an Article silently.
+Same-Source identity conflicts MUST remain Article-identity conflicts and MUST NOT be routed through Duplicate grouping to bypass Source-scoped identity invariants.
 
 ## Duplicate review persistence
+
+A Duplicate review candidate represents a canonical unordered Article pair so `(A, B)` and `(B, A)` cannot become separate logical candidates. Persistence and transactions MUST ensure one canonical candidate relationship per Article pair/evidence method as appropriate, idempotent reevaluation of unchanged evidence, and deterministic bounded signals, reason codes, and confidence.
 
 A Duplicate review candidate stores:
 
@@ -108,20 +123,32 @@ Duplicate review/group records are installation-wide Article relationships and d
 
 MVP does not require a native administrator identity on manual decisions. If native identity is added later, it may extend attribution without redefining the duplicate decision itself.
 
-A dismissed candidate does not reappear indefinitely from unchanged evidence. Reconsideration requires materially new evidence or explicit operator action.
+A dismissed candidate with materially unchanged deterministic evidence remains dismissed and is not recreated as pending work on every collection. A deterministic evidence/signals fingerprint or equivalent stable representation may establish whether evidence changed; the contract does not prescribe a hash or storage algorithm. Reconsideration requires materially new evidence or later explicit operator action.
+
+Phase 16 owns this persistence model and detector behavior, including respecting persisted dismissal. Phase 17 owns the human-facing review queue and merge, split, dismiss, and choose-Primary controls; Phase 16 MUST NOT add that moderation UI merely to exercise persistence.
+
+## Duplicate-group topology
+
+An Article belongs to at most one Duplicate group at a time. Every Duplicate group has exactly one Primary Article, and that Primary MUST be a member of the same group. Every non-Primary Article and every Article observation/provenance record remains stored.
+
+Repeated evidence between members already in one group is idempotent. Membership changes do not silently alter Article visibility, and changing Primary never deletes Articles, observations, or provenance.
+
+When strong automatic evidence connects Articles in two existing groups, any justified group merge MUST be atomic and idempotent, preserve every membership and provenance record, leave no overlapping groups or duplicate memberships, and select one deterministic Primary. Weak evidence cannot automatically merge the groups. Database constraints SHOULD express critical uniqueness/integrity where possible; transactions MUST enforce invariants that no single static constraint can express.
 
 ## Primary selection
 
-A Duplicate group has exactly one Primary Article.
+A Duplicate group has exactly one Primary Article. Phase 16 automatic selection MUST apply, in order:
 
-Default selection SHOULD consider, in order:
+1. trustworthy explicit original-publisher/canonical metadata when it genuinely exists through a governed contract;
+2. the higher-preference Source under the existing Source-priority model;
+3. metadata completeness and destination quality;
+4. earliest credible Source publication time;
+5. existing persisted timing/stable Article identity as a deterministic fallback where needed;
+6. stable Article identifier as the final tie-break.
 
-1. explicit manual override;
-2. explicit original-publisher/canonical metadata;
-3. Source priority within the installation;
-4. metadata completeness and destination URL quality;
-5. earliest credible publication time;
-6. stable deterministic tie-breaker.
+Original-publisher status MUST NOT be inferred from names, domain reputation, topic, title similarity, or other heuristics. Missing trustworthy metadata simply advances selection to the next criterion. A Phase 17 explicit manual Primary choice outranks automatic selection once moderation exists.
+
+Source-priority/configuration changes do not authorize an installation-wide historical regrouping or Primary-reselection scan. Current configuration may be applied when a group is newly created, strongly merged, or otherwise legitimately reevaluated by governed duplicate processing.
 
 Changing Primary does not delete Articles or change membership.
 
@@ -138,9 +165,11 @@ Visible `non_primary` members are duplicate-suppressed from ordinary rows but re
 
 Related coverage remains separate.
 
+Source/Category filters, literal keyword search, and keyset pagination operate only over this canonical eligible stream and MUST NOT resurrect a visible `non_primary` Article or create a parallel feed-eligibility path. The public headline destination remains stored `original_url`.
+
 The singleton Publication public-exposure gate and Source trust/lifecycle gates are defined by `docs/contracts/public-feed-and-admin-contract.md`; Article visibility/duplicate role do not replace those gates.
 
-The MVP may show a non-interactive “also reported by” count derived from group membership, but must not emit redundant rows.
+An “also reported by” UI is not required by Phase 16.
 
 ## Manual moderation
 

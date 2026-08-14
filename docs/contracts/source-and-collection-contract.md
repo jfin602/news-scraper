@@ -46,9 +46,9 @@ Once admin UI becomes the normal management surface, bootstrap data is initializ
 
 Bootstrap/runtime commands operate on the installation's singleton Publication configuration and MUST NOT require a Publication slug or selector.
 
-### Phase 11 pre-admin editorial configuration
+### Phase 11 explicit editorial configuration path
 
-Before the Phase 15 Publication/Relevance administration UI exists, Phase 11 MAY provide the smallest explicit topic-independent operator mechanism needed to create and edit Categories, Relevance rules, and Source/endpoint default Category references.
+Phase 11 introduced the smallest explicit topic-independent operator mechanism needed to create and edit Categories, Relevance rules, and Source/endpoint default Category references before the Phase 15 Publication/Relevance administration UI existed.
 
 That operator path is distinct from ordinary Source/endpoint bootstrap semantics:
 
@@ -60,7 +60,7 @@ That operator path is distinct from ordinary Source/endpoint bootstrap semantics
 - it MUST NOT weaken ordinary bootstrap's create-if-absent/no-overwrite guarantee for existing Publication/Source/endpoint configuration;
 - it MUST NOT perform automatic bulk historical Article reprocessing as a side effect of a rule edit.
 
-Phase 15 exposes the same governed Category and Relevance configuration through the Cloudflare-protected admin control plane without creating a second rule model. It manages the valid Category set used by the existing Source/endpoint default-Category selectors; it does not duplicate Phase 14 Source administration or Source-priority controls.
+That path remains explicit and MUST never run implicitly at Web/Worker startup. Phase 15 subsequently exposed the same governed Category and Relevance configuration through the Cloudflare-protected admin control plane without creating a second rule model. It manages the valid Category set used by the existing Source/endpoint default-Category selectors; it does not duplicate Phase 14 Source administration or Source-priority controls. There remains exactly one Relevance model.
 
 ## Approved-domain policy
 
