@@ -27,6 +27,7 @@ describe('Admin HTTP perimeter foundation', () => {
       for (const path of [
         '/admin',
         '/admin/assets/admin.css',
+        '/admin/assets/admin.js',
         '/api/admin',
         '/api/admin/sources',
       ]) {
@@ -52,15 +53,26 @@ describe('Admin HTTP perimeter foundation', () => {
       assert.equal(page.status, 200);
       assert.match(page.headers.get('content-type') ?? '', /^text\/html/u);
       assertAdminSecurityHeaders(page);
-      assert.match(body, /<h1>Administration<\/h1>/u);
+      assert.match(body, /<h1>Source administration<\/h1>/u);
       assert.match(body, /href="\/admin\/assets\/admin\.css"/u);
-      assert.doesNotMatch(body, /<script|<form|password|login/iu);
+      assert.match(body, /src="\/admin\/assets\/admin\.js"/u);
+      assert.doesNotMatch(body, /<script(?:\s[^>]*)?>[^<]+<\/script>/iu);
+      assert.doesNotMatch(body, /password|login|on(?:click|load)=/iu);
 
       const stylesheet = await fetch(`${baseUrl}/admin/assets/admin.css`);
       assert.equal(stylesheet.status, 200);
       assert.match(stylesheet.headers.get('content-type') ?? '', /^text\/css/u);
       assertAdminSecurityHeaders(stylesheet);
       assert.match(await stylesheet.text(), /\.admin-shell/u);
+
+      const script = await fetch(`${baseUrl}/admin/assets/admin.js`);
+      assert.equal(script.status, 200);
+      assert.match(
+        script.headers.get('content-type') ?? '',
+        /^(?:text|application)\/javascript/u,
+      );
+      assertAdminSecurityHeaders(script);
+      assert.match(await script.text(), /X-News-Scraper-Admin-Request/u);
     });
   });
 
