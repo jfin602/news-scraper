@@ -250,9 +250,13 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 
 - Automated behavioral regression coverage is the primary protection against implementation regressions.
 - Every implementation change requires focused tests for the changed behavior plus relevant broader regression coverage for its blast radius.
+- Iterative implementation work SHOULD run the smallest focused suite capable of answering the current development question; broad final-tree suites are not a substitute for fast focused feedback.
+- Final-tree validation is coverage-set based: when an aggregate command passes on the unchanged final tree, it satisfies the subordinate checks/suites that it actually executes. Do not rerun those subordinate commands solely to duplicate the same evidence.
 - Test evidence applies to the exact final source tree that was executed; earlier passing evidence does not automatically validate later changes.
 - Source inspection is not runtime proof, HTTP integration is not browser proof, fixture collection is not live-Source proof, and mocks do not prove PostgreSQL transactions/constraints/locks/migrations.
 - Persistence/migration guarantees use real disposable PostgreSQL where practical from Phase 2 onward.
+- Ordinary persistence tests SHOULD reuse one unique migrated disposable database per independently executed test file or equivalent isolated scope, resetting mutable application state between cases; migration/database-lifecycle/schema-mutation tests retain the fresh-database path when fresh state is part of the claim.
+- Independent test files MAY execute with bounded concurrency when isolation and resource limits preserve behavior; parallel database files MUST own separate mutable databases unless shared-state concurrency is itself the behavior under test.
 - Ordinary deterministic local regression validation must not depend on live public publishers; deterministic collection uses controlled fixtures/servers without weakening production SSRF or whitelist policy.
 - Explicitly invoked required suites fail clearly when prerequisites are missing and must not silently skip green.
 - Zero matched tests in a required filtered suite is a failure.
@@ -275,7 +279,7 @@ Current phase: **Phase 16 — True duplicate detection and grouping**.
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with its recorded live-source limitation preserved. The Phase 10 entry singleton correction and Phases 10–15 are complete.
 
-Phase 15 is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 is active and owns true duplicate detection, persisted review/dismissal state, Duplicate groups/memberships, deterministic Primary selection, and ordinary-feed duplicate suppression. Do not pull Phase 17 moderation/UI or later work into Phase 16 unless a true dependency or explicit decision requires it.
+Phase 15 is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 is active and owns true duplicate detection, persisted review/dismissal state, Duplicate groups/memberships, deterministic Primary selection, and ordinary-feed duplicate suppression. Phase 16 P1–P3 are implemented through project version `0.16.3`; before P4, the non-versioned `c16-test-efficiency` correction gate optimizes test execution while preserving the same validation evidence requirements and package version. Do not pull Phase 17 moderation/UI or later work into Phase 16 unless a true dependency or explicit decision requires it.
 
 Phases 1–9 remain the tech-demo critical path historically.
 
@@ -285,6 +289,8 @@ Phases 1–9 remain the tech-demo critical path historically.
 - Prefer file-scoped, regression-safe Codex prompts.
 - Include non-goals and preserved behavior.
 - Require focused + broader regression tests and name the evidence level needed to prove acceptance.
+- Separate iterative focused validation from final-tree regression validation. During implementation, prefer the narrowest relevant test command; at final validation, prefer the smallest non-overlapping command set that covers every required suite/evidence level.
+- Do not redundantly rerun a subordinate test/check immediately before or after a successful aggregate command that already executed it on the same unchanged tree unless diagnosing a failure or an intervening change invalidated evidence.
 - Do not claim runtime/browser/database/live-Source behavior unless actually observed at the corresponding evidence level.
 - Prefer smallest correct changes over speculative abstractions or compatibility bridges.
 - Trace shared helpers/consumers before changing data or collection semantics.
