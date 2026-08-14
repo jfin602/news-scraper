@@ -1,0 +1,228 @@
+TASK: Phase 14 / P4 — Source administration commands and API
+
+ROADMAP PHASE
+Phase 14 — Source administration.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol High`.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Alternative considered: `Terra Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P4 is not ordinary CRUD: Source configuration changes can invalidate approved endpoint/domain relationships and must compose Source state, priority, filter phrases, Category references, transactions, and the P3 admin security boundary. Sol High is the appropriate quality floor without spending Ultra on a bounded Source-only command surface.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 14 prompt 4 and its assigned project version is `0.14.4`.
+- On first execution, require top-level `package.json` version `0.14.3`; on a rerun of this same P4, `0.14.4` is acceptable.
+- Update only the top-level package version to `0.14.4`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the Phase 14 roadmap entry, and P1–P3 tasks plus actual implementation/tests;
+2. read `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/source-and-collection-contract.md`, `docs/contracts/domain-and-data-contract.md`, `docs/contracts/testing-and-validation-contract.md`, and the Cloudflare ADR;
+3. inspect P1 Source/filter persistence/configuration and current Source repository APIs;
+4. inspect current approved-domain helpers in `src/sources/configuration.ts` and every important Source/endpoint aggregate consumer before changing shared repository behavior;
+5. inspect Phase 11 Category repository/default-Category paths, especially `listCategories()` and `setSourceDefaultCategory()`;
+6. inspect P3 admin router/request-integrity dependency injection and response/error conventions;
+7. inspect existing database transaction helpers and Source/bootstrap tests;
+8. stop and report planning drift if P1/P3 do not expose the expected persistence/security seams, or if Phase 14 contracts materially changed.
+
+GOAL
+Add the protected Source-administration command/read API behind the P3 admin boundary.
+
+P4 owns Source list/detail/create/update/state operations, approved-domain configuration, priority, existing default Category assignment, and Source RSS/Atom admission phrases. It does NOT own endpoint mutation, check-now, or the final browser editor.
+
+ADMIN SERVICE BOUNDARY
+Create a real application/domain-oriented Source administration service under a suitable `src/admin/` ownership path. Express controllers should parse/serialize HTTP and delegate to that service rather than embedding SQL/transaction orchestration in routes.
+
+The service must validate real Source/endpoint/Category relationships and domain invariants transactionally. Cloudflare external access does not replace these checks.
+
+SOURCE IDENTITY
+Use immutable Source `config_key` as the stable operator/API identity.
+
+Rules:
+- Source config key is installation-wide and immutable after create;
+- internal UUID stays an implementation/persistence identity and need not appear in normal admin URLs;
+- do not add Publication ID/slug/tenant scoping;
+- create must reject conflicting Source config keys deterministically;
+- update endpoints never accept a replacement config key.
+
+SOURCE CREATE
+Support Source creation with:
+- `configKey`;
+- `displayName`;
+- `siteUrl`;
+- approved Source domain rules;
+- `priority`;
+- optional existing default Category config key;
+- `rssAtomAdmissionPhrases`;
+- approval state;
+- operational state.
+
+New Sources are created with lifecycle `active`.
+
+Safe admin/UI defaults may be unapproved + disabled, but API validation should support deliberate operator choices allowed by the contract. Approval must never be inferred from a successful fetch or domain shape.
+
+Creation is one transaction across Source row, domain rules, admission phrases, and optional default Category relationship. No endpoint is auto-discovered or auto-created.
+
+SOURCE CONFIGURATION UPDATE
+Provide a deterministic replacement-style configuration command for mutable Source-owned fields excluding config key and lifecycle/state commands.
+
+At minimum mutable configuration includes:
+- display name;
+- site URL;
+- approved Source domain rules;
+- priority;
+- optional existing default Category;
+- RSS/Atom admission phrases.
+
+Use exact-key request validation. Reject unknown fields rather than silently ignoring future/typo properties.
+
+Admission phrase behavior must expose only the P1/P2 include-only model:
+- array absent only where the endpoint contract explicitly treats it as unchanged; for replacement configuration prefer requiring the complete canonical mutable representation;
+- empty array removes the filter and restores collect-all behavior prospectively;
+- no exclude list;
+- no `filterEnabled` field;
+- preserve P1 phrase bounds/order.
+
+SOURCE DOMAIN CHANGE INVARIANT
+Approved Source domains are the maximum boundary for every endpoint owned by the Source.
+
+A Source approved-domain update must execute transactionally with the affected current endpoint configuration locked/read consistently.
+
+Before commit, prove for every retained endpoint:
+- any endpoint narrowing remains equal to or narrower than the proposed Source domain maximum;
+- when endpoint is currently approved, its configured endpoint host remains permitted by the effective proposed Source/endpoint policy;
+- no Source update silently widens or rewrites endpoint narrowing merely to make validation pass.
+
+If any endpoint relationship would become invalid, reject the whole Source update with a bounded stable application error and leave existing Source/endpoints unchanged.
+
+Use one consistent database lock order that P5 can reuse, preferably Source before endpoint(s), to reduce future deadlock risk.
+
+DEFAULT CATEGORY
+Reuse the Phase 11 Category/default relationship.
+
+P4 may expose a read-only Category choice endpoint for Source administration, for example:
+
+`GET /api/admin/categories`
+
+It may list immutable Category config key/display name only. It MUST NOT create/update/delete Categories or Relevance rules; Phase 15 owns that administration.
+
+When Source configuration names a default Category:
+- resolve by immutable Category config key;
+- reject missing Category;
+- clear relationship when configured absent/null according to the canonical request shape;
+- use/reuse `setSourceDefaultCategory()` or a transactionally equivalent canonical repository operation rather than creating another default-category column/model.
+
+SOURCE STATE COMMANDS
+Keep approval, operational state, and lifecycle as explicit orthogonal commands instead of one generic state update blob.
+
+Required operations:
+- set approval `approved` / `unapproved`;
+- set operational state `enabled` / `paused` / `disabled` while active;
+- archive;
+- restore to active.
+
+Archive semantics:
+- transactionally set lifecycle `archived`;
+- force operational state to `disabled` in the same command so archive cannot retain an immediately resumable active operation state;
+- retain approval and historical/provenance records.
+
+Restore semantics:
+- set lifecycle back to `active`;
+- leave operational state `disabled`;
+- require a later explicit enable command to resume collection;
+- never auto-approve.
+
+Operational state changes on an archived Source must fail rather than implicitly restore it.
+
+No physical Source deletion is required.
+
+RECOMMENDED HTTP API
+Implement a compact protected API with the following canonical intent; small naming/verb adjustments are allowed only when they fit established P3 conventions better without changing behavior:
+
+`GET  /api/admin/categories`
+`GET  /api/admin/sources`
+`POST /api/admin/sources`
+`GET  /api/admin/sources/:sourceKey`
+`PUT  /api/admin/sources/:sourceKey/configuration`
+`PUT  /api/admin/sources/:sourceKey/approval`
+`PUT  /api/admin/sources/:sourceKey/operational-state`
+`PUT  /api/admin/sources/:sourceKey/lifecycle`
+
+All unsafe routes inherit P3 JSON/custom-header/body-limit request-integrity controls.
+
+READ MODELS
+Source list/detail responses should contain only operator-relevant bounded values:
+- config key;
+- display name/site URL;
+- approval/lifecycle/operational state as distinct fields;
+- priority;
+- approved domains;
+- default Category identity if any;
+- admission phrases;
+- useful endpoint count/summary only if cheaply derived without duplicating P5 detail.
+
+Do not leak SQL/internal errors, raw database rows, secrets, Cloudflare headers/identity, or unnecessary internal UUIDs.
+
+CHANGE HISTORY
+Do not build a speculative generic audit subsystem unless the current contract concretely requires Source configuration history now. If a small bounded change-history primitive already exists by execution time, integrate Source mutations consistently. Otherwise keep this task focused on the governed Source commands; Phase 14 exit does not require inventing identity-linked auditing.
+
+TESTING
+Add focused unit/integration/database tests at minimum for:
+- create Source and round-trip all Source-owned configuration;
+- duplicate config key rejection;
+- exact-key/unknown-field rejection;
+- invalid site URL/domain/priority/phrase/default Category rejection;
+- Category list is read-only and topic independent;
+- Source configuration replacement and filter removal with empty phrases;
+- Source config key immutability;
+- Source domain narrowing/change rejected when any retained endpoint relationship would become invalid;
+- valid Source domain update preserves endpoint narrowing unchanged;
+- transaction rollback leaves Source/domain/filter/default values unchanged on relationship failure;
+- approval transitions;
+- enabled/paused/disabled transitions;
+- archive disables atomically;
+- restore leaves disabled and does not auto-approve;
+- archived Source cannot be operationally enabled without restore;
+- admin-disabled surface remains unavailable;
+- missing/wrong P3 mutation header and malformed JSON cannot mutate Source state;
+- safe bounded API errors do not leak DB/stack details;
+- public routes and collection behavior remain unchanged.
+
+Use real disposable PostgreSQL for domain/reference/transaction claims.
+
+PRESERVED BEHAVIOR
+Preserve bootstrap no-overwrite, Source approval/lifecycle/operational distinction, endpoint health distinction, approved-domain network-safety law, Source-owned filter semantics, Phase 11 Relevance/default Categories, Source-scoped Article identity, Worker collection ownership, scheduler/jobs, and public feed.
+
+NON-GOALS
+Do not implement:
+- endpoint mutation;
+- check-now;
+- health/recent-run admin APIs;
+- browser Source editor;
+- Category/Relevance CRUD;
+- Publication settings/branding admin;
+- Source physical deletion;
+- native administrator identity;
+- topic-specific Source defaults/keywords in engine code.
+
+REQUIRED VALIDATION
+Run focused tests while developing, then before completion run at least:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:db`
+- `npm test`
+- `npm run check`
+- `git diff --check`
+
+Confirm `package.json` is `0.14.4`, no npm lockfile exists, and Source API tests execute behind the P3 request-integrity/admin-enable boundary.
+
+FINAL REPORT
+Report files changed, API surface, Source transaction/domain invariants, lifecycle behavior, Category reuse, filter administration behavior, validation commands actually run/results, and any remaining limitation. Do not claim endpoint administration or check-now is implemented.
