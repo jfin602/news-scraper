@@ -4,9 +4,9 @@ ROADMAP PHASE
 Phase 16 — True duplicate detection and grouping.
 
 MODEL / REASONING / USAGE
-- Recommended configuration: `Luna Medium`.
+- Recommended configuration: `Luna High`.
 - Model-family basis: P6 is a bounded read-model/query change in the one canonical public-feed repository with explicit eligibility semantics and no new write/state machine.
-- Reasoning basis: Medium reasoning is sufficient to place duplicate eligibility at the correct stream boundary while preserving Source/Category/search filters and keyset pagination.
+- Reasoning basis: High reasoning is sufficient to place duplicate eligibility at the correct stream boundary while preserving Source/Category/search filters and keyset pagination.
 - Complexity / quality floor: `Standard`.
 - Estimated usage: `Low`.
 - Lower-cost alternative considered: `Luna Low`; rejected because subtle SQL placement could allow filters/cursors to resurrect non-Primary rows or change pagination ordering.

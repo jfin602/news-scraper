@@ -116,7 +116,7 @@ export class ArticlePersistenceError extends Error {
   }
 }
 
-interface ArticleRow {
+export interface ArticleRow {
   readonly id: unknown;
   readonly source_id: unknown;
   readonly external_id: unknown;
@@ -229,7 +229,7 @@ interface RuleReferenceRow {
   readonly category_id: unknown;
 }
 
-const ARTICLE_COLUMNS = `
+export const ARTICLE_COLUMNS = `
   id, source_id, external_id, original_url,
   canonical_identity_url, display_title, normalized_title, author, summary,
   image_url, language, published_at_status, published_at,
@@ -1210,7 +1210,7 @@ function mapRequiredArticle(
   return mapArticleRow(row);
 }
 
-function mapArticleRow(row: ArticleRow): PersistedArticle {
+export function mapArticleRow(row: ArticleRow): PersistedArticle {
   try {
     return Object.freeze({
       id: requiredUuid(row.id),
