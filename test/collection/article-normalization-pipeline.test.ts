@@ -54,7 +54,7 @@ test('canonical collection normalizes deterministic RSS, Atom, redirect, and iso
     });
 
     const rss = await collect('/phase6/rss', fetcher);
-    assertContentAccounting(rss, [5, 4, 1, 1, 3]);
+    assertContentAccounting(rss, [5, 0, 4, 1, 1, 3]);
     const [markup, missingDate, invalidDate] = rss.candidates ?? [];
     assert.equal(markup?.displayTitle, 'Safe Title & Entities');
     assert.equal(
@@ -81,7 +81,7 @@ test('canonical collection normalizes deterministic RSS, Atom, redirect, and iso
     });
 
     const atom = await collect('/phase6/atom', fetcher);
-    assertContentAccounting(atom, [1, 1, 0, 0, 1]);
+    assertContentAccounting(atom, [1, 0, 1, 0, 0, 1]);
     assert.deepEqual(atom.candidates?.[0]?.publishedAt, {
       status: 'parsed',
       value: '2026-08-10T17:30:00.000Z',
@@ -89,7 +89,7 @@ test('canonical collection normalizes deterministic RSS, Atom, redirect, and iso
     });
 
     const redirected = await collect('/phase6/redirect', fetcher);
-    assertContentAccounting(redirected, [1, 1, 0, 0, 1]);
+    assertContentAccounting(redirected, [1, 0, 1, 0, 0, 1]);
     assert.equal(redirected.redirectCount, 1);
     assert.equal(
       redirected.candidates?.[0]?.originalUrl,
@@ -101,7 +101,21 @@ test('canonical collection normalizes deterministic RSS, Atom, redirect, and iso
     );
 
     const zero = await collect('/phase6/zero', fetcher);
-    assertContentAccounting(zero, [0, 0, 0, 0, 0]);
+    assertContentAccounting(zero, [0, 0, 0, 0, 0, 0]);
+
+    const filteredRss = await collect('/phase6/rss', fetcher, [
+      'hello & world',
+    ]);
+    assertContentAccounting(filteredRss, [5, 4, 1, 0, 0, 1]);
+    assert.equal(
+      filteredRss.candidates?.[0]?.displayTitle,
+      'Safe Title & Entities',
+    );
+
+    const filteredAtom = await collect('/phase6/atom', fetcher, [
+      'phrase absent from atom fixture',
+    ]);
+    assertContentAccounting(filteredAtom, [1, 1, 0, 0, 0, 0]);
 
     const rerun = await collect('/phase6/rss', fetcher);
     assert.equal(rerun.status, 'succeeded');
@@ -116,8 +130,9 @@ test('canonical collection normalizes deterministic RSS, Atom, redirect, and iso
 async function collect(
   path: string,
   fetcher: ReturnType<typeof createHttpFetcher>,
+  admissionPhrases: readonly string[] = [],
 ) {
-  return collectEndpoint(aggregate(path), {
+  return collectEndpoint(aggregate(path, admissionPhrases), {
     lockRunner: acquiredLock(),
     runs: runStore(),
     fetcher,
@@ -141,7 +156,7 @@ async function collect(
 
 function assertContentAccounting(
   result: Awaited<ReturnType<typeof collect>>,
-  expected: readonly [number, number, number, number, number],
+  expected: readonly [number, number, number, number, number, number],
 ): asserts result is EndpointCollectionAttemptResult & { status: 'succeeded' } {
   assert.equal(result.status, 'succeeded');
   if (result.status !== 'succeeded') return;
@@ -159,11 +174,12 @@ function assertContentAccounting(
       result.excludedCount,
       result.failedCount,
     ],
-    ['succeeded', expected[4], 0, 0, expected[3], 0, 0],
+    ['succeeded', expected[5], 0, 0, expected[4], 0, 0],
   );
   assert.deepEqual(
     [
       result.rawItemCount,
+      result.sourceItemFilteredCount,
       result.normalizedCandidateCount,
       result.normalizationFailureCount,
       result.articleLinkRejectionCount,
@@ -247,7 +263,10 @@ function persistedRun(
   });
 }
 
-function aggregate(path: string): EndpointConfigurationAggregate {
+function aggregate(
+  path: string,
+  admissionPhrases: readonly string[],
+): EndpointConfigurationAggregate {
   const timestamp = new Date('2026-08-10T00:00:00.000Z');
   return Object.freeze({
     publication: Object.freeze({
@@ -272,7 +291,7 @@ function aggregate(path: string): EndpointConfigurationAggregate {
       lifecycleState: 'active',
       operationalState: 'enabled',
       priority: 0,
-      rssAtomAdmissionPhrases: Object.freeze([]),
+      rssAtomAdmissionPhrases: Object.freeze([...admissionPhrases]),
       createdAt: timestamp,
       updatedAt: timestamp,
     }),

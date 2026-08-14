@@ -4,6 +4,7 @@ import type {
   ExcludedArticlePersistenceResult,
 } from '../articles/repository.ts';
 import type { EndpointConfigurationAggregate } from '../sources/repository.ts';
+import { isSourceRssAtomItemAdmitted } from './admission/source-rss-atom-item-filter.ts';
 import type { CollectionBlockedDecision } from './decision.ts';
 import {
   withEligibleEndpointExecution,
@@ -340,9 +341,19 @@ async function executeAttempt(
     terminalFeedUrl: fetchResult.finalUrl,
   });
   const normalizedCandidates: ArticleCandidate[] = [];
+  let sourceItemFilteredCount = 0;
   let normalizationFailureCount = 0;
   try {
     for (const rawItem of rawItems) {
+      if (
+        !isSourceRssAtomItemAdmitted(
+          rawItem,
+          configuration.source.rssAtomAdmissionPhrases,
+        )
+      ) {
+        sourceItemFilteredCount += 1;
+        continue;
+      }
       const normalization = dependencies.normalizeArticleCandidate(
         rawItem,
         normalizationContext,
@@ -354,6 +365,7 @@ async function executeAttempt(
     return normalizationExecutionFailedDraft(
       configuration.endpoint.id,
       rawItems.length,
+      sourceItemFilteredCount,
       metadata,
     );
   }
@@ -377,6 +389,7 @@ async function executeAttempt(
     return articleLinkPolicyExecutionFailedDraft(
       configuration.endpoint.id,
       rawItems.length,
+      sourceItemFilteredCount,
       normalizedCandidates.length,
       normalizationFailureCount,
       articleLinkRejectionCount,
@@ -400,7 +413,7 @@ async function executeAttempt(
       transportStatus: 'succeeded',
       parserStatus: 'succeeded',
       rawItemCount: rawItems.length,
-      sourceItemFilteredCount: 0,
+      sourceItemFilteredCount,
       normalizationStatus: 'succeeded',
       normalizedCandidateCount: normalizedCandidates.length,
       normalizationFailureCount,
@@ -418,7 +431,7 @@ async function executeAttempt(
       transportStatus: 'succeeded',
       parserStatus: 'succeeded',
       rawItemCount: rawItems.length,
-      sourceItemFilteredCount: 0,
+      sourceItemFilteredCount,
       normalizationStatus: 'succeeded',
       normalizedCandidateCount: normalizedCandidates.length,
       normalizationFailureCount,
@@ -465,6 +478,12 @@ async function processCandidates(
     excludedCount: 0,
     failedCount: 0,
   };
+
+  if (candidates.length === 0) {
+    return Object.freeze({
+      accounting: Object.freeze({ processingStatus: 'succeeded', ...counters }),
+    });
+  }
 
   let relevanceConfiguration: EffectiveRelevanceConfiguration;
   try {
@@ -636,6 +655,7 @@ function processingFailure(
 function normalizationExecutionFailedDraft(
   endpointId: string,
   rawItemCount: number,
+  sourceItemFilteredCount: number,
   metadata: ReturnType<typeof fetchMetadata>,
 ): AttemptDraft {
   const reason = 'normalization_execution_failed';
@@ -651,7 +671,7 @@ function normalizationExecutionFailedDraft(
       parserStatus: 'succeeded',
       normalizationStatus: 'failed',
       rawItemCount,
-      sourceItemFilteredCount: 0,
+      sourceItemFilteredCount,
       normalizedCandidateCount: 0,
       normalizationFailureCount: 0,
       articleLinkRejectionCount: 0,
@@ -667,7 +687,7 @@ function normalizationExecutionFailedDraft(
       parserStatus: 'succeeded',
       normalizationStatus: 'failed',
       rawItemCount,
-      sourceItemFilteredCount: 0,
+      sourceItemFilteredCount,
       normalizedCandidateCount: 0,
       normalizationFailureCount: 0,
       articleLinkRejectionCount: 0,
@@ -683,6 +703,7 @@ function normalizationExecutionFailedDraft(
 function articleLinkPolicyExecutionFailedDraft(
   endpointId: string,
   rawItemCount: number,
+  sourceItemFilteredCount: number,
   normalizedCandidateCount: number,
   normalizationFailureCount: number,
   articleLinkRejectionCount: number,
@@ -701,7 +722,7 @@ function articleLinkPolicyExecutionFailedDraft(
       parserStatus: 'succeeded',
       normalizationStatus: 'succeeded',
       rawItemCount,
-      sourceItemFilteredCount: 0,
+      sourceItemFilteredCount,
       normalizedCandidateCount,
       normalizationFailureCount,
       articleLinkRejectionCount,
@@ -717,7 +738,7 @@ function articleLinkPolicyExecutionFailedDraft(
       parserStatus: 'succeeded',
       normalizationStatus: 'succeeded',
       rawItemCount,
-      sourceItemFilteredCount: 0,
+      sourceItemFilteredCount,
       normalizedCandidateCount,
       normalizationFailureCount,
       articleLinkRejectionCount,

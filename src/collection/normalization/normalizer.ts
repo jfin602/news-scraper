@@ -1,4 +1,5 @@
 import type { RawItem } from '../raw-item.ts';
+import { collectionPlainText } from '../text/plain-text.ts';
 import {
   ARTICLE_CANDIDATE_LIMITS,
   type ArticleCandidate,
@@ -49,7 +50,7 @@ export function normalizeArticleCandidate(
     return failure('invalid_context', 'Normalization context is invalid.');
   }
 
-  const displayTitle = plainText(rawItem.title ?? '');
+  const displayTitle = collectionPlainText(rawItem.title ?? '');
   if (
     displayTitle.length === 0 ||
     displayTitle.length > ARTICLE_CANDIDATE_LIMITS.title
@@ -223,7 +224,7 @@ function boundedPlainText(
   limit: number,
 ): string | undefined {
   if (value === undefined) return undefined;
-  const normalized = plainText(value);
+  const normalized = collectionPlainText(value);
   return normalized.length > 0 && normalized.length <= limit
     ? normalized
     : undefined;
@@ -231,7 +232,7 @@ function boundedPlainText(
 
 function excerpt(value: string | undefined): string | undefined {
   if (value === undefined) return undefined;
-  const normalized = plainText(value);
+  const normalized = collectionPlainText(value);
   if (normalized.length === 0) return undefined;
   return normalized.slice(0, ARTICLE_CANDIDATE_LIMITS.summary).trimEnd();
 }
@@ -251,51 +252,6 @@ function normalizeCategories(
     if (category !== undefined) categories.push(category);
   }
   return categories.length > 0 ? Object.freeze(categories) : undefined;
-}
-
-function plainText(value: string): string {
-  const withoutCdata = value.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/giu, '$1');
-  const withoutExecutable = withoutCdata.replace(
-    /<(script|style)\b[^>]*>[\s\S]*?(?:<\/\1\s*>|$)/giu,
-    ' ',
-  );
-  const withoutMarkup = withoutExecutable
-    .replace(/<!--[\s\S]*?-->/gu, ' ')
-    .replace(/<[^>]*>/gu, ' ');
-  return decodeEntities(withoutMarkup).replace(/\s+/gu, ' ').trim();
-}
-
-function decodeEntities(value: string): string {
-  const named: Readonly<Record<string, string>> = Object.freeze({
-    amp: '&',
-    apos: "'",
-    gt: '>',
-    lt: '<',
-    nbsp: ' ',
-    quot: '"',
-  });
-  return value.replace(
-    /&(?:#(\d+)|#x([\da-f]+)|([a-z]+));/giu,
-    (entity, decimal: string, hexadecimal: string, name: string) => {
-      if (name !== undefined) return named[name.toLowerCase()] ?? entity;
-      const codePoint = Number.parseInt(
-        decimal ?? hexadecimal,
-        decimal ? 10 : 16,
-      );
-      return isSafeCodePoint(codePoint)
-        ? String.fromCodePoint(codePoint)
-        : '\uFFFD';
-    },
-  );
-}
-
-function isSafeCodePoint(value: number): boolean {
-  return (
-    Number.isInteger(value) &&
-    value > 0 &&
-    value <= 0x10ffff &&
-    !(value >= 0xd800 && value <= 0xdfff)
-  );
 }
 
 function publicationDate(value: string | undefined): PublicationDateMetadata {

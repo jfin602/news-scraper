@@ -164,6 +164,192 @@ describe('canonical endpoint collection service', () => {
     ]);
   });
 
+  it('filters mismatching Raw items before normalization and all candidate work', async () => {
+    const events: string[] = [];
+    const runs = runStore(events);
+    const result = await collectEndpoint(
+      aggregate({ admissionPhrases: ['admitted category'] }),
+      {
+        lockRunner: acquiredLock(events),
+        runs,
+        fetcher: fetcher(events, contentResult()),
+        rssAtomParser: parser(events, {
+          ok: true,
+          dialect: 'rss',
+          items: [
+            {
+              title: 'Filtered item',
+              url: 'https://outside.test/would-have-been-rejected',
+            },
+            {
+              title: 'Accepted item',
+              url: 'https://feeds.example.test/accepted',
+              categories: ['Admitted Category'],
+            },
+          ],
+        }),
+        normalizeArticleCandidate(rawItem, context) {
+          events.push(`normalize:${rawItem.title}`);
+          return normalizeArticleCandidate(rawItem, context);
+        },
+        applyArticleLinkPolicy(candidate, context) {
+          events.push(`policy:${candidate.displayTitle}`);
+          return applyArticleLinkPolicy(candidate, context);
+        },
+        async loadRelevanceConfiguration() {
+          events.push('relevance snapshot');
+          return EMPTY_RELEVANCE_CONFIGURATION;
+        },
+        evaluateRelevance(candidate, configuration) {
+          events.push(`relevance:${candidate.displayTitle}`);
+          return evaluateRelevance(candidate, configuration);
+        },
+        async persistArticle(candidate) {
+          events.push(`persist:${candidate.displayTitle}`);
+          return persistenceSuccess('created');
+        },
+        async persistExcludedArticle() {
+          events.push('persist excluded');
+          return excludedPersistenceSuccess();
+        },
+        observationTime: () => new Date('2026-08-08T12:00:00.000Z'),
+        executionId: () => EXECUTION_ID,
+      },
+    );
+
+    assert.equal(result.status, 'succeeded');
+    if (result.status !== 'succeeded') return;
+    assert.deepEqual(
+      [
+        result.rawItemCount,
+        result.sourceItemFilteredCount,
+        result.normalizedCandidateCount,
+        result.normalizationFailureCount,
+        result.articleLinkRejectionCount,
+      ],
+      [2, 1, 1, 0, 0],
+    );
+    assert.deepEqual(processingTuple(result), ['succeeded', 1, 0, 0, 0, 0, 0]);
+    assert.equal(result.candidates?.[0]?.displayTitle, 'Accepted item');
+    assert.equal(events.includes('normalize:Filtered item'), false);
+    assert.equal(events.includes('policy:Filtered item'), false);
+    assert.equal(events.includes('relevance:Filtered item'), false);
+    assert.equal(events.includes('persist:Filtered item'), false);
+    assert.equal(events.includes('persist excluded'), false);
+    assert.equal(runs.finalizations[0]?.sourceItemFilteredCount, 1);
+  });
+
+  it('treats an all-items-filtered batch as successful without candidate, Relevance, or persistence work', async () => {
+    const events: string[] = [];
+    const runs = runStore(events);
+    let downstreamCalls = 0;
+    const unreachable = () => {
+      downstreamCalls += 1;
+      throw new Error('filtered batches must not enter candidate processing');
+    };
+    const result = await collectEndpoint(
+      aggregate({ admissionPhrases: ['configured phrase'] }),
+      {
+        lockRunner: acquiredLock(events),
+        runs,
+        fetcher: fetcher(events, contentResult()),
+        rssAtomParser: parser(events, {
+          ok: true,
+          dialect: 'atom',
+          items: [
+            {
+              title: 'First mismatch',
+              url: 'https://feeds.example.test/first',
+            },
+            {
+              content: '<p>Second mismatch</p>',
+              url: 'https://feeds.example.test/second',
+            },
+          ],
+        }),
+        normalizeArticleCandidate: unreachable,
+        applyArticleLinkPolicy: unreachable,
+        async loadRelevanceConfiguration() {
+          return unreachable();
+        },
+        evaluateRelevance: unreachable,
+        async persistArticle() {
+          return unreachable();
+        },
+        async persistExcludedArticle() {
+          return unreachable();
+        },
+        observationTime: unreachable,
+        executionId: () => EXECUTION_ID,
+      },
+    );
+
+    assert.equal(result.status, 'succeeded');
+    if (result.status !== 'succeeded') return;
+    assert.equal(result.outcome, 'content');
+    assert.deepEqual(
+      [
+        result.parserStatus,
+        result.normalizationStatus,
+        result.processingStatus,
+        result.rawItemCount,
+        result.sourceItemFilteredCount,
+        result.normalizedCandidateCount,
+        result.normalizationFailureCount,
+        result.articleLinkRejectionCount,
+        result.createdCount,
+        result.updatedCount,
+        result.unchangedCount,
+        result.rejectedCount,
+        result.excludedCount,
+        result.failedCount,
+        result.candidates?.length,
+      ],
+      [
+        'succeeded',
+        'succeeded',
+        'succeeded',
+        2,
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+      ],
+    );
+    assert.equal(downstreamCalls, 0);
+    assert.deepEqual(runs.finalizations[0], {
+      runStatus: 'succeeded',
+      transportStatus: 'succeeded',
+      parserStatus: 'succeeded',
+      normalizationStatus: 'succeeded',
+      httpStatusCode: 200,
+      wireByteCount: 321,
+      decompressedByteCount: 654,
+      redirectCount: 1,
+      transportElapsedMilliseconds: 12,
+      outcomeCode: 'content',
+      rawItemCount: 2,
+      sourceItemFilteredCount: 2,
+      normalizedCandidateCount: 0,
+      normalizationFailureCount: 0,
+      articleLinkRejectionCount: 0,
+      processingStatus: 'succeeded',
+      createdCount: 0,
+      updatedCount: 0,
+      unchangedCount: 0,
+      rejectedCount: 0,
+      excludedCount: 0,
+      failedCount: 0,
+    });
+  });
+
   it('isolates ordinary normalization failures and Article-link rejections with exact batch accounting', async () => {
     const cases = [
       {
@@ -585,25 +771,31 @@ describe('canonical endpoint collection service', () => {
     const events: string[] = [];
     let policyCalls = 0;
     const runs = runStore(events);
-    const result = await collectEndpoint(aggregate(), {
-      lockRunner: acquiredLock(events),
-      runs,
-      fetcher: fetcher(events, contentResult()),
-      rssAtomParser: parser(events, {
-        ok: true,
-        dialect: 'rss',
-        items: [{ title: 'Item', url: 'https://feeds.example.test/item' }],
-      }),
-      normalizeArticleCandidate() {
-        throw new Error(secret);
+    const result = await collectEndpoint(
+      aggregate({ admissionPhrases: ['admit me'] }),
+      {
+        lockRunner: acquiredLock(events),
+        runs,
+        fetcher: fetcher(events, contentResult()),
+        rssAtomParser: parser(events, {
+          ok: true,
+          dialect: 'rss',
+          items: [
+            { title: 'Filtered', url: 'https://feeds.example.test/filtered' },
+            { title: 'Admit me', url: 'https://feeds.example.test/item' },
+          ],
+        }),
+        normalizeArticleCandidate() {
+          throw new Error(secret);
+        },
+        applyArticleLinkPolicy() {
+          policyCalls += 1;
+          throw new Error('unreachable');
+        },
+        ...phase7Dependencies,
+        executionId: () => EXECUTION_ID,
       },
-      applyArticleLinkPolicy() {
-        policyCalls += 1;
-        throw new Error('unreachable');
-      },
-      ...phase7Dependencies,
-      executionId: () => EXECUTION_ID,
-    });
+    );
 
     assert.equal(result.status, 'failed');
     if (result.status !== 'failed') return;
@@ -613,7 +805,8 @@ describe('canonical endpoint collection service', () => {
     assert.equal(result.parserStatus, 'succeeded');
     assert.equal(result.normalizationStatus, 'failed');
     assertProcessingNotRun(result);
-    assert.equal(result.rawItemCount, 1);
+    assert.equal(result.rawItemCount, 2);
+    assert.equal(result.sourceItemFilteredCount, 1);
     assert.equal(result.normalizedCandidateCount, 0);
     assert.equal(result.normalizationFailureCount, 0);
     assert.equal(policyCalls, 0);
@@ -624,32 +817,40 @@ describe('canonical endpoint collection service', () => {
   it('keeps completed normalization accounting when Article-link policy execution fails', async () => {
     const events: string[] = [];
     const runs = runStore(events);
-    const result = await collectEndpoint(aggregate(), {
-      lockRunner: acquiredLock(events),
-      runs,
-      fetcher: fetcher(events, contentResult()),
-      rssAtomParser: parser(events, {
-        ok: true,
-        dialect: 'rss',
-        items: [
-          { title: 'Valid', url: 'https://feeds.example.test/valid' },
-          { url: 'https://feeds.example.test/missing-title' },
-        ],
-      }),
-      normalizeArticleCandidate,
-      applyArticleLinkPolicy() {
-        throw new Error('SYNTHETIC_POLICY_SECRET');
+    const result = await collectEndpoint(
+      aggregate({ admissionPhrases: ['valid'] }),
+      {
+        lockRunner: acquiredLock(events),
+        runs,
+        fetcher: fetcher(events, contentResult()),
+        rssAtomParser: parser(events, {
+          ok: true,
+          dialect: 'rss',
+          items: [
+            { title: 'Valid', url: 'https://feeds.example.test/valid' },
+            {
+              content: 'valid editorial text',
+              url: 'https://feeds.example.test/missing-title',
+            },
+            { title: 'Filtered', url: 'https://feeds.example.test/filtered' },
+          ],
+        }),
+        normalizeArticleCandidate,
+        applyArticleLinkPolicy() {
+          throw new Error('SYNTHETIC_POLICY_SECRET');
+        },
+        ...phase7Dependencies,
+        executionId: () => EXECUTION_ID,
       },
-      ...phase7Dependencies,
-      executionId: () => EXECUTION_ID,
-    });
+    );
 
     assert.equal(result.status, 'failed');
     if (result.status !== 'failed') return;
     assert.equal(result.outcome, 'article_link_policy_failed');
     assert.equal(result.reason, 'article_link_policy_execution_failed');
     assert.equal(result.normalizationStatus, 'succeeded');
-    assert.equal(result.rawItemCount, 2);
+    assert.equal(result.rawItemCount, 3);
+    assert.equal(result.sourceItemFilteredCount, 1);
     assert.equal(result.normalizedCandidateCount, 1);
     assert.equal(result.normalizationFailureCount, 1);
     assert.equal(result.articleLinkRejectionCount, 0);
@@ -667,8 +868,8 @@ describe('canonical endpoint collection service', () => {
       transportElapsedMilliseconds: 12,
       outcomeCode: 'article_link_policy_failed',
       retryClassification: 'permanent',
-      rawItemCount: 2,
-      sourceItemFilteredCount: 0,
+      rawItemCount: 3,
+      sourceItemFilteredCount: 1,
       normalizedCandidateCount: 1,
       normalizationFailureCount: 1,
       articleLinkRejectionCount: 0,
@@ -1389,6 +1590,7 @@ function fetchMetrics(httpStatus: number | undefined) {
 interface AggregateOverrides {
   readonly publicationActive?: boolean;
   readonly endpointId?: string;
+  readonly admissionPhrases?: readonly string[];
 }
 
 function aggregate(
@@ -1415,7 +1617,7 @@ function aggregate(
       lifecycleState: 'active',
       operationalState: 'enabled',
       priority: 0,
-      rssAtomAdmissionPhrases: [],
+      rssAtomAdmissionPhrases: overrides.admissionPhrases ?? [],
       createdAt: timestamp,
       updatedAt: timestamp,
     },

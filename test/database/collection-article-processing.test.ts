@@ -236,6 +236,94 @@ test('canonical collection persists idempotent Articles and isolated outcomes wi
   });
 });
 
+test('Source admission persists filtered run accounting without Article observations or historical mutation', async () => {
+  await withDisposableDatabase(async ({ databaseUrl }) => {
+    await migrateDatabase({ connectionString: databaseUrl });
+    const database = createDatabase({ connectionString: databaseUrl });
+    try {
+      const configuration = await createConfiguration(database, ['admit']);
+      assert.deepEqual(configuration.source.rssAtomAdmissionPhrases, ['admit']);
+      let relevanceSnapshotLoads = 0;
+      const admitted = await execute(
+        database,
+        configuration,
+        'p14-admission-mixed',
+        [
+          item('admitted-item', 'Admit this item', '../articles/admitted'),
+          item('filtered-item', 'Ignore this item', '../articles/filtered'),
+        ],
+        {
+          observationTime: () => FIRST_OBSERVATION,
+          async loadRelevanceConfiguration() {
+            relevanceSnapshotLoads += 1;
+            const snapshot = await loadEffectiveRelevanceConfiguration(
+              database,
+              configuration.source.id,
+              configuration.endpoint.id,
+            );
+            assert.ok(snapshot);
+            return snapshot;
+          },
+        },
+      );
+      assertAttempt(admitted, ['succeeded', 1, 0, 0, 0, 0, 0]);
+      assert.deepEqual(
+        [
+          admitted.rawItemCount,
+          admitted.sourceItemFilteredCount,
+          admitted.normalizedCandidateCount,
+          admitted.normalizationFailureCount,
+        ],
+        [2, 1, 1, 0],
+      );
+      assert.equal(relevanceSnapshotLoads, 1);
+      assert.deepEqual(await cardinality(database), {
+        articles: 1,
+        observations: 1,
+      });
+      await assertRunMatches(database, admitted);
+
+      const priorArticleState = await articleState(database);
+      const allFiltered = await execute(
+        database,
+        configuration,
+        'p14-admission-all-filtered',
+        [item('filtered-again', 'Still ignored', '../articles/ignored')],
+        {
+          observationTime: () => SECOND_OBSERVATION,
+          async loadRelevanceConfiguration() {
+            relevanceSnapshotLoads += 1;
+            throw new Error('all-filtered batch must not load Relevance');
+          },
+        },
+      );
+      assertAttempt(allFiltered, ['succeeded', 0, 0, 0, 0, 0, 0]);
+      assert.deepEqual(
+        [
+          allFiltered.runStatus,
+          allFiltered.parserStatus,
+          allFiltered.normalizationStatus,
+          allFiltered.rawItemCount,
+          allFiltered.sourceItemFilteredCount,
+          allFiltered.normalizedCandidateCount,
+          allFiltered.normalizationFailureCount,
+          allFiltered.articleLinkRejectionCount,
+        ],
+        ['succeeded', 'succeeded', 'succeeded', 1, 1, 0, 0, 0],
+      );
+      assert.equal(relevanceSnapshotLoads, 1);
+      assert.deepEqual(await cardinality(database), {
+        articles: 1,
+        observations: 1,
+      });
+      assert.deepEqual(await articleState(database), priorArticleState);
+      await assertRunMatches(database, allFiltered);
+    } finally {
+      await database.close();
+    }
+  });
+});
+
 test('persisted Relevance configuration drives durable prospective collection outcomes', async () => {
   await withDisposableDatabase(async ({ databaseUrl }) => {
     await migrateDatabase({ connectionString: databaseUrl });
@@ -543,6 +631,13 @@ async function assertRunMatches(
   assert.deepEqual(
     [
       run.runStatus,
+      run.parserStatus,
+      run.normalizationStatus,
+      run.rawItemCount,
+      run.sourceItemFilteredCount,
+      run.normalizedCandidateCount,
+      run.normalizationFailureCount,
+      run.articleLinkRejectionCount,
       run.processingStatus,
       run.createdCount,
       run.updatedCount,
@@ -553,6 +648,13 @@ async function assertRunMatches(
     ],
     [
       result.runStatus,
+      result.parserStatus,
+      result.normalizationStatus,
+      result.rawItemCount,
+      result.sourceItemFilteredCount,
+      result.normalizedCandidateCount,
+      result.normalizationFailureCount,
+      result.articleLinkRejectionCount,
       result.processingStatus,
       result.createdCount,
       result.updatedCount,
@@ -653,7 +755,10 @@ function contentFetcher(): HttpFetcher {
   });
 }
 
-async function createConfiguration(database: Database) {
+async function createConfiguration(
+  database: Database,
+  rssAtomAdmissionPhrases: readonly string[] = [],
+) {
   await insertPublicationSettings(database, {
     name: 'Phase 7 processing',
     activeForCollection: true,
@@ -666,6 +771,9 @@ async function createConfiguration(database: Database) {
     approvalState: 'approved',
     lifecycleState: 'active',
     operationalState: 'enabled',
+    ...(rssAtomAdmissionPhrases.length === 0
+      ? {}
+      : { rssAtomAdmissionPhrases }),
     domainRules: [{ hostname: 'feeds.example.test', includeSubdomains: false }],
   });
   await insertSourceEndpoint(database, source.id, {
