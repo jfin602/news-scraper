@@ -1,0 +1,182 @@
+TASK: Phase 15 / P5 — Admin navigation and Publication editor
+
+ROADMAP PHASE
+Phase 15 — Publication and Relevance administration.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Luna High`.
+- Model-family basis: Luna is adequate because P2 already defines the Publication API and Phase 14 already provides the protected admin shell/client; P5 is a bounded roadmap-owned UI composition task rather than new frontend architecture.
+- Reasoning basis: High reasoning is warranted for extending a large imperative admin client while preserving existing Source/endpoint workflows, request-integrity behavior, responsive layout, and accessible state handling.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna Medium`; rejected because the shared admin shell/client has enough state and browser-regression coupling that additional reasoning materially improves reliability.
+- Escalation trigger: the current admin client cannot absorb Publication workspace/navigation cleanly without a broad state-management/framework rewrite or materially changing established admin architecture.
+- Escalation target: `Terra Medium`.
+- Estimate confidence: `High`.
+- Efficiency rationale: the protected shell, fetch helper, mutation header, CSS baseline, and Publication API are already explicit, so Luna High is sufficient unless source drift reveals a genuine architectural refactor.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 15 prompt 5 and its assigned project version is `0.15.5`.
+- On first execution, require top-level `package.json` version `0.15.4`; on a rerun of this same P5, `0.15.5` is acceptable.
+- Update only the top-level package version to `0.15.5`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 15 roadmap entry, and P1–P4 tasks plus actual implementation/tests;
+2. read `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/design/README.md`, `docs/design/ui-workflow.md`, and `docs/decisions/cloudflare-access-admin-perimeter.md`;
+3. confirm this is roadmap-owned Phase 15 administration on `main`, not a parallel non-versioned `ui-polish` task;
+4. inspect the current `/admin` page markup/router, `admin/admin.js`, `admin/admin.css`, P2 Publication routes/read model, Source/endpoint admin routes, and `test/browser/admin-page.test.ts`;
+5. trace the current mutation helper and request-integrity header behavior before changing client fetch logic;
+6. inspect public-feed resources only for regression boundaries; do not redesign the public site;
+7. stop and report planning drift if P2 Publication API is missing/incompatible, the admin shell architecture materially changed, or implementing this governed functional UI requires new durable design guidance rather than using the existing admin presentation baseline.
+
+GOAL
+Turn the Phase 14 Source-only `/admin` page into a compact multi-workspace control plane and add the operator-facing singleton Publication editor.
+
+P5 owns admin navigation/shell composition plus Publication UI. It must preserve the complete existing Source/endpoint administration experience and must not implement Category/Relevance editing yet.
+
+ROADMAP VS UI-WORKSTREAM BOUNDARY
+This is versioned roadmap implementation on `main` because it exposes governed Phase 15 Publication behavior and API state. Do not move it to `ui-polish`, remove its version change, or create a `docs/design/tasks` prompt.
+
+Presentation should extend the established admin visual language. Do not invent or modify durable design guidance unless execution discovers a real ambiguity that invalidates the prompt; in that case stop and report planning drift.
+
+ADMIN INFORMATION ARCHITECTURE
+Replace the page's Source-only top-level framing with a clear singleton admin shell that has at least:
+- Publication workspace;
+- Sources workspace;
+- a place for the upcoming Editorial workspace if needed for P6, without implementing fake Category/Relevance behavior in P5.
+
+A deployed installation contains exactly one Publication/topic, so there is no Publication switcher, tenant selector, slug selector, or list of Publications.
+
+Use semantic navigation controls with clear current-state indication and keyboard operation. Preserve dedicated Source/endpoint nested navigation inside the Sources workspace.
+
+Do not introduce a frontend framework solely for tabs/navigation. Keep the implementation dependency-light and consistent with the existing static admin assets unless the current source demonstrates a concrete need otherwise.
+
+PUBLICATION WORKSPACE
+Expose all P2 fields:
+- name;
+- `activeForCollection`;
+- `publicStatus`;
+- description;
+- logo path;
+- accent color;
+- presentation timezone.
+
+The UI should explain the two global state controls accurately:
+- collection active controls whether eligible Sources/endpoints may run;
+- public/private controls whether the public feed is exposed;
+- neither silently changes the other.
+
+For presentation timezone:
+- empty/unset means UTC calendar-date presentation;
+- configured value is an IANA timezone identifier;
+- do not offer locale/date-template/time-format configuration;
+- do not imply timezone changes Article timestamps or feed order.
+
+Use appropriate native form controls. Keep existing safe validation/server error behavior; server remains authoritative.
+
+CLIENT STATE / MUTATION BEHAVIOR
+On Publication workspace entry/load:
+- fetch the canonical P2 Publication read model;
+- distinguish loading, ready, and error states;
+- populate current values without exposing internal IDs.
+
+On save:
+- send one same-origin JSON mutation through the established admin helper/header contract;
+- disable duplicate submission while the mutation is in flight;
+- preserve useful unsaved values when validation/API failure occurs;
+- render bounded server errors as text, never HTML;
+- refresh/reconcile from the canonical saved response after success.
+
+Do not perform optimistic state changes that bypass server validation.
+
+SOURCE / ENDPOINT PRESERVATION
+The existing Source administration client currently owns substantial state for:
+- Source list/create/edit;
+- Source approval/lifecycle/operational actions;
+- Source admission phrases;
+- endpoint list/create/edit;
+- endpoint approval/lifecycle/operational actions;
+- health/recent runs;
+- check-now.
+
+Preserve all of it. Navigation between Publication and Sources must not corrupt selected Source/endpoint state, leave hidden forms active unexpectedly, or cause duplicate listeners/fetch loops.
+
+A minimal internal client refactor is allowed if it reduces duplication and keeps behavior obvious, but do not perform unrelated wholesale frontend restructuring.
+
+SECURITY
+Preserve:
+- `/admin` no-store/security headers and restrictive CSP;
+- state-changing same-origin requests using `X-News-Scraper-Admin-Request: 1` through the established helper;
+- no credentials/Cloudflare tokens stored in browser storage or markup;
+- no native login/session/role implementation;
+- bounded text rendering for server values/errors.
+
+ACCESSIBILITY / RESPONSIVE BASELINE
+Maintain or improve the existing admin baseline:
+- semantic landmarks/headings/navigation/forms/labels;
+- keyboard-operable workspace navigation and controls;
+- visible focus in all tested states;
+- coherent focus placement after workspace changes and save/error actions where practical;
+- no information conveyed solely by color;
+- long Publication names/descriptions/logo paths/timezones/errors wrap safely;
+- no horizontal document overflow at representative 390x844 mobile width;
+- usable layout at representative 1280x900 desktop width;
+- practical touch targets.
+
+Do not let arbitrary Publication accent color restyle admin security/error/focus semantics unless the existing admin design explicitly supports it safely.
+
+BROWSER TESTING
+Extend the dedicated real Chromium admin suite with deterministic injected service/API state.
+
+Observe at minimum:
+- admin-disabled route remains unavailable;
+- Publication workspace loads all fields;
+- edit/save name and presentation values;
+- edit collection-active and public/private controls independently;
+- configured timezone can be saved/displayed;
+- empty timezone communicates UTC fallback;
+- validation/API error preserves form values and usable focus/state;
+- every Publication mutation sends the canonical request-integrity header;
+- switching Publication ↔ Sources keeps the existing Source/endpoint workflow usable;
+- existing Source create/edit/state/filter, endpoint create/edit/state, check-now, health/run browser tests remain green;
+- keyboard workspace navigation/focus is visible;
+- desktop/mobile layouts do not horizontally overflow;
+- public root/feed behavior remains unchanged.
+
+Browser mocks/harnesses prove UI behavior only; retain P2 database/integration tests as persistence/security proof.
+
+PRESERVED BEHAVIOR
+Preserve Phase 14 Source/endpoint admin semantics, Source priority/filter/default Category controls, admin request integrity/CSP/no-store behavior, public `/` and `/api/feed`, Worker ownership, and singleton topic-independent architecture.
+
+NON-GOALS
+Do not implement:
+- Category CRUD UI;
+- Relevance-rule UI;
+- Source/endpoint API redesign;
+- public-site redesign;
+- Publication selector/tenancy;
+- native admin authentication;
+- Article/duplicate moderation;
+- Cloudflare Level 8 deployment validation;
+- parallel `ui-polish` workflow changes.
+
+REQUIRED VALIDATION
+Run focused browser/integration checks while developing, then before completion run at least:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:browser`
+- `npm test`
+- `npm run check`
+- `git diff --check`
+
+Confirm top-level `package.json` is `0.15.5`, no npm lockfile exists, and browser claims were observed in real Playwright Chromium at representative desktop/mobile viewports.
+
+FINAL REPORT
+Report files changed, admin navigation/workspace structure, Publication fields/workflows, Source/endpoint preservation, request-integrity client behavior, accessibility/responsive browser evidence with tested viewports, validation commands actually run/results, and any remaining limitation. Do not claim Category/Relevance UI exists; P6 owns it.

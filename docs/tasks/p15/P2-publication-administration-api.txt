@@ -1,0 +1,144 @@
+TASK: Phase 15 / P2 — Publication administration API
+
+ROADMAP PHASE
+Phase 15 — Publication and Relevance administration.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Luna Medium`.
+- Model-family basis: Luna is sufficient because P1 establishes the complete validated singleton Publication model and P2 is a bounded service/router integration over that existing persistence boundary.
+- Reasoning basis: Medium reasoning is adequate for exact-key command validation, safe error shaping, request-integrity composition, and public/collection state regressions without new cross-resource transaction design.
+- Complexity / quality floor: `Standard`.
+- Estimated usage: `Low`.
+- Lower-cost alternative considered: `Luna Low`; rejected because the admin command surface spans persistence, HTTP error mapping, state controls, and regression interactions that require ordinary implementation reasoning.
+- Escalation trigger: implementation inspection reveals unexpected shared transaction ownership, conflicting Publication mutation paths, or hidden coupling between Publication updates and scheduler/public-feed execution.
+- Escalation target: `Luna High`.
+- Estimate confidence: `High`.
+- Efficiency rationale: the admin perimeter and Publication validation/persistence seams already exist, so Luna Medium is the lowest adequate current configuration for exposing them without duplicating domain logic.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 15 prompt 2 and its assigned project version is `0.15.2`.
+- On first execution, require top-level `package.json` version `0.15.1`; on a rerun of this same P2, `0.15.2` is acceptable.
+- Update only the top-level package version to `0.15.2`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 15 roadmap entry, and P1 plus its actual implementation/tests;
+2. read `docs/contracts/domain-and-data-contract.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/contracts/source-and-collection-contract.md`, and `docs/decisions/cloudflare-access-admin-perimeter.md`;
+3. inspect the P1 Publication configuration/repository/bootstrap/read-model changes and confirm the canonical persisted fields and validation functions actually available;
+4. inspect `src/app/web/admin-router.ts`, current Source/endpoint admin service/router composition, Web dependency injection/startup, and admin integration/database tests;
+5. trace current consumers of `activeForCollection` and `publicStatus` so the admin command updates the same singleton fields used by Worker eligibility and public-feed visibility rather than introducing parallel state;
+6. stop and report planning drift if P1 did not land the expected complete Publication model or if the admin perimeter/request-integrity contract materially changed.
+
+GOAL
+Expose the installation's complete singleton Publication configuration through the existing protected admin API.
+
+P2 owns the Publication read/update service and HTTP routes. It does not build the browser editor, Category/Relevance CRUD, or a second Publication model.
+
+ADMIN SERVICE BOUNDARY
+Create a focused Publication administration service under `src/admin/` or the current canonical admin ownership path.
+
+The service should expose a bounded operator read model containing:
+- `name`;
+- `activeForCollection`;
+- `publicStatus`;
+- nullable/optional `description`;
+- nullable/optional `logoPath`;
+- nullable/optional `accentColor`;
+- nullable/optional `presentationTimezone`.
+
+Use the existing Publication normalization functions from P1 rather than duplicating field validation in the admin layer.
+
+Provide one complete replacement-style update command for the mutable singleton Publication configuration. The request body should use an exact known-key shape and reject unknown fields rather than silently accepting typo/future properties.
+
+The command must update the existing singleton row atomically and return the canonical persisted read model. It MUST NOT create a Publication UUID, slug, selector, route parameter, tenant scope, or second settings row.
+
+If singleton settings are absent, return one stable bounded application error rather than implicitly bootstrapping a new Publication through the admin route.
+
+STATE SEMANTICS
+`activeForCollection` and `publicStatus` are distinct controls:
+- `activeForCollection` governs whether otherwise eligible Sources/endpoints may collect/schedule;
+- `publicStatus` governs whether the canonical public feed/page is exposed;
+- changing one MUST NOT silently change the other.
+
+A Publication may be private while collection remains active, or public while collection is disabled. Preserve this distinction in validation/tests.
+
+Presentation fields remain inert bounded configuration. `presentationTimezone` retains P1's presentation-only semantics and cannot modify stored timestamps/order/cursors.
+
+RECOMMENDED HTTP API
+Integrate through the existing `/api/admin` router and request-integrity middleware. Use this compact canonical surface unless established route conventions strongly justify an equivalent name:
+
+`GET /api/admin/publication`
+`PUT /api/admin/publication/configuration`
+
+The GET route is read-only and needs no mutation header. The PUT route inherits the canonical JSON/content-length/custom-header controls from `admin-router.ts`.
+
+Do not create separate routes for every individual Publication field unless current implementation architecture demonstrates a concrete need. One validated replacement command is simpler and keeps Publication state coherent.
+
+ERROR SHAPING
+Return bounded stable JSON errors for:
+- invalid request/configuration;
+- missing singleton Publication settings;
+- bounded dependency/internal failure through the existing generic admin error boundary.
+
+Do not leak SQL, stack traces, environment values, raw database rows, internal headers/tokens, or implementation-only details.
+
+WEB COMPOSITION
+Register Publication routes beside the existing Source/endpoint admin registrars without weakening:
+- admin-disabled fail-closed behavior;
+- no-store/security/CSP headers;
+- canonical mutation request-integrity checks;
+- public route isolation.
+
+Do not treat caller-supplied Cloudflare headers as application authentication and do not add native administrator accounts/sessions/roles.
+
+TESTING
+Add focused unit/integration/database coverage for:
+- read existing singleton Publication configuration including timezone;
+- complete update/round-trip of all governed fields;
+- exact-key unknown-field rejection;
+- existing name/description/logo/accent/timezone validation errors map to bounded admin errors;
+- missing singleton configuration returns the intended bounded result and does not create a row;
+- changing `publicStatus` immediately affects the existing canonical public-feed availability path without changing collection state;
+- changing `activeForCollection` is observed by the existing collection-eligibility path without changing public status;
+- private + active and public + inactive combinations remain valid/distinct;
+- timezone edit does not rewrite Article timestamps/order/cursors;
+- missing/wrong mutation header, non-JSON body, malformed JSON, and oversized JSON cannot mutate Publication state;
+- admin-disabled routes remain unavailable;
+- public `/` and `/api/feed` behavior remains otherwise unchanged;
+- no Publication selector/ID/slug is introduced in route/service/repository signatures.
+
+Use real disposable PostgreSQL for persisted update/state claims. Reuse existing admin HTTP harnesses and public/eligibility regression tests where practical instead of creating duplicate infrastructure.
+
+PRESERVED BEHAVIOR
+Preserve ordinary bootstrap no-overwrite behavior, singleton Publication persistence, Worker-owned collection, Source/endpoint approval/network safety, public-feed eligibility/order/discovery, Phase 13 presentation, Phase 14 admin perimeter/request-integrity, and topic independence.
+
+NON-GOALS
+Do not implement:
+- Publication browser UI;
+- Category CRUD;
+- Relevance CRUD;
+- Source/endpoint administration changes beyond wiring compatibility;
+- Publication switching/tenancy;
+- native administrator identity;
+- Article/duplicate moderation;
+- Cloudflare Level 8 deployment proof.
+
+REQUIRED VALIDATION
+Run focused tests while developing, then before completion run at least:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:db`
+- `npm test`
+- `npm run check`
+- `git diff --check`
+
+Confirm top-level `package.json` is `0.15.2`, no npm lockfile exists, and Publication persistence/state tests actually executed against disposable PostgreSQL.
+
+FINAL REPORT
+Report files changed, admin service/API surface, exact mutable Publication fields, state-separation behavior, request-integrity/error handling, validation commands actually run/results, and any remaining limitation. Do not claim the browser editor exists; P5 owns it.

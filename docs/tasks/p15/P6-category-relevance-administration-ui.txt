@@ -1,0 +1,226 @@
+TASK: Phase 15 / P6 — Category and Relevance administration UI
+
+ROADMAP PHASE
+Phase 15 — Publication and Relevance administration.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra Medium`.
+- Model-family basis: Terra is warranted because P6 integrates several interacting admin state domains—Categories, Relevance rules, Source choices, Category targets, deletion conflicts, conditional fields, and existing default-Category selectors—inside the shared imperative admin client.
+- Reasoning basis: Medium reasoning is adequate because P3/P4 APIs and domain semantics are explicit; the challenge is integration/state composition rather than novel architecture.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Luna High`; rejected because the combined UI state machines and cross-workspace refresh interactions raise integration risk beyond a single bounded editor.
+- Escalation trigger: implementation inspection shows P5 left an admin architecture that requires a broad state-management/framework rewrite, or current UI/API drift makes Category/Relevance/default-selector consistency materially ambiguous.
+- Escalation target: `Terra High`.
+- Estimate confidence: `High`.
+- Efficiency rationale: Terra Medium supplies the needed cross-file/state integration capability while avoiding High/Ultra reasoning because the API contracts, rule vocabulary, and browser acceptance matrix are already explicit.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 15 prompt 6 and its assigned project version is `0.15.6`.
+- On first execution, require top-level `package.json` version `0.15.5`; on a rerun of this same P6, `0.15.6` is acceptable.
+- Update only the top-level package version to `0.15.6`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 15 roadmap entry, and P1–P5 tasks plus actual implementation/tests;
+2. read `docs/contracts/domain-and-data-contract.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/source-and-collection-contract.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/design/README.md`, and `docs/design/ui-workflow.md`;
+3. confirm this is roadmap-owned Phase 15 administration on `main`, not a non-versioned `ui-polish` task;
+4. inspect P3/P4 editorial API/read models/errors, P5 admin workspace/navigation/client structure, current Source/endpoint default-Category controls, and the complete admin browser suite;
+5. inspect Phase 11 Relevance evaluator tests and operator configuration so UI labels/explanations cannot invent different precedence or rule semantics;
+6. inspect the current size/ownership of `admin.js` and `admin.css`; a focused module split/refactor is allowed if it makes P6 safer, but avoid unrelated framework migration;
+7. stop and report planning drift if P3/P4 APIs are incomplete/incompatible, P5 navigation is materially different, or implementing the governed functional UI would require unapproved durable design decisions.
+
+GOAL
+Complete the Phase 15 editorial control surface by adding practical Category and Relevance-rule administration to the protected `/admin` application.
+
+P6 consumes the P3/P4 APIs. It must not reimplement their domain rules in browser code or turn the existing bounded Relevance model into a generic rule builder.
+
+EDITORIAL WORKSPACE
+Add/complete a top-level Editorial workspace in the P5 admin navigation.
+
+The workspace should make two related but distinct resources understandable:
+- Categories;
+- Relevance rules.
+
+The exact visual layout may be compact, but list/selection/editor state must remain clear on desktop and mobile. Do not add a Publication/topic selector.
+
+CATEGORY UI
+Support:
+- list existing Categories;
+- create Category with immutable config key + display name;
+- select/read Category;
+- edit display name only after creation;
+- remove an unreferenced Category;
+- display a clear bounded conflict when removal is blocked because the Category remains in use.
+
+Requirements:
+- config key field is editable only during create and clearly described as immutable afterward;
+- server remains authoritative for relationship/deletion validation;
+- a blocked delete MUST NOT optimistically remove the Category from client state;
+- use a clearly named destructive action and require enough UI intentionality to avoid accidental activation, without inventing a new authentication/approval flow;
+- do not expose Category archive/lifecycle controls because none exist.
+
+CATEGORY CHOICE SYNCHRONIZATION
+The managed Category set is also consumed by:
+- existing Source default-Category selector;
+- existing endpoint default-Category selector;
+- Relevance `categorize` target selector.
+
+After successful Category create/update/delete, refresh/reconcile the canonical Category choice state so every workspace uses current server data.
+
+Preserve existing selected Source/endpoint default values when still valid. If a Category was successfully deleted, it was unreferenced by contract, so no existing persisted Source/endpoint default should point to it.
+
+Do not move Source/endpoint default mutation ownership into Editorial UI unless the existing Source/endpoint editor already owns those controls; P6 only keeps their choices synchronized.
+
+RELEVANCE RULE UI
+Support:
+- list/select rules;
+- create rule;
+- edit rule configuration;
+- enable/disable rule;
+- remove a genuinely unreferenced rule;
+- display retained-history conflict when removal is blocked.
+
+Expose only the canonical fields:
+- immutable `configKey` on create;
+- predicate: `title_contains`, `summary_contains`, `source_category_equals`;
+- literal pattern;
+- action: `include`, `exclude`, `categorize`;
+- integer priority;
+- enabled state through the dedicated enable/disable operation;
+- reason/explanatory label;
+- scope: installation-wide or one real Source;
+- Category target only when action is `categorize`.
+
+Use operator-readable labels while sending/storing canonical enum values.
+
+CONDITIONAL RULE FORM BEHAVIOR
+Keep conditional fields deterministic:
+- installation-wide scope means no Source config key is sent;
+- Source-scoped means one current real Source choice is required;
+- `categorize` shows/requires a current Category target;
+- `include`/`exclude` hide/clear Category target and MUST NOT send one;
+- predicate/action changes do not silently rewrite unrelated values such as priority/reason/pattern;
+- disabled is not archive/deleted.
+
+Client-side form guidance may prevent obvious invalid combinations, but server validation remains authoritative and server errors must preserve useful unsaved form state.
+
+DETERMINISTIC PRECEDENCE EXPLANATION
+Provide concise operator guidance that accurately reflects the existing Phase 11 behavior. It must not become a second evaluator.
+
+Explain at least:
+- all applicable enabled literal rules are evaluated deterministically;
+- include/exclude precedence follows the existing priority/scope/action/final immutable-key tie rules already implemented/tested;
+- all matching `categorize` rules can add Categories and are not reduced to one winner;
+- if no categorize rule assigns a Category, endpoint default wins over Source default;
+- rule edits are prospective and do not automatically rescan historical Articles.
+
+Derive wording from the governing contract/current evaluator tests rather than inventing simplified semantics that are false.
+
+SOURCE CHOICES
+Relevance Source scope should use bounded current Source choices from an existing protected admin read model. Do not expose internal Source UUIDs.
+
+Prefer reusing `GET /api/admin/sources` data already available to the admin client. Do not create a duplicate Source directory API merely for the rule form.
+
+DELETE / ERROR STATES
+For Category/rule delete:
+- render bounded `in use`/retained-provenance conflicts clearly;
+- do not expose SQL/constraint names;
+- keep the selected item/editor coherent after failure;
+- after success, remove/reload canonical server state and choose a predictable next/empty selection.
+
+For all create/update mutations:
+- prevent duplicate concurrent submits;
+- send the canonical same-origin JSON mutation header;
+- preserve user input on validation/API failure;
+- reconcile with server response after success;
+- never render server-provided content as HTML.
+
+ADMIN CODE STRUCTURE
+The existing admin client is large. You MAY split it into a few focused same-origin static modules/resources if the current CSP/router can support that cleanly and the refactor directly improves Phase 15 maintainability.
+
+If splitting:
+- preserve restrictive CSP and no inline script requirements;
+- keep dependencies local/no new frontend framework;
+- preserve all Phase 14/P5 behavior and tests;
+- avoid speculative generic state libraries/components unrelated to this phase.
+
+A simple extension of the current file is also acceptable if it remains understandable and regression-safe.
+
+ACCESSIBILITY / RESPONSIVE
+At minimum:
+- semantic lists/forms/headings/fieldset/labels;
+- keyboard-operable Category/rule list selection and actions;
+- visible focus throughout workspace navigation/editor controls;
+- sensible focus after create/delete/error transitions;
+- action/scope/predicate/Category controls have clear labels/help;
+- status/errors do not rely on color alone;
+- destructive removal is clearly distinguished;
+- long keys/patterns/reasons/Source names/errors wrap safely;
+- no horizontal document overflow at representative 390x844 mobile viewport;
+- usable layout at representative 1280x900 desktop viewport.
+
+BROWSER TESTING
+Extend the dedicated real Chromium admin suite using deterministic injected admin service/API state.
+
+Observe at minimum:
+- Editorial workspace navigation;
+- Category empty/ready/error states where applicable;
+- create Category;
+- edit Category display name while key stays immutable;
+- successful unreferenced Category removal;
+- blocked Category removal leaves UI/data intact and shows bounded conflict;
+- Category choices refresh in existing Source/endpoint default selectors;
+- create installation-wide include/exclude rule;
+- create Source-scoped rule using real Source choice;
+- create categorize rule using real Category target;
+- action change hides/clears invalid Category target behavior;
+- edit rule predicate/pattern/action/priority/reason/scope/target;
+- enable/disable through dedicated operation;
+- successful unreferenced rule removal;
+- blocked retained-provenance rule removal;
+- validation/API errors preserve usable rule form state;
+- precedence/default/prospective guidance is present and accurate enough to protect the contract;
+- mutation requests carry the canonical admin request-integrity header;
+- Publication workspace and complete Source/endpoint/check-now/health workflows remain usable after Editorial interactions;
+- keyboard focus and desktop/mobile no-overflow behavior.
+
+Browser mocks do not replace P3/P4 PostgreSQL/integration evidence; keep those tests green.
+
+PRESERVED BEHAVIOR
+Preserve the exact Phase 11 Relevance evaluator and Category/default semantics, Phase 12 public Category filtering, Phase 14 Source priority/default/filter/endpoint administration, P5 Publication UI, admin CSP/request integrity, public feed, Worker collection, and topic independence.
+
+NON-GOALS
+Do not implement:
+- new Relevance predicates/actions/expressions/ranking;
+- automatic historical reprocessing;
+- Article manual moderation/recategorization;
+- duplicate moderation;
+- Category/rule archive states;
+- Source priority editor outside its existing Source workspace;
+- Publication tenancy/selectors;
+- native admin accounts;
+- public-site redesign;
+- frontend framework migration without an actual blocker.
+
+REQUIRED VALIDATION
+Run focused browser/integration checks while developing, then before completion run at least:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:browser`
+- `npm test`
+- `npm run check`
+- `git diff --check`
+
+If P6 changes production persistence/service behavior rather than only browser/admin composition, also run `npm run test:db` for every affected database claim before completion.
+
+Confirm top-level `package.json` is `0.15.6`, no npm lockfile exists, and browser claims were observed in real Playwright Chromium at representative desktop/mobile viewports.
+
+FINAL REPORT
+Report files changed, Editorial information architecture, Category and Relevance workflows, Category-choice synchronization, precedence guidance, any admin-client refactor, request-integrity behavior, accessibility/responsive browser evidence with viewports, validation commands actually run/results, and any remaining limitation. Do not mark Phase 15 complete; P7 owns final closeout validation.

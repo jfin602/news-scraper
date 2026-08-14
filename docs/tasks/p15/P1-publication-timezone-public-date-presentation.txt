@@ -1,0 +1,127 @@
+TASK: Phase 15 / P1 — Publication timezone and public date presentation
+
+ROADMAP PHASE
+Phase 15 — Publication and Relevance administration.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Luna High`.
+- Model-family basis: Luna is adequate because this is a bounded deterministic extension of the existing singleton Publication/presentation model rather than new architecture.
+- Reasoning basis: High reasoning is warranted for migration/configuration/public-read/browser date-boundary interactions while preserving canonical timestamp and cursor semantics.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna Medium`; rejected because timezone validation plus database/read-model/browser changes create enough edge-case and regression coupling to justify additional reasoning.
+- Escalation trigger: implementation inspection shows presentation timezone is materially coupled to feed ordering, cursor encoding, Article timestamp persistence, or another shared state path not described by the governing contracts.
+- Escalation target: `Terra Medium`.
+- Estimate confidence: `High`.
+- Efficiency rationale: the contract makes timezone presentation-only and the affected producer/consumer chain is explicit, so Luna High is the minimum adequate configuration without pre-paying for hypothetical architectural redesign.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 15 prompt 1 and its assigned project version is `0.15.1`.
+- On first execution, require top-level `package.json` version `0.15.0`; on a rerun of this same P1, `0.15.1` is acceptable.
+- Update only the top-level package version to `0.15.1`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md` and the complete Phase 15 roadmap entry;
+2. read `docs/contracts/domain-and-data-contract.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, and `docs/architecture/system-architecture.md`;
+3. inspect the current Publication configuration/repository/bootstrap implementation, latest migration chain, canonical public-feed repository/read model, public HTTP serialization, public client date formatter, and their unit/database/integration/browser tests;
+4. trace every consumer of `PublicationConfiguration`, `PublicationPresentationConfiguration`, `PersistedPublicationSettings`, and the public Publication read model before changing their shapes;
+5. inspect Phase 12 cursor/order implementation and Phase 13 browser date/theme/loading regressions so presentation work cannot silently redefine discovery semantics;
+6. stop and report planning drift if the singleton Publication model, canonical feed order/cursor contract, or Phase 15 timezone requirement materially differs from this prompt.
+
+GOAL
+Add optional singleton Publication `presentation_timezone` configuration and use it only for public calendar-date presentation.
+
+Absent configuration preserves the existing UTC calendar-date fallback. A configured valid IANA time-zone identifier may change which calendar date is displayed for a timestamp near a zone boundary, but MUST NOT change persisted Article timestamps, effective-feed-date calculation, feed eligibility, chronological ordering, keyset cursors, routing, or Publication identity.
+
+PERSISTENCE AND CONFIGURATION
+Extend the existing singleton Publication model rather than creating a separate settings object or tenant entity.
+
+Add the next migration in the current chain to persist nullable `presentation_timezone` on `publication_settings` or the current canonical singleton table. Do not rewrite historical migrations.
+
+Configuration behavior:
+- optional/absent value is canonical no-timezone configuration and means UTC presentation;
+- configured value must be a trimmed valid IANA time-zone identifier supported by the runtime's standard timezone data;
+- reject invalid/unsupported identifiers with the existing bounded `ConfigurationValidationError` pattern;
+- keep validation topic independent;
+- do not introduce locale, arbitrary date template, time format, offset-only, or general presentation-format configuration;
+- prefer standard Node/ECMAScript `Intl`/ICU validation and formatting; do not add a timezone dependency unless the existing runtime demonstrably cannot satisfy the contract;
+- persist and read the value through the canonical Publication repository and reject malformed database values rather than silently coercing them.
+
+Preserve existing `name`, `activeForCollection`, `publicStatus`, `description`, `logoPath`, and `accentColor` validation and serialization behavior.
+
+BOOTSTRAP
+Extend the explicit Publication bootstrap document to accept optional `presentationTimezone` alongside existing optional presentation fields.
+
+Preserve ordinary bootstrap create-if-absent/no-overwrite semantics exactly:
+- omitted timezone remains absent/UTC;
+- initial configured timezone is persisted when the singleton is first created;
+- rerunning bootstrap MUST NOT overwrite a later operator-managed timezone or any other existing Publication setting.
+
+PUBLIC READ MODEL / API
+Expose the optional timezone through the existing canonical public Publication presentation read model returned by `GET /api/feed`, using the repository's current JSON naming convention (normally `presentationTimezone`).
+
+Do not create a second feed endpoint/query or require a Publication selector.
+
+The database Article query/order/cursor path must remain based on the existing UTC instants and order tuple. `presentation_timezone` belongs in Publication presentation metadata, not in Article ordering SQL, cursor payloads, candidate normalization, Article persistence, or Collection-run state.
+
+PUBLIC BROWSER PRESENTATION
+Update the root public client so calendar-date labels use:
+- configured Publication timezone when present;
+- UTC when absent.
+
+Keep the established date presentation shape and accessibility behavior unless the current Phase 13 implementation requires a minimal compatible adjustment. Formatting must be deterministic for the configured zone and independent of the viewer machine's local timezone.
+
+Do not alter headline destinations, Source labels, discovery/search/filter state, load-more behavior, theme selection, pending/loading behavior, or routing.
+
+TESTING
+Add focused coverage at the appropriate levels for:
+- valid IANA timezone normalization/configuration;
+- invalid/unsupported timezone rejection;
+- absent timezone;
+- persistence round-trip through real disposable PostgreSQL;
+- invalid persisted timezone rejected by repository mapping;
+- bootstrap accepts omitted/configured timezone and ordinary rerun does not overwrite existing operator-managed timezone;
+- public feed/API returns configured timezone and null/absent canonical fallback consistently with existing response conventions;
+- a fixed effective timestamp near midnight renders a different calendar date in a suitable configured timezone than UTC;
+- the same timestamp renders the UTC date when timezone is absent;
+- configured timezone does not change Article timestamps, effective-feed-date source/value, feed row eligibility, ordering, or cursor continuation behavior;
+- Phase 12 direct URL/filter/search/load-more behavior remains unchanged;
+- Phase 13 loading/theme/responsive/external-link browser behavior remains green.
+
+Use real disposable PostgreSQL for schema/persistence claims and real Playwright Chromium for browser date-presentation claims. Ordinary tests must not depend on live publishers.
+
+PRESERVED BEHAVIOR
+Preserve singleton Publication semantics without IDs/slugs/tenant scoping; Source-scoped Article identity/provenance; Source/endpoint eligibility and network safety; canonical `/api/feed` and `/`; Phase 12 chronological keyset discovery; Phase 13 presentation/theme/loading/accessibility behavior; and original-publisher headline navigation.
+
+NON-GOALS
+Do not implement:
+- Publication admin API/UI;
+- Category or Relevance administration;
+- locale or date-format customization;
+- timezone-dependent feed ordering/cursors;
+- timestamp rewriting/backfill;
+- Article/duplicate moderation;
+- native administrator identity;
+- Cloudflare Level 8 deployment proof.
+
+REQUIRED VALIDATION
+Run focused tests while developing, then before completion run at least:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:db`
+- `npm run test:browser`
+- `npm test`
+- `npm run check`
+- `git diff --check`
+
+Confirm top-level `package.json` is `0.15.1`, no npm lockfile exists, database evidence used the disposable PostgreSQL harness, and browser timezone evidence used real Chromium.
+
+FINAL REPORT
+Report files changed, migration/configuration/public-read/browser behavior, timezone validation and UTC fallback, explicit proof that timestamps/order/cursors were preserved, validation commands actually run/results, and any remaining limitation. Do not claim Publication administration exists; P2 owns that surface.

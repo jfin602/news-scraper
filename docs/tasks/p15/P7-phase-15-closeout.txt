@@ -1,0 +1,266 @@
+TASK: Phase 15 / P7 — Phase 15 closeout validation
+
+ROADMAP PHASE
+Phase 15 — Publication and Relevance administration.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Luna High`.
+- Model-family basis: Luna is adequate because P7 is an evidence-driven closeout over explicit Phase 15 contracts, with permission only for bounded defects rather than architectural redesign.
+- Reasoning basis: High reasoning is warranted for synthesizing cross-layer Publication/Category/Relevance evidence, detecting regressions, and deciding whether a failure is a bounded closeout fix or a planning/correction blocker.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Luna Medium`; rejected because final-tree validation spans database referential integrity, public date semantics, protected admin APIs, and real browser workflows with enough defect-triage coupling to require deeper reasoning.
+- Escalation trigger: an actual closeout failure requires difficult cross-subsystem root-cause analysis beyond a bounded Phase 15 defect and before it is clear whether to stop for replanning.
+- Escalation target: `Terra Medium`.
+- Estimate confidence: `High`.
+- Efficiency rationale: broad validation volume alone does not justify Terra; Luna High is sufficient to execute the explicit matrix and stop rather than redesign when a material defect is discovered.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 15 prompt 7 and its assigned project version is `0.15.7`.
+- On first execution, require P6 to have left top-level `package.json` at `0.15.6`, then advance only the top-level package version to `0.15.7` before establishing the final Phase 15 candidate tree.
+- On a rerun of this same P7, retain `0.15.7`; do not increment again.
+- Any other package version is sequence drift: stop and report it.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- A later successful conversational `/closeout` separately establishes the Phase 16 baseline `0.16.0`; that transition is NOT part of P7.
+
+MANUAL CLOSEOUT BOUNDARY
+This is the sole final manual closeout prompt for the Phase 15 task stack. `npm run codex:phase -- p15` must stop after P6 and MUST NOT execute P7 automatically.
+
+P7 validates the exact final Phase 15 implementation, fixes only bounded defects necessary to satisfy already-governed Phase 15 contracts/exit gates, writes the durable validation artifact, and records only evidence actually observed.
+
+Do not invent new Phase 15 scope, pull Phase 16/later behavior forward, or perform the Phase 19 Cloudflare/reference-deployment gate.
+
+MANDATORY HANDOFF
+Before any P7 write/version action:
+1. read current `BOOT.md`, the complete Phase 15 roadmap entry, and P1–P6 tasks;
+2. read `docs/contracts/domain-and-data-contract.md`, `docs/contracts/source-and-collection-contract.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/architecture/system-architecture.md`, and `docs/decisions/cloudflare-access-admin-perimeter.md`;
+3. inspect the actual final P1–P6 implementation/tests rather than assuming task prose describes the resulting source exactly;
+4. inspect the final migration chain, Publication configuration/repository/bootstrap/public read model, public date formatter, Publication admin service/API, editorial Category/Relevance service/API, retained relationship constraints, admin browser resources, and public/collection regressions;
+5. inspect runner-owned P1–P6 commit history and establish the implementation phase base used for final diff checks; prompt-writing/documentation commits are not implementation evidence;
+6. confirm Phase 19, not Phase 15, owns observed Level 8 Cloudflare Access/direct-origin proof; do not rewrite the historical Phase 14 artifact or claim deployment evidence not observed;
+7. stop and report sequence/planning drift if P1–P6 are incomplete, package baseline is unexpected, or the final architecture materially differs from the governed Phase 15 plan.
+
+DURABLE VALIDATION ARTIFACT
+Create/update only after evidence is gathered:
+
+`docs/validation/phase-15-publication-relevance-administration.md`
+
+The artifact must identify at minimum:
+- validation date/time and relevant environment;
+- exact final Phase 15 source SHA/tree being accepted after every bounded fix;
+- package version `0.15.7`;
+- implementation range/base used for diff/inspection;
+- Node/npm/PostgreSQL/Playwright Chromium versions where observed and relevant;
+- every command/procedure actually run and its result/counts where useful;
+- evidence levels actually achieved;
+- Publication/timezone persistence/API/browser evidence;
+- Category relationship/removal evidence;
+- Relevance relationship/removal/precedence/prospective evidence;
+- request-integrity/admin API evidence;
+- browser viewports/workflows observed;
+- important limitations, retries, skipped/zero-test conditions, or unavailable prerequisites;
+- explicit statement that Level 8 Cloudflare Access/direct-origin observation was not a Phase 15 requirement and remains Phase 19-owned;
+- Phase 15 exit-gate conclusion as GREEN or blocked/red;
+- intended next phase if GREEN: Phase 16 — True duplicate detection and grouping;
+- statement that later conversational `/closeout` is still required for the separate `0.16.0` baseline transition and is not performed by P7.
+
+P1 PUBLICATION TIMEZONE / PRESENTATION EVIDENCE — LEVEL 2 + LEVEL 4 + LEVEL 6 REQUIRED
+Prove on the final tree:
+- singleton Publication retains name, collection/public state, description/logo/accent bounds plus optional presentation timezone;
+- valid IANA timezone accepted and invalid/unsupported identifier rejected deterministically;
+- absent timezone preserves UTC calendar-date presentation;
+- configured timezone changes the rendered calendar date for a deterministic boundary timestamp where expected;
+- bootstrap accepts omitted/configured timezone and ordinary rerun preserves later operator-managed Publication state;
+- migration-from-zero persists the nullable timezone through the canonical singleton schema;
+- public `/api/feed` exposes the bounded presentation timezone through the existing Publication read model;
+- browser rendering uses configured timezone rather than viewer-local timezone;
+- stored Article timestamps, effective-feed-date values/source, feed eligibility, canonical chronological ordering, and Phase 12 keyset cursors are unchanged.
+
+P2 PUBLICATION ADMIN EVIDENCE — LEVEL 3 + LEVEL 4 REQUIRED
+Prove:
+- protected Publication read/update API exposes exactly the governed singleton fields without Publication ID/slug/selector;
+- exact-key/config validation and bounded errors work;
+- missing singleton handling does not implicitly bootstrap a new Publication;
+- `activeForCollection` and `publicStatus` remain distinct and can be changed independently;
+- public/private state affects the existing canonical public feed path;
+- collection-active state affects the existing Worker/scheduler eligibility path without redefining public status;
+- admin mutations remain behind the Phase 14 request-integrity JSON/header/body-limit boundary;
+- no native administrator account/session/role system was added.
+
+P3 CATEGORY ADMIN EVIDENCE — LEVEL 2 + LEVEL 3 + LEVEL 4 REQUIRED
+Prove:
+- Category list/create/read/update works with immutable installation-wide `config_key` and mutable bounded display label;
+- the existing `/api/admin/categories` choice contract used by Source/endpoint editors remains compatible;
+- genuinely unreferenced Category removal succeeds;
+- removal is atomically rejected while referenced by each applicable retained relationship: categorize rule target, Source default, endpoint default, current Article Category membership, retained observation/category reason, or any equivalent final-schema relationship;
+- failed deletion does not null, cascade, rewrite, or partially mutate dependent state;
+- bounded admin errors do not leak PostgreSQL details;
+- no Category archive/lifecycle or Publication tenant scope was introduced;
+- Phase 11 Category assignment/default semantics and Phase 12 Category filtering remain unchanged.
+
+P4 RELEVANCE ADMIN EVIDENCE — LEVEL 2 + LEVEL 3 + LEVEL 4 REQUIRED
+Prove:
+- rule list/create/read/update works with immutable installation-wide `config_key`;
+- enable/disable is the ordinary non-destructive operation;
+- installation-wide and real Source-scoped rules validate correctly;
+- only `title_contains`, `summary_contains`, and `source_category_equals` are accepted;
+- only include/exclude/categorize actions are accepted;
+- `categorize` requires a real Category target and include/exclude reject one;
+- retained Source/Category relationship failures roll back coherently;
+- genuinely unreferenced physical rule removal succeeds if exposed;
+- removal is rejected while retained Article observation/category-reason provenance references the rule, without cascade/history rewrite;
+- exact Phase 11 deterministic include/exclude priority → Source-scope → action/final-key tie semantics remain unchanged;
+- all matching categorize rules remain additive and reason ordering remains deterministic;
+- endpoint default then Source default remains fallback-only when no categorize rule matches;
+- edits remain prospective and do not trigger automatic historical Article reprocessing/mutation;
+- existing explicit pre-admin `editorial:apply` path remains valid against the same rule model.
+
+P5–P6 ADMIN BROWSER EVIDENCE — LEVEL 6 REQUIRED
+Observe with real Playwright Chromium at minimum representative 1280x900 desktop and 390x844 mobile viewports:
+- admin-disabled route behavior remains unavailable/fail-closed;
+- top-level Publication/Sources/Editorial navigation is keyboard operable with visible focus;
+- Publication settings load/edit/save/error behavior;
+- collection-active and public/private controls remain distinct;
+- branding and timezone editing, including visible UTC-fallback meaning when unset;
+- validation/API failure preserves useful Publication form state;
+- Category list/create/edit with immutable key;
+- successful unreferenced Category removal;
+- blocked Category removal preserves UI/server state and shows bounded conflict;
+- Category choice changes reconcile with existing Source/endpoint default selectors and Relevance categorize target choices;
+- Relevance create/edit for installation-wide and Source-scoped rules;
+- each bounded predicate/action form shape;
+- categorize target selection and include/exclude target clearing;
+- enable/disable behavior;
+- successful unreferenced rule removal and blocked retained-provenance removal;
+- deterministic precedence/default/prospective guidance is present and does not contradict the contract;
+- state-changing browser requests actually carry the canonical request-integrity header;
+- existing Source/endpoint create/edit/state/filter/check-now/health/recent-run workflows remain usable;
+- long content wraps and mobile has no horizontal document overflow;
+- public root/feed browser behavior, discovery, themes, loading, external links, and timezone presentation remain correct.
+
+Use deterministic application/database/browser state. Level 6 does not require public-network publisher access or Cloudflare deployment access.
+
+PUBLIC / COLLECTION / EARLIER-PHASE REGRESSION
+Run/retain the relevant completed-phase regression matrix so Phase 15 cannot silently break:
+- Source/endpoint approval, lifecycle/operational state, and network-safety enforcement;
+- Source RSS/Atom admission filter separation/accounting;
+- RSS/Atom transport/parser bounds and deterministic fixtures;
+- normalization and Article-link policy;
+- Phase 11 Relevance/Category evaluation and Article persistence/observation provenance;
+- Phase 10 scheduler/jobs/retry/recovery/capacity/health;
+- Phase 12 `/api/feed` discovery/keyset/filter/search behavior;
+- Phase 13 root presentation/loading/theme/accessibility/external navigation;
+- Phase 14 Source/endpoint admin/request-integrity/check-now behavior.
+
+STATIC / ARCHITECTURE INSPECTION
+Inspect and record enough final-tree evidence to confirm:
+- shared engine remains topic independent;
+- no indie-author/publishing-specific Category/rule values are hard-coded into shared engine/admin behavior;
+- singleton Publication remains editorial configuration rather than relational tenancy;
+- no Publication ID/slug/FK/selector was reintroduced;
+- Source priority and Source/endpoint administration remain Phase 14-owned;
+- Phase 15 manages the same Phase 11 Relevance model rather than a second evaluator/DSL;
+- no automatic bulk historical Relevance reprocessing was introduced;
+- guarded Category/rule deletion preserves retained data/provenance;
+- Web/API still does not fetch publishers inline;
+- Article/duplicate moderation and Phase 16 grouping were not pulled forward;
+- Cloudflare Access remains external admin access control, while Level 8 observation remains Phase 19 work.
+
+REQUIRED COMMAND MATRIX
+Run on the exact final candidate tree with prerequisites present:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:collection`
+- `npm run test:db`
+- `npm run test:browser`
+- `npm test`
+- `npm run check`
+- `npm run codex:phase:validate -- p15`
+- `git diff --check <phase-implementation-base>...<final-candidate>` or the equivalent exact accepted implementation range.
+
+Run focused commands during defect triage as useful, but distinguish focused runs from final broad evidence.
+
+No required suite may silently skip its required cases or select zero tests and still count as GREEN evidence.
+
+DATABASE PREREQUISITE
+`npm run test:db` must use the existing disposable PostgreSQL harness.
+
+If a usable test PostgreSQL prerequisite is absent, record the missing prerequisite and Phase 15 remains blocked because Publication/Category/Relevance persistence, transactions, references, and guarded-removal claims require Level 4 evidence.
+
+Do not substitute mocks/source inspection for those claims.
+
+BROWSER PREREQUISITE
+`npm run test:browser` requires the repository's supported Playwright Chromium environment.
+
+If Chromium is unavailable, record the missing prerequisite and Phase 15 remains blocked because Publication/Category/Relevance operator workflows have an explicit Level 6 requirement.
+
+Do not substitute HTML/HTTP-source inspection for browser proof.
+
+CLOUDFLARE / LIVE-SOURCE BOUNDARY
+Phase 15 closeout does NOT require Level 8 reference-deployment observation of Cloudflare Access/direct-origin blocking. That proof is explicitly deferred to and blocking in Phase 19. Preserve the deployment invariant and application-side request-integrity/resource validation, but do not mark Phase 15 red merely because Level 8 is unavailable and do not claim Level 8 was observed unless separately performed under its governing later phase.
+
+New Level 7 approved live-publisher collection is not intrinsically required by Phase 15 because this phase changes Publication/editorial administration and presentation timezone, not publisher transport/network behavior. If P1–P6 unexpectedly changed live transport semantics, reassess the governing testing contract and stop rather than assuming historical live-source evidence covers a newly changed transport path.
+
+DEFECT HANDLING
+P7 may fix only bounded defects necessary to make the already-defined Phase 15 implementation satisfy its contracts/tests.
+
+For any bounded fix:
+- keep package version `0.15.7`;
+- add/fix a focused regression for the failed invariant when technically practical;
+- rerun every broader suite invalidated by the fix;
+- re-establish the final candidate SHA/tree after the fix;
+- ensure the durable artifact references the exact final tested source.
+
+Examples of bounded P7 fixes:
+- one Publication serializer/validation mismatch;
+- timezone formatter accidentally using viewer local time;
+- one missing guarded-deletion FK error translation;
+- one Source/Category relationship validation bug;
+- one admin request-integrity route wiring defect;
+- one browser form/focus/choice-refresh regression.
+
+STOP and report planning/correction need rather than stretching P7 if repair requires:
+- material contract/ADR change;
+- Publication tenancy/model redesign;
+- new Relevance predicate/DSL/evaluator architecture;
+- broad migration/schema redesign beyond the governed Phase 15 fields/guards;
+- replacement admin authentication model;
+- automatic historical reprocessing capability;
+- new frontend framework/state architecture;
+- Article/duplicate moderation or Phase 16 grouping;
+- unrelated roadmap work.
+
+NON-GOALS
+Do not add as P7 scope:
+- Phase 16 duplicate detection/grouping;
+- Article moderation;
+- new Source types/adapters;
+- native administrator accounts/roles;
+- ranking/semantic Relevance;
+- automatic historical reprocessing;
+- Level 8 Cloudflare deployment validation;
+- unrelated UI polish/refactors.
+
+ACCEPTANCE CRITERIA
+P7 may declare Phase 15 GREEN only when:
+- package version is `0.15.7`;
+- exact final accepted source SHA/tree is identified after all bounded fixes;
+- required Levels 2–4 and Level 6 evidence above is green on that exact final tree;
+- PostgreSQL and Chromium prerequisites were actually available/executed with no required silent skips/zero-test success;
+- Publication/timezone admin/presentation behavior satisfies the governing contracts without changing timestamps/order/cursors;
+- Category/rule relationship and guarded-removal behavior preserves retained data/provenance;
+- exact bounded Relevance semantics and prospective behavior remain unchanged;
+- relevant earlier-phase regressions remain green;
+- `docs/validation/phase-15-publication-relevance-administration.md` accurately records evidence and limitations;
+- Level 8 is accurately recorded as Phase 19-owned rather than a Phase 15 blocker;
+- no Phase 16/later behavior was pulled forward;
+- final committed-range diff validation is clean.
+
+If GREEN, report the accepted final SHA/tree, durable validation artifact path, evidence levels/results, and that the next conversational workflow action is `/closeout` for the separate Phase 16 `0.16.0` baseline transition.
+
+Do NOT advance `package.json` to `0.16.0` or rewrite roadmap/root current-phase summaries to Phase 16 inside P7; conversational `/closeout` followed by the normal documentation workflow owns that handoff.
