@@ -1,0 +1,232 @@
+TASK: Phase 14 / P5 — Endpoint administration commands and API
+
+ROADMAP PHASE
+Phase 14 — Source administration.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol High`.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Alternative considered: `Terra Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: P5 crosses endpoint identity, Source ownership, approval/lifecycle/operational state, domain narrowing, polling, default Category relationships, transactions, and the P3 security boundary. Sol High is appropriate because mistakes can weaken whitelist/network-safety invariants even though the task stays endpoint-focused.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md` and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 14 prompt 5 and its assigned project version is `0.14.5`.
+- On first execution, require top-level `package.json` version `0.14.4`; on a rerun of this same P5, `0.14.5` is acceptable.
+- Update only the top-level package version to `0.14.5`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 14 roadmap entry, and P1–P4 tasks plus actual implementation/tests;
+2. read `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/source-and-collection-contract.md`, `docs/contracts/domain-and-data-contract.md`, and `docs/contracts/testing-and-validation-contract.md`;
+3. inspect P4 Source admin service/router and reuse its error/transaction/resource-resolution conventions;
+4. inspect `src/sources/configuration.ts`, `src/sources/repository.ts`, endpoint eligibility/health/scheduler consumers, and Phase 11 endpoint default Category persistence;
+5. inspect approved-domain narrowing validation and every current endpoint configuration aggregate consumer before changing repository shape;
+6. inspect database tests for configuration persistence, endpoint runtime state, due-endpoint selection, and Collection-run provenance;
+7. confirm P4 established a consistent Source-first locking/resource-validation pattern suitable for endpoint mutation;
+8. stop and report planning drift if P4 or the governing endpoint/admin contract materially differs.
+
+GOAL
+Add the protected endpoint-administration command/read API under a real Source relationship.
+
+P5 owns endpoint list/detail/create/update/state operations, polling configuration, endpoint-approved-domain narrowing, existing default Category assignment, and provenance-safe retirement semantics. It does NOT own durable check-now, health/run history, or final browser workflows.
+
+RESOURCE IDENTITY / RELATIONSHIP
+Admin endpoint operations are Source-scoped.
+
+Use:
+- Source immutable `config_key` in the parent URL;
+- endpoint immutable `config_key` inside that Source.
+
+Every endpoint operation MUST first resolve the Source and then resolve the endpoint as owned by that Source. An endpoint key that exists under another Source must behave as not found for the requested Source path.
+
+Do not accept an endpoint UUID independently from the Source path as authority, and do not add Publication tenant identifiers.
+
+ENDPOINT CREATE
+Support creation under an existing Source with:
+- immutable endpoint `configKey`;
+- `endpointUrl`;
+- endpoint type, currently only canonical `rss_atom` unless current contracts have explicitly promoted another type;
+- approval state;
+- operational state;
+- positive bounded `pollIntervalSeconds`;
+- optional endpoint domain narrowing rules;
+- optional existing default Category config key.
+
+New endpoints are created with lifecycle `active`.
+
+Required validation before commit:
+- Source exists and is not archived for ordinary create operations;
+- endpoint config key is unique within that Source;
+- endpoint URL/type/poll interval normalize through canonical Source configuration helpers;
+- endpoint narrowing is equal to or narrower than Source approved-domain maximum;
+- if the endpoint is created approved, its configured hostname is allowed by the effective Source/endpoint domain policy;
+- default Category exists when specified;
+- no endpoint may widen Source policy;
+- no fetch/DNS/contact occurs during admin creation.
+
+Create endpoint row, narrowing rules, and default Category relationship atomically.
+
+ENDPOINT CONFIGURATION UPDATE
+Provide one deterministic replacement-style configuration command for mutable endpoint-owned fields excluding immutable config key and explicit state/lifecycle commands.
+
+At minimum mutable configuration includes:
+- endpoint URL;
+- endpoint type;
+- poll interval;
+- endpoint narrowing rules;
+- optional existing default Category.
+
+Use exact-key validation.
+
+When updating an endpoint:
+- lock/read Source first and endpoint second using the same global order as P4;
+- validate proposed narrowing against current Source maximum;
+- if endpoint is currently approved, reject a URL/narrowing change that would place the configured endpoint host outside effective approved policy;
+- do not silently change Source domains or approval merely to accept an endpoint edit;
+- preserve runtime telemetry/ETag/Last-Modified/history unless a governing contract explicitly requires a particular configuration change to clear a value; do not reset runtime state speculatively;
+- do not contact the endpoint during validation.
+
+DEFAULT CATEGORY
+Reuse the existing Phase 11 endpoint default Category relationship.
+
+Resolve Category by immutable config key, reject missing references, permit clearing according to the canonical request representation, and reuse `setEndpointDefaultCategory()` or a transactionally equivalent canonical repository operation.
+
+Do not add Category CRUD.
+
+ENDPOINT STATE COMMANDS
+Keep approval, operational state, and lifecycle explicit/orthogonal.
+
+Required operations:
+- set approval `approved` / `unapproved`;
+- set operational state `enabled` / `paused` / `disabled` while active;
+- archive;
+- restore to active.
+
+Approval to `approved` MUST validate the configured endpoint host against current effective Source/endpoint approved-domain policy in the same transaction.
+
+Archive semantics:
+- lifecycle becomes `archived`;
+- operational state becomes `disabled` atomically;
+- retain approval, Collection runs, Article observations, job relationships, runtime history, and endpoint identity.
+
+Restore semantics:
+- lifecycle becomes `active`;
+- operational state remains `disabled`;
+- no implicit approval or re-enable;
+- a later explicit enable is required to resume collection.
+
+Operational state changes on archived endpoints fail rather than implicitly restore.
+
+PHYSICAL DELETION
+Do NOT add general endpoint `DELETE` in Phase 14.
+
+The contract permits physical removal only when no retained dependent provenance exists, but it does not require destructive CRUD. Archive/retirement is the canonical operator-facing removal behavior for this phase and preserves Source endpoint → Collection run → observation/job history.
+
+Do not create special orphan-cleanup logic solely to support deletion.
+
+RECOMMENDED HTTP API
+Use the P4/P3 conventions. Canonical intent:
+
+`GET  /api/admin/sources/:sourceKey/endpoints`
+`POST /api/admin/sources/:sourceKey/endpoints`
+`GET  /api/admin/sources/:sourceKey/endpoints/:endpointKey`
+`PUT  /api/admin/sources/:sourceKey/endpoints/:endpointKey/configuration`
+`PUT  /api/admin/sources/:sourceKey/endpoints/:endpointKey/approval`
+`PUT  /api/admin/sources/:sourceKey/endpoints/:endpointKey/operational-state`
+`PUT  /api/admin/sources/:sourceKey/endpoints/:endpointKey/lifecycle`
+
+All unsafe requests inherit P3 JSON/custom-header/body-size request-integrity controls.
+
+READ MODELS
+Endpoint list/detail should expose bounded operator-relevant configuration without leaking internal implementation details:
+- Source config key and endpoint config key;
+- endpoint URL/type;
+- approval/lifecycle/operational state separately;
+- poll interval;
+- endpoint narrowing rules/inherited-policy indication;
+- default Category identity when configured;
+- runtime timing/health may be omitted or kept minimal here because P6 owns the canonical operational read model.
+
+Do not expose raw response validators/secrets unless they are explicitly useful and governed for admin display. Avoid leaking internal UUIDs in normal API responses.
+
+TRANSACTION / RACE SAFETY
+Use real database transaction boundaries for mutations that depend on Source policy/current endpoint state.
+
+At minimum protect against:
+- concurrent Source approved-domain update versus endpoint URL/narrowing/approval update;
+- concurrent archive/state update versus configuration mutation;
+- wrong-Source endpoint mutation.
+
+Reuse Source-first then endpoint locking/order rather than inventing an opposite lock order.
+
+Do not weaken the separate Phase 4 per-endpoint collection run lock. Admin configuration locking and collection execution locking solve different problems.
+
+TESTING
+Add focused unit/integration/database coverage at minimum for:
+- create endpoint under correct Source;
+- duplicate endpoint config key within Source rejected while same key under different Source remains valid;
+- wrong-Source endpoint detail/update/state request returns not found and makes no change;
+- malformed/unknown fields rejected;
+- endpoint URL/type/poll bounds;
+- narrowing inheritance/valid narrowing;
+- attempted widening beyond Source policy rejected;
+- approved endpoint URL outside effective policy rejected on create/update/approval;
+- unapproved endpoint may be edited safely but cannot later become approved while outside policy;
+- default Category assignment/clear/missing reference;
+- config key immutable;
+- approval transitions;
+- enabled/paused/disabled transitions;
+- archive disables atomically;
+- restore remains disabled;
+- archived endpoint cannot be operationally enabled without restore;
+- retained Collection-run/job/observation provenance survives archive;
+- no endpoint fetch/network contact occurs during admin mutations;
+- transaction rollback on domain/reference failure;
+- P3 request-integrity prevents unauthorized-shaped mutation requests;
+- existing scheduler/eligibility/health behavior remains correct for changed endpoint state.
+
+Use disposable PostgreSQL for relationship, FK, locking/transaction, and provenance claims.
+
+PRESERVED BEHAVIOR
+Preserve:
+- Source maximum-domain authority;
+- endpoint narrowing only;
+- Phase 4 pre-fetch network safety;
+- collection endpoint lock/capacity behavior;
+- Source-owned RSS/Atom admission phrases with no endpoint override;
+- Phase 10 scheduler/runtime/health semantics;
+- Phase 11 Category/Relevance semantics;
+- Source/endpoint/run/Article observation provenance;
+- public feed and presentation.
+
+NON-GOALS
+Do not implement:
+- physical endpoint deletion;
+- durable check-now/job trigger changes;
+- recent Collection-run/health admin API;
+- final browser endpoint editor;
+- Publication/Relevance/Category CRUD;
+- endpoint-specific RSS item filters;
+- inline collection from Web/API.
+
+REQUIRED VALIDATION
+Run focused tests while developing, then before completion run at least:
+- `npm run format:check`
+- `npm run lint`
+- `npm run typecheck`
+- `npm run test:unit`
+- `npm run test:integration`
+- `npm run test:db`
+- `npm test`
+- `npm run check`
+- `git diff --check`
+
+Confirm `package.json` is `0.14.5`, no npm lockfile exists, and endpoint administration regressions include wrong-Source/domain/state/provenance cases.
+
+FINAL REPORT
+Report files changed, endpoint API surface, Source-scoped resource validation, domain/polling/state/archive behavior, Category reuse, database/regression commands actually run and results, and confirmation that endpoint deletion/check-now remain outside P5.
