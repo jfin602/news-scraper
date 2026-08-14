@@ -129,14 +129,16 @@ Security/redaction tests MUST use synthetic credentials/secrets and MUST NOT req
 
 ## Backup and recovery
 
-Before production launch, operations define:
+Before production launch, operations define and Phase 19 validates:
 
 - automated PostgreSQL backups;
 - retention period;
 - tested non-production restore procedure;
 - recovery point/time targets;
 - queued/in-flight job handling after recovery;
-- interrupted Collection-run reconciliation.
+- interrupted Collection-run reconciliation;
+- supported schema-upgrade procedure from the deployment state that will become the production baseline;
+- rollback handling when application/schema changes cannot safely be reversed in place.
 
 Because Article identity is idempotent, safe replay is the preferred recovery mechanism.
 
@@ -156,7 +158,15 @@ Recovery claims require observed or injected recovery validation under the testi
 - Readiness fails when critical dependencies are unavailable.
 - MVP deployments with admin routes prevent direct-origin bypass of the Cloudflare Access perimeter.
 
-Once production database compatibility is established, backup/restore and schema-upgrade procedures must explicitly define preservation and rollback expectations.
+Phase 19 MUST establish and validate the backup/restore, schema-upgrade, deployment, and rollback procedures required to enter production. Acceptance of Phase 20 customer launch then establishes the first supported production schema/data baseline.
+
+From that accepted production baseline forward, `docs/decisions/production-data-and-schema-compatibility.md` applies:
+
+- customer production data is durable supported state;
+- normal upgrades preserve governed data/relationships rather than rebuilding the customer database;
+- supported production migration history remains usable as an upgrade path from supported deployed state;
+- clean migration-from-zero continues for new/disposable installations but is not production-upgrade proof;
+- post-launch schema changes require explicit forward-upgrade/data-preservation validation and compatible rollback/restore planning.
 
 ## Phase 19 hardening boundary
 
@@ -169,6 +179,7 @@ Baseline controls above are implemented and tested alongside the features they p
 - backup/restore verification;
 - retention jobs;
 - deployment/rollback runbooks and observed validation;
+- supported schema-upgrade procedure and observed preservation evidence sufficient to establish the production baseline at Phase 20;
 - production monitoring ownership;
 - explicit validation of Cloudflare Access/origin protection for deployed admin surfaces;
 - reference-deployment validation at the appropriate evidence level.
@@ -182,6 +193,7 @@ Phase 19 MUST NOT be interpreted as permission to build earlier fetching, persis
 - duplicate false-positive correction;
 - stuck/overlapping job recovery;
 - database restore;
+- schema upgrade and rollback;
 - Cloudflare Access/admin-perimeter incident or lockout handling;
 - unsafe/compromised Source response;
 - legal/editorial Article takedown.
