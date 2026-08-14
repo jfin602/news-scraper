@@ -29,6 +29,7 @@ interface SeededPublicationSettings {
   readonly description: string | null;
   readonly logoPath: string | null;
   readonly accentColor: string | null;
+  readonly presentationTimezone: string | null;
 }
 
 interface SeededSource {
@@ -104,6 +105,7 @@ test('readPublicFeed returns canonical persisted presentation without changing f
       description: null,
       logoPath: null,
       accentColor: null,
+      presentationTimezone: null,
     });
 
     await client.query(
@@ -121,8 +123,62 @@ test('readPublicFeed returns canonical persisted presentation without changing f
       description: 'Canonical public description.',
       logoPath: '/assets/publication-logo.svg',
       accentColor: '#1A2B3C',
+      presentationTimezone: null,
     });
     assert.deepEqual({ ...after, publication: before.publication }, before);
+  });
+});
+
+test('configured presentation timezone is metadata only for public feed ordering and cursor inputs', async () => {
+  await withPublicFeedDatabase(async ({ client, database }) => {
+    const publication = await insertPublicationSettings(client, {
+      name: 'Timezone target',
+      presentationTimezone: 'America/Los_Angeles',
+    });
+    const source = await insertSource(client);
+    const article = await insertArticle(client, source, {
+      displayTitle: 'Timezone boundary headline',
+      publishedAtStatus: 'parsed',
+      publishedAt: new Date('2026-08-06T00:30:00.000Z'),
+      firstSeenAt: new Date('2026-08-06T01:00:00.000Z'),
+    });
+
+    const feed = requireFeed(await readPublicFeed(database));
+    assert.deepEqual(feed.publication, publication);
+    assert.equal(feed.items[0]?.articleId, article.id);
+    assert.equal(
+      feed.items[0]?.effectiveFeedDate.toISOString(),
+      '2026-08-06T00:30:00.000Z',
+    );
+    assert.equal(feed.items[0]?.feedDateSource, 'published_at');
+
+    const cursorRequest = {
+      cursorPosition: {
+        effectiveFeedDate: '2026-08-07T00:00:00.000000Z',
+        firstSeenAt: '2026-08-07T00:00:00.000000Z',
+        articleId: '00000000-0000-4000-8000-000000000001',
+      },
+    } as const;
+    const configuredContinuation = requireFeed(
+      await readPublicFeed(database, cursorRequest),
+    );
+    await client.query(
+      'UPDATE publication_settings SET presentation_timezone = NULL',
+    );
+    const utcContinuation = requireFeed(
+      await readPublicFeed(database, cursorRequest),
+    );
+    assert.deepEqual(configuredContinuation.items, utcContinuation.items);
+    assert.equal(configuredContinuation.nextCursor, utcContinuation.nextCursor);
+
+    const query = await database.query<{ published_at: Date }>(
+      'SELECT published_at FROM articles WHERE id = $1',
+      [article.id],
+    );
+    assert.equal(
+      query.rows[0]?.published_at.toISOString(),
+      '2026-08-06T00:30:00.000Z',
+    );
   });
 });
 
@@ -297,6 +353,7 @@ test('readPublicFeed maps canonical dates and only the safe basic public fields'
       'description',
       'logoPath',
       'accentColor',
+      'presentationTimezone',
     ]);
     assert.deepEqual(Object.keys(parsedItem).sort(), [
       'articleId',
@@ -490,6 +547,7 @@ async function insertPublicationSettings(
     description?: string | null;
     logoPath?: string | null;
     accentColor?: string | null;
+    presentationTimezone?: string | null;
   }>,
 ): Promise<SeededPublicationSettings> {
   const publication: SeededPublicationSettings = {
@@ -497,12 +555,13 @@ async function insertPublicationSettings(
     description: options.description ?? null,
     logoPath: options.logoPath ?? null,
     accentColor: options.accentColor ?? null,
+    presentationTimezone: options.presentationTimezone ?? null,
   };
   await client.query(
     `INSERT INTO publication_settings (
        name, active_for_collection, public_status,
-       description, logo_path, accent_color
-     ) VALUES ($1, $2, $3, $4, $5, $6)`,
+       description, logo_path, accent_color, presentation_timezone
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [
       publication.name,
       options.activeForCollection ?? true,
@@ -510,6 +569,7 @@ async function insertPublicationSettings(
       publication.description,
       publication.logoPath,
       publication.accentColor,
+      publication.presentationTimezone,
     ],
   );
   return publication;

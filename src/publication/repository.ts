@@ -13,6 +13,7 @@ export interface PersistedPublicationSettings {
   readonly description: string | null;
   readonly logoPath: string | null;
   readonly accentColor: string | null;
+  readonly presentationTimezone: string | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -24,6 +25,7 @@ interface PublicationSettingsRow {
   readonly description: unknown;
   readonly logo_path: unknown;
   readonly accent_color: unknown;
+  readonly presentation_timezone: unknown;
   readonly created_at: unknown;
   readonly updated_at: unknown;
 }
@@ -31,6 +33,7 @@ interface PublicationSettingsRow {
 const PUBLICATION_SETTINGS_COLUMNS = `
   name, active_for_collection, public_status,
   description, logo_path, accent_color,
+  presentation_timezone,
   created_at, updated_at`;
 
 export async function insertPublicationSettings(
@@ -54,8 +57,8 @@ export async function createPublicationSettingsIfAbsent(
   const result = await executor.query<PublicationSettingsRow>(
     `INSERT INTO publication_settings (
        name, active_for_collection, public_status,
-       description, logo_path, accent_color
-     ) VALUES ($1, $2, $3, $4, $5, $6)
+       description, logo_path, accent_color, presentation_timezone
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7)
      ON CONFLICT DO NOTHING
      RETURNING ${PUBLICATION_SETTINGS_COLUMNS}`,
     publicationSettingsValues(settings),
@@ -81,8 +84,8 @@ async function insertValidatedPublicationSettings(
   const result = await executor.query<PublicationSettingsRow>(
     `INSERT INTO publication_settings (
        name, active_for_collection, public_status,
-       description, logo_path, accent_color
-     ) VALUES ($1, $2, $3, $4, $5, $6)
+       description, logo_path, accent_color, presentation_timezone
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING ${PUBLICATION_SETTINGS_COLUMNS}`,
     publicationSettingsValues(settings),
   );
@@ -127,6 +130,9 @@ export function mapPublicationSettingsRow(
       ...(row.description === null ? {} : { description: row.description }),
       ...(row.logo_path === null ? {} : { logoPath: row.logo_path }),
       ...(row.accent_color === null ? {} : { accentColor: row.accent_color }),
+      ...(row.presentation_timezone === null
+        ? {}
+        : { presentationTimezone: row.presentation_timezone }),
     });
     return Object.freeze({
       name: normalized.name,
@@ -140,6 +146,10 @@ export function mapPublicationSettingsRow(
       accentColor: canonicalNullableValue(
         row.accent_color,
         normalized.accentColor,
+      ),
+      presentationTimezone: canonicalNullableValue(
+        row.presentation_timezone,
+        normalized.presentationTimezone,
       ),
       createdAt: requiredTimestamp(row.created_at),
       updatedAt: requiredTimestamp(row.updated_at),
@@ -160,6 +170,7 @@ function publicationSettingsValues(
   string | null,
   string | null,
   string | null,
+  string | null,
 ] {
   return [
     settings.name,
@@ -168,6 +179,7 @@ function publicationSettingsValues(
     settings.description ?? null,
     settings.logoPath ?? null,
     settings.accentColor ?? null,
+    settings.presentationTimezone ?? null,
   ];
 }
 

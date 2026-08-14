@@ -10,6 +10,7 @@ export interface PublicationConfiguration {
   readonly description?: string;
   readonly logoPath?: string;
   readonly accentColor?: string;
+  readonly presentationTimezone?: string;
 }
 
 export interface PublicationPresentationConfiguration {
@@ -17,6 +18,7 @@ export interface PublicationPresentationConfiguration {
   readonly description?: string;
   readonly logoPath?: string;
   readonly accentColor?: string;
+  readonly presentationTimezone?: string;
 }
 
 export class ConfigurationValidationError extends Error {
@@ -68,12 +70,17 @@ export function normalizePublicationPresentation(
   const description = optionalDescription(record, 'publication.description');
   const logoPath = optionalLogoPath(record, 'publication.logoPath');
   const accentColor = optionalAccentColor(record, 'publication.accentColor');
+  const presentationTimezone = optionalPresentationTimezone(
+    record,
+    'publication.presentationTimezone',
+  );
 
   return Object.freeze({
     name,
     ...(description === undefined ? {} : { description }),
     ...(logoPath === undefined ? {} : { logoPath }),
     ...(accentColor === undefined ? {} : { accentColor }),
+    ...(presentationTimezone === undefined ? {} : { presentationTimezone }),
   });
 }
 
@@ -164,6 +171,26 @@ function optionalAccentColor(
     throw new ConfigurationValidationError(field, 'invalid_color');
   }
   return value.toUpperCase();
+}
+
+function optionalPresentationTimezone(
+  record: Record<string, unknown>,
+  field: string,
+): string | undefined {
+  if (!(fieldName(field) in record)) return undefined;
+  const value = stringValue(record[fieldName(field)], field).trim();
+  if (value.length === 0) return undefined;
+  try {
+    const resolvedTimezone = new Intl.DateTimeFormat('en-US', {
+      timeZone: value,
+    }).resolvedOptions().timeZone;
+    if (typeof resolvedTimezone !== 'string' || resolvedTimezone.length === 0) {
+      throw new Error();
+    }
+    return resolvedTimezone;
+  } catch {
+    throw new ConfigurationValidationError(field, 'invalid_timezone');
+  }
 }
 
 function fieldName(field: string): string {

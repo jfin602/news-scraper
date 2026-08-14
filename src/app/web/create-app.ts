@@ -110,6 +110,7 @@ export function createWebApp(
           description: feed.publication.description,
           logoPath: feed.publication.logoPath,
           accentColor: feed.publication.accentColor,
+          presentationTimezone: feed.publication.presentationTimezone,
         },
         discovery: {
           query: {

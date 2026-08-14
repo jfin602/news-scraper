@@ -475,6 +475,7 @@ function aggregate(): EndpointConfigurationAggregate {
       description: null,
       logoPath: null,
       accentColor: null,
+      presentationTimezone: null,
       createdAt: timestamp,
       updatedAt: timestamp,
     },

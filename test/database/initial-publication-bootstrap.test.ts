@@ -155,6 +155,7 @@ async function assertInitialPublicationTree(database: Database): Promise<void> {
   assert.equal(publication.name, 'Indie Author Publishing News');
   assert.equal(publication.activeForCollection, true);
   assert.equal(publication.publicStatus, 'public');
+  assert.equal(publication.presentationTimezone, null);
 
   await assertSource(
     database,

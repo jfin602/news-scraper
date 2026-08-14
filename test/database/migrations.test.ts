@@ -283,6 +283,7 @@ test('installs only the justified public-feed discovery indexes from zero', asyn
       '0008_publication_presentation.sql',
       '0009_source_administration_foundation.sql',
       '0010_endpoint_collection_job_trigger_kind.sql',
+      '0011_publication_presentation_timezone.sql',
     ]);
     assert.deepEqual(
       await migrateDatabase({ connectionString: databaseUrl }),

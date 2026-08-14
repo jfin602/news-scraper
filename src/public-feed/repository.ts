@@ -24,6 +24,7 @@ export interface PublicFeedPublication {
   readonly description: string | null;
   readonly logoPath: string | null;
   readonly accentColor: string | null;
+  readonly presentationTimezone: string | null;
 }
 
 export interface PublicFeedItem {
@@ -75,6 +76,7 @@ interface PublicPublicationRow {
   readonly publication_description: unknown;
   readonly publication_logo_path: unknown;
   readonly publication_accent_color: unknown;
+  readonly publication_presentation_timezone: unknown;
 }
 
 interface PublicFeedItemRow {
@@ -103,7 +105,8 @@ const PUBLIC_PUBLICATION_QUERY = `
     name AS publication_name,
     description AS publication_description,
     logo_path AS publication_logo_path,
-    accent_color AS publication_accent_color
+    accent_color AS publication_accent_color,
+    presentation_timezone AS publication_presentation_timezone
   FROM publication_settings
   WHERE public_status = 'public'`;
 
@@ -360,6 +363,9 @@ async function readPublicPublication(
       ...(row.publication_accent_color === null
         ? {}
         : { accentColor: row.publication_accent_color }),
+      ...(row.publication_presentation_timezone === null
+        ? {}
+        : { presentationTimezone: row.publication_presentation_timezone }),
     });
     return Object.freeze({
       name: canonicalString(row.publication_name, normalized.name),
@@ -374,6 +380,10 @@ async function readPublicPublication(
       accentColor: canonicalNullableString(
         row.publication_accent_color,
         normalized.accentColor,
+      ),
+      presentationTimezone: canonicalNullableString(
+        row.publication_presentation_timezone,
+        normalized.presentationTimezone,
       ),
     });
   } catch (error) {

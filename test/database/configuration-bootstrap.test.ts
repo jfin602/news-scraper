@@ -39,6 +39,7 @@ test('bootstrap creates approved configuration idempotently and preserves operat
     rawDocument.publication.description = 'Bootstrap description';
     rawDocument.publication.logoPath = '/assets/bootstrap-logo.svg';
     rawDocument.publication.accentColor = '#aBc123';
+    rawDocument.publication.presentationTimezone = 'America/Chicago';
     const document = normalizeBootstrapDocument(rawDocument);
     assert.deepEqual(await bootstrapPublicationTree(database, document), {
       publicationCreated: true,
@@ -57,6 +58,7 @@ test('bootstrap creates approved configuration idempotently and preserves operat
     assert.equal(publication.description, 'Bootstrap description');
     assert.equal(publication.logoPath, '/assets/bootstrap-logo.svg');
     assert.equal(publication.accentColor, '#ABC123');
+    assert.equal(publication.presentationTimezone, 'America/Chicago');
     const source = await findSourceByConfigKey(database, 'circuit_journal');
     assert.ok(source);
     const endpoint = await findSourceEndpointBySourceAndConfigKey(
@@ -73,7 +75,8 @@ test('bootstrap creates approved configuration idempotently and preserves operat
        SET name = 'Operator Technology Desk', active_for_collection = false,
            description = 'Operator description',
            logo_path = '/operator/logo.svg',
-           accent_color = '#0A1B2C'`,
+           accent_color = '#0A1B2C',
+           presentation_timezone = 'America/Denver'`,
     );
     assert.equal(
       (await setPublicationPublicStatus(database, 'private'))?.publicStatus,
@@ -138,6 +141,7 @@ test('bootstrap creates approved configuration idempotently and preserves operat
     assert.equal(preservedPublication?.description, 'Operator description');
     assert.equal(preservedPublication?.logoPath, '/operator/logo.svg');
     assert.equal(preservedPublication?.accentColor, '#0A1B2C');
+    assert.equal(preservedPublication?.presentationTimezone, 'America/Denver');
     assert.equal(preservedSource?.displayName, 'Operator Circuit Desk');
     assert.equal(
       preservedSource?.siteUrl.value,

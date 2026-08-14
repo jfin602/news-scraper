@@ -79,23 +79,38 @@
   }
 
   function formatUtcDate(value) {
+    return formatCalendarDate(value, 'UTC');
+  }
+
+  function formatCalendarDate(value, timeZone) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) throw new Error('Invalid feed date.');
-    const month = [
-      'JAN',
-      'FEB',
-      'MAR',
-      'APR',
-      'MAY',
-      'JUN',
-      'JUL',
-      'AUG',
-      'SEP',
-      'OCT',
-      'NOV',
-      'DEC',
-    ][date.getUTCMonth()];
-    return `${month} ${date.getUTCDate()}, ${date.getUTCFullYear()}`;
+    const parts = new Intl.DateTimeFormat('en-US', {
+      calendar: 'gregory',
+      day: 'numeric',
+      month: 'short',
+      numberingSystem: 'latn',
+      timeZone,
+      year: 'numeric',
+    }).formatToParts(date);
+    const values = Object.fromEntries(
+      parts
+        .filter(
+          (part) =>
+            part.type === 'month' ||
+            part.type === 'day' ||
+            part.type === 'year',
+        )
+        .map((part) => [part.type, part.value]),
+    );
+    if (
+      typeof values.month !== 'string' ||
+      typeof values.day !== 'string' ||
+      typeof values.year !== 'string'
+    ) {
+      throw new Error('Invalid feed date.');
+    }
+    return `${values.month.toUpperCase()} ${values.day}, ${values.year}`;
   }
 
   function requiredString(value) {
@@ -116,6 +131,9 @@
       description: validatedDescription(value.description),
       logoPath: validatedLogoPath(value.logoPath),
       accentColor: validatedAccentColor(value.accentColor),
+      presentationTimezone: validatedPresentationTimezone(
+        value.presentationTimezone,
+      ),
     };
   }
 
@@ -155,6 +173,17 @@
       throw new Error('Invalid feed data.');
     }
     return accentColor;
+  }
+
+  function validatedPresentationTimezone(value) {
+    if (value === null) return null;
+    const timeZone = requiredString(value);
+    try {
+      new Intl.DateTimeFormat('en-US', { timeZone }).format();
+    } catch {
+      throw new Error('Invalid feed data.');
+    }
+    return timeZone;
   }
 
   function validOriginalUrl(value) {
@@ -281,7 +310,10 @@
 
     const time = document.createElement('time');
     time.dateTime = item.effectiveFeedDate;
-    time.textContent = formatUtcDate(item.effectiveFeedDate);
+    time.textContent = formatCalendarDate(
+      item.effectiveFeedDate,
+      state.publication?.presentationTimezone ?? 'UTC',
+    );
 
     const link = document.createElement('a');
     link.className = 'feed-headline-link';

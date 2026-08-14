@@ -28,6 +28,7 @@ test('configuration repositories round-trip the singleton endpoint aggregate', a
       description: '  Independent reporting.  ',
       logoPath: ' /assets/logo.svg ',
       accentColor: '#aBc123',
+      presentationTimezone: ' America/New_York ',
     });
     assert.deepEqual(publication, {
       name: 'General news',
@@ -36,6 +37,7 @@ test('configuration repositories round-trip the singleton endpoint aggregate', a
       description: 'Independent reporting.',
       logoPath: '/assets/logo.svg',
       accentColor: '#ABC123',
+      presentationTimezone: 'America/New_York',
       createdAt: publication.createdAt,
       updatedAt: publication.updatedAt,
     });
@@ -114,7 +116,21 @@ test('all-null Publication presentation fields map safely', async () => {
     assert.equal(publication.description, null);
     assert.equal(publication.logoPath, null);
     assert.equal(publication.accentColor, null);
+    assert.equal(publication.presentationTimezone, null);
     assert.deepEqual(await readPublicationSettings(database), publication);
+  });
+});
+
+test('repository rejects a malformed persisted Publication timezone', async () => {
+  await withMigratedDatabase(async (database) => {
+    await insertPublicationSettings(database, publicationInput('malformed'));
+    await database.query(
+      `UPDATE publication_settings SET presentation_timezone = 'Mars/Olympus'`,
+    );
+    await assert.rejects(
+      readPublicationSettings(database),
+      /database returned invalid publication settings/u,
+    );
   });
 });
 

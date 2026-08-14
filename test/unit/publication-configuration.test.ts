@@ -56,6 +56,53 @@ test('normalizes optional Publication presentation values and preserves absence'
   });
 });
 
+test('normalizes supported IANA presentation timezones and uses UTC when absent', () => {
+  assert.equal(
+    normalizePublicationConfiguration({
+      name: 'General news',
+      activeForCollection: true,
+      publicStatus: 'public',
+      presentationTimezone: '  America/Los_Angeles  ',
+    }).presentationTimezone,
+    'America/Los_Angeles',
+  );
+  assert.equal(
+    normalizePublicationConfiguration({
+      name: 'General news',
+      activeForCollection: true,
+      publicStatus: 'public',
+      presentationTimezone: 'US/Eastern',
+    }).presentationTimezone,
+    'America/New_York',
+  );
+  assert.equal(
+    normalizePublicationConfiguration({
+      name: 'General news',
+      activeForCollection: true,
+      publicStatus: 'public',
+    }).presentationTimezone,
+    undefined,
+  );
+});
+
+test('rejects unsupported or malformed presentation timezones', () => {
+  for (const presentationTimezone of [
+    'Mars/Olympus',
+    'not-a-time-zone',
+    42,
+    null,
+  ]) {
+    assertConfigurationFailure(() =>
+      normalizePublicationConfiguration({
+        name: 'General news',
+        activeForCollection: true,
+        publicStatus: 'public',
+        presentationTimezone,
+      }),
+    );
+  }
+});
+
 test('enforces description bounds by Unicode code point rather than UTF-16 length', () => {
   const atBoundary = '😀'.repeat(500);
   assert.equal(

@@ -32,6 +32,7 @@ const populatedFeed: PublicFeed = Object.freeze({
     description: null,
     logoPath: null,
     accentColor: null,
+    presentationTimezone: null,
   }),
   sourceChoices: Object.freeze([
     Object.freeze({ configKey: 'first_source', displayName: 'First Source' }),

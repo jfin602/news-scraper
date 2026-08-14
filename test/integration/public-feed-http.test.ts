@@ -17,6 +17,7 @@ const publication = Object.freeze({
   description: null,
   logoPath: null,
   accentColor: null,
+  presentationTimezone: null,
 });
 const sourceChoices = Object.freeze([
   Object.freeze({ configKey: 'publisher_one', displayName: 'Publisher One' }),
@@ -110,6 +111,7 @@ describe('Public feed HTTP endpoint', () => {
       description: '<script>globalThis.presentationSecret = true</script>',
       logoPath: '/logo.svg</style><script>',
       accentColor: '#ABCDEF; background: url(secret)',
+      presentationTimezone: null,
     });
     outcome = discoveryFeed({
       publication: Object.freeze({
@@ -131,6 +133,7 @@ describe('Public feed HTTP endpoint', () => {
       'description',
       'logoPath',
       'accentColor',
+      'presentationTimezone',
     ]);
     assert.doesNotMatch(
       JSON.stringify(body),

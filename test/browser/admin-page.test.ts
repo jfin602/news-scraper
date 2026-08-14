@@ -65,6 +65,7 @@ const publicFeed: PublicFeed = Object.freeze({
     description: null,
     logoPath: null,
     accentColor: null,
+    presentationTimezone: null,
   }),
   sourceChoices: Object.freeze([]),
   categoryChoices: Object.freeze([]),

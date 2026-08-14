@@ -25,6 +25,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
       '0008_publication_presentation.sql',
       '0009_source_administration_foundation.sql',
       '0010_endpoint_collection_job_trigger_kind.sql',
+      '0011_publication_presentation_timezone.sql',
     ]);
     assert.deepEqual(
       await migrateDatabase({ connectionString: databaseUrl }),
@@ -90,6 +91,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
         { filename: '0008_publication_presentation.sql' },
         { filename: '0009_source_administration_foundation.sql' },
         { filename: '0010_endpoint_collection_job_trigger_kind.sql' },
+        { filename: '0011_publication_presentation_timezone.sql' },
       ]);
 
       const removedTenancy = await client.query<{
@@ -129,13 +131,14 @@ test('canonical production schema migrates from zero and reruns safely', async (
          FROM information_schema.columns
          WHERE table_schema = 'public'
            AND table_name = 'publication_settings'
-           AND column_name IN ('description', 'logo_path', 'accent_color')
+            AND column_name IN ('description', 'logo_path', 'accent_color', 'presentation_timezone')
          ORDER BY column_name`,
       );
       assert.deepEqual(presentationColumns.rows, [
         { column_name: 'accent_color', is_nullable: 'YES' },
         { column_name: 'description', is_nullable: 'YES' },
         { column_name: 'logo_path', is_nullable: 'YES' },
+        { column_name: 'presentation_timezone', is_nullable: 'YES' },
       ]);
     } finally {
       await client.end();

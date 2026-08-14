@@ -26,12 +26,14 @@ const publication = Object.freeze({
   description: null,
   logoPath: null,
   accentColor: null,
+  presentationTimezone: null,
 });
 const brandedPublication = Object.freeze({
   name: 'Configured Publication',
   description: 'Configured publication description.',
   logoPath: '/publication-logo.svg',
   accentColor: '#1A2B3C',
+  presentationTimezone: null,
 });
 const sourceChoices = Object.freeze([
   Object.freeze({ configKey: 'first_source', displayName: 'First Source' }),
@@ -196,6 +198,7 @@ function publicFeedResponse(feed: PublicFeed, query: DiscoveryQuery) {
       description: feed.publication.description,
       logoPath: feed.publication.logoPath,
       accentColor: feed.publication.accentColor,
+      presentationTimezone: feed.publication.presentationTimezone,
     },
     discovery: {
       query,
@@ -452,6 +455,46 @@ describe('Public feed page browser behavior', () => {
       );
       await link.click({ noWaitAfter: true });
       assert.equal((await destinationRequest).url(), originalUrl);
+    } finally {
+      await context.close();
+    }
+  });
+
+  it('renders configured calendar dates independently of the viewer timezone and preserves the UTC fallback', async () => {
+    const timestamp = new Date('2026-08-06T00:30:00.000Z');
+    const boundaryItem = {
+      ...populatedFeed().items[0]!,
+      effectiveFeedDate: timestamp,
+    };
+    outcome = populatedFeed({
+      publication: {
+        ...publication,
+        presentationTimezone: 'America/Los_Angeles',
+      },
+      items: Object.freeze([boundaryItem]),
+    });
+    const { context, page } = await openPage({ timezoneId: 'Asia/Tokyo' });
+    try {
+      await waitForState(page, 'populated');
+      assert.equal(
+        await page.locator('.feed-date time').innerText(),
+        'AUG 5, 2026',
+      );
+      assert.equal(
+        await page.locator('.feed-date time').getAttribute('datetime'),
+        timestamp.toISOString(),
+      );
+
+      outcome = populatedFeed({
+        publication,
+        items: Object.freeze([boundaryItem]),
+      });
+      await page.reload();
+      await waitForState(page, 'populated');
+      assert.equal(
+        await page.locator('.feed-date time').innerText(),
+        'AUG 6, 2026',
+      );
     } finally {
       await context.close();
     }

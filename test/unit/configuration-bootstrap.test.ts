@@ -27,6 +27,15 @@ test('generic bootstrap JSON normalizes one complete Publication tree', async ()
   assert.equal(document.sources[1]?.approvalState, 'approved');
 });
 
+test('bootstrap accepts an optional trimmed Publication presentation timezone', async () => {
+  const input = JSON.parse(await readFile(fixtureUrl, 'utf8')) as {
+    publication: Record<string, unknown>;
+  };
+  input.publication.presentationTimezone = ' America/New_York ';
+  const document = normalizeBootstrapDocument(input);
+  assert.equal(document.publication.presentationTimezone, 'America/New_York');
+});
+
 test('bootstrap parsing rejects malformed JSON with a bounded error', () => {
   assert.throws(
     () => parseBootstrapDocument('{"publication":'),

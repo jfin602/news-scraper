@@ -16,6 +16,7 @@ const presentation = Object.freeze({
   description: 'Persisted public presentation.',
   logoPath: '/assets/public-feed-http.svg',
   accentColor: '#2A4B6C',
+  presentationTimezone: 'America/Chicago',
 });
 
 test('serves discovery through the production PostgreSQL reader and HTTP stack', async () => {
@@ -199,14 +200,21 @@ async function insertPublicationSettings(
     description: string | null;
     logoPath: string | null;
     accentColor: string | null;
+    presentationTimezone: string | null;
   }>,
 ): Promise<void> {
   await client.query(
     `INSERT INTO publication_settings (
        name, active_for_collection, public_status,
-       description, logo_path, accent_color
-     ) VALUES ($1, true, 'public', $2, $3, $4)`,
-    [values.name, values.description, values.logoPath, values.accentColor],
+       description, logo_path, accent_color, presentation_timezone
+     ) VALUES ($1, true, 'public', $2, $3, $4, $5)`,
+    [
+      values.name,
+      values.description,
+      values.logoPath,
+      values.accentColor,
+      values.presentationTimezone,
+    ],
   );
 }
 
