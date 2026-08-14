@@ -1,0 +1,229 @@
+TASK: Correction 16 / P3 — Database suite reuse and bounded parallelism
+
+CORRECTION SCOPE
+This is the third implementation prompt in the non-versioned Phase 16 testing-efficiency correction. P1 and P2 must already be committed and green. Phase 16 P1–P6 product implementation is complete; this correction still gates the remaining Phase 16 P7 closeout. P3 converts eligible real-PostgreSQL tests to the proven reusable test scope and only then enables bounded database-file parallelism.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra Ultra`.
+- Model-family basis: this task requires classifying and converting the complete real-PostgreSQL suite without weakening migration, lifecycle, process, lock, transaction, duplicate-grouping, or feed evidence.
+- Reasoning basis: Ultra is justified by four distinct database-test lifecycle classes plus cross-file PostgreSQL concurrency, multi-pool tests, backend termination, advisory locks, transaction rollback, and hybrid fresh/reusable files.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Terra High`; rejected because a wrong fresh-vs-reusable classification or cleanup boundary can create false-green persistence/concurrency evidence after parallel execution is enabled.
+- Escalation trigger: conversion exposes shared database ownership, nondeterministic cross-file state, deadlock/resource behavior, or transaction/concurrency semantics that cannot be preserved by the P2 per-file scope without redesign.
+- Escalation target: stop and report planning drift rather than silently broadening the architecture; do not switch families merely because the conversion is large.
+- Estimate confidence: `High`.
+- Efficiency rationale: eliminate the repeated create+migrate+drop cost from ordinary DB files, keep fresh-state proof explicit, then add only conservative two-file DB parallelism after isolation is proven.
+
+VERSIONING
+- Required unchanged project version: `0.16.6`.
+- This correction MUST NOT change `package.json` version.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Correction prompt numbering is local and does not consume Phase 16 P7 or `0.16.7`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/contracts/testing-and-validation-contract.md`, the complete Phase 16 roadmap/correction entry, and P1–P2 task files;
+2. inspect the actual P1/P2 commits and tests rather than assuming the planned helper/API names were used;
+3. inspect every file currently under `test/database/` and classify it from actual behavior before converting it;
+4. inspect current `package.json` and `scripts/run-tests.mjs`, confirming full DB file concurrency is still 1 and focused DB execution is available;
+5. inspect `test/support/database/**`, `src/database/database.ts`, and `src/database/migrations.ts` so connection pressure and fresh migration evidence remain understood;
+6. inspect current Phase 16 P4–P6 implementation tests, especially `duplicate-grouping.test.ts`, `collection-article-processing.test.ts`, and `public-feed-discovery-repository.test.ts`, because they were added after the original testing-efficiency assessment;
+7. confirm top-level `package.json` remains exactly the declared unchanged correction version and that Phase 16 P7 has not executed;
+8. stop and report planning drift if the P2 harness is not demonstrably isolation-safe or if a current test file has materially different semantics from the classifications below.
+
+GOAL
+Move ordinary PostgreSQL-backed test files from repeated per-test database creation/migration to one isolated physical database per independently executed test file/equivalent scope, preserve explicit fresh/bare exceptions, then raise full DB file concurrency from 1 to 2.
+
+No assertion may be deleted, weakened, skipped, converted to a mock, or rewritten merely because it is expensive.
+
+CLASSIFY EVERY CURRENT DB TEST FILE
+Use the following source-inspected classification as the starting plan, but re-check each file against the current tree before changing it.
+
+A. FRESH / STANDALONE — KEEP EXISTING SIMPLE LIFECYCLE
+These files should remain on their current fresh/bare path unless source inspection proves a concrete safe benefit without changing what they prove:
+- `test/database/migrations.test.ts` — migration ordering, from-zero application, concurrency serialization, rollback/history/checksum behavior are the claim;
+- `test/database/disposable-database.test.ts` — database creation, independent state, FORCE cleanup, and absence verification are the claim;
+- `test/database/transactions.test.ts` — one low-level transaction test creates its own probe table; reuse adds little value;
+- `test/database/database-session.test.ts` — one low-level backend/session lifecycle test;
+- `test/database/database.test.ts` — small low-level database boundary tests with little repeated setup benefit;
+- `test/database/endpoint-run-lock.test.ts` — one real multi-actor advisory-lock test; keep the simple isolated boundary;
+- `test/database/relevance-schema.test.ts` — one migrated schema relationship test; no repeated migration loop exists to amortize.
+
+Do not force every DB test through one abstraction for cosmetic consistency.
+
+B. BARE REUSABLE
+Convert `test/database/collection-capacity.test.ts` to the P2 bare reusable scope if current source still closes all actor resources correctly between cases.
+
+This file repeatedly creates physical databases but does not require application migrations. Preserve its real cross-client advisory-capacity semantics, backend termination case, fixed-pool progress proof, and per-case cleanup.
+
+C. HYBRID FILES
+Preserve their fresh-state cases while using the lazy migrated scope for ordinary current-schema cases:
+
+1. `test/database/process-readiness.test.ts`
+   - use reusable migrated state for tests that require a current database;
+   - keep the test proving Web/Worker behavior against an uninitialized database on a separate fresh uninitialized disposable DB;
+   - never migrate that uninitialized fixture accidentally.
+
+2. `test/database/configuration-schema.test.ts`
+   - keep the explicit canonical migration-from-zero/rerun case fresh;
+   - convert later current-schema/constraint cases to migrated scope where safe.
+
+3. `test/database/duplicate-persistence-foundation.test.ts`
+   - keep the explicit migration-from-zero/rerun duplicate-foundation case fresh;
+   - convert later duplicate constraint/accounting cases to migrated scope.
+
+4. `test/database/source-administration-foundation.test.ts`
+   - keep the explicit Source-administration migration-from-zero foundation case fresh;
+   - convert later ordinary persistence/bootstrap/accounting cases to migrated scope.
+
+The P2 scope was intentionally required to initialize lazily so these files can contain both fresh and reusable cases without an eager migrated database changing the fresh claim.
+
+D. REUSABLE MIGRATED FILES
+Convert the following ordinary current-schema files to one migrated test scope per independently executed file, subject to current-source confirmation:
+- `test/database/article-persistence.test.ts`
+- `test/database/article-schema.test.ts`
+- `test/database/canonical-durable-job-execution.test.ts`
+- `test/database/category-administration-api.test.ts`
+- `test/database/collection-article-processing.test.ts`
+- `test/database/collection-execution.test.ts`
+- `test/database/collection-normalization-run-accounting.test.ts`
+- `test/database/collection-pretransport.test.ts`
+- `test/database/collection-runs.test.ts`
+- `test/database/configuration-bootstrap.test.ts`
+- `test/database/configuration-persistence.test.ts` — already converted as the P2 canary; preserve/adjust only if needed for consistency
+- `test/database/duplicate-grouping.test.ts`
+- `test/database/duplicate-review-repository.test.ts`
+- `test/database/editorial-configuration-apply.test.ts`
+- `test/database/endpoint-administration-api.test.ts`
+- `test/database/endpoint-collection-job-policy.test.ts`
+- `test/database/endpoint-collection-jobs.test.ts`
+- `test/database/endpoint-runtime-state.test.ts`
+- `test/database/initial-publication-bootstrap.test.ts`
+- `test/database/public-feed-discovery-repository.test.ts`
+- `test/database/public-feed-http.test.ts`
+- `test/database/public-feed-repository.test.ts`
+- `test/database/publication-administration-api.test.ts`
+- `test/database/publication-public-status.test.ts`
+- `test/database/relevance-article-persistence.test.ts`
+- `test/database/relevance-configuration.test.ts`
+- `test/database/relevance-rule-administration-api.test.ts`
+- `test/database/scheduler-pass.test.ts`
+- `test/database/source-administration-api.test.ts`
+- `test/database/worker-runtime-orchestration.test.ts`
+
+If current source shows that one of these files mutates schema, intentionally depends on an uninitialized database, leaks state by design, or otherwise cannot be reset safely, leave it on the fresh path and explain the evidence in the final report. Correctness outranks maximizing conversion count.
+
+CONVERSION RULES
+For each reusable file:
+- create one file-scope migrated/bare helper instance, not one process-global DB;
+- each test case receives a clean application-data state through the P2 reset lifecycle;
+- preserve existing fixture creation and behavioral assertions as closely as possible;
+- close every case-owned `Database`, `Client`, Pool, spawned role, or other database consumer before the scope callback returns;
+- keep intentional same-database actors inside a case when the behavior under test is locking/racing/concurrency;
+- do not alter product transaction boundaries to make test cleanup easier;
+- do not replace SQL constraint/race assertions with unit mocks;
+- do not merge logically independent test cases solely to save setup time;
+- do not share one mutable DB between concurrently executing test files.
+
+PHASE 16 REGRESSION PRESERVATION
+The current tree already includes P4–P6 behavior. Conversion must preserve substantive proof for:
+- duplicate group creation/add-member/idempotent merge behavior;
+- concurrent/crossing duplicate topology behavior and exactly-one-Primary guarantees;
+- duplicate detection/review dismissal/reconsideration behavior;
+- Article/observation/category + duplicate processing atomic rollback;
+- duplicate review/group effect counts in Collection runs;
+- ordinary public-feed duplicate suppression before filters/cursors/order/limit;
+- Source/Category/search/keyset behavior after duplicate suppression;
+- Article/observation provenance retention and Primary changes.
+
+Do not interpret this correction as permission to change Phase 16 implementation to fit converted tests.
+
+BOUNDED DATABASE FILE PARALLELISM
+Only after converted files pass in focused batches:
+- change full `npm run test:db` file concurrency from 1 to exactly 2;
+- keep `npm run test:db:focused` at concurrency 1 for predictable diagnosis and low connection pressure;
+- preserve the DB global setup/preflight and `.env` handling;
+- ensure each parallel file owns a distinct physical database when it uses a reusable scope;
+- preserve fresh standalone files' own distinct disposable databases;
+- do not derive DB concurrency from CPU count;
+- do not raise above 2 in this correction without stopping for explicit replanning and measured evidence.
+
+The conservative limit is intentional because individual test files may create several `Database` pools/clients and production `Database` pools have finite connection capacity. The primary speedup should come from eliminating repeated create+migrate+drop work, not aggressive oversubscription.
+
+PACKAGE / RUNNER REGRESSION TESTS
+Update package-script/runner-focused tests as needed to prove:
+- full `test:db` uses concurrency 2 after P3;
+- focused DB remains concurrency 1;
+- live-source remains concurrency 1;
+- ordinary/browser P1 values remain unchanged unless a concrete P3 failure demonstrates a required bounded rollback;
+- DB global setup and zero-match semantics remain intact.
+
+ITERATIVE CONVERSION VALIDATION
+Convert and validate in coherent batches with `npm run test:db:focused -- <changed files>`. A recommended order is:
+1. configuration/schema ordinary cases;
+2. collection/jobs/scheduler cases;
+3. feed/admin cases;
+4. relevance/articles cases;
+5. Phase 16 duplicate/grouping/collection/feed cases;
+6. hybrid and bare special cases.
+
+After each batch, fix only conversion/harness issues before proceeding. Do not repeatedly launch the entire DB suite after each file.
+
+PRESERVED BEHAVIOR
+Preserve:
+- every meaningful test assertion and evidence level;
+- production database/migration behavior;
+- Source/endpoint/Article identity/provenance constraints;
+- transaction and rollback semantics;
+- scheduler/jobs/locks/recovery behavior;
+- Phase 16 duplicate/group/feed behavior;
+- browser/live-source behavior;
+- P1 runner fail-closed semantics;
+- P2 fresh-database slow path;
+- current package version.
+
+NON-GOALS
+Do not:
+- create a template/cloned pre-migrated DB;
+- change production schema/migrations to accelerate tests;
+- make one shared global database for the suite;
+- run DB files at concurrency above 2;
+- hide flaky failures behind retries;
+- delete/skip/merge tests solely for performance;
+- modify Phase 16 P7;
+- change product or public/admin behavior.
+
+FINAL-TREE VALIDATION
+After all conversions and DB concurrency changes are complete, run the smallest non-overlapping final matrix required by this prompt:
+- `npm run check`
+- `npm run test:db`
+- committed-range `git diff --check` or equivalent accepted-range check
+
+No browser rerun is required by P3 because neither browser behavior nor browser runner concurrency changes here. Do not separately rerun ordinary subordinate commands already contained by `npm run check` solely to duplicate evidence.
+
+ACCEPTANCE CRITERIA
+P3 is complete only when:
+- every current DB file has been consciously classified from actual behavior;
+- ordinary repeated-migration files use the reusable migrated scope where safe;
+- collection-capacity uses the bare reusable scope when source semantics permit;
+- fresh migration/lifecycle/uninitialized/low-benefit special cases remain explicit;
+- hybrid files retain their fresh cases and reuse only ordinary cases;
+- no state leaks between sequential cases or parallel files;
+- full DB file concurrency is 2 and focused DB remains 1;
+- full DB suite passes with all applicable tests present;
+- `npm run check` passes;
+- package version remains unchanged and no npm lockfile exists.
+
+FINAL REPORT
+Report:
+- files changed;
+- final classification of every DB test file, including deviations from this planned classification and why;
+- number of migrated-scope, bare-scope, hybrid, and fresh/standalone files;
+- final DB/full/focused concurrency values;
+- any reset/leak/resource issue found and fixed;
+- focused batch commands actually run;
+- final `npm run check` and `npm run test:db` results/counts;
+- confirmation that Phase 16 P4–P6 assertions/behavior remained intact;
+- confirmation package version remains unchanged;
+- any remaining performance or flakiness limitation for P4 closeout to investigate.
