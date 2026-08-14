@@ -829,7 +829,7 @@ Expose the installation's singleton Publication/editorial configuration, Categor
 
 ## Phase 16 — True duplicate detection and grouping
 
-**Status:** Current roadmap phase. P1–P3 are implemented; P4 is blocked until the Phase 16 testing-efficiency correction below closes.
+**Status:** Current roadmap phase. P1–P6 are implemented through package version `0.16.6`; the testing-efficiency correction below is complete, and P7 closeout is pending revalidation and manual execution.
 
 ### Goal
 
@@ -866,11 +866,11 @@ Suppress true duplicate public rows while preserving every Article instance/prov
 - Related coverage remains separate.
 - Unchanged dismissed evidence does not recur indefinitely.
 - Inherited Phase 16 validation covers strong-vs-weak classification, canonical pairs/dismissal, every Primary tie-break, post-identity composition, feed/discovery suppression, Collection-run effects, and real-PostgreSQL uniqueness/concurrency/topology/rollback/provenance invariants.
-- The Phase 16 testing-efficiency correction has closed before P4 execution; that correction does not consume or renumber Phase 16 roadmap prompts.
+- The Phase 16 testing-efficiency correction is complete before P7 closeout; that correction does not consume or renumber Phase 16 roadmap prompts.
 
 ## Phase 16 mid-phase testing-efficiency correction
 
-**Status:** Current non-versioned gating correction before Phase 16 P4.
+**Status:** Complete non-versioned correction. It consumed no Phase 16 roadmap prompt number and preserved package version `0.16.6`.
 
 This correction is implementation/tooling work under the non-versioned correction-stack workflow. It preserves the active Phase 16 roadmap phase and the package version established by completed P3; it does not consume Phase 16 P4's roadmap patch number.
 
@@ -916,7 +916,7 @@ Reduce local/Codex validation wall-clock time substantially without reducing tes
 - Final correction validation uses aggregate-command containment rather than redundant subordinate reruns while still executing the complete applicable ordinary, database, browser, and other specialized deterministic matrices.
 - Before/after wall-clock timing is recorded for applicable suites on the same machine/environment. The evidence should demonstrate material improvement; absolute portable time thresholds are not a correctness contract.
 - A durable correction closeout artifact under `docs/validation/` records the exact accepted source tree, commands/procedures, results, benchmark environment/timings, evidence levels, and limitations.
-- `package.json` remains unchanged throughout the correction. After green correction closeout, Phase 16 resumes at P4 with its existing roadmap version assignment.
+- The `package.json` version remains unchanged throughout the correction. After green correction closeout, Phase 16 resumes at the still-unexecuted P7 closeout, which retains its existing `0.16.7` roadmap version assignment.
 
 ## Phase 17 — Article and duplicate moderation
 

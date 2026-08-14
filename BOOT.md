@@ -15,7 +15,7 @@ It establishes project identity, canonical terminology, authority, document rout
 - Topic reuse model: configure and deploy another installation of the same shared codebase; do not concurrently host multiple topic Publications in one installation
 - Publication data-model role: singleton editorial/configuration state, **not** a relational tenant/ownership key
 - Current phase: **Phase 16 — True duplicate detection and grouping**
-- Current implementation gate: **Phase 16 mid-phase testing-efficiency correction before P4**
+- Current implementation gate: **Phase 16 P7 closeout revalidation and manual execution**
 - Production status: pre-production
 - Pre-production database policy: destructive fresh rebuild from the repository's smallest current canonical migration chain and bootstrap/configuration; databases from older source trees are disposable and legacy-only migration/runtime/test/config structure is removed rather than preserved for compatibility
 - Initial Publication: publishing-industry news relevant to indie authors
@@ -37,7 +37,7 @@ Phase 13 — Public presentation polish — is complete with durable validation 
 
 Phase 14 — Source administration — is complete by explicit repository-owner acceptance on August 14, 2026. Its historical validation artifact remains truthful evidence of the recorded passing local/static/unit/integration/database/fixture/browser evidence and its original BLOCKED/RED determination: the then-required Level 8 Cloudflare Access/direct-origin deployment observation was unavailable. The governing roadmap and testing contract subsequently moved that observation to Phase 19; owner acceptance advanced the roadmap without rewriting the historical artifact or claiming Level 8 was observed.
 
-Phase 15 — Publication and Relevance administration — is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 is current and owns true duplicate detection, persisted review/dismissal state, Duplicate groups/memberships, deterministic Primary selection, and ordinary-feed duplicate suppression. Phase 16 P1–P3 are implemented. Before P4, the non-versioned testing-efficiency correction is the active implementation gate and preserves the current package version/Phase 16 prompt numbering. Phase 17 moderation/UI and later work remain outside Phase 16 unless explicitly required.
+Phase 15 — Publication and Relevance administration — is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 is current and owns true duplicate detection, persisted review/dismissal state, Duplicate groups/memberships, deterministic Primary selection, and ordinary-feed duplicate suppression. Phase 16 P1–P6 are implemented through package version `0.16.6`. The non-versioned testing-efficiency correction is complete without consuming or renumbering a Phase 16 prompt; P7 closeout is the next roadmap task and must be revalidated under the validation-efficiency policy before manual execution. Phase 17 moderation/UI and later work remain outside Phase 16 unless explicitly required.
 
 The canonical architecture is one Publication/topic per installation, singleton Publication editorial configuration without relational tenancy, Source-scoped identity/provenance, persisted Relevance/Categories, canonical `/api/feed`, canonical root `/`, and durable endpoint scheduling/jobs. Historical validation artifacts remain evidence only for the exact SHAs and environments they recorded.
 
@@ -47,7 +47,7 @@ Phases 1–9 are the historical tech-demo critical path.
 
 The first demonstrable milestone is: at least two real approved RSS/Atom Sources are collected through the Worker, recorded in Collection runs, normalized, passed through the canonical default-include Relevance boundary, persisted idempotently with Article-observation provenance, and displayed in the public feed with original-publisher headline links.
 
-Phase 11 completed deterministic persisted Categories and configurable Relevance execution. Phase 12 completed deterministic Source/Category filters, bounded literal search, keyset/load-more cursors, and URL/reset navigation behavior. Phase 13 completed the governed public-presentation work while preserving those discovery semantics. Phase 14 completed Source administration and the Source RSS/Atom item admission filter by owner acceptance on August 14, 2026, with the historical Level 8 deployment-proof limitation preserved and now governed by Phase 19. Phase 15 completed Publication/Category/Relevance administration. Phase 16 P4 does not begin until the testing-efficiency correction gate closes. Do not pull Phase 17 moderation/UI or later work into Phase 16 unless a true dependency is demonstrated.
+Phase 11 completed deterministic persisted Categories and configurable Relevance execution. Phase 12 completed deterministic Source/Category filters, bounded literal search, keyset/load-more cursors, and URL/reset navigation behavior. Phase 13 completed the governed public-presentation work while preserving those discovery semantics. Phase 14 completed Source administration and the Source RSS/Atom item admission filter by owner acceptance on August 14, 2026, with the historical Level 8 deployment-proof limitation preserved and now governed by Phase 19. Phase 15 completed Publication/Category/Relevance administration. Phase 16 P1–P6 and the non-versioned testing-efficiency correction are complete; P7 closeout remains pending. Do not pull Phase 17 moderation/UI or later work into Phase 16 unless a true dependency is demonstrated.
 
 Because the project is pre-production, databases from superseded source trees remain disposable. Current implementation work may rebuild development/pre-production databases from the canonical migration chain rather than preserving unsupported old schema/data compatibility.
 
@@ -258,7 +258,7 @@ Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Databas
 
 16. Phase 16 — True duplicate detection and grouping
 
-Current gate: the non-versioned Phase 16 testing-efficiency correction must close before Phase 16 P4 executes. It preserves the package version established by completed P3 and does not consume/reserve P4's roadmap patch number. Existing unexecuted P4–P7 prompt files were generated before the validation-efficiency policy change; do not silently rewrite them during documentation application. Revalidate/refresh the remaining prompts through the prompt workflow after the correction closes so feature scope/version ownership remains explicit.
+Current gate: Phase 16 P1–P6 and the non-versioned testing-efficiency correction are complete at package version `0.16.6`. The correction consumed no roadmap prompt number. Revalidate the still-unexecuted P7 closeout prompt under the validation-efficiency/command-containment policy before running it manually; P7 owns the normal `0.16.7` transition.
 
 ### Remaining MVP order
 
