@@ -115,8 +115,31 @@ Interpretation rules:
 - Cross-file count alone does not force Terra; ask whether the files participate in one explicit bounded change or require independent system reasoning.
 - Database work does not automatically force Terra/Sol. Straightforward schema/repository work with explicit constraints may remain Luna; transaction ownership, concurrency, or subtle integrity interactions can justify Terra.
 - Security-sensitive work does not automatically force Sol. A narrow, explicitly governed middleware/control can be Terra; ambiguous trust boundaries or architecture-level security decisions can justify Sol.
-- Broad validation/closeout execution can remain Luna/Terra when the prompt is evidence-driven and requires stopping rather than redesigning on major defects.
+- Roadmap/correction closeout prompts are the deliberate exception to the normal implementation cost-search baseline: default them to `Sol Light` so the final independent review gets Sol's stronger base code-reading/review capability without automatically paying for deep reasoning.
 - `Ultra` requires an actual reasoning-depth need such as concurrency, recovery, transaction/state-machine interactions, or comparable complexity. Validation volume alone is not a reason.
+
+## Closeout default and two-pass review contract
+
+Roadmap-phase and gating-correction closeout prompts SHOULD default to `Sol Light` when that label remains available in the runner. The closeout boundary is an independent final review of work produced by earlier implementation prompts, so stronger base review capability is intentionally preferred even when the validation matrix itself is explicit and mechanical. Low reasoning keeps that review economical.
+
+This default does **not** mean repeated low-reasoning passes are equivalent to a deeper model. Every closeout must use two distinct passes:
+
+1. **Contract / evidence pass** — verify the implemented final tree against governing contracts, roadmap exit gates, required evidence levels, focused tests, broader regressions, runtime/database/browser/live prerequisites as applicable, and the exact accepted source tree.
+2. **Code-quality / adversarial pass** — independently inspect the final implementation diff plus important touched producers/consumers for quality issues that a checklist-only validation can miss. At minimum consider unnecessary duplication, avoidable complexity, dead or compatibility-only code, speculative abstractions, leaky module boundaries, weak error handling, transaction/concurrency assumptions, idempotency/provenance risks, unsafe trust-boundary shortcuts, brittle or missing tests, observability gaps, and documentation/task drift.
+
+The second pass must not be described or executed as merely rerunning the same tests. It is a fresh code-reading/review pass whose purpose is to compensate for gaps that may remain after implementation by cheaper models.
+
+Closeout prompts may fix only bounded defects already permitted by their governing closeout scope. If either pass exposes material architectural ambiguity, difficult cross-subsystem root cause, concurrency/transaction ownership uncertainty, security-boundary uncertainty, or another defect that cannot be confidently classified and repaired within the bounded closeout contract, stop and escalate rather than attempting to make `Sol Light` reason through a problem that requires deeper analysis.
+
+Escalation is chosen by the reason the default is insufficient:
+
+- if the problem mainly needs deeper reasoning over explicit code/state interactions, compare `Terra High` / `Terra Ultra` against higher-effort Sol options and choose the minimum adequate current label;
+- if the problem itself requires stronger independent cross-system inference or ambiguous contract reconciliation, prefer a higher-effort Sol configuration;
+- validation volume, prompt length, or the importance of closeout alone are never escalation triggers.
+
+For model assessment/planning, treat `Sol Light` as the provisional closeout baseline. A lower-family closeout recommendation is not the normal cost optimization path because the independent-review capability is intentional; use one only when the repository owner explicitly changes this policy or `Sol Light` is unavailable and the workflow is revalidated. A stronger recommendation still requires a concrete observed escalation trigger.
+
+For prompt writing, every newly written closeout prompt MUST contain an explicit code-quality/adversarial second-pass section and must require the durable validation/final report to record whether that pass found defects, what bounded fixes were made, and whether any unresolved finding requires replanning or a correction stack.
 
 ## `/prompt-ass` model-selection contract
 
@@ -143,7 +166,7 @@ For every proposed implementation/closeout prompt, record:
 - estimate confidence;
 - concise efficiency rationale.
 
-Start from the cheapest plausible family/effort. Do not begin at Sol/Ultra and work downward.
+Implementation prompts start from the cheapest plausible family/effort. Closeout prompts start from the `Sol Light` closeout baseline above and escalate only when the known task shape already proves low reasoning insufficient.
 
 A useful assessment should make the selection auditable, for example:
 
@@ -164,9 +187,9 @@ Escalation target: Terra High
 For every assessed prompt:
 
 1. re-evaluate the seven task-classification dimensions using observed source evidence;
-2. compare the provisional `/prompt-ass` configuration with at least the next-cheaper realistic option;
-3. downgrade when source inspection makes the task more explicit/local/mechanical than assessment assumed;
-4. escalate only when observed implementation complexity proves the cheaper configuration inadequate;
+2. compare the provisional `/prompt-ass` configuration with at least the next-cheaper realistic option for implementation prompts, or against the `Sol Light` closeout baseline for closeout prompts;
+3. downgrade implementation prompts when source inspection makes the task more explicit/local/mechanical than assessment assumed; retain `Sol Light` as the normal closeout floor unless the owner changes the closeout policy or the label is unavailable;
+4. escalate only when observed implementation complexity proves the cheaper/default configuration inadequate;
 5. identify whether escalation is driven by **base model capability** or **reasoning depth**;
 6. record the final configuration and a model-decision delta from `/prompt-ass`.
 
@@ -176,7 +199,7 @@ The required delta is one of:
 - `Unchanged` — provisional choice remains the minimum adequate configuration;
 - `Escalated` — newly observed complexity requires a more capable/deeper configuration.
 
-For `Downgraded` or `Escalated`, name the observed source fact that caused the change. For `Unchanged`, state why the next-cheaper realistic option still misses the floor.
+For `Downgraded` or `Escalated`, name the observed source fact that caused the change. For `Unchanged`, state why the next-cheaper realistic option still misses the floor. For a closeout remaining at `Sol Light`, state that the stronger-base independent review is intentional and name any deeper-reasoning trigger that would require escalation during execution.
 
 Example:
 
@@ -197,7 +220,7 @@ Delta: Escalated
 Driver: reasoning depth and cross-module state coupling
 ```
 
-Do not retain an expensive provisional rating merely because it was already written in `/prompt-ass`.
+Do not retain an expensive provisional rating merely because it was already written in `/prompt-ass`; the `Sol Light` closeout baseline is a deliberate review-policy floor, not an expensive provisional rating inherited from assessment.
 
 ## `/prompt-write` model-selection contract
 
@@ -208,8 +231,9 @@ Before writing each task file:
 1. re-read current `MODEL_CONFIGS` and confirm the planned label still exists;
 2. confirm repository drift has not materially changed the implementation boundary or model floor;
 3. if the exact finalized configuration is unsupported, stop with `Planning needed` rather than substituting a guessed label;
-4. if the task boundary is unchanged and only a safe lower-cost configuration has become available, explicit owner-authorized `/revalidate` may downgrade it without reopening implementation scope;
-5. never silently upgrade because the generated prompt contains many requirements, tests, or validation commands.
+4. if an implementation task boundary is unchanged and only a safe lower-cost configuration has become available, explicit owner-authorized `/revalidate` may downgrade it without reopening implementation scope; closeout prompts remain subject to the `Sol Light` independent-review baseline above;
+5. never silently upgrade because the generated prompt contains many requirements, tests, or validation commands;
+6. for every closeout prompt, add an explicit code-quality/adversarial second-pass section distinct from the contract/evidence validation matrix and require its outcome in the durable validation/final report.
 
 The final `MODEL / REASONING / USAGE` block SHOULD contain:
 
@@ -230,18 +254,19 @@ Only the canonical `Recommended configuration` line is machine-significant unles
 
 ## `/revalidate` behavior
 
-`/revalidate <task or stack>` MUST look for safe downgrades as actively as it looks for required upgrades.
+`/revalidate <task or stack>` MUST look for safe downgrades as actively as it looks for required upgrades, except that unexecuted closeout prompts preserve the deliberate `Sol Light` review baseline unless the owner changes that policy or the label becomes unavailable.
 
 Revalidation should answer:
 
 - Does the task still require the same model family?
 - Does it still require the same reasoning effort?
-- Has a cheaper supported configuration become available?
+- Has a cheaper supported configuration become available for an implementation task without crossing the correctness floor?
+- For a closeout, is `Sol Light` still available and does observed complexity require escalation above it?
 - Has implementation drift introduced stronger coupling/security/concurrency risk?
 - Is the prompt long because the task is difficult, or merely because it is explicit?
-- Can redundant prompt prose be removed without weakening contracts, tests, or evidence requirements?
+- Can redundant prompt prose be removed without weakening contracts, tests, evidence requirements, or the distinct closeout code-quality pass?
 
-Historical completed prompts may retain the configuration used when executed. Unexecuted prompts should be revalidated after a material model-policy or runner-matrix change.
+Historical completed prompts may retain the configuration used when executed. Unexecuted prompts should be revalidated after a material model-policy or runner-matrix change. Unexecuted closeout prompts written under the prior policy should be updated to the `Sol Light` baseline plus explicit code-quality/adversarial pass before execution when practical.
 
 ## Prompt-token discipline
 
