@@ -293,7 +293,7 @@ Phases 1–9 remain the tech-demo critical path historically.
 - Confirm applicable local validation commands/suites were actually executed against the final tree before approval.
 - Confirm each Codex roadmap phase prompt uses its assigned one-based prompt number/version; confirm each correction prompt preserves its declared unchanged version; `package.json` remains authoritative in both modes.
 - Before declaring a task folder automation-ready, validate its exact machine-parsed grammar against the current runner; do not infer parser compatibility from visual similarity to historical prompts.
-- Every roadmap or correction implementation/closeout prompt follows the `BOOT.md` quality-first model/reasoning/usage policy: record the exact recommended current Codex configuration, complexity/quality floor, estimated usage, relevant alternative, and efficiency rationale. Complexity/correctness/security/data-integrity risk sets the floor first; token/credit efficiency may optimize only among configurations that still satisfy that floor.
+- Every roadmap or correction implementation/closeout prompt follows the `BOOT.md` minimum-adequate usage-conservation policy: start from the lowest expected-credit current configuration that plausibly satisfies the correctness floor, escalate only for a concrete task-specific reason, and record the recommendation, complexity/quality floor, estimated usage, lower-cost alternative, escalation trigger, and efficiency rationale. Prompt length, phase number, broad validation volume, or feature importance alone do not justify a more expensive model.
 - Make a concrete recommendation when asked for the recommended option.
 - Never invent repository state, test results, Source behavior, or history.
 
