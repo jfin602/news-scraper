@@ -262,11 +262,36 @@ A command is added only with its first substantive suite. Empty/no-op commands a
 
 `npm test` MUST represent the ordinary deterministic development regression matrix suitable for local development and final-tree validation. Specialized environment-requiring suites MAY remain separate, but final implementation-phase/correction validation MUST explicitly run every specialized deterministic suite required by the behavior being accepted.
 
+Specialized suites MAY provide focused path/glob/filter invocations for iterative development. A focused database invocation, when introduced, MUST preserve the same `.env`/test-admin prerequisite handling, real-PostgreSQL requirement, selected-test zero-match failure, and isolation guarantees as the full database suite. Focused specialized execution is an iteration aid and does not replace the applicable full specialized final-tree regression suite.
+
 If a named/filtered test command is invoked and zero tests match, it MUST fail rather than report success, unless the command is explicitly a discovery/listing operation whose contract says otherwise.
 
 An explicitly invoked database, browser, collection-fixture, security, or other specialized suite MUST fail clearly when its required prerequisite is unavailable. It MUST NOT silently skip and report a passing result.
 
 The exact test runner/framework is selected during Phase 1. Prefer the smallest toolchain that satisfies TypeScript, coverage, isolation, and browser/integration needs; do not add a large framework solely to wrap behavior already supported adequately by the chosen runner.
+
+## Validation execution efficiency
+
+Validation obligations are **coverage-set based, not invocation-count based**. Repeating the same successful evidence against the same unchanged source tree does not strengthen a completion claim merely because it was invoked through multiple overlapping command aliases.
+
+During iterative implementation/debugging:
+
+- run the smallest focused test/check capable of answering the current development question;
+- rerun focused evidence as needed after edits;
+- prefer focused specialized database/browser/fixture execution when available rather than repeatedly launching an entire expensive suite;
+- do not treat a focused pass as a substitute for the broader final-tree regression matrix.
+
+During final-tree validation:
+
+- choose the smallest non-overlapping command set that executes every required check/suite/evidence level;
+- a successful aggregate command satisfies each subordinate check/suite it actually executed on that same unchanged final tree;
+- do not separately rerun a subordinate command immediately before or after an aggregate command that already executes it solely to duplicate evidence;
+- rerunning contained evidence is appropriate when diagnosing a failure, when an intervening source/configuration change invalidated the earlier evidence, or when the aggregate command did not actually include the required behavior;
+- command containment is determined from the current executable scripts/runner behavior, not from historical assumptions about what a command used to include.
+
+Parallel execution MAY reduce wall-clock time when it preserves test semantics. Independently isolated test files SHOULD be allowed to execute concurrently where practical, subject to bounded resource limits. File/process scheduling order is not itself a deterministic product invariant: test selection, inputs, assertions, and outcomes must be deterministic, but independent test-process stdout completion order need not be.
+
+Concurrency limits are implementation/runtime tuning rather than durable fixed numbers in this contract. Database, browser, and other resource-heavy suites MUST use bounded concurrency appropriate to their connection/process/memory costs. Live-Source validation SHOULD remain conservative/serial unless a specific source-safe procedure explicitly permits concurrency.
 
 ## Local execution and final-tree validation
 
@@ -279,6 +304,8 @@ Final-tree validation MUST, as applicable:
 - perform a clean dependency installation from `package.json` using the repository npm configuration;
 - run applicable static/type/lint/format checks;
 - run the complete deterministic test matrix required by the current implemented behavior;
+- use aggregate commands to satisfy contained subordinate checks/suites where doing so avoids duplicate execution without reducing coverage;
+- run every required specialized suite not contained by the chosen aggregate commands;
 - fail when a required selected suite contains zero tests;
 - validate the committed change range for whitespace/diff errors rather than relying on an empty clean-working-tree diff;
 - execute any required runtime/database/fixture/browser/recovery procedures at the evidence level needed for the acceptance claim;
@@ -325,19 +352,33 @@ NEWS_SCRAPER_TEST_DATABASE_ADMIN_URL
 
 It MUST refer only to a dedicated test-capable PostgreSQL administrative connection and MUST NOT point at development or production application data.
 
-Database suites SHOULD:
+For ordinary repository/service/API/Worker persistence tests, the preferred isolation unit is one unique disposable migrated PostgreSQL database per independently executed test file or equivalent isolated test scope. A normal reusable database-test lifecycle SHOULD:
 
-1. create a unique disposable database such as `news_scraper_test_<unique-id>`;
-2. apply migrations from zero;
-3. execute tests against actual constraints, transactions, locks, timestamps, migrations, and errors;
-4. clean up the disposable database;
-5. verify cleanup.
+1. create one unique disposable database such as `news_scraper_test_<unique-id>` for the isolated file/scope;
+2. apply the current migration chain from zero once for that database;
+3. execute each case against real PostgreSQL constraints, transactions, locks, timestamps, and errors;
+4. reset mutable application state between cases without rebuilding the identical schema;
+5. close test-owned pools/clients before reset/cleanup;
+6. drop the disposable database after the isolated file/scope completes; and
+7. verify cleanup.
+
+A reset MAY dynamically truncate application-owned mutable tables using identity reset/cascade semantics where appropriate while preserving the migrated schema and migration ledger. The reset mechanism MUST itself be deterministic and MUST NOT leave state that can leak between cases.
+
+A universal outer transaction/rollback wrapper MUST NOT be used as a substitute for database reset when it would change the behavior being proved. Tests involving multiple independent clients/pools/processes, committed state, advisory/row locks, transaction boundaries, recovery, or races must observe the same relevant PostgreSQL semantics as production code.
+
+A dedicated fresh-database slow path remains REQUIRED when fresh database state is part of the claim, including as applicable:
+
+- disposable database creation/drop/forced-cleanup behavior;
+- migration from zero, migration ordering, migration serialization, migration rollback/history/checksum behavior;
+- schema-mutation behavior whose correctness depends on an empty or pre-migration database;
+- test-admin capability/cleanup behavior;
+- any case where preserving the migrated schema between tests would materially change the behavior being proved.
 
 Migration work that transforms already-populated **supported** state MUST additionally exercise representative fixtures through the real migration path. The current pre-production singleton correction has no such supported old-data input; its contract is fresh rebuild from zero. Tests/fixtures whose only purpose is to migrate or preserve superseded disposable schemas are removed rather than retained as regression obligations.
 
-Parallel database tests MUST NOT share mutable schemas/databases unless concurrency between those actors is the behavior under test. Phase 4 endpoint-lock validation is such an intentional concurrency case: independent clients/process-equivalent actors MUST contend for the same endpoint lock against the same disposable PostgreSQL database, prove that only one owner succeeds at a time, prove unrelated endpoint locks can proceed independently, and prove release/reacquisition on relevant success/failure paths.
+Parallel database test files/scopes MUST NOT share mutable schemas/databases unless concurrency between those actors is the behavior under test. Independently parallelized files/scopes each own a separate disposable database. Concurrency MUST be bounded so aggregate PostgreSQL pool/connection pressure does not make the suite unreliable. Phase 4 endpoint-lock validation is an intentional shared-database concurrency case: independent clients/process-equivalent actors MUST contend for the same endpoint lock against the same disposable PostgreSQL database, prove that only one owner succeeds at a time, prove unrelated endpoint locks can proceed independently, and prove release/reacquisition on relevant success/failure paths.
 
-An explicit `test:db` invocation without a safe usable test-admin prerequisite MUST fail clearly. Database tests MUST NOT silently downgrade to mocked or skipped persistence while reporting success.
+An explicit `test:db` or focused database-test invocation without a safe usable test-admin prerequisite MUST fail clearly. Database tests MUST NOT silently downgrade to mocked or skipped persistence while reporting success.
 
 Tests MUST NOT use the ordinary development database as their cleanup strategy.
 
@@ -394,6 +435,8 @@ Avoid arbitrary sleeps. Prefer controlled clocks, state advancement, events/barr
 Boundary behavior SHOULD be tested immediately below, exactly at, and immediately above important limits.
 
 Fixture runs SHOULD produce deterministic normalized results when relevant providers are fixed.
+
+For independently executed test files/processes, deterministic discovery/selection and deterministic assertions/outcomes are required; deterministic inter-process stdout/completion ordering is not required unless ordering itself is the behavior under test.
 
 ## Failure and recovery testing
 
@@ -474,7 +517,7 @@ A phase or correction cannot close until:
 - known skipped/flaky tests do not hide exit-gate behavior;
 - validation limitations are reported explicitly.
 
-Every Codex implementation prompt MUST specify focused tests, broader regression tests, and any runtime/browser/database/fixture validation needed for acceptance.
+Every Codex implementation prompt MUST specify focused tests, broader regression tests, and any runtime/browser/database/fixture validation needed for acceptance. It MUST distinguish iterative focused validation from final-tree regression validation and SHOULD express the final commands as the smallest non-overlapping set that covers all required evidence. A prompt SHOULD NOT require subordinate commands immediately alongside an aggregate command that already executes them on the same unchanged final tree unless a diagnostic or other explicit reason makes the repeated execution meaningful.
 
 A reviewer MUST NOT approve a change solely because its requested feature appears present in source.
 
