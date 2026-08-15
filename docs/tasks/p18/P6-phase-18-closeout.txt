@@ -1,0 +1,306 @@
+TASK: Phase 18 / P6 — Phase 18 closeout validation
+
+ROADMAP PHASE
+Phase 18 — Configurable HTML collection.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Model-family basis: repository policy deliberately uses Sol's stronger independent code-reading/review capability at roadmap closeout while keeping reasoning light unless a concrete defect proves deeper analysis is needed.
+- Reasoning basis: Light reasoning is sufficient for the explicit three-pass closeout procedure: contract/evidence verification, independent adversarial edge-case review, and separate structural/code-quality review with bounded fixes or escalation when needed.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Terra High`; not selected because current repository policy intentionally establishes `Sol Light` as the normal independent closeout floor rather than optimizing closeout down to the implementation workhorse.
+- Escalation trigger: any pass exposes material architectural ambiguity, difficult cross-subsystem root cause, unresolved persistence/transaction/concurrency ownership, network-security boundary uncertainty, parser-safety uncertainty, or another defect that cannot be confidently repaired inside already-governed Phase 18 behavior.
+- Escalation target: `Terra Ultra` when the dominant need is deeper reasoning over explicit persistence/transport/job/state interactions; use a higher-effort Sol configuration when the blocker requires stronger independent cross-system inference or contract reconciliation. Meaningful behavior-preserving structural refactors use the separate `Terra High` handoff below.
+- Estimate confidence: `High`.
+- Efficiency rationale: the three independent passes, bounded-fix rule, explicit escalation conditions, and Terra High refactor handoff provide strong final review without pre-paying for deep reasoning on a well-specified phase.
+- Plan delta: `Unchanged` from `/prompt-plan`.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md`, `docs/codex-model-selection.md`, and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 18 prompt 6 and its assigned project version is `0.18.6`.
+- On first execution, require P5 to have left top-level `package.json` at `0.18.5`, then advance only the top-level package version to `0.18.6` before establishing the final Phase 18 candidate tree.
+- On a rerun of this same P6, retain `0.18.6`; do not increment again.
+- Any other package version is sequence drift: stop and report it.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- A later successful conversational `/closeout` separately establishes the Phase 19 baseline `0.19.0`; that transition is not part of P6.
+
+MANUAL CLOSEOUT BOUNDARY
+This is the sole final manual closeout prompt for the Phase 18 task stack. `npm run codex:phase -- p18` must stop after P5 and must not execute P6 automatically.
+
+P6 validates the exact integrated Phase 18 implementation, repairs only concrete bounded defects already inside governed Phase 18 scope, performs the required independent adversarial and structural passes, and writes durable evidence only for the final accepted candidate tree.
+
+Do not pull Phase 19 reliability/deployment operations, Phase 20 launch work, Phase 21 refactoring, browser-automation collection, or unrelated feature ideas into Phase 18.
+
+MANDATORY HANDOFF
+Before any P6 write/version action:
+1. read current `BOOT.md`, `docs/codex-model-selection.md`, the complete Phase 18 roadmap entry, and P1–P5 task files;
+2. read `docs/contracts/domain-and-data-contract.md`, `docs/contracts/source-and-collection-contract.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/architecture/system-architecture.md`, and `docs/operations/security-reliability-and-operations.md`;
+3. inspect the actual final P1–P5 source/tests rather than assuming prompt prose describes what Codex implemented;
+4. inspect final parser/profile implementation and dependencies, migration chain, Source endpoint/profile/run repositories, HTTP transport/fetcher, canonical collection orchestration, Source admission branch, endpoint administration service/router, admin page/client/styles, and deterministic HTML fixtures;
+5. trace important unchanged producers/consumers: destination safety/redirect validation, Source/endpoint eligibility and locks, scheduler/jobs/recovery, normalization/Article-link policy, Relevance/Categories, Article identity/persistence/observations, duplicate grouping/moderation, public-feed/discovery, and Phase 14–17 admin workspaces;
+6. inspect runner-owned P1–P5 commit history and establish the Phase 18 implementation base/range for final diff checks; prompt-writing/documentation commits are not implementation evidence;
+7. confirm Level 7 approved live-Source validation and Level 8 reference-deployment/Cloudflare direct-origin observation are not Phase 18 closeout requirements under current governing docs;
+8. stop and report sequence/planning drift if P1–P5 are incomplete, package baseline is unexpected, the task stack does not validate, or implementation materially differs from the governed Phase 18 boundary.
+
+DURABLE VALIDATION ARTIFACT
+Create/update only after evidence is gathered on the final candidate tree:
+
+`docs/validation/phase-18-configurable-html-collection.md`
+
+If a Terra High refactor handoff is emitted, do not finalize or mark this artifact GREEN until remediation is applied and P6 is rerun from the beginning against the resulting tree.
+
+The artifact must identify at minimum:
+- validation date/time and relevant environment;
+- exact final Phase 18 source SHA/tree accepted after every bounded fix and completed remediation;
+- package version `0.18.6`;
+- implementation range/base used for inspection/diff validation;
+- Node/npm/PostgreSQL/Playwright Chromium versions where observed and relevant;
+- HTML parser/selector dependencies and versions actually installed/validated where relevant;
+- every validation command/procedure actually run and its result/counts where useful;
+- evidence levels actually achieved;
+- profile/parser/bounds/static-content evidence;
+- endpoint/profile/revision and Collection-run diagnostic persistence evidence;
+- endpoint-type HTTP/parser/RSS-admission/downstream integration evidence;
+- no-crawl/no-subresource/no-Article-page/no-browser-fetch fixture evidence;
+- admin safe-preview/request-integrity/API evidence;
+- Source-administration browser evidence;
+- Pass 2 hypotheses/findings/fixes/tests/disposition;
+- Pass 3 structural findings and whether a Terra High remediation handoff occurred;
+- limitations, unavailable prerequisites, retries, skipped/zero-test conditions;
+- explicit statement that ordinary Phase 18 deterministic validation does not claim approved live-publisher Level 7 behavior or reference-deployment/Cloudflare Level 8 behavior;
+- Phase 18 exit-gate conclusion as GREEN or blocked/red;
+- intended next phase if GREEN: Phase 19 — Reliability, observability, and production operations;
+- statement that conversational `/closeout` is still required for the separate `0.19.0` baseline transition.
+
+PASS 1 — CONTRACT / EVIDENCE
+Validate the final tree against actual Phase 18 contracts and roadmap exit gate.
+
+A. STATIC HTML PROFILE / PARSER — LEVEL 2 + LEVEL 5
+Prove:
+- one canonical inert endpoint-owned profile validator/normalizer exists and is topic independent;
+- required item/title/Article-link selectors and only governed optional date/author/summary/category fields are supported;
+- selector syntax/length/complexity, document, matched-item, field, category, and diagnostic bounds are explicit and enforced;
+- unsupported selector extensions fail closed rather than exposing arbitrary expression behavior;
+- parser executes no JavaScript and loads no resources;
+- valid listings emit deterministic bounded `RawItem`s;
+- relative links remain Raw-item input until canonical normalization;
+- no synthetic `externalId` is generated from HTML position/title/hash/markup/content;
+- mixed valid/invalid rows retain valid output and bounded item-failure diagnostics;
+- zero matches/all-invalid rows are stable parser failures;
+- hostile/malformed HTML cannot leak raw body/sample/secret sentinel content in diagnostics;
+- RSS/Atom parser behavior remains intact after any shared parser-interface changes.
+
+B. ENDPOINT PROFILE / RUN PERSISTENCE — LEVEL 4
+Prove against disposable PostgreSQL:
+- migration from zero supports exactly implemented endpoint types including `html_listing`;
+- HTML endpoint requires valid normalized profile + positive revision and RSS endpoint cannot retain HTML profile/revision;
+- first HTML revision is `1`;
+- semantically unchanged normalized profile replacement does not increment;
+- material profile replacement increments once atomically;
+- RSS→HTML and HTML→RSS type switches preserve documented profile/revision semantics;
+- unrelated endpoint/state/domain/Category edits do not advance profile revision;
+- failed replacement rolls back coherent endpoint/profile/domain/default-Category state;
+- bootstrap remains create-if-absent/no-overwrite for HTML endpoints;
+- endpoint aggregate reads expose one coherent profile snapshot;
+- Collection runs persist bounded parser adapter/version/profile revision/item-failure diagnostics without raw response bodies;
+- interrupted run/retry/status/arithmetic constraints remain coherent;
+- retained Source/endpoint/run/Article/observation provenance is unchanged.
+
+C. CANONICAL COLLECTION / NETWORK / DOWNSTREAM — LEVEL 3 + LEVEL 4 + LEVEL 5
+Prove:
+- endpoint type selects the intended HTTP content policy and parser explicitly;
+- RSS/Atom retains existing Accept/media validation and HTML accepts only governed static HTML media types;
+- one canonical destination safety/validated-address/redirect path remains;
+- conditional requests/304, compression, size/time/header bounds, retry classification, redirect limit/loop behavior remain governed;
+- terminal redirect URL is the base for downstream relative Article URL normalization;
+- Source RSS/Atom admission phrases run only for RSS/Atom and never for HTML;
+- HTML `source_item_filtered_count` remains zero;
+- HTML Raw items rejoin the existing pipeline before normalization;
+- HTML candidates use existing Article-link policy, Relevance/Categories, Source-scoped identity/persistence/observations, duplicate processing, and run accounting;
+- repeated HTML collection is idempotent through canonical URL fallback rather than synthetic external identity;
+- manual and durable-job/check-now execution use the same endpoint execution unit;
+- HTML success/failure/304 update existing runtime health/retry/validator state coherently;
+- one endpoint parser/fetch failure remains isolated from unrelated endpoint work;
+- deterministic fixture request logs prove no Article page, pagination, image, stylesheet, script, frame/embed, discovered feed/Source, or browser request occurs.
+
+D. ADMIN API / SAFE PREVIEW — LEVEL 3 + LEVEL 4
+Prove:
+- existing endpoint administration creates/reads/replaces HTML profile state transactionally;
+- Source/domain/Category/state/relationship validation remains intact;
+- profile revision is repository-owned, not recalculated by router/UI;
+- recent runs expose only bounded parser/profile diagnostics;
+- preview accepts only bounded operator HTML sample + draft profile;
+- preview uses the exact P1 parser/profile boundary;
+- preview performs no DNS/fetch/job/lock/Collection-run/runtime-state/Article/Relevance/duplicate persistence work;
+- preview does not persist/revision the draft profile;
+- central admin request-integrity protection applies before preview;
+- malformed/oversize/unknown request input fails with bounded safe errors;
+- raw sample/parser internals/stack/SQL do not leak;
+- existing Check now remains the sole real network-backed manual verification path and supports HTML through P3.
+
+E. ADMIN BROWSER — LEVEL 6
+Observe in real Chromium:
+- endpoint editor offers RSS/Atom and HTML listing;
+- HTML structured profile controls render/load/save correctly;
+- switching endpoint type does not submit stale HTML state to RSS;
+- Source admission help clearly remains RSS/Atom-only;
+- safe sample preview sends only pasted sample/profile to the preview route with the standard request-integrity header;
+- preview success/mixed diagnostics/failure render safely without executing/inserting hostile HTML;
+- stale/in-flight/failed preview and save flows recover without duplicate requests or permanently disabled controls;
+- current profile revision and historical run profile/parser diagnostics render truthfully;
+- Check now for HTML uses existing queued/not-complete semantics;
+- relevant keyboard/focus/live-region/error behavior remains usable;
+- representative desktop/mobile layouts avoid destructive overflow;
+- existing Publication/Source RSS/Editorial/Article/duplicate administration remains green.
+
+F. EARLIER-PHASE REGRESSION
+Confirm the integrated matrix protects affected earlier boundaries, especially:
+- Source configuration/domain/approval/state invariants;
+- destination SSRF/DNS/rebinding/redirect/address-binding behavior;
+- RSS/Atom parser/filter/accounting;
+- scheduler/jobs/recovery/endpoint locks/runtime health;
+- normalization/Article-link safety;
+- Relevance/Category semantics;
+- Source-scoped Article identity/idempotency/observation rollback;
+- duplicate detection/grouping/manual authority and effect accounting;
+- canonical public feed/discovery/original-url behavior;
+- Phase 14–17 admin request-integrity/resource relationships/browser workflows.
+
+STATIC / ARCHITECTURE INSPECTION
+Confirm:
+- shared engine remains topic independent;
+- singleton Publication remains configuration, not relational tenancy;
+- `html_listing` profile belongs to endpoint configuration;
+- one parser/Raw-item/downstream pipeline exists rather than separate RSS and HTML persistence systems;
+- RSS/Atom Source admission is conditional and not generalized to HTML;
+- Web/API performs no Source collection inline;
+- sample preview is pure and outside the Worker collection flow;
+- no HTML collector fetches Article pages, pagination, or subresources;
+- no browser endpoint type, Playwright/Puppeteer collection, automatic browser fallback, XPath/general expression engine, or executable scraping script was introduced;
+- no synthetic HTML external IDs exist;
+- no HTML-specific Relevance/identity/duplicate/public-feed repository/path exists;
+- parser dependencies are justified static libraries rather than an unnecessarily large browser/runtime framework;
+- no Phase 19+ capability was pulled forward.
+
+PASS 2 — ERROR / EDGE-CASE ADVERSARIAL REVIEW
+After Pass 1 is green on a candidate tree, perform a separate fresh review derived from actual source rather than merely checking existing test names.
+
+At minimum challenge:
+- empty/whitespace/malformed HTML and non-UTF/multibyte boundary inputs;
+- huge/deep documents and selector worst cases near every configured bound;
+- selector features the dependency supports but the governed subset intends to reject, including expensive pseudo behavior;
+- script/event-handler/src/srcset/style/iframe/embed/link markup that could tempt resource loading or unsafe rendering;
+- title/link selectors matching unexpected node types, missing href, blank href, javascript/data/mailto URLs, and relative/fragment/query links before downstream policy;
+- mixed valid/invalid rows where invalid rows greatly outnumber valid rows;
+- zero matched roots and roots that all fail required extraction;
+- optional date/category/summary fields missing, repeated, or overbound;
+- Source with RSS admission phrases plus both RSS and HTML endpoints;
+- HTML run after a redirect where relative links depend on terminal URL;
+- HTML endpoint receiving XML/feed/JSON/binary media and RSS endpoint receiving HTML;
+- conditional 304 after a prior successful HTML run;
+- parser/profile revision changed while older jobs/runs exist and historical run revision remains truthful;
+- repeated/no-op profile saves and rapid concurrent admin profile replacement;
+- RSS↔HTML switch with invalid draft profile or existing conditional validators;
+- worker interruption/failure after run start but before parser/finalization/runtime-state application;
+- repeated HTML collection of the same canonical URL and same URL across different Sources;
+- duplicate processing/manual moderation behavior triggered by HTML-created Articles;
+- preview body exactly at/over JSON and sample limits;
+- preview attempt containing secret sentinels/scripts and parser-library exception text;
+- proof preview cannot reach DNS/network/database even through an accidental dependency/import;
+- stale preview response after switching endpoint/Source/type;
+- save/check-now/preview button race combinations;
+- admin diagnostics containing long selector/input-derived strings;
+- N+1/unbounded profile/run reads at intended MVP scale;
+- accidental package-lock creation or browser dependency use in Worker code.
+
+Classify each plausible finding as:
+1. already protected by implementation plus meaningful executed evidence;
+2. governed behavior clear but coverage weak — add/strengthen a bounded regression;
+3. concrete bounded Phase 18 defect — repair and add focused regression coverage where practical;
+4. meaningful behavior-preserving refactor — stop and use the Terra High handoff below;
+5. material ambiguity/hard defect — stop for model escalation/replanning/correction.
+
+Do not invent policy during closeout. After any bounded source/test change, rerun focused evidence and every broader suite invalidated before continuing.
+
+PASS 3 — CODE-QUALITY / STRUCTURAL REVIEW
+After Pass 1 and Pass 2 are green on the current candidate tree, independently review the complete Phase 18 implementation diff plus important touched producers/consumers.
+
+Inspect for:
+- duplicated profile normalization/selector validation across parser, repository, admin service, and browser;
+- duplicate parser dispatch or a hidden HTML-specific downstream processing path;
+- transport coupled unnecessarily to full Source configuration instead of a small endpoint content policy;
+- RSS admission filtering implemented as an unconditional shared stage with HTML exceptions scattered elsewhere;
+- raw JSON profile blobs leaking through layers without canonical typed mapping;
+- competing profile revision calculation in repository/admin/UI;
+- Collection-run diagnostics duplicated in ad-hoc logs instead of canonical bounded run fields;
+- preview service importing fetcher/resolver/database/job/runtime modules;
+- browser client parsing HTML or calculating backend validation/revision state;
+- broad generic adapter/plugin/expression abstractions created for only RSS/Atom + HTML;
+- unnecessary dependencies or browser-capable libraries in production collection;
+- unsafe `innerHTML`/DOM injection of preview/operator/Source data;
+- N+1/unbounded endpoint/run/profile reads;
+- dead/compatibility-only code inconsistent with pre-production simplification policy;
+- weak tests that assert private implementation while missing actual network/persistence/security invariants;
+- duplicated validation execution or unnecessarily slow test structure inconsistent with current efficiency contract;
+- documentation/task comments that misstate Source admission, profile ownership, preview safety, identity, or browser fallback behavior.
+
+Small local cleanup or one bounded defect may be fixed with appropriate rerun evidence. Do not perform a meaningful structural refactor under Sol Light.
+
+TERRA HIGH REFACTOR HANDOFF
+If Pass 2 or Pass 3 finds a meaningful behavior-preserving structural refactor, stop before implementing it and output exactly one self-contained transient remediation prompt recommending `Terra High`.
+
+That remediation prompt must:
+- identify the observed structural problem and concrete evidence;
+- define the smallest behavior-preserving refactor boundary and important producers/consumers;
+- preserve Phase 18 contracts, approval/network safety, parser bounds/static behavior, RSS-admission separation, Source-scoped identity/provenance, duplicate behavior, job/failure isolation, preview no-network/no-persistence behavior, and admin/public behavior;
+- forbid unrelated cleanup, new behavior, contract/ADR changes, roadmap expansion, browser automation, Phase 19+ features, and speculative abstractions;
+- preserve package version `0.18.6` and consume no roadmap prompt number;
+- require focused tests plus every broader regression/evidence level invalidated by the refactor;
+- require a concise implementation report but must not declare Phase 18 GREEN or finalize the validation artifact;
+- instruct Terra High to stop if the work actually requires a product/contract/ADR change, materially different architecture decision, difficult security/concurrency redesign beyond Terra High's reliable boundary, or other new scope.
+
+After remediation is applied and implementation-level validation is green, rerun P6 from the beginning. Only that rerun may establish the accepted final tree and GREEN artifact.
+
+FINAL VALIDATION — SMALLEST NON-OVERLAPPING MATRIX
+On the unchanged final candidate tree, run:
+- clean dependency installation using the repository's current npm/no-lockfile policy, recording the exact command/result;
+- `npm run check`
+- `npm run test:db`
+- `npm run test:browser`
+- any specialized deterministic fixture/security suite required by current scripts/contracts only if it is not already contained by the commands above;
+- `npm run codex:phase:validate -- p18`
+- committed/final Phase 18 implementation-range `git diff --check` or equivalent that actually checks the accepted change range.
+
+Do not separately rerun `npm test`, `npm run test:unit`, `npm run test:integration`, or `npm run test:collection` after successful `npm run check` on the same unchanged final tree solely to duplicate contained evidence.
+
+Do not make public-publisher Level 7 or reference-deployment Level 8 network procedures a Phase 18 completion prerequisite unless current governing docs were explicitly changed before execution. Do not silently skip a required deterministic database/browser/fixture prerequisite and report GREEN.
+
+If any final validation command changes source/configuration, restart the affected evidence against the resulting final tree. Hidden automatic retries that mask flakiness are not acceptable evidence.
+
+CLOSEOUT DECISION
+Declare Phase 18 GREEN only when:
+- all Phase 18 exit-gate behavior is implemented on the exact final tree;
+- required Levels 1–6 applicable evidence is actually observed and recorded;
+- RSS/Atom behavior and shared downstream regressions remain green;
+- no unbounded/unsafe preview or HTML network side path exists;
+- no unresolved Pass 2 or Pass 3 finding remains;
+- package version is `0.18.6`;
+- the durable validation artifact truthfully records evidence and limitations.
+
+If blocked/red, do not claim completion and do not prepare the Phase 19 baseline. Report the exact blocker, affected evidence level/contract, and whether the next action is bounded repair, Terra High remediation, model escalation, replanning, or correction workflow.
+
+FINAL REPORT
+Report:
+- final source SHA/tree and Phase 18 implementation range;
+- package version;
+- Phase 18 architecture/result summary;
+- every command/procedure actually executed and result;
+- evidence levels achieved;
+- Pass 2 adversarial findings/dispositions;
+- Pass 3 structural findings/dispositions and any Terra High handoff history;
+- validation artifact path;
+- limitations/not-run items;
+- final GREEN or blocked/red decision;
+- if GREEN, state that conversational `/closeout` is the next separate step to establish the Phase 19 `0.19.0` baseline.
