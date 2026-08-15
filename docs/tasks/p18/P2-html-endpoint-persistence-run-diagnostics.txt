@@ -1,0 +1,183 @@
+TASK: Phase 18 / P2 — HTML endpoint persistence and run diagnostics
+
+ROADMAP PHASE
+Phase 18 — Configurable HTML collection.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: P2 changes canonical Source-endpoint and Collection-run persistence used by bootstrap, Worker execution, scheduler/jobs, and admin reads, so it requires careful cross-file data-integrity reasoning.
+- Reasoning basis: High reasoning is appropriate for endpoint-type/profile compatibility, deterministic profile revision semantics, run diagnostic representation, transactional replacement behavior, and migration-from-zero proof.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because a persistence mistake could leave collectable HTML endpoints without profiles, retain HTML-only state on RSS endpoints, churn revisions incorrectly, or make later Worker/admin consumers infer missing database semantics.
+- Escalation trigger: implementation inspection shows atomic profile revisioning or endpoint-type/profile compatibility requires redesigning existing Source administration transaction ownership or cross-process concurrency semantics.
+- Escalation target: `Terra Ultra` when the problem is deeper explicit transaction/concurrency reasoning; stop for replanning if a product/contract change is required.
+- Estimate confidence: `High`.
+- Efficiency rationale: P1 owns parser/profile meaning; P2 can remain a focused canonical persistence producer rather than combining Worker or admin integration.
+- Plan delta: `Unchanged` from `/prompt-plan`.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md`, `docs/codex-model-selection.md`, and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 18 prompt 2 and its assigned project version is `0.18.2`.
+- On first execution, require top-level `package.json` version `0.18.1`; on a rerun of this same P2, `0.18.2` is acceptable.
+- Update only the top-level package version to `0.18.2`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 18 roadmap entry, `docs/contracts/domain-and-data-contract.md`, `docs/contracts/source-and-collection-contract.md`, `docs/contracts/testing-and-validation-contract.md`, and the Phase 18 persistence/diagnostic portions of `docs/contracts/public-feed-and-admin-contract.md`;
+2. read P1 and inspect its actual normalized HTML profile, parser adapter/version, parser-result, and diagnostic exports; do not reimplement those semantics in persistence code;
+3. inspect the complete current migration chain, `src/sources/configuration.ts`, `src/sources/repository.ts`, `src/publication/bootstrap.ts`, `src/collection/runs/repository.ts`, Source/endpoint administration persistence consumers, and database test-reset/support code;
+4. inspect current endpoint/runtime/run schema constraints and current endpoint read models so every later consumer receives one coherent profile snapshot;
+5. confirm package version is at the expected P1/P2 rerun state and stop/report planning drift if P1's producer boundary is incomplete or current persistence materially differs from the planned ownership.
+
+GOAL
+Persist `html_listing` endpoint configuration and bounded parser execution diagnostics as first-class canonical endpoint/run state while preserving one Source/endpoint model, pre-production migration-from-zero policy, existing bootstrap semantics, and every RSS/Atom path.
+
+P2 owns durable representation, validation/mapping, and complete repository interfaces required by P3 Worker collection and P4 admin services. It does not perform HTML collection, change HTTP media policy, expose admin routes/UI, or execute sample preview.
+
+MIGRATION
+Add the next migration after the current accepted chain, expected as the Phase 18 HTML endpoint/profile persistence migration unless the chain has legitimately advanced before execution.
+
+Do not rewrite accepted historical migrations merely to fold this feature backward. The repository is pre-production, but this prompt should preserve the existing smallest forward migration chain unless current BOOT/contracts explicitly require consolidation.
+
+SOURCE ENDPOINT TYPE / PROFILE REPRESENTATION
+Extend canonical Source-endpoint persistence to support exactly the currently implemented types:
+- `rss_atom`;
+- `html_listing`.
+
+Use the smallest coherent endpoint-owned durable representation. A JSONB profile column plus positive integer profile revision on `source_endpoints` is preferred if it cleanly satisfies current architecture and tests; do not create a separate profile subsystem/table without a concrete integrity/ownership reason.
+
+Database/application invariants must guarantee:
+- `rss_atom` has no HTML listing profile and no HTML profile revision;
+- `html_listing` has a valid normalized HTML listing profile and a positive revision before it is collectable/persisted as supported configuration;
+- endpoint type, profile, and revision are read/written as one coherent configuration snapshot;
+- malformed persisted profile data fails mapping loudly rather than silently falling back to RSS or empty/default selectors;
+- Source/endpoint ownership, URL uniqueness, config-key uniqueness, approval/lifecycle/operational state, domain policy, polling, Category defaults, conditional validators, and runtime timing remain unchanged.
+
+Do not introduce Publication tenancy keys or adapter-specific Article persistence.
+
+PROFILE REVISION SEMANTICS
+Use deterministic prospective revision behavior:
+- first persisted `html_listing` profile revision is `1`;
+- replacing an HTML endpoint with a materially different normalized profile increments revision exactly once in the same endpoint-configuration transaction;
+- replacing with a semantically identical normalized profile does not increment revision merely because JSON key order/whitespace differed at input;
+- `rss_atom` → `html_listing` starts HTML profile revision `1`;
+- `html_listing` → `rss_atom` clears HTML profile and revision;
+- changing endpoint URL, polling, domain narrowing, Category default, approval, lifecycle, or operational state without changing the normalized HTML profile must not advance profile revision;
+- profile edits are prospective and do not rewrite historical Articles, observations, or earlier Collection runs.
+
+If the existing endpoint service transaction is the natural owner for no-op-aware replacement, expose repository primitives/read models needed by P4 rather than embedding admin command semantics inside low-level repository mapping.
+
+SOURCE CONFIGURATION / REPOSITORY
+Extend `src/sources/configuration.ts` and repository mapping so:
+- `normalizeEndpointType` accepts `html_listing` in addition to `rss_atom`;
+- `SourceEndpointConfiguration` truthfully represents type/profile compatibility;
+- all creation/bootstrap/admin callers can pass the P1 normalized profile through one canonical validation path;
+- `PersistedSourceEndpoint` and `EndpointConfigurationAggregate` expose the HTML profile + revision only where valid;
+- find-by-key/find-by-id/aggregate reads used by Worker jobs return the profile snapshot required by P3;
+- create-if-absent bootstrap keeps existing no-overwrite behavior: an existing endpoint is not silently rewritten/revisioned by a bootstrap rerun.
+
+Do not duplicate P1 selector/profile validation in repository code. Call the canonical normalizer at untrusted configuration boundaries and validate persisted JSON through the same contract when mapping database rows.
+
+BOOTSTRAP
+Extend `src/publication/bootstrap.ts` only enough to accept/persist the currently supported endpoint profile shape.
+
+Required behavior:
+- HTML endpoint bootstrap input requires its HTML profile;
+- RSS endpoint bootstrap input rejects HTML-only profile fields;
+- duplicate Source/endpoint key handling and create-if-absent/no-overwrite semantics remain unchanged;
+- bootstrap never fetches or previews HTML;
+- bootstrap remains explicit operator initialization, not runtime authority.
+
+COLLECTION-RUN PARSER DIAGNOSTICS
+Extend canonical Collection-run persistence with the smallest bounded fields required to explain parser execution across adapters.
+
+Persist enough to identify for every parsed-content run where applicable:
+- parser/adapter kind;
+- parser implementation version;
+- HTML profile revision used, nullable for RSS/Atom;
+- bounded count of matched-item extraction failures/rejections where the adapter reports them;
+- bounded parser diagnostic code/detail for successful-with-item-failures or terminal parser failure where existing generic run `error_code`/`error_detail` alone cannot truthfully represent the information.
+
+Prefer a compact summary rather than storing one database row per malformed HTML item. Do not store raw response bodies, raw HTML samples, DOM fragments, stack traces, arbitrary parser objects, or unbounded diagnostic arrays.
+
+Preserve existing run status/stage/outcome arithmetic, retry classification, response validators, duplicate effects, and runtime reconciliation semantics.
+
+Run diagnostic constraints/mapping must distinguish:
+- parser not run;
+- RSS/Atom parser run without profile revision;
+- HTML parser run with the exact positive profile revision snapshot used;
+- parser success with zero or positive bounded item-failure count;
+- terminal parser failure with safe bounded code/detail.
+
+Do not invent HTML-specific run status values if the existing generic parser/run status vocabulary remains sufficient.
+
+ADMIN/WORKER CONSUMER-READY READS
+P2 must leave complete producer interfaces for later prompts:
+- P3 can load endpoint type + normalized HTML profile + profile revision from `EndpointConfigurationAggregate` without issuing its own SQL or parsing JSON;
+- P3 can finalize Collection runs with parser kind/version/profile revision/item-failure diagnostics using the canonical run store/repository;
+- P4 can create/replace/read endpoint profile state and surface profile revision using canonical Source/admin service primitives without inventing storage semantics;
+- P4 can read recent Collection-run parser diagnostics through `listRecentCollectionRunsForEndpoint` or its canonical equivalent.
+
+FOCUSED TESTS — LEVEL 2 / LEVEL 4
+Add focused unit/database tests proving at minimum:
+- endpoint-type normalizer accepts exactly `rss_atom` and `html_listing` among implemented types;
+- migration from zero supports the new type/profile/run fields and preserves all existing constraints;
+- valid HTML endpoint persists and reads back a normalized profile and revision `1`;
+- HTML endpoint without profile/revision and RSS endpoint with HTML profile/revision violate application/database invariants as applicable;
+- malformed persisted profile JSON cannot be mapped as valid configuration;
+- semantically identical profile replacement does not increment revision;
+- materially changed profile increments exactly once;
+- RSS→HTML starts revision `1`, HTML→RSS clears profile/revision, and non-profile endpoint edits do not advance revision;
+- failed endpoint/profile replacement rolls back type/profile/revision/domain/default-Category changes coherently;
+- bootstrap creates an HTML endpoint/profile once and does not overwrite a later existing endpoint/profile on rerun;
+- aggregate reads used by Worker expose one coherent profile snapshot;
+- Collection-run parser kind/version/profile revision/item-failure diagnostic data persists, maps, and remains bounded;
+- RSS/Atom Collection runs remain valid without an HTML profile revision;
+- raw HTML/body/overbound diagnostic content is rejected/not retained;
+- interrupted-run reconciliation and existing run arithmetic remain valid.
+
+BROADER REGRESSION
+Run affected Source configuration/repository/bootstrap, migration/schema, Collection-run repository, endpoint administration persistence, scheduler/job, and database-harness regressions appropriate to the changed schema/read models.
+
+Do not weaken or replace real PostgreSQL evidence with mocks for type/profile/revision/run constraints.
+
+PRESERVED BEHAVIOR
+Preserve:
+- one Publication per installation with no relational tenancy;
+- Source-scoped endpoint ownership and config-key/URL uniqueness;
+- approval/lifecycle/operational/domain-policy semantics;
+- polling, scheduling, conditional validators, endpoint health, jobs, and endpoint locks;
+- Source RSS/Atom admission phrase persistence and semantics;
+- Source/endpoint default Category relationships;
+- Article identity/provenance/duplicate/moderation state;
+- current RSS/Atom bootstrap and Collection-run behavior.
+
+NON-GOALS
+Do not implement:
+- HTML HTTP fetching/media-type support;
+- parser dispatch inside Worker collection;
+- RSS-vs-HTML admission branching;
+- crawling/subresource/Article-page behavior;
+- preview API/UI;
+- Source endpoint HTML editor/browser workflow;
+- browser automation;
+- HTML-specific Article/Relevance/duplicate persistence;
+- production-baseline upgrade fixtures for unsupported pre-production databases.
+
+VALIDATION
+During development use focused unit and database invocations for the touched endpoint/run persistence files.
+
+Before completion on the final P2 tree run the smallest non-overlapping applicable set:
+- `npm run check`
+- `npm run test:db` if P2 changes shared migration/schema/repository behavior broadly enough that the full database matrix is implicated; otherwise use the smallest focused database set only if the current testing contract permits that completion claim
+- `git diff --check`
+
+Do not separately rerun ordinary unit/integration/collection commands already contained by successful `npm run check` on the unchanged tree. Do not run the browser suite unless P2 unexpectedly changes browser-owned behavior, which should normally be planning drift.
+
+Confirm `package.json` is `0.18.2`, no npm lockfile exists, and every P3/P4 persistence handoff above is proven before completion.
+
+FINAL REPORT
+Report migrations/schema representation, endpoint/profile revision semantics, repository/read-model changes, run diagnostic fields/bounds, bootstrap behavior, focused and broader validation actually executed, package version, and any remaining risk. Do not claim HTML Worker/admin/browser integration yet.
