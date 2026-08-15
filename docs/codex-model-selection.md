@@ -22,6 +22,14 @@ Apply this order:
 
 Current official OpenAI Codex pricing/model guidance SHOULD be consulted when available rather than copying durable numeric rates into repository policy. Pricing changes do not require documentation edits unless they change the selection rules or supported model matrix.
 
+## Decomposition before model escalation
+
+Model capability does not compensate for an oversized or internally incoherent task boundary. `/prompt-ass` and `/prompt-plan` MUST consider decomposition before escalating merely because one proposed prompt contains several distinct reasoning shapes.
+
+In particular, explicitly consider splitting a task when it combines a complex transactional/state-machine responsibility with a separately consumable read/service/API responsibility and those responsibilities have materially different downstream consumers, test strategies, failure modes, or review boundaries. Prefer separate prompts when each part can be implemented, tested, and reviewed independently without creating an artificial intermediate architecture.
+
+When a later prompt depends on a producer prompt, a missing or incomplete downstream-required interface is first a task-boundary/implementation-completeness problem, not automatic evidence that the producer needed a stronger model. Establish the smallest coherent producer boundary and its complete handoff contract first; only then escalate family or reasoning effort if the resulting task still exceeds the cheaper configuration's correctness floor.
+
 ## Model-family roles
 
 The GPT-5.6 family is treated as three capability/cost bands:

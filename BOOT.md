@@ -15,7 +15,7 @@ It establishes project identity, canonical terminology, authority, document rout
 - Topic reuse model: configure and deploy another installation of the same shared codebase; do not concurrently host multiple topic Publications in one installation
 - Publication data-model role: singleton editorial/configuration state, **not** a relational tenant/ownership key
 - Current phase: **Phase 17 — Article and duplicate moderation**
-- Current implementation gate: **Phase 17 implementation assessment/planning beginning with `/prompt-ass`**
+- Current implementation gate: **Phase 17 P1–P4 are implemented through `0.17.4`; the prepared non-versioned `c17-duplicate-review-read-surface` correction is the current gate before P5 and is not accepted until its implementation plus manual correction closeout are GREEN**
 - Production status: pre-production
 - Pre-production database policy: destructive fresh rebuild from the repository's smallest current canonical migration chain and bootstrap/configuration; databases from older source trees are disposable and legacy-only migration/runtime/test/config structure is removed rather than preserved for compatibility
 - Production compatibility boundary: Phase 19 establishes/validates upgrade/restore/rollback procedures; acceptance of Phase 20 customer launch establishes the first supported production schema/data baseline, after which `docs/decisions/production-data-and-schema-compatibility.md` governs preservation and upgrades
@@ -38,7 +38,7 @@ Phase 13 — Public presentation polish — is complete with durable validation 
 
 Phase 14 — Source administration — is complete by explicit repository-owner acceptance on August 14, 2026. Its historical validation artifact remains truthful evidence of the recorded passing local/static/unit/integration/database/fixture/browser evidence and its original BLOCKED/RED determination: the then-required Level 8 Cloudflare Access/direct-origin deployment observation was unavailable. The governing roadmap and testing contract subsequently moved that observation to Phase 19; owner acceptance advanced the roadmap without rewriting the historical artifact or claiming Level 8 was observed.
 
-Phase 15 — Publication and Relevance administration — is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 — True duplicate detection and grouping — is complete with durable GREEN validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`; its non-versioned testing-efficiency correction remains completed historical work. The conversational `/closeout` established the Phase 17 baseline. Phase 17 — Article and duplicate moderation — is current, and the next workflow gate after documentation alignment is implementation assessment/planning beginning with `/prompt-ass`.
+Phase 15 — Publication and Relevance administration — is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 — True duplicate detection and grouping — is complete with durable GREEN validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`; its non-versioned testing-efficiency correction remains completed historical work. Phase 17 — Article and duplicate moderation — is current. P1–P4 are implemented through project version `0.17.4`; P5 remains unexecuted after correctly stopping rather than absorbing missing producer-owned duplicate-review read semantics from P3. The prepared non-versioned `c17-duplicate-review-read-surface` correction is the current gate and remains unaccepted until its implementation plus manual correction closeout are GREEN. After that gate is accepted, resume the existing Phase 17 stack at P5 without renumbering or rewriting completed P1–P4 history.
 
 The canonical architecture is one Publication/topic per installation, singleton Publication editorial configuration without relational tenancy, Source-scoped identity/provenance, persisted Relevance/Categories, canonical `/api/feed`, canonical root `/`, and durable endpoint scheduling/jobs. Historical validation artifacts remain evidence only for the exact SHAs and environments they recorded.
 
@@ -269,7 +269,7 @@ Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Databas
 
 17. Phase 17 — Article and duplicate moderation
 
-Current gate: the conversational `/closeout` established the Phase 17 baseline. Begin Phase 17 implementation assessment/planning with `/prompt-ass`; do not predetermine its prompt count or architecture.
+Current gate: P1–P4 are implemented through project version `0.17.4`. P5 remains unexecuted after correctly stopping rather than absorbing missing producer-owned duplicate-review read semantics from P3. The prepared non-versioned `c17-duplicate-review-read-surface` correction is the current gate and remains unaccepted until its implementation plus sole manual correction closeout are GREEN. After that gate is accepted, resume the existing Phase 17 stack at P5 without renumbering or rewriting completed P1–P4 history.
 
 ### Remaining roadmap order
 
@@ -289,6 +289,8 @@ Do not advance by assumption. Verify each phase/correction exit gate plus the in
 - State allowed files when knowable.
 - Include non-goals and preserved behavior.
 - Require focused + broader regression tests and identify evidence levels needed for acceptance.
+- For a prompt with a direct downstream consumer, map every downstream-required capability to the owning implementation/export and focused proof before declaring the producer complete.
+- When one proposed prompt combines a complex transactional/state-machine responsibility with a separately consumable read/service/API responsibility, explicitly assess splitting it before escalating model strength; prefer decomposition when downstream consumers, test strategies, or failure risks differ materially.
 - Distinguish iterative validation from final-tree validation: use the narrowest relevant focused command during development, then the smallest non-overlapping command set that covers the full applicable final matrix.
 - Do not require subordinate checks/suites alongside an aggregate command that already executes them on the same unchanged final tree unless diagnosing a failure or an intervening change invalidated earlier evidence.
 - Do not claim runtime/browser/database/live-Source behavior unless observed at the corresponding evidence level.
@@ -670,13 +672,17 @@ Determine safe task boundaries from established behavior/contracts/roadmap. No w
 
 Return target behavior, constraints, roadmap phase, stack type (`phase` or `correction`), prompt count/order, goal/summary/dependencies/boundary rationale/deferred behavior, closeout task when needed, and per-prompt provisional task classification, model-family basis, reasoning basis, model/effort recommendation, complexity/usage/lower-cost alternative/escalation trigger/target/confidence/rationale. For correction stacks, identify correction slug and package version that must remain unchanged from `package.json`.
 
-Testing is part of task-boundary assessment: each prompt should own focused tests and appropriate broader regression impact without becoming monolithic. Identify which commands are intended for fast iterative feedback versus final-tree evidence and avoid planning redundant aggregate/subordinate final execution.
+Identify direct downstream consumers between planned prompts. When one proposed prompt combines a complex transactional/state-machine responsibility with a separately consumable read/service/API responsibility, explicitly determine whether those responsibilities should be split. Prefer separation when they have materially different consumers, test strategies, failure risks, or independently reviewable completion boundaries; do not substitute a stronger model for an oversized or incoherent task boundary.
+
+Testing is part of task-boundary assessment: each prompt should own focused tests and appropriate broader regression impact without becoming monolithic. For any prompt that produces a boundary a later prompt will directly consume, include consumer-readiness testing in the producer boundary. Identify which commands are intended for fast iterative feedback versus final-tree evidence and avoid planning redundant aggregate/subordinate final execution.
 
 For Phase 21 specifically, assessment begins from the accepted Phase 20 launched tree and its observed validation/operational evidence. Do not pre-fill a cleanup stack from earlier phases: identify only evidence-backed maintainability, ownership, dependency, resource-lifecycle, testing-structure, or measured performance problems, preserve the production-data compatibility ADR, and keep all new product capability outside the stack.
 
 ## `/prompt-plan`
 
 Requires completed `/prompt-ass` in current conversation. Perform source-level planning for every assessed prompt: contracts/ADRs, implementation, schemas/migrations, process roles, helpers/consumers/tests/recent changes, likely file scope, preserved behavior, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs implications, acceptance criteria, non-goals.
+
+For every direct producer → consumer dependency between planned prompts, inspect the downstream prompt/consumer expectations and record a handoff matrix in the form `downstream-required capability → owning implementation/export → focused proof`. The plan must establish that the later consumer can stay within its intended boundary without inventing producer-owned SQL/query composition, pagination/cursor semantics, domain transitions, topology/state inference, transaction behavior, validation policy, or equivalent upstream semantics. If that cannot be established without a material boundary revision, return `Planning needed` rather than deferring the missing design to the consumer.
 
 Use observed source evidence to make the final model gate: reassess family, reasoning, complexity, usage, lower-cost alternative, escalation trigger/target, and rationale under the minimum-adequate usage-conservation rule, and record a `Downgraded`, `Unchanged`, or `Escalated` delta from `/prompt-ass`. Preserve the correctness floor, but do not retain an expensive provisional rating merely because it is safer in the abstract. Reconfirm stack type and correction unchanged-version invariant. Material boundary revisions produce `Planning needed`. No writes.
 
@@ -691,6 +697,8 @@ Requires completed unblocked `/prompt-plan`. Revalidate current repo/docs and wr
 Roadmap phase folders use `p<number>`. Correction folders use `c<roadmap-phase>-<lower-kebab-slug>`.
 
 Each prompt includes the finalized `MODEL / REASONING / USAGE` block and its exact recommendation label MUST exist in current `MODEL_CONFIGS`. Roadmap tasks use assigned-version metadata; correction tasks use required-unchanged-version metadata. Do not upgrade only because prompt length, importance, or validation volume feels substantial.
+
+When a prompt has a direct downstream consumer, the generated producer prompt MUST contain an explicit downstream handoff contract or equivalent acceptance gate derived from `/prompt-plan`. Before reporting the producer task complete, Codex must reread the relevant downstream consumer requirements, inventory every assumed capability, identify the concrete owning implementation/export and focused proof for each, and stop/report incomplete producer scope or planning drift if the consumer would otherwise have to invent producer-owned semantics.
 
 Each prompt MUST distinguish focused iterative validation from final-tree validation. The final validation block MUST use the smallest non-overlapping command set established by `/prompt-plan`; do not list a subordinate check/suite alongside an aggregate command that already executes it on the same final tree unless the prompt states the concrete reason that repeated execution is required.
 
@@ -819,6 +827,8 @@ Recommend the single most logical next task.
 # Codex prompt requirements
 
 Finished implementation prompts normally include Task, Context, Current/Required behavior, roadmap phase, stack type, finalized `MODEL / REASONING / USAGE` block, governing contracts/ADRs/laws, inspected source, allowed/forbidden files, constraints, preserved behavior, applicable security/provenance/idempotency/failure-isolation implications, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs updates, acceptance criteria, and non-goals.
+
+For a prompt that produces a boundary explicitly consumed by a later planned prompt, include a downstream handoff contract or equivalent completion gate. The producer prompt must make the handoff auditable as `downstream-required capability → owning implementation/export → focused proof`, require the implementation to reread the downstream consumer requirements before declaring completion, and fail closed when that consumer would otherwise need to invent producer-owned query/SQL, pagination/cursor, domain/state, transaction, validation, topology, or equivalent semantics.
 
 Machine-significant fields are stricter than prose. Every roadmap/correction task uses canonical folder/filename numbering, one canonical `TASK:` header, one exact recommended-configuration line, and filename-plus-`TASK:` closeout convention. Roadmap prompts additionally use exactly one `assigned project version is ...` phrase. Correction prompts instead use exactly one required-unchanged-version line and MUST NOT use assigned-version metadata. Targeted UI prompts under `docs/design/tasks/` are outside this parser grammar and follow `docs/design/ui-workflow.md` instead.
 

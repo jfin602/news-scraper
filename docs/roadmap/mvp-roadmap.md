@@ -923,7 +923,9 @@ Reduce local/Codex validation wall-clock time substantially without reducing tes
 
 ## Phase 17 — Article and duplicate moderation
 
-**Status:** Current roadmap phase. Implementation assessment/planning begins with `/prompt-ass`; prompt count and architecture remain to be derived from the current implementation.
+**Status:** Current roadmap phase. P1–P4 are implemented through project version `0.17.4`. P5 remains unexecuted after correctly stopping rather than absorbing missing producer-owned duplicate-review read semantics from P3.
+
+**Current gate:** `c17-duplicate-review-read-surface` is the prepared non-versioned correction at unchanged project version `0.17.4`. It is not complete or accepted until its implementation prompt and sole manual correction closeout are GREEN. After that gate is accepted, resume the existing Phase 17 stack at P5; do not renumber or rewrite completed P1–P4 history.
 
 ### Goal
 
