@@ -273,12 +273,8 @@ async function runPostgresTool(
   });
 }
 
-function redactToolError(value: string): string {
-  return value
-    .replaceAll(/(?:postgres(?:ql)?:\/\/)[^\s]+/giu, '[database-url-redacted]')
-    .replaceAll(/password\s*=\s*\S+/giu, 'password=[redacted]')
-    .trim()
-    .slice(0, 500);
+export function redactToolError(value: string): string {
+  return value.trim() === '' ? '' : '[tool diagnostics redacted]';
 }
 
 function databaseIdentity(config: DatabaseConfig): string {

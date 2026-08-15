@@ -8,7 +8,19 @@ import test from 'node:test';
 import {
   DatabaseBackupError,
   prunePostgresBackups,
+  redactToolError,
 } from '../../src/database/backup.ts';
+
+test('PostgreSQL tool diagnostics cannot disclose hostile secret sentinels', () => {
+  const sentinel = 'operator-secret-sentinel';
+  const result = redactToolError(
+    `pg_restore: host=${sentinel} user=${sentinel} dbname=${sentinel}`,
+  );
+
+  assert.equal(result, '[tool diagnostics redacted]');
+  assert.equal(result.includes(sentinel), false);
+  assert.equal(redactToolError('   '), '');
+});
 
 test('backup retention is dry-run by default and removes only validated managed pairs', async (context) => {
   const directory = await mkdtemp(
