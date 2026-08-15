@@ -13,6 +13,9 @@
     sourceMode: 'none',
     endpointMode: 'none',
     mutationInFlight: false,
+    previewInFlight: false,
+    endpointSelectionSequence: 0,
+    previewSequence: 0,
     activeWorkspace: 'sources',
     publication: null,
     relevanceRules: [],
@@ -77,6 +80,13 @@
     endpointLifecycleActions: required('[data-endpoint-lifecycle-actions]'),
     endpointDomains: required('[data-endpoint-domains]'),
     endpointDomainEditor: required('[data-endpoint-domain-editor]'),
+    htmlProfile: required('[data-html-profile]'),
+    htmlPreviewPanel: required('[data-html-preview-panel]'),
+    htmlPreviewSample: required('[data-html-preview-sample]'),
+    htmlPreview: required('[data-html-preview]'),
+    htmlPreviewStatus: required('[data-html-preview-status]'),
+    htmlPreviewResults: required('[data-html-preview-results]'),
+    endpointProfileRevision: required('[data-endpoint-profile-revision]'),
     operationalPanel: required('[data-operational-panel]'),
     operationalState: required('[data-operational-state]'),
     healthGrid: required('[data-health-grid]'),
@@ -205,6 +215,15 @@
       ) {
         renderEndpointDomainMode();
       }
+      if (
+        target instanceof HTMLSelectElement &&
+        (target.name === 'endpointType' ||
+          target.name === 'htmlPublishedAtMode' ||
+          target.name === 'htmlUpdatedAtMode')
+      ) {
+        if (target.name === 'endpointType') renderHtmlProfileVisibility();
+        else renderHtmlDateAttributeVisibility();
+      }
     });
     elements.endpointForm.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -221,6 +240,9 @@
     });
     elements.checkNow.addEventListener('click', () => {
       void checkNow();
+    });
+    elements.htmlPreview.addEventListener('click', () => {
+      void previewHtmlSample();
     });
     elements.publicationForm.addEventListener('submit', (event) => {
       event.preventDefault();
@@ -512,6 +534,8 @@
 
   async function selectSource(sourceKey) {
     if (typeof sourceKey !== 'string' || sourceKey.length === 0) return;
+    state.endpointSelectionSequence += 1;
+    resetHtmlPreview();
     setGlobalStatus('loading', `Loading Source ${sourceKey}…`);
     elements.endpointSection.hidden = false;
     setListState(elements.endpointListState, 'loading', 'Loading endpoints…');
@@ -790,11 +814,14 @@
       endpointKey.length === 0
     )
       return;
+    const selectionSequence = ++state.endpointSelectionSequence;
+    resetHtmlPreview();
     setGlobalStatus('loading', `Loading endpoint ${endpointKey}…`);
     try {
       const result = await api(
         `/api/admin/sources/${encodeURIComponent(source.configKey)}/endpoints/${encodeURIComponent(endpointKey)}`,
       );
+      if (selectionSequence !== state.endpointSelectionSequence) return;
       state.selectedEndpoint = result.endpoint;
       state.endpointMode = 'edit';
       mergeEndpoint(result.endpoint);
@@ -810,6 +837,9 @@
   function beginEndpointCreate() {
     const source = state.selectedSource;
     if (source === null || source.lifecycleState === 'archived') return;
+    state.endpointSelectionSequence += 1;
+    resetHtmlPreview();
+    state.selectedEndpoint = null;
     state.endpointMode = 'create';
     elements.endpointForm.reset();
     input(elements.endpointForm, 'endpointType').value = 'rss_atom';
@@ -818,6 +848,7 @@
     input(elements.endpointForm, 'operationalState').value = 'disabled';
     radio(elements.endpointForm, 'domainPolicyMode', 'inherit').checked = true;
     elements.endpointDomains.replaceChildren();
+    clearHtmlProfileFields();
     elements.endpointEditorHeading.textContent = 'Create endpoint';
     elements.endpointEditorHelp.textContent =
       'Create an RSS/Atom endpoint beneath the selected Source. Saving configuration does not contact the publisher.';
@@ -830,10 +861,13 @@
     hideMessage(elements.endpointFormError);
     elements.operationalPanel.hidden = true;
     renderEndpointDomainMode();
+    renderHtmlProfileVisibility();
     input(elements.endpointForm, 'configKey').focus();
   }
 
   function cancelEndpointEdit() {
+    state.endpointSelectionSequence += 1;
+    resetHtmlPreview();
     if (state.selectedEndpoint !== null) {
       state.endpointMode = 'edit';
       renderEndpointEditor();
@@ -875,6 +909,9 @@
     const policy = endpoint.inheritsSourceDomainPolicy ? 'inherit' : 'narrow';
     radio(form, 'domainPolicyMode', policy).checked = true;
     renderDomainRows(elements.endpointDomains, endpoint.endpointDomainRules);
+    renderHtmlProfileFields(endpoint.htmlListingProfile);
+    renderHtmlProfileVisibility();
+    renderEndpointProfileRevision(endpoint);
     renderEndpointDomainMode();
     required('[data-endpoint-submit]').textContent =
       'Save endpoint configuration';
@@ -886,6 +923,8 @@
   }
 
   function showNoEndpoint() {
+    state.selectedEndpoint = null;
+    resetHtmlPreview();
     elements.endpointEditorHeading.textContent = 'Select an endpoint';
     elements.endpointEditorHelp.textContent =
       'Select an endpoint to edit its configuration and operational state.';
@@ -893,6 +932,9 @@
     elements.endpointStateSummary.hidden = true;
     elements.endpointStateActions.hidden = true;
     elements.operationalPanel.hidden = true;
+    elements.htmlProfile.hidden = true;
+    elements.htmlPreviewPanel.hidden = true;
+    renderEndpointProfileRevision(null);
   }
 
   async function submitEndpoint(event) {
@@ -911,6 +953,9 @@
         : readDomainRows(elements.endpointDomains),
       defaultCategoryConfigKey:
         input(form, 'defaultCategoryConfigKey').value || null,
+      ...(input(form, 'endpointType').value === 'html_listing'
+        ? { htmlListingProfile: readHtmlListingProfile() }
+        : {}),
     };
     const creating = state.endpointMode === 'create';
     const body = creating
@@ -937,6 +982,8 @@
         'ready',
         creating ? 'Endpoint created.' : 'Endpoint configuration saved.',
       );
+      renderEndpointProfileRevision(result.endpoint);
+      renderHtmlProfileVisibility();
     } catch (error) {
       showMessage(elements.endpointFormError, messageForError(error), 'error');
     }
@@ -1146,8 +1193,320 @@
         error.textContent = `Failure: ${run.errorCode ?? 'unspecified'}${run.errorDetail === null ? '' : ` — ${run.errorDetail}`}`;
         article.append(error);
       }
+      if (
+        run.parserKind !== null ||
+        run.parserVersion !== null ||
+        run.htmlListingProfileRevision !== null ||
+        run.parserItemFailureCount > 0 ||
+        run.parserDiagnosticCode !== null ||
+        run.parserDiagnosticDetail !== null
+      ) {
+        const diagnostics = document.createElement('dl');
+        diagnostics.className = 'run-parser-diagnostics';
+        const values = [
+          ['Parser adapter', run.parserKind],
+          ['Parser version', run.parserVersion],
+          ['Profile revision used', run.htmlListingProfileRevision],
+          ['Item/extraction failures', run.parserItemFailureCount],
+          ['Parser diagnostic code', run.parserDiagnosticCode],
+          ['Parser diagnostic detail', run.parserDiagnosticDetail],
+        ];
+        diagnostics.replaceChildren(
+          ...values.flatMap(([term, value]) => {
+            const dt = document.createElement('dt');
+            dt.textContent = term;
+            const dd = document.createElement('dd');
+            dd.textContent = value === null ? 'Not available' : String(value);
+            return [dt, dd];
+          }),
+        );
+        article.append(diagnostics);
+      }
       elements.runsList.append(article);
     }
+  }
+
+  function renderEndpointProfileRevision(endpoint) {
+    const revision = endpoint?.htmlListingProfileRevision;
+    const isHtml = endpoint?.endpointType === 'html_listing';
+    elements.endpointProfileRevision.hidden =
+      !isHtml || !Number.isSafeInteger(revision) || revision < 1;
+    elements.endpointProfileRevision.textContent = elements
+      .endpointProfileRevision.hidden
+      ? ''
+      : `Persisted HTML profile revision: ${revision}`;
+  }
+
+  function renderHtmlProfileVisibility() {
+    const isHtml =
+      input(elements.endpointForm, 'endpointType').value === 'html_listing';
+    elements.htmlProfile.hidden = !isHtml;
+    elements.htmlPreviewPanel.hidden = !isHtml;
+    for (const control of elements.htmlProfile.querySelectorAll(
+      '[data-html-required]',
+    )) {
+      if (control instanceof HTMLInputElement) control.required = isHtml;
+    }
+    renderHtmlDateAttributeVisibility();
+    if (!isHtml) {
+      elements.htmlPreviewStatus.hidden = true;
+      elements.htmlPreviewResults.replaceChildren();
+    }
+  }
+
+  function renderHtmlDateAttributeVisibility() {
+    for (const field of ['publishedAt', 'updatedAt']) {
+      const mode = input(
+        elements.endpointForm,
+        `html${field[0].toUpperCase()}${field.slice(1)}Mode`,
+      ).value;
+      const attribute = elements.htmlProfile.querySelector(
+        `[data-html-date-attribute="${field}"]`,
+      );
+      if (attribute instanceof HTMLElement)
+        attribute.hidden = mode !== 'attribute';
+    }
+  }
+
+  function clearHtmlProfileFields() {
+    const names = [
+      'htmlItemSelector',
+      'htmlTitleSelector',
+      'htmlArticleLinkSelector',
+      'htmlPublishedAtSelector',
+      'htmlUpdatedAtSelector',
+      'htmlAuthorSelector',
+      'htmlSummarySelector',
+      'htmlCategoriesSelector',
+    ];
+    for (const name of names) input(elements.endpointForm, name).value = '';
+    input(elements.endpointForm, 'htmlPublishedAtMode').value = 'text';
+    input(elements.endpointForm, 'htmlUpdatedAtMode').value = 'text';
+    input(elements.endpointForm, 'htmlPublishedAtAttribute').value = 'datetime';
+    input(elements.endpointForm, 'htmlUpdatedAtAttribute').value = 'datetime';
+    renderHtmlDateAttributeVisibility();
+    renderEndpointProfileRevision(null);
+  }
+
+  function renderHtmlProfileFields(profile) {
+    clearHtmlProfileFields();
+    if (profile === null || typeof profile !== 'object') return;
+    const value = profile;
+    input(elements.endpointForm, 'htmlItemSelector').value =
+      value.itemSelector ?? '';
+    input(elements.endpointForm, 'htmlTitleSelector').value =
+      value.title?.selector ?? '';
+    input(elements.endpointForm, 'htmlArticleLinkSelector').value =
+      value.articleLink?.selector ?? '';
+    for (const field of ['publishedAt', 'updatedAt']) {
+      const descriptor = value[field];
+      if (descriptor === undefined) continue;
+      input(
+        elements.endpointForm,
+        `html${field[0].toUpperCase()}${field.slice(1)}Selector`,
+      ).value = descriptor.selector ?? '';
+      input(
+        elements.endpointForm,
+        `html${field[0].toUpperCase()}${field.slice(1)}Mode`,
+      ).value = descriptor.mode ?? 'text';
+      if (descriptor.mode === 'attribute') {
+        input(
+          elements.endpointForm,
+          `html${field[0].toUpperCase()}${field.slice(1)}Attribute`,
+        ).value = descriptor.attribute ?? 'datetime';
+      }
+    }
+    input(elements.endpointForm, 'htmlAuthorSelector').value =
+      profile.author?.selector ?? '';
+    input(elements.endpointForm, 'htmlSummarySelector').value =
+      profile.summary?.selector ?? '';
+    input(elements.endpointForm, 'htmlCategoriesSelector').value =
+      profile.categories?.selector ?? '';
+    renderHtmlDateAttributeVisibility();
+  }
+
+  function readHtmlListingProfile() {
+    const descriptor = (name) => {
+      const selector = input(elements.endpointForm, name).value.trim();
+      return selector === '' ? undefined : { selector };
+    };
+    const dateDescriptor = (field) => {
+      const prefix = `html${field[0].toUpperCase()}${field.slice(1)}`;
+      const selector = input(
+        elements.endpointForm,
+        `${prefix}Selector`,
+      ).value.trim();
+      if (selector === '') return undefined;
+      const mode = input(elements.endpointForm, `${prefix}Mode`).value;
+      return mode === 'attribute'
+        ? {
+            selector,
+            mode,
+            attribute: input(elements.endpointForm, `${prefix}Attribute`).value,
+          }
+        : { selector, mode: 'text' };
+    };
+    return {
+      itemSelector: input(elements.endpointForm, 'htmlItemSelector').value,
+      title: descriptor('htmlTitleSelector'),
+      articleLink: descriptor('htmlArticleLinkSelector'),
+      ...(dateDescriptor('publishedAt') === undefined
+        ? {}
+        : { publishedAt: dateDescriptor('publishedAt') }),
+      ...(dateDescriptor('updatedAt') === undefined
+        ? {}
+        : { updatedAt: dateDescriptor('updatedAt') }),
+      ...(descriptor('htmlAuthorSelector') === undefined
+        ? {}
+        : { author: descriptor('htmlAuthorSelector') }),
+      ...(descriptor('htmlSummarySelector') === undefined
+        ? {}
+        : { summary: descriptor('htmlSummarySelector') }),
+      ...(descriptor('htmlCategoriesSelector') === undefined
+        ? {}
+        : { categories: descriptor('htmlCategoriesSelector') }),
+    };
+  }
+
+  async function previewHtmlSample() {
+    if (
+      state.previewInFlight ||
+      input(elements.endpointForm, 'endpointType').value !== 'html_listing'
+    )
+      return;
+    const requestSequence = ++state.previewSequence;
+    const endpointSelectionSequence = state.endpointSelectionSequence;
+    state.previewInFlight = true;
+    elements.htmlPreview.disabled = true;
+    elements.htmlPreviewStatus.setAttribute('role', 'status');
+    showMessage(
+      elements.htmlPreviewStatus,
+      'Parsing the pasted sample…',
+      'loading',
+    );
+    elements.htmlPreviewResults.replaceChildren();
+    try {
+      const result = await api('/api/admin/html-listing/preview', {
+        method: 'POST',
+        body: {
+          html: elements.htmlPreviewSample.value,
+          profile: readHtmlListingProfile(),
+        },
+      });
+      if (
+        requestSequence !== state.previewSequence ||
+        endpointSelectionSequence !== state.endpointSelectionSequence
+      )
+        return;
+      renderPreviewResult(result.preview);
+      showMessage(elements.htmlPreviewStatus, 'Preview completed.', 'success');
+    } catch (error) {
+      if (
+        requestSequence !== state.previewSequence ||
+        endpointSelectionSequence !== state.endpointSelectionSequence
+      )
+        return;
+      elements.htmlPreviewStatus.setAttribute('role', 'alert');
+      showMessage(
+        elements.htmlPreviewStatus,
+        `Preview failed: ${messageForError(error)}`,
+        'error',
+      );
+      elements.htmlPreviewResults.replaceChildren();
+    } finally {
+      if (requestSequence === state.previewSequence) {
+        state.previewInFlight = false;
+        elements.htmlPreview.disabled = false;
+      }
+    }
+  }
+
+  function renderPreviewResult(preview) {
+    elements.htmlPreviewResults.replaceChildren();
+    const rows = Array.isArray(preview?.rows) ? preview.rows : [];
+    if (rows.length === 0) {
+      const empty = document.createElement('p');
+      empty.className = 'empty-state';
+      empty.textContent = 'The sample produced no preview rows.';
+      elements.htmlPreviewResults.append(empty);
+    } else {
+      for (const row of rows) {
+        const card = document.createElement('article');
+        card.className = 'html-preview-row';
+        const title = document.createElement('h4');
+        title.textContent =
+          typeof row.title === 'string' ? row.title : 'Untitled row';
+        const url = document.createElement('p');
+        url.className = 'preview-url';
+        url.textContent = `Article link: ${typeof row.url === 'string' ? row.url : 'Not available'}`;
+        card.append(title, url);
+        const values = [
+          ['Published', row.publishedAtRaw],
+          ['Updated', row.updatedAtRaw],
+          ['Author', row.author],
+          ['Summary', row.summary],
+          [
+            'Categories',
+            Array.isArray(row.categories)
+              ? row.categories.join(', ')
+              : undefined,
+          ],
+        ];
+        const details = document.createElement('dl');
+        details.className = 'preview-row-details';
+        details.replaceChildren(
+          ...values.flatMap(([term, value]) => {
+            if (value === undefined || value === null || value === '')
+              return [];
+            const dt = document.createElement('dt');
+            dt.textContent = term;
+            const dd = document.createElement('dd');
+            dd.textContent = String(value);
+            return [dt, dd];
+          }),
+        );
+        if (details.children.length > 0) card.append(details);
+        elements.htmlPreviewResults.append(card);
+      }
+    }
+    renderPreviewDiagnostics(preview?.diagnostics);
+  }
+
+  function renderPreviewDiagnostics(diagnostics) {
+    if (
+      diagnostics === null ||
+      typeof diagnostics !== 'object' ||
+      ((diagnostics.rejectedItemCount ?? 0) === 0 &&
+        (diagnostics.malformedOptionalFieldCount ?? 0) === 0 &&
+        (!Array.isArray(diagnostics.samples) ||
+          diagnostics.samples.length === 0))
+    )
+      return;
+    const heading = document.createElement('h4');
+    heading.textContent = 'Parser diagnostics';
+    const list = document.createElement('ul');
+    list.className = 'bounded-list';
+    const summary = document.createElement('li');
+    summary.textContent = `Rejected items: ${Number(diagnostics.rejectedItemCount) || 0}; malformed optional fields: ${Number(diagnostics.malformedOptionalFieldCount) || 0}`;
+    list.append(summary);
+    for (const sample of Array.isArray(diagnostics.samples)
+      ? diagnostics.samples
+      : []) {
+      if (typeof sample !== 'object' || sample === null) continue;
+      const item = document.createElement('li');
+      item.textContent = `${String(sample.code ?? 'diagnostic')}: ${String(sample.detail ?? 'No detail')}`;
+      list.append(item);
+    }
+    elements.htmlPreviewResults.append(heading, list);
+  }
+
+  function resetHtmlPreview() {
+    state.previewSequence += 1;
+    state.previewInFlight = false;
+    elements.htmlPreview.disabled = false;
+    elements.htmlPreviewSample.value = '';
+    hideMessage(elements.htmlPreviewStatus);
+    elements.htmlPreviewResults.replaceChildren();
   }
 
   async function checkNow() {

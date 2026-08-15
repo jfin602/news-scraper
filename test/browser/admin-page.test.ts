@@ -71,6 +71,28 @@ const initialEndpoint: AdminEndpointReadModel = Object.freeze({
   defaultCategory: category,
 });
 
+const initialHtmlEndpoint: AdminEndpointReadModel = Object.freeze({
+  sourceConfigKey: 'journal',
+  configKey: 'html_listing',
+  endpointUrl: 'https://journal.example.com/listing',
+  endpointType: 'html_listing',
+  htmlListingProfile: Object.freeze({
+    itemSelector: '.item',
+    title: Object.freeze({ selector: '.title' }),
+    articleLink: Object.freeze({ selector: 'a' }),
+    publishedAt: Object.freeze({ selector: 'time', mode: 'text' as const }),
+    author: Object.freeze({ selector: '.author' }),
+  }),
+  htmlListingProfileRevision: 3,
+  approvalState: 'approved',
+  lifecycleState: 'active',
+  operationalState: 'enabled',
+  pollIntervalSeconds: 300,
+  endpointDomainRules: Object.freeze([]),
+  inheritsSourceDomainPolicy: true,
+  defaultCategory: category,
+});
+
 const initialPublication: AdminPublicationReadModel = Object.freeze({
   name: 'Indie publishing news',
   activeForCollection: true,
@@ -597,6 +619,327 @@ describe('Source administration page browser behavior', () => {
     );
   });
 
+  it('configures HTML listing profiles, previews safely, switches types, and keeps check-now durable', async () => {
+    const harness = new AdminHarness();
+    let lastConfigurationBody: Record<string, unknown> | null = null;
+    await withAdminPage(
+      browser,
+      harness,
+      { viewport: { width: 1280, height: 900 } },
+      async (page) => {
+        page.on('request', (request) => {
+          if (
+            request.method() === 'PUT' &&
+            request.url().endsWith('/configuration')
+          ) {
+            lastConfigurationBody = JSON.parse(
+              request.postData() ?? '{}',
+            ) as Record<string, unknown>;
+          }
+        });
+        await waitForSource(page, 'journal');
+        await page.getByRole('button', { name: 'New endpoint' }).click();
+        const form = page.locator('[data-endpoint-form]');
+        assert.deepEqual(
+          await form.locator('[name="endpointType"] option').allTextContents(),
+          ['RSS / Atom', 'HTML listing'],
+        );
+        await form.locator('[name="configKey"]').fill('html_listing');
+        await form
+          .locator('[name="endpointUrl"]')
+          .fill('https://journal.example.com/listing');
+        await form
+          .locator('[name="endpointType"]')
+          .selectOption('html_listing');
+        await form.locator('[name="htmlItemSelector"]').fill('.item');
+        await form.locator('[name="htmlTitleSelector"]').fill('.title');
+        await form.locator('[name="htmlArticleLinkSelector"]').fill('a');
+        await form.locator('[name="htmlAuthorSelector"]').fill('.author');
+        assert.equal(
+          await page.locator('[data-html-profile]').isVisible(),
+          true,
+        );
+        assert.equal(
+          await page.locator('[data-html-preview-panel]').isVisible(),
+          true,
+        );
+        assert.match(
+          await page.locator('[data-admission-explanation]').innerText(),
+          /RSS\/Atom.*HTML listing selectors.*not an HTML keyword filter/u,
+        );
+
+        const previewRequests: Array<{
+          url: string;
+          header: string | null;
+          body: string;
+        }> = [];
+        page.on('request', (request) => {
+          if (request.url().endsWith('/api/admin/html-listing/preview')) {
+            previewRequests.push({
+              url: request.url(),
+              header: request.headers()['x-news-scraper-admin-request'] ?? null,
+              body: request.postData() ?? '',
+            });
+          }
+        });
+        await page
+          .locator('[data-html-preview-sample]')
+          .fill(
+            '<article class="item"><h2 class="title">Safe <script>globalThis.previewXss=true</script> headline</h2><a href="/preview">Read</a><span class="author">Alex</span></article>',
+          );
+        await page.getByRole('button', { name: 'Preview draft' }).click();
+        await page
+          .locator('[data-html-preview-status]')
+          .filter({ hasText: 'Preview completed.' })
+          .waitFor();
+        assert.equal(previewRequests.length, 1);
+        assert.equal(previewRequests[0]?.header, '1');
+        assert.equal(
+          previewRequests[0]?.url.endsWith('/api/admin/html-listing/preview'),
+          true,
+        );
+        assert.match(previewRequests[0]?.body ?? '', /"profile"/u);
+        assert.match(
+          await page.locator('[data-html-preview-results]').innerText(),
+          /Safe.*headline|preview/u,
+        );
+        assert.match(
+          await page.locator('[data-html-preview-results]').innerText(),
+          /Article link: \/preview/u,
+        );
+        assert.equal(
+          await page.locator('[data-html-preview-results] script').count(),
+          0,
+        );
+        assert.equal(
+          await page.evaluate(() => 'previewXss' in globalThis),
+          false,
+        );
+
+        await page
+          .locator('[data-html-preview-sample]')
+          .fill(
+            '<article class="item"><h2 class="title">Valid row</h2><a href="/valid">Read</a></article><article class="item"><h2 class="title">Invalid row</h2></article>',
+          );
+        await page.getByRole('button', { name: 'Preview draft' }).click();
+        await page
+          .locator('[data-html-preview-status]')
+          .filter({ hasText: 'Preview completed.' })
+          .waitFor();
+        assert.match(
+          await page.locator('[data-html-preview-results]').innerText(),
+          /Rejected items: 1/u,
+        );
+
+        await page
+          .locator('[data-html-preview-sample]')
+          .fill('<div>PREVIEW_SECRET_SHOULD_NOT_RENDER</div>');
+        await page.getByRole('button', { name: 'Preview draft' }).click();
+        await page
+          .locator('[data-html-preview-status]')
+          .filter({ hasText: 'Preview failed:' })
+          .waitFor();
+        assert.equal(
+          (
+            await page.locator('[data-html-preview-results]').innerText()
+          ).includes('PREVIEW_SECRET_SHOULD_NOT_RENDER'),
+          false,
+        );
+
+        const createResponsePromise = page.waitForResponse(
+          (response) =>
+            response.request().method() === 'POST' &&
+            response.url().endsWith('/api/admin/sources/journal/endpoints'),
+        );
+        await page
+          .getByRole('button', { name: 'Create endpoint', exact: true })
+          .click();
+        assert.equal((await createResponsePromise).status(), 201);
+        await page
+          .locator('[data-admin-status]')
+          .filter({ hasText: 'Endpoint created.' })
+          .waitFor();
+        await waitForEndpoint(page, 'html_listing');
+        assert.equal(
+          harness.endpoint('journal', 'html_listing').endpointType,
+          'html_listing',
+        );
+        assert.equal(
+          harness.endpoint('journal', 'html_listing')
+            .htmlListingProfileRevision,
+          1,
+        );
+        assert.match(
+          await page.locator('[data-endpoint-profile-revision]').innerText(),
+          /revision: 1/u,
+        );
+
+        await form.locator('[name="htmlAuthorSelector"]').fill('.writer');
+        await page
+          .getByRole('button', { name: 'Save endpoint configuration' })
+          .click();
+        await page
+          .locator('[data-admin-status]')
+          .filter({ hasText: 'Endpoint configuration saved.' })
+          .waitFor();
+        assert.equal(
+          harness.endpoint('journal', 'html_listing')
+            .htmlListingProfileRevision,
+          2,
+        );
+
+        await form.locator('[name="endpointType"]').selectOption('rss_atom');
+        assert.equal(
+          await page.locator('[data-html-profile]').isVisible(),
+          false,
+        );
+        await page
+          .getByRole('button', { name: 'Save endpoint configuration' })
+          .click();
+        await page
+          .locator('[data-admin-status]')
+          .filter({ hasText: 'Endpoint configuration saved.' })
+          .waitFor();
+        assert.equal(lastConfigurationBody?.endpointType, 'rss_atom');
+        assert.equal(
+          'htmlListingProfile' in (lastConfigurationBody ?? {}),
+          false,
+        );
+        assert.equal(
+          harness.endpoint('journal', 'html_listing').htmlListingProfile,
+          null,
+        );
+        assert.equal(
+          harness.endpoint('journal', 'html_listing')
+            .htmlListingProfileRevision,
+          null,
+        );
+
+        await form
+          .locator('[name="endpointType"]')
+          .selectOption('html_listing');
+        await form.locator('[name="htmlItemSelector"]').fill(':has(article)');
+        await form.locator('[name="htmlTitleSelector"]').fill('.title');
+        await form.locator('[name="htmlArticleLinkSelector"]').fill('a');
+        await page
+          .getByRole('button', { name: 'Save endpoint configuration' })
+          .click();
+        await page
+          .locator('[data-endpoint-form-error]')
+          .filter({ hasText: 'unsaved values have been kept' })
+          .waitFor();
+        await form.locator('[name="htmlItemSelector"]').fill('.item');
+        await form.locator('[name="htmlTitleSelector"]').fill('.title');
+        await form.locator('[name="htmlArticleLinkSelector"]').fill('a');
+        await page
+          .getByRole('button', { name: 'Save endpoint configuration' })
+          .click();
+        await page
+          .locator('[data-admin-status]')
+          .filter({ hasText: 'Endpoint configuration saved.' })
+          .waitFor();
+        assert.equal(
+          harness.endpoint('journal', 'html_listing')
+            .htmlListingProfileRevision,
+          1,
+        );
+
+        await page.getByRole('button', { name: 'Check now' }).click();
+        await page
+          .locator('[data-check-now-result]')
+          .filter({ hasText: 'queued for the Worker' })
+          .waitFor();
+        assert.equal(harness.checkNowCalls, 1);
+      },
+    );
+  });
+
+  it('loads persisted HTML profile/revision and renders parser diagnostics with stale preview recovery', async () => {
+    const harness = new AdminHarness({ initialEndpoint: initialHtmlEndpoint });
+    await withAdminPage(
+      browser,
+      harness,
+      { viewport: { width: 390, height: 844 } },
+      async (page) => {
+        await waitForSource(page, 'journal');
+        await page.getByRole('button', { name: 'html_listing' }).click();
+        await page.waitForSelector('[data-operational-state="ready"]');
+        const form = page.locator('[data-endpoint-form]');
+        assert.equal(
+          await form.locator('[name="endpointType"]').inputValue(),
+          'html_listing',
+        );
+        assert.equal(
+          await form.locator('[name="htmlItemSelector"]').inputValue(),
+          '.item',
+        );
+        assert.equal(
+          await form.locator('[name="htmlTitleSelector"]').inputValue(),
+          '.title',
+        );
+        assert.match(
+          await page.locator('[data-endpoint-profile-revision]').innerText(),
+          /revision: 3/u,
+        );
+        const runText = await page.locator('[data-runs-list]').innerText();
+        assert.match(runText, /Parser adapter\s+html_listing/u);
+        assert.match(runText, /Parser version\s+1/u);
+        assert.match(runText, /Profile revision used\s+3/u);
+        assert.match(runText, /Item\/extraction failures\s+1/u);
+        assert.match(runText, /required_field_missing/u);
+
+        let releasePreview: (() => void) | undefined;
+        const previewHeld = new Promise<void>((resolve) => {
+          releasePreview = resolve;
+        });
+        await page.route('**/api/admin/html-listing/preview', async (route) => {
+          await previewHeld;
+          await route.continue();
+        });
+        await page
+          .locator('[data-html-preview-sample]')
+          .fill(
+            '<article class="item"><h2 class="title">Stale preview</h2><a href="/stale">Read</a></article>',
+          );
+        const stalePreviewResponse = page.waitForResponse((response) =>
+          response.url().endsWith('/api/admin/html-listing/preview'),
+        );
+        await page.getByRole('button', { name: 'Preview draft' }).click();
+        assert.equal(
+          await page
+            .getByRole('button', { name: 'Preview draft' })
+            .isDisabled(),
+          true,
+        );
+        await page.getByRole('button', { name: 'main_feed' }).click();
+        releasePreview?.();
+        await stalePreviewResponse;
+        await page.unroute('**/api/admin/html-listing/preview');
+        await page.waitForSelector(
+          '[data-endpoint-form] [name="endpointType"]',
+        );
+        assert.equal(
+          await form.locator('[name="endpointType"]').inputValue(),
+          'rss_atom',
+        );
+        assert.equal(
+          await page.locator('[data-html-preview-panel]').isVisible(),
+          false,
+        );
+        assert.equal(
+          await page.locator('[data-html-preview-results]').innerText(),
+          '',
+        );
+        assert.equal(
+          await page.evaluate(
+            () => document.documentElement.scrollWidth <= window.innerWidth,
+          ),
+          true,
+        );
+      },
+    );
+  });
+
   it('renders health and run accounting and distinguishes queued, outstanding, and ineligible check-now results', async () => {
     const harness = new AdminHarness();
     const mutationRequests: Array<{ method: string; header: string | null }> =
@@ -733,6 +1076,7 @@ interface HarnessOptions {
   readonly sources?: readonly AdminSourceReadModel[];
   readonly sourceListError?: boolean;
   readonly longRunError?: string;
+  readonly initialEndpoint?: AdminEndpointReadModel;
 }
 
 class AdminHarness {
@@ -756,8 +1100,14 @@ class AdminHarness {
     this.sourceListError = options.sourceListError === true;
     this.longRunError =
       options.longRunError ?? 'A bounded fixture timeout detail.';
+    const configuredEndpoint = options.initialEndpoint ?? initialEndpoint;
     if (this.sources.some((source) => source.configKey === 'journal')) {
-      this.endpoints.set('journal', [initialEndpoint]);
+      this.endpoints.set(
+        'journal',
+        configuredEndpoint.endpointType === 'html_listing'
+          ? [configuredEndpoint, initialEndpoint]
+          : [configuredEndpoint],
+      );
     }
   }
 
@@ -976,7 +1326,7 @@ class AdminHarness {
           String(endpointKey),
         );
         const body = record(input);
-        return this.replaceEndpoint(
+        const replacement = this.replaceEndpoint(
           current.sourceConfigKey,
           current.configKey,
           {
@@ -984,6 +1334,23 @@ class AdminHarness {
             ...endpointConfigurationFromBody(body),
           },
         );
+        if (replacement.endpointType === 'html_listing') {
+          const unchanged =
+            current.endpointType === 'html_listing' &&
+            JSON.stringify(current.htmlListingProfile) ===
+              JSON.stringify(replacement.htmlListingProfile);
+          return this.replaceEndpoint(
+            current.sourceConfigKey,
+            current.configKey,
+            {
+              ...replacement,
+              htmlListingProfileRevision: unchanged
+                ? (current.htmlListingProfileRevision ?? 1)
+                : (current.htmlListingProfileRevision ?? 0) + 1,
+            },
+          );
+        }
+        return replacement;
       },
       setEndpointApproval: async (sourceKey, endpointKey, input) => {
         const current = this.requireEndpoint(
@@ -1096,12 +1463,23 @@ class AdminHarness {
               runStatus: 'succeeded',
               transportStatus: 'succeeded',
               parserStatus: 'succeeded',
-              parserKind: 'rss_atom',
+              parserKind:
+                endpoint.endpointType === 'html_listing'
+                  ? 'html_listing'
+                  : 'rss_atom',
               parserVersion: '1',
-              htmlListingProfileRevision: null,
-              parserItemFailureCount: 0,
-              parserDiagnosticCode: null,
-              parserDiagnosticDetail: null,
+              htmlListingProfileRevision:
+                endpoint.htmlListingProfileRevision ?? null,
+              parserItemFailureCount:
+                endpoint.endpointType === 'html_listing' ? 1 : 0,
+              parserDiagnosticCode:
+                endpoint.endpointType === 'html_listing'
+                  ? 'required_field_missing'
+                  : null,
+              parserDiagnosticDetail:
+                endpoint.endpointType === 'html_listing'
+                  ? 'One listing row did not include a required field.'
+                  : null,
               normalizationStatus: 'succeeded',
               processingStatus: 'succeeded',
               outcomeCode: 'content',
@@ -1230,9 +1608,59 @@ function endpointFromBody(
 function endpointConfigurationFromBody(body: Record<string, unknown>) {
   const rules =
     body.endpointDomainRules as AdminEndpointReadModel['endpointDomainRules'];
+  const endpointType = body.endpointType as 'rss_atom' | 'html_listing';
+  if (endpointType !== 'rss_atom' && endpointType !== 'html_listing') {
+    throw new EndpointAdministrationError('invalid_request');
+  }
+  if (
+    endpointType === 'html_listing' &&
+    (typeof body.htmlListingProfile !== 'object' ||
+      body.htmlListingProfile === null ||
+      Array.isArray(body.htmlListingProfile))
+  ) {
+    throw new EndpointAdministrationError('invalid_request');
+  }
+  if (endpointType === 'html_listing') {
+    const profile = body.htmlListingProfile as Record<string, unknown>;
+    for (const key of ['title', 'articleLink']) {
+      const descriptor = profile[key];
+      const descriptorRecord =
+        typeof descriptor === 'object' &&
+        descriptor !== null &&
+        !Array.isArray(descriptor)
+          ? (descriptor as Record<string, unknown>)
+          : null;
+      if (
+        descriptorRecord === null ||
+        typeof descriptorRecord.selector !== 'string' ||
+        descriptorRecord.selector.trim() === '' ||
+        descriptorRecord.selector.includes(':')
+      ) {
+        throw new EndpointAdministrationError('invalid_request');
+      }
+    }
+    if (
+      typeof profile.itemSelector !== 'string' ||
+      profile.itemSelector.trim() === '' ||
+      profile.itemSelector.includes(':')
+    ) {
+      throw new EndpointAdministrationError('invalid_request');
+    }
+  }
   return {
     endpointUrl: String(body.endpointUrl),
-    endpointType: 'rss_atom' as const,
+    endpointType,
+    ...(endpointType === 'html_listing'
+      ? {
+          htmlListingProfile: body.htmlListingProfile as NonNullable<
+            AdminEndpointReadModel['htmlListingProfile']
+          >,
+          htmlListingProfileRevision: 1,
+        }
+      : {
+          htmlListingProfile: null,
+          htmlListingProfileRevision: null,
+        }),
     pollIntervalSeconds: Number(body.pollIntervalSeconds),
     endpointDomainRules: rules,
     inheritsSourceDomainPolicy: rules.length === 0,

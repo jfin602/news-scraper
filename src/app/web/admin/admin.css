@@ -741,6 +741,66 @@ select {
   margin: 0;
 }
 
+.run-parser-diagnostics,
+.preview-row-details {
+  display: grid;
+  gap: 0;
+  grid-template-columns: minmax(8rem, 0.8fr) minmax(0, 2fr);
+  margin: 0.75rem 0 0;
+}
+
+.run-parser-diagnostics dt,
+.run-parser-diagnostics dd,
+.preview-row-details dt,
+.preview-row-details dd {
+  border-bottom: 1px solid var(--border);
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 0.45rem 0.6rem;
+}
+
+.run-parser-diagnostics dt,
+.preview-row-details dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+.html-preview-panel {
+  border-top: 1px solid var(--border);
+  display: grid;
+  gap: 0.8rem;
+  min-width: 0;
+  padding-top: 1rem;
+}
+
+.html-preview-results {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.html-preview-row {
+  background: var(--surface-subtle);
+  border: 1px solid var(--border);
+  border-radius: 0.45rem;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 0.75rem;
+}
+
+.html-preview-row h4,
+.html-preview-row p {
+  margin: 0.2rem 0;
+}
+
+.preview-url {
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.82rem;
+}
+
 .health-grid dt,
 .health-grid dd,
 .run-grid dt,
@@ -887,7 +947,9 @@ select {
   }
 
   .health-grid,
-  .run-grid {
+  .run-grid,
+  .run-parser-diagnostics,
+  .preview-row-details {
     grid-template-columns: minmax(7rem, 0.85fr) minmax(0, 1.15fr);
   }
 

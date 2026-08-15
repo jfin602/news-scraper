@@ -209,7 +209,7 @@ const adminPage = `<!doctype html>
             <fieldset>
               <legend>RSS/Atom item admission phrases</legend>
               <p class="field-help" data-admission-explanation>
-                No phrases means all otherwise-valid RSS/Atom items are admitted. With phrases, any phrase may match the title, summary/content, or Source category labels.
+                These phrases apply only to RSS/Atom endpoints. No phrases means all otherwise-valid RSS/Atom items are admitted; with phrases, any phrase may match the title, summary/content, or Source category labels. HTML listing selectors decide which HTML rows become Raw items. This is not an HTML keyword filter or Relevance rule.
               </p>
               <div class="repeatable-list" data-admission-phrases></div>
               <button type="button" class="button quiet compact" data-add-admission-phrase>Add include phrase</button>
@@ -276,6 +276,7 @@ const adminPage = `<!doctype html>
                   <label>Type
                     <select name="endpointType">
                       <option value="rss_atom">RSS / Atom</option>
+                      <option value="html_listing">HTML listing</option>
                     </select>
                   </label>
                   <label class="wide-field">Endpoint URL
@@ -288,6 +289,65 @@ const adminPage = `<!doctype html>
                     <select name="defaultCategoryConfigKey" data-category-select></select>
                   </label>
                 </div>
+              </fieldset>
+
+              <fieldset data-html-profile hidden>
+                <legend>Static HTML listing profile</legend>
+                <p class="field-help">Use bounded CSS selectors for a static HTML listing. This configuration does not crawl Article pages, follow pagination, or run browser scripts. Article links may be relative because real collection resolves them against the fetched endpoint URL.</p>
+                <div class="form-grid">
+                  <label class="wide-field">Item/root CSS selector
+                    <input name="htmlItemSelector" data-html-required autocomplete="off">
+                  </label>
+                  <label>Title selector
+                    <input name="htmlTitleSelector" data-html-required autocomplete="off">
+                  </label>
+                  <label>Article-link selector
+                    <input name="htmlArticleLinkSelector" data-html-required autocomplete="off">
+                    <span class="field-help">The parser extracts the governed link href.</span>
+                  </label>
+                  <label>Published date selector
+                    <input name="htmlPublishedAtSelector" autocomplete="off">
+                  </label>
+                  <label>Published date extraction
+                    <select name="htmlPublishedAtMode">
+                      <option value="text">Text</option>
+                      <option value="attribute">Allowlisted attribute</option>
+                    </select>
+                  </label>
+                  <label data-html-date-attribute="publishedAt" hidden>Published date attribute
+                    <select name="htmlPublishedAtAttribute">
+                      <option value="datetime">datetime</option>
+                      <option value="data-published-at">data-published-at</option>
+                      <option value="data-updated-at">data-updated-at</option>
+                    </select>
+                  </label>
+                  <label>Updated date selector
+                    <input name="htmlUpdatedAtSelector" autocomplete="off">
+                  </label>
+                  <label>Updated date extraction
+                    <select name="htmlUpdatedAtMode">
+                      <option value="text">Text</option>
+                      <option value="attribute">Allowlisted attribute</option>
+                    </select>
+                  </label>
+                  <label data-html-date-attribute="updatedAt" hidden>Updated date attribute
+                    <select name="htmlUpdatedAtAttribute">
+                      <option value="datetime">datetime</option>
+                      <option value="data-published-at">data-published-at</option>
+                      <option value="data-updated-at">data-updated-at</option>
+                    </select>
+                  </label>
+                  <label>Author selector
+                    <input name="htmlAuthorSelector" autocomplete="off">
+                  </label>
+                  <label>Summary selector
+                    <input name="htmlSummarySelector" autocomplete="off">
+                  </label>
+                  <label>Category-label selector
+                    <input name="htmlCategoriesSelector" autocomplete="off">
+                  </label>
+                </div>
+                <p class="field-help" data-endpoint-profile-revision hidden></p>
               </fieldset>
 
               <fieldset>
@@ -332,6 +392,23 @@ const adminPage = `<!doctype html>
                 <button type="button" class="button secondary" data-endpoint-cancel>Cancel</button>
               </div>
             </form>
+
+            <section class="html-preview-panel" data-html-preview-panel hidden aria-labelledby="html-preview-heading">
+              <div class="panel-heading nested-heading">
+                <div>
+                  <h3 id="html-preview-heading">HTML sample preview</h3>
+                  <p class="section-help">Paste a bounded sample to test the draft profile. Preview parses only this sample, performs no network request, and does not save the endpoint or prove collection.</p>
+                </div>
+              </div>
+              <label>Operator-supplied HTML sample
+                <textarea data-html-preview-sample rows="8" spellcheck="false"></textarea>
+              </label>
+              <div class="form-actions">
+                <button type="button" class="button secondary" data-html-preview>Preview draft</button>
+              </div>
+              <div class="form-message" role="status" aria-live="polite" data-html-preview-status hidden></div>
+              <div class="html-preview-results" data-html-preview-results></div>
+            </section>
 
             <div class="state-actions" data-endpoint-state-actions hidden>
               <div class="action-group" aria-label="Endpoint approval actions" data-endpoint-approval-actions></div>
