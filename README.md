@@ -8,7 +8,7 @@ Publication is the singleton editorial/configuration concept for the installed n
 
 ## Current project state
 
-Current phase: **Phase 18 — Configurable HTML collection**.
+Current phase: **Phase 19 — Reliability, observability, and production operations**.
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation and closeout validation are complete. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; that accepted limitation is not rewritten as passing evidence.
 
@@ -24,7 +24,7 @@ Phase 13 — Public presentation polish — is complete with durable validation 
 
 Phase 14 — Source administration — is complete by explicit repository-owner acceptance on August 14, 2026. Its historical validation artifact retains its original BLOCKED/RED determination: the then-required Level 8 Cloudflare Access/direct-origin deployment observation was unavailable, despite the recorded local/static/unit/integration/database/fixture/browser evidence. The governing roadmap and testing contract moved that deployment proof to Phase 19; acceptance did not rewrite the artifact or claim Level 8 was observed.
 
-Phase 15 — Publication and Relevance administration — is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 — True duplicate detection and grouping — is complete with durable validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`. Phase 17 — Article and duplicate moderation — is complete with durable GREEN validation in `docs/validation/phase-17-article-and-duplicate-moderation.md`. Phase 18 is current and adds bounded static HTML listing extraction behind the existing approved/whitelisted parser and Raw-item pipeline; it adds no alternate persistence path, does not make the RSS/Atom Source admission filter generic, and does not implement browser collection. Detailed authority is in the domain, Source/collection, architecture, admin, and testing contracts.
+Phase 15 — Publication and Relevance administration — is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 — True duplicate detection and grouping — is complete with durable validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`. Phase 17 — Article and duplicate moderation — is complete with durable GREEN validation in `docs/validation/phase-17-article-and-duplicate-moderation.md`. Phase 18 — Configurable HTML collection — is complete with durable GREEN validation in `docs/validation/phase-18-configurable-html-collection.md`; its bounded static HTML behavior uses the shared pipeline, keeps Source admission phrases RSS/Atom-only, and adds no browser collection. Phase 19 is current and covers production operations, observability, recovery, deployment/rollback, pre-baseline upgrade proof, security regressions, and the deferred Level 8 deployment-perimeter observation without yet establishing the production baseline.
 
 ## Delivery priority
 
@@ -32,7 +32,7 @@ Phases 1–9 are the tech-demo critical path.
 
 The first demonstrable milestone is reached when at least two real approved RSS/Atom Sources are collected through the Worker, recorded in Collection runs, normalized, passed through the canonical default-include Relevance boundary, persisted idempotently with Article-observation provenance, and displayed in the public rolling feed with headlines linking to original publishers.
 
-Full admin UX follows after that vertical slice is working.
+The later administration phases completed the protected singleton control plane after that vertical slice.
 
 ## MVP objective
 
@@ -397,14 +397,14 @@ Completed after the tech-demo milestone:
 - **Phase 15 — Publication and Relevance administration** — complete with durable phase validation.
 - **Phase 16 — True duplicate detection and grouping** — complete with durable GREEN phase validation.
 - **Phase 17 — Article and duplicate moderation** — complete with durable GREEN phase validation.
+- **Phase 18 — Configurable HTML collection** — complete with durable GREEN phase validation.
 
 Current:
 
-- **Phase 18 — Configurable HTML collection**
+- **Phase 19 — Reliability, observability, and production operations**
 
 Then:
 
-- Phase 19 — Reliability, observability, and production operations
 - Phase 20 — Customer launch validation
 - Phase 21 — Codebase simplification and maintainability hardening
 

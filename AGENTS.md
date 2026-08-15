@@ -283,17 +283,16 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 18 — Configurable HTML collection**.
+Current phase: **Phase 19 — Reliability, observability, and production operations**.
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with its recorded live-source limitation preserved. The Phase 10 entry singleton correction and Phases 10–15 are complete.
 
-Phase 15 is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 is complete with durable GREEN validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`; the non-versioned `c16-test-efficiency` correction remains completed historical work. Phase 17 is complete with durable GREEN validation in `docs/validation/phase-17-article-and-duplicate-moderation.md`. Phase 18 is active.
+Phase 15 is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 is complete with durable GREEN validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`; the non-versioned `c16-test-efficiency` correction remains completed historical work. Phase 17 is complete with durable GREEN validation in `docs/validation/phase-17-article-and-duplicate-moderation.md`. Phase 18 is complete with durable GREEN validation in `docs/validation/phase-18-configurable-html-collection.md`.
 
-Phase 18 questions route to `docs/contracts/domain-and-data-contract.md`, `docs/contracts/source-and-collection-contract.md`, `docs/architecture/system-architecture.md`, `docs/contracts/public-feed-and-admin-contract.md`, and `docs/contracts/testing-and-validation-contract.md`. HTML collection is bounded static adapter behavior for approved/whitelisted endpoints, produces the existing Raw-item contract, uses no alternate downstream persistence path, keeps Source admission phrases RSS/Atom-only, and does not implement browser automation.
+Phase 19 questions route primarily to `docs/operations/security-reliability-and-operations.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/architecture/system-architecture.md`, `docs/decisions/production-data-and-schema-compatibility.md`, and `docs/decisions/cloudflare-access-admin-perimeter.md`. Phase 19 owns production operations, recovery and deployment/rollback procedures, representative schema-upgrade/data-preservation/rollback/restore proof, security/abuse regressions, and the deferred Level 8 Cloudflare Access/direct-origin reference-deployment observation. It prepares the production boundary; Phase 20 acceptance establishes the first supported production baseline.
 
 Remaining roadmap order:
 
-- Phase 19 — Reliability, observability, and production operations
 - Phase 20 — Customer launch validation
 - Phase 21 — Codebase simplification and maintainability hardening
 

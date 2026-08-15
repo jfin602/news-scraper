@@ -967,7 +967,7 @@ Give Cloudflare-authorized operators reversible control over Article presentatio
 
 ## Phase 18 — Configurable HTML collection
 
-**Status:** Current roadmap phase.
+**Status:** Complete with durable GREEN validation in `docs/validation/phase-18-configurable-html-collection.md`.
 
 ### Goal
 
@@ -1007,6 +1007,8 @@ Add approved non-feed Sources without creating another downstream pipeline.
 - Shared downstream regressions remain green; real persistence evidence covers persisted Phase 18 state, deterministic HTML fixtures prove transport/parser bounds and no crawling/subresource/Article-page/browser fetches, and applicable Source-admin browser workflows are observed.
 
 ## Phase 19 — Reliability, observability, and production operations
+
+**Status:** Current roadmap phase.
 
 ### Goal
 
