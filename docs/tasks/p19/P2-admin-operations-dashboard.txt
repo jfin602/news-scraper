@@ -1,0 +1,119 @@
+TASK: Phase 19 / P2 — Admin operations dashboard
+
+ROADMAP PHASE
+Phase 19 — Reliability, observability, and production operations.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: the task is a bounded admin-browser integration over a server-owned operational read model, but it touches the shared admin shell, navigation, error handling, accessibility, and security-sensitive operator presentation.
+- Reasoning basis: High reasoning is appropriate to keep the browser a thin consumer, preserve existing admin workspaces, and avoid accidentally turning presentation state into operational authority.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Terra Medium`; rejected by the owner-approved Phase 19 model assignment and because the shared admin client has enough cross-workspace regression risk to justify the higher reasoning setting.
+- Escalation trigger: P1 does not provide a complete operational contract and the browser would need new SQL/domain/health/queue semantics, or the existing admin architecture requires a broader structural rewrite.
+- Escalation target: `Terra Ultra` for deeper explicit integration reasoning; otherwise stop for replanning rather than inventing backend semantics in the browser.
+- Estimate confidence: `High`.
+- Efficiency rationale: P2 consumes P1 rather than duplicating its state derivation, so the work remains focused on safe presentation and browser behavior.
+- Plan delta: `Owner-adjusted` from `/prompt-plan`: use Terra High instead of the planned Terra Medium.
+
+VERSIONING
+- This is Phase 19 prompt 2 and its assigned project version is `0.19.2`.
+- On first execution require P1 to have left top-level `package.json` at `0.19.1`, then update only that version to `0.19.2`.
+- On rerun of this same P2 retain `0.19.2`; any other version is sequence drift and must stop execution.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the Phase 19 roadmap entry, `docs/design/README.md`, `docs/design/ui-workflow.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, and `docs/operations/security-reliability-and-operations.md`;
+2. inspect P1 task plus actual committed P1 implementation/tests and confirm its protected operational API owns health/queue/alert semantics;
+3. inspect the current admin page/router/client/styles and Phase 14–18 browser tests for navigation, loading/error states, request-integrity behavior, safe text rendering, focus/live-region behavior, and responsive layout;
+4. stop if P1 is incomplete or if implementing Operations would require inventing backend operational semantics.
+
+GOAL
+Add an `Operations` workspace to the existing protected administration UI that makes current installation health and work backlog understandable at a glance while remaining a read-only presentation of P1's canonical operational snapshot.
+
+BROWSER OWNERSHIP RULE
+The browser may format, sort only when the API contract explicitly permits it, refresh, and navigate. It must not calculate or redefine:
+- endpoint health;
+- queue readiness/staleness;
+- lease expiry or recovery status;
+- alert severity/status;
+- retry classification;
+- collection-capacity policy.
+
+If the browser needs a missing semantic field, add it to P1's backend boundary in the smallest compatible way with focused tests rather than reproducing domain logic in JavaScript.
+
+UI CONTENT
+Provide a clear operator-oriented workspace containing, as available from P1:
+- overall operational status;
+- endpoint counts by health;
+- queue/running/ready-work summary;
+- oldest ready-work delay;
+- actionable delayed/degraded/unhealthy endpoints;
+- relevant last success/failure/next due/cooldown details;
+- current capacity/timing policy as informational facts;
+- deterministic alert list;
+- useful links/actions that navigate to existing Source/endpoint administration for diagnosis rather than duplicating those editors.
+
+Keep the dashboard compact. Do not build a charting framework, historical time-series warehouse, or configurable alert editor in P2.
+
+ADMIN INTEGRATION
+- Extend the existing admin workspace navigation without regressing Publication, Sources, Editorial, or Articles.
+- Reuse the existing protected admin API request helper and required request-integrity behavior where applicable.
+- Operations is read-only; do not add mutation controls merely because the page shows problems.
+- Use safe DOM/text APIs. Do not use untrusted Source/endpoint/error text as executable HTML.
+- Preserve CSP and same-origin constraints.
+- Make refresh behavior explicit and non-duplicative; avoid overlapping refresh requests causing stale state to overwrite newer state.
+- Show bounded loading, empty, unavailable, and error states.
+- Do not turn dependency failure into a false healthy state.
+
+ACCESSIBILITY / RESPONSIVE
+Preserve existing admin design guidance:
+- keyboard-reachable navigation and controls;
+- visible focus;
+- meaningful headings and labels;
+- live-region/status announcements that do not spam users;
+- tables/cards that remain usable on narrow viewports without destructive horizontal overflow;
+- status is not communicated by color alone.
+
+BROWSER / INTEGRATION TESTS
+Add focused HTTP/client tests and real Chromium coverage for:
+- Operations workspace appears in navigation and can be selected;
+- loading and healthy/empty states;
+- delayed/degraded/unhealthy endpoint presentation;
+- ready queue and oldest-delay presentation;
+- alert rendering and safe hostile-text rendering;
+- backend error/unavailable state and successful later refresh;
+- stale/in-flight refresh does not overwrite newer state or duplicate requests materially;
+- links/navigation to relevant Source/endpoint administration work;
+- keyboard/focus/live-region behavior;
+- representative mobile viewport containment;
+- existing Publication/Sources/Editorial/Articles workspace navigation remains functional.
+
+Do not make browser tests responsible for proving P1 SQL or health derivation; those are P1 tests.
+
+FOCUSED DEVELOPMENT VALIDATION
+Run only the relevant admin integration/browser test files during iteration plus formatting/lint/typecheck for touched files.
+
+FINAL-TREE VALIDATION FOR THIS PROMPT
+Run the smallest non-overlapping set covering the changed admin/client behavior and P1 consumer contract, then `npm run check` and the relevant browser suite. Do not rerun subordinate unit/integration suites separately after `npm run check` solely for duplication.
+
+PRESERVE / FORBID
+Do not:
+- add native administrator identity/session/roles;
+- expose Operations on the public feed;
+- add new database queries in browser code;
+- create a second endpoint-health model;
+- add topic-specific operational labels/rules;
+- duplicate endpoint recent-run/check-now editors;
+- add production infrastructure vendors or chart dependencies without a concrete approved need;
+- change Cloudflare perimeter assumptions.
+
+FINAL REPORT
+Report:
+- files changed;
+- Operations workspace structure and P1 API fields consumed;
+- confirmation that no operational semantics moved into the browser;
+- integration/browser commands actually run and results;
+- package version confirmation `0.19.2`;
+- any P1 backend field addition required and its focused proof.
