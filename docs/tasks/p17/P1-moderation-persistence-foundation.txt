@@ -1,0 +1,146 @@
+TASK: Phase 17 / P1 — Moderation persistence foundation
+
+ROADMAP PHASE
+Phase 17 — Article and duplicate moderation.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Luna Medium`.
+- Model-family basis: the Phase 17 contracts now make the required persisted states explicit, so P1 is bounded schema/persistence work rather than independent architecture discovery.
+- Reasoning basis: Medium reasoning is enough to express the intentional-empty Category override, canonical manual-separation pairs, non-competing Primary authority, and bounded append-only history with database constraints.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna Low`; rejected because a subtle schema mistake could collapse cleared-vs-empty Category state, create competing Primary authority, or allow invalid manual-separation/history rows.
+- Escalation trigger: implementation inspection shows these governed states cannot be represented without redesigning Phase 16 transaction/topology ownership rather than adding the bounded persistence described here.
+- Escalation target: `Terra High`.
+- Estimate confidence: `High`.
+- Efficiency rationale: source inspection removed the concurrency and test-harness uncertainty from P1, so Luna Medium is the minimum adequate implementation tier.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md`, `docs/codex-model-selection.md`, and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 17 prompt 1 and its assigned project version is `0.17.1`.
+- On first execution, require top-level `package.json` version `0.17.0`; on a rerun of this same P1, `0.17.1` is acceptable.
+- Update only the top-level package version to `0.17.1`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 17 roadmap entry, `docs/contracts/domain-and-data-contract.md`, `docs/contracts/article-lifecycle-and-deduplication.md`, `docs/contracts/public-feed-and-admin-contract.md`, and `docs/contracts/testing-and-validation-contract.md`;
+2. inspect `migrations/0001_initial_schema.sql`, `migrations/0005_categories_and_relevance.sql`, `migrations/0012_duplicate_persistence_foundation.sql`, `src/articles/repository.ts`, `src/deduplication/grouping.ts`, and the current duplicate/category schema tests;
+3. confirm the migration chain still ends at `0012_duplicate_persistence_foundation.sql` and that `package.json` is at the expected Phase 17 baseline/rerun version;
+4. inspect `test/support/database/database-test-scope.ts` and preserve its dynamic reset model rather than adding Phase-17-specific reset plumbing;
+5. stop and report planning drift if newer source already introduces competing moderation persistence or materially changes the Phase 16 group/Primary schema.
+
+GOAL
+Add the smallest durable persistence foundation required by Phase 17 while preserving Source-derived Article values, automatic Category state, Phase 16 duplicate topology, and provenance.
+
+P1 owns schema and focused persistence primitives only. It does not expose moderation services, APIs, public-feed behavior, or browser UI.
+
+CANONICAL REPRESENTATION
+Add one new migration after `0012_duplicate_persistence_foundation.sql`, expected as `migrations/0013_article_duplicate_moderation.sql` unless the current migration chain has advanced before execution.
+
+Implement these states without speculative generic frameworks:
+
+1. ARTICLE DISPLAY TITLE OVERRIDE
+- Add nullable `articles.display_title_override`.
+- It is a human-facing headline override only.
+- Apply the same trimmed/non-empty/bounded shape discipline as `display_title` when non-null.
+- Do not modify or replace `display_title`, `normalized_title`, `original_url`, identity fields, Source ownership, timestamps, or observation provenance.
+
+2. MANUAL CATEGORY OVERRIDE
+- Add an `article_category_overrides` table whose Article row presence means manual Category authority is active.
+- The marker must support an intentionally empty effective Category set; therefore absence of memberships is valid while the marker exists.
+- Add `article_category_override_memberships` for the operator-selected effective Category set.
+- Memberships reference the active override Article and current Category rows with uniqueness preventing duplicates.
+- Do not repurpose `article_categories`; it remains the latest automatic Relevance/default Category assignment maintained by collection.
+
+3. MANUAL DUPLICATE SEPARATION
+- Add `duplicate_manual_separations` using one canonical unordered low/high Article pair.
+- Reject self-pairs and reversed/noncanonical persisted order.
+- Enforce pair uniqueness so repeated manual separation is idempotent at persistence level.
+- Retain bounded decision metadata sufficient for the operator action, including decision time and optional bounded reason where appropriate.
+- This table is manual authority consumed by P3; P1 does not implement topology behavior yet.
+
+4. PRIMARY AUTHORITY ORIGIN
+- Keep `duplicate_groups.primary_article_id` as the sole actual Primary Article identifier.
+- Add only bounded authority metadata such as `primary_selection_origin` with allowed values `automatic` and `manual`, defaulting existing/new groups to `automatic`.
+- Do not add `manual_primary_article_id`, role columns on memberships, or another competing Primary source.
+- Preserve the existing deferred Primary-membership invariant.
+
+5. APPLICATION CHANGE HISTORY
+- Add `audit_events` as append-only application change-history storage for successful material Phase 17 moderation mutations.
+- Use UUID identity, bounded action, bounded target type, target UUID, timestamp, optional bounded reason, and bounded prior/new state where useful.
+- JSON/JSONB prior/new state is acceptable only with a concrete database/application bound; do not create an unbounded dumping ground for arbitrary request bodies or internal objects.
+- Do not add native administrator/user identity, Cloudflare identity, IP address, session, role, or retention/pruning machinery.
+- P1 establishes storage only; later prompts own transactional writes and bounded reads.
+
+CONSTRAINTS / INDEXES
+Prefer database constraints for expressible integrity and only indexes justified by the planned Phase 17 reads/mutations.
+
+At minimum protect:
+- display-title-override shape;
+- one active Category override marker per Article;
+- unique Category membership per active Article override;
+- valid Article/Category references;
+- canonical low/high manual-separation ordering and pair uniqueness;
+- valid Primary selection origin;
+- bounded/non-empty audit action and target type;
+- bounded optional reason and prior/new state representation.
+
+Do not add Publication tenancy/scoping columns or compatibility aliases.
+
+PRE-PRODUCTION MIGRATION POLICY
+The repository is still pre-production, but this task should add the smallest forward migration from the current canonical chain; do not rewrite accepted Phase 16 migrations merely to fold Phase 17 fields backward.
+
+Do not add legacy upgrade fixtures or compatibility bridges for unsupported older pre-production database contents.
+
+FOCUSED TESTS
+Add a substantive real-PostgreSQL Phase 17 schema test, preferably `test/database/moderation-persistence-foundation.test.ts`, proving migration from zero and the new constraints.
+
+At minimum prove:
+- current migration chain reaches the new schema from zero;
+- valid/null display override behavior and invalid whitespace/empty/oversize rejection;
+- an override marker with zero Category memberships is valid and distinguishable from no marker;
+- duplicate Category override memberships are rejected and references remain valid;
+- canonical manual-separation pair inserts once, rejects self/reversed invalid rows, and preserves bounded metadata;
+- Primary selection origin allows only governed values and existing Primary membership constraints still hold;
+- bounded valid audit rows persist and malformed/unbounded action/target/reason/state values are rejected as governed;
+- existing Article, observation, Category, duplicate candidate/group/member rows remain compatible with the migration.
+
+Do not modify the reusable database-test reset harness solely for these new tables; it already discovers application tables dynamically.
+
+PRESERVED BEHAVIOR
+Preserve all current behavior from Phases 1–16, especially:
+- Source-scoped Article identity and Source-owned normalized values;
+- collection-owned `article_categories` reconciliation and retained Category reasons;
+- Article visibility independent from duplicate role;
+- Phase 16 review candidates/signals/groups/memberships and exactly-one-Primary invariants;
+- all Article observations and Collection-run provenance;
+- canonical public feed and admin behavior until later Phase 17 prompts.
+
+NON-GOALS
+Do not implement:
+- Article moderation search/detail/services;
+- hide/restore commands;
+- set/clear display or Category override commands;
+- duplicate dismiss/merge/split/choose-Primary behavior;
+- automatic grouping changes;
+- public-feed effective-value reads;
+- admin API/UI;
+- native administrator identity or retention policy;
+- generic editable Article metadata.
+
+VALIDATION
+During development, use the narrowest relevant schema/database test invocation, for example `npm run test:db:focused -- test/database/moderation-persistence-foundation.test.ts`.
+
+Before completion on the final P1 tree run the smallest non-overlapping applicable set:
+- `npm run check`
+- `npm run test:db:focused -- test/database/moderation-persistence-foundation.test.ts test/database/article-schema.test.ts test/database/relevance-schema.test.ts test/database/duplicate-persistence-foundation.test.ts`
+- `git diff --check`
+
+If a named focused database file differs in the current tree, use its actual current equivalent rather than silently dropping the regression category. Do not run the full browser suite for this schema-only task.
+
+Confirm `package.json` is `0.17.1`, no npm lockfile exists, and no non-P1 behavior was wired.
+
+FINAL REPORT
+Report files changed, final persistence representation, constraints/indexes added, focused and broader validation actually executed, test results, package version, and any remaining risk. Do not claim moderation behavior or public/browser integration yet.
