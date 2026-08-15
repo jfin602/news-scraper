@@ -1,0 +1,216 @@
+TASK: Phase 18 / P5 — HTML endpoint administration UI
+
+ROADMAP PHASE
+Phase 18 — Configurable HTML collection.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Luna High`.
+- Model-family basis: P5 is a bounded browser consumer of the complete P4 API/read models and existing Source-administration shell rather than a new architecture or persistence boundary.
+- Reasoning basis: High reasoning is useful for the existing stateful admin client, conditional endpoint-profile form state, asynchronous preview/check-now flows, stale/error recovery, and browser accessibility/regression coverage.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna Medium`; rejected because the current admin client coordinates several workspaces and asynchronous endpoint operations, so careless state handling could leak HTML profile state across endpoint types or leave stale/disabled controls after failures.
+- Escalation trigger: implementation inspection reveals Phase 18 requires a material admin-client architecture rewrite or backend semantics are missing such that the UI would need to invent validation, revision, parser, SQL, or collection behavior.
+- Escalation target: `Terra Medium` for materially tangled but still explicit UI integration; return `Planning needed` instead if P4's producer boundary is incomplete.
+- Estimate confidence: `High`.
+- Efficiency rationale: backend semantics are already complete after P4, making Luna High the minimum adequate tier for a focused functional UI/browser task.
+- Plan delta: `Unchanged` from `/prompt-plan`.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md`, `docs/codex-model-selection.md`, and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 18 prompt 5 and its assigned project version is `0.18.5`.
+- On first execution, require top-level `package.json` version `0.18.4`; on a rerun of this same P5, `0.18.5` is acceptable.
+- Update only the top-level package version to `0.18.5`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 18 roadmap entry, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/source-and-collection-contract.md`, and the Phase 18 Level 6 requirements in `docs/contracts/testing-and-validation-contract.md`;
+2. read P4 and inspect the actual endpoint/profile/revision, recent-run diagnostic, preview, and check-now HTTP contracts; do not infer them from this prompt if implementation differs within the governing contract;
+3. inspect `src/app/web/admin-router.ts`, `src/app/web/admin/admin.js`, `src/app/web/admin/admin.css`, existing Source/endpoint editor markup, operational run rendering, shared admin error/status helpers, and `test/browser/admin-page.test.ts` plus browser support fixtures/mocks;
+4. inspect existing keyboard/focus/responsive/error handling and preserve the established administration visual/system conventions instead of creating a separate Phase 18 mini-application;
+5. confirm package version is at the expected P4/P5 rerun state and stop/report producer drift if P5 would need parser imports, SQL, database inference, profile revision calculation, or direct network collection logic.
+
+GOAL
+Extend the existing Source/endpoint administrator workspace so operators can configure `html_listing` endpoints through structured profile controls, safely preview a bounded operator-supplied HTML sample, inspect parser/profile diagnostics, and use the existing check-now workflow.
+
+P5 is a thin functional consumer. Backend validation/persistence/parser/collection authority remains in P1–P4.
+
+ENDPOINT TYPE UI
+Add `HTML listing` as the second supported endpoint type beside `RSS / Atom`.
+
+Required behavior:
+- existing RSS/Atom endpoint create/edit workflow remains unchanged except for clearer admission-filter explanation where necessary;
+- choosing `html_listing` reveals the structured HTML profile controls required by the actual P1/P4 API;
+- choosing `rss_atom` hides HTML-only controls and the submitted payload does not carry stale HTML profile data;
+- switching an existing endpoint between types requires the profile data appropriate to the new type and relies on server validation/revision semantics;
+- immutable config key, URL, polling, default Category, domain policy, initial state, approval/operational/lifecycle actions remain integrated with the existing editor;
+- no generic endpoint adapter JSON editor or arbitrary scraping script field is introduced.
+
+STRUCTURED HTML PROFILE CONTROLS
+Render explicit labeled controls for the actual normalized Phase 18 profile, expected to include:
+- repeated item/root CSS selector;
+- title selector/extraction fields;
+- Article-link selector using the governed href extraction;
+- optional published/update date selectors/extraction modes exposed by P1;
+- optional author selector;
+- optional summary selector;
+- optional category-label selector.
+
+Do not present XPath, regex, JavaScript, template/expression, browser automation, pagination, Article-page, or subresource controls.
+
+Use clear help text that this is static HTML listing extraction and that Article links may be relative because canonical resolution happens during real collection.
+
+Do not duplicate the complete selector parser/validation algorithm in JavaScript. Client-side required-field/basic input affordances are fine; server response remains authoritative for profile validity.
+
+RSS/ATOM ADMISSION EXPLANATION
+Update Source-level admission help so operators can understand the existing distinction:
+- phrases affect RSS/Atom endpoints only;
+- no phrases means all otherwise-valid RSS/Atom items are admitted;
+- HTML listing profile selectors determine which HTML rows become Raw items;
+- this is not an HTML keyword filter and not Relevance.
+
+Do not move admission phrases into individual endpoint forms.
+
+SAFE SAMPLE PREVIEW UI
+Add a bounded sample-preview panel visible only for HTML listing configuration.
+
+It should include:
+- one clearly labeled textarea for operator-supplied HTML sample;
+- a Preview button separate from Save endpoint and Check now;
+- explicit help that preview parses only the pasted sample and performs no network request;
+- loading/in-flight state that prevents duplicate preview submissions;
+- success rendering of bounded extracted rows using the P4 response fields;
+- safe rendering of parser/item diagnostics;
+- empty/error/failure states that do not insert response data as HTML;
+- recovery after validation/server errors without leaving controls permanently disabled.
+
+Use `textContent`/safe DOM construction for all Source/parser/operator data. Never inject preview HTML through `innerHTML` or equivalent.
+
+Preview must call only P4's protected preview API with the standard admin mutation header. Browser code must never fetch the configured publisher URL directly.
+
+Saving an endpoint and previewing a draft are independent actions:
+- Preview must not save/revision the profile;
+- Save must not silently run Preview;
+- Preview success must not imply endpoint collection succeeded;
+- Check now remains the only real network-backed verification action after valid persisted configuration exists.
+
+PROFILE REVISION / DIAGNOSTICS PRESENTATION
+For an existing HTML endpoint, display the current persisted profile revision from P4 without calculating it client-side.
+
+In recent Collection runs, render the P4 parser diagnostics when present, including:
+- parser adapter/kind/version;
+- profile revision used for the run;
+- item/extraction failure count;
+- bounded parser diagnostic code/detail.
+
+Keep existing transport/run/status/count presentation intact. Do not expose raw response bodies or attempt to reconstruct them.
+
+When a current endpoint profile revision differs from a historical run revision, the UI may simply display both truthful values; do not label the historical run as invalid or rewrite history.
+
+CHECK-NOW WORKFLOW
+Keep the existing Check now button and status behavior.
+
+For an HTML endpoint:
+- Check now queues the same P4/P3 durable job;
+- accepted/queued UI copy must continue to say collection is queued/not yet finished;
+- refreshing operational data shows resulting health/run diagnostics through the existing polling/manual refresh behavior;
+- no HTML-specific direct fetch button or browser-side collection path is added.
+
+STATE MANAGEMENT
+Extend the existing admin client without duplicating backend/domain state.
+
+At minimum handle correctly:
+- new HTML endpoint draft;
+- edit existing HTML endpoint;
+- edit existing RSS endpoint;
+- switch draft/edit type RSS↔HTML;
+- select another Source/endpoint while a previous preview request is in flight;
+- cancel endpoint edit after entering profile/sample data;
+- failed preview followed by corrected preview;
+- failed save followed by corrected save;
+- endpoint save response with revised profile revision;
+- refresh/reselect preserving only persisted state, not stale draft sample/profile fields;
+- repeated Check now/refresh behavior already governed by current UI.
+
+Use request sequencing/staleness protection consistent with existing admin patterns where asynchronous results could otherwise render into a newly selected endpoint.
+
+ACCESSIBILITY / RESPONSIVE BEHAVIOR
+Preserve the current admin interaction baseline:
+- native labels/inputs/selects/buttons;
+- logical keyboard order;
+- visible focus indication from existing styles;
+- preview status/error output with appropriate live-region/alert semantics;
+- no color-only error/diagnostic meaning;
+- long selectors/URLs/diagnostics wrap instead of causing horizontal page overflow;
+- profile controls remain usable at representative desktop and mobile widths already used by the browser suite;
+- do not perform unrelated UI-polish redesign work on `main`.
+
+FOCUSED BROWSER / HTTP TEST SUPPORT
+Update browser mocks/fixtures only through the existing P4 HTTP contract. Do not bypass the actual browser fetch/request-integrity code by directly mutating frontend state.
+
+LEVEL 6 BROWSER EVIDENCE MUST COVER
+At minimum in real Chromium:
+- create-mode endpoint type selector includes RSS/Atom and HTML listing;
+- HTML selection reveals structured profile controls and RSS selection hides/omits them;
+- existing HTML endpoint loads profile and revision correctly;
+- valid HTML endpoint save sends the expected P4 payload and renders returned persisted state;
+- invalid profile save renders bounded server validation feedback and recovers;
+- preview sends pasted sample + draft profile to only the P4 preview route with request-integrity header;
+- preview success renders extracted headline/link/optional data safely;
+- mixed-item diagnostics and zero-match/all-invalid preview failure render safely;
+- secret/script/sample markup is not executed or inserted as live HTML;
+- preview duplicate-submit/stale-response behavior is safe;
+- profile revision displayed after save/reload comes from server response;
+- recent run parser/profile diagnostics render without breaking existing transport/status/count rows;
+- Check now for an HTML endpoint uses the existing route/status language;
+- Source admission copy clearly remains RSS/Atom-only;
+- switching types does not submit stale HTML profile values to RSS configuration;
+- keyboard/focus/error recovery works for profile/preview actions;
+- representative mobile viewport has no destructive overflow;
+- existing Source/RSS endpoint create/edit/state/domain/default-Category/check-now workflows still pass.
+
+BROADER REGRESSION
+Run the existing Publication, Source, Editorial, Article/duplicate administration browser matrix because P5 edits the shared admin page/client. Preserve request-integrity API behavior through existing integration tests; do not modify backend semantics merely to simplify browser mocks.
+
+PRESERVED BEHAVIOR
+Preserve:
+- central admin shell/workspace navigation;
+- all Phase 14–17 admin functions;
+- Source/endpoint state/domain/polling/default-Category controls;
+- RSS/Atom admission phrase semantics;
+- Publication/Editorial/Article/duplicate workspaces;
+- request-integrity header and bounded API error handling;
+- Check now durable job semantics;
+- no direct Source collection from Web/browser;
+- topic independence and singleton Publication behavior.
+
+NON-GOALS
+Do not implement:
+- new backend validation/persistence/revision/parser logic;
+- client-side HTML parsing as a replacement for P4 preview;
+- direct browser fetch of endpoint URLs;
+- network-backed preview;
+- crawler/pagination/Article-page/subresource controls;
+- browser automation/headless browser controls;
+- generic scraping code/expression editor;
+- HTML keyword admission filter;
+- public-feed presentation changes;
+- unrelated admin redesign/polish.
+
+VALIDATION
+During development use focused browser tests for Source/endpoint HTML profile/preview workflows plus the narrowest affected integration checks.
+
+Before completion on the final P5 tree run the smallest non-overlapping applicable set:
+- `npm run check`
+- `npm run test:browser`
+- do not rerun the full database suite solely for P5 if P5 changes no backend/database behavior and P4/P3 already own that evidence; run focused backend regression only if source changes unexpectedly invalidate it
+- `git diff --check`
+
+Do not separately rerun ordinary suites already contained by successful `npm run check` on the unchanged tree.
+
+Confirm `package.json` is `0.18.5`, no npm lockfile exists, and no frontend direct-network/parser/persistence authority was introduced.
+
+FINAL REPORT
+Report admin markup/client/style changes, profile/preview/diagnostic workflows, browser scenarios actually observed, broader regressions actually executed, package version, and any remaining risk. Do not declare Phase 18 complete; P6 owns independent closeout.
