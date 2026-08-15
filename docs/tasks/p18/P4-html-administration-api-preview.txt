@@ -1,0 +1,217 @@
+TASK: Phase 18 / P4 — HTML endpoint administration API and safe preview
+
+ROADMAP PHASE
+Phase 18 — Configurable HTML collection.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: P4 extends the transactional endpoint-administration boundary and introduces a security-sensitive no-network preview API consumed directly by the browser UI.
+- Reasoning basis: High reasoning is appropriate for keeping endpoint/profile revisions canonical, preview pure, request-integrity/error semantics bounded, recent-run diagnostics truthful, and check-now on the existing durable Worker path.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because the same service/API must compose P1 parsing and P2 persistence without duplicating either while preserving Source→endpoint lock order and proving preview cannot become a second network/persistence path.
+- Escalation trigger: source inspection shows HTML profile administration cannot use the existing endpoint transaction/relationship ownership or preview cannot remain a pure consumer of P1 without introducing network/resource ownership.
+- Escalation target: `Terra Ultra` for difficult explicit transaction/resource interactions; stop for replanning if the admin or preview contract itself must change.
+- Estimate confidence: `High`.
+- Efficiency rationale: P1–P3 establish all producer semantics, so P4 can expose one complete UI-ready backend instead of pushing SQL, validation, or collection decisions into P5.
+- Plan delta: `Unchanged` from `/prompt-plan`.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md`, `docs/codex-model-selection.md`, and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 18 prompt 4 and its assigned project version is `0.18.4`.
+- On first execution, require top-level `package.json` version `0.18.3`; on a rerun of this same P4, `0.18.4` is acceptable.
+- Update only the top-level package version to `0.18.4`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 18 roadmap entry, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/source-and-collection-contract.md`, `docs/contracts/domain-and-data-contract.md`, `docs/operations/security-reliability-and-operations.md`, and `docs/contracts/testing-and-validation-contract.md`;
+2. read P1–P3 and inspect their actual final producer interfaces: profile normalization/preview, endpoint profile/revision persistence, Collection-run parser diagnostics, and canonical HTML check-now/Worker execution;
+3. inspect `src/admin/endpoint-administration.ts`, `src/app/web/endpoint-administration-router.ts`, `src/app/web/admin-router.ts`, admin route composition in `src/app/web/create-app.ts`/current equivalent, endpoint/source administration integration/database tests, and current admin request-integrity/error handling;
+4. inspect existing Source→endpoint→endpoint-policy transaction lock ordering and preserve it for profile-bearing create/replace commands;
+5. confirm package version is at the expected P3/P4 rerun state and stop/report planning drift if P1–P3 do not already supply the backend semantics P4 is supposed to consume.
+
+GOAL
+Extend the existing protected Source/endpoint administration backend so authorized operators can configure persisted `html_listing` endpoints, inspect profile/parser diagnostics, run a bounded no-network HTML sample preview, and use the existing check-now path for real collection.
+
+P4 must produce a complete browser-consumable service/API contract for P5. P5 must not need to invent persistence rules, selector validation, parser behavior, revision semantics, SQL, run-diagnostic interpretation, or collection execution.
+
+ENDPOINT ADMIN READ MODEL
+Extend the existing endpoint administration read model to expose only the Phase 18 data the operator needs.
+
+For all endpoints retain current fields/state/domain/default-Category behavior. Add:
+- HTML listing profile when `endpointType === 'html_listing'`, otherwise null/absent consistently;
+- positive persisted HTML profile revision for HTML endpoints, otherwise null/absent consistently;
+- any stable parser adapter/version metadata that is endpoint/configuration-level rather than run-specific, if P1/P2 make that meaningful.
+
+Keep the DTO explicit and bounded. Do not expose raw database JSON, internal IDs merely for convenience, Raw items, HTML response bodies, or Article persistence internals.
+
+CREATE / REPLACE COMMANDS
+Extend endpoint create and configuration replacement to accept the P1 profile only for `html_listing`.
+
+Required behavior:
+- HTML endpoint creation validates through P1's canonical profile normalizer and persists through P2's canonical Source repository/transaction path;
+- RSS/Atom creation/replacement rejects HTML-only profile configuration;
+- HTML configuration replacement uses P2's normalized equality/revision semantics; the admin service must not maintain its own revision counter;
+- switching RSS→HTML requires a valid profile and results in P2's revision `1` semantics;
+- switching HTML→RSS clears HTML profile state through P2's canonical path;
+- domain-policy, Source relationship, Category-default, config-key/URL conflicts, archived-state, approval, operational, and lifecycle rules remain unchanged;
+- create/replace remains transactional and follows existing Source→endpoint→endpoint-policy lock ordering;
+- failed validation/relationship/conflict commands make no partial profile/type/domain/Category changes.
+
+Do not add a generic arbitrary endpoint adapter settings object to the public admin contract. Support the implemented endpoint types explicitly.
+
+RECENT RUN DIAGNOSTICS
+Extend `AdminEndpointCollectionRunReadModel`/current equivalent so recent run responses can display the P2 parser diagnostics safely.
+
+Expose as applicable:
+- parser adapter kind;
+- parser implementation version;
+- HTML profile revision used;
+- bounded parser item/extraction failure count;
+- bounded parser diagnostic code/detail;
+- existing run/error/status/transport/processing fields.
+
+Do not reinterpret parser errors in the router and do not expose raw HTML/body/parser-library errors.
+
+SAFE SAMPLE PREVIEW SERVICE
+Add a pure service method backed directly by P1's safe preview operation.
+
+Preview request consists only of:
+- bounded operator-supplied HTML sample;
+- draft HTML listing profile.
+
+Preview must NOT:
+- read or fetch the configured endpoint URL;
+- invoke DNS resolution;
+- call `HttpFetcher`/transport;
+- enqueue a job or call check-now;
+- acquire endpoint/capacity locks;
+- create/finalize a Collection run;
+- read/write conditional validators, scheduler timing, health, Source/endpoint runtime state;
+- persist Article/observation/Relevance/duplicate data;
+- persist or revision the draft profile;
+- load scripts/subresources or use a browser.
+
+Keep preview independent of Source/endpoint existence where possible because it validates draft parser behavior, not collection authorization. It may be implemented as a small dedicated preview service/module if that keeps the no-database/no-network dependency graph obvious, but do not create a second collector abstraction.
+
+PREVIEW BOUNDS
+The admin server currently has a bounded JSON request-body policy. Preserve it; do not globally increase all admin request limits merely for preview.
+
+Choose an explicit preview HTML-sample maximum that fits safely within the current admin JSON-body limit together with profile/JSON overhead. Reject oversize sample/profile input with the existing bounded invalid-request behavior rather than truncating it silently.
+
+Also bound preview output, including:
+- maximum returned preview rows lower than or equal to P1 parser bounds;
+- returned title/url/optional field/category sizes inherited from P1;
+- diagnostics/sample counts/detail inherited from P1;
+- no echoed raw HTML sample.
+
+If the existing global admin body limit has changed, derive a safe preview-specific limit beneath it rather than hard-coding an impossible request size.
+
+HTTP ROUTE
+Expose one protected POST preview route under the existing `/api/admin` router. Use a concise stable route such as `/html-listing/preview` or the current repository's clearest equivalent; do not require a persisted endpoint key for a draft sample-preview operation.
+
+Required HTTP behavior:
+- central admin request-integrity middleware applies before the route;
+- strict JSON body shape; unknown/repeated/unsupported fields fail closed;
+- success returns only bounded normalized preview rows and safe diagnostics;
+- invalid profile/sample/parser failure maps to deterministic bounded 400-class behavior appropriate to operator-correctable input;
+- unexpected dependency/internal errors use existing generic bounded handling and never leak stacks/SQL/raw HTML;
+- no GET route that places HTML/profile data in query strings;
+- no network URL preview/fetch route.
+
+Do not implement Cloudflare identity/application accounts; preserve the existing external admin perimeter assumptions.
+
+CHECK-NOW PRESERVATION
+Do not create an HTML-specific check endpoint.
+
+The existing endpoint `checkNow` method/route must remain the sole real network-backed manual verification path. P3 already makes that durable job path support persisted HTML endpoints.
+
+P4 should add/adjust tests proving:
+- a valid persisted HTML endpoint can be check-now queued using the same route/service semantics;
+- preview never invokes check-now or Worker collection;
+- preview success does not imply a Collection run exists or endpoint health changed.
+
+ERROR MODEL
+Extend `EndpointAdministrationError`/current error vocabulary only where necessary for deterministic HTML profile/preview errors.
+
+Prefer existing `invalid_request` for canonical configuration validation unless the UI needs a stable narrower code that materially improves operator correction. Do not mirror parser-library exception classes into the public API.
+
+Keep 404 for real missing Source/endpoint relationships, 409 for current lifecycle/conflict/not-collectable semantics, and bounded 400 behavior for invalid draft/profile input.
+
+FOCUSED LEVEL 2 / LEVEL 3 TESTS
+Prove at minimum:
+- endpoint read DTO exposes profile/revision only for HTML endpoints;
+- HTML create and replace pass a canonical normalized profile through persistence;
+- invalid/missing HTML profile fails without partial state;
+- RSS endpoint rejects HTML-only profile;
+- RSS→HTML and HTML→RSS use P2 type/profile/revision semantics;
+- semantically identical HTML profile replacement does not revision via an admin-specific code path;
+- Source/domain/default-Category and archived/conflict validations still hold with HTML profiles;
+- recent-run DTO safely maps parser adapter/version/profile revision/item-failure diagnostics;
+- preview success returns bounded rows/diagnostics;
+- malformed profile, zero-match/all-invalid parser failures, unknown fields, and oversize sample return bounded safe errors;
+- raw HTML/secret sentinel content is not echoed in preview errors;
+- preview has no fetcher/resolver/job/run/persistence dependencies or calls;
+- unsafe preview POST without the central request-integrity header is rejected before service invocation;
+- malformed JSON remains handled by existing admin JSON error behavior;
+- existing endpoint create/update/state/check-now/health/runs routes keep their current semantics.
+
+LEVEL 4 DATABASE TESTS
+Use real disposable PostgreSQL for the administration persistence claims:
+- HTML create/replace/type-switch transactions persist the expected P2 profile/revision state;
+- failed profile/domain/Category/conflict command rolls back completely;
+- recent Collection-run parser diagnostics read through endpoint administration correctly;
+- check-now for HTML queues the ordinary durable job and respects collectability/relationship state;
+- no preview request changes any database state.
+
+P4 → P5 CONSUMER-READINESS MATRIX
+Before P4 completes, tests must prove these exact UI-consumable capabilities:
+- endpoint GET/list → endpoint type + profile + revision;
+- endpoint POST/PUT → create/update HTML profile with deterministic error codes;
+- recent runs → parser adapter/version/profile revision/item diagnostics;
+- preview POST → bounded rows + bounded diagnostics, with request-integrity protection;
+- check-now POST → unchanged ordinary durable job response for HTML endpoints.
+
+P5 must not need direct database knowledge or parser imports.
+
+PRESERVED BEHAVIOR
+Preserve:
+- admin-disabled route behavior;
+- existing central request-integrity header/middleware and JSON limits;
+- Source and endpoint resource relationship validation;
+- approval/lifecycle/operational/domain/polling/default-Category semantics;
+- RSS/Atom Source admission phrase administration and its RSS-only meaning;
+- check-now durable Worker path, health, and run list semantics;
+- Publication/Editorial/Article/duplicate administration;
+- Source-scoped identity/provenance and public feed behavior;
+- topic independence and no Publication selector.
+
+NON-GOALS
+Do not implement:
+- browser UI changes;
+- client-side HTML parsing/selector validation;
+- network-backed preview;
+- inline Web/API Source collection;
+- browser automation;
+- crawling, pagination, Article-page/subresource fetching;
+- arbitrary adapter/plugin/expression editors;
+- Source RSS/Atom admission phrases for HTML;
+- HTML-specific Relevance/identity/persistence/duplicate/public-feed behavior.
+
+VALIDATION
+During development use focused endpoint-admin service/router/database tests.
+
+Before completion on the final P4 tree run the smallest non-overlapping applicable set:
+- `npm run check`
+- `npm run test:db` because endpoint/profile transactions, run diagnostics, and check-now persistence are part of the acceptance claim
+- do not run the full browser suite yet because P5 owns the browser consumer
+- `git diff --check`
+
+Do not separately rerun ordinary suites already contained by `npm run check` on the unchanged tree.
+
+Confirm `package.json` is `0.18.4`, no npm lockfile exists, preview dependency graph is no-network/no-persistence, and every P5 handoff is proven.
+
+FINAL REPORT
+Report API/service/read-model changes, preview route/request/response bounds, endpoint profile/revision behavior, run diagnostics, check-now preservation, validation actually executed, package version, and any remaining risk. Do not claim the browser workflow is implemented yet.
