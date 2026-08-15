@@ -26,7 +26,9 @@ export type DuplicateGroupingNoopReason =
   | 'candidate_not_found'
   | 'candidate_not_actionable'
   | 'stale_evidence'
-  | 'same_source';
+  | 'same_source'
+  | 'manual_separation'
+  | 'manual_primary_conflict';
 
 export interface DuplicateGroupingResult {
   readonly outcome: 'grouped' | 'already_merged' | 'not_actionable';
@@ -73,6 +75,7 @@ interface MembershipRow {
 interface GroupRow {
   readonly id: unknown;
   readonly primary_article_id: unknown;
+  readonly primary_selection_origin: unknown;
 }
 
 /**
@@ -136,8 +139,32 @@ export async function groupStrongDuplicateCandidateInTransaction(
           cause: new Error('merged candidate has no shared Duplicate group'),
         });
       }
-      const primary = await reselectPrimary(executor, firstGroupId);
+      const primary = await retainOrReselectPrimary(executor, firstGroupId);
       return groupedResult('already_merged', firstGroupId, primary.id, false);
+    }
+
+    const resultingMembers = await loadResultingMembersForUpdate(
+      executor,
+      articles.map((article) => article.id),
+      [firstGroupId, secondGroupId].filter(
+        (groupId): groupId is string => groupId !== undefined,
+      ),
+    );
+    if (await hasActiveManualSeparation(executor, resultingMembers)) {
+      return noAction('manual_separation');
+    }
+
+    if (
+      firstGroupId !== undefined &&
+      secondGroupId !== undefined &&
+      firstGroupId !== secondGroupId &&
+      (await hasConflictingManualPrimaries(
+        executor,
+        firstGroupId,
+        secondGroupId,
+      ))
+    ) {
+      return noAction('manual_primary_conflict');
     }
 
     let groupId: string;
@@ -179,6 +206,11 @@ export async function groupStrongDuplicateCandidateInTransaction(
          WHERE group_id = $2`,
         [survivingGroupId, losingGroupId],
       );
+      await retainManualPrimaryAcrossMerge(
+        executor,
+        survivingGroupId,
+        losingGroupId,
+      );
       await executor.query('DELETE FROM duplicate_groups WHERE id = $1', [
         losingGroupId,
       ]);
@@ -186,7 +218,7 @@ export async function groupStrongDuplicateCandidateInTransaction(
       topologyChanged = true;
     }
 
-    const primary = await reselectPrimary(executor, groupId);
+    const primary = await retainOrReselectPrimary(executor, groupId);
     await executor.query(
       `UPDATE duplicate_review_candidates
        SET state = 'merged', updated_at = now()
@@ -198,6 +230,28 @@ export async function groupStrongDuplicateCandidateInTransaction(
     if (error instanceof DuplicateGroupingError) throw error;
     throw new DuplicateGroupingError('transaction_failed', { cause: error });
   }
+}
+
+async function retainManualPrimaryAcrossMerge(
+  executor: QueryExecutor,
+  survivingGroupId: string,
+  losingGroupId: string,
+): Promise<void> {
+  const result = await executor.query<GroupRow>(
+    `SELECT id, primary_article_id, primary_selection_origin
+     FROM duplicate_groups WHERE id = ANY($1::uuid[]) FOR UPDATE`,
+    [[survivingGroupId, losingGroupId]],
+  );
+  const manual = result.rows.filter(
+    (row) => requiredPrimaryOrigin(row.primary_selection_origin) === 'manual',
+  );
+  if (manual.length !== 1) return;
+  await executor.query(
+    `UPDATE duplicate_groups
+     SET primary_article_id = $2, primary_selection_origin = 'manual', updated_at = now()
+     WHERE id = $1`,
+    [survivingGroupId, requiredUuid(manual[0]!.primary_article_id)],
+  );
 }
 
 /** Convenience wrapper for tests and standalone operator-free callers. */
@@ -229,6 +283,24 @@ async function acquireDuplicateTopologyLocks(
 ): Promise<void> {
   await acquireTransactionLock(executor, DUPLICATE_TOPOLOGY_GLOBAL_LOCK_KEY);
   for (const articleId of [pair.articleLowId, pair.articleHighId]) {
+    await acquireTransactionLock(
+      executor,
+      duplicateTopologyArticleLockKey(articleId),
+    );
+  }
+}
+
+/** Shared manual/automatic topology boundary. Call only inside a transaction. */
+export async function acquireDuplicateTopologyLocksForArticles(
+  executor: QueryExecutor,
+  articleIds: readonly string[],
+): Promise<void> {
+  const ids = [...new Set(articleIds.map((id) => id.toLowerCase()))].sort();
+  if (ids.length === 0 || ids.some((id) => !UUID_PATTERN.test(id))) {
+    throw new DuplicateGroupingError('invalid_pair');
+  }
+  await acquireTransactionLock(executor, DUPLICATE_TOPOLOGY_GLOBAL_LOCK_KEY);
+  for (const articleId of ids) {
     await acquireTransactionLock(
       executor,
       duplicateTopologyArticleLockKey(articleId),
@@ -338,7 +410,7 @@ async function reselectPrimary(
   groupId: string,
 ): Promise<PersistedArticle> {
   const group = await executor.query<GroupRow>(
-    `SELECT id, primary_article_id
+    `SELECT id, primary_article_id, primary_selection_origin
      FROM duplicate_groups
      WHERE id = $1
      FOR UPDATE`,
@@ -380,6 +452,97 @@ async function reselectPrimary(
     [groupId, primary.id],
   );
   return primary;
+}
+
+/** Selects and marks an automatic Primary while holding the shared topology gate. */
+export async function selectDuplicateGroupPrimaryInTransaction(
+  executor: QueryExecutor,
+  groupId: string,
+): Promise<PersistedArticle> {
+  return reselectPrimary(executor, groupId);
+}
+
+async function retainOrReselectPrimary(
+  executor: QueryExecutor,
+  groupId: string,
+): Promise<PersistedArticle> {
+  const group = await executor.query<GroupRow>(
+    `SELECT id, primary_article_id, primary_selection_origin
+     FROM duplicate_groups WHERE id = $1 FOR UPDATE`,
+    [groupId],
+  );
+  const row = group.rows[0];
+  if (row === undefined) throw new DuplicateGroupingError('transaction_failed');
+  const origin = requiredPrimaryOrigin(row.primary_selection_origin);
+  const primaryId = requiredUuid(row.primary_article_id);
+  const members = await executor.query<ArticleRow>(
+    `SELECT ${qualifiedArticleColumns('articles')}
+     FROM duplicate_group_memberships membership
+     JOIN articles ON articles.id = membership.article_id
+     WHERE membership.group_id = $1
+     ORDER BY articles.id ASC
+     FOR UPDATE OF membership, articles`,
+    [groupId],
+  );
+  const primary = members.rows
+    .map(mapArticleRow)
+    .find((article) => article.id === primaryId);
+  if (origin === 'manual' && primary !== undefined) return primary;
+  return reselectPrimary(executor, groupId);
+}
+
+async function loadResultingMembersForUpdate(
+  executor: QueryExecutor,
+  articleIds: readonly string[],
+  groupIds: readonly string[],
+): Promise<readonly string[]> {
+  const result = await executor.query<{ readonly article_id: unknown }>(
+    `SELECT membership.article_id
+     FROM duplicate_group_memberships membership
+     WHERE membership.group_id = ANY($1::uuid[])
+     FOR UPDATE`,
+    [groupIds],
+  );
+  return [
+    ...new Set([
+      ...articleIds,
+      ...result.rows.map((row) => requiredUuid(row.article_id)),
+    ]),
+  ].sort();
+}
+
+async function hasActiveManualSeparation(
+  executor: QueryExecutor,
+  articleIds: readonly string[],
+): Promise<boolean> {
+  if (articleIds.length < 2) return false;
+  const result = await executor.query<{ readonly count: string }>(
+    `SELECT count(*)
+     FROM duplicate_manual_separations
+     WHERE article_low_id = ANY($1::uuid[]) AND article_high_id = ANY($1::uuid[])`,
+    [articleIds],
+  );
+  return Number(result.rows[0]?.count ?? 0) > 0;
+}
+
+async function hasConflictingManualPrimaries(
+  executor: QueryExecutor,
+  firstGroupId: string,
+  secondGroupId: string,
+): Promise<boolean> {
+  const result = await executor.query<GroupRow>(
+    `SELECT id, primary_article_id, primary_selection_origin
+     FROM duplicate_groups WHERE id = ANY($1::uuid[]) FOR UPDATE`,
+    [[firstGroupId, secondGroupId]],
+  );
+  return (
+    result.rows.length === 2 &&
+    result.rows.every(
+      (row) => requiredPrimaryOrigin(row.primary_selection_origin) === 'manual',
+    ) &&
+    requiredUuid(result.rows[0]!.primary_article_id) !==
+      requiredUuid(result.rows[1]!.primary_article_id)
+  );
 }
 
 function signalsMatchEvidence(
@@ -485,6 +648,11 @@ function requiredPriority(value: unknown): number {
     throw new DuplicateGroupingError('transaction_failed');
   }
   return value;
+}
+
+function requiredPrimaryOrigin(value: unknown): 'automatic' | 'manual' {
+  if (value === 'automatic' || value === 'manual') return value;
+  throw new DuplicateGroupingError('transaction_failed');
 }
 
 function qualifiedArticleColumns(alias: string): string {

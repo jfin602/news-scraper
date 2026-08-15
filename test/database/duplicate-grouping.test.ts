@@ -11,6 +11,12 @@ import {
   groupStrongDuplicateCandidateInTransaction,
 } from '../../src/deduplication/grouping.ts';
 import { canonicalizeArticlePair } from '../../src/deduplication/evidence.ts';
+import {
+  chooseDuplicatePrimary,
+  dismissDuplicateReview,
+  mergeDuplicateArticles,
+  splitDuplicateGroup,
+} from '../../src/deduplication/moderation.ts';
 import { detectDuplicateReviews } from '../../src/deduplication/repository.ts';
 import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 
@@ -257,6 +263,167 @@ test('an injected candidate-write failure rolls back all topology and dispositio
     );
     assert.equal(await groupCount(database), 0);
     assert.equal(await candidateState(database, ab), 'pending');
+  });
+});
+
+test('manual split creates durable separation, coherently dismisses candidates, and explicit merge revises only that authority', async () => {
+  await withGroupingDatabase(async (database) => {
+    await ensureCandidate(database, ids.a);
+    await ensureCandidate(database, ids.c);
+    const ab = await groupStrongDuplicateCandidate(
+      database,
+      pair(ids.a, ids.b),
+    );
+    await groupStrongDuplicateCandidate(database, pair(ids.a, ids.c));
+    await chooseDuplicatePrimary(
+      database,
+      ab.groupId!,
+      ids.b,
+      'operator prefers B',
+    );
+
+    const split = await splitDuplicateGroup(
+      database,
+      ab.groupId!,
+      [ids.b],
+      'separate B',
+    );
+    assert.deepEqual(split, { outcome: 'changed', groupId: ab.groupId });
+    const authority = await database.query<{ count: string }>(
+      `SELECT count(*) FROM duplicate_manual_separations
+       WHERE article_low_id = $1 AND article_high_id = $2`,
+      [pair(ids.a, ids.b).articleLowId, pair(ids.a, ids.b).articleHighId],
+    );
+    assert.equal(authority.rows[0]?.count, '1');
+    assert.equal(
+      await candidateState(database, pair(ids.a, ids.b)),
+      'dismissed',
+    );
+    await database.query(
+      `UPDATE articles SET canonical_identity_url = 'https://publisher.example/revised-story'
+       WHERE id IN ($1, $2)`,
+      [ids.a, ids.b],
+    );
+    await ensureCandidate(database, ids.a);
+    const blocked = await groupStrongDuplicateCandidate(
+      database,
+      pair(ids.a, ids.b),
+    );
+    assert.equal(blocked.reason, 'manual_separation');
+
+    const merged = await mergeDuplicateArticles(database, [ids.a, ids.b], {
+      primaryArticleId: ids.b,
+      reason: 'operator confirms merge',
+    });
+    assert.equal(merged.outcome, 'changed');
+    assert.equal(merged.primaryArticleId, ids.b);
+    assert.equal(authority.rows[0]?.count, '1');
+    const after = await database.query<{
+      count: string;
+      primary_selection_origin: string;
+    }>(
+      `SELECT (SELECT count(*) FROM duplicate_manual_separations
+               WHERE article_low_id = $1 AND article_high_id = $2) AS count,
+              primary_selection_origin
+       FROM duplicate_groups WHERE id = $3`,
+      [
+        pair(ids.a, ids.b).articleLowId,
+        pair(ids.a, ids.b).articleHighId,
+        merged.groupId,
+      ],
+    );
+    assert.equal(after.rows[0]?.count, '0');
+    assert.equal(after.rows[0]?.primary_selection_origin, 'manual');
+    await assertTopology(database);
+  });
+});
+
+test('manual Primary survives automatic reevaluation, conflicts block automatic group merge, and dismiss writes audit atomically', async () => {
+  await withGroupingDatabase(async (database) => {
+    await ensureCandidate(database, ids.a);
+    await ensureCandidate(database, ids.c);
+    const ab = await groupStrongDuplicateCandidate(
+      database,
+      pair(ids.a, ids.b),
+    );
+    const cd = await groupStrongDuplicateCandidate(
+      database,
+      pair(ids.c, ids.d),
+    );
+    await chooseDuplicatePrimary(database, ab.groupId!, ids.a);
+    await chooseDuplicatePrimary(database, cd.groupId!, ids.c);
+    const same = await groupStrongDuplicateCandidate(
+      database,
+      pair(ids.a, ids.b),
+    );
+    assert.equal(same.primaryArticleId, ids.a);
+    const conflict = await groupStrongDuplicateCandidate(
+      database,
+      pair(ids.b, ids.c),
+    );
+    assert.equal(conflict.reason, 'manual_primary_conflict');
+    assert.equal(await groupCount(database), 2);
+    const resolved = await mergeDuplicateArticles(database, [ids.b, ids.c], {
+      primaryArticleId: ids.c,
+    });
+    assert.equal(resolved.outcome, 'changed');
+    assert.equal(await groupCount(database), 1);
+
+    await database.query(
+      `UPDATE duplicate_review_candidates SET state = 'pending'
+       WHERE article_low_id = $1 AND article_high_id = $2`,
+      [pair(ids.a, ids.d).articleLowId, pair(ids.a, ids.d).articleHighId],
+    );
+    const candidate = await database.query<{ id: string }>(
+      `SELECT id FROM duplicate_review_candidates
+       WHERE article_low_id = $1 AND article_high_id = $2`,
+      [pair(ids.a, ids.d).articleLowId, pair(ids.a, ids.d).articleHighId],
+    );
+    const dismissed = await dismissDuplicateReview(
+      database,
+      candidate.rows[0]!.id,
+      'not actionable',
+    );
+    assert.equal(dismissed.outcome, 'changed');
+    const audit = await database.query<{ count: string }>(
+      `SELECT count(*) FROM audit_events WHERE target_id = $1 AND action = 'duplicate_review_dismissed'`,
+      [candidate.rows[0]!.id],
+    );
+    assert.equal(audit.rows[0]?.count, '1');
+    await assertTopology(database);
+  });
+});
+
+test('a failed duplicate audit insert rolls back the manual candidate decision', async () => {
+  await withGroupingDatabase(async (database) => {
+    await ensureCandidate(database, ids.a);
+    const candidate = await database.query<{ id: string }>(
+      `SELECT id FROM duplicate_review_candidates
+       WHERE article_low_id = $1 AND article_high_id = $2`,
+      [pair(ids.a, ids.b).articleLowId, pair(ids.a, ids.b).articleHighId],
+    );
+    const failingDatabase = {
+      transaction: async <T>(work: (executor: QueryExecutor) => Promise<T>) =>
+        database.transaction((transaction) =>
+          work({
+            query: async <
+              Row extends Record<string, unknown> = Record<string, unknown>,
+            >(
+              statement: string,
+              values?: readonly unknown[],
+            ) => {
+              if (statement.includes('INSERT INTO audit_events')) {
+                throw new Error('synthetic audit failure');
+              }
+              return transaction.query<Row>(statement, values);
+            },
+          }),
+        ),
+    };
+    await assert.rejects(() =>
+      dismissDuplicateReview(failingDatabase, candidate.rows[0]!.id),
+    );
+    assert.equal(await candidateState(database, pair(ids.a, ids.b)), 'pending');
   });
 });
 
