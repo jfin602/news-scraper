@@ -283,17 +283,16 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 17 — Article and duplicate moderation**.
+Current phase: **Phase 18 — Configurable HTML collection**.
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with its recorded live-source limitation preserved. The Phase 10 entry singleton correction and Phases 10–15 are complete.
 
-Phase 15 is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 is complete with durable GREEN validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`; the non-versioned `c16-test-efficiency` correction remains completed historical work. Phase 17 is active. P1–P4 are implemented through project version `0.17.4`; P5 remains unexecuted after correctly refusing to absorb missing producer-owned duplicate-review read semantics from P3. The prepared non-versioned correction `c17-duplicate-review-read-surface` is the current gate and remains unaccepted until its implementation plus manual correction closeout are GREEN.
+Phase 15 is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 is complete with durable GREEN validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`; the non-versioned `c16-test-efficiency` correction remains completed historical work. Phase 17 is complete with durable GREEN validation in `docs/validation/phase-17-article-and-duplicate-moderation.md`. Phase 18 is active.
 
-After that correction gate is GREEN, Phase 17 resumes at P5 on `main`, followed by the remaining versioned API/UI/closeout work. The permanent `ui-polish` workstream remains separately targeted, non-versioned, presentation-only work and MUST NOT absorb Phase 17 persistence, commands, API semantics, or required behavioral browser workflow.
+Phase 18 questions route to `docs/contracts/domain-and-data-contract.md`, `docs/contracts/source-and-collection-contract.md`, `docs/architecture/system-architecture.md`, `docs/contracts/public-feed-and-admin-contract.md`, and `docs/contracts/testing-and-validation-contract.md`. HTML collection is bounded static adapter behavior for approved/whitelisted endpoints, produces the existing Raw-item contract, uses no alternate downstream persistence path, keeps Source admission phrases RSS/Atom-only, and does not implement browser automation.
 
 Remaining roadmap order:
 
-- Phase 18 — Configurable HTML collection
 - Phase 19 — Reliability, observability, and production operations
 - Phase 20 — Customer launch validation
 - Phase 21 — Codebase simplification and maintainability hardening
@@ -317,7 +316,7 @@ Phases 1–9 remain the tech-demo critical path historically.
 - Trace shared helpers/consumers before changing data or collection semantics.
 - After Phase 20, trace the supported production baseline, migration path, persisted relationships, backup/rollback/restore, and affected consumers/tests before approving persistence refactors; never apply the pre-production destructive-reset rule to supported customer data.
 - For Phase 21, derive the task stack from the accepted launched tree and observed maintainability/measurement evidence. Do not manufacture cleanup work, optimize for raw LOC/file/module/dependency counts, or add deferred product capability.
-- Before Phase 17 work trace visibility/display and Category override state → Article/provenance read model → duplicate review/group/manual-decision state → operator mutation → canonical public-feed/admin effects → change history → tests.
+- Before Phase 18 work trace endpoint type/profile → approval/state → endpoint lock/network safety → bounded HTTP fetch/redirect → parser adapter → conditional RSS/Atom-only admission stage → shared normalization/link policy/Relevance/identity/persistence/duplicate path → run/health diagnostics → admin preview/check-now → focused/shared regressions.
 - Before public-route work trace singleton Publication settings → canonical read model → `/api/feed` → `/` page/client → unavailable/error behavior → external links → browser tests.
 - Before UI work read `docs/design/README.md` and `docs/design/ui-workflow.md`, trace presentation source/shared frontend consumers/tests, and keep concurrent UI implementation isolated in the `ui-polish` worktree.
 - Confirm applicable local validation commands/suites were actually executed against the final tree before approval.

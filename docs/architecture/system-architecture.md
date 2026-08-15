@@ -21,9 +21,12 @@ flowchart LR
     W --> G[Eligibility + Pre-fetch Network Safety Gate]
     G --> F[Fetcher]
     F --> S[Approved Active Enabled Source Endpoint]
-    F --> R[Parser Adapter]
-    R --> A[Optional Source RSS/Atom Item Admission Filter]
-    A --> N[Normalizer]
+    F --> R{Parser Adapter by Endpoint Type}
+    R --> X[RSS/Atom Parser]
+    R --> H[Static HTML Listing Parser]
+    X --> AF[Optional Source RSS/Atom Item Admission Filter]
+    AF --> N[Normalizer]
+    H --> N
     N --> L[Article-link / Source Policy Validation]
     L --> V[Installation Relevance + Categories]
     V --> I[Source-scoped Article Identity Resolution]
@@ -125,6 +128,8 @@ Rules:
 
 - Source-specific retrieval/parsing lives behind fetcher/parser adapter interfaces established with the first RSS/Atom implementation.
 - The optional Source RSS/Atom item admission filter is Source-owned include-only configuration evaluated over existing parsed RSS/Atom Raw-item text before Article-candidate normalization; it is distinct from downstream Relevance.
+- Phase 18 adds a configurable static-HTML parser implementation behind that same boundary. Endpoint type selects RSS/Atom or HTML parsing; both produce the same Raw-item contract, HTML bypasses the RSS/Atom-only admission filter, and all stages from normalization onward are shared.
+- Source-admin sample preview is a pure bounded parser/profile-validation path over operator-supplied HTML. It has no network, Collection run, endpoint lock, scheduler/health, or Article persistence edge and is not another collector.
 - Public-feed code consumes normalized Article read models only.
 - Admin controllers do not perform collection inline; manual check-now requests the same governed endpoint execution/job path rather than a second collector.
 - Deduplication logic does not depend on topic-specific keywords.
@@ -163,9 +168,10 @@ flowchart TD
     D --> E{Transport result}
     E -- Not modified --> F[Successful no-change transport result]
     E -- Failure --> H[Record isolated failure]
-    E -- Content --> I[Parse Raw items]
-    I --> A[Apply optional Source RSS/Atom item admission filter]
-    A --> J[Normalize admitted Article candidates]
+    E -- Content --> I{Parse by endpoint type into Raw items}
+    I -- RSS/Atom --> AF[Apply optional Source RSS/Atom item admission filter]
+    I -- HTML listing --> J[Normalize Article candidates]
+    AF --> J[Normalize admitted Article candidates]
     J --> K[Validate normalized Article-link/source-domain policy]
     K --> L[Evaluate installation/Source-scoped Relevance + Categories]
     L --> M[Resolve Article identity within Source]
@@ -186,7 +192,10 @@ The pipeline grew by phase without inventing outcomes for stages that did not ex
 - Phase 10 added durable scheduling/jobs, conditional-fetch state, retry/recovery, concurrency controls, and endpoint health around the same endpoint execution unit.
 - Phase 11 extended the existing pre-identity Relevance boundary with persisted installation-wide/Source-scoped include/exclude/categorize rules, Category/default assignment, deterministic persisted reasons, exact pre-identity `excluded` accounting, and the explicit pre-admin editorial-configuration path.
 - Phase 14 adds the optional Source RSS/Atom item admission filter before normalization, with distinct `source_item_filtered_count` accounting and no Article observation or Relevance `excluded` outcome for a mismatch.
-- Later duplicate phases add duplicate effects/grouping without redefining Article identity.
+- Phase 16 added duplicate effects/grouping without redefining Article identity, and Phase 17 added reversible moderation over retained Article/duplicate state.
+- Phase 18 adds endpoint-selected bounded static HTML parsing behind the existing adapter boundary. HTML Raw items bypass the RSS/Atom-only Source admission stage and rejoin before normalization; scheduling, safety, Relevance, Source-scoped identity/persistence, observations, duplicate processing, and run/health behavior remain shared.
+
+Phase 18 adds no Web/API inline collection and no browser-automation collection process. Admin sample preview is intentionally outside this collection flow because it performs pure parsing with no network or persistence.
 
 ## Scheduling model
 

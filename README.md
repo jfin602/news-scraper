@@ -8,7 +8,7 @@ Publication is the singleton editorial/configuration concept for the installed n
 
 ## Current project state
 
-Current phase: **Phase 17 — Article and duplicate moderation**.
+Current phase: **Phase 18 — Configurable HTML collection**.
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation and closeout validation are complete. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; that accepted limitation is not rewritten as passing evidence.
 
@@ -24,7 +24,7 @@ Phase 13 — Public presentation polish — is complete with durable validation 
 
 Phase 14 — Source administration — is complete by explicit repository-owner acceptance on August 14, 2026. Its historical validation artifact retains its original BLOCKED/RED determination: the then-required Level 8 Cloudflare Access/direct-origin deployment observation was unavailable, despite the recorded local/static/unit/integration/database/fixture/browser evidence. The governing roadmap and testing contract moved that deployment proof to Phase 19; acceptance did not rewrite the artifact or claim Level 8 was observed.
 
-Phase 15 — Publication and Relevance administration — is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 — True duplicate detection and grouping — is complete with durable validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`. Phase 17 — Article and duplicate moderation — is current and extends the existing Article/duplicate model with reversible operator controls without redefining Source-scoped Article identity or duplicate detection. The roadmap continues through Phase 21; Phase 21 is the terminal codebase-simplification/maintainability phase after customer launch.
+Phase 15 — Publication and Relevance administration — is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 — True duplicate detection and grouping — is complete with durable validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`. Phase 17 — Article and duplicate moderation — is complete with durable GREEN validation in `docs/validation/phase-17-article-and-duplicate-moderation.md`. Phase 18 is current and adds bounded static HTML listing extraction behind the existing approved/whitelisted parser and Raw-item pipeline; it adds no alternate persistence path, does not make the RSS/Atom Source admission filter generic, and does not implement browser collection. Detailed authority is in the domain, Source/collection, architecture, admin, and testing contracts.
 
 ## Delivery priority
 
@@ -140,10 +140,10 @@ Cloudflare Access-protected Admin UI/API       Root Public Feed
                               |
              Fetcher -> approved endpoint
                               |
-                  Parser -> Raw item
-                              |
-       optional Source RSS/Atom item admission filter
-                              |
+           endpoint-selected Parser -> Raw item
+                    /                     \
+       RSS/Atom-only admission             HTML bypass
+                    \                     /
             Normalizer -> Article candidate
                               |
              Article-link policy validation
@@ -163,7 +163,7 @@ During Phases 5–9 the Worker was invoked manually for configured endpoints. Ph
 
 The scheduler operates directly on due endpoints when singleton Publication collection is active. There is no supported requirement to schedule or switch among multiple topic Publications inside one deployment.
 
-Minimal Collection runs begin with the first real fetch in Phase 5. Phase 14 adds optional Source-owned RSS/Atom item admission between parsing and normalization; absence preserves collect-all behavior, and mismatches are counted separately without becoming Relevance exclusions or Article observations. Before configurable Relevance rules exist, safe candidates pass through the canonical empty-rule/default-include decision before identity. Phase 11 extends that same boundary rather than introducing a parallel relevance path.
+Minimal Collection runs begin with the first real fetch in Phase 5. Phase 14 adds optional Source-owned RSS/Atom item admission between RSS/Atom parsing and normalization; absence preserves collect-all behavior, and mismatches are counted separately without becoming Relevance exclusions or Article observations. Phase 18 HTML Raw items bypass that RSS/Atom-only stage and rejoin at the same normalizer. Before configurable Relevance rules exist, safe candidates pass through the canonical empty-rule/default-include decision before identity. Phase 11 extends that same boundary rather than introducing a parallel relevance path.
 
 ## Identity versus duplicates
 
@@ -395,15 +395,15 @@ Completed after the tech-demo milestone:
 - **Phase 13 — Public presentation polish** — complete with durable phase validation.
 - **Phase 14 — Source administration** — complete by explicit repository-owner acceptance on August 14, 2026; its historical BLOCKED/RED Level 8 deployment-proof artifact remains unchanged, and Phase 19 owns the deferred observation.
 - **Phase 15 — Publication and Relevance administration** — complete with durable phase validation.
+- **Phase 16 — True duplicate detection and grouping** — complete with durable GREEN phase validation.
+- **Phase 17 — Article and duplicate moderation** — complete with durable GREEN phase validation.
 
 Current:
 
-- **Phase 16 — True duplicate detection and grouping**
+- **Phase 18 — Configurable HTML collection**
 
 Then:
 
-- Phase 17 — Article and duplicate moderation
-- Phase 18 — Configurable HTML collection
 - Phase 19 — Reliability, observability, and production operations
 - Phase 20 — Customer launch validation
 - Phase 21 — Codebase simplification and maintainability hardening

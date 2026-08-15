@@ -156,6 +156,60 @@ Phase 3 persisted only the structured-feed type needed for the initial critical 
 
 The canonical basic polling field is `poll_interval_seconds`. It MUST be a positive bounded value. `0` MUST NOT mean disabled because operational state already owns `enabled`, `paused`, and `disabled` semantics. Other endpoint types and their adapter-specific configuration arrive only with the roadmap phase that implements them.
 
+### Phase 18 configurable HTML listing collection
+
+Phase 18 adds endpoint type `html_listing` beside `rss_atom`. The canonical path is:
+
+```text
+configured approved html_listing endpoint
+→ ordinary eligibility and endpoint lock
+→ existing destination/network-safety gate
+→ existing bounded HTTP transport and redirect validation
+→ static HTML listing parser adapter
+→ RawItem[]
+→ Article-candidate normalization
+→ Article-link policy
+→ existing Relevance/Categories
+→ Source-scoped identity/persistence/observation
+→ existing duplicate processing
+→ existing run/job/health behavior
+```
+
+There is no HTML-specific normalization, Relevance, Article repository, duplicate, or public-feed path. Endpoint type selects the parser adapter; every adapter rejoins the same Raw-item boundary and downstream pipeline.
+
+#### Endpoint and transport behavior
+
+An HTML run fetches only the explicitly configured listing endpoint URL. It does not crawl or follow listing pagination, discover or fetch Article pages, load images/stylesheets/scripts/frames/embeds or other subresources, or discover additional Sources/endpoints. Conditional requests, redirect limits, timeouts, response/decompression bounds, retry classification, scheduling, locking, and failure isolation remain owned by the canonical collection path.
+
+HTTP `Accept` and response media-type validation are endpoint-type-aware. `html_listing` supports ordinary static HTML such as `text/html`; standards-compatible XHTML MAY be accepted only when the selected static parser deliberately supports it. RSS/Atom retains its existing supported feed media types and MUST NOT be globally weakened to admit HTML responses.
+
+#### Static parsing
+
+The HTML adapter parses only the fetched response bytes/string. It never executes JavaScript, instantiates browser automation, or loads subresources. Selector length/complexity, document processing, matched item count, extracted field sizes, and returned diagnostics are bounded. Selector/profile syntax errors are configuration errors rejected before collection.
+
+Runtime markup/profile drift produces a bounded stable parser diagnostic rather than silent success. For matched item roots:
+
+- emit a Raw item only when required title and Article URL extraction succeeds;
+- reject and count an individual malformed item without necessarily failing unrelated valid items;
+- zero matched roots, or a result in which no matched item produces a valid required title and URL, is a diagnosable parser failure rather than successful empty content;
+- absent optional fields remain absent unless a separately defined bound or invariant is violated.
+
+Relative Article URLs remain Raw-item input and normalization resolves them against the terminal successfully fetched endpoint URL after approved redirects. Generic HTML parsing never synthesizes `RawItem.externalId` from list position, selector path, title/date/content hashes, DOM markup, or another generated HTML fingerprint; canonical-URL fallback remains the generic HTML identity path.
+
+#### RSS/Atom admission-filter boundary
+
+Phase 18 does not adopt the Source RSS/Atom item admission filter for HTML listings. When a Source owns both endpoint types, Source admission phrases apply only to supported RSS/Atom Raw items; the HTML profile determines which DOM items become HTML Raw items, and those items proceed directly to Article-candidate normalization. This does not create a second HTML keyword filter or another Relevance model.
+
+#### Browser fallback gate
+
+Browser automation remains unsupported in Phase 18. There is no browser endpoint type, Playwright/Puppeteer/headless-browser collector, or automatic escalation from static parsing. Static-parser diagnostics may inform an operator, but selector failure alone does not prove that browser automation is required. A later browser collector requires an explicit future promotion/decision for a specifically approved Source after ordinary HTTP extraction is shown insufficient.
+
+#### Safe selector preview
+
+Selector preview is a pure parsing operation over a bounded operator-supplied HTML sample and draft HTML profile. It performs no outbound network request or DNS lookup; creates no Collection run; acquires no endpoint lock; changes no conditional validator/cache, scheduler timing, or endpoint health; and persists no Article, Article observation, duplicate state, or Relevance outcome. It executes no scripts/subresources and returns only bounded extracted preview rows plus safe diagnostics without echoing an unbounded/raw HTML document.
+
+A protected admin endpoint MAY use POST because sample/profile data is request input. Existing request-integrity rules still apply to browser-originating unsafe requests even though preview is non-persistent. Network-backed verification remains the existing governed manual check-now path after a persisted endpoint is collectable; Phase 18 does not create a preview fetcher. Sample preview proves parser/profile behavior only, while check-now proves the real governed collection path. Neither is Level 7 live-Source evidence unless the Level 7 procedure is intentionally performed.
+
 ## Configuration precedence
 
 Singleton Publication configuration owns installation-wide editorial/global controls including:
@@ -189,7 +243,7 @@ Default Category resolution is fallback-only: if no matching categorize rule ass
 
 ## Source RSS/Atom item admission filter
 
-Phase 14 adds one optional, topic-independent Source-level admission filter for parsed RSS/Atom Raw items. It is Source configuration, not endpoint configuration, a Publication tenancy mechanism, a public-feed search filter, or a second Relevance-rule engine. Future adapters may explicitly adopt the same conceptual Source filter later, but unsupported adapter types do not use it automatically.
+Phase 14 adds one optional, topic-independent Source-level admission filter for parsed RSS/Atom Raw items. It is Source configuration, not endpoint configuration, a Publication tenancy mechanism, a public-feed search filter, or a second Relevance-rule engine. Phase 18 HTML listing endpoints do not use it; any future adoption by another adapter requires an explicit contract change rather than unconditional application by endpoint type.
 
 A configured filter contains one or more bounded, trimmed, non-empty keyword/phrase literals:
 
@@ -293,7 +347,7 @@ When an adapter emits `RawItem.externalId`, it designates that field as the adap
 Before Relevance, identity, duplicate, or public-feed logic, normalization MUST:
 
 - trim/normalize text without changing intended human meaning;
-- resolve relative Article URLs against the terminal successfully fetched feed URL after approved redirects; when no redirect occurred, the configured endpoint URL is that terminal base;
+- resolve relative Article URLs against the terminal successfully fetched endpoint URL after approved redirects; when no redirect occurred, the configured endpoint URL is that terminal base;
 - preserve the resulting absolute Source-provided Article destination as the original discovered URL separately from the canonical identity URL;
 - derive canonical identity URLs conservatively with a standards-based URL representation: remove fragments and strip only the exact recognized tracking-parameter names `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `utm_id`, `gclid`, `dclid`, `fbclid`, `msclkid`, `mc_cid`, and `mc_eid`; preserve all other query names, values, multiplicity, path information, and semantics, and do not invent heuristic query stripping, path rewriting, or trailing-slash normalization;
 - parse recognized credible Source dates to UTC while preserving confidence/reason/fallback metadata and the distinction from missing or invalid Source dates; normalization MUST NOT manufacture `first_seen_at` or substitute a Collection-run timestamp as a Source publication time;

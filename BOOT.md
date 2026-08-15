@@ -14,8 +14,8 @@ It establishes project identity, canonical terminology, authority, document rout
 - Deployment cardinality: exactly one Publication/topic per deployed installation
 - Topic reuse model: configure and deploy another installation of the same shared codebase; do not concurrently host multiple topic Publications in one installation
 - Publication data-model role: singleton editorial/configuration state, **not** a relational tenant/ownership key
-- Current phase: **Phase 17 — Article and duplicate moderation**
-- Current implementation gate: **Phase 17 P1–P4 are implemented through `0.17.4`; the prepared non-versioned `c17-duplicate-review-read-surface` correction is the current gate before P5 and is not accepted until its implementation plus manual correction closeout are GREEN**
+- Current phase: **Phase 18 — Configurable HTML collection**
+- Current implementation direction: **bounded static HTML listing profiles behind the existing approved/whitelisted endpoint parser and shared Raw-item/downstream pipeline; no browser collector and no generic application of the RSS/Atom Source admission filter**
 - Production status: pre-production
 - Pre-production database policy: destructive fresh rebuild from the repository's smallest current canonical migration chain and bootstrap/configuration; databases from older source trees are disposable and legacy-only migration/runtime/test/config structure is removed rather than preserved for compatibility
 - Production compatibility boundary: Phase 19 establishes/validates upgrade/restore/rollback procedures; acceptance of Phase 20 customer launch establishes the first supported production schema/data baseline, after which `docs/decisions/production-data-and-schema-compatibility.md` governs preservation and upgrades
@@ -38,7 +38,7 @@ Phase 13 — Public presentation polish — is complete with durable validation 
 
 Phase 14 — Source administration — is complete by explicit repository-owner acceptance on August 14, 2026. Its historical validation artifact remains truthful evidence of the recorded passing local/static/unit/integration/database/fixture/browser evidence and its original BLOCKED/RED determination: the then-required Level 8 Cloudflare Access/direct-origin deployment observation was unavailable. The governing roadmap and testing contract subsequently moved that observation to Phase 19; owner acceptance advanced the roadmap without rewriting the historical artifact or claiming Level 8 was observed.
 
-Phase 15 — Publication and Relevance administration — is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 — True duplicate detection and grouping — is complete with durable GREEN validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`; its non-versioned testing-efficiency correction remains completed historical work. Phase 17 — Article and duplicate moderation — is current. P1–P4 are implemented through project version `0.17.4`; P5 remains unexecuted after correctly stopping rather than absorbing missing producer-owned duplicate-review read semantics from P3. The prepared non-versioned `c17-duplicate-review-read-surface` correction is the current gate and remains unaccepted until its implementation plus manual correction closeout are GREEN. After that gate is accepted, resume the existing Phase 17 stack at P5 without renumbering or rewriting completed P1–P4 history.
+Phase 15 — Publication and Relevance administration — is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 — True duplicate detection and grouping — is complete with durable GREEN validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`; its non-versioned testing-efficiency correction remains completed historical work. Phase 17 — Article and duplicate moderation — is complete with durable GREEN validation in `docs/validation/phase-17-article-and-duplicate-moderation.md`. Phase 18 — Configurable HTML collection — is current.
 
 The canonical architecture is one Publication/topic per installation, singleton Publication editorial configuration without relational tenancy, Source-scoped identity/provenance, persisted Relevance/Categories, canonical `/api/feed`, canonical root `/`, and durable endpoint scheduling/jobs. Historical validation artifacts remain evidence only for the exact SHAs and environments they recorded.
 
@@ -48,7 +48,7 @@ Phases 1–9 are the historical tech-demo critical path.
 
 The first demonstrable milestone is: at least two real approved RSS/Atom Sources are collected through the Worker, recorded in Collection runs, normalized, passed through the canonical default-include Relevance boundary, persisted idempotently with Article-observation provenance, and displayed in the public feed with original-publisher headline links.
 
-Phase 11 completed deterministic persisted Categories and configurable Relevance execution. Phase 12 completed deterministic Source/Category filters, bounded literal search, keyset/load-more cursors, and URL/reset navigation behavior. Phase 13 completed the governed public-presentation work while preserving those discovery semantics. Phase 14 completed Source administration and the Source RSS/Atom item admission filter by owner acceptance on August 14, 2026, with the historical Level 8 deployment-proof limitation preserved and now governed by Phase 19. Phase 15 completed Publication/Category/Relevance administration, and Phase 16 completed true duplicate detection/grouping plus its non-versioned testing-efficiency correction. Phase 17 now adds reversible Article and duplicate moderation without redefining identity, provenance, or duplicate detection.
+Phase 11 completed deterministic persisted Categories and configurable Relevance execution. Phase 12 completed deterministic Source/Category filters, bounded literal search, keyset/load-more cursors, and URL/reset navigation behavior. Phase 13 completed the governed public-presentation work while preserving those discovery semantics. Phase 14 completed Source administration and the Source RSS/Atom item admission filter by owner acceptance on August 14, 2026, with the historical Level 8 deployment-proof limitation preserved and now governed by Phase 19. Phase 15 completed Publication/Category/Relevance administration, Phase 16 completed true duplicate detection/grouping plus its non-versioned testing-efficiency correction, and Phase 17 completed reversible Article and duplicate moderation. Phase 18 now extends the existing adapter boundary with approved static HTML listing profiles while keeping every downstream stage shared.
 
 Because the project is currently pre-production, databases from superseded source trees remain disposable. Current implementation work may rebuild development/pre-production databases from the canonical migration chain rather than preserving unsupported old schema/data compatibility. That destructive reset policy does not apply to accepted customer production state after the Phase 20 production baseline; post-baseline upgrades are governed by `docs/decisions/production-data-and-schema-compatibility.md`.
 
@@ -235,7 +235,7 @@ If a path does not exist, search for its current equivalent before assuming inte
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 17 — Article and duplicate moderation**.
+Current phase: **Phase 18 — Configurable HTML collection**.
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration core, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend are complete with durable closeout validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with the recorded live-source limitation preserved. The Phase 10 entry singleton correction and Phases 10–15 are complete. Phase 14 was accepted on August 14, 2026 while preserving its historical BLOCKED/RED Level 8 Cloudflare Access/direct-origin deployment observation; that proof is now a Phase 19 responsibility. Phase 15 has durable validation in `docs/validation/phase-15-publication-relevance-administration.md`.
 
@@ -261,19 +261,20 @@ Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Databas
 - Phase 14 — Source administration — complete by explicit repository-owner acceptance on August 14, 2026; its historical BLOCKED/RED Level 8 deployment-observation artifact remains unchanged, and Phase 19 owns that proof.
 - Phase 15 — Publication and Relevance administration — complete with durable closeout validation in `docs/validation/phase-15-publication-relevance-administration.md`.
 
-### Completed implementation phase
+### Completed implementation phases
 
 16. Phase 16 — True duplicate detection and grouping — complete with durable GREEN validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`.
 
+17. Phase 17 — Article and duplicate moderation — complete with durable GREEN validation in `docs/validation/phase-17-article-and-duplicate-moderation.md`.
+
 ### Current implementation phase
 
-17. Phase 17 — Article and duplicate moderation
+18. Phase 18 — Configurable HTML collection
 
-Current gate: P1–P4 are implemented through project version `0.17.4`. P5 remains unexecuted after correctly stopping rather than absorbing missing producer-owned duplicate-review read semantics from P3. The prepared non-versioned `c17-duplicate-review-read-surface` correction is the current gate and remains unaccepted until its implementation plus sole manual correction closeout are GREEN. After that gate is accepted, resume the existing Phase 17 stack at P5 without renumbering or rewriting completed P1–P4 history.
+Phase 18 collection questions route to `docs/contracts/domain-and-data-contract.md`, `docs/contracts/source-and-collection-contract.md`, `docs/architecture/system-architecture.md`, `docs/contracts/public-feed-and-admin-contract.md`, and `docs/contracts/testing-and-validation-contract.md`. HTML collection is a bounded static adapter for approved/whitelisted endpoints, produces the shared Raw-item contract, creates no alternate downstream persistence path, and does not make the Source RSS/Atom admission filter generic.
 
 ### Remaining roadmap order
 
-18. Phase 18 — Configurable HTML collection
 19. Phase 19 — Reliability, observability, and production operations
 20. Phase 20 — Customer launch validation
 21. Phase 21 — Codebase simplification and maintainability hardening
@@ -300,7 +301,7 @@ Do not advance by assumption. Verify each phase/correction exit gate plus the in
 - For Phase 21, derive tasks from the accepted launched final tree and observed maintainability/measurement evidence. Do not target arbitrary LOC/file/module/dependency metrics, and do not create cleanup tasks for areas already simple and well-owned.
 - Trace shared helpers/consumers before changes.
 - Before Phase 16 duplicate changes trace Source-scoped Article identity → separately persisted Articles → duplicate evidence/signals → canonical review pair/state → Duplicate-group membership → Primary selection → public-feed eligibility/suppression → Collection-run duplicate effects → tests.
-- Before collection changes trace singleton `active_for_collection` → Source/endpoint approval/lifecycle/operational state → durable job/scheduler/manual execution → capacity/lock → Collection run → network safety → fetch/redirect → parse → optional Source RSS/Atom item admission filter → normalize → Article-link validation → Relevance → Source-scoped identity → observation → run accounting → health → tests.
+- Before Phase 18 collection changes trace endpoint type/profile → approval/lifecycle/operational state → endpoint lock/network safety → bounded HTTP fetch/redirect → endpoint-selected parser adapter → conditional RSS/Atom-only admission stage → shared normalization/Article-link policy/Relevance/Source-scoped identity/persistence/observation/duplicate path → run/health diagnostics → admin sample preview versus check-now → focused/shared regressions.
 - Before later Article/moderation changes trace visibility/overrides → existing duplicate review/group state → operator controls → feed/admin behavior → tests.
 - Before admin changes trace Cloudflare Access perimeter → origin protection → request integrity → real resource relationships/domain invariants → mutation → change history → tests.
 - Before public-route changes trace singleton Publication settings → canonical read model → `/api/feed` → `/` page/client → unavailable/error behavior → external links → browser tests.

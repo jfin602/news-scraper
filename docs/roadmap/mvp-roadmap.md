@@ -923,9 +923,7 @@ Reduce local/Codex validation wall-clock time substantially without reducing tes
 
 ## Phase 17 — Article and duplicate moderation
 
-**Status:** Current roadmap phase. P1–P4 are implemented through project version `0.17.4`. P5 remains unexecuted after correctly stopping rather than absorbing missing producer-owned duplicate-review read semantics from P3.
-
-**Current gate:** `c17-duplicate-review-read-surface` is the prepared non-versioned correction at unchanged project version `0.17.4`. It is not complete or accepted until its implementation prompt and sole manual correction closeout are GREEN. After that gate is accepted, resume the existing Phase 17 stack at P5; do not renumber or rewrite completed P1–P4 history.
+**Status:** Complete with durable GREEN validation recorded in `docs/validation/phase-17-article-and-duplicate-moderation.md`.
 
 ### Goal
 
@@ -969,6 +967,8 @@ Give Cloudflare-authorized operators reversible control over Article presentatio
 
 ## Phase 18 — Configurable HTML collection
 
+**Status:** Current roadmap phase.
+
 ### Goal
 
 Add approved non-feed Sources without creating another downstream pipeline.
@@ -979,24 +979,32 @@ Add approved non-feed Sources without creating another downstream pipeline.
 
 ### Deliverables
 
-- HTML listing profiles behind existing parser adapter;
-- selector validation/safe preview;
-- parser-version/failure diagnostics;
-- approved non-feed Source support;
-- browser-automation fallback decision gate only.
+- `html_listing` Source-endpoint type with bounded endpoint-owned persisted profiles and revision identity;
+- bounded deterministic static HTML/CSS-selector extraction behind the existing parser/Raw-item adapter boundary;
+- endpoint-type-aware HTTP `Accept`/media behavior without weakening RSS/Atom validation;
+- Source administration for profile configuration, deterministic validation, bounded no-network sample preview, parser/profile revision diagnostics, and existing check-now integration;
+- reuse of existing scheduling, approval, whitelist/network safety, normalization, Article-link policy, Relevance/Categories, Source-scoped identity/persistence/observation, duplicate, retry, health, and failure-isolation paths;
+- explicit RSS/Atom-only Source admission filtering, with HTML Raw items rejoining before shared normalization;
+- browser-automation fallback retained as a future decision gate only.
 
 ### Out of scope
 
 - unrestricted crawling;
-- silent Source discovery;
-- default browser automation;
-- parser-specific downstream persistence.
+- automatic Source/endpoint discovery;
+- following listing pagination;
+- Article-body/page or HTML subresource fetching;
+- arbitrary scraping scripts, XPath, or generic expression engines;
+- browser automation or headless-browser collector implementation;
+- HTML-specific Relevance, identity, persistence, duplicate, or public-feed paths;
+- synthetic HTML `externalId` values;
+- automatic historical reprocessing caused by profile edits.
 
 ### Exit gate
 
-- Approved HTML Source uses the same state, safety, normalization, Relevance, identity, provenance, retry, and failure-isolation boundaries as RSS/Atom.
-- HTML adapters pass shared downstream regression suites rather than a separate weaker path.
-- Parser failure is isolated/diagnosable.
+- A valid approved HTML endpoint collects through the same safety, Raw-item, normalization, Article-link, Relevance, identity/persistence/observation, duplicate, scheduling, retry, health, and failure-isolation pipeline as RSS/Atom.
+- Static HTML/profile configuration and parser failures are bounded and diagnosable, including persisted profile revision and run diagnostics where applicable.
+- RSS/Atom Source admission phrases are not applied to HTML items, and no network-capable preview path exists.
+- Shared downstream regressions remain green; real persistence evidence covers persisted Phase 18 state, deterministic HTML fixtures prove transport/parser bounds and no crawling/subresource/Article-page/browser fetches, and applicable Source-admin browser workflows are observed.
 
 ## Phase 19 — Reliability, observability, and production operations
 

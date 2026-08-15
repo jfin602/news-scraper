@@ -315,6 +315,16 @@ Once the Source-administration phase is complete, authorized operators MUST be a
 
 The Source editor/API presents the admission filter as an include-only Source setting: no configured phrases means collect/process all otherwise-valid RSS/Atom items, while one or more bounded non-empty phrases admit an item when any phrase matches. It MUST NOT expose an exclude-phrase list or an independent enabled toggle, and MUST NOT store the configuration on individual endpoints. This is collection admission before normalization, not public-feed filtering or Phase 11 Relevance management.
 
+Phase 18 extends this existing Source/endpoint administration surface. Authorized operators can choose/configure the supported `html_listing` endpoint type, edit its bounded endpoint-owned HTML listing profile, receive deterministic profile-validation errors, and run safe sample preview. Endpoint detail exposes the parser/adapter version, persisted profile revision, and bounded latest parser-failure diagnostics relevant to that endpoint. Existing approval, lifecycle, operational, approved-domain, polling, default-Category, health, recent-run, and manual check-now controls remain the governing controls.
+
+The UI/API makes clear that Source RSS/Atom admission phrases apply to RSS/Atom endpoints and are not an HTML-listing admission mechanism. Phase 18 adds no Publication selector, browser collector control, arbitrary scraping script, or generic expression editor.
+
+### Phase 18 safe selector preview
+
+Preview accepts only a bounded operator-supplied HTML sample and draft HTML profile and invokes the pure profile-validation/static-parser path. It performs no outbound request or DNS lookup, creates no Collection run, acquires no collection lock, changes no conditional-fetch state/scheduler timing/endpoint health, and persists no Article, observation, duplicate, or Relevance state. Scripts and subresources remain inert. Responses contain only bounded extracted preview rows and safe bounded diagnostics, never an echoed unbounded/raw HTML document.
+
+A protected preview API MAY use POST for its bounded request body. Existing request-integrity policy applies to browser-originating unsafe requests despite preview being non-persistent. Real endpoint verification remains manual check-now through the canonical governed endpoint collection path; no second preview fetcher exists. Preview proves selectors/parser behavior only, while check-now proves collection behavior. Neither is reported as Level 7 live-Source evidence unless that separate procedure is actually performed.
+
 Physical deletion is not generic CRUD behavior when retained provenance depends on the Source/endpoint. An endpoint with no retained dependent history MAY be physically removed if the implementation supports removal. Once Collection runs, observations, or other retained provenance depend on an endpoint, an operator-facing remove action MUST preserve the record through archive/retirement semantics rather than destroying referenced provenance. Restoring archived Source/endpoint configuration continues to obey the ordinary approval, lifecycle, operational, and collectability laws and MUST NOT implicitly resume collection.
 
 ## Phase 15 Publication, Category, and Relevance administration

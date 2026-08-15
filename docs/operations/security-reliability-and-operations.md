@@ -61,6 +61,10 @@ Collected content is untrusted. The system MUST:
 - bound stored text/metadata;
 - prevent parser payloads from becoming executable configuration.
 
+Phase 18 static HTML input remains untrusted under this same model. HTML selector/profile configuration is bounded inert declarative data, not operator-supplied code. Parsing MUST NOT execute page scripts or profile code, load HTML subresources, crawl pagination, or fetch arbitrary Article pages. Safe sample preview is bounded and performs no network I/O.
+
+HTML parser errors, logs, run diagnostics, and preview responses MUST NOT retain or emit raw page bodies, script contents, secrets, or unbounded extracted content. Ordinary HTML endpoint fetches continue through the same approval, whitelist, DNS/address/port, redirect, rebinding, timeout, and response/decompression protections as other endpoint types; Phase 18 creates no separate security model.
+
 ## Failure isolation
 
 Before durable jobs exist, each manually invoked endpoint Collection run in the Worker is an independent execution unit and one endpoint failure must not invalidate another run.

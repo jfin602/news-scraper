@@ -18,7 +18,7 @@ A configured publisher or outlet in the installation. Approval state determines 
 
 ### Source endpoint
 
-A configured machine-readable feed, API URL, or HTML listing page belonging to a Source. Approval, lifecycle/operational state, polling state, HTTP cache metadata, parser settings, and derived health are endpoint-level concerns.
+A configured machine-readable feed, API URL, or HTML listing page belonging to a Source. Approval, lifecycle/operational state, polling state, HTTP cache metadata, parser settings, and derived health are endpoint-level concerns. Phase 18 supports endpoint types `rss_atom` and `html_listing`.
 
 ### Collection run
 
@@ -118,6 +118,15 @@ Required concepts:
 
 `paused`, `disabled`, and `archived` are not health values. A Source-level health summary, if shown, is derived from endpoint state/health rather than stored as competing authority.
 
+Phase 18 endpoint/profile compatibility is part of endpoint configuration validity:
+
+- an `html_listing` endpoint owns one bounded persisted HTML listing profile and requires a valid compatible profile before it can become collectable;
+- an `rss_atom` endpoint rejects HTML-only profile configuration;
+- HTML profile configuration belongs to the Source endpoint, not the Source, Publication tenancy, Article, or public-feed configuration;
+- profile edits are prospective and do not rewrite historical Articles, Article observations, or Collection runs;
+- each persisted profile has a version/revision identity sufficient for a Collection run and diagnostics to identify the exact configuration used;
+- the profile is inert declarative data, never executable code.
+
 Archival makes Source/endpoint configuration non-collectable regardless of retained approval or operational values. Archiving does not implicitly revoke approval. Restoring archived configuration MUST NOT implicitly resume collection; active/enabled operation must be explicitly established.
 
 ### Article visibility and duplicate role
@@ -204,6 +213,20 @@ The optional Source RSS/Atom item admission filter is Source configuration, not 
 - derived health;
 - optional default Category reference.
 
+For `html_listing`, the endpoint-owned profile defines the smallest deterministic extraction surface:
+
+- one required repeated item/root CSS selector;
+- required title extraction;
+- required Article-link extraction;
+- optional Source publication/update date extraction;
+- optional author extraction;
+- optional summary/excerpt extraction;
+- optional Source category-label extraction.
+
+The persisted representation MAY use bounded structured field descriptors. CSS selectors are the Phase 18 selector language. XPath, JavaScript, regex-driven DOM extraction, template expressions, arbitrary code, and generic expression engines are not profile features. Attribute extraction is narrowly allowlisted for the field being extracted rather than exposing arbitrary DOM-property execution.
+
+The generic HTML listing adapter MUST NOT synthesize `RawItem.externalId` from list position, selector path, normalized title, title/date hashes, content fingerprints, DOM markup, or any other generated HTML fingerprint. Generic Phase 18 HTML Article identity therefore uses the existing canonical-URL fallback unless a later explicit adapter contract supplies a genuinely trustworthy Source-provided strong identifier.
+
 Configuration inheritance:
 
 - Source approved domains define the maximum permitted destination boundary;
@@ -223,6 +246,8 @@ Configuration inheritance:
 - orthogonal effect counters once those effects exist;
 - structured error code/bounded detail;
 - worker/execution identifier.
+
+Where Phase 18 HTML collection is used, bounded run diagnostics additionally identify the parser/adapter kind and version, the persisted HTML profile revision used, and bounded item/extraction failure codes and detail. Collection-run diagnostics MUST NOT retain raw response bodies merely to explain parser behavior.
 
 A minimal Collection run exists from the first real transport implementation. Before Article persistence exists it records only the stages that actually exist and MUST NOT pretend post-identity outcomes have occurred.
 
