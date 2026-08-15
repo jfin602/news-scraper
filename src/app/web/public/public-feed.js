@@ -189,7 +189,11 @@
   function validOriginalUrl(value) {
     const originalUrl = requiredString(value);
     const url = new URL(originalUrl);
-    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    if (
+      (url.protocol !== 'http:' && url.protocol !== 'https:') ||
+      url.username !== '' ||
+      url.password !== ''
+    ) {
       throw new Error('Invalid feed URL.');
     }
     return originalUrl;
