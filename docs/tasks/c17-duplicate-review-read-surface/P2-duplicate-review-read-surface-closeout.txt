@@ -1,0 +1,227 @@
+TASK: Correction 17 / P2 — Duplicate review read surface closeout
+
+CORRECTION SCOPE
+This is the sole final manual closeout prompt for correction `c17-duplicate-review-read-surface`. It validates that P1 completed the missing Phase 17 P3 duplicate-review read/service surface sufficiently for the still-unexecuted Phase 17 P5 API task to remain a strict HTTP adapter. It preserves all Phase 17 P1–P4 behavior and clears only this correction gate if GREEN.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: the repository owner requires Terra-family execution for this correction, and the acceptance boundary must independently trace the repaired P3 producer through its actual data sources into the P5 consumer contract.
+- Reasoning basis: High reasoning is warranted because the earlier P3 implementation passed focused validation while still omitting part of its required read surface; closeout must actively challenge completeness, pagination/state combinations, indirect topology blockers, and architectural ownership rather than merely rerun tests.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because this is the independent acceptance gate for a producer/consumer contract that already failed once through incomplete implementation despite otherwise successful Phase 17 work.
+- Escalation trigger: review exposes unresolved duplicate topology/transaction correctness, a persistence/schema requirement, or a materially different architecture decision rather than a bounded read-side defect.
+- Escalation target: `Terra Ultra` for difficult explicit state/transaction reasoning; stop for replanning if product/contract/ADR scope must change. Meaningful behavior-preserving structural refactors use the separate Terra High remediation handoff below.
+- Estimate confidence: `High`.
+- Efficiency rationale: Terra High is used once at the correction boundary to challenge completeness; final commands deliberately avoid redundant ordinary-suite execution because `npm run check` already contains the ordinary test matrix.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md`, `docs/codex-model-selection.md`, and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- Required unchanged project version: `0.17.4`.
+- This closeout MUST NOT change the top-level `package.json` version.
+- It does not consume or execute Phase 17 P5, P6, or P7 and does not invoke conversational `/closeout`.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANUAL CLOSEOUT BOUNDARY
+This is the sole final manual closeout for correction `c17-duplicate-review-read-surface`. `npm run codex:phase -- c17-duplicate-review-read-surface` must execute P1 only and stop before P2.
+
+P2 is an independent verification/adversarial/structural-review task. It may fix only a concrete bounded defect already inside this correction's governed read-side behavior and must rerun invalidated evidence afterward. It must not implement P5 routes or broaden Phase 17 product behavior.
+
+MANDATORY HANDOFF
+Before any write:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/codex-model-selection.md`, `docs/contracts/article-lifecycle-and-deduplication.md`, `docs/contracts/public-feed-and-admin-contract.md`, and `docs/contracts/testing-and-validation-contract.md`;
+2. read `docs/tasks/p17/P3-duplicate-moderation-manual-authority.txt`, `docs/tasks/p17/P5-moderation-administration-api.txt`, and correction P1;
+3. inspect the actual committed P1 implementation/tests rather than trusting its final report;
+4. inspect current `src/deduplication/moderation.ts`, `src/deduplication/grouping.ts`, `src/articles/moderation-repository.ts`, `src/admin/article-administration.ts`, and the new duplicate administration/read service;
+5. inspect the new focused PostgreSQL tests plus existing `test/database/duplicate-grouping.test.ts` and `test/database/article-administration.test.ts`;
+6. inspect current `scripts/codex-phase-core.mjs` and confirm this correction folder remains parser-valid and P2 is the only/final closeout;
+7. confirm P5 remains unimplemented/blocked rather than having independently absorbed duplicate SQL/domain read behavior, and confirm the package version is still exactly the declared correction version;
+8. stop and report sequence/planning drift if P1 is incomplete, P5 has since implemented around the gap, package version differs, or the corrected architecture materially differs from the bounded read-side service planned here.
+
+CLOSEOUT GOAL
+Prove that P5 now has a complete governed duplicate-review producer and can implement its duplicate GET/read routes without inventing domain behavior.
+
+The correction is GREEN only if the following statement is demonstrably true from source plus executed evidence:
+
+`HTTP request parsing -> duplicate administration service -> bounded response/error mapping`
+
+P5 must not need to add duplicate SQL, cursor semantics, candidate-detail composition, group/member/Primary inference, manual-separation inference, or manual-Primary conflict policy.
+
+DURABLE VALIDATION ARTIFACT
+Create/update only after the final accepted correction tree has been validated:
+
+`docs/validation/duplicate-review-read-surface-correction.md`
+
+The artifact must truthfully record:
+- validation date/time/environment where observed;
+- exact accepted correction source SHA/tree and implementation base/range;
+- unchanged package version `0.17.4`;
+- commands/procedures actually executed and outcomes/counts where useful;
+- applicable evidence levels achieved;
+- the original P3 -> P5 producer/consumer gap;
+- implemented queue pagination/cursor behavior;
+- candidate-detail/signals/Article/group/member/Primary evidence;
+- direct and indirect manual-separation evidence;
+- conflicting manual-Primary evidence;
+- read-only/non-mutation evidence;
+- P5 handoff inspection and whether P5 can now remain a pure HTTP adapter;
+- Pass 2 adversarial findings and disposition;
+- Pass 3 structural findings and disposition, including any Terra High remediation handoff/rerun;
+- limitations/skips/unavailable prerequisites;
+- explicit statement that no P5 route, P6 UI, schema, duplicate mutation policy, public-feed, or roadmap-version behavior was added;
+- final correction conclusion GREEN or blocked/red;
+- next action if GREEN: resume Phase 17 runner at P5, not conversational `/closeout`.
+
+Do not mark the artifact GREEN before every required final-tree command and review pass is complete. If a remediation handoff occurs, rerun this closeout from the beginning against the resulting tree before finalizing the artifact.
+
+PASS 1 — CONTRACT / EVIDENCE REVIEW
+Trace the original missing P3 contract through the final implementation and P5 consumer.
+
+A. QUEUE / CONTINUATION
+Prove from source and real PostgreSQL evidence:
+- supported state/confidence filters are bounded and validated;
+- default/max page size is bounded;
+- ordering is deterministic by current candidate update time plus stable candidate-ID tie-break;
+- keyset continuation traverses multiple pages without duplicate/omitted rows in static data, including tied timestamps;
+- continuation exists only when more rows remain;
+- cursor is opaque, bounded, criteria-bound, and rejects malformed/mismatched reuse;
+- no offset/unbounded queue path was introduced.
+
+B. CANDIDATE DETAIL
+Prove one candidate-detail read includes the governed bounded state P5 needs:
+- candidate ID/canonical pair/state/origin/confidence/fingerprint/manual decision metadata;
+- persisted signals in canonical order with reason/strength;
+- both Article summaries/effective state through the existing canonical Article read model or an intentionally smaller projection derived from it;
+- each side's role/group identity;
+- current Primary ID and authority origin;
+- bounded deterministic group-member context with total/truncation indication;
+- manual-separation blocker state;
+- conflicting manual-Primary blocker state.
+
+C. MANUAL-AUTHORITY MIRRORING
+Confirm read-side blocker reporting matches, but does not duplicate/redefine, the actual P3 mutation policy.
+
+In particular prove:
+- direct candidate-pair separation is reported;
+- indirect separation inside the would-be combined components is reported, e.g. group `{A,B}` + candidate `B-C` with separation `A-C`;
+- two different groups with distinct manual Primaries report the automatic-merge conflict;
+- the read model reports these conditions but does not resolve, mutate, or lock topology for ordinary reads.
+
+D. OWNERSHIP / READ-ONLY GUARANTEE
+Inspect and prove:
+- duplicate administration owns normalization/cursor/candidate-centric composition;
+- canonical Article SQL/mapping remains owned by the existing Article moderation repository rather than being broadly duplicated;
+- no P5/Web/Express concerns leaked into repository/service modules;
+- queue/detail reads do not mutate candidates, signals, groups, memberships, Primaries, separations, Articles, Categories/Relevance/provenance, or audit history;
+- ordinary reads do not take the shared topology mutation advisory lock;
+- no migration/schema change was introduced.
+
+E. P5 HANDOFF
+Read current `docs/tasks/p17/P5-moderation-administration-api.txt` and simulate its duplicate read implementation boundary from actual exported interfaces.
+
+P5 must be able to implement:
+- `GET /api/admin/duplicate-reviews` by parsing HTTP query values into the duplicate service request and serializing its bounded result;
+- `GET /api/admin/duplicate-reviews/:candidateId` by validating/extracting the route identity, calling candidate detail, and serializing the bounded result.
+
+P5 must NOT need to:
+- add SQL;
+- design or decode repository cursor state itself;
+- inspect raw duplicate tables;
+- infer group membership/Primary/manual-authority policy;
+- build candidate detail by querying several repositories directly;
+- change P3 mutation semantics.
+
+If any of those are still required, the correction is not GREEN.
+
+PASS 2 — ERROR / EDGE-CASE ADVERSARIAL REVIEW
+After Pass 1 is green on a candidate tree, independently derive realistic failure hypotheses from actual source. At minimum examine:
+- zero/one/exact-page/page-plus-one queue sizes;
+- tied `updated_at` values and stable candidate-ID ordering;
+- first/middle/final pages;
+- stale cursor after candidate state/update changes and whether behavior remains deterministic/bounded;
+- cursor reused under another state/confidence/page-size criterion;
+- malformed/truncated/oversize cursor;
+- missing candidate;
+- missing/impossible Article/group references and whether internal invariant failures remain internal rather than becoming false user errors;
+- no-group/grouped combinations: both ungrouped, one grouped, same group, two groups;
+- direct and indirect separation combinations;
+- two manual Primaries vs manual+automatic vs automatic+automatic group authority;
+- hidden/archived/non-Primary Articles remaining inspectable through admin reads;
+- active display/category override state flowing through canonical Article mapping;
+- group membership at/over the detail bound and truthful truncation metadata;
+- repeated reads causing no audit/history/topology mutation;
+- duplicate candidate updated between queue and detail calls;
+- query implementation accidentally taking mutation locks or relying on mutation helpers with side effects.
+
+For every plausible finding classify it as:
+1. already protected by source plus meaningful executed evidence;
+2. governed behavior is clear but coverage is weak — add/strengthen a bounded regression test;
+3. concrete bounded correction defect — repair it and add focused regression coverage;
+4. meaningful behavior-preserving structural refactor — stop for the Terra High remediation handoff below;
+5. material product/contract/architecture ambiguity — stop and report replanning/escalation need.
+
+After any bounded fix, rerun focused evidence and every broader final command invalidated by that change.
+
+PASS 3 — CODE-QUALITY / STRUCTURAL REVIEW
+Only after Pass 1 and Pass 2 are green on the current candidate tree, perform a separate source-reading pass over the correction diff and important consumers.
+
+Inspect for:
+- duplicate Article SQL/mapping instead of canonical P2 reuse;
+- competing duplicate administration/read abstractions;
+- cursor logic duplicated unnecessarily across repository and service;
+- SQL or domain-state inference that P5 would still need to duplicate;
+- use of topology mutation/advisory locks in read paths;
+- unbounded group/candidate reads;
+- mutation helpers reused for reads with hidden side effects;
+- speculative P6 UI/Phase 18/19 abstractions;
+- generic repository/patch APIs larger than the P3/P5 need;
+- error translation that leaks SQL/internal detail or misclassifies invariant failures;
+- brittle tests proving implementation shape instead of observable contracts;
+- dead compatibility code or comments implying a changed duplicate policy.
+
+Small local cleanup or one bounded defect may be fixed with rerun evidence. Do not perform a meaningful structural refactor directly inside closeout.
+
+TERRA HIGH REFACTOR HANDOFF
+If Pass 2 or Pass 3 finds a meaningful behavior-preserving structural refactor, STOP before implementing it and output exactly one self-contained transient remediation prompt recommending `Terra High`.
+
+That remediation prompt must:
+- state the observed structural problem and concrete source/test evidence;
+- define the smallest behavior-preserving refactor boundary and important producers/consumers;
+- preserve all Phase 17 contracts, Source-scoped identity, Article/provenance integrity, duplicate evidence/manual-authority/topology behavior, request-integrity expectations, and public behavior;
+- preserve the unchanged correction package version and consume no roadmap/correction prompt number;
+- forbid P5 route implementation, P6 UI, new product behavior, schema changes, duplicate-policy changes, contract/ADR changes, roadmap expansion, and unrelated cleanup;
+- require focused regression tests plus every broader evidence command invalidated by the refactor;
+- require an implementation report but MUST NOT declare this correction GREEN or finalize its validation artifact;
+- instruct Terra High to stop if source inspection reveals a product/contract/ADR change or materially different architecture decision.
+
+After remediation is applied and implementation validation is green, rerun P2 from the beginning. Only that rerun may establish the final accepted correction tree.
+
+FINAL VALIDATION
+After all three passes are green on one unchanged final candidate tree, run the smallest non-overlapping required command set:
+- `npm run check`
+- `npm run test:db`
+- `npm run codex:phase:validate -- c17-duplicate-review-read-surface`
+- committed/final correction-range `git diff --check` or equivalent check that actually covers the accepted correction change range.
+
+Do not separately rerun `npm test` after successful `npm run check`; it is already contained there. No browser, live-Source, or deployment suite is required because this correction adds no Web/UI/collection/network behavior.
+
+Any required command that fails, silently skips required tests, or cannot establish the intended evidence blocks GREEN. Do not substitute mocks for real PostgreSQL state/pagination assertions.
+
+GREEN EXIT REQUIREMENTS
+Declare the correction GREEN only when all are true:
+- queue reads are bounded, deterministically paginated, and criteria-bound;
+- candidate detail supplies all P3/P5 governed signals/Article/group/member/Primary/manual-authority context;
+- indirect separation and conflicting manual-Primary blockers mirror current mutation policy;
+- reads are non-mutating and do not use topology mutation locks;
+- canonical Article read-model ownership remains coherent;
+- P5 can expose duplicate queue/detail through service calls without adding domain SQL/inference;
+- existing P3 mutation/topology and P2 Article administration regressions remain green;
+- Pass 2 findings are resolved/covered or explicitly non-blocking;
+- Pass 3 finds no unresolved meaningful structural defect;
+- final validation commands are green against the exact accepted tree;
+- durable validation artifact truthfully records the accepted evidence and unchanged version;
+- no P5 route/P6 UI/schema/public-feed/roadmap-version behavior was pulled into the correction.
+
+If GREEN, report accepted source SHA/tree, validation artifact path, final command results, P5 handoff conclusion, bounded fixes/tests added, Pass 2/Pass 3 outcomes, any Terra High remediation outcome, confirmation that package version remained `0.17.4`, and that the next action is to resume the Phase 17 runner at P5.
+
+Do NOT invoke conversational `/closeout`, advance to `0.17.5`, or modify Phase 17 roadmap/root phase summaries inside this correction.
