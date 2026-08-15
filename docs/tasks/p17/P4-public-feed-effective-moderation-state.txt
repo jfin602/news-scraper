@@ -1,0 +1,139 @@
+TASK: Phase 17 / P4 — Public-feed effective moderation state
+
+ROADMAP PHASE
+Phase 17 — Article and duplicate moderation.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Luna Medium`.
+- Model-family basis: the public feed already has one canonical SQL/read-model path, and Phase 17 only needs to compose explicit effective display/Category state into that existing boundary.
+- Reasoning basis: Medium reasoning is sufficient to preserve eligibility, search, filters, ordering, and keyset pagination while adding effective-value precedence in SQL.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna Low`; rejected because manual-vs-automatic Category membership and effective headline search must compose correctly with duplicate suppression and cursor semantics.
+- Escalation trigger: source inspection shows the effective-state change requires material restructuring of public cursor/order/query ownership or multiple independent public eligibility paths.
+- Escalation target: `Luna High`.
+- Estimate confidence: `High`.
+- Efficiency rationale: the task is a bounded read-model integration over a well-established canonical query, so no higher-family model is warranted unless that architecture has drifted.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md`, `docs/codex-model-selection.md`, and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 17 prompt 4 and its assigned project version is `0.17.4`.
+- On first execution, require top-level `package.json` version `0.17.3`; on a rerun of this same P4, `0.17.4` is acceptable.
+- Update only the top-level package version to `0.17.4`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 17 roadmap entry, P1–P3 tasks and actual implementation/tests;
+2. read `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/domain-and-data-contract.md`, `docs/contracts/article-lifecycle-and-deduplication.md`, and `docs/contracts/testing-and-validation-contract.md`;
+3. inspect `src/public-feed/repository.ts`, `src/public-feed/discovery.ts`, `/api/feed` serialization in `src/app/web/create-app.ts`, and existing public-feed repository/HTTP/browser tests;
+4. inspect the actual P1/P2 display-title and Category-override representation/read helpers;
+5. inspect P3 duplicate suppression/manual Primary behavior only to preserve the canonical eligibility semantics; do not duplicate topology logic in the feed;
+6. stop and report planning drift if there is no longer one canonical public feed eligibility/read-model path.
+
+GOAL
+Make the existing canonical public feed consume Phase 17 effective headline and effective Category membership while preserving all existing feed eligibility, duplicate suppression, discovery, ordering, pagination, and original-publisher navigation behavior.
+
+P4 must modify the canonical feed path rather than introduce a moderation-specific feed or post-filtering layer.
+
+EFFECTIVE HEADLINE
+For every eligible public Article:
+- public `headline` is the active Phase 17 display-title override when present;
+- otherwise public `headline` is the latest Source-derived `articles.display_title`;
+- `original_url` remains the stored publisher destination and is never replaced by the override.
+
+Keyword search must include the effective headline while preserving previously supported Source-derived searchable representations. Do not silently remove normalized title, author, summary, or other existing governed search inputs merely because the public headline can be overridden.
+
+An active override should be able to match `q` even when the underlying Source title does not. Clearing it immediately returns display/search behavior to the latest Source-derived state.
+
+EFFECTIVE CATEGORY MEMBERSHIP
+For Category filtering:
+- if an active manual Article Category override marker exists, use only its manual memberships as the Article's effective current Category set;
+- if no active marker exists, use the latest automatic `article_categories` memberships;
+- an active intentionally empty manual set matches no Category;
+- clearing the override immediately returns filtering to the latest automatic state;
+- retained historical observation Category reasons never make an Article match by themselves.
+
+Do not overwrite/copy automatic memberships when reading effective state.
+
+PRESERVE CANONICAL ELIGIBILITY
+Keep the existing eligibility rules unchanged except for effective display/Category read semantics:
+- singleton Publication must be public;
+- Source approval/lifecycle rules remain as currently governed;
+- Article must be visible;
+- visible non-Primary Duplicate-group members remain suppressed;
+- visible ungrouped and visible Primary Articles remain eligible;
+- hiding the current Primary does not promote or resurrect a visible non-Primary;
+- manual Primary changes from P3 affect representation only through the canonical existing group Primary relation.
+
+PRESERVE DISCOVERY / CURSORS
+Do not change:
+- public query vocabulary (`q`, `source`, `category`, `cursor`);
+- validation bounds/duplicate-key rejection;
+- Source filter by immutable Source `config_key`;
+- Category filter by immutable Category `config_key`;
+- AND composition of `q + source + category`;
+- effective-feed-date -> `first_seen_at` -> Article-ID ordering;
+- opaque/versioned query-bound cursor semantics;
+- page size/load-more behavior;
+- public Source/Category choice bounds;
+- root `/` and canonical `/api/feed` routing.
+
+Do not apply effective Category filtering after pagination. Eligibility/filtering must remain inside the canonical pre-pagination result stream.
+
+IMPLEMENTATION BOUNDARY
+Prefer changing only `src/public-feed/repository.ts` and the narrow tests/read-model types required by the effective-state query.
+
+Reuse a P2 effective-state helper only if it remains a true shared read primitive and does not force admin pagination/provenance concerns into the public feed. Direct SQL composition in the canonical feed query is acceptable when it is clearer and avoids a second N+1 read path.
+
+Do not modify P1/P2 persistence semantics merely to make the public query easier.
+
+FOCUSED TESTS
+Add/extend real disposable PostgreSQL public-feed tests proving:
+- no display override -> Source `display_title` remains headline;
+- active display override -> override is headline while `original_url` is unchanged;
+- Source title updates under active override do not change effective headline;
+- clear -> latest Source title becomes headline;
+- `q` can match an active override and still preserves existing search inputs;
+- automatic Category membership works when no manual override exists;
+- active manual Category membership replaces automatic effective membership for filtering;
+- active empty manual Category set matches no Category;
+- automatic Category changes under active override do not leak into public filtering;
+- clear -> latest automatic Category membership immediately controls filtering;
+- historical observation reasons do not create Category matches;
+- visible non-Primary rows remain suppressed under all `q`/Source/Category combinations;
+- hidden Primary does not resurrect a non-Primary;
+- manual Primary changes select the correct member through existing topology;
+- tie-heavy pagination/cursor behavior has no duplicate/omitted rows after the effective-state joins;
+- unfiltered first-page API behavior and chronological order remain compatible.
+
+PRESERVED BEHAVIOR
+Preserve all existing public presentation/API contracts not explicitly changed here, including Publication metadata, Source name/date selection, unavailable/error behavior, external navigation, themes, responsive behavior, and discovery URL semantics.
+
+NON-GOALS
+Do not implement:
+- new public filters or sorting;
+- public moderation controls;
+- Article/admin search reuse;
+- duplicate topology mutation;
+- Category history filtering;
+- `original_url` override;
+- new public routes;
+- UI redesign.
+
+VALIDATION
+During development use focused public-feed repository/HTTP PostgreSQL tests.
+
+Before completion on the final P4 tree run the smallest non-overlapping applicable set:
+- `npm run check`
+- `npm run test:db:focused -- test/database/public-feed-repository.test.ts test/database/public-feed-http.test.ts <new-or-updated-phase-17-public-feed-db-tests>`
+- `node scripts/run-tests.mjs "test/browser/public-feed-page.test.ts"`
+- `git diff --check`
+
+If the current public browser filename differs, run its actual current equivalent. Do not run the full browser suite merely to duplicate unaffected admin/theme evidence unless implementation changes a shared browser helper that broadens the blast radius.
+
+Confirm `package.json` is `0.17.4`, no npm lockfile exists, and the canonical feed still uses one eligibility/read path.
+
+FINAL REPORT
+Report files changed, effective headline and Category SQL/read semantics, preserved cursor/eligibility behavior, focused DB/browser validation actually executed/results, package version, and remaining risk.
