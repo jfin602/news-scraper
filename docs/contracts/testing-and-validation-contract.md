@@ -41,6 +41,20 @@ Every reproducible defect SHOULD receive an automated regression test when techn
 
 Tests MUST be run against the final source tree being claimed as validated. Earlier passing evidence does not automatically validate later source changes.
 
+### Downstream handoff and consumer-readiness law
+
+When one implementation prompt produces a service, repository, read model, command interface, or equivalent boundary that a later prompt is explicitly expected to consume, the producer is not complete merely because the subset of behavior exercised internally by the producer is green.
+
+Focused coverage for that producer MUST prove the complete downstream-required contract at the lowest evidence level capable of proving it. Planning and validation SHOULD make the handoff auditable as:
+
+`downstream-required capability → owning implementation/export → focused proof`
+
+Consumer-readiness proof does not require implementing the downstream HTTP/UI/adapter task early. It requires proving that the governed producer boundary already supplies the required semantics so the later consumer can remain within its intended thin boundary.
+
+A downstream consumer MUST NOT be forced to invent producer-owned SQL/query composition, pagination/cursor semantics, domain state transitions, persistence/topology inference, transaction behavior, validation policy, or other upstream semantics merely because the producer's own happy-path tests passed. If the downstream task would need to invent such behavior, the producer handoff is incomplete and the missing producer capability/test protection MUST be repaired or replanned before the consumer is considered implementation-ready.
+
+Passing mutation/state-machine coverage does not prove a separately promised read/query interface, and passing read coverage does not prove separately promised mutation/state-machine behavior. Each independently promised handoff surface requires focused proof appropriate to its contract.
+
 ## Evidence levels
 
 Evidence is cumulative only when the higher-level procedure actually includes the lower-level behavior. A lower evidence level MUST NOT be reported as proof of a higher one.
@@ -539,6 +553,8 @@ A phase or correction cannot close until:
 - validation limitations are reported explicitly.
 
 Every Codex implementation prompt MUST specify focused tests, broader regression tests, and any runtime/browser/database/fixture validation needed for acceptance. It MUST distinguish iterative focused validation from final-tree regression validation and SHOULD express the final commands as the smallest non-overlapping set that covers all required evidence. A prompt SHOULD NOT require subordinate commands immediately alongside an aggregate command that already executes them on the same unchanged final tree unless a diagnostic or other explicit reason makes the repeated execution meaningful.
+
+When a prompt is a producer for a later explicitly planned consumer, its completion criteria MUST also identify and prove the complete downstream-required handoff surface under the consumer-readiness law above. A later thin adapter/controller/UI prompt is not evidence that the producer can defer its own service/query/command semantics until consumption time.
 
 A reviewer MUST NOT approve a change solely because its requested feature appears present in source.
 
