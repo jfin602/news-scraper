@@ -1,6 +1,9 @@
 import type { QueryResultRow } from 'pg';
 
-import { COLLECTION_CAPACITY_LIMITS } from '../collection/concurrency/collection-capacity.ts';
+import {
+  COLLECTION_CAPACITY_LIMITS,
+  COLLECTION_DATABASE_POOL_POLICY,
+} from '../collection/concurrency/collection-capacity.ts';
 import type { Database, QueryExecutor } from '../database/database.ts';
 import {
   deriveEndpointHealth,
@@ -75,7 +78,12 @@ export interface OperationalSnapshot {
     readonly expiredRunningJobs: readonly ExpiredRunningJob[];
     readonly expiredRunningJobsTruncated: boolean;
   }>;
-  readonly capacity: typeof COLLECTION_CAPACITY_LIMITS;
+  readonly capacity: Readonly<{
+    readonly global: number;
+    readonly source: number;
+    readonly host: number;
+    readonly databasePool: typeof COLLECTION_DATABASE_POOL_POLICY;
+  }>;
   readonly workerTiming: Readonly<WorkerRuntimeTiming>;
   readonly alerts: readonly OperationalAlert[];
   readonly alertsTruncated: boolean;
@@ -247,7 +255,10 @@ export function buildOperationalSnapshot(
       expiredRunningJobsTruncated:
         expiredRunningJobs.length > OPERATIONAL_SNAPSHOT_EXPIRED_JOB_LIMIT,
     }),
-    capacity: COLLECTION_CAPACITY_LIMITS,
+    capacity: Object.freeze({
+      ...COLLECTION_CAPACITY_LIMITS,
+      databasePool: COLLECTION_DATABASE_POOL_POLICY,
+    }),
     workerTiming: Object.freeze({ ...workerTiming }),
     alerts: Object.freeze(alerts.slice(0, OPERATIONAL_SNAPSHOT_ALERT_LIMIT)),
     alertsTruncated: alerts.length > OPERATIONAL_SNAPSHOT_ALERT_LIMIT,

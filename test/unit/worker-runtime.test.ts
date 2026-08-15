@@ -7,6 +7,10 @@ import {
   type WorkerRuntimeDependencies,
 } from '../../src/app/worker/runtime.ts';
 import type { WorkerRuntimeTiming } from '../../src/app/worker/runtime-timing.ts';
+import {
+  validateWorkerRuntimeTiming,
+  WORKER_RUNTIME_TIMING,
+} from '../../src/app/worker/runtime-timing.ts';
 import type { EndpointCollectionJobExecutionResult } from '../../src/jobs/execute-endpoint-collection-job.ts';
 import type {
   EndpointCollectionJobStatus,
@@ -26,6 +30,38 @@ const TIMING: WorkerRuntimeTiming = Object.freeze({
 });
 
 describe('Worker runtime orchestration', () => {
+  it('keeps the selected timing policy inside scheduler, health, and lease safety margins', () => {
+    assert.deepEqual(WORKER_RUNTIME_TIMING, {
+      schedulerPassIntervalMilliseconds: 15_000,
+      idleJobPollIntervalMilliseconds: 1_000,
+      jobLeaseDurationMilliseconds: 120_000,
+      leaseRenewalIntervalMilliseconds: 30_000,
+      staleRecoveryPassIntervalMilliseconds: 30_000,
+      staleRecoveryBatchLimit: 25,
+      localExecutionLimit: 4,
+    });
+    assert.doesNotThrow(() =>
+      validateWorkerRuntimeTiming(WORKER_RUNTIME_TIMING),
+    );
+    assert.throws(
+      () =>
+        validateWorkerRuntimeTiming({
+          ...WORKER_RUNTIME_TIMING,
+          leaseRenewalIntervalMilliseconds: 61_000,
+        }),
+      /additional renewal window/u,
+    );
+    assert.throws(
+      () =>
+        validateWorkerRuntimeTiming({
+          ...WORKER_RUNTIME_TIMING,
+          schedulerPassIntervalMilliseconds: 60_000,
+          idleJobPollIntervalMilliseconds: 1,
+        }),
+      /minimum endpoint poll interval/u,
+    );
+  });
+
   it('becomes ready after dependency validation and closes exactly once on repeated shutdown', async () => {
     const harness = runtimeHarness();
     const runtime = await startWorkerRuntime(

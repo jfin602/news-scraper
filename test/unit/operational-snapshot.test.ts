@@ -8,6 +8,7 @@ import {
   type ExpiredRunningJob,
   type OperationalEndpoint,
 } from '../../src/observability/operational-snapshot.ts';
+import { COLLECTION_DATABASE_POOL_POLICY } from '../../src/collection/concurrency/collection-capacity.ts';
 
 const NOW = new Date('2026-08-15T12:00:00.000Z');
 
@@ -100,6 +101,29 @@ test('empty and unknown operational states remain useful and omit oldest-ready t
   assert.equal(empty.jobs.oldestReadyQueuedAt, null);
   assert.equal(empty.jobs.oldestReadyAgeMilliseconds, null);
   assert.deepEqual(empty.alerts, []);
+});
+
+test('operational snapshot exposes the selected capacity and database-pool policy', () => {
+  const snapshot = buildOperationalSnapshot(
+    [],
+    {
+      queuedCount: 0,
+      runningCount: 0,
+      readyQueuedCount: 0,
+      futureQueuedCount: 0,
+      oldestReadyQueuedAt: null,
+      expiredRunningCount: 0,
+    },
+    [],
+    NOW,
+  );
+
+  assert.deepEqual(snapshot.capacity, {
+    global: 4,
+    source: 2,
+    host: 2,
+    databasePool: COLLECTION_DATABASE_POOL_POLICY,
+  });
 });
 
 test('inactive endpoint failure evidence remains counted but is not an outage alert', () => {

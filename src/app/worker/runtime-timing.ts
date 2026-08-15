@@ -1,4 +1,5 @@
 import { COLLECTION_CAPACITY_LIMITS } from '../../collection/concurrency/collection-capacity.ts';
+import { MINIMUM_POLL_INTERVAL_SECONDS } from '../../sources/configuration.ts';
 
 export const WORKER_RUNTIME_TIMING = Object.freeze({
   schedulerPassIntervalMilliseconds: 15_000,
@@ -35,6 +36,23 @@ export function validateWorkerRuntimeTiming(
   ) {
     throw new TypeError(
       'Worker runtime lease renewal interval must be shorter than the lease duration.',
+    );
+  }
+  if (
+    input.leaseRenewalIntervalMilliseconds * 2 >
+    input.jobLeaseDurationMilliseconds
+  ) {
+    throw new TypeError(
+      'Worker runtime lease renewal interval must leave a full additional renewal window before lease expiry.',
+    );
+  }
+  if (
+    input.schedulerPassIntervalMilliseconds +
+      input.idleJobPollIntervalMilliseconds >
+    MINIMUM_POLL_INTERVAL_SECONDS * 1_000
+  ) {
+    throw new TypeError(
+      'Worker scheduler and idle polling delay cannot exceed the minimum endpoint poll interval.',
     );
   }
   if (input.localExecutionLimit > COLLECTION_CAPACITY_LIMITS.global) {

@@ -17,6 +17,19 @@ export const COLLECTION_CAPACITY_LIMITS = Object.freeze({
   host: 2,
 } as const);
 
+export const COLLECTION_DATABASE_POOL_POLICY = Object.freeze({
+  maxConnections: DATABASE_POOL_MAX_CONNECTIONS,
+  pinnedSessionsPerExecution: COLLECTION_PINNED_DATABASE_SESSIONS_PER_EXECUTION,
+  minimumHeadroomConnections: COLLECTION_MINIMUM_DATABASE_POOL_HEADROOM,
+  pinnedConnectionsAtGlobalLimit:
+    COLLECTION_CAPACITY_LIMITS.global *
+    COLLECTION_PINNED_DATABASE_SESSIONS_PER_EXECUTION,
+  availableConnectionsAtGlobalLimit:
+    DATABASE_POOL_MAX_CONNECTIONS -
+    COLLECTION_CAPACITY_LIMITS.global *
+      COLLECTION_PINNED_DATABASE_SESSIONS_PER_EXECUTION,
+});
+
 export type CollectionCapacityScope = keyof typeof COLLECTION_CAPACITY_LIMITS;
 
 export interface CollectionCapacityRequest {
@@ -57,9 +70,8 @@ export class CollectionCapacityError extends Error {
  * from being starved when all global slots are occupied.
  */
 const COLLECTION_REQUIRED_DATABASE_POOL_CONNECTIONS =
-  COLLECTION_CAPACITY_LIMITS.global *
-    COLLECTION_PINNED_DATABASE_SESSIONS_PER_EXECUTION +
-  COLLECTION_MINIMUM_DATABASE_POOL_HEADROOM;
+  COLLECTION_DATABASE_POOL_POLICY.pinnedConnectionsAtGlobalLimit +
+  COLLECTION_DATABASE_POOL_POLICY.minimumHeadroomConnections;
 
 if (
   COLLECTION_REQUIRED_DATABASE_POOL_CONNECTIONS > DATABASE_POOL_MAX_CONNECTIONS

@@ -113,7 +113,18 @@ function testSnapshot(): OperationalSnapshot {
       ],
       expiredRunningJobsTruncated: false,
     },
-    capacity: { global: 4, source: 2, host: 2 },
+    capacity: {
+      global: 4,
+      source: 2,
+      host: 2,
+      databasePool: {
+        maxConnections: 10,
+        pinnedSessionsPerExecution: 2,
+        minimumHeadroomConnections: 1,
+        pinnedConnectionsAtGlobalLimit: 8,
+        availableConnectionsAtGlobalLimit: 2,
+      },
+    },
     workerTiming: {
       schedulerPassIntervalMilliseconds: 15_000,
       idleJobPollIntervalMilliseconds: 1_000,

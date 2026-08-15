@@ -4,6 +4,7 @@ import type { QueryResult, QueryResultRow } from 'pg';
 
 import {
   COLLECTION_CAPACITY_LIMITS,
+  COLLECTION_DATABASE_POOL_POLICY,
   COLLECTION_MINIMUM_DATABASE_POOL_HEADROOM,
   COLLECTION_PINNED_DATABASE_SESSIONS_PER_EXECUTION,
   CollectionCapacityError,
@@ -80,6 +81,13 @@ test('global capacity leaves explicit pool headroom for nested collection work',
   assert.equal(COLLECTION_PINNED_DATABASE_SESSIONS_PER_EXECUTION, 2);
   assert.equal(COLLECTION_MINIMUM_DATABASE_POOL_HEADROOM, 1);
   assert.equal(DATABASE_POOL_MAX_CONNECTIONS, 10);
+  assert.deepEqual(COLLECTION_DATABASE_POOL_POLICY, {
+    maxConnections: 10,
+    pinnedSessionsPerExecution: 2,
+    minimumHeadroomConnections: 1,
+    pinnedConnectionsAtGlobalLimit: 8,
+    availableConnectionsAtGlobalLimit: 2,
+  });
   assert.ok(
     COLLECTION_CAPACITY_LIMITS.global *
       COLLECTION_PINNED_DATABASE_SESSIONS_PER_EXECUTION +

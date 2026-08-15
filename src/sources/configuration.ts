@@ -65,7 +65,7 @@ export interface SourceConfiguration {
 
 const CONFIG_KEY_MAX_LENGTH = 100;
 const URL_MAX_LENGTH = 2048;
-const POLL_INTERVAL_MINIMUM_SECONDS = 60;
+export const MINIMUM_POLL_INTERVAL_SECONDS = 60;
 const POLL_INTERVAL_MAXIMUM_SECONDS = 2_592_000;
 const POSTGRES_INTEGER_MAXIMUM = 2_147_483_647;
 const RSS_ATOM_ADMISSION_PHRASE_MAXIMUM_COUNT = 64;
@@ -237,7 +237,7 @@ export function normalizePollIntervalSeconds(input: unknown): number {
   if (
     typeof input !== 'number' ||
     !Number.isInteger(input) ||
-    input < POLL_INTERVAL_MINIMUM_SECONDS ||
+    input < MINIMUM_POLL_INTERVAL_SECONDS ||
     input > POLL_INTERVAL_MAXIMUM_SECONDS
   ) {
     throw new ConfigurationValidationError(
