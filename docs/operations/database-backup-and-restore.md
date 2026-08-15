@@ -2,6 +2,8 @@
 
 This procedure prepares recoverable PostgreSQL state during Phase 19. It does not establish the first supported production baseline; Phase 20 acceptance owns that boundary.
 
+Deployment ordering, schema rollback decisions, and incident procedures are in [deployment-and-incident-runbook.md](deployment-and-incident-runbook.md).
+
 ## Prerequisites
 
 - Install `pg_dump` and `pg_restore` from a PostgreSQL client release compatible with the server.
@@ -21,6 +23,8 @@ npm run db:restore -- <managed-backup.dump>
 ```
 
 The command refuses a target with the same host, port, and database name as the configured source. It also refuses a non-empty target, an unmanaged/missing archive, an invalid manifest/checksum, PostgreSQL restore failure, or a restored schema that is not current and application-readable. It never drops, recreates, or cuts over the configured source database. Cutover remains a separate deployment decision after operator validation.
+
+The Phase 19 pre-upgrade proof supplies its exact repository migration subset to the code-level restore verifier so the fresh rollback target is verified as current for the restored application. The ordinary operator command always verifies against the full current migration directory. Never substitute an arbitrary subset to conceal missing or incompatible production history.
 
 After restore, use the existing job recovery path for expired work. Queued work remains claimable; expired unstarted jobs requeue; expired jobs attached to terminal or interrupted Collection runs reconcile without replaying the attached run. Source-scoped Article identity continues to make later safe collection retries idempotent.
 

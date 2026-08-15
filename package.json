@@ -1,6 +1,6 @@
 {
   "name": "news-scraper",
-  "version": "0.19.5",
+  "version": "0.19.6",
   "private": true,
   "type": "module",
   "engines": {
@@ -21,9 +21,11 @@
     "test:db:focused": "node --env-file-if-exists=.env scripts/run-tests.mjs --test-concurrency=1 --test-global-setup=test/support/database/database-test-global-setup.ts",
     "test:live-sources": "node --env-file-if-exists=.env scripts/run-tests.mjs --test-concurrency=1 \"test/live-sources/**/*.test.ts\"",
     "db:migrate": "node --env-file-if-exists=.env scripts/migrate-database.ts",
+    "db:status": "node --env-file-if-exists=.env scripts/database-status.ts",
     "db:backup": "node --env-file-if-exists=.env scripts/backup-database.ts",
     "db:restore": "node --env-file-if-exists=.env scripts/restore-database.ts",
     "db:backup:prune": "node scripts/prune-database-backups.ts",
+    "deployment:validate": "node scripts/validate-reference-deployment.ts",
     "test:recovery": "node --env-file-if-exists=.env scripts/run-tests.mjs --test-concurrency=1 test/recovery/**/*.test.ts",
     "db:bootstrap": "node --env-file-if-exists=.env scripts/bootstrap-database.ts config/publication.json",
     "editorial:apply": "node --env-file-if-exists=.env scripts/apply-editorial-configuration.ts config/editorial.json",
