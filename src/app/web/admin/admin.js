@@ -2074,6 +2074,7 @@
   async function runReviewCommand(control, label, operation) {
     try {
       const result = await mutate(control, operation);
+      let successMessage = null;
       if (result.outcome === 'conflict') {
         state.mergeNeedsPrimary = true;
         showMessage(
@@ -2092,17 +2093,16 @@
         );
         elements.reviewConflictMessage.focus();
       } else {
-        setGlobalStatus(
-          'ready',
+        successMessage =
           result.outcome === 'no_op'
             ? `${label} was already applied.`
-            : `${label} saved.`,
-        );
+            : `${label} saved.`;
       }
       await loadReviewQueue();
       if (state.selectedReviewId !== null)
         await selectReview(state.selectedReviewId, { focus: false });
       await loadArticleList();
+      if (successMessage !== null) setGlobalStatus('ready', successMessage);
     } catch (error) {
       const message =
         error instanceof AdminRequestError && error.status === 409
