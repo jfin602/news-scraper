@@ -1,0 +1,161 @@
+TASK: Phase 19 / P5 — PostgreSQL backup restore and retention
+
+ROADMAP PHASE
+Phase 19 — Reliability, observability, and production operations.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Model-family basis: this task benefits from Sol's stronger independent engineering/code-reading capability because it crosses PostgreSQL tooling, child-process/credential handling, restore safety, durable application state, and recovery verification.
+- Reasoning basis: Light reasoning is owner-selected for this phase task because the governing recovery requirements and safe implementation boundary are explicit; the prompt requires fail-closed escalation rather than speculative redesign when deeper recovery reasoning is necessary.
+- Complexity / quality floor: `Critical`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Terra High`; rejected by the owner-approved model assignment in favor of Sol-family base capability for the production recovery boundary.
+- Escalation trigger: implementation requires destructive in-place restore as the only path, ambiguous credential/process isolation, redesign of durable job/run recovery, production migration-history policy changes, or another recovery state-machine/transaction issue not safely resolved from existing contracts.
+- Escalation target: `Sol High` or `Sol Ultra` depending reasoning depth; stop for replanning/ADR work if the production lifecycle contract must change.
+- Estimate confidence: `High`.
+- Efficiency rationale: keep implementation small by wrapping PostgreSQL-native backup/restore tooling and reuse existing application recovery semantics rather than inventing a proprietary backup format or second recovery engine.
+- Plan delta: `Owner-adjusted` from `/prompt-plan`: use Sol Light instead of the planned Terra Ultra.
+
+VERSIONING
+- This is Phase 19 prompt 5 and its assigned project version is `0.19.5`.
+- On first execution require P4 to have left top-level `package.json` at `0.19.4`, then update only that version to `0.19.5`.
+- On rerun of this same P5 retain `0.19.5`; any other version is sequence drift and must stop execution.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the Phase 19 roadmap entry, operations/reliability document, testing contract, architecture, production-data/schema ADR, and current database configuration/migration docs;
+2. inspect `src/database/`, current migration runner/scripts, durable endpoint jobs/recovery/finalization, Collection-run repository/state transitions, bootstrap/configuration scripts, and disposable PostgreSQL test harness;
+3. inspect representative persisted models for Publication, Sources/endpoints, Categories/Relevance, Articles/observations, duplicate groups/review/manual state, moderation overrides/history, Collection runs, and jobs;
+4. confirm Phase 20—not P5 or Phase 19—still establishes the first supported production schema/data baseline;
+5. inspect current platform/tool assumptions before choosing `pg_dump`/`pg_restore` invocation details;
+6. stop if the repository has already adopted a conflicting canonical backup mechanism or if safe restoration would require a new production-lifecycle decision.
+
+GOAL
+Provide a safe operator-usable PostgreSQL backup, restore, verification, and backup-file retention path, then prove restoration with real PostgreSQL state. Documentation alone is not sufficient evidence.
+
+DESIGN BOUNDARY
+Prefer small Node operator modules/scripts that invoke PostgreSQL-native backup tools. Do not invent a custom SQL dump parser, proprietary archive format, or application-level row-by-row backup system.
+
+Expected capabilities, with exact command names chosen consistently with repository conventions:
+- create a database backup;
+- produce bounded non-secret backup metadata/manifest sufficient to identify creation time/tool/source version where practical;
+- restore a backup into an explicitly selected safe target database;
+- verify restored schema/application readability;
+- prune backup files according to an explicitly supplied retention policy;
+- provide a specialized real-PostgreSQL recovery validation command/suite.
+
+Likely package-script names are `db:backup`, `db:restore`, `db:backup:prune`, and `test:recovery`, but source conventions remain authoritative.
+
+CREDENTIAL / PROCESS SAFETY
+- Reuse `NEWS_SCRAPER_DATABASE_URL`/existing DB config parsing where appropriate without logging its value.
+- Do not print passwords, database URLs, access tokens, environment dumps, or full child-process command lines containing secrets.
+- Avoid placing secrets in process arguments where PostgreSQL tooling permits safer environment/native connection handling.
+- Construct child-process environment narrowly and intentionally; do not blindly serialize all environment variables into artifacts.
+- Capture/translate tool failures into bounded operator errors while preserving useful exit status/tool identity without echoing credentials.
+- Validate file paths and required inputs. Do not overwrite an existing backup/restore target silently.
+
+BACKUP SAFETY
+A backup operation must:
+- fail clearly when required PostgreSQL tooling is unavailable;
+- create the output atomically enough that an interrupted/failed dump is not presented as a valid completed backup;
+- avoid storing secrets in metadata;
+- preserve a format suitable for deterministic restore verification;
+- leave ordinary running application behavior unchanged except for the expected database workload of backup.
+
+RESTORE SAFETY
+Prefer restore into a fresh/empty explicitly selected database and validate it before any cutover. Do not make destructive in-place replacement of the currently configured database the default command behavior.
+
+Fail closed when:
+- target identity is missing/ambiguous;
+- target is not safe for the supported procedure;
+- backup is missing/corrupt/incompatible;
+- restore tool exits unsuccessfully;
+- post-restore schema/application verification fails.
+
+Do not silently drop or recreate the configured current database.
+
+REPRESENTATIVE DATA PRESERVATION
+The recovery proof must seed and compare representative governed state sufficient to catch incomplete backup/restore, including where current schema supports it:
+- singleton Publication configuration/presentation/public/collection state;
+- Source/endpoint approval/lifecycle/operational/domain/parser configuration;
+- Categories and Relevance rules/history/default references;
+- Articles and Source-scoped identity fields;
+- Article observations/provenance;
+- Collection runs and bounded diagnostics;
+- endpoint runtime/conditional validators;
+- durable endpoint jobs/retry linkage/lease fields;
+- duplicate candidates/groups/Primary/manual authority;
+- Article moderation/visibility overrides and change history.
+
+Use semantic assertions on relationships/state, not only row counts.
+
+POST-RESTORE RECOVERY
+Exercise realistic restored in-flight state without inventing a new state machine:
+- queued jobs remain claimable according to existing policy;
+- expired/unstarted running jobs reconcile through existing recovery behavior;
+- started jobs/attached Collection runs reconcile without duplicate replay contrary to current contracts;
+- interrupted Collection runs receive whatever existing reconciliation guarantees currently govern them;
+- safe idempotent retry/replay remains possible because Article identity is Source-scoped/idempotent.
+
+If source inspection shows some requested state is intentionally not recoverable through existing runtime semantics, document the exact limitation and stop if it violates Phase 19's exit gate rather than hiding it.
+
+BACKUP RETENTION
+Implement retention/pruning for backup artifacts, not wholesale application-data deletion.
+
+Requirements:
+- retention value/policy is explicit operator input or clearly documented deployment config rather than a silently invented universal production number;
+- dry-run/list behavior is preferred when practical;
+- only files proven to belong to the managed backup set may be deleted;
+- path traversal/symlink/foreign-file cases fail safely;
+- pruning is deterministic and reports bounded results;
+- an invalid retention configuration deletes nothing.
+
+Do not delete Article/provenance/run/moderation history merely to satisfy a retention deliverable unless an existing governing contract explicitly authorizes that data lifecycle.
+
+RPO / RTO BOUNDARY
+Do not hard-code arbitrary RPO/RTO targets in generic engine code. Provide enough observed backup/restore duration and procedure information that the actual reference deployment can record explicit targets/ownership in P6/P7.
+
+REAL RECOVERY TEST
+Add a specialized recovery suite that fails rather than skips when its declared PostgreSQL/tool prerequisites are missing.
+
+At minimum it must:
+1. create a disposable representative database using current migration/bootstrap paths;
+2. seed governed representative state;
+3. create a real backup with the same implementation/operator path;
+4. mutate/destroy the disposable source/target state enough that successful restore is meaningful;
+5. restore into a separate fresh disposable database;
+6. verify migration ledger/schema plus semantic governed state/relationships;
+7. start/use the appropriate repositories/services against restored data to prove application readability;
+8. exercise post-restore queued/expired/in-flight recovery cases;
+9. prove failed/corrupt restore cannot be mistaken for success;
+10. clean up disposable databases/files without hiding test failures.
+
+Do not connect destructive tests to the ordinary configured application DB or a non-disposable database.
+
+FOCUSED DEVELOPMENT VALIDATION
+Use direct recovery/operator unit tests and targeted disposable DB tests while iterating. Do not repeatedly run the entire `test:db` suite for backup command-line error handling.
+
+FINAL-TREE VALIDATION FOR THIS PROMPT
+Run the specialized recovery suite, `npm run check`, and `npm run test:db` once on the final candidate because backup/restore preservation spans the persisted model. If browser behavior is untouched, do not run browser tests solely for this prompt.
+
+PRESERVE / FORBID
+Do not:
+- declare a production baseline;
+- rewrite/squash current migration history as part of backup work;
+- introduce cloud-vendor backup services or credentials;
+- add a custom backup storage service;
+- make destructive current-DB restore the default;
+- log secrets;
+- invent a second job/run recovery state machine;
+- create topic-specific backup behavior.
+
+FINAL REPORT
+Report:
+- operator commands/modules added and PostgreSQL native tools used;
+- exact restore safety model;
+- representative data/state preserved and recovery cases exercised;
+- retention/pruning behavior;
+- actual recovery validation commands/results and observed backup/restore durations when available;
+- missing deployment-specific RPO/RTO/retention decisions that remain for the real reference deployment;
+- package version confirmation `0.19.5`.
