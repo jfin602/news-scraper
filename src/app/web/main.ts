@@ -2,6 +2,8 @@ import { parseDatabaseConfig } from '../../database/config.ts';
 import { createDatabase } from '../../database/database.ts';
 import { createDatabaseDependency } from '../../database/readiness.ts';
 import { createEditorialAdministrationService } from '../../admin/editorial-administration.ts';
+import { createArticleAdministrationService } from '../../admin/article-administration.ts';
+import { createDuplicateAdministrationService } from '../../admin/duplicate-administration.ts';
 import { createEndpointAdministrationService } from '../../admin/endpoint-administration.ts';
 import { createPublicationAdministrationService } from '../../admin/publication-administration.ts';
 import { createSourceAdministrationService } from '../../admin/source-administration.ts';
@@ -12,6 +14,7 @@ import { registerEndpointAdministrationRoutes } from './endpoint-administration-
 import { registerPublicationAdministrationRoutes } from './publication-administration-router.ts';
 import { startWebServer } from './server.ts';
 import { registerSourceAdministrationRoutes } from './source-administration-router.ts';
+import { registerModerationAdministrationRoutes } from './moderation-administration-router.ts';
 import { parseWebConfig } from './web-config.ts';
 
 async function main(): Promise<void> {
@@ -34,6 +37,11 @@ async function main(): Promise<void> {
     const registerEditorialRoutes = registerEditorialAdministrationRoutes(
       createEditorialAdministrationService(applicationDatabase),
     );
+    const registerModerationRoutes = registerModerationAdministrationRoutes(
+      applicationDatabase,
+      createArticleAdministrationService(applicationDatabase),
+      createDuplicateAdministrationService(applicationDatabase),
+    );
     const webServer = await startWebServer(
       createWebApp(
         {
@@ -49,6 +57,7 @@ async function main(): Promise<void> {
             registerEndpointRoutes(router);
             registerPublicationRoutes(router);
             registerEditorialRoutes(router);
+            registerModerationRoutes(router);
           },
         },
       ),
