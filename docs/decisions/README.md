@@ -12,6 +12,7 @@ This directory records foundational choices that shape multiple modules or const
 ## Records
 
 - [`single-publication-simplified-data-model.md`](./single-publication-simplified-data-model.md) — **Accepted**; current one-Publication deployment/data-model authority.
+- [`production-data-and-schema-compatibility.md`](./production-data-and-schema-compatibility.md) — **Accepted**; production-baseline, supported-data preservation, and post-launch schema-upgrade authority.
 - [`topic-independent-publication-model.md`](./topic-independent-publication-model.md) — **Superseded**; historical decision that first established topic-independent single-Publication deployments while retaining relational Publication scoping.
 - [`whitelist-and-structured-feed-first.md`](./whitelist-and-structured-feed-first.md) — **Accepted**.
 - [`original-link-and-normalized-metadata.md`](./original-link-and-normalized-metadata.md) — **Accepted**.

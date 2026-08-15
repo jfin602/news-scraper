@@ -10,6 +10,8 @@ The canonical customer-visible feed route is `/`; the canonical basic feed API i
 
 Before production database compatibility is established, the supported persistence setup is a fresh database built from the repository's current migration chain and bootstrap/configuration. Pre-production schema corrections are allowed to destroy/recreate databases and MUST remove legacy-only migration/runtime/config/test structure when retaining it would serve only superseded compatibility. Git history, superseded ADRs, historical prompts, and validation artifacts preserve the history instead.
 
+Phase 19 establishes and validates production backup/restore, deployment/rollback, and schema-upgrade procedures. Acceptance of Phase 20 customer launch establishes the first supported production schema/data baseline. From that point forward, customer production data is durable supported state and normal upgrades/refactors are governed by `decisions/production-data-and-schema-compatibility.md`; the pre-production destructive-reset rule no longer applies to that supported customer state.
+
 ## Folder structure
 
 ```text
@@ -33,6 +35,7 @@ docs/
 ├── decisions/
 │   ├── README.md
 │   ├── single-publication-simplified-data-model.md
+│   ├── production-data-and-schema-compatibility.md
 │   ├── topic-independent-publication-model.md        # superseded historical ADR
 │   ├── whitelist-and-structured-feed-first.md
 │   ├── original-link-and-normalized-metadata.md
@@ -52,20 +55,21 @@ Git does not track empty directories, so `testing/`, `tasks/`, `design/tasks/`, 
 ## Document routing
 
 - `codex-model-selection.md` — detailed minimum-cost-adequate model-family/reasoning policy for `/prompt-ass`, `/prompt-plan`, `/prompt-write`, `/revalidate`, usage estimates, prompt-token discipline, and the current Luna/Terra/Sol runner matrix. `BOOT.md` remains authoritative for executable task grammar, and current `MODEL_CONFIGS` remains authoritative for labels that may actually be written/executed.
-- `contracts/project-contract.md` — locked Platform laws, one-Publication-per-deployment boundary, singleton/configuration-vs-tenancy invariant, authority hierarchy, product boundaries, contract-change process.
+- `contracts/project-contract.md` — locked Platform laws, one-Publication-per-deployment boundary, singleton/configuration-vs-tenancy invariant, authority hierarchy, product boundaries, contract-change process, and the derived post-launch production-data preservation invariant.
 - `contracts/mvp-scope-and-users.md` — MVP users, demo-first capability ordering, single-Publication deployment scope, exclusions, quality targets.
-- `contracts/domain-and-data-contract.md` — canonical terminology, singleton Publication configuration, real entity relationships, state models, Source RSS/Atom item-admission configuration/accounting, Category/Relevance persistence and deterministic rule semantics, identity/provenance invariants, fresh-schema policy, and public-row semantics.
-- `contracts/testing-and-validation-contract.md` — project-wide regression law, evidence levels, test isolation, local/final-tree execution, PostgreSQL/fixture/browser/live-Source validation, phase-specific matrices, and completion gates.
-- `architecture/system-architecture.md` — deployment/process/module boundaries, singleton configuration, staged Worker execution, safety-gated pipeline including optional Source RSS/Atom item admission, durable scheduling/jobs, transactions, and pre-production schema policy.
+- `contracts/domain-and-data-contract.md` — canonical terminology, singleton Publication configuration, real entity relationships, state models, Source RSS/Atom item-admission configuration/accounting, Category/Relevance persistence and deterministic rule semantics, identity/provenance invariants, pre-production fresh-schema policy, production schema lifecycle, and public-row semantics.
+- `contracts/testing-and-validation-contract.md` — project-wide regression law, evidence levels, test isolation, local/final-tree execution, PostgreSQL/fixture/browser/live-Source validation, production-upgrade validation, phase-specific matrices including Phase 21, and completion gates.
+- `architecture/system-architecture.md` — deployment/process/module boundaries, singleton configuration, staged Worker execution, safety-gated pipeline including optional Source RSS/Atom item admission, durable scheduling/jobs, transactions, maintainability/simplification principles, and pre/post-production schema policy.
 - `contracts/source-and-collection-contract.md` — approval/bootstrap rules, network safety, collection adapters, Source RSS/Atom item admission, normalization, installation/Source-scoped Relevance execution, pre-admin editorial configuration, Source-scoped identity/idempotency, Collection-run accounting.
 - `contracts/article-lifecycle-and-deduplication.md` — Article visibility, Source-scoped identity, duplicate roles/review/groups, Primary selection, feed eligibility.
 - `contracts/public-feed-and-admin-contract.md` — canonical root public page, singleton public-feed API/read model, search/filtering, themes, external links, and Cloudflare-protected admin UX/change history. Accepted Phase 8/9 slug-addressed routes remain recorded in validation artifacts for their accepted SHAs.
 - `design/README.md` — design-document authority/routing and the entry point for the parallel UI workstream.
 - `design/public-feed-presentation.md` — durable public-feed layout, typography, themes, states, responsive behavior, accessibility presentation, and design-token guidance for Phase 13 and later presentation work.
 - `design/ui-workflow.md` — permanent `ui-polish` branch/worktree rules, presentation task boundaries, conditional `/ui-review` → `/ui-apply` design-guidance workflow, and targeted `/ui-plan` → `/ui-write` prompt workflow.
-- `operations/security-reliability-and-operations.md` — admin perimeter, fetch security, real resource validation, failure isolation, observability, recovery, pre-production database deployment, production hardening.
-- `roadmap/mvp-roadmap.md` — Phase 0–20 sequence, tech-demo critical path, completed Phase 10 entry singleton correction and Phases 11–15, dependencies, non-goals, exit gates, and current Phase 16 duplicate-detection/grouping scope.
-- `decisions/single-publication-simplified-data-model.md` — **current Accepted ADR** for topic-independent separate deployments, singleton Publication configuration without relational tenancy, and the pre-production rebuild-from-zero database rule.
+- `operations/security-reliability-and-operations.md` — admin perimeter, fetch security, real resource validation, failure isolation, observability, recovery, pre-production database deployment, production hardening, and the Phase 19 production upgrade/restore/rollback preparation boundary.
+- `roadmap/mvp-roadmap.md` — Phase 0–21 sequence, tech-demo critical path, completed Phase 10 entry singleton correction and Phases 11–15, dependencies, non-goals, exit gates, current Phase 16 duplicate-detection/grouping scope, Phase 20 production-baseline handoff, and terminal Phase 21 codebase simplification/maintainability hardening.
+- `decisions/single-publication-simplified-data-model.md` — **Accepted ADR** for topic-independent separate deployments, singleton Publication configuration without relational tenancy, and the pre-production rebuild-from-zero database rule.
+- `decisions/production-data-and-schema-compatibility.md` — **Accepted ADR** for the Phase 20 production-baseline boundary, durable customer-data preservation, supported production migration history, and post-launch schema-upgrade evidence.
 - `decisions/topic-independent-publication-model.md` — **Superseded historical ADR** retained only as decision history.
 - `decisions/whitelist-and-structured-feed-first.md` — whitelist/trust and structured-feed priority.
 - `decisions/original-link-and-normalized-metadata.md` — stored `original_url` public-destination decision and normalized-metadata boundary.
@@ -92,6 +96,8 @@ Use root `BOOT.md` as the session router; it points to the narrowest authoritati
 - Concurrent multi-Publication hosting inside one installation is not inferred from Publication configuration and requires a new explicit locked contract/ADR decision plus deliberate data-model work if ever promoted.
 - Do not introduce Publication tenant IDs/slugs/FKs/scopes solely as speculative future compatibility.
 - Before production compatibility exists, do not retain migration/code/API/type/test/fixture/configuration artifacts solely to preserve superseded pre-production behavior; delete them when the current canonical system no longer needs them.
+- After Phase 20 production-baseline acceptance, do not apply that destructive pre-production reset policy to supported customer state. Production schema/persistence changes preserve supported data and upgradeability under `decisions/production-data-and-schema-compatibility.md`.
+- Phase 21 is behavior-preserving maintainability/optimization work. It does not authorize new product capability, arbitrary rewrites, flattening real integrity/provenance/security boundaries, or structural-metric quotas as substitutes for maintainability evidence.
 - Foundational architecture changes require an Accepted/superseding ADR where appropriate.
 - Design guidance under `design/` is subordinate to product/domain contracts, ADRs, roadmap, and the testing contract; it may refine presentation but may not redefine supported product behavior.
 
@@ -106,3 +112,5 @@ Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Databas
 The Phase 10 entry singleton implementation correction is complete with durable validation in `validation/single-publication-simplification-correction.md`. Phase 10 — Automated polling, durable jobs, and endpoint health — is complete with durable validation in `validation/phase-10-automated-polling-durable-jobs-endpoint-health.md`. Phase 11 — Categories and configurable Relevance execution — is complete with durable validation in `validation/phase-11-categories-configurable-relevance-execution.md`. Phase 12 — Feed discovery features — is complete with durable validation in `validation/phase-12-feed-discovery-features.md`. Phase 13 — Public presentation polish — is complete with durable validation in `validation/phase-13-public-presentation-polish.md`.
 
 The repository is currently in **Phase 16 — True duplicate detection and grouping**. Phase 15 Publication and Relevance administration is complete with durable validation in `validation/phase-15-publication-relevance-administration.md`. Phase 16 owns strong-vs-weak duplicate evidence, persisted canonical review/dismissal state, Duplicate groups/memberships, deterministic Primary selection, and ordinary-feed duplicate suppression while preserving Article identity/provenance and Phase 12 discovery behavior. Phase 17 owns human moderation UI and controls.
+
+The remaining documented roadmap is Phase 17 Article/duplicate moderation → Phase 18 configurable HTML collection → Phase 19 reliability/observability/production operations → Phase 20 customer launch validation → **Phase 21 codebase simplification and maintainability hardening**. Phase 20 acceptance establishes the production data/schema baseline and feature freeze; Phase 21 closes that freeze and is terminal unless the repository owner explicitly approves a later roadmap extension. Deferred ideas do not implicitly create Phase 22.
