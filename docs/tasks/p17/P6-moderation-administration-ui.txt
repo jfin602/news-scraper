@@ -1,0 +1,222 @@
+TASK: Phase 17 / P6 — Moderation administration UI
+
+ROADMAP PHASE
+Phase 17 — Article and duplicate moderation.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Luna High`.
+- Model-family basis: this is additive behavior in the existing server-served admin client rather than a new frontend architecture, so Luna remains adequate.
+- Reasoning basis: High reasoning is justified by several interdependent list/detail/review mutation states, stale-action handling, focus/error behavior, and the need to preserve existing workspaces inside a large centralized client.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Luna Medium`; rejected because a broad centralized browser state file plus asynchronous moderation actions and accessibility/error requirements create enough interaction risk to need more deliberate reasoning.
+- Escalation trigger: implementation inspection shows safe delivery requires a meaningful frontend state-management/module architecture refactor rather than an additive Articles workspace within current conventions.
+- Escalation target: `Terra Medium`.
+- Estimate confidence: `Medium`.
+- Efficiency rationale: the prompt forbids framework/state architecture redesign; Luna High is enough for careful additive behavior while larger structural work must stop instead of being improvised.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md`, `docs/codex-model-selection.md`, and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 17 prompt 6 and its assigned project version is `0.17.6`.
+- On first execution, require top-level `package.json` version `0.17.5`; on a rerun of this same P6, `0.17.6` is acceptable.
+- Update only the top-level package version to `0.17.6`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 17 roadmap entry, P1–P5 tasks and actual implementation/tests;
+2. read `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/article-lifecycle-and-deduplication.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/design/README.md`, and `docs/design/ui-workflow.md`;
+3. inspect `src/app/web/admin-router.ts`, `src/app/web/admin/admin.js`, `src/app/web/admin/admin.css`, current admin page markup, and P5 moderation API routes/contracts;
+4. inspect `test/browser/admin-page.test.ts` and current admin browser harness/service registration patterns;
+5. preserve `main` roadmap ownership: this functional moderation UI is versioned Phase 17 work and is not a `ui-polish` presentation-only task;
+6. do not modify durable design guidance under `docs/design/` in this task;
+7. stop and report planning drift if the current admin client architecture has materially changed or if P5 cannot support the planned workflows without backend/API changes.
+
+GOAL
+Add the functional Phase 17 Article and Duplicate moderation workspace to the existing protected administration application.
+
+P6 owns browser interaction and presentation necessary to operate P5. It must not redesign domain behavior, change API contracts for convenience, or absorb presentation-only future polish.
+
+EXISTING ADMIN ARCHITECTURE
+Preserve the existing server-served admin application, CSP, no-framework approach, shared `api()` helper, mutation-integrity header behavior, global status/error conventions, and workspace navigation.
+
+Do not add React/Vue/Svelte or another frontend framework/build system.
+
+The existing `admin.js` is already centralized. Keep new Article/duplicate state and functions clearly grouped/namespaced by responsibility and avoid spreading Phase 17 conditionals through unrelated Source/Publication/Editorial code.
+
+A small browser-side helper extraction is acceptable only when it removes real duplication introduced by this task and remains consistent with the current asset-serving model. Do not turn P6 into a frontend refactor.
+
+ARTICLES WORKSPACE
+Add a clearly labeled `Articles` workspace/tab alongside existing administration workspaces.
+
+It must support a bounded operator workflow without loading all stored Articles at once.
+
+ARTICLE LIST / FILTERING
+Provide controls for the P5/P2 governed dimensions:
+- literal text search;
+- Source;
+- visibility;
+- effective Category;
+- duplicate role/review state as supported by the final P5 contract;
+- Reset/clear behavior;
+- bounded load-more/continuation when another page exists.
+
+Requirements:
+- current filter state is visually understandable;
+- loading, empty, error, and populated states are explicit;
+- changing filters resets stale continuation;
+- results clearly distinguish visibility and duplicate role/Primary state;
+- hidden/archived/non-Primary rows remain inspectable rather than looking like public-feed failures;
+- stale selections are cleared or refreshed predictably when a filter removes the selected Article.
+
+Do not add public URL/history semantics to the admin page unless the existing admin architecture already governs them.
+
+ARTICLE DETAIL
+Selecting an Article must expose bounded inspection information from P5, including:
+- Source and Article identity context;
+- Source-derived headline and effective headline;
+- active display-title override state;
+- original publisher URL as read-only destination/evidence;
+- visibility;
+- automatic Categories, manual override-active state, manual set, and effective Categories;
+- duplicate group role/current Primary/manual-vs-automatic Primary authority;
+- bounded observation provenance with endpoint/run/reason context;
+- bounded change history.
+
+Keep identity/provenance read-only. Do not render `original_url`, canonical identity, timestamps, Source ownership, or observation evidence as editable fields.
+
+ARTICLE MODERATION ACTIONS
+Provide explicit controls for:
+- hide when currently visible;
+- restore when currently hidden;
+- set display-title override;
+- clear display-title override;
+- set manual Category override using current Category choices;
+- intentionally save an empty manual Category set;
+- clear manual Category override to return to automatic state.
+
+Make empty-vs-cleared Category state understandable to the operator. Do not silently interpret an empty selection as clear.
+
+After successful mutation:
+- refresh the selected Article from the server rather than only mutating optimistic local fields;
+- refresh list state when eligibility/filter labels may have changed;
+- surface success through existing status conventions;
+- retain meaningful context/selection where possible.
+
+On failure, keep unsaved operator input where useful and show bounded P5 error semantics without raw server data.
+
+DUPLICATE REVIEW WORKFLOW
+Within the Articles workspace or a clearly related subview, expose a bounded Duplicate review queue.
+
+For one selected candidate show side-by-side evidence sufficient for an operator to make a decision:
+- both Article headlines/Sources/original URLs/timestamps as provided by P5;
+- current visibility/group/Primary state;
+- confidence and ordered evidence/reason signals;
+- manual separation/Primary conflict state when relevant;
+- enough provenance summary to distinguish true duplicate vs related coverage without dumping unbounded observations.
+
+Provide explicit actions for:
+- dismiss with optional bounded reason;
+- manual merge, with optional explicit Primary where P5 permits/needs it;
+- split selected group member(s);
+- choose Primary.
+
+When P5 reports a conflict such as two manually-Primaried groups requiring explicit Primary selection, present an actionable human message rather than generic failure.
+
+Do not add new duplicate scoring/evidence logic in JavaScript. The UI displays server-owned evidence/state and submits explicit commands only.
+
+CHANGE HISTORY
+Show bounded material moderation history in Article/group context as provided by P5.
+
+History is read-only. Display action/time/reason and concise prior/new state where available without dumping raw JSON blobs to the operator by default.
+
+ACCESSIBILITY / RESPONSIVE BEHAVIOR
+Follow the existing admin visual language and browser contract rather than inventing a separate design system.
+
+At minimum:
+- all form controls have associated labels;
+- tabs/workspaces preserve correct roles/selection state;
+- action buttons have unambiguous names;
+- errors use existing alert/focus conventions;
+- keyboard-only navigation can reach filters, list selections, forms, duplicate actions, and history;
+- focus moves predictably after validation errors and major selection/workspace changes;
+- no essential moderation control becomes unreachable at representative mobile width;
+- side-by-side duplicate evidence may stack vertically on narrow screens without losing labels/association;
+- long URLs/headlines/reasons wrap without horizontal-page overflow.
+
+Do not perform unrelated visual polish beyond what is necessary for a usable functional Phase 17 workflow.
+
+BROWSER STATE / STALE ACTIONS
+Handle realistic asynchronous/stale cases:
+- selected Article disappears from current filter after hide/Category change;
+- candidate becomes dismissed/merged before the operator action returns;
+- group membership/Primary changes and P5 returns conflict;
+- load-more cursor becomes invalid after filter reset;
+- refresh-all while an Article/candidate is selected;
+- failed mutation must re-enable controls and not leave global `mutationInFlight` permanently stuck;
+- repeated clicks while a mutation is active must not issue duplicate commands.
+
+Prefer refetch/reconciliation over speculative optimistic topology edits.
+
+BROWSER TEST OWNERSHIP
+Add a substantive dedicated browser file such as `test/browser/article-moderation-page.test.ts` rather than making the already-large `test/browser/admin-page.test.ts` own every new Phase 17 scenario.
+
+The new harness may use in-memory admin service doubles for browser interaction proof, but must model P5 response/error contracts faithfully. Database correctness remains owned by P2/P3/P5 PostgreSQL tests.
+
+Keep existing `admin-page.test.ts` as broader regression coverage for Publication/Source/Editorial workspaces.
+
+FOCUSED BROWSER TESTS — LEVEL 6 REQUIRED
+At minimum observe in real Chromium:
+- Articles workspace load at desktop and representative mobile viewport;
+- list search/filter/reset/load-more and empty/error states;
+- visible/hidden/archived and ungrouped/Primary/non-Primary distinctions;
+- Article detail/provenance/history inspection;
+- hide and restore;
+- display override set/clear with Source-vs-effective value visible;
+- Category manual set, explicit empty set, and clear-to-automatic behavior;
+- duplicate queue and side-by-side evidence;
+- dismiss;
+- merge including explicit Primary conflict flow;
+- split;
+- choose Primary;
+- bounded validation/conflict/service-error states;
+- mutation-integrity header on unsafe requests;
+- keyboard/focus behavior through an error and successful mutation;
+- no mobile horizontal-page overflow/unreachable primary actions;
+- existing Publication/Source/Editorial workspace can still be used after visiting Articles.
+
+PRESERVED BEHAVIOR
+Preserve:
+- admin-disabled route behavior;
+- Source/endpoint/Publication/Category/Relevance UI and API semantics;
+- central mutation-integrity request header behavior;
+- public root/feed behavior;
+- P2/P3/P5 server authority for all moderation semantics;
+- Cloudflare Access as external perimeter without claiming deployment validation;
+- singleton Publication/topic-independent product architecture.
+
+NON-GOALS
+Do not implement:
+- frontend framework migration or broad admin refactor;
+- design-system overhaul or presentation-only `ui-polish` work;
+- backend/schema/service behavior changes except a tiny correction required to satisfy the already-implemented P5 contract, which must be reported and regression-tested if encountered;
+- new duplicate heuristics;
+- native admin identity;
+- public community moderation;
+- HTML collection/Phase 18 or operations/Phase 19 features.
+
+VALIDATION
+During development run the dedicated new browser file directly with `node scripts/run-tests.mjs "test/browser/article-moderation-page.test.ts"` or its actual chosen path, plus the narrow static/unit tests needed for browser-adjacent helpers.
+
+Before completion on the final P6 tree run the smallest non-overlapping applicable set:
+- `npm run check`
+- `npm run test:browser`
+- `git diff --check`
+
+Do not separately rerun individual browser files after a successful full `npm run test:browser` on the unchanged final tree solely to duplicate evidence.
+
+Confirm `package.json` is `0.17.6`, no npm lockfile exists, and no durable design document or `docs/design/tasks/` file was modified.
+
+FINAL REPORT
+Report files changed, final Articles/review workflows, state/error/focus strategy, browser evidence actually executed including viewports/results, preserved existing workspaces, package version, and remaining risk. Do not claim Cloudflare Access deployment protection from local browser tests.
