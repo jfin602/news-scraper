@@ -24,6 +24,7 @@ Follow `BOOT.md`.
 - `/docs-prompt` is the read-only alternative after approval: run `npm run docs:snapshot`, provide `news-scraper-docs-context.zip`, then use `/docs-prompt` to produce one prompt for Codex to apply locally. `BOOT.md` defines its full contract.
 - Preserve unrelated wording during scoped documentation fixes.
 - Normal non-terminal phase handoff follows `/closeout` → `/docs-review` → `/docs-apply` → `/prompt-ass` → `/prompt-plan` → `/prompt-write <folder name>`.
+- Producer prompts with explicitly planned downstream consumers must leave the complete downstream-required interface at the correct layer with focused consumer-readiness proof; a later thin consumer must not invent missing producer-owned SQL, cursor/pagination, domain, transaction, validation, or state semantics.
 - Terminal Phase 21 `/closeout` preserves the final package version and reports `Roadmap status: COMPLETE`; any later roadmap work requires explicit owner-approved roadmap extension before a new phase baseline exists.
 - Use `docs/codex-model-selection.md` with `BOOT.md` for the minimum-cost-adequate model-family and reasoning-effort workflow.
 - Parallel UI work is governed by `docs/design/ui-workflow.md` on the permanent `ui-polish` branch/worktree. The normal targeted path is `/ui-plan` → `/ui-write`; when durable design guidance must first change, `/ui-plan` requires `/ui-review` → explicit approval → `/ui-apply` → rerun `/ui-plan` before `/ui-write`.
@@ -254,6 +255,7 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 
 - Automated behavioral regression coverage is the primary protection against implementation regressions.
 - Every implementation change requires focused tests for the changed behavior plus relevant broader regression coverage for its blast radius.
+- A producer prompt with an explicitly planned downstream consumer must prove the complete downstream-required handoff surface at the owning layer; passing only the subset exercised internally by the producer is insufficient.
 - Iterative implementation work SHOULD run the smallest focused suite capable of answering the current development question; broad final-tree suites are not a substitute for fast focused feedback.
 - Final-tree validation is coverage-set based: when an aggregate command passes on the unchanged final tree, it satisfies the subordinate checks/suites that it actually executes. Do not rerun those subordinate commands solely to duplicate the same evidence.
 - Test evidence applies to the exact final source tree that was executed; earlier passing evidence does not automatically validate later changes.
@@ -285,9 +287,9 @@ Current phase: **Phase 17 — Article and duplicate moderation**.
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with its recorded live-source limitation preserved. The Phase 10 entry singleton correction and Phases 10–15 are complete.
 
-Phase 15 is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 is complete with durable GREEN validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`; the non-versioned `c16-test-efficiency` correction remains completed historical work. Phase 17 is active and owns reversible Article and duplicate moderation on top of the existing Source-scoped Article identity, duplicate evidence/review, group, Primary, visibility, and provenance model.
+Phase 15 is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 is complete with durable GREEN validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`; the non-versioned `c16-test-efficiency` correction remains completed historical work. Phase 17 is active. P1–P4 are implemented through project version `0.17.4`; P5 remains unexecuted after correctly refusing to absorb missing producer-owned duplicate-review read semantics from P3. The prepared non-versioned correction `c17-duplicate-review-read-surface` is the current gate and remains unaccepted until its implementation plus manual correction closeout are GREEN.
 
-Functional Phase 17 moderation API/UI is normal versioned roadmap implementation work on `main`, decomposed through `/prompt-ass` → `/prompt-plan` → `/prompt-write p17`. The permanent `ui-polish` workstream remains separately targeted, non-versioned, presentation-only work and MUST NOT absorb Phase 17 persistence, commands, API semantics, or required behavioral browser workflow.
+After that correction gate is GREEN, Phase 17 resumes at P5 on `main`, followed by the remaining versioned API/UI/closeout work. The permanent `ui-polish` workstream remains separately targeted, non-versioned, presentation-only work and MUST NOT absorb Phase 17 persistence, commands, API semantics, or required behavioral browser workflow.
 
 Remaining roadmap order:
 
@@ -306,6 +308,8 @@ Phases 1–9 remain the tech-demo critical path historically.
 - Prefer file-scoped, regression-safe Codex prompts.
 - Include non-goals and preserved behavior.
 - Require focused + broader regression tests and name the evidence level needed to prove acceptance.
+- For direct producer/consumer dependencies, map each downstream-required capability to its owning implementation/export and focused proof before declaring the producer complete.
+- When one proposed prompt combines a complex transaction/state-machine responsibility with an independently consumable read/service/API responsibility, explicitly assess splitting it before raising the model tier; prefer decomposition when consumers, test strategies, or failure risks differ materially.
 - Separate iterative focused validation from final-tree regression validation. During implementation, prefer the narrowest relevant test command; at final validation, prefer the smallest non-overlapping command set that covers every required suite/evidence level.
 - Do not redundantly rerun a subordinate test/check immediately before or after a successful aggregate command that already executed it on the same unchanged tree unless diagnosing a failure or an intervening change invalidated evidence.
 - Do not claim runtime/browser/database/live-Source behavior unless actually observed at the corresponding evidence level.
