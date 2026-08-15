@@ -346,6 +346,8 @@ Before configurable Relevance rules are implemented, normalized safe candidates 
 
 Relevance-rule edits are prospective by default in MVP. They affect future candidate processing. Automatic bulk retroactive re-evaluation of already persisted Articles is deferred unless a dedicated reprocessing operation is explicitly added later. Existing Articles retain prior persisted state until ordinary later included observations, explicit moderation, or a dedicated future reprocessing operation changes it. Applying then-current Category rules during an ordinary later included observation is normal candidate processing, not a bulk historical scan.
 
+When Phase 17 manual Category moderation is active, ordinary included observations continue evaluating and persisting the latest automatic Relevance/default Category assignment and reasons, but MUST NOT overwrite or clear the active operator-selected effective Category set. Automatic state remains recoverable, and clearing the override returns effective control to the latest automatic assignment. Likewise, normal collection continues updating governed Source-derived display values without overwriting or clearing an active display override. Collection never rewrites historical runs/observations, Source ownership, identity fields, or `original_url` as a moderation shortcut.
+
 Generic `boost` ranking is deferred until a ranking/scoring contract exists.
 
 ## Article identity and idempotency

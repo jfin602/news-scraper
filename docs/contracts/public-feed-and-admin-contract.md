@@ -160,7 +160,7 @@ When no discovery parameter is supplied, `GET /api/feed` represents the unfilter
 - Public Source and Category filter identity MUST use immutable `config_key` values, not database UUIDs or mutable display labels.
 - MVP supports at most one Source filter and one Category filter at a time.
 - When multiple discovery dimensions are supplied, `q`, `source`, and `category` compose with logical AND: a returned Article must satisfy every supplied criterion in addition to ordinary feed eligibility.
-- Category filtering uses the Article's current `article_categories` membership. Historical observation/category reasons do not make an Article currently match a Category filter.
+- Category filtering uses the Article's effective current Category membership, including an active Phase 17 manual Category override. Historical observation/category reasons alone do not make an Article currently match a Category filter. Clearing an override restores the latest current automatic membership; an intentionally empty active manual set, if represented, matches no Category.
 - Source filtering MUST NOT weaken the ordinary Source approval/lifecycle eligibility gates.
 - Public discovery metadata may expose bounded Source/Category choices needed by the UI using only stable public identity and display data such as `{ configKey, displayName }`. Internal database IDs, rule internals, observations, or private configuration are not public filter metadata. Public Source choices MUST NOT expose unapproved or archived Sources.
 
@@ -329,17 +329,19 @@ Phase 15 integrates the managed Category set with existing Source/endpoint defau
 
 ## Article management UI
 
-Once the Article-moderation phase is complete, authorized operators MUST be able to:
+Phase 17 Article administration is a bounded, deterministic, paginated read surface over stored Article instances, not the public-feed-eligible stream. Public suppression MUST NOT make a stored Article inaccessible to authorized moderation. Applicable filters include bounded literal text, Source, visibility, effective Category, and duplicate role/group/review state. Authorized operators MUST be able to:
 
-- search/filter all stored Article instances;
-- distinguish ungrouped Articles, Primary members, non-primary members, hidden Articles, and archived Articles;
-- inspect Source, endpoint, Collection-run observations, and Relevance reasons;
+- search/filter visible, hidden, and archived stored Article instances;
+- distinguish ungrouped Articles, Primary members, non-Primary members, and Articles participating in Duplicate review state;
+- inspect owning Source, endpoint, Collection-run/Article-observation provenance, retained Relevance/Category reasons, necessary identity information, duplicate signals/confidence/reasons, and current group/Primary state;
 - edit optional display overrides without replacing/loss of current normalized Source-derived values;
 - clear an override to reveal latest normalized Source value;
 - hide/restore and categorize Articles;
 - enter Duplicate review/merge/split workflows.
 
-Source updates never silently clobber an active admin display override.
+An active display override is separate from and takes precedence only for its governed human-facing field. Source updates continue maintaining the latest underlying normalized value and never silently overwrite or clear the override; clearing it reveals that latest value. Display overrides cannot mutate Source ownership, external/normalized identity, provenance, Source-derived publication timestamps, or `canonical_identity_url`. They do not turn `original_url` into an editable display field: the public feed uses the effective display value but continues navigating to stored publisher `original_url`.
+
+An active manual Category override is the operator-selected effective current set used by admin/public behavior and filtering. Automatic assignment/reasons continue updating underneath it; clearing returns to the latest automatic set. An intentionally empty override, if supported, is distinct from clearing.
 
 ## Duplicate review UI
 
@@ -354,7 +356,7 @@ Review SHOULD place candidate Articles side-by-side with:
 - current duplicate role/Primary selection;
 - merge, split, dismiss, and choose-Primary controls.
 
-Dismissed decisions persist so unchanged evidence does not repeatedly recreate the same review work.
+Dismissed decisions persist so unchanged evidence does not repeatedly recreate the same review work. Manual split and choose-Primary decisions likewise outrank materially unchanged automatic evidence until intentionally revised, while all topology, Primary, visibility, Article, and provenance invariants remain intact.
 
 ## Administrative access and request integrity
 
@@ -368,6 +370,6 @@ Dismissed decisions persist so unchanged evidence does not repeatedly recreate t
 
 ## Change history
 
-Security-sensitive configuration and moderation changes SHOULD produce bounded application change/audit records sufficient to explain material actions, including Source/endpoint state/approval changes, Article visibility/overrides/Categories, and Duplicate review/group changes.
+Successful material Phase 17 moderation changes produce append-only application change/audit records sufficient to explain the action, including bounded action, target, time, reason, and bounded prior/new state where appropriate. A required record is written transactionally with its mutation and cannot claim success after validation failure or rollback. Ordinary Phase 17 administration cannot edit history; reads are bounded/paginated. Phase 17 does not invent retention/pruning policy, which remains Phase 19 work.
 
 MVP change records do not require a stable native administrator identifier or guaranteed per-user attribution. Cloudflare identity/access logs are operational evidence rather than the application's canonical domain identity.

@@ -278,7 +278,9 @@ Accepted Article processing may also produce zero or more **orthogonal effects**
 
 `original_url` is the preserved absolute Source-provided Article destination and public headline destination. `canonical_identity_url` exists for identity comparison/cleanup and MUST NOT silently replace `original_url` as a public destination. A different Source-derived public/canonical destination field requires a separately governed future contract.
 
-Source-derived normalized values remain distinct from optional administrator display overrides. Later Source observations update Source-derived values without clobbering an active override. Clearing an override reveals the latest normalized Source value.
+Source-derived normalized values remain distinct from optional administrator display overrides. An active override takes precedence only for its explicitly governed human-facing display field. Later Source observations continue updating the underlying Source-derived value without overwriting or clearing the override, and clearing the override immediately reveals the latest Source-derived value rather than a snapshot captured when the override began.
+
+Ordinary display overrides MUST NOT replace or redefine Article Source ownership, reliable Source external identity, `canonical_identity_url`, normalized identity/matching fields, Collection-run/observation provenance, or Source-derived publication timestamps. In particular, `original_url` remains the stored publisher destination and is not a casual administrator display override. Public presentation may use an effective display value while headline navigation continues to use stored `original_url`.
 
 ### `article_observations`
 
@@ -307,6 +309,8 @@ A Raw item rejected by the Source RSS/Atom item admission filter is not a candid
 Categories are installation-wide Publication configuration. Each Category has an immutable installation-wide `config_key`, a mutable bounded display label, and any later presentation metadata introduced by the phase that uses it. Articles may have multiple Categories; the singleton Publication may define a preferred display Category. Phase 15 supports Category creation, read, and update; it does not invent a Category archive/lifecycle state.
 
 Article/Category membership is unique per Article + Category. A Category referenced by a Relevance rule or Source/endpoint default MUST exist in the same installation. No Publication foreign key is required because another Publication cannot exist in the same supported installation.
+
+Phase 17 manual Category moderation distinguishes automatic assignment from an active operator override. An active override is the operator-selected effective current Category set exposed by admin/public behavior and Category filtering; an intentionally empty set, if represented, means no effective Categories and is distinct from clearing the override. Automatic Relevance/default assignment and reasons continue to advance and remain recoverable while an override is active. Clearing the override returns effective control to the latest current automatic assignment, not an obsolete snapshot. The persistence representation is implementation-defined.
 
 Physical Category removal is permitted only when transactionally shown to be unreferenced. Removal MUST be atomically rejected while any retained relationship requires the Category, including a `categorize` rule target, Source or endpoint default, current Article/Category membership, or retained observation/category-reason provenance. A removal path MUST NOT silently null, cascade away, or rewrite retained Article, provenance, or editorial relationships; operators first explicitly clear or change removable configuration references. Article moderation/manual recategorization remains Phase 17.
 
@@ -379,11 +383,11 @@ Generic `boost`/ranking behavior is deferred until a ranking/scoring contract ex
 - group timestamps;
 - membership records preserving every Article instance.
 
-Each Article belongs to at most one group. Exactly one member is Primary, and the Primary identifier MUST reference a member of that same group. Repeated same-group evidence is idempotent. Strong-evidence merging of two groups is atomic/idempotent, preserves all Articles/observations/memberships, and leaves one deterministic Primary; weak evidence cannot merge groups automatically. Membership and Primary changes do not alter Article visibility or delete provenance. Prefer database constraints for expressible uniqueness/integrity and transactions for the complete topology invariant. No Publication foreign key or cross-Publication membership check is needed in the supported singleton installation.
+Each Article belongs to at most one group. Exactly one member is Primary, and the Primary identifier MUST reference a member of that same group. Repeated same-group evidence is idempotent. Strong-evidence merging of two groups is atomic/idempotent, preserves all Articles/observations/memberships, and leaves one deterministic Primary; weak evidence cannot merge groups automatically. Membership and Primary changes do not alter Article visibility or delete provenance. Phase 17 manual split/merge/Primary authority is retained until intentionally revised and cannot be silently undone by materially unchanged automatic evidence. Prefer database constraints for expressible uniqueness/integrity and transactions for the complete topology invariant. No Publication foreign key or cross-Publication membership check is needed in the supported singleton installation.
 
 ### `audit_events`
 
-MVP may persist bounded administrative configuration/moderation change history for security-sensitive or editorially significant changes. Records may include action, target, prior/new state, timestamp, and reason where applicable. MVP does not require a native administrator identifier or canonical per-user attribution.
+MVP persists append-only application change history for successful material Phase 17 moderation mutations. Records use bounded action, target, timestamp, reason, and bounded prior/new state where appropriate. Where atomic explanation is required, the record is written transactionally with the mutation and MUST NOT claim success when validation or the governed mutation rolls back. Ordinary Phase 17 administration cannot edit these records, and reads are bounded/paginated. MVP does not require a native administrator identifier or canonical per-user attribution; retention/pruning policy remains Phase 19 work.
 
 Native administrator accounts/identity, roles, per-user authorization, account recovery, and identity-linked audit attribution are outside MVP and require a later contract/ADR if promoted.
 

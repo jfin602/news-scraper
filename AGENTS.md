@@ -281,15 +281,16 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 16 — True duplicate detection and grouping**.
+Current phase: **Phase 17 — Article and duplicate moderation**.
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with its recorded live-source limitation preserved. The Phase 10 entry singleton correction and Phases 10–15 are complete.
 
-Phase 15 is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 is active and owns true duplicate detection, persisted review/dismissal state, Duplicate groups/memberships, deterministic Primary selection, and ordinary-feed duplicate suppression. Phase 16 P1–P6 are implemented through project version `0.16.6`; the non-versioned `c16-test-efficiency` correction is complete without consuming or renumbering a roadmap prompt. Phase 16 P7 closeout is the next roadmap task and must be revalidated under the validation-efficiency/command-containment policy before manual execution. Do not pull Phase 17 moderation/UI or later work into Phase 16 unless a true dependency or explicit decision requires it.
+Phase 15 is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 is complete with durable GREEN validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`; the non-versioned `c16-test-efficiency` correction remains completed historical work. Phase 17 is active and owns reversible Article and duplicate moderation on top of the existing Source-scoped Article identity, duplicate evidence/review, group, Primary, visibility, and provenance model.
+
+Functional Phase 17 moderation API/UI is normal versioned roadmap implementation work on `main`, decomposed through `/prompt-ass` → `/prompt-plan` → `/prompt-write p17`. The permanent `ui-polish` workstream remains separately targeted, non-versioned, presentation-only work and MUST NOT absorb Phase 17 persistence, commands, API semantics, or required behavioral browser workflow.
 
 Remaining roadmap order:
 
-- Phase 17 — Article and duplicate moderation
 - Phase 18 — Configurable HTML collection
 - Phase 19 — Reliability, observability, and production operations
 - Phase 20 — Customer launch validation
@@ -312,7 +313,7 @@ Phases 1–9 remain the tech-demo critical path historically.
 - Trace shared helpers/consumers before changing data or collection semantics.
 - After Phase 20, trace the supported production baseline, migration path, persisted relationships, backup/rollback/restore, and affected consumers/tests before approving persistence refactors; never apply the pre-production destructive-reset rule to supported customer data.
 - For Phase 21, derive the task stack from the accepted launched tree and observed maintainability/measurement evidence. Do not manufacture cleanup work, optimize for raw LOC/file/module/dependency counts, or add deferred product capability.
-- Before Phase 16 work trace Source-scoped Article identity → separately persisted Articles → duplicate evidence/signals → canonical review pair/state → Duplicate-group membership → Primary selection → public-feed eligibility/suppression → Collection-run duplicate effects → tests.
+- Before Phase 17 work trace visibility/display and Category override state → Article/provenance read model → duplicate review/group/manual-decision state → operator mutation → canonical public-feed/admin effects → change history → tests.
 - Before public-route work trace singleton Publication settings → canonical read model → `/api/feed` → `/` page/client → unavailable/error behavior → external links → browser tests.
 - Before UI work read `docs/design/README.md` and `docs/design/ui-workflow.md`, trace presentation source/shared frontend consumers/tests, and keep concurrent UI implementation isolated in the `ui-polish` worktree.
 - Confirm applicable local validation commands/suites were actually executed against the final tree before approval.

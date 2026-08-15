@@ -832,7 +832,7 @@ Expose the installation's singleton Publication/editorial configuration, Categor
 
 ## Phase 16 — True duplicate detection and grouping
 
-**Status:** Current roadmap phase. P1–P6 are implemented through package version `0.16.6`; the testing-efficiency correction below is complete, and P7 closeout is pending revalidation and manual execution.
+**Status:** Complete with durable GREEN validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`.
 
 ### Goal
 
@@ -869,13 +869,13 @@ Suppress true duplicate public rows while preserving every Article instance/prov
 - Related coverage remains separate.
 - Unchanged dismissed evidence does not recur indefinitely.
 - Inherited Phase 16 validation covers strong-vs-weak classification, canonical pairs/dismissal, every Primary tie-break, post-identity composition, feed/discovery suppression, Collection-run effects, and real-PostgreSQL uniqueness/concurrency/topology/rollback/provenance invariants.
-- The Phase 16 testing-efficiency correction is complete before P7 closeout; that correction does not consume or renumber Phase 16 roadmap prompts.
+- The Phase 16 testing-efficiency correction completed before closeout and did not consume or renumber Phase 16 roadmap prompts.
 
 ## Phase 16 mid-phase testing-efficiency correction
 
 **Status:** Complete non-versioned correction. It consumed no Phase 16 roadmap prompt number and preserved package version `0.16.6`.
 
-This correction is implementation/tooling work under the non-versioned correction-stack workflow. It preserves the active Phase 16 roadmap phase and the package version established by completed P3; it does not consume Phase 16 P4's roadmap patch number.
+This correction was implementation/tooling work under the non-versioned correction-stack workflow. It preserved the then-active Phase 16 roadmap phase and package version `0.16.6`; it did not consume a Phase 16 roadmap patch number.
 
 ### Goal
 
@@ -919,9 +919,11 @@ Reduce local/Codex validation wall-clock time substantially without reducing tes
 - Final correction validation uses aggregate-command containment rather than redundant subordinate reruns while still executing the complete applicable ordinary, database, browser, and other specialized deterministic matrices.
 - Before/after wall-clock timing is recorded for applicable suites on the same machine/environment. The evidence should demonstrate material improvement; absolute portable time thresholds are not a correctness contract.
 - A durable correction closeout artifact under `docs/validation/` records the exact accepted source tree, commands/procedures, results, benchmark environment/timings, evidence levels, and limitations.
-- The `package.json` version remains unchanged throughout the correction. After green correction closeout, Phase 16 resumes at the still-unexecuted P7 closeout, which retains its existing `0.16.7` roadmap version assignment.
+- The `package.json` version remained unchanged throughout the correction. After green correction closeout, Phase 16 resumed and later completed its separately assigned P7 closeout.
 
 ## Phase 17 — Article and duplicate moderation
+
+**Status:** Current roadmap phase. Implementation assessment/planning begins with `/prompt-ass`; prompt count and architecture remain to be derived from the current implementation.
 
 ### Goal
 
@@ -932,6 +934,13 @@ Give Cloudflare-authorized operators reversible control over Article presentatio
 - Phase 16.
 
 ### Deliverables
+
+- Bounded, deterministic, paginated administrator search over stored Article instances—not the public-feed-eligible stream—with applicable literal text, Source, visibility, Category, duplicate role/group, and review-state filters. Authorized operators can find visible, hidden, archived, ungrouped, Primary, non-Primary, and review-participating Articles even when public suppression excludes them.
+- Read-only inspection of owning Source, endpoint/run/observation provenance, retained Relevance/Category reasons, identity evidence, duplicate signals/confidence/reasons, and current group/Primary state.
+- Governed display and effective Category overrides with clear set/clear precedence over continuously maintained latest Source-derived/automatic state.
+- Duplicate review queue plus dismiss, merge, split, and choose-Primary controls whose manual decisions outrank materially unchanged automatic outcomes until intentionally revised.
+- Transactionally coherent, append-only, bounded change history for successful material moderation mutations.
+- Functional moderation API/UI delivered as normal versioned Phase 17 roadmap work on `main`; presentation-only `ui-polish` tasks do not own this behavior.
 
 - Article search/filter across stored instances;
 - provenance inspection;

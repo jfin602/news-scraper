@@ -183,7 +183,11 @@ Once moderation UI exists, Cloudflare-authorized operators MUST be able to:
 - hide/restore Articles independently of duplicate role;
 - preserve bounded change history for material actions.
 
-Manual decisions override automatic grouping/review outcomes until intentionally revised.
+Manual decisions override automatic grouping/review outcomes until intentionally revised. A manual split is authoritative separation of the affected membership/relationship: materially unchanged automatic evidence may remain inspectable but MUST NOT immediately regroup or remerge the Articles, and reversal requires intentional operator action. An explicit manual Primary outranks automatic selection and MUST NOT be silently replaced during automatic reevaluation while it remains a valid group member.
+
+Manual merge, split, and choose-Primary mutations are transactional and preserve at-most-one group membership per Article, exactly one member Primary per surviving group, every Article and observation/provenance record, and visibility as an independent state. A topology mutation that removes the manual Primary must leave the surviving group valid with exactly one member Primary. Hiding/restoring does not change membership or silently select another Primary; if the Primary is hidden, the valid group may produce no public row until a visible Primary is intentionally selected.
+
+Provenance inspection is read-only. Moderation never edits historical Collection runs or observations, rewrites Source ownership, deletes evidence to hide/recategorize/merge/split/suppress an Article, or converts collected evidence into mutable operator-owned data. Moderation may append its own change-history record.
 
 MVP change history does not require canonical per-user attribution inside the application.
 
