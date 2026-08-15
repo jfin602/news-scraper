@@ -40,6 +40,13 @@ const PHASE_6_RELATIVE_RSS = `<?xml version="1.0"?>
 </item></channel></rss>`;
 const PHASE_6_ZERO_RSS = `<?xml version="1.0"?>
 <rss version="2.0"><channel><title>Zero fixture</title></channel></rss>`;
+const HTML_LISTING = `<!doctype html><html><body>
+<main class="listing">
+  <article class="item"><h2 class="title">Static fixture</h2><a class="article" href="../articles/static?utm_source=fixture">Read</a></article>
+  <article class="item"><h2 class="title">Malformed row</h2></article>
+</main>
+<a href="/next-page">Next</a><img src="/image.png"><script src="/script.js"></script>
+</body></html>`;
 
 export interface FixtureRequest {
   readonly method: string | undefined;
@@ -178,6 +185,27 @@ function route(request: IncomingMessage, response: ServerResponse): void {
         Buffer.from(PHASE_6_ZERO_RSS),
         'application/rss+xml; charset=utf-8',
       );
+      return;
+    case '/html-listing':
+      htmlResponse(
+        response,
+        Buffer.from(HTML_LISTING),
+        'text/html; charset=utf-8',
+      );
+      return;
+    case '/redirect-html-listing':
+      redirectResponse(response, '/lists/current/index.html');
+      return;
+    case '/lists/current/index.html':
+      htmlResponse(
+        response,
+        Buffer.from(HTML_LISTING),
+        'text/html; charset=utf-8',
+      );
+      return;
+    case '/html-not-modified':
+      response.writeHead(304, { ETag: '"html-fixture-etag"' });
+      response.end();
       return;
     case '/atom':
       xmlResponse(response, Buffer.from(XML), 'application/atom+xml');
@@ -322,6 +350,15 @@ function route(request: IncomingMessage, response: ServerResponse): void {
 }
 
 function xmlResponse(
+  response: ServerResponse,
+  body: Buffer,
+  contentType: string,
+): void {
+  response.writeHead(200, { 'Content-Type': contentType });
+  response.end(body);
+}
+
+function htmlResponse(
   response: ServerResponse,
   body: Buffer,
   contentType: string,

@@ -21,6 +21,30 @@ export interface ConditionalRequestValidators {
   readonly lastModified?: string;
 }
 
+/**
+ * A deliberately small terminal-response policy.  The endpoint collection
+ * layer chooses it from persisted endpoint type; transport never needs an
+ * endpoint aggregate to make media decisions.
+ */
+export type HttpContentPolicy = 'rss_atom' | 'html_listing';
+
+export const HTTP_CONTENT_POLICIES = Object.freeze({
+  rss_atom: Object.freeze({
+    accept:
+      'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8',
+    acceptedMediaTypes: Object.freeze([
+      'application/rss+xml',
+      'application/atom+xml',
+      'application/xml',
+      'text/xml',
+    ]),
+  }),
+  html_listing: Object.freeze({
+    accept: 'text/html',
+    acceptedMediaTypes: Object.freeze(['text/html']),
+  }),
+});
+
 export interface FetchOptions {
   readonly connectTimeoutMs?: number;
   readonly totalTimeoutMs?: number;
@@ -28,6 +52,7 @@ export interface FetchOptions {
   readonly maxDecompressedBytes?: number;
   readonly userAgent?: string;
   readonly validators?: ConditionalRequestValidators;
+  readonly contentPolicy?: HttpContentPolicy;
 }
 
 export interface FetchRequest extends FetchOptions {
@@ -41,6 +66,7 @@ export interface ResolvedFetchOptions {
   readonly maxDecompressedBytes: number;
   readonly userAgent: string;
   readonly validators: ConditionalRequestValidators;
+  readonly contentPolicy: HttpContentPolicy;
 }
 
 export interface ResolvedFetchRequest extends ResolvedFetchOptions {
@@ -141,6 +167,7 @@ export function resolveFetchOptions(
       HTTP_TRANSPORT_DEFAULTS.maxDecompressedBytes,
     userAgent: request.userAgent ?? HTTP_TRANSPORT_DEFAULTS.userAgent,
     validators: request.validators ?? {},
+    contentPolicy: request.contentPolicy ?? 'rss_atom',
   };
 
   positiveInteger(resolved.connectTimeoutMs, 'connectTimeoutMs');
@@ -151,6 +178,12 @@ export function resolveFetchOptions(
     throw new RangeError('connectTimeoutMs must not exceed totalTimeoutMs');
   }
   validateHeaderValue(resolved.userAgent, 'userAgent', 256);
+  if (
+    resolved.contentPolicy !== 'rss_atom' &&
+    resolved.contentPolicy !== 'html_listing'
+  ) {
+    throw new TypeError('contentPolicy is not supported');
+  }
   if (resolved.validators.etag !== undefined) {
     validateHeaderValue(
       resolved.validators.etag,

@@ -18,6 +18,7 @@ import {
   type Fetcher,
   type FetchRequest,
   type FetchResult,
+  HTTP_CONTENT_POLICIES,
   type ResolvedFetchRequest,
   type ResponseMetadata,
   type RetryClassification,
@@ -25,16 +26,8 @@ import {
   type TransportMetrics,
 } from './fetcher.ts';
 
-const ACCEPT =
-  'application/rss+xml, application/atom+xml, application/xml;q=0.9, text/xml;q=0.8';
 const ACCEPT_ENCODING = 'gzip, deflate, br';
 const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
-const ACCEPTED_XML_MEDIA_TYPES = new Set([
-  'application/rss+xml',
-  'application/atom+xml',
-  'application/xml',
-  'text/xml',
-]);
 
 export type HttpRequestFunction = (
   protocol: 'http:' | 'https:',
@@ -96,7 +89,7 @@ export function buildValidatedRequestOptions(
 
   const selectedAddress = destination.addresses[0]!;
   const headers: Record<string, string> = {
-    Accept: ACCEPT,
+    Accept: HTTP_CONTENT_POLICIES[request.contentPolicy].accept,
     'Accept-Encoding': ACCEPT_ENCODING,
     'User-Agent': request.userAgent,
   };
@@ -323,13 +316,16 @@ async function handleResponse(
   }
 
   if (status >= 200 && status < 300) {
-    const mediaType = acceptedMediaType(metadata.contentType);
+    const mediaType = acceptedMediaType(
+      metadata.contentType,
+      input.contentPolicy,
+    );
     if (mediaType === undefined) {
       response.destroy();
       return failureWithoutMetrics(
         'unsupported_content_type',
         'permanent',
-        'Terminal response Content-Type is not an accepted XML feed type.',
+        'Terminal response Content-Type is not accepted for this endpoint type.',
         metadata,
       );
     }
@@ -515,10 +511,14 @@ function boundedContentLength(headers: IncomingHttpHeaders) {
   return Number.isSafeInteger(parsed) ? parsed : undefined;
 }
 
-function acceptedMediaType(contentType: string | undefined) {
+function acceptedMediaType(
+  contentType: string | undefined,
+  contentPolicy: import('./fetcher.ts').HttpContentPolicy,
+) {
   if (contentType === undefined) return undefined;
   const mediaType = contentType.split(';', 1)[0]?.trim().toLowerCase();
-  return mediaType !== undefined && ACCEPTED_XML_MEDIA_TYPES.has(mediaType)
+  return mediaType !== undefined &&
+    HTTP_CONTENT_POLICIES[contentPolicy].acceptedMediaTypes.includes(mediaType)
     ? mediaType
     : undefined;
 }
@@ -619,7 +619,7 @@ function safeFailureDetail(reason: TransportFailureReason): string {
       'Terminal response Content-Encoding is not supported.',
     decompression_failed: 'Compressed response content could not be decoded.',
     unsupported_content_type:
-      'Terminal response Content-Type is not an accepted XML feed type.',
+      'Terminal response Content-Type is not accepted for this endpoint type.',
     response_header_limit: 'Response header exceeds the configured limit.',
   };
   return details[reason].slice(0, HTTP_TRANSPORT_HEADER_LIMITS.errorDetail);

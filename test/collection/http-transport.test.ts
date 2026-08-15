@@ -289,6 +289,24 @@ describe('one-hop HTTP transport', () => {
     });
   });
 
+  it('uses the HTML-only terminal media policy without weakening RSS/Atom', async () => {
+    await withServer(async (server) => {
+      const html = await fetchPath(server, '/html-listing', {
+        contentPolicy: 'html_listing',
+      });
+      assert.equal(html.outcome, 'content');
+      if (html.outcome === 'content') assert.equal(html.mediaType, 'text/html');
+      assert.equal(server.requests.at(-1)?.headers.accept, 'text/html');
+
+      const rssAgainstHtml = await fetchPath(server, '/html-listing');
+      assertFailure(rssAgainstHtml, 'unsupported_content_type', 'permanent');
+      const htmlAgainstXml = await fetchPath(server, '/xml', {
+        contentPolicy: 'html_listing',
+      });
+      assertFailure(htmlAgainstXml, 'unsupported_content_type', 'permanent');
+    });
+  });
+
   it('distinguishes total timeout during a stalled response and closes resources', async () => {
     await withServer(async (server) => {
       const result = await fetchPath(server, '/stall', {

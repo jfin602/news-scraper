@@ -26,6 +26,8 @@ import type {
   ParserResult,
 } from '../../src/collection/parsers/parser.ts';
 import { RssAtomParser } from '../../src/collection/parsers/rss-atom-parser.ts';
+import { HtmlListingParser } from '../../src/collection/parsers/html-listing-parser.ts';
+import { normalizeHtmlListingProfile } from '../../src/collection/parsers/html-listing-profile.ts';
 import { normalizeArticleCandidate } from '../../src/collection/normalization/normalizer.ts';
 import { evaluateRelevance } from '../../src/collection/relevance/evaluator.ts';
 import type { ArticleNormalizationContext } from '../../src/collection/normalization/article-candidate.ts';
@@ -1357,6 +1359,127 @@ describe('canonical endpoint collection service', () => {
       await server.close();
     }
   });
+
+  it('collects HTML through the shared pipeline with terminal URL normalization and no discovered requests', async () => {
+    const server = await startHttpFixtureServer();
+    try {
+      const transport = createHttpTransport({
+        request(_protocol, options, listener) {
+          return requestHttp(
+            {
+              ...options,
+              protocol: 'http:',
+              hostname: server.address,
+              port: server.port,
+              lookup: undefined,
+              family: undefined,
+            },
+            listener,
+          );
+        },
+      });
+      const events: string[] = [];
+      const runs = runStore(events);
+      const result = await collectEndpoint(
+        htmlAggregate('/redirect-html-listing', ['only RSS items match this']),
+        {
+          lockRunner: acquiredLock(events),
+          runs,
+          fetcher: createHttpFetcher({
+            resolver: {
+              async resolve() {
+                return [{ address: '8.8.8.8', family: 4 }];
+              },
+            },
+            transport,
+          }),
+          rssAtomParser: parser(events, parserSuccess()),
+          createHtmlListingParser(profile) {
+            events.push('html parse adapter');
+            return new HtmlListingParser(profile);
+          },
+          ...phase6Dependencies,
+          ...phase7Dependencies,
+          async persistArticle() {
+            events.push('persist');
+            return persistenceSuccess('created');
+          },
+          executionId: () => EXECUTION_ID,
+        },
+      );
+
+      assert.equal(result.status, 'succeeded');
+      if (result.status !== 'succeeded') return;
+      assert.equal(result.rawItemCount, 1);
+      assert.equal(result.sourceItemFilteredCount, 0);
+      assert.equal(result.createdCount, 1);
+      assert.equal(
+        result.candidates?.[0]?.originalUrl,
+        'https://feeds.example.test/lists/articles/static?utm_source=fixture',
+      );
+      assert.deepEqual(runs.finalizations[0]?.parserDiagnostics, {
+        kind: 'html_listing',
+        version: '1',
+        htmlListingProfileRevision: 7,
+        itemFailureCount: 1,
+        code: 'required_field_missing',
+        detail: 'A matched item is missing a required extracted value.',
+      });
+      assert.deepEqual(
+        server.requests.map((request) => request.url),
+        ['/redirect-html-listing', '/lists/current/index.html'],
+      );
+      assert.equal(events.includes('parse'), false);
+      assert.equal(events.includes('html parse adapter'), true);
+    } finally {
+      await server.close();
+    }
+  });
+
+  it('records bounded HTML parser failure diagnostics without entering downstream stages', async () => {
+    const events: string[] = [];
+    const runs = runStore(events);
+    const result = await collectEndpoint(htmlAggregate('/listing'), {
+      lockRunner: acquiredLock(events),
+      runs,
+      fetcher: fetcher(
+        events,
+        Object.freeze({
+          outcome: 'content' as const,
+          content: Buffer.from('<main></main>'),
+          mediaType: 'text/html',
+          response: Object.freeze({ contentType: 'text/html' }),
+          finalUrl: 'https://feeds.example.test/listing',
+          redirectCount: 0,
+          metrics: fetchMetrics(200),
+        }),
+      ),
+      rssAtomParser: parser(events, parserSuccess()),
+      createHtmlListingParser() {
+        return parser(events, {
+          ok: false,
+          reason: 'no_matching_items',
+          detail: 'HTML profile matched no listing items.',
+        });
+      },
+      ...phase6Dependencies,
+      ...phase7Dependencies,
+      executionId: () => EXECUTION_ID,
+    });
+
+    assert.equal(result.status, 'failed');
+    if (result.status !== 'failed') return;
+    assert.equal(result.outcome, 'parser_failed');
+    assert.equal(result.reason, 'no_matching_items');
+    assert.equal(events.includes('normalize'), false);
+    assert.deepEqual(runs.finalizations[0]?.parserDiagnostics, {
+      kind: 'html_listing',
+      version: '1',
+      htmlListingProfileRevision: 7,
+      code: 'no_matching_items',
+      detail: 'HTML profile matched no listing items.',
+    });
+  });
 });
 
 async function executeWith(
@@ -1737,6 +1860,30 @@ function aggregateWithPath(path: string): EndpointConfigurationAggregate {
         value: `https://feeds.example.test${path}`,
         hostname: 'feeds.example.test',
       },
+    },
+  };
+}
+
+function htmlAggregate(
+  path: string,
+  admissionPhrases: readonly string[] = [],
+): EndpointConfigurationAggregate {
+  const configuration = aggregate({ admissionPhrases });
+  return {
+    ...configuration,
+    endpoint: {
+      ...configuration.endpoint,
+      endpointUrl: {
+        value: `https://feeds.example.test${path}`,
+        hostname: 'feeds.example.test',
+      },
+      endpointType: 'html_listing',
+      htmlListingProfile: normalizeHtmlListingProfile({
+        itemSelector: '.item',
+        title: { selector: '.title' },
+        articleLink: { selector: '.article' },
+      }),
+      htmlListingProfileRevision: 7,
     },
   };
 }

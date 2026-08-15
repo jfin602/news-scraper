@@ -147,6 +147,7 @@ export function createHttpFetcher(
           maxDecompressedBytes: options.maxDecompressedBytes,
           userAgent: options.userAgent,
           validators: options.validators,
+          contentPolicy: options.contentPolicy,
         });
         hops.push(result.metrics);
 

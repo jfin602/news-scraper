@@ -33,6 +33,7 @@ import {
   applyTerminalCollectionRunToEndpointRuntime,
   findSourceByConfigKey,
   findSourceEndpointBySourceAndConfigKey,
+  insertSourceEndpoint,
   updateEndpointRuntimeState,
   type PersistedSourceEndpoint,
 } from '../../src/sources/repository.ts';
@@ -232,6 +233,134 @@ test('scheduled execution atomically correlates one job and run and updates endp
       [enqueued.job.id],
     );
     assert.equal(Number(count.rows[0]?.count), 1);
+  });
+});
+
+test('persisted HTML endpoints use the canonical manual and durable-job execution path', async () => {
+  await withEndpoint(async (database, endpoint) => {
+    const htmlEndpoint = await insertSourceEndpoint(
+      database,
+      endpoint.sourceId,
+      {
+        configKey: 'static_listing',
+        endpointUrl: 'https://feeds.circuit.example/listing/index.html',
+        endpointType: 'html_listing',
+        htmlListingProfile: {
+          itemSelector: '.item',
+          title: { selector: '.title' },
+          articleLink: { selector: 'a.article' },
+        },
+        approvalState: 'approved',
+        lifecycleState: 'active',
+        operationalState: 'enabled',
+        pollIntervalSeconds: 300,
+        endpointDomainRules: [{ hostname: 'feeds.circuit.example' }],
+      },
+    );
+    const requests: HttpFetcherRequest[] = [];
+    const manual = await executeEndpointCollection(
+      database,
+      {
+        executionKind: 'direct_manual',
+        triggerKind: 'manual',
+        sourceConfigKey: 'circuit_journal',
+        endpointConfigKey: 'static_listing',
+        executionId: 'html-manual',
+      },
+      { createFetcher: () => fetcher(htmlContentResult(), requests) },
+    );
+    assert.equal(requests[0]?.contentPolicy, 'html_listing');
+    assert.equal(manual.status, 'resolved');
+    if (
+      manual.status !== 'resolved' ||
+      manual.collection.status !== 'succeeded'
+    )
+      return;
+    assert.equal(manual.collection.rawItemCount, 1);
+    assert.equal(manual.collection.sourceItemFilteredCount, 0);
+    assert.equal(manual.collection.createdCount, 1);
+    const manualRun = await findCollectionRunById(
+      database,
+      manual.collection.collectionRunId,
+    );
+    assert.deepEqual(
+      {
+        kind: manualRun?.parserKind,
+        version: manualRun?.parserVersion,
+        revision: manualRun?.htmlListingProfileRevision,
+        failures: manualRun?.parserItemFailureCount,
+        code: manualRun?.parserDiagnosticCode,
+      },
+      {
+        kind: 'html_listing',
+        version: '1',
+        revision: 1,
+        failures: 1,
+        code: 'required_field_missing',
+      },
+    );
+    assert.equal(await articleCount(database), 1);
+    const observations = await database.query<{ count: string }>(
+      `SELECT count(*) AS count FROM article_observations
+       WHERE source_endpoint_id = $1 AND collection_run_id = $2`,
+      [htmlEndpoint.id, manual.collection.collectionRunId],
+    );
+    assert.equal(Number(observations.rows[0]?.count), 1);
+
+    const enqueued = await enqueueEndpointCollectionJob(database, {
+      sourceEndpointId: htmlEndpoint.id,
+      triggerKind: 'manual',
+      availableAt: T1000,
+      attemptNumber: 1,
+    });
+    const claimed = await claimNextEndpointCollectionJob(database, {
+      workerId: 'html-worker',
+      claimedAt: T1001,
+      leaseExpiresAt: T1010,
+    });
+    assert.equal(claimed?.id, enqueued.job.id);
+    assert.ok(claimed?.claimToken);
+    const durable = await executeClaimedEndpointCollectionJob(database, {
+      jobId: enqueued.job.id,
+      claimToken: claimed.claimToken,
+      now: T1002,
+      serviceDependencies: {
+        createFetcher: () => fetcher(htmlContentResult()),
+      },
+    });
+    assert.equal(durable.category, 'succeeded');
+    assert.ok(durable.collectionRunId);
+    const durableRun = await findCollectionRunById(
+      database,
+      durable.collectionRunId,
+    );
+    assert.equal(durableRun?.unchangedCount, 1);
+    assert.equal(await articleCount(database), 1);
+
+    const notModified = await executeEndpointCollection(
+      database,
+      {
+        executionKind: 'direct_manual',
+        triggerKind: 'manual',
+        sourceConfigKey: 'circuit_journal',
+        endpointConfigKey: 'static_listing',
+        executionId: 'html-not-modified',
+      },
+      { createFetcher: () => fetcher(notModifiedResult('"html-304"')) },
+    );
+    assert.equal(notModified.status, 'resolved');
+    if (
+      notModified.status === 'resolved' &&
+      notModified.collection.status === 'succeeded'
+    ) {
+      assert.equal(notModified.collection.outcome, 'not_modified');
+      const run = await findCollectionRunById(
+        database,
+        notModified.collection.collectionRunId,
+      );
+      assert.equal(run?.parserStatus, 'not_run');
+      assert.equal(run?.parserKind, undefined);
+    }
   });
 });
 
@@ -687,6 +816,20 @@ function contentResult(etag: string): HttpFetcherResult {
     mediaType: 'application/rss+xml',
     response: Object.freeze({ etag }),
     finalUrl: 'https://feeds.circuit.example/news.xml',
+    redirectCount: 0,
+    metrics: metrics(200),
+  });
+}
+
+function htmlContentResult(): HttpFetcherResult {
+  return Object.freeze({
+    outcome: 'content' as const,
+    content: Buffer.from(
+      '<main><article class="item"><h2 class="title">HTML one</h2><a class="article" href="../articles/one">Read</a></article><article class="item"><h2 class="title">Malformed</h2></article></main>',
+    ),
+    mediaType: 'text/html',
+    response: Object.freeze({ etag: '"html"' }),
+    finalUrl: 'https://feeds.circuit.example/listing/index.html',
     redirectCount: 0,
     metrics: metrics(200),
   });

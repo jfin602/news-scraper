@@ -67,6 +67,8 @@ describe('Endpoint administration database service', () => {
         configKey: 'main_feed',
         endpointUrl: 'https://feeds.example.com/rss.xml',
         endpointType: 'rss_atom',
+        htmlListingProfile: null,
+        htmlListingProfileRevision: null,
         approvalState: 'approved',
         lifecycleState: 'active',
         operationalState: 'enabled',

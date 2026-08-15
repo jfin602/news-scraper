@@ -30,7 +30,16 @@ import type {
   ArticleNormalizationContext,
   ArticleNormalizationResult,
 } from './normalization/article-candidate.ts';
-import type { FeedParser, ParserResult } from './parsers/parser.ts';
+import {
+  HtmlListingParser,
+  HTML_LISTING_PARSER_VERSION,
+} from './parsers/html-listing-parser.ts';
+import type {
+  FeedParser,
+  ParserAdapterIdentity,
+  ParserDiagnosticSummary,
+  ParserResult,
+} from './parsers/parser.ts';
 import type { RawItem } from './raw-item.ts';
 import type {
   EffectiveRelevanceConfiguration,
@@ -62,6 +71,10 @@ export interface CollectEndpointDependencies {
   readonly runs: CollectionRunStore;
   readonly fetcher: HttpFetcher;
   readonly rssAtomParser: FeedParser;
+  /** Optional test seam; production uses the P1 static parser directly. */
+  readonly createHtmlListingParser?: (
+    profile: import('./parsers/html-listing-profile.ts').NormalizedHtmlListingProfile,
+  ) => FeedParser;
   readonly normalizeArticleCandidate: (
     rawItem: RawItem,
     context: ArticleNormalizationContext,
@@ -229,8 +242,9 @@ async function executeAttempt(
   let fetchResult: HttpFetcherResult;
   try {
     fetchResult = await dependencies.fetcher.fetch({
-      configuration,
       ...dependencies.fetchOptions,
+      configuration,
+      contentPolicy: configuration.endpoint.endpointType,
     });
   } catch {
     return failedDraft(
@@ -297,10 +311,7 @@ async function executeAttempt(
     });
   }
 
-  const parser = parserForEndpoint(
-    configuration.endpoint.endpointType,
-    dependencies.rssAtomParser,
-  );
+  const parser = parserForEndpoint(configuration, dependencies);
   let parserResult: ParserResult;
   if (parser === undefined) {
     parserResult = Object.freeze({
@@ -310,7 +321,7 @@ async function executeAttempt(
     });
   } else {
     try {
-      parserResult = parser.parse({
+      parserResult = parser.parser.parse({
         content: fetchResult.content,
         mediaType: fetchResult.mediaType,
       });
@@ -323,6 +334,8 @@ async function executeAttempt(
         'parser_execution_failed',
         'Feed parser failed outside its bounded result contract.',
         metadata,
+        'permanent',
+        parserDiagnosticsFor(parser),
       );
     }
   }
@@ -338,9 +351,12 @@ async function executeAttempt(
       reason,
       parserResult.detail,
       metadata,
+      'permanent',
+      parserDiagnosticsFor(parser, parserResult),
     );
   }
 
+  const parserDiagnostics = parserDiagnosticsFor(parser, parserResult);
   const rawItems = immutableRawItems(parserResult.items);
   const normalizationContext = Object.freeze({
     sourceId: configuration.source.id,
@@ -354,6 +370,7 @@ async function executeAttempt(
   try {
     for (const rawItem of rawItems) {
       if (
+        configuration.endpoint.endpointType === 'rss_atom' &&
         !isSourceRssAtomItemAdmitted(
           rawItem,
           configuration.source.rssAtomAdmissionPhrases,
@@ -375,6 +392,7 @@ async function executeAttempt(
       rawItems.length,
       sourceItemFilteredCount,
       metadata,
+      parserDiagnostics,
     );
   }
 
@@ -402,6 +420,7 @@ async function executeAttempt(
       normalizationFailureCount,
       articleLinkRejectionCount,
       metadata,
+      parserDiagnostics,
     );
   }
 
@@ -438,6 +457,7 @@ async function executeAttempt(
       runStatus: processingFailed ? 'failed' : 'succeeded',
       transportStatus: 'succeeded',
       parserStatus: 'succeeded',
+      ...(parserDiagnostics === undefined ? {} : { parserDiagnostics }),
       rawItemCount: rawItems.length,
       sourceItemFilteredCount,
       normalizationStatus: 'succeeded',
@@ -712,6 +732,7 @@ function normalizationExecutionFailedDraft(
   rawItemCount: number,
   sourceItemFilteredCount: number,
   metadata: ReturnType<typeof fetchMetadata>,
+  parserDiagnostics: FinalizeCollectionRunInput['parserDiagnostics'],
 ): AttemptDraft {
   const reason = 'normalization_execution_failed';
   const detail =
@@ -740,6 +761,7 @@ function normalizationExecutionFailedDraft(
       runStatus: 'failed',
       transportStatus: 'succeeded',
       parserStatus: 'succeeded',
+      ...(parserDiagnostics === undefined ? {} : { parserDiagnostics }),
       normalizationStatus: 'failed',
       rawItemCount,
       sourceItemFilteredCount,
@@ -763,6 +785,7 @@ function articleLinkPolicyExecutionFailedDraft(
   normalizationFailureCount: number,
   articleLinkRejectionCount: number,
   metadata: ReturnType<typeof fetchMetadata>,
+  parserDiagnostics: FinalizeCollectionRunInput['parserDiagnostics'],
 ): AttemptDraft {
   const reason = 'article_link_policy_execution_failed';
   const detail =
@@ -791,6 +814,7 @@ function articleLinkPolicyExecutionFailedDraft(
       runStatus: 'failed',
       transportStatus: 'succeeded',
       parserStatus: 'succeeded',
+      ...(parserDiagnostics === undefined ? {} : { parserDiagnostics }),
       normalizationStatus: 'succeeded',
       rawItemCount,
       sourceItemFilteredCount,
@@ -828,6 +852,7 @@ function failedDraft(
     >
   > = {},
   retryClassification: RetryClassification = 'permanent',
+  parserDiagnostics?: FinalizeCollectionRunInput['parserDiagnostics'],
 ): AttemptDraft {
   return Object.freeze({
     result: Object.freeze({
@@ -849,6 +874,7 @@ function failedDraft(
       runStatus: 'failed',
       transportStatus,
       parserStatus,
+      ...(parserDiagnostics === undefined ? {} : { parserDiagnostics }),
       rawItemCount: 0,
       ...normalizationNotRun,
       ...processingNotRun,
@@ -977,11 +1003,81 @@ const processingNotRun = Object.freeze({
   duplicateGroupedCount: 0,
 });
 
+interface ParserSelection {
+  readonly parser: FeedParser;
+  readonly adapter: ParserAdapterIdentity;
+  readonly htmlListingProfileRevision?: number;
+}
+
+const RSS_ATOM_ADAPTER: ParserAdapterIdentity = Object.freeze({
+  kind: 'rss_atom',
+  version: '1',
+});
+
 function parserForEndpoint(
-  endpointType: string,
-  rssAtomParser: FeedParser,
-): FeedParser | undefined {
-  return endpointType === 'rss_atom' ? rssAtomParser : undefined;
+  configuration: EndpointConfigurationAggregate,
+  dependencies: CollectEndpointDependencies,
+): ParserSelection | undefined {
+  if (configuration.endpoint.endpointType === 'rss_atom') {
+    return Object.freeze({
+      parser: dependencies.rssAtomParser,
+      adapter: RSS_ATOM_ADAPTER,
+    });
+  }
+  if (configuration.endpoint.endpointType === 'html_listing') {
+    const profile = configuration.endpoint.htmlListingProfile;
+    const revision = configuration.endpoint.htmlListingProfileRevision;
+    if (profile === undefined || revision === undefined) return undefined;
+    return Object.freeze({
+      parser: (
+        dependencies.createHtmlListingParser ??
+        ((value) => new HtmlListingParser(value))
+      )(profile),
+      adapter: Object.freeze({
+        kind: 'html_listing',
+        version: HTML_LISTING_PARSER_VERSION,
+      }),
+      htmlListingProfileRevision: revision,
+    });
+  }
+  return undefined;
+}
+
+function parserDiagnosticsFor(
+  selection: ParserSelection | undefined,
+  result?: ParserResult,
+): FinalizeCollectionRunInput['parserDiagnostics'] {
+  if (selection === undefined || selection.adapter.kind !== 'html_listing')
+    return undefined;
+  const adapter = selection.adapter;
+  const summary = result?.diagnostics;
+  const sample = summary?.samples[0];
+  const terminalFailure = result !== undefined && !result.ok;
+  const itemFailureCount = parserItemFailureCount(summary);
+  const diagnostic = terminalFailure
+    ? { code: result.reason, detail: result.detail }
+    : sample;
+  return Object.freeze({
+    kind: adapter.kind,
+    version: adapter.version,
+    ...(selection.htmlListingProfileRevision === undefined
+      ? {}
+      : { htmlListingProfileRevision: selection.htmlListingProfileRevision }),
+    ...(itemFailureCount === 0 ? {} : { itemFailureCount }),
+    ...(diagnostic === undefined
+      ? {}
+      : { code: diagnostic.code, detail: diagnostic.detail }),
+  });
+}
+
+function parserItemFailureCount(
+  summary: ParserDiagnosticSummary | undefined,
+): number {
+  if (summary === undefined) return 0;
+  const count = summary.rejectedItemCount + summary.malformedOptionalFieldCount;
+  return Number.isSafeInteger(count) && count >= 0 && count <= 250
+    ? count
+    : 250;
 }
 
 function fetchMetadata(
