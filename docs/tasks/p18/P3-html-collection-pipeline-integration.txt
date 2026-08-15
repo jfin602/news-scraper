@@ -1,0 +1,231 @@
+TASK: Phase 18 / P3 — HTML collection pipeline integration
+
+ROADMAP PHASE
+Phase 18 — Configurable HTML collection.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: P3 changes the shared Worker collection path, endpoint-aware HTTP media policy, parser dispatch, RSS/Atom-only admission branching, and Collection-run evidence while preserving established network-safety, jobs, identity, and duplicate consumers.
+- Reasoning basis: High reasoning is required to modify one canonical cross-cutting pipeline without creating an HTML side path or weakening RSS/Atom/network-safety behavior.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because transport policy, redirect-safe terminal URL handling, parser dispatch, Source admission separation, run diagnostics, and downstream persistence must remain coherent across manual and durable-job execution.
+- Escalation trigger: source inspection shows endpoint-specific media policy cannot be introduced without redesigning validated-destination binding, redirect safety, retry/health semantics, endpoint locking, or shared job execution ownership.
+- Escalation target: `Terra Ultra` for deeper reasoning over explicit transport/job/state interactions; stop for replanning if the contracts or architecture must change.
+- Estimate confidence: `High`.
+- Efficiency rationale: P1 and P2 already own parser/profile and persistence semantics, leaving P3 as one deliberate integration boundary rather than a monolithic Phase 18 implementation.
+- Plan delta: `Unchanged` from `/prompt-plan`.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md`, `docs/codex-model-selection.md`, and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 18 prompt 3 and its assigned project version is `0.18.3`.
+- On first execution, require top-level `package.json` version `0.18.2`; on a rerun of this same P3, `0.18.3` is acceptable.
+- Update only the top-level package version to `0.18.3`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 18 roadmap entry, `docs/contracts/source-and-collection-contract.md`, `docs/contracts/domain-and-data-contract.md`, `docs/architecture/system-architecture.md`, `docs/operations/security-reliability-and-operations.md`, and `docs/contracts/testing-and-validation-contract.md`;
+2. read P1 and P2 plus inspect their actual final exports/schema/tests: normalized HTML profile/parser/result diagnostics, endpoint aggregate profile/revision, and Collection-run parser diagnostic persistence;
+3. inspect `src/collection/collect-endpoint.ts`, `src/collection/endpoint-collection-service.ts`, `src/collection/fetchers/fetcher.ts`, `src/collection/fetchers/http-transport.ts`, `src/collection/fetchers/http-fetcher.ts`, destination-safety/redirect code, Source admission implementation, normalization/link policy/Relevance processing, included Article/duplicate processing, and run finalization;
+4. inspect current manual and durable-job Worker callers, scheduler/runtime-state application, deterministic HTTP fixture server/support, and affected collection/database tests;
+5. confirm P1/P2 handoffs are complete and package version is at the expected P2/P3 rerun state; if later consumers would still need to invent profile mapping/run SQL/parser semantics, stop and report producer drift rather than patching around it in P3.
+
+GOAL
+Make approved persisted `html_listing` endpoints collect through the existing canonical Worker pipeline, using endpoint-type-aware HTTP content policy and parser dispatch while keeping all downstream behavior shared.
+
+P3 is complete only when HTML collection uses the same eligibility, endpoint lock, SSRF/redirect protection, scheduling/jobs, conditional-fetch state, normalization, Article-link validation, Relevance/Categories, Source-scoped Article identity/persistence/observations, duplicate processing, run accounting, retry, health, and failure-isolation boundaries already used by RSS/Atom.
+
+There must not be an HTML-specific Article repository, Relevance path, duplicate path, public-feed path, scheduler, or second collector.
+
+CANONICAL EXECUTION ORDER
+Preserve this logical order:
+
+configured endpoint
+→ collection eligibility
+→ shared endpoint/capacity locks
+→ Collection run start
+→ approved destination + DNS/address/port safety
+→ bounded HTTP fetch with redirect revalidation
+→ endpoint-type parser dispatch
+→ RSS/Atom Source admission filter only for `rss_atom`
+→ shared Article-candidate normalization
+→ shared Article-link policy
+→ shared Relevance/Categories
+→ shared Source-scoped Article identity/persistence/observation
+→ shared duplicate processing
+→ Collection-run finalization
+→ existing endpoint runtime/retry/health application.
+
+Do not move Source admission after normalization and do not route HTML through it.
+
+ENDPOINT-TYPE-AWARE HTTP POLICY
+Refactor HTTP transport/fetch request options only as far as needed to carry a small explicit content/media policy derived from endpoint type.
+
+Required behavior:
+- `rss_atom` keeps the currently accepted feed/XML terminal media types and current RSS/Atom `Accept` behavior;
+- `html_listing` advertises ordinary static HTML and accepts at least `text/html` terminal content;
+- standards-compatible XHTML may be accepted only if P1's actual parser deliberately supports it and tests prove it;
+- adding HTML must not globally make RSS endpoints accept `text/html` or arbitrary `*/*` content;
+- 304/redirect/non-2xx behavior keeps existing semantics;
+- compression, wire/decompressed size limits, connection/total timeouts, response-header bounds, retry classification, selected validated address binding, TLS/Host behavior, and redirect-hop safety remain unchanged;
+- media policy is chosen from persisted endpoint type, not from Content-Type sniffing that silently changes adapters.
+
+Prefer passing a small normalized response/content policy through `HttpFetcher` → transport rather than coupling low-level transport to the full endpoint aggregate.
+
+Do not fetch anything except the configured endpoint plus already-governed redirect hops.
+
+PARSER DISPATCH
+Replace direct RSS parser construction/use with one truthful endpoint-type dispatch boundary.
+
+Required behavior:
+- `rss_atom` invokes the existing RSS/Atom parser;
+- `html_listing` invokes P1's static HTML parser using the exact persisted normalized profile snapshot from P2;
+- unknown/unsupported endpoint types fail closed and never guess a parser;
+- parser adapter kind/version/profile revision/item-failure diagnostics flow to the P2 Collection-run finalization contract;
+- parser failure remains an isolated terminal failure for that endpoint/run and does not interrupt unrelated Source jobs.
+
+Keep dispatch small and explicit. Do not create a speculative general plugin framework or dynamic module loader for two known endpoint types.
+
+RSS/ATOM ADMISSION FILTER SEPARATION
+Current Source admission phrases are specifically RSS/Atom behavior.
+
+Refactor collection flow so:
+- after successful RSS/Atom parse, existing admission phrases run exactly as before;
+- after successful HTML parse, Raw items bypass Source RSS/Atom admission evaluation and proceed directly to shared normalization;
+- `source_item_filtered_count` remains `0` for HTML runs;
+- HTML profile matching/extraction failures are parser diagnostics, not Source admission mismatches and not Relevance exclusions;
+- absent/matching RSS/Atom phrase behavior and existing accounting remain unchanged.
+
+Add tests that use a Source with configured RSS/Atom admission phrases and an HTML endpoint to prove HTML items are not filtered by those phrases.
+
+TERMINAL URL / NORMALIZATION
+Preserve `HttpFetcher`'s final successfully fetched URL after approved redirects as the base URL supplied to Article-candidate normalization.
+
+HTML relative Article links must therefore resolve through the same canonical normalizer against the terminal endpoint URL. Do not resolve relative links inside the HTML parser and do not use the originally configured pre-redirect URL when the actual terminal URL differs.
+
+COLLECTION-RUN / RUNTIME BEHAVIOR
+Integrate P2 diagnostics into existing run start/finalization without inventing parallel HTML statuses.
+
+For HTML content runs record as applicable:
+- parser adapter kind/version;
+- exact profile revision from the endpoint snapshot;
+- item/extraction failure summary;
+- bounded terminal parser failure code/detail.
+
+Preserve:
+- `raw_item_count` as successfully emitted Raw items entering the downstream stage, with parser-specific malformed matched-row counts represented separately rather than corrupting normalization arithmetic;
+- `source_item_filtered_count = 0` for HTML;
+- existing normalization/Article-link/processing/duplicate effect arithmetic over emitted Raw items/candidates;
+- conditional ETag/Last-Modified state and 304 no-change behavior;
+- endpoint runtime state application only after canonical terminal run finalization;
+- durable job attachment/recovery semantics;
+- retry classification and scheduler/backoff behavior.
+
+If current run accounting defines `raw_item_count` differently in a way that conflicts with P2/P1 diagnostic representation, stop and report the exact contract conflict rather than silently redefining historical counters.
+
+NO CRAWLING / SUBRESOURCE GUARANTEE
+The implemented HTML collector must issue no network request for:
+- Article URLs extracted from the page;
+- pagination/next-page links;
+- images;
+- stylesheets;
+- scripts;
+- frames/embeds;
+- canonical/alternate metadata links;
+- discovered Source/feed URLs.
+
+It also must not invoke Playwright/Puppeteer/headless browser fallback.
+
+The static parser receives only bytes already fetched by the canonical one-endpoint HTTP path.
+
+FOCUSED LEVEL 2 / LEVEL 3 / LEVEL 5 TESTS
+Add deterministic tests proving at minimum:
+- endpoint-type parser dispatch selects RSS/Atom vs HTML exactly;
+- unsupported type fails closed where reachable;
+- HTML `text/html` content succeeds while RSS behavior retains feed/XML media validation;
+- RSS endpoint receiving HTML is rejected as unsupported content type and HTML endpoint receiving unsupported media is rejected;
+- conditional 304 behavior works for HTML without parser/downstream work;
+- approved redirects remain safety-validated and HTML relative links normalize against terminal redirect URL;
+- HTML parser failure records bounded adapter/profile diagnostics and isolates the endpoint;
+- mixed valid/invalid HTML rows preserve valid downstream processing with item-failure diagnostics;
+- Source RSS/Atom admission phrases continue filtering RSS/Atom and never filter HTML Raw items;
+- HTML `source_item_filtered_count` remains zero;
+- valid HTML items enter the same normalization/link/Relevance/persistence/duplicate callbacks/services as RSS/Atom;
+- repeated collection of the same HTML Article URL remains Source-scoped idempotent through canonical URL identity fallback and does not rely on synthetic external IDs;
+- Article observations retain the actual endpoint/run provenance;
+- HTML excluded/included Article behavior uses the existing Relevance and duplicate paths;
+- one HTML parser/fetch failure does not prevent a separate endpoint execution from succeeding;
+- deterministic HTTP fixture request logs prove no Article-page, pagination, subresource, discovered-link, or browser requests occur.
+
+LEVEL 4 INTEGRATION WHERE PERSISTENCE IS PART OF THE CLAIM
+Use real disposable PostgreSQL where required to prove:
+- actual persisted `html_listing` aggregate is executable through manual collection and durable jobs;
+- Collection runs record P2 parser/profile diagnostics coherently;
+- repeated HTML collection preserves Article identity/idempotency/observations;
+- scheduler/job/check-now-owned execution continues to use the same endpoint execution unit;
+- runtime health/retry/validator updates behave the same way for HTML success/failure/304 as governed for RSS/Atom;
+- transaction/rollback/provenance constraints remain intact.
+
+Do not replace these claims with mock-only component tests.
+
+BROADER REGRESSION
+Run all affected existing suites for:
+- destination safety/SSRF/rebinding/redirects;
+- HTTP transport/fetcher limits/timeouts/compression/content types;
+- RSS/Atom parser and Source admission;
+- canonical `collect-endpoint` sequencing/accounting;
+- normalization and Article-link policy;
+- Relevance/Categories;
+- Article identity/persistence/observation rollback/idempotency;
+- duplicate detection/grouping/effects;
+- scheduler/jobs/endpoint runtime/health;
+- public feed only where shared Article/duplicate behavior could regress.
+
+P3 → P4 HANDOFF
+P3 must leave P4 with one real check-now path that already supports persisted HTML endpoints. P4 must not need to implement or call a special HTML collector.
+
+The canonical endpoint administration service's existing check-now job path must remain sufficient once P3 is complete.
+
+PRESERVED BEHAVIOR
+Preserve all Phases 1–17 behavior, especially:
+- Source/endpoint approval and lifecycle/operational eligibility;
+- public-unicast DNS/address/port restrictions and redirect revalidation;
+- actual transport binding to validated addresses;
+- endpoint capacity/run locks and failure isolation;
+- RSS/Atom parsing/admission/accounting;
+- Article normalization/link validation/Relevance/identity/provenance;
+- duplicate/manual moderation semantics;
+- original publisher URL as public destination;
+- scheduler/job/recovery/conditional-fetch/health behavior;
+- topic independence and singleton Publication architecture.
+
+NON-GOALS
+Do not implement:
+- endpoint admin profile editor/API preview/browser UI;
+- network-backed preview;
+- Source/endpoint discovery;
+- pagination crawling;
+- Article-page/body fetching;
+- HTML subresource loading;
+- browser automation or browser endpoint type;
+- custom adapter/plugin framework;
+- HTML-specific Relevance, identity, duplicate, persistence, or public-feed models;
+- new live-public-Source validation requirement.
+
+VALIDATION
+During development use focused parser-dispatch, transport/media, collection-pipeline, and relevant database tests.
+
+Before completion on the final P3 tree run the smallest non-overlapping applicable set:
+- `npm run check`
+- `npm run test:db` because P3's acceptance includes real persisted HTML collection/job/run behavior across shared database consumers
+- do not run `npm run test:browser` because P3 does not change browser-owned behavior
+- `git diff --check`
+
+If a specialized deterministic fixture suite exists outside `npm run check` in the current tree, run it exactly once as required. Do not duplicate ordinary unit/integration/collection aliases already contained by `npm run check` on the unchanged tree.
+
+Confirm `package.json` is `0.18.3`, no npm lockfile exists, and HTML collection demonstrably uses the one canonical downstream pipeline.
+
+FINAL REPORT
+Report transport/media-policy changes, parser dispatch/admission branching, run diagnostics, deterministic HTML fixture coverage, real PostgreSQL integration evidence actually executed, preserved RSS/network/job behavior, package version, and any remaining risk. Do not claim admin preview/UI support yet.
