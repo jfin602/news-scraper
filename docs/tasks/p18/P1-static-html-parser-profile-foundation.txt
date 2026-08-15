@@ -1,0 +1,191 @@
+TASK: Phase 18 / P1 — Static HTML parser and profile foundation
+
+ROADMAP PHASE
+Phase 18 — Configurable HTML collection.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: this prompt establishes a shared untrusted-content parser/profile boundary consumed by persistence, Worker collection, preview, and admin surfaces; the behavior is explicit but security-sensitive and cross-file.
+- Reasoning basis: High reasoning is warranted for bounded selector-language design, deterministic extraction, hostile/malformed HTML handling, parser-interface generalization, and consumer-ready diagnostics without creating a second collection model.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because selector-complexity limits, parser-result compatibility, partial-item failure semantics, and hostile-input diagnostics form one security-sensitive producer boundary that later prompts must consume without reinterpretation.
+- Escalation trigger: implementation inspection shows the documented static CSS-selector profile cannot be made deterministic/bounded with a normal inert HTML parser without a materially different selector language or architecture decision.
+- Escalation target: `Sol High` for genuine contract/architecture reconciliation; do not solve a changed product contract inside P1.
+- Estimate confidence: `High`.
+- Efficiency rationale: the documentation already fixes the behavior; Terra High is reserved for implementing the security-sensitive parser boundary once, rather than distributing parser semantics across later prompts.
+- Plan delta: `Unchanged` from `/prompt-plan`.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md`, `docs/codex-model-selection.md`, and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 18 prompt 1 and its assigned project version is `0.18.1`.
+- On first execution, require top-level `package.json` version `0.18.0`; on a rerun of this same P1, `0.18.1` is acceptable.
+- Update only the top-level package version to `0.18.1`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 18 roadmap entry, `docs/contracts/domain-and-data-contract.md`, `docs/contracts/source-and-collection-contract.md`, `docs/architecture/system-architecture.md`, `docs/operations/security-reliability-and-operations.md`, and `docs/contracts/testing-and-validation-contract.md`;
+2. inspect `src/collection/raw-item.ts`, `src/collection/parsers/parser.ts`, `src/collection/parsers/rss-atom-parser.ts`, `test/collection/rss-atom-parser.test.ts`, and existing collection fixture conventions;
+3. inspect `package.json` and current dependency policy; use a maintained inert server-side HTML parser/selector dependency rather than browser automation or a hand-written HTML parser when that materially improves correctness and maintenance;
+4. confirm the repository still has no Phase 18 HTML parser/profile implementation and package version is at the expected baseline/rerun version;
+5. stop and report planning drift if the current source already establishes a materially different HTML profile/parser contract or if governing docs no longer match this task.
+
+GOAL
+Create the complete pure, bounded, topic-independent static HTML listing profile and parser boundary that later Phase 18 prompts can persist, dispatch in the Worker, and expose through safe admin preview.
+
+P1 owns parser/profile semantics and focused deterministic tests only. It does not persist endpoint profiles, perform network requests, change Worker dispatch, expose admin routes/UI, or create Collection-run database diagnostics.
+
+DEPENDENCY / PARSER POLICY
+Use the smallest maintained runtime dependency set that provides standards-aware inert HTML parsing and CSS selector evaluation. Prefer a mature static parser such as Cheerio or an equivalently maintained non-browser library. If structural selector validation requires the underlying selector parser/AST, use the smallest maintained direct dependency needed rather than validating selector grammar with ad-hoc regular expressions.
+
+Do not use Playwright, Puppeteer, jsdom script execution, a headless browser, or any API that loads external resources. Parsing must remain in-process and inert.
+
+GENERALIZE THE PARSER BOUNDARY
+Refactor `src/collection/parsers/parser.ts` only as far as needed so RSS/Atom and HTML adapters can share one truthful parser result contract.
+
+Preserve existing RSS/Atom behavior and tests. Do not make RSS/Atom pretend to have HTML profile semantics.
+
+The shared result must support:
+- adapter/parser kind and stable implementation version identity as needed by later run diagnostics;
+- successful bounded `RawItem[]` output;
+- safe bounded parser failure reason/detail;
+- bounded nonterminal item/extraction diagnostic summary for adapters such as HTML where some matched rows may fail while valid rows continue.
+
+Do not expose raw response bodies, DOM nodes, parser-library objects, stack traces, or unbounded diagnostics through the shared contract.
+
+HTML LISTING PROFILE
+Create one canonical endpoint-profile type and normalization/validation function under collection/parser ownership. It is inert declarative data and must be reusable by P2 persistence and P4 preview.
+
+Use a small explicit structure equivalent to:
+- required `itemSelector`;
+- required title field descriptor;
+- required Article-link field descriptor;
+- optional `publishedAt` field descriptor;
+- optional `updatedAt` field descriptor;
+- optional author field descriptor;
+- optional summary field descriptor;
+- optional categories field descriptor.
+
+The exact TypeScript names are implementation details, but the JSON-serializable normalized representation must be stable/deterministic for persistence equality and revision decisions in P2.
+
+Field semantics:
+- selectors are evaluated relative to each matched item root;
+- title extracts bounded text;
+- Article link extracts only an `href` value from the selected element;
+- publication/update date may extract bounded text or narrowly allowlisted `datetime`-style attribute data;
+- author and summary extract bounded text;
+- categories may extract a bounded ordered list of text values from multiple matches;
+- absent optional fields remain absent;
+- P1 does not add image/language/body extraction beyond the contracted Phase 18 profile surface.
+
+CSS SELECTOR SAFETY
+Implement a deliberately small deterministic CSS-selector subset adequate for ordinary static listing pages. It may support ordinary element/class/id/attribute matching plus descendant/child composition where the chosen selector library supports them safely.
+
+Reject unsupported or unnecessarily expensive/general selector behavior rather than silently accepting the entire selector engine. In particular, do not admit executable/custom pseudos, pseudo-elements, selector extensions that interpret arbitrary expressions, or unbounded selector nesting/complexity. If the chosen library supports advanced pseudos such as `:has()` or text-content extensions, reject them unless the current governing docs explicitly require them.
+
+Define explicit constants for at least:
+- profile serialized/structural size where applicable;
+- selector length;
+- selector token/AST complexity;
+- input HTML bytes/characters;
+- matched item count;
+- title/URL/date/author/summary/category value sizes;
+- categories per item;
+- diagnostic detail length and diagnostic sample count.
+
+Bounds must be substantive and testable, not comments only.
+
+STATIC HTML PARSER
+Implement a parser adapter, expected under `src/collection/parsers/`, that accepts fetched HTML plus a validated normalized profile and emits `RawItem` values.
+
+Required behavior:
+- parse only the supplied input;
+- never execute scripts;
+- never load scripts, stylesheets, images, iframes, embeds, Article pages, pagination, or any subresource;
+- never perform DNS or network I/O;
+- preserve extracted Article URLs as Source-shaped strings, including relative URLs, for later canonical normalization against the terminal fetched endpoint URL;
+- never synthesize `RawItem.externalId` from title, selector position/path, hashes, DOM markup, or content fingerprints;
+- map extracted title/url/date/author/summary/categories into the existing `RawItem` fields without performing Article-candidate normalization early;
+- trim/normalize only enough to enforce the parser/profile contract; canonical Article normalization remains downstream;
+- produce deeply deterministic/frozen output consistent with existing parser conventions where practical.
+
+ITEM FAILURE SEMANTICS
+For a document that parses successfully:
+- zero item-root matches is a stable parser failure;
+- each matched item missing/invalid/over-bound required title or Article URL is rejected as an item extraction failure;
+- malformed optional fields should be omitted or counted diagnostically according to the normalized profile contract without fabricating values;
+- valid rows continue when unrelated matched rows are invalid;
+- if no matched row yields a valid required title + URL pair, return a stable parser failure rather than a successful empty list;
+- successful output may carry a bounded summary of rejected/malformed rows for later Collection-run diagnostics.
+
+SAFE PREVIEW PRODUCER
+Expose a pure function/service boundary that accepts only:
+- operator-supplied bounded HTML sample;
+- draft profile input.
+
+It validates the profile, invokes the exact same static parser implementation, and returns bounded preview rows/diagnostics suitable for P4. It must import no database, resolver, HTTP fetcher, job, endpoint-lock, scheduler, health, Article persistence, Relevance, or duplicate behavior.
+
+Preview must not echo the raw HTML sample back in success or failure output.
+
+FOCUSED TESTS
+Add focused unit/collection tests and deterministic fixtures proving at minimum:
+- valid profile normalization produces stable JSON-serializable output;
+- malformed/unknown profile keys, missing required descriptors, invalid extraction modes/attributes, unsupported selectors, overlong selectors, and complexity-bound violations fail deterministically;
+- valid static HTML produces multiple ordered `RawItem`s with required and optional fields;
+- relative Article URLs remain relative Raw-item values;
+- no HTML item receives a synthetic `externalId`;
+- scripts and event-handler markup remain inert and cannot affect output beyond inert DOM text/attributes explicitly selected;
+- zero matches and all-invalid rows are parser failures;
+- mixed valid/invalid matched rows preserve valid output and bounded failure diagnostics;
+- document, matched-item, categories, field, and diagnostic bounds are enforced;
+- hostile/malformed input does not leak the response/sample body or secret sentinel values through diagnostics;
+- repeated parsing is deterministic;
+- RSS/Atom parser behavior and current RSS/Atom result semantics remain green after shared-interface generalization;
+- the pure preview boundary has no network/database dependencies and returns only bounded extracted data/diagnostics.
+
+P1 → LATER PROMPT HANDOFF
+P1 is incomplete unless source/tests establish consumer-ready exports for:
+- normalized HTML profile type + validator/normalizer → consumed by P2 and P4;
+- HTML parser adapter + stable adapter version → consumed by P3 and P4;
+- parser result/diagnostic contract → consumed by P2/P3;
+- pure preview operation → consumed by P4.
+
+Later prompts must not have to invent selector validation, extraction semantics, parser failure reasons, or preview parsing behavior.
+
+PRESERVED BEHAVIOR
+Preserve all current Phases 1–17 behavior, especially:
+- existing RSS/Atom parser input/output/failure handling;
+- `RawItem` as the minimally interpreted untrusted boundary;
+- Source-scoped Article identity and provenance downstream;
+- RSS/Atom Source admission semantics, which are not executed by P1;
+- all network safety, Worker, database, public-feed, duplicate, and admin behavior.
+
+NON-GOALS
+Do not implement:
+- `html_listing` persistence or endpoint-type database changes;
+- Collection-run schema/diagnostic persistence;
+- endpoint-type HTTP `Accept`/media dispatch;
+- Worker parser dispatch or RSS/Atom admission branching;
+- Source endpoint admin create/update profile persistence;
+- admin HTTP preview route or browser UI;
+- crawling, pagination, Article-page fetching, subresource fetching;
+- XPath, arbitrary regex extraction, template/expression engines, executable scraping scripts;
+- browser automation;
+- HTML-specific Relevance, identity, duplicate, or Article persistence paths.
+
+VALIDATION
+During development, run the narrowest relevant parser/profile tests repeatedly.
+
+Before completion on the final P1 tree run the smallest non-overlapping applicable set:
+- `npm run check`
+- the focused collection/parser test command for the new HTML parser/profile fixtures if it is not already wholly contained by `npm run check`; do not rerun contained tests solely for duplicate evidence
+- `git diff --check`
+
+If P1 adds runtime dependencies, perform the repository's normal no-lockfile install/update workflow and verify no npm lockfile was created. Do not run the full database or browser suite for this pure parser/profile task.
+
+Confirm `package.json` is `0.18.1`, the new parser dependency is justified/runtime-only as appropriate, and no network/persistence/admin behavior was introduced.
+
+FINAL REPORT
+Report files/dependencies changed, final normalized profile shape and selector subset/bounds, parser/result/diagnostic semantics, preview producer boundary, focused/broader validation actually executed, package version, and any remaining risk. Do not claim Worker/database/admin/browser HTML collection support yet.
