@@ -1,0 +1,210 @@
+TASK: Phase 17 / P2 — Article moderation and provenance service
+
+ROADMAP PHASE
+Phase 17 — Article and duplicate moderation.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Luna High`.
+- Model-family basis: the contracts and P1 persistence make the product behavior explicit, so the work is still suitable for Luna, but it spans several interacting Article/provenance/admin persistence concerns.
+- Reasoning basis: High reasoning is justified by bounded search/cursor semantics, Source-vs-effective state, manual-vs-automatic Category precedence, transactional audit writes, and concurrent Worker/Web Article updates.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Luna Medium`; rejected because one service owns several reversible state transitions plus effective-value reads and must remain coherent with independently advancing collection state.
+- Escalation trigger: source inspection reveals the manual Article state cannot remain layered beside Worker-owned Source/automatic state without changing Article collection transaction ownership.
+- Escalation target: `Terra High`.
+- Estimate confidence: `High`.
+- Efficiency rationale: the architecture is already chosen; Luna High supplies enough depth for the cross-file persistence/query edge cases without paying for Terra unless transaction ownership actually changes.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md`, `docs/codex-model-selection.md`, and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- This is Phase 17 prompt 2 and its assigned project version is `0.17.2`.
+- On first execution, require top-level `package.json` version `0.17.1`; on a rerun of this same P2, `0.17.2` is acceptable.
+- Update only the top-level package version to `0.17.2`.
+- `package.json` remains the sole current-version authority.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 17 roadmap entry, P1 task and actual P1 implementation/tests;
+2. read `docs/contracts/domain-and-data-contract.md`, `docs/contracts/source-and-collection-contract.md`, `docs/contracts/article-lifecycle-and-deduplication.md`, `docs/contracts/public-feed-and-admin-contract.md`, and `docs/contracts/testing-and-validation-contract.md`;
+3. inspect `src/articles/repository.ts`, especially Source-derived updates, Article identity locks, observation persistence, and `reconcileArticleCategories`;
+4. inspect current Source/Category repositories, duplicate review/group schema, existing admin service patterns, and current database-test helpers;
+5. inspect the P1 display override, manual Category override, separation/Primary metadata, and `audit_events` schema rather than assuming prompt prose exactly matches implementation names;
+6. stop and report planning drift if P1 did not establish a separate manual Category state or if current collection now mutates Phase 17 manual state directly.
+
+GOAL
+Implement the reusable Article moderation read/mutation service used later by the Phase 17 API/UI.
+
+P2 owns bounded stored-Article search/detail/provenance/history reads plus hide/restore, display-title override set/clear, and manual Category override set/clear. It does not own duplicate topology mutation, HTTP routes, public-feed effective-value integration, or browser UI.
+
+MODULE OWNERSHIP
+Prefer keeping collection identity/persistence in `src/articles/repository.ts` unchanged and adding a moderation-specific repository such as `src/articles/moderation-repository.ts` plus an admin/domain service such as `src/admin/article-administration.ts`.
+
+A small shared audit helper/module is appropriate if it centralizes bounded transactional `audit_events` writes/reads without becoming a generic logging framework.
+
+Do not move unrelated Source identity, Relevance, public-feed, or duplicate topology responsibilities merely for stylistic cleanup.
+
+STORED-ARTICLE SEARCH CONTRACT
+Implement a bounded deterministic paginated read surface over stored Article instances, not the public-feed-eligible stream.
+
+It must be capable of returning visible, hidden, archived, ungrouped, Primary, non-Primary, and duplicate-review-participating Articles.
+
+Support only the governed filter dimensions:
+- bounded literal text query;
+- Source `config_key`;
+- visibility state;
+- effective Category `config_key`;
+- duplicate role/group/review state as applicable.
+
+Use deterministic server-owned page bounds and keyset-style continuation rather than arbitrary unbounded limit/offset controls. A suitable ordering is `last_seen_at DESC, article.id ASC`, with an opaque cursor bound to the normalized query criteria.
+
+Reject repeated/unknown/malformed/out-of-bound criteria through a deterministic validation boundary suitable for later HTTP mapping.
+
+Do not reuse the public-feed eligibility predicate: public suppression must never hide a stored Article from authorized moderation.
+
+ARTICLE LIST / DETAIL READ MODEL
+Expose bounded immutable read models sufficient for the later UI to distinguish and inspect:
+- Article ID;
+- owning Source identity/display metadata;
+- Source-derived `display_title`, active display-title override, and effective headline;
+- visibility;
+- automatic `article_categories`, whether a manual Category override is active, manual memberships, and effective current Categories;
+- `original_url` plus necessary external/canonical identity information;
+- author/summary/image/language and relevant Source-derived timestamps where useful for moderation inspection;
+- duplicate role, group identity, current Primary identity/origin, and review participation;
+- bounded observation provenance described below;
+- bounded material change history for this Article.
+
+Do not expose internal database IDs when a safer stable public/admin identity already exists unless the Phase 17 resource itself is explicitly Article/group/candidate UUID based.
+
+PROVENANCE INSPECTION
+For Article detail, provide a bounded newest-first observation history with enough joined evidence to inspect:
+- Source endpoint identity/config key;
+- Collection run identity and relevant run timestamp/status context;
+- observation time and processing outcome;
+- observed external/canonical identity data;
+- retained Relevance decision reason;
+- retained Category reasons including rule/default kind and bounded detail.
+
+Provenance reads are immutable evidence. P2 must not create update/delete commands for Collection runs, Article observations, or retained reason rows.
+
+DISPLAY-TITLE OVERRIDE COMMANDS
+Implement explicit set and clear commands only for the governed display headline field.
+
+Set:
+- validate a trimmed non-empty bounded string using the persisted contract;
+- lock/re-read the target Article inside the transaction;
+- update only the Phase 17 display override state;
+- append one bounded material audit event in the same transaction when state actually changes.
+
+Clear:
+- remove/null only the override state;
+- the effective read must immediately reveal the latest Source-derived `display_title` currently stored;
+- do not restore a snapshot captured when the override was created.
+
+Collection must remain free to keep updating Source-derived `display_title` beneath the active override.
+
+CATEGORY OVERRIDE COMMANDS
+Implement explicit set and clear commands against P1 manual override persistence.
+
+Set:
+- accept one bounded deduplicated set/list of current Category `config_key` values;
+- validate every referenced Category still exists;
+- lock/re-read the Article and update the active marker + memberships transactionally;
+- an explicitly supplied empty Category list means an active intentional empty effective set, not clear;
+- append one bounded audit event only for a material effective/manual-state change.
+
+Clear:
+- remove the manual override marker/memberships atomically;
+- immediately return control to the latest current automatic `article_categories` state;
+- do not copy old automatic memberships into manual storage.
+
+Normal later collection/Relevance processing must continue reconciling `article_categories` even while a manual override is active; P2 should achieve precedence through separated reads, not by teaching collection to skip automatic persistence.
+
+VISIBILITY COMMANDS
+Implement only the Phase 17 governed reversible moderation transitions:
+- hide: `visible -> hidden`;
+- restore: `hidden -> visible`.
+
+Return deterministic conflict/no-op/error results for invalid current states rather than silently converting `archived` to another state. Do not add archive/unarchive commands.
+
+Visibility changes must not alter duplicate membership/Primary state, Categories, display override, observations, or Source-derived values.
+
+AUDIT EVENTS
+Every successful material hide/restore/display-override/Category-override mutation writes its required bounded audit event in the same transaction.
+
+Do not append a success event when validation fails, the mutation rolls back, or an idempotent request produces no material state change.
+
+Record only bounded state needed to explain the action; never dump full request bodies, Article summaries, provenance, stack traces, or secrets.
+
+Implement bounded/paginated Article-target history reads. Retention/pruning remains Phase 19 work.
+
+CONCURRENCY / TRANSACTIONS
+Worker collection already locks/updates persisted Article state and reconciles automatic Categories inside candidate transactions. P2 must coexist safely with that behavior.
+
+Use real PostgreSQL row/transaction semantics so Web moderation racing collection cannot leave partial manual state/history. Do not add process-local mutexes.
+
+The intended layering means:
+- Source title can update while override remains active;
+- automatic Category set can update while manual override remains active;
+- clearing either override reveals the latest underlying state;
+- no Worker path needs to own or clear the manual state.
+
+FOCUSED TESTS
+Add deterministic unit coverage for moderation input/cursor/state normalization as appropriate, plus real disposable PostgreSQL coverage for the service/repository behavior.
+
+At minimum prove:
+- search returns hidden/archived/non-Primary/suppressed stored Articles when filters request them;
+- deterministic ordering/cursors do not duplicate/omit rows in a static set;
+- malformed/repeated/out-of-bound criteria fail predictably;
+- provenance detail returns endpoint/run/observation/Relevance/Category evidence without mutation;
+- hide/restore is reversible and orthogonal to duplicate membership;
+- archived Article cannot be silently restored through the hide/restore command;
+- display override survives a later Source-derived Article title update;
+- clearing display override reveals that latest Source title;
+- active Category override survives later automatic `article_categories` reconciliation;
+- active empty manual Category set is distinct from clear;
+- clearing returns to the latest automatic Category set;
+- referenced missing Categories fail without partial state;
+- every material successful command creates one coherent audit event;
+- failed/rolled-back/no-op commands do not create false success history;
+- injected audit-write failure rolls back the governed mutation;
+- Article observations and retained Category/Relevance reasons remain unchanged;
+- realistic cross-connection Worker-like Article update vs moderation mutation converges coherently.
+
+PRESERVED BEHAVIOR
+Preserve:
+- Source-scoped Article identity and existing candidate/observation transaction behavior;
+- collection-owned automatic Category reconciliation;
+- Phase 16 duplicate review/group/Primary behavior until P3;
+- public-feed behavior until P4;
+- existing Source/Publication/Editorial admin behavior;
+- topic independence and singleton Publication architecture.
+
+NON-GOALS
+Do not implement:
+- duplicate dismiss/merge/split/choose-Primary commands;
+- changes to automatic grouping;
+- public-feed effective title/Category reads;
+- Express routes;
+- browser UI;
+- arbitrary metadata editing, `original_url` override, author/timestamp/identity editing;
+- archive/unarchive;
+- bulk historical reprocessing or recategorization.
+
+VALIDATION
+During development, use the narrowest relevant unit/integration and focused PostgreSQL files rather than repeatedly launching the full DB suite.
+
+Before completion on the final P2 tree run the smallest non-overlapping applicable set:
+- `npm run check`
+- focused real-PostgreSQL files for the new Article moderation service plus existing Article persistence/Relevance persistence regressions through `npm run test:db:focused -- <files>`
+- `git diff --check`
+
+The focused DB set must include the new P2 persistence/service tests and the current equivalents of `test/database/article-persistence.test.ts` and `test/database/relevance-article-persistence.test.ts`. Add duplicate/provenance schema tests if P2 touches shared read helpers that can affect them.
+
+Do not run the browser suite for this backend-only prompt.
+
+Confirm `package.json` is `0.17.2`, no npm lockfile exists, and no duplicate/public/API/UI behavior was pulled forward.
+
+FINAL REPORT
+Report files changed, query/cursor contract, effective display/Category rules, visibility transitions, provenance/history behavior, transaction strategy, validation actually executed/results, package version, and any remaining risk.
