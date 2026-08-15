@@ -70,6 +70,60 @@ const recentRuns: AdminEndpointCollectionRunsReadModel = Object.freeze({
 });
 
 describe('Endpoint administration HTTP API', () => {
+  it('serves the protected pure HTML draft preview without consulting endpoint services', async () => {
+    const calls: string[] = [];
+    await withAdminServer(mockService(calls), async (baseUrl) => {
+      const path = `${baseUrl}/api/admin/html-listing/preview`;
+      const valid = await fetch(path, {
+        method: 'POST',
+        headers: adminHeaders(),
+        body: JSON.stringify(previewInput()),
+      });
+      assert.equal(valid.status, 200);
+      assert.deepEqual(await valid.json(), {
+        preview: {
+          rows: [{ title: 'Example', url: '/story' }],
+          diagnostics: null,
+        },
+      });
+
+      const denied = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(previewInput()),
+      });
+      assert.equal(denied.status, 403);
+      assert.deepEqual(await denied.json(), {
+        error: 'request_integrity_required',
+      });
+
+      for (const body of [
+        { ...previewInput(), unknown: true },
+        { ...previewInput(), html: '<p>preview-secret-sentinel</p>' },
+        { html: 'x'.repeat(41 * 1024), profile: previewInput().profile },
+      ]) {
+        const invalid = await fetch(path, {
+          method: 'POST',
+          headers: adminHeaders(),
+          body: JSON.stringify(body),
+        });
+        assert.equal(invalid.status, 400);
+        const text = await invalid.text();
+        assert.deepEqual(JSON.parse(text), { error: 'invalid_request' });
+        assert.doesNotMatch(text, /preview-secret-sentinel/u);
+      }
+
+      const duplicate = await fetch(path, {
+        method: 'POST',
+        headers: adminHeaders(),
+        body: '{"html":"<p>first</p>","html":"<p>second</p>","profile":{}}',
+      });
+      assert.equal(duplicate.status, 400);
+      assert.deepEqual(await duplicate.json(), { error: 'invalid_json' });
+    });
+    assert.deepEqual(calls, []);
+  });
+
   it('routes Source-scoped reads and every endpoint command', async () => {
     const calls: string[] = [];
     const service = mockService(calls);
@@ -353,5 +407,16 @@ function adminHeaders(): Record<string, string> {
   return {
     [ADMIN_REQUEST_HEADER]: ADMIN_REQUEST_HEADER_VALUE,
     'Content-Type': 'application/json',
+  };
+}
+
+function previewInput(): Record<string, unknown> {
+  return {
+    html: '<article class="item"><h2>Example</h2><a href="/story">Read</a></article>',
+    profile: {
+      itemSelector: '.item',
+      title: { selector: 'h2' },
+      articleLink: { selector: 'a' },
+    },
   };
 }

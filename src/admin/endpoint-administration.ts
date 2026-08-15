@@ -52,6 +52,7 @@ import {
 import {
   findSourceEndpointBySourceAndConfigKey,
   insertSourceEndpoint,
+  replaceSourceEndpointConfiguration,
 } from '../sources/repository.ts';
 import {
   readEndpointHealth,
@@ -164,6 +165,12 @@ export interface AdminEndpointCollectionRunReadModel {
   readonly runStatus: CollectionRunStatus;
   readonly transportStatus: CollectionRunTransportStatus;
   readonly parserStatus: CollectionRunParserStatus;
+  readonly parserKind: PersistedCollectionRun['parserKind'] | null;
+  readonly parserVersion: string | null;
+  readonly htmlListingProfileRevision: number | null;
+  readonly parserItemFailureCount: number;
+  readonly parserDiagnosticCode: string | null;
+  readonly parserDiagnosticDetail: string | null;
   readonly normalizationStatus: CollectionRunNormalizationStatus;
   readonly processingStatus: CollectionRunProcessingStatus;
   readonly outcomeCode: CollectionRunOutcomeCode | null;
@@ -298,6 +305,7 @@ export interface NormalizedEndpointCreateCommand {
 }
 
 interface NormalizedMutableEndpointConfiguration {
+  readonly endpoint: Readonly<SourceEndpointConfiguration>;
   readonly endpointUrl: string;
   readonly endpointType: EndpointType;
   readonly htmlListingProfile?: NormalizedHtmlListingProfile | undefined;
@@ -417,35 +425,11 @@ export function createEndpointAdministrationService(
             endpoint,
           );
           await requireCategory(transaction, command.defaultCategoryConfigKey);
-          await transaction.query(
-            `UPDATE source_endpoints
-             SET endpoint_url = $2, endpoint_type = $3,
-                 html_listing_profile = $4,
-                 html_listing_profile_revision = $5,
-                 poll_interval_seconds = $6, updated_at = now()
-             WHERE id = $1`,
-            [
-              endpoint.id,
-              command.endpointUrl,
-              command.endpointType,
-              command.htmlListingProfile === undefined
-                ? null
-                : JSON.stringify(command.htmlListingProfile),
-              command.endpointType === 'html_listing'
-                ? endpoint.endpointType === 'html_listing' &&
-                  endpoint.htmlListingProfileRevision !== undefined &&
-                  JSON.stringify(endpoint.htmlListingProfile) ===
-                    JSON.stringify(command.htmlListingProfile)
-                  ? endpoint.htmlListingProfileRevision
-                  : (endpoint.htmlListingProfileRevision ?? 0) + 1
-                : null,
-              command.pollIntervalSeconds,
-            ],
-          );
-          await replaceEndpointDomainRules(
+          await replaceSourceEndpointConfiguration(
             transaction,
+            source.id,
             endpoint.id,
-            command.endpointDomainRules,
+            command.endpoint,
           );
           await setEndpointDefaultCategory(
             transaction,
@@ -947,6 +931,12 @@ function mapCollectionRun(
     runStatus: run.runStatus,
     transportStatus: run.transportStatus,
     parserStatus: run.parserStatus,
+    parserKind: run.parserKind ?? null,
+    parserVersion: run.parserVersion ?? null,
+    htmlListingProfileRevision: run.htmlListingProfileRevision ?? null,
+    parserItemFailureCount: run.parserItemFailureCount ?? 0,
+    parserDiagnosticCode: run.parserDiagnosticCode ?? null,
+    parserDiagnosticDetail: run.parserDiagnosticDetail ?? null,
     normalizationStatus: run.normalizationStatus,
     processingStatus: run.processingStatus,
     outcomeCode: run.outcomeCode ?? null,
@@ -1073,6 +1063,7 @@ function normalizeMutableEndpointConfiguration(
     ),
   );
   return Object.freeze({
+    endpoint,
     endpointUrl: endpoint.endpointUrl.value,
     endpointType: endpoint.endpointType,
     pollIntervalSeconds: endpoint.pollIntervalSeconds,
@@ -1189,25 +1180,6 @@ function groupDomainRules(
   return new Map(
     [...grouped].map(([key, values]) => [key, Object.freeze(values)]),
   );
-}
-
-async function replaceEndpointDomainRules(
-  executor: QueryExecutor,
-  endpointId: string,
-  rules: readonly DomainRule[],
-): Promise<void> {
-  await executor.query(
-    'DELETE FROM source_endpoint_domain_rules WHERE source_endpoint_id = $1',
-    [endpointId],
-  );
-  for (const rule of rules) {
-    await executor.query(
-      `INSERT INTO source_endpoint_domain_rules (
-         source_endpoint_id, hostname, include_subdomains
-       ) VALUES ($1, $2, $3)`,
-      [endpointId, rule.hostname, rule.includeSubdomains],
-    );
-  }
 }
 
 function normalizeDefaultCategoryKey(value: unknown): string | undefined {

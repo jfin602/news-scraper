@@ -341,6 +341,60 @@ export async function insertSourceEndpoint(
   );
 }
 
+/**
+ * Replaces the durable endpoint configuration snapshot while preserving its
+ * runtime state. Profile revision semantics live with endpoint persistence,
+ * rather than in an administration caller.
+ *
+ * Callers which require Source -> endpoint lock ordering must acquire those
+ * locks before invoking this function.
+ */
+export async function replaceSourceEndpointConfiguration(
+  executor: QueryExecutor,
+  sourceId: string,
+  endpointId: string,
+  endpoint: Readonly<SourceEndpointConfiguration>,
+): Promise<PersistedSourceEndpoint> {
+  const result = await executor.query<EndpointRow>(
+    `UPDATE source_endpoints
+     SET endpoint_url = $3,
+         endpoint_type = $4,
+         html_listing_profile = $5,
+         html_listing_profile_revision = CASE
+           WHEN $4 = 'html_listing' THEN CASE
+             WHEN endpoint_type = 'html_listing'
+                  AND html_listing_profile = $5::jsonb
+               THEN html_listing_profile_revision
+             ELSE COALESCE(html_listing_profile_revision, 0) + 1
+           END
+           ELSE NULL
+         END,
+         poll_interval_seconds = $6,
+         updated_at = now()
+     WHERE id = $1 AND source_id = $2
+     RETURNING ${ENDPOINT_COLUMNS}`,
+    [
+      endpointId,
+      sourceId,
+      endpoint.endpointUrl.value,
+      endpoint.endpointType,
+      endpoint.endpointType === 'html_listing'
+        ? JSON.stringify(endpoint.htmlListingProfile)
+        : null,
+      endpoint.pollIntervalSeconds,
+    ],
+  );
+  const persisted = mapEndpointRow(
+    requiredRow(result.rows, 'endpoint configuration replacement'),
+  );
+  await replaceEndpointDomainRules(
+    executor,
+    persisted.id,
+    endpoint.endpointDomainRules,
+  );
+  return persisted;
+}
+
 export async function createSourceEndpointIfAbsent(
   executor: QueryExecutor,
   sourceId: string,
@@ -905,6 +959,18 @@ async function insertEndpointDomainRules(
       [endpointId, rule.hostname, rule.includeSubdomains],
     );
   }
+}
+
+async function replaceEndpointDomainRules(
+  executor: QueryExecutor,
+  endpointId: string,
+  rules: readonly DomainRule[],
+): Promise<void> {
+  await executor.query(
+    'DELETE FROM source_endpoint_domain_rules WHERE source_endpoint_id = $1',
+    [endpointId],
+  );
+  await insertEndpointDomainRules(executor, endpointId, rules);
 }
 
 function mapDomainRules(rows: readonly DomainRuleRow[]): readonly DomainRule[] {

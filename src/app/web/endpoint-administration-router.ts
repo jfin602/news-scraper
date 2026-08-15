@@ -5,12 +5,30 @@ import {
   type AdminEndpointReadModel,
   type EndpointAdministrationService,
 } from '../../admin/endpoint-administration.ts';
+import {
+  HtmlListingPreviewError,
+  previewHtmlListingSample,
+} from '../../admin/html-listing-preview.ts';
 import type { AdminApiRouteRegistrar } from './admin-router.ts';
 
 export function registerEndpointAdministrationRoutes(
   service: EndpointAdministrationService,
 ): AdminApiRouteRegistrar {
   return (router: Router) => {
+    router.post('/html-listing/preview', (request, response) => {
+      try {
+        response.status(200).json({
+          preview: previewHtmlListingSample(request.body),
+        });
+      } catch (error) {
+        if (error instanceof HtmlListingPreviewError) {
+          response.status(400).json({ error: 'invalid_request' });
+          return;
+        }
+        throw error;
+      }
+    });
+
     router.get('/sources/:sourceKey/endpoints', async (request, response) => {
       try {
         response.status(200).json({

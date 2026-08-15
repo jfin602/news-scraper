@@ -266,6 +266,150 @@ describe('Endpoint administration database service', () => {
     });
   });
 
+  it('persists canonical HTML profile revisions across create, replacement, and type switches', async () => {
+    await withEndpointAdministration(async ({ database, endpoints }) => {
+      await insertPublicationSettings(database, {
+        name: 'HTML endpoint administration',
+        activeForCollection: true,
+        publicStatus: 'private',
+      });
+      const source = await insertAdminSource(database, 'journal');
+      const created = await endpoints.createEndpoint(
+        'journal',
+        endpointCreateInput({
+          endpointType: 'html_listing',
+          endpointUrl: 'https://feeds.example.com/listing',
+          htmlListingProfile: htmlListingProfile(),
+        }),
+      );
+      assert.equal(created.endpointType, 'html_listing');
+      assert.deepEqual(created.htmlListingProfile, htmlListingProfile());
+      assert.equal(created.htmlListingProfileRevision, 1);
+
+      const same = await endpoints.replaceEndpointConfiguration(
+        'journal',
+        'main_feed',
+        endpointConfigurationInput({
+          endpointType: 'html_listing',
+          endpointUrl: 'https://feeds.example.com/listing',
+          htmlListingProfile: htmlListingProfile(),
+        }),
+      );
+      assert.equal(same.htmlListingProfileRevision, 1);
+
+      const changed = await endpoints.replaceEndpointConfiguration(
+        'journal',
+        'main_feed',
+        endpointConfigurationInput({
+          endpointType: 'html_listing',
+          endpointUrl: 'https://feeds.example.com/listing',
+          htmlListingProfile: htmlListingProfile({ title: { selector: 'h3' } }),
+        }),
+      );
+      assert.equal(changed.htmlListingProfileRevision, 2);
+
+      const rss = await endpoints.replaceEndpointConfiguration(
+        'journal',
+        'main_feed',
+        endpointConfigurationInput({ endpointType: 'rss_atom' }),
+      );
+      assert.equal(rss.htmlListingProfile, null);
+      assert.equal(rss.htmlListingProfileRevision, null);
+
+      const restored = await endpoints.replaceEndpointConfiguration(
+        'journal',
+        'main_feed',
+        endpointConfigurationInput({
+          endpointType: 'html_listing',
+          endpointUrl: 'https://feeds.example.com/relisted',
+          htmlListingProfile: htmlListingProfile(),
+        }),
+      );
+      assert.equal(restored.htmlListingProfileRevision, 1);
+      const persistedHtml = await requireEndpoint(
+        database,
+        source.id,
+        'main_feed',
+      );
+      const run = await startCollectionRun(database, {
+        sourceEndpointId: persistedHtml.id,
+        executionId: 'html-admin-diagnostics',
+      });
+      await finalizeCollectionRun(database, run.id, {
+        runStatus: 'succeeded',
+        transportStatus: 'succeeded',
+        parserStatus: 'succeeded',
+        parserDiagnostics: {
+          kind: 'html_listing',
+          version: '1',
+          htmlListingProfileRevision: 1,
+          itemFailureCount: 2,
+          code: 'required_field_missing',
+          detail: 'A matched item is missing a required extracted value.',
+        },
+        normalizationStatus: 'succeeded',
+        processingStatus: 'succeeded',
+        rawItemCount: 1,
+        sourceItemFilteredCount: 0,
+        normalizedCandidateCount: 1,
+        normalizationFailureCount: 0,
+        articleLinkRejectionCount: 0,
+        createdCount: 0,
+        updatedCount: 0,
+        unchangedCount: 1,
+        rejectedCount: 0,
+        excludedCount: 0,
+        failedCount: 0,
+      });
+      const diagnostics = await endpoints.listRecentRuns(
+        'journal',
+        'main_feed',
+      );
+      const diagnostic = diagnostics.runs[0];
+      assert.equal(diagnostic?.parserKind, 'html_listing');
+      assert.equal(diagnostic?.parserVersion, '1');
+      assert.equal(diagnostic?.htmlListingProfileRevision, 1);
+      assert.equal(diagnostic?.parserItemFailureCount, 2);
+      assert.equal(diagnostic?.parserDiagnosticCode, 'required_field_missing');
+      assert.equal(
+        diagnostic?.parserDiagnosticDetail,
+        'A matched item is missing a required extracted value.',
+      );
+      const job = await endpoints.checkNow('journal', 'main_feed');
+      assert.equal(job.disposition, 'queued');
+      assert.equal(
+        (await requireEndpoint(database, source.id, 'main_feed'))
+          .htmlListingProfileRevision,
+        1,
+      );
+
+      const beforeInvalid = await endpoints.getEndpoint('journal', 'main_feed');
+      await assertEndpointError(
+        endpoints.replaceEndpointConfiguration(
+          'journal',
+          'main_feed',
+          endpointConfigurationInput({ endpointType: 'html_listing' }),
+        ),
+        'invalid_request',
+      );
+      await assertEndpointError(
+        endpoints.replaceEndpointConfiguration(
+          'journal',
+          'main_feed',
+          endpointConfigurationInput({
+            endpointType: 'rss_atom',
+            htmlListingProfile: htmlListingProfile(),
+          }),
+        ),
+        'invalid_request',
+      );
+      assert.deepEqual(
+        await endpoints.getEndpoint('journal', 'main_feed'),
+        beforeInvalid,
+      );
+    });
+  });
+
   it('allows safe unapproved edits but never approves an endpoint outside effective policy or contacts it', async () => {
     await withEndpointAdministration(async ({ database, endpoints }) => {
       await insertAdminSource(database, 'journal');
@@ -320,6 +464,56 @@ describe('Endpoint administration database service', () => {
           server.close((error) => (error ? reject(error) : resolve())),
         );
       }
+    });
+  });
+
+  it('keeps a real database unchanged when the HTTP HTML sample preview succeeds', async () => {
+    await withEndpointAdministration(async ({ database, endpoints }) => {
+      await insertAdminSource(database, 'journal');
+      await endpoints.createEndpoint('journal', endpointCreateInput());
+      const before = await database.query<{
+        readonly endpoints: number;
+        readonly runs: number;
+        readonly jobs: number;
+        readonly articles: number;
+        readonly observations: number;
+      }>(
+        `SELECT
+           (SELECT count(*)::integer FROM source_endpoints) AS endpoints,
+           (SELECT count(*)::integer FROM collection_runs) AS runs,
+           (SELECT count(*)::integer FROM endpoint_collection_jobs) AS jobs,
+           (SELECT count(*)::integer FROM articles) AS articles,
+           (SELECT count(*)::integer FROM article_observations) AS observations`,
+      );
+      await withEndpointAdminServer(endpoints, async (baseUrl) => {
+        const response = await fetch(
+          `${baseUrl}/api/admin/html-listing/preview`,
+          {
+            method: 'POST',
+            headers: adminJsonHeaders(),
+            body: JSON.stringify({
+              html: '<article class="item"><h2>Preview</h2><a href="/preview">Read</a></article>',
+              profile: htmlListingProfile(),
+            }),
+          },
+        );
+        assert.equal(response.status, 200);
+      });
+      const after = await database.query<{
+        readonly endpoints: number;
+        readonly runs: number;
+        readonly jobs: number;
+        readonly articles: number;
+        readonly observations: number;
+      }>(
+        `SELECT
+           (SELECT count(*)::integer FROM source_endpoints) AS endpoints,
+           (SELECT count(*)::integer FROM collection_runs) AS runs,
+           (SELECT count(*)::integer FROM endpoint_collection_jobs) AS jobs,
+           (SELECT count(*)::integer FROM articles) AS articles,
+           (SELECT count(*)::integer FROM article_observations) AS observations`,
+      );
+      assert.deepEqual(after.rows[0], before.rows[0]);
     });
   });
 
@@ -1117,6 +1311,17 @@ function endpointConfigurationInput(
     pollIntervalSeconds: 300,
     endpointDomainRules: [],
     defaultCategoryConfigKey: null,
+    ...overrides,
+  };
+}
+
+function htmlListingProfile(
+  overrides: Readonly<Record<string, unknown>> = {},
+): Record<string, unknown> {
+  return {
+    itemSelector: '.item',
+    title: { selector: 'h2' },
+    articleLink: { selector: 'a' },
     ...overrides,
   };
 }
