@@ -1,0 +1,210 @@
+TASK: Correction 17 / P1 — Complete duplicate review read surface
+
+CORRECTION SCOPE
+This is the sole implementation prompt in correction `c17-duplicate-review-read-surface`. Phase 17 P1–P4 are already implemented. Phase 17 P5 correctly stopped because the P3 implementation did not supply the complete duplicate-review read/service surface that its own prompt required. This correction completes that missing read-side prerequisite without changing duplicate mutation semantics, HTTP routes, browser UI, public-feed behavior, schema, or roadmap versioning.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra Medium`.
+- Model-family basis: the repository owner requires Terra-family execution for this correction, and the task spans the duplicate read repository, existing Article administration read model, cursor/input normalization, and real PostgreSQL tests.
+- Reasoning basis: Medium reasoning is sufficient because the missing behavior is explicit and read-only: candidate-centric pagination/detail composition must mirror already-governed topology/manual-authority state rather than invent new policy.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: no lower Terra configuration exists in the current runner; absent the owner Terra-only constraint, Luna High would be the nearest cheaper implementation alternative.
+- Escalation trigger: source inspection shows the required read model cannot be completed without changing duplicate topology mutation/locking ownership, persisted schema, or another material architecture boundary.
+- Escalation target: `Terra High`.
+- Estimate confidence: `High`.
+- Efficiency rationale: use the lowest available Terra configuration for a bounded read-side completion and stop instead of escalating if implementation unexpectedly requires topology/schema redesign.
+- If this exact configuration is unavailable at execution time, re-read current `BOOT.md`, `docs/codex-model-selection.md`, and `scripts/codex-phase-core.mjs`; do not invent a configuration label.
+
+VERSIONING
+- Required unchanged project version: `0.17.4`.
+- This correction MUST NOT change the top-level `package.json` version.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Correction prompt numbering is local only and does not consume Phase 17 P5/P6/P7 roadmap versions.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, the Phase 17 roadmap entry, `docs/contracts/article-lifecycle-and-deduplication.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, and `docs/codex-model-selection.md`;
+2. read `docs/tasks/p17/P3-duplicate-moderation-manual-authority.txt` and `docs/tasks/p17/P5-moderation-administration-api.txt` and compare their producer/consumer expectations against actual current source;
+3. inspect `src/deduplication/moderation.ts`, `src/deduplication/grouping.ts`, `src/articles/moderation-repository.ts`, and `src/admin/article-administration.ts`;
+4. inspect current Phase 17 duplicate and Article PostgreSQL tests, especially `test/database/duplicate-grouping.test.ts` and `test/database/article-administration.test.ts`;
+5. confirm current `package.json` remains exactly the declared unchanged correction version and that P5 has not been implemented around the missing service;
+6. stop and report planning drift if current source already contains a materially different complete duplicate-review administration service, the missing behavior requires schema/topology redesign, or P5 has since absorbed duplicate-domain read logic.
+
+OBSERVED GAP
+The P3 task required bounded Duplicate-review queue/detail reads with stable continuation, ordered persisted signals, Article summaries, current group/membership/Primary context, and manual-authority blockers.
+
+Current `src/deduplication/moderation.ts` provides `readDuplicateReviewQueue()` with only `state`, `confidence`, and `limit` inputs plus basic pair/title/manual-separation data. It does not provide:
+- continuation/cursor semantics;
+- a candidate-detail service;
+- complete current group/member/Primary context;
+- indirect manual-separation blocker context across would-be combined components;
+- conflicting manual-Primary blocker context;
+- an admin/service boundary that P5 can consume without inventing duplicate-domain behavior.
+
+P2 already supplies the canonical moderated-Article read model. Reuse it rather than creating a competing Article mapping.
+
+GOAL
+Complete the missing P3 duplicate-review read surface so the later P5 HTTP task can remain a strict adapter:
+
+request parsing -> duplicate administration service -> bounded response/error mapping
+
+P5 must not need SQL, cursor design, topology inference, candidate-detail composition, or duplicate-policy interpretation after this correction.
+
+SERVICE BOUNDARY
+Add a bounded duplicate administration/read service, preferably `src/admin/duplicate-administration.ts`, analogous in responsibility to the existing Article administration service.
+
+The service must expose at minimum:
+- `searchReviews(input?)` — normalized bounded queue/search request returning items plus opaque continuation;
+- `getReview(candidateId)` — normalized candidate-ID lookup returning the complete bounded candidate-centric detail needed by P5.
+
+It may call narrow read helpers in `src/deduplication/moderation.ts` or another clearly owned duplicate read repository. Do not move HTTP concerns into these modules.
+
+Do not create a generic admin patch/repository API. The service is specifically the governed duplicate-review read boundary.
+
+QUEUE / PAGINATION CONTRACT
+Complete bounded queue reads with these semantics:
+- supported filters: candidate `state` and `confidence` only unless current governing source already requires another P3/P5 filter;
+- bounded page size with the existing practical default/max of 50/100 unless source-level convention requires an equivalent smaller established bound;
+- deterministic keyset order `candidate.updated_at DESC, candidate.id DESC`;
+- read `pageSize + 1`, return at most `pageSize`, and emit continuation only when another page exists;
+- use an opaque cursor owned by the duplicate administration service;
+- bind the cursor to normalized search criteria so a cursor produced under one state/confidence filter cannot be silently reused under another;
+- reject malformed, oversize, unsupported, or criteria-mismatched cursor/input deterministically;
+- do not implement offset pagination or an unbounded export.
+
+Queue items should preserve the useful current candidate metadata while remaining bounded and immutable.
+
+CANDIDATE DETAIL CONTRACT
+`getReview(candidateId)` must return one bounded immutable read model containing at least:
+- candidate ID and canonical low/high Article IDs;
+- current candidate state and origin;
+- confidence and evidence fingerprint;
+- manual decision timestamp/reason;
+- persisted duplicate signals in canonical `signal_order`, including reason code and strength;
+- both Articles using/reusing the canonical P2 moderated-Article representation or an intentionally smaller projection derived from it;
+- each side's current duplicate role and group ID;
+- current group Primary Article ID and `automatic`/`manual` authority when grouped;
+- bounded current member summaries for every distinct group implicated by the candidate;
+- total member count and an explicit truncation/has-more indication when the detail bound omits members;
+- whether current automatic grouping would be blocked by active manual separation;
+- whether current distinct groups are blocked from automatic merge by conflicting manual Primaries.
+
+Do not infer new duplicate evidence, confidence, policy, or Primary rules. This task reports already-persisted/governed state.
+
+ARTICLE READ-MODEL REUSE
+The current P2 Article administration path already maps Source/effective title, visibility, Categories, duplicate role, group ID, Primary ID/origin, and Article-level review data.
+
+Reuse `readModeratedArticle` / `readModeratedArticles` or another existing canonical Article mapping boundary where practical. Do not duplicate the complete Article SQL/mapping merely to build duplicate detail.
+
+When listing group members, prefer the existing bounded Article repository search using its `duplicateGroupId` criterion so duplicate administration does not become a second full Article repository.
+
+Keep any projection returned by duplicate detail explicit and bounded; do not expose observations/history for every group member unless already needed by the governed P3/P5 contract.
+
+INDIRECT MANUAL-SEPARATION BLOCKER
+The read model must mirror the actual automatic grouping policy, not merely check whether the candidate pair itself has a separation row.
+
+For the candidate's two Articles, derive the complete current components that automatic grouping would combine:
+- an ungrouped Article contributes itself;
+- a grouped Article contributes every member of its current Duplicate group.
+
+Report automatic grouping blocked by manual separation when any active `duplicate_manual_separations` pair exists wholly inside that would-be resulting member set and would therefore make the automatic topology change invalid.
+
+Example that must be represented correctly: Article A and B are grouped, candidate evidence connects B to C, and active manual separation is A-C. The candidate is indirectly blocked even though B-C itself is not the separated pair.
+
+Do not mutate or acquire the topology mutation lock solely to answer this read. Read a transactionally coherent bounded snapshot using normal repository/database conventions.
+
+CONFLICTING MANUAL PRIMARY CONTEXT
+For candidates whose Articles currently belong to two different Duplicate groups, report the existing governed automatic-merge blocker when both groups have different valid manual Primaries.
+
+Do not resolve that conflict in this task. Do not choose a winner. P3 mutation semantics remain authoritative.
+
+BOUNDS / FAILURE HANDLING
+Validate rows at the repository/service boundary rather than trusting arbitrary database values.
+
+Provide small bounded service errors suitable for P5 HTTP translation, including at least:
+- invalid request/input;
+- duplicate review candidate not found.
+
+Do not relabel database corruption, impossible topology, or invariant failures as user input errors. Unexpected persistence/invariant failures remain internal failures and must not leak SQL, stack traces, or raw database details through the service's public error messages.
+
+READ-ONLY GUARANTEE
+Every new operation in this correction is read-only.
+
+Do not write:
+- `duplicate_review_candidates`;
+- `duplicate_review_signals`;
+- `duplicate_groups`;
+- `duplicate_group_memberships`;
+- `duplicate_manual_separations`;
+- `articles`;
+- `audit_events`;
+- any Category/Relevance/provenance state.
+
+Do not take the shared topology mutation advisory lock for ordinary queue/detail reads.
+
+FOCUSED TESTS — REAL POSTGRESQL
+Add a focused PostgreSQL test file, preferably `test/database/duplicate-administration.test.ts`.
+
+At minimum prove:
+- queue default/max bounds and deterministic `updated_at DESC, id DESC` ordering;
+- continuation traverses multiple pages without duplicate/omitted candidates in static tie-heavy data;
+- cursor is opaque, bounded, and criteria-bound;
+- malformed and criteria-mismatched cursors fail deterministically;
+- state/confidence filtering composes correctly with pagination;
+- unknown candidate produces the bounded not-found service result/error;
+- persisted signals are returned in `signal_order` with correct reason/strength;
+- detail reports both Articles using current effective Article state rather than a stale competing mapping;
+- ungrouped, same-group, one-group-plus-ungrouped, and two-distinct-group context is correct;
+- current Primary ID and authority origin are correct for automatic and manual groups;
+- group member lists are deterministic and bounded and expose count/truncation when the bound is exceeded;
+- direct manual separation is visible;
+- indirect separation across would-be combined components is visible;
+- two distinct manually-Primaried groups expose the manual-Primary conflict blocker;
+- ordinary reads do not mutate candidate state, topology, Primary, separation rows, Articles, or audit history;
+- existing P3 dismiss/merge/split/choose-Primary and automatic grouping behavior remains intact through regression tests.
+
+Prefer extending existing database fixture helpers where useful rather than duplicating large setup machinery.
+
+PRESERVED BEHAVIOR
+Preserve without modification:
+- Source-scoped Article identity and all Article/observation provenance;
+- Phase 16 evidence/fingerprint/signal semantics;
+- P3 automatic grouping, manual separation, dismiss, merge, split, and choose-Primary mutation behavior;
+- one shared duplicate topology mutation owner/lock path;
+- P2 Article override/effective Category/effective title behavior;
+- P4 public-feed effective-state and duplicate suppression behavior;
+- public routes, Worker, Source/endpoint/Publication administration, and singleton architecture.
+
+NON-GOALS
+Do not implement or modify:
+- P5 HTTP routes/registrars/request parsing;
+- P6 browser/admin UI;
+- public-feed SQL or public presentation;
+- database schema or migrations;
+- duplicate heuristics/fuzzy/semantic detection;
+- manual duplicate mutation semantics;
+- topology locks or transaction ownership except a tiny behavior-preserving read helper only if strictly necessary;
+- native administrator identity;
+- Phase 18/19 functionality;
+- unrelated cleanup/refactoring.
+
+ITERATIVE VALIDATION
+During development use the smallest relevant checks, especially:
+
+`npm run test:db:focused -- test/database/duplicate-administration.test.ts`
+
+and targeted type/unit checks if cursor/input normalization receives pure unit coverage.
+
+FINAL VALIDATION
+Before completion on the final P1 tree run the smallest non-overlapping applicable set:
+- `npm run check`
+- `npm run test:db:focused -- test/database/duplicate-administration.test.ts test/database/duplicate-grouping.test.ts test/database/article-administration.test.ts`
+- `git diff --check`
+
+If the new test filename differs, use its actual equivalent while preserving the same coverage set. Do not run the browser suite or full database suite solely for this read-only implementation prompt; the correction closeout owns the broader final database matrix.
+
+Confirm the top-level package version is still `0.17.4`, no npm lockfile exists, no migration was added, no P5 route was implemented, and no mutation/topology policy changed.
+
+FINAL REPORT
+Report files changed, final duplicate administration service methods, queue ordering/cursor contract, Article read-model reuse, detail/group/member bounds, direct/indirect separation and manual-Primary-conflict representation, tests actually run/results, unchanged package version, and any remaining risk. Do not claim P5 is implemented; report only whether this service is now sufficient for P5 to remain an HTTP adapter.
