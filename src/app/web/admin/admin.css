@@ -733,6 +733,61 @@ select {
   gap: 0.9rem;
 }
 
+.operations-panel,
+.operations-panel > section,
+.operations-grid {
+  display: grid;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.operations-panel h3,
+.operations-panel h4,
+.operations-panel p {
+  margin: 0;
+}
+
+.operations-summary {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
+.operations-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.operations-facts {
+  display: grid;
+  gap: 0;
+  grid-template-columns: minmax(9rem, 0.9fr) minmax(0, 1.1fr);
+  margin: 0;
+}
+
+.operations-facts dt,
+.operations-facts dd {
+  border-bottom: 1px solid var(--border);
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  padding: 0.45rem 0.6rem;
+}
+
+.operations-facts dt {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 750;
+}
+
+.operations-facts dd {
+  font-weight: 650;
+}
+
+.operations-policy {
+  grid-template-columns: repeat(2, minmax(9rem, 1fr) minmax(0, 1fr));
+}
+
 .health-grid,
 .run-grid {
   display: grid;
@@ -872,7 +927,7 @@ select {
   }
 
   .workspace-tabs {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .source-workspace-layout {
@@ -898,6 +953,14 @@ select {
 
   .run-grid {
     grid-template-columns: repeat(3, minmax(6rem, 1fr) minmax(4rem, 0.7fr));
+  }
+
+  .operations-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .operations-policy {
+    grid-template-columns: minmax(9rem, 0.9fr) minmax(0, 1.1fr);
   }
 }
 

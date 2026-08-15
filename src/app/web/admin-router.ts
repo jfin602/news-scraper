@@ -69,6 +69,10 @@ const adminPage = `<!doctype html>
             <span>Publication</span>
             <span class="workspace-tab-description">Identity, branding, and feed state</span>
           </button>
+          <button type="button" class="workspace-tab" role="tab" aria-selected="false" aria-controls="operations-workspace" data-workspace="operations">
+            <span>Operations</span>
+            <span class="workspace-tab-description">Current health and collection backlog</span>
+          </button>
           <button type="button" class="workspace-tab" role="tab" aria-selected="true" aria-controls="sources-workspace" data-workspace="sources">
             <span>Sources</span>
             <span class="workspace-tab-description">Publishers and collection endpoints</span>
@@ -85,6 +89,45 @@ const adminPage = `<!doctype html>
       </nav>
 
       <section class="admin-content">
+        <section class="workspace-panel" id="operations-workspace" data-workspace-panel="operations" aria-labelledby="operations-heading" hidden>
+          <section class="panel operations-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">Current installation state</p>
+                <h2 id="operations-heading" tabindex="-1">Operations</h2>
+              </div>
+              <button type="button" class="button secondary" data-refresh-operations>Refresh Operations</button>
+            </div>
+            <p class="section-help">A read-only snapshot of current endpoint health, queued work, and active alerts.</p>
+            <div class="workspace-state" tabindex="-1" data-operations-state="idle" role="status" aria-live="polite">Open Operations to load the current snapshot.</div>
+            <div data-operations-content hidden>
+              <div class="operations-summary" data-operations-summary></div>
+              <div class="operations-grid">
+                <section>
+                  <h3>Endpoint health</h3>
+                  <dl class="operations-facts" data-operations-health-counts></dl>
+                </section>
+                <section>
+                  <h3>Collection work</h3>
+                  <dl class="operations-facts" data-operations-queue></dl>
+                </section>
+              </div>
+              <section>
+                <h3>Actionable endpoints</h3>
+                <div class="bounded-list" data-operations-endpoints></div>
+              </section>
+              <section>
+                <h3>Current alerts</h3>
+                <div class="bounded-list" data-operations-alerts></div>
+              </section>
+              <section>
+                <h3>Collection policy</h3>
+                <dl class="operations-facts operations-policy" data-operations-policy></dl>
+              </section>
+            </div>
+          </section>
+        </section>
+
         <section class="workspace-panel" id="publication-workspace" data-workspace-panel="publication" aria-labelledby="publication-heading" hidden>
           <section class="panel editor-panel publication-panel">
             <div class="panel-heading">
