@@ -61,7 +61,7 @@ export function deriveEndpointHealth(
   if (facts.consecutiveFailureCount >= 3) return 'unhealthy';
   if (facts.consecutiveFailureCount >= 1) return 'degraded';
   if (
-    isScheduleEligible(facts) &&
+    isEndpointScheduleEligible(facts) &&
     facts.nextDueAt !== undefined &&
     currentTime.getTime() >
       facts.nextDueAt.getTime() + facts.pollIntervalSeconds * 1_000
@@ -141,7 +141,9 @@ export async function readEndpointHealth(
   });
 }
 
-function isScheduleEligible(facts: EndpointHealthFacts): boolean {
+export function isEndpointScheduleEligible(
+  facts: EndpointHealthFacts,
+): boolean {
   return (
     facts.publicationActiveForCollection &&
     facts.sourceApprovalState === 'approved' &&

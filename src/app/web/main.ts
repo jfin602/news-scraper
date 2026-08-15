@@ -7,6 +7,7 @@ import { createDuplicateAdministrationService } from '../../admin/duplicate-admi
 import { createEndpointAdministrationService } from '../../admin/endpoint-administration.ts';
 import { createPublicationAdministrationService } from '../../admin/publication-administration.ts';
 import { createSourceAdministrationService } from '../../admin/source-administration.ts';
+import { createOperationalSnapshotService } from '../../observability/operational-snapshot.ts';
 import { readPublicFeed } from '../../public-feed/repository.ts';
 import { createWebApp } from './create-app.ts';
 import { registerEditorialAdministrationRoutes } from './editorial-administration-router.ts';
@@ -15,6 +16,7 @@ import { registerPublicationAdministrationRoutes } from './publication-administr
 import { startWebServer } from './server.ts';
 import { registerSourceAdministrationRoutes } from './source-administration-router.ts';
 import { registerModerationAdministrationRoutes } from './moderation-administration-router.ts';
+import { registerOperationalSnapshotRoutes } from './operational-snapshot-router.ts';
 import { parseWebConfig } from './web-config.ts';
 
 async function main(): Promise<void> {
@@ -42,6 +44,9 @@ async function main(): Promise<void> {
       createArticleAdministrationService(applicationDatabase),
       createDuplicateAdministrationService(applicationDatabase),
     );
+    const registerOperationalRoutes = registerOperationalSnapshotRoutes(
+      createOperationalSnapshotService(applicationDatabase),
+    );
     const webServer = await startWebServer(
       createWebApp(
         {
@@ -58,6 +63,7 @@ async function main(): Promise<void> {
             registerPublicationRoutes(router);
             registerEditorialRoutes(router);
             registerModerationRoutes(router);
+            registerOperationalRoutes(router);
           },
         },
       ),
