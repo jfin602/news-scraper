@@ -70,6 +70,10 @@ const adminPage = `<!doctype html>
             <span>Editorial</span>
             <span class="workspace-tab-description">Categories and Relevance · coming soon</span>
           </button>
+          <button type="button" class="workspace-tab" role="tab" aria-selected="false" aria-controls="articles-workspace" data-workspace="articles">
+            <span>Articles</span>
+            <span class="workspace-tab-description">Moderation and duplicate review</span>
+          </button>
         </div>
       </nav>
 
@@ -368,6 +372,216 @@ const adminPage = `<!doctype html>
               <section class="panel editor-panel"><div class="panel-heading"><div><p class="section-kicker">Categories</p><h2 data-category-editor-heading>Select a Category</h2></div></div><p class="section-help" data-category-editor-help>Create a bounded editorial grouping for default and rule assignments.</p><form data-category-form hidden><fieldset><legend>Category configuration</legend><div class="form-grid"><label>Configuration key<input name="configKey" required autocomplete="off"><span class="field-help">Immutable after creation.</span></label><label>Display name<input name="displayName" required autocomplete="off"></label></div></fieldset><div class="form-message" role="alert" tabindex="-1" data-category-form-error hidden></div><div class="form-actions"><button type="submit" class="button primary" data-category-submit>Save Category</button><button type="button" class="button secondary" data-category-cancel>Cancel</button><button type="button" class="button danger" data-category-delete hidden>Remove Category</button></div></form></section>
               <section class="panel editor-panel"><div class="panel-heading"><div><p class="section-kicker">Bounded literal rules</p><h2 data-rule-editor-heading>Select a Relevance rule</h2></div></div><p class="section-help" data-rule-editor-help>Rules are applied prospectively during collection.</p><form data-rule-form hidden><fieldset><legend>Rule configuration</legend><div class="form-grid"><label>Configuration key<input name="configKey" required autocomplete="off"><span class="field-help">Immutable after creation.</span></label><label>Predicate<select name="predicateType"><option value="title_contains">Title contains</option><option value="summary_contains">Summary contains</option><option value="source_category_equals">Source category equals</option></select></label><label>Action<select name="action"><option value="include">Include</option><option value="exclude">Exclude</option><option value="categorize">Categorize</option></select></label><label>Priority<input name="priority" type="number" step="1" value="0" required></label><label class="wide-field">Literal pattern<input name="pattern" required autocomplete="off"></label><label class="wide-field">Reason / label<input name="reason" required autocomplete="off"></label></div></fieldset><fieldset><legend>Scope and Category target</legend><label>Scope<select name="scope"><option value="installation">Installation-wide</option><option value="source">One Source</option></select></label><label data-rule-source-field hidden>Source<select name="sourceConfigKey" data-rule-source-select></select></label><label data-rule-category-field hidden>Category target<select name="categoryConfigKey" data-rule-category-select></select></label></fieldset><div class="form-message" role="alert" tabindex="-1" data-rule-form-error hidden></div><div class="form-actions"><button type="submit" class="button primary" data-rule-submit>Save Relevance rule</button><button type="button" class="button secondary" data-rule-cancel>Cancel</button><button type="button" class="button secondary" data-rule-enabled hidden></button><button type="button" class="button danger" data-rule-delete hidden>Remove rule</button></div></form><aside class="precedence-guidance"><h3>How rules apply</h3><p>All applicable enabled literal rules are evaluated deterministically. Include/exclude precedence uses priority, Source scope, action, then immutable key tie rules. Matching categorize rules all add their Categories. If none assigns a Category, the endpoint default wins over the Source default. Edits apply prospectively and do not rescan historical Articles.</p></aside></section>
             </section>
+          </div>
+        </section>
+
+        <section class="workspace-panel" id="articles-workspace" data-workspace-panel="articles" aria-labelledby="articles-heading" hidden>
+          <div class="articles-workspace-layout">
+            <div class="articles-sidebar">
+              <section class="panel articles-filter-panel" aria-labelledby="articles-heading">
+                <div class="panel-heading">
+                  <div>
+                    <p class="section-kicker">Stored Article instances</p>
+                    <h2 id="articles-heading">Articles</h2>
+                  </div>
+                </div>
+                <p class="section-help">Searches retained Articles, including hidden, archived, and duplicate-suppressed instances.</p>
+                <form data-article-filter-form>
+                  <label>Search headline or metadata
+                    <input name="q" type="search" autocomplete="off" maxlength="200">
+                  </label>
+                  <label>Source
+                    <select name="sourceConfigKey" data-article-source-filter></select>
+                  </label>
+                  <label>Visibility
+                    <select name="visibilityState">
+                      <option value="">Any visibility</option>
+                      <option value="visible">Visible</option>
+                      <option value="hidden">Hidden</option>
+                      <option value="archived">Archived</option>
+                    </select>
+                  </label>
+                  <label>Effective Category
+                    <select name="categoryConfigKey" data-article-category-filter></select>
+                  </label>
+                  <label>Duplicate role
+                    <select name="duplicateRole">
+                      <option value="">Any duplicate role</option>
+                      <option value="ungrouped">Ungrouped</option>
+                      <option value="primary">Primary</option>
+                      <option value="non_primary">Non-Primary</option>
+                    </select>
+                  </label>
+                  <label>Review state
+                    <select name="duplicateReviewState">
+                      <option value="">Any review state</option>
+                      <option value="pending">Pending</option>
+                      <option value="dismissed">Dismissed</option>
+                      <option value="merged">Merged</option>
+                      <option value="superseded">Superseded</option>
+                    </select>
+                  </label>
+                  <label class="choice-row">
+                    <input name="duplicateReviewParticipating" type="checkbox">
+                    Participating in duplicate review
+                  </label>
+                  <div class="form-actions">
+                    <button type="submit" class="button primary">Apply filters</button>
+                    <button type="button" class="button secondary" data-article-filter-reset>Reset</button>
+                  </div>
+                </form>
+              </section>
+
+              <section class="panel article-list-panel" aria-labelledby="article-list-heading">
+                <div class="panel-heading">
+                  <div>
+                    <p class="section-kicker">Bounded results</p>
+                    <h3 id="article-list-heading">Article list</h3>
+                  </div>
+                </div>
+                <div class="list-state" tabindex="-1" data-article-list-state="ready" role="status" aria-live="polite"></div>
+                <ul class="selection-list article-selection-list" data-article-list></ul>
+                <button type="button" class="button secondary load-more-button" data-article-load-more hidden>Load more Articles</button>
+              </section>
+
+              <section class="panel review-queue-panel" aria-labelledby="review-queue-heading">
+                <div class="panel-heading">
+                  <div>
+                    <p class="section-kicker">Duplicate review</p>
+                    <h3 id="review-queue-heading">Review queue</h3>
+                  </div>
+                </div>
+                <form class="review-filter-form" data-review-filter-form>
+                  <label>State
+                    <select name="state">
+                      <option value="pending">Pending</option>
+                      <option value="dismissed">Dismissed</option>
+                      <option value="merged">Merged</option>
+                      <option value="superseded">Superseded</option>
+                    </select>
+                  </label>
+                  <label>Confidence
+                    <select name="confidence">
+                      <option value="">Any confidence</option>
+                      <option value="50">50</option>
+                      <option value="100">100</option>
+                    </select>
+                  </label>
+                  <div class="form-actions">
+                    <button type="submit" class="button secondary">Refresh queue</button>
+                  </div>
+                </form>
+                <div class="list-state" tabindex="-1" data-review-list-state="ready" role="status" aria-live="polite"></div>
+                <ul class="selection-list review-selection-list" data-review-list></ul>
+                <button type="button" class="button secondary load-more-button" data-review-load-more hidden>Load more reviews</button>
+              </section>
+            </div>
+
+            <div class="articles-main">
+              <section class="panel article-detail-panel" data-article-detail-panel aria-labelledby="article-detail-heading">
+                <div class="panel-heading">
+                  <div>
+                    <p class="section-kicker">Read-only evidence and moderation</p>
+                    <h2 id="article-detail-heading" tabindex="-1" data-article-detail-heading>Select an Article</h2>
+                  </div>
+                  <div class="state-summary" data-article-state-summary hidden></div>
+                </div>
+                <p class="section-help" data-article-detail-help>Select a stored Article to inspect its Source values, provenance, and moderation state.</p>
+                <div class="workspace-state" tabindex="-1" data-article-detail-state="empty" role="status" aria-live="polite">No Article selected.</div>
+                <div data-article-detail-content hidden>
+                  <div class="article-overview-grid" data-article-overview></div>
+                  <div class="article-moderation-actions">
+                    <fieldset>
+                      <legend>Visibility</legend>
+                      <p class="field-help">Visibility is independent from duplicate membership. Archived Articles are read-only here.</p>
+                      <div class="form-actions">
+                        <button type="button" class="button danger" data-article-hide>Hide Article</button>
+                        <button type="button" class="button secondary" data-article-restore>Restore Article</button>
+                      </div>
+                    </fieldset>
+                    <form data-article-display-form>
+                      <fieldset>
+                        <legend>Display-title override</legend>
+                        <p class="field-help">Source-derived headline remains stored underneath an active override. Clearing reveals the latest Source value.</p>
+                        <label>Override headline
+                          <input name="displayTitleOverride" maxlength="2048" autocomplete="off">
+                        </label>
+                        <div class="form-message" role="alert" tabindex="-1" data-article-display-error hidden></div>
+                        <div class="form-actions">
+                          <button type="submit" class="button primary">Save display override</button>
+                          <button type="button" class="button secondary" data-article-display-clear>Clear override</button>
+                        </div>
+                      </fieldset>
+                    </form>
+                    <form data-article-category-form>
+                      <fieldset>
+                        <legend>Manual Category override</legend>
+                        <p class="field-help">Select none and save to intentionally use an active empty set. Use Clear manual override to return to automatic Categories.</p>
+                        <div class="category-option-list" data-article-category-options></div>
+                        <div class="form-message" role="alert" tabindex="-1" data-article-category-error hidden></div>
+                        <div class="form-actions">
+                          <button type="submit" class="button primary">Save manual Categories</button>
+                          <button type="button" class="button secondary" data-article-category-clear>Clear manual override</button>
+                        </div>
+                      </fieldset>
+                    </form>
+                  </div>
+                  <div class="article-evidence-grid">
+                    <section>
+                      <h3>Observation provenance</h3>
+                      <div class="bounded-list" data-article-observations></div>
+                    </section>
+                    <section>
+                      <h3>Change history</h3>
+                      <div class="bounded-list" data-article-history></div>
+                    </section>
+                  </div>
+                </div>
+              </section>
+
+              <section class="panel review-detail-panel" aria-labelledby="review-detail-heading">
+                <div class="panel-heading">
+                  <div>
+                    <p class="section-kicker">Server-owned evidence</p>
+                    <h2 id="review-detail-heading" tabindex="-1" data-review-detail-heading>Select a review candidate</h2>
+                  </div>
+                </div>
+                <p class="section-help" data-review-detail-help>Select a candidate to compare both stored Articles and make an explicit decision.</p>
+                <div class="workspace-state" tabindex="-1" data-review-detail-state="empty" role="status" aria-live="polite">No review candidate selected.</div>
+                <div data-review-detail-content hidden>
+                  <div class="form-message" role="alert" tabindex="-1" data-review-conflict-message hidden></div>
+                  <div class="duplicate-evidence-grid" data-review-articles></div>
+                  <section>
+                    <h3>Signals and decision context</h3>
+                    <div class="bounded-list" data-review-signals></div>
+                  </section>
+                  <form data-review-action-form>
+                    <label>Optional decision reason
+                      <textarea name="reason" rows="3" maxlength="2000"></textarea>
+                    </label>
+                    <div class="form-actions">
+                      <button type="button" class="button secondary" data-review-dismiss>Dismiss candidate</button>
+                      <button type="button" class="button primary" data-review-merge>Merge candidate Articles</button>
+                    </div>
+                  </form>
+                  <section class="duplicate-group-actions" data-review-group-actions>
+                    <h3>Group actions</h3>
+                    <label>Group
+                      <select data-review-group-select></select>
+                    </label>
+                    <label>Explicit Primary for merge
+                      <select data-review-merge-primary></select>
+                      <span class="field-help">Choose one when the server reports conflicting manual Primaries.</span>
+                    </label>
+                    <div class="split-member-list" data-review-split-members></div>
+                    <div class="form-actions">
+                      <button type="button" class="button secondary" data-review-split>Split selected members</button>
+                      <button type="button" class="button secondary" data-review-primary>Choose selected Primary</button>
+                    </div>
+                  </section>
+                </div>
+              </section>
+            </div>
           </div>
         </section>
       </section>
