@@ -374,9 +374,8 @@ export async function readModeratedArticles(
   );
   const hasMore = result.rows.length > criteria.pageSize;
   const rows = hasMore ? result.rows.slice(0, criteria.pageSize) : result.rows;
-  const articles = await Promise.all(
-    rows.map((row) => mapArticle(executor, row)),
-  );
+  const articles: ModeratedArticle[] = [];
+  for (const row of rows) articles.push(await mapArticle(executor, row));
   const last = rows.at(-1);
   return Object.freeze({
     articles: Object.freeze(articles),

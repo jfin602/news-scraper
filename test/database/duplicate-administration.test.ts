@@ -21,6 +21,8 @@ const ids = {
   b: '72000000-0000-4000-8000-000000000002',
   c: '72000000-0000-4000-8000-000000000003',
   d: '72000000-0000-4000-8000-000000000004',
+  e: '72000000-0000-4000-8000-000000000005',
+  f: '72000000-0000-4000-8000-000000000006',
 } as const;
 
 test('provides criteria-bound keyset review queue and canonical candidate detail without writes', async () => {
@@ -57,6 +59,40 @@ test('provides criteria-bound keyset review queue and canonical candidate detail
         first.items[0]!.candidateId,
         second.items[0]!.candidateId,
       );
+      const third = await service.searchReviews({
+        pageSize: 1,
+        state: 'pending',
+        cursor: second.nextCursor,
+      });
+      assert.deepEqual(
+        [first, second, third].flatMap((page) =>
+          page.items.map((item) => item.candidateId),
+        ),
+        [
+          '73000000-0000-4000-8000-000000000001',
+          '73000000-0000-4000-8000-000000000003',
+          '73000000-0000-4000-8000-000000000002',
+        ],
+      );
+      assert.equal(third.nextCursor, null);
+      const exactPage = await service.searchReviews({
+        pageSize: 3,
+        state: 'pending',
+      });
+      assert.equal(exactPage.items.length, 3);
+      assert.equal(exactPage.nextCursor, null);
+      const filtered = await service.searchReviews({
+        pageSize: 2,
+        state: 'pending',
+        confidence: 50,
+      });
+      assert.deepEqual(
+        filtered.items.map((item) => item.candidateId),
+        [
+          '73000000-0000-4000-8000-000000000003',
+          '73000000-0000-4000-8000-000000000002',
+        ],
+      );
       await assert.rejects(
         service.searchReviews({
           pageSize: 1,
@@ -69,6 +105,18 @@ test('provides criteria-bound keyset review queue and canonical candidate detail
       );
       await assert.rejects(
         service.searchReviews({ cursor: 'not-a-cursor' }),
+        (error: unknown) =>
+          error instanceof DuplicateAdministrationError &&
+          error.code === 'invalid_request',
+      );
+      await assert.rejects(
+        service.searchReviews({ cursor: 'a'.repeat(2049) }),
+        (error: unknown) =>
+          error instanceof DuplicateAdministrationError &&
+          error.code === 'invalid_request',
+      );
+      await assert.rejects(
+        service.searchReviews({ pageSize: 101 }),
         (error: unknown) =>
           error instanceof DuplicateAdministrationError &&
           error.code === 'invalid_request',
@@ -101,6 +149,31 @@ test('provides criteria-bound keyset review queue and canonical candidate detail
         detail.groups.map((group) => group.primarySelectionOrigin),
         ['manual', 'manual'],
       );
+      assert.equal(detail.groups[0]!.memberCount, 101);
+      assert.equal(detail.groups[0]!.members.length, 100);
+      assert.equal(detail.groups[0]!.membersTruncated, true);
+      const directSeparation = await service.getReview(
+        '73000000-0000-4000-8000-000000000002',
+      );
+      assert.equal(
+        directSeparation.automaticGroupingBlockedByManualSeparation,
+        true,
+      );
+      assert.equal(
+        (await service.getReview('73000000-0000-4000-8000-000000000004')).groups
+          .length,
+        1,
+      );
+      assert.equal(
+        (await service.getReview('73000000-0000-4000-8000-000000000005')).groups
+          .length,
+        1,
+      );
+      assert.equal(
+        (await service.getReview('73000000-0000-4000-8000-000000000006')).groups
+          .length,
+        0,
+      );
       assert.deepEqual(await counts(database), before);
     } finally {
       await database.close();
@@ -116,15 +189,27 @@ async function fixture(executor: QueryExecutor): Promise<void> {
   );
   await executor.query(
     `INSERT INTO articles (id, source_id, original_url, canonical_identity_url, display_title, normalized_title, published_at_status, source_updated_at_status, first_seen_at, last_seen_at)
-    VALUES ($1,$5,'https://a.example/1','https://same.example/1','Updated title A','same','missing','missing',now(),now()), ($2,$6,'https://b.example/1','https://same.example/1','Title B','same','missing','missing',now(),now()), ($3,$5,'https://a.example/2','https://same.example/2','Title C','same','missing','missing',now(),now()), ($4,$6,'https://b.example/2','https://same.example/2','Title D','same','missing','missing',now(),now())`,
-    [ids.a, ids.b, ids.c, ids.d, ids.sourceA, ids.sourceB],
+    VALUES ($1,$7,'https://a.example/1','https://same.example/1','Updated title A','same','missing','missing',now(),now()), ($2,$8,'https://b.example/1','https://same.example/1','Title B','same','missing','missing',now(),now()), ($3,$7,'https://a.example/2','https://same.example/2','Title C','same','missing','missing',now(),now()), ($4,$8,'https://b.example/2','https://same.example/2','Title D','same','missing','missing',now(),now()), ($5,$7,'https://a.example/3','https://same.example/3','Title E','same','missing','missing',now(),now()), ($6,$8,'https://b.example/3','https://same.example/3','Title F','same','missing','missing',now(),now())`,
+    [ids.a, ids.b, ids.c, ids.d, ids.e, ids.f, ids.sourceA, ids.sourceB],
   );
   const first = '73000000-0000-4000-8000-000000000001';
   const second = '73000000-0000-4000-8000-000000000002';
+  const third = '73000000-0000-4000-8000-000000000003';
   await executor.query(
     `INSERT INTO duplicate_review_candidates (id, article_low_id, article_high_id, state, origin, confidence, evidence_fingerprint, updated_at)
-    VALUES ($1,$3,$4,'pending','automatic',100,$6,'2026-01-02'), ($2,$4,$5,'pending','automatic',50,$6,'2026-01-01')`,
-    [first, second, ids.a, ids.b, ids.c, 'a'.repeat(64)],
+    VALUES ($1,$4,$5,'pending','automatic',100,$10,'2026-01-02'), ($2,$4,$6,'pending','automatic',50,$10,'2026-01-01'), ($3,$7,$6,'pending','automatic',50,$10,'2026-01-01'), ('73000000-0000-4000-8000-000000000004',$5,$6,'dismissed','manual',50,$10,'2026-01-01'), ('73000000-0000-4000-8000-000000000005',$4,$8,'dismissed','manual',50,$10,'2026-01-01'), ('73000000-0000-4000-8000-000000000006',$8,$9,'dismissed','manual',50,$10,'2026-01-01')`,
+    [
+      first,
+      second,
+      third,
+      ids.a,
+      ids.b,
+      ids.d,
+      ids.c,
+      ids.e,
+      ids.f,
+      'a'.repeat(64),
+    ],
   );
   await executor.query(
     `INSERT INTO duplicate_review_signals (candidate_id, signal_order, reason_code, signal_strength)
@@ -143,6 +228,24 @@ async function fixture(executor: QueryExecutor): Promise<void> {
      VALUES ($1,$3),($1,$5),($2,$4),($2,$6)`,
     [groupOne, groupTwo, ids.a, ids.b, ids.c, ids.d],
   );
+  for (let index = 7; index <= 105; index += 1) {
+    const articleId = `72000000-0000-4000-8000-${String(index).padStart(12, '0')}`;
+    await executor.query(
+      `INSERT INTO articles (id, source_id, original_url, canonical_identity_url, display_title, normalized_title, published_at_status, source_updated_at_status, first_seen_at, last_seen_at)
+       VALUES ($1,$2,$3,$4,$5,'same','missing','missing',now(),now())`,
+      [
+        articleId,
+        ids.sourceA,
+        `https://a.example/member-${index}`,
+        `https://same.example/member-${index}`,
+        `Member ${index}`,
+      ],
+    );
+    await executor.query(
+      `INSERT INTO duplicate_group_memberships (group_id, article_id) VALUES ($1,$2)`,
+      [groupOne, articleId],
+    );
+  }
   await executor.query(
     `INSERT INTO duplicate_manual_separations (article_low_id, article_high_id)
      VALUES ($1,$2)`,
