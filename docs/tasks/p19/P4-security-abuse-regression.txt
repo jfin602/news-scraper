@@ -1,0 +1,128 @@
+TASK: Phase 19 / P4 — Security and abuse regression hardening
+
+ROADMAP PHASE
+Phase 19 — Reliability, observability, and production operations.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: this is security-sensitive integrated regression work across network safety, content safety, admin request integrity, bounded input/output, and error/secret handling, but governing policies are already explicit.
+- Reasoning basis: High reasoning is appropriate to derive adversarial combinations from the actual implementation, distinguish coverage gaps from policy gaps, and make only bounded repairs inside established contracts.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because the task deliberately crosses multiple trust boundaries and must reason beyond happy-path test enumeration.
+- Escalation trigger: a failing adversarial case reveals ambiguous trust policy, a new authentication/authorization requirement, difficult DNS/transport ownership ambiguity, or a broad security architecture defect.
+- Escalation target: `Sol High` for ambiguous cross-system security inference; stop for replanning/ADR work when the contract itself must change.
+- Estimate confidence: `High`.
+- Efficiency rationale: create one specialized security regression surface for genuinely integrated/adversarial cases instead of duplicating every existing unit/integration/collection test.
+- Plan delta: `Unchanged` from `/prompt-plan`.
+
+VERSIONING
+- This is Phase 19 prompt 4 and its assigned project version is `0.19.4`.
+- On first execution require P3 to have left top-level `package.json` at `0.19.3`, then update only that version to `0.19.4`.
+- On rerun of this same P4 retain `0.19.4`; any other version is sequence drift and must stop execution.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, Phase 19 roadmap entry, testing contract, operations/security document, Source/collection contract, public/admin contract, architecture, and Cloudflare Access ADR;
+2. inspect actual current security controls/tests for Source/endpoint eligibility, DNS/address classification, resolver-bound transport, redirects, fetch bounds, parser/content sanitization, HTML preview, admin router/request-integrity, body limits, CSP, Web/Worker logging, and real resource-relationship validation;
+3. inspect existing unit/integration/collection/database/browser tests and identify genuine adversarial/integrated gaps rather than cloning existing cases;
+4. treat Cloudflare Access/direct-origin behavior as deployment evidence for P7, not something local tests may simulate and claim as Level 8;
+5. stop if source inspection reveals material policy ambiguity.
+
+GOAL
+Establish explicit Phase 19 security/abuse regression coverage around the integrated MVP, fixing only concrete bounded defects whose intended behavior is already governed.
+
+SPECIALIZED TEST SURFACE
+Create `test/security/` and an `npm run test:security` script if, after inspection, this remains the smallest clear boundary for genuinely integrated/adversarial cases.
+
+The specialized suite must not duplicate ordinary suites wholesale. It should target attack paths/combinations that are easy to miss when controls are tested only in isolation.
+
+REQUIRED ADVERSARIAL AREAS
+Exercise representative combinations covering:
+
+1. COLLECTION APPROVAL / NETWORK SAFETY
+- unapproved/paused/disabled/archived Source/endpoint cannot reach transport;
+- unsupported scheme/port/domain is rejected before contact;
+- localhost/private/link-local/metadata/special-use IPv4 and IPv6 forms are rejected;
+- IPv4-mapped IPv6 cannot bypass classification;
+- mixed DNS answers fail closed when any considered address is unsafe;
+- redirect hops rerun scheme/domain/port/DNS/address validation;
+- redirect loops/limits remain bounded;
+- validated-address binding prevents unchecked second-DNS destination selection.
+
+2. FETCH / RESOURCE ABUSE
+- timeout, header, redirect, wire/decompressed response, parser/document/item/field limits remain enforced;
+- compression/decompression cannot create unbounded memory behavior inside governed limits;
+- invalid media type cannot switch an RSS endpoint into HTML behavior or vice versa;
+- Source failure remains isolated from unrelated Sources/jobs.
+
+3. CONTENT SAFETY
+- publisher title/summary/category/author/error-like text remains inert in public/admin rendering;
+- sanitization does not execute scripts/event handlers or load subresources;
+- HTML listing collection remains static: no Article-page, pagination, image/script/style/frame/embed/browser fetch;
+- preview remains no-network and no-database/job/run state mutation;
+- parser/preview diagnostics do not echo unbounded raw HTML or dependency internals.
+
+4. ADMIN REQUEST / RESOURCE INTEGRITY
+- every unsafe admin mutation remains protected by the existing request-integrity control;
+- malformed/missing integrity header fails before mutation;
+- duplicate JSON keys, wrong content type, malformed JSON, oversized bodies, unknown/invalid fields fail safely;
+- Source/endpoint/Category/Relevance/Article/duplicate relationships cannot be crossed through mismatched route/body identifiers;
+- singleton Publication remains configuration rather than an authorization/tenant key;
+- no native admin account/session is introduced.
+
+5. ERROR / SECRET LEAKAGE
+- database/transport/parser/configuration failures do not reveal database URLs, passwords, tokens, SQL, stack traces, raw publisher bodies, or unbounded details through HTTP responses or structured process diagnostics;
+- Web/Worker startup/shutdown failure records remain bounded JSON diagnostics;
+- hostile Source/operator strings cannot forge trusted structured fields in emitted JSON objects.
+
+TEST QUALITY
+- Prefer controlled fake resolvers/transports and deterministic hostile fixtures for network/content cases.
+- Use real disposable PostgreSQL where the attack depends on resource relationships, rollback, or durable mutation.
+- Use Chromium only for security behavior that genuinely requires a browser DOM/CSP/client boundary; do not duplicate all admin browser flows.
+- No security suite may silently skip because PostgreSQL/browser/tooling is unavailable. Missing prerequisites must fail clearly when the suite requires them.
+
+BOUNDED DEFECT RULE
+If an adversarial test finds a concrete defect with unambiguous existing contract behavior, repair it in the smallest ownership layer and add focused regression coverage.
+
+Examples that may be in scope:
+- missing bound check;
+- unsafe error translation;
+- one route bypassing existing request-integrity middleware;
+- one malformed resource relationship not validated;
+- one redirect/content edge case that contradicts existing safety contract.
+
+Do not use P4 to invent new authentication, WAF rules, rate-limiter architecture, or Source trust policy.
+
+CLOUDFLARE BOUNDARY
+Local tests may verify that application admin routes remain structured for an external perimeter and that request-integrity/resource validation are independent controls. They must not claim:
+- unauthenticated Cloudflare challenge/denial was observed;
+- authorized Access identity succeeded;
+- direct-origin bypass failed.
+Those are real reference-deployment observations in P7.
+
+FOCUSED DEVELOPMENT VALIDATION
+During iteration run only new `test/security` cases plus directly affected existing focused tests. Use `test:db:focused` for specific DB security cases.
+
+FINAL-TREE VALIDATION FOR THIS PROMPT
+Run `npm run test:security` and `npm run check`. Run `npm run test:db` once if bounded fixes touch shared persistence/resource-validation behavior beyond the focused cases. Run relevant browser tests once if browser/admin client/security behavior changed.
+
+PRESERVE / FORBID
+Do not:
+- weaken approved-source/network/content boundaries;
+- add topic-specific security behavior;
+- move Source fetching into Web/API;
+- add native admin identity/session/roles;
+- claim Cloudflare deployment evidence locally;
+- retain intentionally vulnerable test-only production paths;
+- print credentials in test output/artifacts.
+
+FINAL REPORT
+Report:
+- adversarial areas added and why they were not redundant with existing tests;
+- bounded defects found/fixed, if any;
+- exact commands/results;
+- any unavailable prerequisite or untested real-deployment boundary;
+- package version confirmation `0.19.4`;
+- confirmation that Cloudflare Level 8 proof remains for P7.
