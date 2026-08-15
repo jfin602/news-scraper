@@ -1,0 +1,301 @@
+TASK: Phase 19 / P7 — Phase 19 closeout validation
+
+ROADMAP PHASE
+Phase 19 — Reliability, observability, and production operations.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Model-family basis: repository policy deliberately uses Sol's stronger independent code-reading/review capability at roadmap closeout, and Phase 19 additionally requires integrated local, PostgreSQL, recovery, security, and real reference-deployment evidence.
+- Reasoning basis: Light reasoning is the owner-approved closeout baseline; the required three distinct passes plus explicit escalation/refactor handoff are sufficient unless actual evidence exposes a deeper recovery/security/architecture problem.
+- Complexity / quality floor: `Critical`.
+- Estimated usage: `Very High`.
+- Lower-cost alternative considered: `Terra High`; not selected because repository closeout policy intentionally uses Sol Light for independent final review and the owner also approved Sol Light for this Phase 19 closeout.
+- Escalation trigger: any pass exposes material architectural ambiguity, difficult recovery/schema/transaction root cause, uncertain Cloudflare/origin trust boundary, unresolved cross-process capacity ownership, or another defect that cannot be confidently repaired inside already-governed Phase 19 behavior.
+- Escalation target: `Terra Ultra` when the dominant need is deeper reasoning over explicit state/recovery interactions; use `Sol High` or `Sol Ultra` when the blocker requires stronger independent cross-system/security inference. Meaningful behavior-preserving structural refactors use the separate Terra High remediation handoff below.
+- Estimate confidence: `High`.
+- Efficiency rationale: the final matrix avoids duplicate contained suites while the three-pass closeout and required real Level 8 observation provide independent hardening without automatically paying for high-effort Sol reasoning.
+- Plan delta: `Unchanged` from the owner-adjusted `/prompt-write` model assignment.
+
+VERSIONING
+- This is Phase 19 prompt 7 and its assigned project version is `0.19.7`.
+- On first execution require P6 to have left top-level `package.json` at `0.19.6`, then advance only the top-level version to `0.19.7` before establishing the final Phase 19 candidate tree.
+- On a rerun of this same P7 retain `0.19.7`; do not increment again.
+- Any other package version is sequence drift: stop and report it.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- A later successful conversational `/closeout` separately establishes the Phase 20 baseline `0.20.0`; that transition is not part of P7 and Phase 20 acceptance, not P7, establishes the first supported production schema/data baseline.
+
+MANUAL CLOSEOUT BOUNDARY
+This is the sole final manual closeout prompt for the Phase 19 stack. `npm run codex:phase -- p19` must stop after P6 and must not execute P7 automatically.
+
+P7 validates the exact integrated Phase 19 implementation, repairs only concrete bounded defects already inside governed Phase 19 scope, performs three independent review passes, performs the required actual Level 8 reference-deployment observation, and writes durable evidence only for the final accepted candidate tree.
+
+MANDATORY HANDOFF
+Before any P7 write/version action:
+1. read current `BOOT.md`, `docs/codex-model-selection.md`, complete Phase 19 roadmap entry, P1-P6 task files, testing contract, operations/reliability document, architecture, production-data/schema ADR, and Cloudflare Access ADR;
+2. inspect actual final P1-P6 source/tests/docs rather than assuming task prose matches implementation;
+3. inspect runner-owned P1-P6 commit history and establish the Phase 19 implementation base/range for final diff review;
+4. trace P1 operational snapshot through P2 admin consumer, P3 tuned capacity/timing/health policy, P4 security suite, P5 backup/restore/retention, and P6 deployment/schema/reference validation tooling;
+5. trace important preserved consumers: scheduler/jobs/recovery, endpoint locking/capacity, collection/network safety, RSS/HTML parsing, normalization/Relevance/identity/provenance, duplicate/moderation, public feed, and admin resource integrity;
+6. confirm package/task sequence and `npm run codex:phase:validate -- p19` grammar;
+7. identify the actual reference deployment candidate, public hostname, origin-protection mechanism, Web/Worker/PostgreSQL/process supervision arrangement, backup location/policy, and operator able to perform authorized Cloudflare Access observation;
+8. stop if P1-P6 are incomplete, required real deployment access is unavailable, reference deployment cannot be tied to the candidate source/version, or material drift invalidates the plan.
+
+DURABLE VALIDATION ARTIFACT
+Create/update only after all required evidence is actually observed on the final candidate tree:
+
+`docs/validation/phase-19-reliability-observability-production-operations.md`
+
+If a Terra High refactor remediation is emitted, do not finalize or mark this artifact GREEN until remediation is applied and P7 is rerun from the beginning against the resulting tree.
+
+The artifact must identify at minimum:
+- validation date/time and environments;
+- exact accepted Phase 19 executable source SHA/tree and package version `0.19.7`;
+- implementation base/range;
+- Node/npm/PostgreSQL/browser/tool versions where observed;
+- exact deterministic, database, security, recovery, browser, upgrade, and deployment commands/procedures actually run;
+- evidence levels actually achieved;
+- operational snapshot/dashboard evidence;
+- measured/tuned capacity/timing/health evidence and final selected values;
+- security/abuse regression conclusions and bounded fixes if any;
+- backup creation, restore, semantic data-preservation, post-restore recovery, retention behavior, and observed duration evidence;
+- schema preflight/representative pre-launch upgrade/rollback-restore preservation evidence;
+- deployment/runbook validation evidence;
+- reference deployment identity and exact candidate/version relationship;
+- Cloudflare Access unauthenticated result;
+- authorized-operator admin result;
+- direct-origin bypass result;
+- actual deployed origin-protection mechanism;
+- public Web/API and Worker/scheduler/PostgreSQL operational observations;
+- monitoring/recovery owner, backup schedule/retention, chosen RPO/RTO, and documented relevant log/access retention ownership;
+- Pass 2 adversarial hypotheses/findings/fixes/disposition;
+- Pass 3 structural findings and whether a Terra High remediation handoff occurred;
+- limitations, retries, unavailable evidence, skipped/zero-selected conditions;
+- explicit statement that Phase 19 validates the procedure intended to govern production but Phase 20 customer-launch acceptance establishes the first supported production baseline;
+- Phase 19 exit-gate result as GREEN or blocked/red;
+- intended next phase if GREEN: Phase 20 — Customer launch validation;
+- statement that conversational `/closeout` remains required for the separate `0.20.0` baseline transition.
+
+PASS 1 — CONTRACT / EVIDENCE
+Validate the integrated final tree against the Phase 19 roadmap and governing contracts.
+
+A. OPERATIONAL SNAPSHOT / ALERTS
+Prove:
+- one canonical server-side operational snapshot owns health/queue/alert semantics;
+- endpoint health reuses canonical health derivation and does not confuse lifecycle/operational state with health;
+- ready/future/running jobs and oldest-ready delay are truthful;
+- alert/status derivation is deterministic, bounded, topic independent, and non-authoritative;
+- snapshot reads do not mutate jobs/endpoints/runs;
+- database failure cannot become fabricated green state;
+- no unbounded/N+1 query behavior exists at intended MVP scale;
+- protected admin API exposes only bounded non-secret operational facts.
+
+B. ADMIN OPERATIONS DASHBOARD — LEVEL 6
+Observe in Chromium:
+- Operations workspace loads and navigates correctly;
+- healthy/empty, delayed/degraded/unhealthy, queue-delay, and backend-error/recovery states render truthfully;
+- hostile Source/endpoint/error text remains inert;
+- refresh does not create stale overwrite/duplicate-request behavior;
+- keyboard/focus/live-region/mobile behavior is usable;
+- links navigate to existing Source/endpoint administration rather than duplicating authority;
+- Publication/Sources/Editorial/Articles workspaces remain functional;
+- browser does not implement health/queue/alert calculations.
+
+C. RUNTIME / CAPACITY TUNING — LEVEL 4
+Confirm:
+- measurement procedure is repeatable and records the evidence used for final values;
+- existing global/Source/host cross-process authority remains coherent;
+- unrelated Source/host work progresses under localized saturation;
+- blocked capacity defers safely without retry/run consumption;
+- endpoint lock remains independent;
+- DB-pool headroom is sufficient for selected global capacity;
+- Worker lease/renewal/recovery timing relationships are valid;
+- delayed-health behavior avoids normal-jitter false positives;
+- values were not changed merely for ceremony; unchanged values are justified by evidence;
+- no second semaphore/rate-limit/lease architecture exists.
+
+D. SECURITY / ABUSE
+Run and inspect the specialized security evidence. Confirm adversarial coverage for:
+- Source/endpoint approval and state gating;
+- scheme/domain/port/DNS/address SSRF policy including special-use and mapped-address cases;
+- redirect revalidation and validated-address transport binding;
+- fetch/response/decompression/parser bounds;
+- RSS/HTML media-type isolation;
+- static HTML no-subresource/no-Article-page/no-browser-fetch behavior;
+- preview no-network/no-persistence behavior;
+- inert public/admin content;
+- admin request integrity, body/JSON bounds, and real resource relationships;
+- CSP/error/secret leakage;
+- Web/Worker structured failure diagnostics.
+
+Do not count real Cloudflare Access proof here; that is Section G.
+
+E. BACKUP / RESTORE / RETENTION — LEVEL 4
+Using real PostgreSQL/native tooling, prove:
+- backup command fails clearly if prerequisites are absent and never logs credentials;
+- failed/interrupted backup is not represented as valid completed backup;
+- restore defaults to a safe explicit fresh target rather than silently replacing current DB;
+- representative Publication/Source/endpoint/Category/Relevance/Article/observation/run/job/duplicate/moderation/history state survives semantically;
+- restored repositories/services can read expected state;
+- queued/expired/in-flight job/run recovery follows existing semantics without unsafe duplicate replay;
+- corrupt/incompatible restore fails closed;
+- retention pruning only deletes managed eligible backup artifacts and invalid policy deletes nothing;
+- actual backup/restore duration evidence is recorded where measurable.
+
+F. SCHEMA UPGRADE / ROLLBACK / DEPLOYMENT PROCEDURE
+Prove:
+- schema status/preflight distinguishes uninitialized/current/pending/incompatible safely;
+- representative earlier pre-launch DB state upgrades through actual migration files to current;
+- seeded governed data/relationships survive;
+- application reads/writes work after upgrade;
+- pre-upgrade backup permits safe rollback/restore when in-place schema reversal is unsupported;
+- the test/evidence explicitly does not promote arbitrary old pre-production DBs to supported production inputs;
+- deployment procedure identifies exact source/version, backup, preflight, migration, Web/Worker startup/readiness, smoke checks, operational verification, and rollback decision points;
+- required incident runbooks point to real commands/controls and do not invent capabilities.
+
+G. LEVEL 8 REFERENCE DEPLOYMENT — REQUIRED ACTUAL OBSERVATION
+This section cannot be satisfied by local mocks, prose, or inference.
+
+Against the actual reference deployment of the final accepted candidate, observe and record:
+1. canonical public root is reachable with expected bounded behavior;
+2. basic public API/readiness behavior works as applicable;
+3. Worker is actually running and scheduler/consumer/recovery diagnostics show operational progress or healthy idle behavior;
+4. PostgreSQL connectivity/current schema is confirmed without exposing credentials;
+5. operational dashboard reflects real deployed state;
+6. a real backup is created according to the deployment procedure and the tested restore procedure is demonstrated in a non-production/safe target context;
+7. schema/deployment/rollback procedure is validated to the extent required by the Phase 19 exit gate without destroying the active reference deployment;
+8. an unauthenticated request to the admin surface is challenged or denied by Cloudflare Access and does not return the app admin UI;
+9. an authorized operator can reach the admin surface through Cloudflare Access;
+10. a direct-origin bypass attempt fails;
+11. identify the actual origin-protection mechanism used by the deployment: Cloudflare Tunnel, firewall restriction, authenticated origin connectivity, or documented equivalent;
+12. record monitoring/alert owner and recovery owner;
+13. record actual backup schedule/retention plus chosen RPO/RTO targets;
+14. record relevant Cloudflare/admin access-log, application change-history, infrastructure/IP-log, and bounded Raw-item/source-metadata retention/access ownership required before launch.
+
+If any required item cannot be observed, Phase 19 is not GREEN. Do not downgrade the requirement, infer success from configuration screenshots alone, or rewrite history.
+
+REFERENCE-DEPLOYMENT SECURITY
+- Never record Access cookies/tokens, database URLs/passwords, origin secrets, or private keys in the artifact.
+- It is acceptable to record redacted hostnames/identifiers only when needed to avoid exposing a sensitive origin; however the mechanism and result must remain auditable.
+- Direct-origin testing must be bounded and authorized against this project's own deployment.
+
+FINAL NON-OVERLAPPING COMMAND MATRIX
+Re-read current package scripts before execution and use the smallest matrix that covers all required evidence exactly once.
+
+Expected shape if scripts remain as planned:
+- `npm install --ignore-scripts`
+- `npm run codex:phase:validate -- p19`
+- `npm run check`
+- `npm run test:db`
+- `npm run test:security`
+- `npm run test:recovery`
+- `npm run test:browser`
+- relevant P6 upgrade/reference validator command if not contained above
+- `git diff --check <phase-19-base>...HEAD`
+
+Do not separately rerun `test:unit`, `test:integration`, or `test:collection` after `npm run check` merely to duplicate contained evidence. If P4/P5/P6 script names differ on the final tree, map to the actual equivalent and record the commands used.
+
+Any required suite selecting zero tests or silently skipping a required prerequisite is a failure, not green evidence.
+
+PASS 2 — ERROR / EDGE-CASE ADVERSARIAL REVIEW
+After Pass 1 is green on a candidate tree, independently derive realistic failure hypotheses from the actual implementation rather than existing test names.
+
+At minimum challenge:
+- operational snapshot during empty DB, all-paused Sources, queued-only backlog, expired-running jobs, DB interruption, and clock-boundary cases;
+- alert severity/order with simultaneous health and queue problems;
+- stale/out-of-order dashboard refresh response;
+- capacity saturation plus scheduler/recovery activity and DB-pool exhaustion pressure;
+- worker shutdown while capacity/job/lease work is active;
+- security suite blind spots created by shared helper assumptions;
+- backup destination collision, partial file, disk/path error, symlink/foreign file, tool absence, wrong DB target, corrupt archive, restore failure, and cleanup failure;
+- secrets embedded in intentionally hostile connection/path/tool stderr sentinels;
+- restore containing queued/running/expired jobs and interrupted Collection runs in combinations not covered by normal tests;
+- migration checksum mismatch, missing repository migration, partial migration failure, concurrent migration attempt, and application rollback against an incompatible upgraded schema;
+- deployment failure after backup but before migration, during migration, after migration before Worker start, and after Web start before operational verification;
+- Cloudflare Access lockout where public feed remains healthy;
+- origin exposure by alternate port/hostname/IP or deployment misconfiguration;
+- redirect behavior during unauthenticated admin probe that could be mistaken for application success;
+- authorized admin session succeeding only because direct origin was used rather than Access path;
+- monitoring ownership missing when an alert is intentionally induced;
+- restore/RPO/RTO claims not matching actually observed procedure/duration;
+- artifact accidentally containing secret-bearing URLs/tokens/cookies;
+- Phase 19 wording accidentally declaring the Phase 20 production baseline early.
+
+Classify each finding:
+1. protected by implementation plus meaningful observed evidence;
+2. clear governed behavior but weak coverage — add bounded regression/evidence;
+3. concrete bounded Phase 19 defect — repair and rerun invalidated evidence;
+4. meaningful behavior-preserving refactor — stop and emit Terra High remediation prompt;
+5. material ambiguity/hard defect — stop for model escalation/replanning/correction.
+
+PASS 3 — CODE-QUALITY / STRUCTURAL REVIEW
+After Pass 1 and Pass 2 are green on the current candidate tree, independently inspect the Phase 19 diff and important producers/consumers for:
+- duplicated operational SQL or health/alert derivation across backend/browser;
+- observability code becoming workflow authority;
+- P3 measurement harness entangled with production runtime;
+- capacity/timing constants copied into multiple modules;
+- duplicated security tests that add runtime without new coverage;
+- backup child-process/security logic scattered across scripts;
+- proprietary backup abstractions over native PostgreSQL tooling without need;
+- restore safety checks duplicated/inconsistent across test/operator code;
+- migration preflight reimplementing migration-ledger semantics;
+- deployment validator containing provider-specific assumptions not governed by the repo;
+- runbooks referencing nonexistent commands or stale paths;
+- unbounded logs/errors/metrics or secret-bearing diagnostics;
+- dead compatibility code inconsistent with pre-production simplification policy;
+- unnecessary dependencies/infrastructure frameworks;
+- redundant final test commands or unnecessarily slow setup inconsistent with the test-efficiency contract;
+- documentation drift about Phase 20 baseline establishment.
+
+Small local cleanups/obvious bounded defects may be fixed inside P7 with invalidated evidence rerun.
+
+TERRA HIGH REFACTOR REMEDIATION HANDOFF
+If Pass 2 or Pass 3 finds a meaningful behavior-preserving structural refactor, stop before implementing it and output exactly one self-contained transient `Terra High` remediation prompt as required by current `BOOT.md`/model-selection policy.
+
+That remediation prompt must:
+- identify the observed structural problem/evidence;
+- define the smallest behavior-preserving refactor boundary and producers/consumers;
+- preserve package version `0.19.7` and consume no new phase prompt number;
+- preserve security, data integrity, idempotency, provenance, recovery, admin/public behavior, and Phase 20 baseline semantics;
+- forbid unrelated cleanup/new features/ADR changes;
+- require focused tests plus all invalidated broader evidence;
+- instruct Terra High to stop if the work actually requires product/contract/architecture redesign.
+
+After remediation is applied, rerun P7 from the beginning. Only the rerun may write final GREEN evidence.
+
+PHASE 19 EXIT GATE
+P7 may declare GREEN only when all are true:
+- restore is actually tested, not merely documented;
+- Source failures/queue delay are observable;
+- security coverage includes SSRF, unsafe content, secret leakage, fetch limits, admin perimeter/origin assumptions, and request integrity;
+- deployment/rollback and required failure runbooks are usable and validated where practical;
+- representative pre-launch schema upgrade/data preservation and rollback/restore evidence is sufficient to establish the procedure intended to govern production;
+- actual Level 8 reference-deployment evidence confirms unauthenticated admin challenge/denial, authorized operator access, failed direct-origin bypass, and identifies actual origin protection;
+- monitoring/recovery ownership, backup retention, RPO/RTO, and required retention/access ownership are recorded;
+- required deterministic/database/security/recovery/browser suites are green on the final exact tree;
+- Pass 2 and Pass 3 have no unresolved findings;
+- no evidence claim exceeds what was actually observed.
+
+PRESERVE / FORBID
+Do not:
+- declare Phase 20 complete or establish the production baseline;
+- fake or infer Cloudflare/direct-origin evidence;
+- weaken security/recovery requirements to make closeout green;
+- add unrelated feature work or Phase 21 refactors;
+- introduce native admin identity;
+- record secrets in validation evidence;
+- rewrite historical validation artifacts.
+
+FINAL REPORT
+If GREEN, report:
+- exact accepted final SHA and package version `0.19.7`;
+- deterministic/database/security/recovery/browser command results;
+- actual Level 8 deployment results for all required items;
+- backup/restore and schema-upgrade/rollback conclusions;
+- final tuned runtime policy;
+- monitoring/recovery/retention/RPO/RTO ownership decisions recorded;
+- Pass 2 and Pass 3 findings/disposition and whether remediation occurred;
+- durable validation artifact path;
+- explicit statement that Phase 20 customer-launch acceptance remains the production-baseline establishment point;
+- readiness for separate conversational `/closeout` to create `0.20.0`.
+
+If any required evidence is missing or red, report BLOCKED/RED precisely and do not write a misleading GREEN artifact.
