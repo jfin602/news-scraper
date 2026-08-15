@@ -152,13 +152,15 @@ const PUBLIC_FEED_ITEMS_QUERY = `
         WHEN article.published_at_status = 'parsed' THEN 'published_at'
         ELSE 'first_seen_at'
       END AS feed_date_source,
-      article.display_title AS headline,
+      COALESCE(article.display_title_override, article.display_title) AS headline,
       source.display_name AS source_name,
       article.original_url
     FROM public_publication
     CROSS JOIN articles AS article
     JOIN sources AS source
       ON source.id = article.source_id
+    LEFT JOIN article_category_overrides AS category_override
+      ON category_override.article_id = article.id
     WHERE source.approval_state = 'approved'
       AND source.lifecycle_state = 'active'
       AND article.visibility_state = 'visible'
@@ -178,15 +180,24 @@ const PUBLIC_FEED_ITEMS_QUERY = `
         $2::text IS NULL
         OR EXISTS (
           SELECT 1
-          FROM article_categories AS article_category
-          JOIN categories AS category
-            ON category.id = article_category.category_id
-          WHERE article_category.article_id = article.id
-            AND category.config_key = $2::text
+          FROM categories AS category
+          LEFT JOIN article_categories AS automatic_membership
+            ON automatic_membership.category_id = category.id
+           AND automatic_membership.article_id = article.id
+          LEFT JOIN article_category_override_memberships AS manual_membership
+            ON manual_membership.category_id = category.id
+           AND manual_membership.article_id = article.id
+          WHERE category.config_key = $2::text
+            AND CASE
+              WHEN category_override.article_id IS NOT NULL
+                THEN manual_membership.article_id IS NOT NULL
+              ELSE automatic_membership.article_id IS NOT NULL
+            END
         )
       )
       AND (
         $3::text IS NULL
+        OR strpos(lower(COALESCE(article.display_title_override, article.display_title)), lower($3::text)) > 0
         OR strpos(lower(article.display_title), lower($3::text)) > 0
         OR strpos(lower(article.normalized_title), lower($3::text)) > 0
         OR (

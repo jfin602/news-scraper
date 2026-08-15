@@ -279,6 +279,188 @@ test('readPublicFeed excludes hidden and archived Articles', async () => {
   });
 });
 
+test('readPublicFeed uses effective moderation title and Category state in the canonical query', async () => {
+  await withPublicFeedDatabase(async ({ client, database }) => {
+    await insertPublicationSettings(client, { name: 'Moderated public feed' });
+    const source = await insertSource(client);
+    const automaticCategory = await insertCategory(
+      client,
+      'automatic_category',
+    );
+    const manualCategory = await insertCategory(client, 'manual_category');
+    const changedAutomaticCategory = await insertCategory(
+      client,
+      'changed_automatic_category',
+    );
+    const article = await insertArticle(client, source, {
+      displayTitle: 'Source title',
+      normalizedTitle: 'source title',
+      originalUrl: 'https://publisher.example.test/unchanged-destination',
+    });
+    await insertArticleCategory(client, article.id, automaticCategory.id);
+
+    let feed = requireFeed(await readPublicFeed(database));
+    assert.equal(requireItem(feed, article.id).headline, 'Source title');
+    assert.equal(
+      requireItem(feed, article.id).originalUrl,
+      article.originalUrl,
+    );
+    assert.deepEqual(
+      requireFeed(
+        await readPublicFeed(database, {
+          categoryConfigKey: 'automatic_category',
+        }),
+      ).items.map((item) => item.articleId),
+      [article.id],
+    );
+
+    await client.query(
+      `UPDATE articles SET display_title_override = 'Manual searchable title'
+       WHERE id = $1`,
+      [article.id],
+    );
+    feed = requireFeed(
+      await readPublicFeed(database, { keywordQuery: 'searchable' }),
+    );
+    assert.equal(
+      requireItem(feed, article.id).headline,
+      'Manual searchable title',
+    );
+    assert.equal(
+      requireItem(feed, article.id).originalUrl,
+      article.originalUrl,
+    );
+    await client.query(
+      `UPDATE articles SET display_title = 'Latest Source title' WHERE id = $1`,
+      [article.id],
+    );
+    assert.equal(
+      requireItem(requireFeed(await readPublicFeed(database)), article.id)
+        .headline,
+      'Manual searchable title',
+    );
+    await client.query(
+      `UPDATE articles SET display_title_override = NULL WHERE id = $1`,
+      [article.id],
+    );
+    assert.equal(
+      requireItem(requireFeed(await readPublicFeed(database)), article.id)
+        .headline,
+      'Latest Source title',
+    );
+    assert.deepEqual(
+      requireFeed(
+        await readPublicFeed(database, { keywordQuery: 'source title' }),
+      ).items.map((item) => item.articleId),
+      [article.id],
+    );
+
+    await client.query(
+      `INSERT INTO article_category_overrides (article_id) VALUES ($1)`,
+      [article.id],
+    );
+    await insertArticleCategoryOverride(client, article.id, manualCategory.id);
+    assert.deepEqual(
+      requireFeed(
+        await readPublicFeed(database, {
+          categoryConfigKey: 'manual_category',
+        }),
+      ).items.map((item) => item.articleId),
+      [article.id],
+    );
+    assert.deepEqual(
+      requireFeed(
+        await readPublicFeed(database, {
+          categoryConfigKey: 'automatic_category',
+        }),
+      ).items.map((item) => item.articleId),
+      [],
+    );
+
+    await client.query(`DELETE FROM article_categories WHERE article_id = $1`, [
+      article.id,
+    ]);
+    await insertArticleCategory(
+      client,
+      article.id,
+      changedAutomaticCategory.id,
+    );
+    assert.deepEqual(
+      requireFeed(
+        await readPublicFeed(database, {
+          categoryConfigKey: 'changed_automatic_category',
+        }),
+      ).items.map((item) => item.articleId),
+      [],
+    );
+
+    await client.query(
+      `DELETE FROM article_category_override_memberships WHERE article_id = $1`,
+      [article.id],
+    );
+    assert.deepEqual(
+      requireFeed(
+        await readPublicFeed(database, {
+          categoryConfigKey: 'changed_automatic_category',
+        }),
+      ).items.map((item) => item.articleId),
+      [],
+    );
+    await client.query(
+      `DELETE FROM article_category_overrides WHERE article_id = $1`,
+      [article.id],
+    );
+    assert.deepEqual(
+      requireFeed(
+        await readPublicFeed(database, {
+          categoryConfigKey: 'changed_automatic_category',
+        }),
+      ).items.map((item) => item.articleId),
+      [article.id],
+    );
+
+    const nonPrimary = await insertArticle(client, source, {
+      displayTitle: 'Suppressed duplicate',
+    });
+    const groupId = randomUUID();
+    await client.query('BEGIN');
+    await client.query(
+      'SET CONSTRAINTS duplicate_groups_primary_membership_fk DEFERRED',
+    );
+    await client.query(
+      `INSERT INTO duplicate_groups (id, primary_article_id) VALUES ($1, $2)`,
+      [groupId, article.id],
+    );
+    await client.query(
+      `INSERT INTO duplicate_group_memberships (group_id, article_id)
+       VALUES ($1, $2), ($1, $3)`,
+      [groupId, article.id, nonPrimary.id],
+    );
+    await client.query('COMMIT');
+    assert.deepEqual(
+      requireFeed(await readPublicFeed(database)).items.map(
+        (item) => item.articleId,
+      ),
+      [article.id],
+    );
+    await client.query(
+      `UPDATE duplicate_groups SET primary_article_id = $2 WHERE id = $1`,
+      [groupId, nonPrimary.id],
+    );
+    assert.deepEqual(
+      requireFeed(await readPublicFeed(database)).items.map(
+        (item) => item.articleId,
+      ),
+      [nonPrimary.id],
+    );
+    await client.query(
+      `UPDATE articles SET visibility_state = 'hidden' WHERE id = $1`,
+      [nonPrimary.id],
+    );
+    assert.deepEqual(requireFeed(await readPublicFeed(database)).items, []);
+  });
+});
+
 test('readPublicFeed maps canonical dates and only the safe basic public fields', async () => {
   await withPublicFeedDatabase(async ({ client, database }) => {
     const publication = await insertPublicationSettings(client, {
@@ -607,6 +789,43 @@ async function insertSource(
     ],
   );
   return source;
+}
+
+async function insertCategory(
+  client: Client,
+  configKey: string,
+): Promise<{ readonly id: string }> {
+  const id = randomUUID();
+  await client.query(
+    `INSERT INTO categories (id, config_key, display_name)
+     VALUES ($1, $2, $3)`,
+    [id, configKey, configKey],
+  );
+  return { id };
+}
+
+async function insertArticleCategory(
+  client: Client,
+  articleId: string,
+  categoryId: string,
+): Promise<void> {
+  await client.query(
+    `INSERT INTO article_categories (article_id, category_id)
+     VALUES ($1, $2)`,
+    [articleId, categoryId],
+  );
+}
+
+async function insertArticleCategoryOverride(
+  client: Client,
+  articleId: string,
+  categoryId: string,
+): Promise<void> {
+  await client.query(
+    `INSERT INTO article_category_override_memberships (article_id, category_id)
+     VALUES ($1, $2)`,
+    [articleId, categoryId],
+  );
 }
 
 async function insertEndpoint(
