@@ -2,12 +2,16 @@ import { randomUUID } from 'node:crypto';
 
 import type { QueryExecutor } from '../../database/database.ts';
 import type { RetryClassification } from '../fetchers/fetcher.ts';
+import type { ParserAdapterKind } from '../parsers/parser.ts';
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const EXECUTION_ID_MAX_LENGTH = 200;
 const ERROR_CODE_MAX_LENGTH = 100;
 const ERROR_DETAIL_MAX_LENGTH = 2000;
+const PARSER_VERSION_MAX_LENGTH = 100;
+const PARSER_DIAGNOSTIC_DETAIL_MAX_LENGTH = 160;
+const PARSER_ITEM_FAILURE_COUNT_MAXIMUM = 250;
 const VALIDATOR_MAX_LENGTH = 1_024;
 export const DEFAULT_RECENT_COLLECTION_RUN_LIMIT = 20;
 export const MAX_RECENT_COLLECTION_RUN_LIMIT = 100;
@@ -41,6 +45,12 @@ export interface PersistedCollectionRun {
   readonly runStatus: CollectionRunStatus;
   readonly transportStatus: CollectionRunTransportStatus;
   readonly parserStatus: CollectionRunParserStatus;
+  readonly parserKind?: ParserAdapterKind | undefined;
+  readonly parserVersion?: string | undefined;
+  readonly htmlListingProfileRevision?: number | undefined;
+  readonly parserItemFailureCount?: number | undefined;
+  readonly parserDiagnosticCode?: string | undefined;
+  readonly parserDiagnosticDetail?: string | undefined;
   readonly normalizationStatus: CollectionRunNormalizationStatus;
   readonly processingStatus: CollectionRunProcessingStatus;
   readonly httpStatusCode: number | undefined;
@@ -79,6 +89,14 @@ export interface FinalizeCollectionRunInput {
   readonly runStatus: 'succeeded' | 'failed';
   readonly transportStatus: CollectionRunTransportStatus;
   readonly parserStatus: CollectionRunParserStatus;
+  readonly parserDiagnostics?: Readonly<{
+    readonly kind: ParserAdapterKind;
+    readonly version: string;
+    readonly htmlListingProfileRevision?: number;
+    readonly itemFailureCount?: number;
+    readonly code?: string;
+    readonly detail?: string;
+  }>;
   readonly normalizationStatus: CollectionRunNormalizationStatus;
   readonly processingStatus: CollectionRunProcessingStatus;
   readonly httpStatusCode?: number;
@@ -121,6 +139,12 @@ export interface CollectionRunRow {
   readonly run_status: unknown;
   readonly transport_status: unknown;
   readonly parser_status: unknown;
+  readonly parser_kind?: unknown;
+  readonly parser_version?: unknown;
+  readonly html_listing_profile_revision?: unknown;
+  readonly parser_item_failure_count?: unknown;
+  readonly parser_diagnostic_code?: unknown;
+  readonly parser_diagnostic_detail?: unknown;
   readonly normalization_status: unknown;
   readonly processing_status: unknown;
   readonly http_status_code: unknown;
@@ -153,6 +177,12 @@ interface ValidatedFinalization {
   readonly runStatus: 'succeeded' | 'failed';
   readonly transportStatus: CollectionRunTransportStatus;
   readonly parserStatus: CollectionRunParserStatus;
+  readonly parserKind: ParserAdapterKind | null;
+  readonly parserVersion: string | null;
+  readonly htmlListingProfileRevision: number | null;
+  readonly parserItemFailureCount?: number | undefined;
+  readonly parserDiagnosticCode: string | null;
+  readonly parserDiagnosticDetail: string | null;
   readonly normalizationStatus: CollectionRunNormalizationStatus;
   readonly processingStatus: CollectionRunProcessingStatus;
   readonly httpStatusCode: number | null;
@@ -183,7 +213,10 @@ interface ValidatedFinalization {
 
 const COLLECTION_RUN_COLUMNS = `
   id, source_endpoint_id, execution_id, trigger_kind, started_at, finished_at, run_status,
-  transport_status, parser_status, normalization_status, processing_status, http_status_code,
+  transport_status, parser_status, parser_kind, parser_version,
+  html_listing_profile_revision, parser_item_failure_count,
+  parser_diagnostic_code, parser_diagnostic_detail,
+  normalization_status, processing_status, http_status_code,
   wire_byte_count, decompressed_byte_count, redirect_count,
   transport_elapsed_milliseconds, retry_classification, outcome_code,
   response_etag, response_last_modified, raw_item_count,
@@ -242,32 +275,38 @@ export async function finalizeCollectionRun(
          run_status = $2,
          transport_status = $3,
          parser_status = $4,
-         normalization_status = $5,
-         processing_status = $6,
-         http_status_code = $7,
-         wire_byte_count = $8,
-         decompressed_byte_count = $9,
-         redirect_count = $10,
-         transport_elapsed_milliseconds = $11,
-         retry_classification = $12,
-         outcome_code = $13,
-         response_etag = $14,
-         response_last_modified = $15,
-         raw_item_count = $16,
-         source_item_filtered_count = $17,
-         normalized_candidate_count = $18,
-         normalization_failure_count = $19,
-         article_link_rejection_count = $20,
-         created_count = $21,
-         updated_count = $22,
-         unchanged_count = $23,
-         rejected_count = $24,
-         excluded_count = $25,
-         failed_count = $26,
-         duplicate_review_created_count = $27,
-         duplicate_grouped_count = $28,
-         error_code = $29,
-         error_detail = $30
+         parser_kind = $5,
+         parser_version = $6,
+         html_listing_profile_revision = $7,
+         parser_item_failure_count = $8,
+         parser_diagnostic_code = $9,
+         parser_diagnostic_detail = $10,
+         normalization_status = $11,
+         processing_status = $12,
+         http_status_code = $13,
+         wire_byte_count = $14,
+         decompressed_byte_count = $15,
+         redirect_count = $16,
+         transport_elapsed_milliseconds = $17,
+         retry_classification = $18,
+         outcome_code = $19,
+         response_etag = $20,
+         response_last_modified = $21,
+         raw_item_count = $22,
+         source_item_filtered_count = $23,
+         normalized_candidate_count = $24,
+         normalization_failure_count = $25,
+         article_link_rejection_count = $26,
+         created_count = $27,
+         updated_count = $28,
+         unchanged_count = $29,
+         rejected_count = $30,
+         excluded_count = $31,
+         failed_count = $32,
+         duplicate_review_created_count = $33,
+         duplicate_grouped_count = $34,
+         error_code = $35,
+         error_detail = $36
      WHERE id = $1 AND run_status = 'running'
      RETURNING ${COLLECTION_RUN_COLUMNS}`,
     [
@@ -275,6 +314,12 @@ export async function finalizeCollectionRun(
       finalization.runStatus,
       finalization.transportStatus,
       finalization.parserStatus,
+      finalization.parserKind,
+      finalization.parserVersion,
+      finalization.htmlListingProfileRevision,
+      finalization.parserItemFailureCount,
+      finalization.parserDiagnosticCode,
+      finalization.parserDiagnosticDetail,
       finalization.normalizationStatus,
       finalization.processingStatus,
       finalization.httpStatusCode,
@@ -398,6 +443,24 @@ export function mapCollectionRunRow(
       runStatus: normalizeRunStatus(row.run_status),
       transportStatus: normalizeTransportStatus(row.transport_status),
       parserStatus: normalizeParserStatus(row.parser_status),
+      parserKind: nullableParserAdapterKind(row.parser_kind),
+      parserVersion: nullableTrimmedString(
+        row.parser_version,
+        PARSER_VERSION_MAX_LENGTH,
+      ),
+      htmlListingProfileRevision: nullablePositiveInteger(
+        row.html_listing_profile_revision,
+      ),
+      parserItemFailureCount: requiredIntegerInRange(
+        row.parser_item_failure_count ?? 0,
+        0,
+        PARSER_ITEM_FAILURE_COUNT_MAXIMUM,
+      ),
+      parserDiagnosticCode: nullableErrorCode(row.parser_diagnostic_code),
+      parserDiagnosticDetail: nullableTrimmedString(
+        row.parser_diagnostic_detail,
+        PARSER_DIAGNOSTIC_DETAIL_MAX_LENGTH,
+      ),
       normalizationStatus: normalizeNormalizationStatus(
         row.normalization_status,
       ),
@@ -472,6 +535,10 @@ function validateFinalization(
       runStatus: normalizeTerminalRunStatus(input.runStatus),
       transportStatus: normalizeTransportStatus(input.transportStatus),
       parserStatus: normalizeParserStatus(input.parserStatus),
+      ...validateParserDiagnostics(
+        normalizeParserStatus(input.parserStatus),
+        input.parserDiagnostics,
+      ),
       normalizationStatus: normalizeNormalizationStatus(
         input.normalizationStatus,
       ),
@@ -644,6 +711,94 @@ function normalizeParserStatus(value: unknown): CollectionRunParserStatus {
   throw new Error();
 }
 
+function normalizeParserAdapterKind(value: unknown): ParserAdapterKind {
+  if (value === 'rss_atom' || value === 'html_listing') return value;
+  throw new Error();
+}
+
+function nullableParserAdapterKind(
+  value: unknown,
+): ParserAdapterKind | undefined {
+  return value === null || value === undefined
+    ? undefined
+    : normalizeParserAdapterKind(value);
+}
+
+function validateParserDiagnostics(
+  parserStatus: CollectionRunParserStatus,
+  input: FinalizeCollectionRunInput['parserDiagnostics'],
+): Pick<
+  ValidatedFinalization,
+  | 'parserKind'
+  | 'parserVersion'
+  | 'htmlListingProfileRevision'
+  | 'parserItemFailureCount'
+  | 'parserDiagnosticCode'
+  | 'parserDiagnosticDetail'
+> {
+  if (parserStatus === 'not_run') {
+    if (input !== undefined) throw new Error();
+    return {
+      parserKind: null,
+      parserVersion: null,
+      htmlListingProfileRevision: null,
+      parserItemFailureCount: 0,
+      parserDiagnosticCode: null,
+      parserDiagnosticDetail: null,
+    };
+  }
+  if (input === undefined) {
+    return {
+      parserKind: null,
+      parserVersion: null,
+      htmlListingProfileRevision: null,
+      parserItemFailureCount: 0,
+      parserDiagnosticCode: null,
+      parserDiagnosticDetail: null,
+    };
+  }
+  if (input === null || typeof input !== 'object') throw new Error();
+  const kind = normalizeParserAdapterKind(input.kind);
+  const revision =
+    input.htmlListingProfileRevision === undefined
+      ? null
+      : positiveInteger(input.htmlListingProfileRevision);
+  if (
+    (kind === 'rss_atom' && revision !== null) ||
+    (kind === 'html_listing' && revision === null)
+  )
+    throw new Error();
+  return {
+    parserKind: kind,
+    parserVersion: requiredTrimmedString(
+      input.version,
+      PARSER_VERSION_MAX_LENGTH,
+      'parser version',
+    ),
+    htmlListingProfileRevision: revision,
+    parserItemFailureCount:
+      input.itemFailureCount === undefined
+        ? 0
+        : integerInRange(
+            input.itemFailureCount,
+            0,
+            PARSER_ITEM_FAILURE_COUNT_MAXIMUM,
+          ),
+    parserDiagnosticCode:
+      input.code === undefined
+        ? null
+        : requiredErrorCode(input.code, 'parser diagnostic code'),
+    parserDiagnosticDetail:
+      input.detail === undefined
+        ? null
+        : requiredTrimmedString(
+            input.detail,
+            PARSER_DIAGNOSTIC_DETAIL_MAX_LENGTH,
+            'parser diagnostic detail',
+          ),
+  };
+}
+
 function normalizeNormalizationStatus(
   value: unknown,
 ): CollectionRunNormalizationStatus {
@@ -665,6 +820,10 @@ function normalizeProcessingStatus(
 function validateRunAccounting(value: {
   readonly runStatus: CollectionRunStatus;
   readonly parserStatus: CollectionRunParserStatus;
+  readonly parserKind?: ParserAdapterKind | null | undefined;
+  readonly parserVersion?: string | null | undefined;
+  readonly htmlListingProfileRevision?: number | null | undefined;
+  readonly parserItemFailureCount?: number | undefined;
   readonly normalizationStatus: CollectionRunNormalizationStatus;
   readonly processingStatus: CollectionRunProcessingStatus;
   readonly rawItemCount: number;
@@ -680,6 +839,16 @@ function validateRunAccounting(value: {
   readonly failedCount: number;
 }): void {
   if (
+    (value.parserStatus === 'not_run' &&
+      (value.parserKind != null ||
+        value.parserVersion != null ||
+        value.htmlListingProfileRevision != null ||
+        (value.parserItemFailureCount ?? 0) !== 0)) ||
+    (value.parserKind == null) !== (value.parserVersion == null) ||
+    (value.parserKind === 'rss_atom' &&
+      value.htmlListingProfileRevision != null) ||
+    (value.parserKind === 'html_listing' &&
+      value.htmlListingProfileRevision == null) ||
     value.sourceItemFilteredCount > value.rawItemCount ||
     value.articleLinkRejectionCount > value.normalizedCandidateCount ||
     (value.normalizationStatus === 'not_run' &&
@@ -753,7 +922,7 @@ function nullableTrimmedString(
   value: unknown,
   maximumLength: number,
 ): string | undefined {
-  return value === null
+  return value === null || value === undefined
     ? undefined
     : requiredTrimmedString(value, maximumLength, 'value');
 }
@@ -810,6 +979,29 @@ function integerInRange(
   return integer;
 }
 
+function requiredIntegerInRange(
+  value: unknown,
+  minimum: number,
+  maximum: number,
+): number {
+  const normalized =
+    typeof value === 'string' && /^\d+$/u.test(value) ? Number(value) : value;
+  return integerInRange(normalized, minimum, maximum);
+}
+
+function positiveInteger(value: unknown): number {
+  const number = nonnegativeInteger(value);
+  if (number < 1) throw new Error();
+  return number;
+}
+
+function nullablePositiveInteger(value: unknown): number | undefined {
+  if (value === null || value === undefined) return undefined;
+  const normalized =
+    typeof value === 'string' && /^\d+$/u.test(value) ? Number(value) : value;
+  return positiveInteger(normalized);
+}
+
 function requiredRecentCollectionRunLimit(value: unknown): number {
   try {
     return integerInRange(value, 1, MAX_RECENT_COLLECTION_RUN_LIMIT);
@@ -843,7 +1035,7 @@ function nullableNonnegativeNumber(value: unknown): number | undefined {
 }
 
 function nullableErrorCode(value: unknown): string | undefined {
-  return value === null
+  return value === null || value === undefined
     ? undefined
     : requiredErrorCode(value, 'database error code');
 }

@@ -2,11 +2,15 @@ import { isIP } from 'node:net';
 import { domainToASCII } from 'node:url';
 
 import { ConfigurationValidationError } from '../publication/configuration.ts';
+import {
+  normalizeHtmlListingProfile,
+  type NormalizedHtmlListingProfile,
+} from '../collection/parsers/html-listing-profile.ts';
 
 export const APPROVAL_STATES = ['approved', 'unapproved'] as const;
 export const LIFECYCLE_STATES = ['active', 'archived'] as const;
 export const OPERATIONAL_STATES = ['enabled', 'paused', 'disabled'] as const;
-export const ENDPOINT_TYPES = ['rss_atom'] as const;
+export const ENDPOINT_TYPES = ['rss_atom', 'html_listing'] as const;
 
 export type ApprovalState = (typeof APPROVAL_STATES)[number];
 export type LifecycleState = (typeof LIFECYCLE_STATES)[number];
@@ -23,7 +27,7 @@ export interface ParsedConfiguredUrl {
   readonly hostname: string;
 }
 
-export interface SourceEndpointConfiguration {
+interface SourceEndpointConfigurationBase {
   readonly configKey: string;
   readonly endpointUrl: ParsedConfiguredUrl;
   readonly endpointType: EndpointType;
@@ -34,6 +38,18 @@ export interface SourceEndpointConfiguration {
   readonly sourceDomainRules: readonly DomainRule[];
   readonly endpointDomainRules: readonly DomainRule[];
 }
+
+export interface RssAtomEndpointConfiguration extends SourceEndpointConfigurationBase {
+  readonly endpointType: 'rss_atom';
+}
+
+export interface HtmlListingEndpointConfiguration extends SourceEndpointConfigurationBase {
+  readonly endpointType: 'html_listing';
+  readonly htmlListingProfile: NormalizedHtmlListingProfile;
+}
+
+export type SourceEndpointConfiguration =
+  RssAtomEndpointConfiguration | HtmlListingEndpointConfiguration;
 
 export interface SourceConfiguration {
   readonly configKey: string;
@@ -317,10 +333,9 @@ export function normalizeSourceEndpointConfiguration(
     );
   }
 
-  return Object.freeze({
+  const common = {
     configKey: normalizeConfigKey(record.configKey),
     endpointUrl,
-    endpointType: normalizeEndpointType(record.endpointType),
     approvalState,
     lifecycleState: normalizeLifecycleState(record.lifecycleState),
     operationalState: normalizeOperationalState(record.operationalState),
@@ -329,7 +344,37 @@ export function normalizeSourceEndpointConfiguration(
     ),
     sourceDomainRules,
     endpointDomainRules,
-  });
+  };
+  const endpointType = normalizeEndpointType(record.endpointType);
+  if (endpointType === 'html_listing') {
+    if (record.htmlListingProfile === undefined) {
+      throw new ConfigurationValidationError(
+        'htmlListingProfile',
+        'required_for_html_listing',
+      );
+    }
+    try {
+      return Object.freeze({
+        ...common,
+        endpointType,
+        htmlListingProfile: normalizeHtmlListingProfile(
+          record.htmlListingProfile,
+        ),
+      });
+    } catch {
+      throw new ConfigurationValidationError(
+        'htmlListingProfile',
+        'invalid_html_listing_profile',
+      );
+    }
+  }
+  if (record.htmlListingProfile !== undefined) {
+    throw new ConfigurationValidationError(
+      'htmlListingProfile',
+      'not_allowed_for_rss_atom',
+    );
+  }
+  return Object.freeze({ ...common, endpointType });
 }
 
 export function normalizeSourceConfiguration(

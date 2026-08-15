@@ -3,6 +3,10 @@ import { randomUUID } from 'node:crypto';
 import type { QueryExecutor } from '../database/database.ts';
 import { HTTP_TRANSPORT_HEADER_LIMITS } from '../collection/fetchers/fetcher.ts';
 import {
+  normalizeHtmlListingProfile,
+  type NormalizedHtmlListingProfile,
+} from '../collection/parsers/html-listing-profile.ts';
+import {
   ConfigurationPersistenceError,
   mapPublicationSettingsRow,
   requiredBoolean,
@@ -51,6 +55,8 @@ export interface PersistedSourceEndpoint {
   readonly configKey: string;
   readonly endpointUrl: ParsedConfiguredUrl;
   readonly endpointType: EndpointType;
+  readonly htmlListingProfile?: NormalizedHtmlListingProfile | undefined;
+  readonly htmlListingProfileRevision?: number | undefined;
   readonly approvalState: ApprovalState;
   readonly lifecycleState: LifecycleState;
   readonly operationalState: OperationalState;
@@ -94,6 +100,8 @@ interface EndpointRow {
   readonly config_key: unknown;
   readonly endpoint_url: unknown;
   readonly endpoint_type: unknown;
+  readonly html_listing_profile: unknown;
+  readonly html_listing_profile_revision: unknown;
   readonly approval_state: unknown;
   readonly lifecycle_state: unknown;
   readonly operational_state: unknown;
@@ -135,6 +143,8 @@ interface AggregateRow extends SourceRow {
   readonly endpoint_config_key: unknown;
   readonly endpoint_url: unknown;
   readonly endpoint_type: unknown;
+  readonly html_listing_profile: unknown;
+  readonly html_listing_profile_revision: unknown;
   readonly endpoint_approval_state: unknown;
   readonly endpoint_lifecycle_state: unknown;
   readonly endpoint_operational_state: unknown;
@@ -156,6 +166,7 @@ const SOURCE_COLUMNS = `
   approval_state, lifecycle_state, operational_state, priority, created_at, updated_at`;
 const ENDPOINT_COLUMNS = `
   id, source_id, config_key, endpoint_url, endpoint_type,
+  html_listing_profile, html_listing_profile_revision,
   approval_state, lifecycle_state, operational_state, poll_interval_seconds,
   next_due_at, last_attempt_at, last_success_at, last_failure_at,
   consecutive_failure_count, cooldown_until, etag, last_modified,
@@ -346,8 +357,9 @@ export async function createSourceEndpointIfAbsent(
   const endpointResult = await executor.query<EndpointRow>(
     `INSERT INTO source_endpoints (
        id, source_id, config_key, endpoint_url, endpoint_type,
+       html_listing_profile, html_listing_profile_revision,
        approval_state, lifecycle_state, operational_state, poll_interval_seconds
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      ON CONFLICT (source_id, config_key) DO NOTHING
      RETURNING ${ENDPOINT_COLUMNS}`,
     [
@@ -356,6 +368,10 @@ export async function createSourceEndpointIfAbsent(
       endpoint.configKey,
       endpoint.endpointUrl.value,
       endpoint.endpointType,
+      endpoint.endpointType === 'html_listing'
+        ? JSON.stringify(endpoint.htmlListingProfile)
+        : null,
+      endpoint.endpointType === 'html_listing' ? 1 : null,
       endpoint.approvalState,
       endpoint.lifecycleState,
       endpoint.operationalState,
@@ -391,8 +407,9 @@ async function insertValidatedSourceEndpoint(
   const endpointResult = await executor.query<EndpointRow>(
     `INSERT INTO source_endpoints (
        id, source_id, config_key, endpoint_url, endpoint_type,
+       html_listing_profile, html_listing_profile_revision,
        approval_state, lifecycle_state, operational_state, poll_interval_seconds
-     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+     ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
      RETURNING ${ENDPOINT_COLUMNS}`,
     [
       randomUUID(),
@@ -400,6 +417,10 @@ async function insertValidatedSourceEndpoint(
       endpoint.configKey,
       endpoint.endpointUrl.value,
       endpoint.endpointType,
+      endpoint.endpointType === 'html_listing'
+        ? JSON.stringify(endpoint.htmlListingProfile)
+        : null,
+      endpoint.endpointType === 'html_listing' ? 1 : null,
       endpoint.approvalState,
       endpoint.lifecycleState,
       endpoint.operationalState,
@@ -557,6 +578,8 @@ async function findEndpointConfiguration(
        e.config_key AS endpoint_config_key,
        e.endpoint_url AS endpoint_url,
        e.endpoint_type AS endpoint_type,
+       e.html_listing_profile AS html_listing_profile,
+       e.html_listing_profile_revision AS html_listing_profile_revision,
        e.approval_state AS endpoint_approval_state,
        e.lifecycle_state AS endpoint_lifecycle_state,
        e.operational_state AS endpoint_operational_state,
@@ -587,6 +610,8 @@ async function findEndpointConfiguration(
     config_key: row.endpoint_config_key,
     endpoint_url: row.endpoint_url,
     endpoint_type: row.endpoint_type,
+    html_listing_profile: row.html_listing_profile,
+    html_listing_profile_revision: row.html_listing_profile_revision,
     approval_state: row.endpoint_approval_state,
     lifecycle_state: row.endpoint_lifecycle_state,
     operational_state: row.endpoint_operational_state,
@@ -784,12 +809,13 @@ export function mapEndpointRow(row: EndpointRow): PersistedSourceEndpoint {
     ) {
       throw new Error();
     }
-    return Object.freeze({
+    const endpointType = normalizeEndpointType(row.endpoint_type);
+    const common = {
       id: requiredString(row.id),
       sourceId: requiredString(row.source_id),
       configKey: requiredString(row.config_key),
       endpointUrl: parseEndpointUrl(row.endpoint_url),
-      endpointType: normalizeEndpointType(row.endpoint_type),
+      endpointType,
       approvalState: normalizeApprovalState(row.approval_state),
       lifecycleState: normalizeLifecycleState(row.lifecycle_state),
       operationalState: normalizeOperationalState(row.operational_state),
@@ -806,6 +832,28 @@ export function mapEndpointRow(row: EndpointRow): PersistedSourceEndpoint {
       lastModified: nullableValidator(row.last_modified, 'last modified'),
       createdAt: requiredTimestamp(row.created_at),
       updatedAt: requiredTimestamp(row.updated_at),
+    };
+    if (endpointType === 'rss_atom') {
+      if (
+        row.html_listing_profile !== null ||
+        row.html_listing_profile_revision !== null
+      )
+        throw new Error();
+      return Object.freeze(common);
+    }
+    if (
+      row.html_listing_profile === null ||
+      row.html_listing_profile_revision === null
+    )
+      throw new Error();
+    const revision = requiredPositiveInteger(
+      row.html_listing_profile_revision,
+      'database HTML listing profile revision',
+    );
+    return Object.freeze({
+      ...common,
+      htmlListingProfile: normalizeHtmlListingProfile(row.html_listing_profile),
+      htmlListingProfileRevision: revision,
     });
   } catch {
     throw new ConfigurationPersistenceError(

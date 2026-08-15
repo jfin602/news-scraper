@@ -27,6 +27,10 @@ import {
   type PersistedEndpointCollectionJob,
 } from '../jobs/endpoint-collection-job-repository.ts';
 import { ConfigurationValidationError } from '../publication/configuration.ts';
+import {
+  normalizeHtmlListingProfile,
+  type NormalizedHtmlListingProfile,
+} from '../collection/parsers/html-listing-profile.ts';
 import { readPublicationSettings } from '../publication/repository.ts';
 import {
   normalizeApprovalState,
@@ -108,6 +112,8 @@ export interface AdminEndpointReadModel {
   readonly configKey: string;
   readonly endpointUrl: string;
   readonly endpointType: EndpointType;
+  readonly htmlListingProfile?: NormalizedHtmlListingProfile | null;
+  readonly htmlListingProfileRevision?: number | null;
   readonly approvalState: ApprovalState;
   readonly lifecycleState: LifecycleState;
   readonly operationalState: OperationalState;
@@ -248,6 +254,8 @@ interface EndpointReadRow extends QueryResultRow {
   readonly config_key: unknown;
   readonly endpoint_url: unknown;
   readonly endpoint_type: unknown;
+  readonly html_listing_profile: unknown;
+  readonly html_listing_profile_revision: unknown;
   readonly approval_state: unknown;
   readonly lifecycle_state: unknown;
   readonly operational_state: unknown;
@@ -275,6 +283,8 @@ interface LockedEndpoint {
   readonly configKey: string;
   readonly endpointUrl: string;
   readonly endpointType: EndpointType;
+  readonly htmlListingProfile: NormalizedHtmlListingProfile | null | undefined;
+  readonly htmlListingProfileRevision: number | null | undefined;
   readonly approvalState: ApprovalState;
   readonly lifecycleState: LifecycleState;
   readonly operationalState: OperationalState;
@@ -290,6 +300,7 @@ export interface NormalizedEndpointCreateCommand {
 interface NormalizedMutableEndpointConfiguration {
   readonly endpointUrl: string;
   readonly endpointType: EndpointType;
+  readonly htmlListingProfile?: NormalizedHtmlListingProfile | undefined;
   readonly pollIntervalSeconds: number;
   readonly endpointDomainRules: readonly DomainRule[];
   readonly defaultCategoryConfigKey?: string;
@@ -364,6 +375,9 @@ export function createEndpointAdministrationService(
             operationalState: command.endpoint.operationalState,
             pollIntervalSeconds: command.endpoint.pollIntervalSeconds,
             endpointDomainRules: command.endpoint.endpointDomainRules,
+            ...(command.endpoint.endpointType === 'html_listing'
+              ? { htmlListingProfile: command.endpoint.htmlListingProfile }
+              : {}),
           });
           await setEndpointDefaultCategory(
             transaction,
@@ -406,12 +420,25 @@ export function createEndpointAdministrationService(
           await transaction.query(
             `UPDATE source_endpoints
              SET endpoint_url = $2, endpoint_type = $3,
-                 poll_interval_seconds = $4, updated_at = now()
+                 html_listing_profile = $4,
+                 html_listing_profile_revision = $5,
+                 poll_interval_seconds = $6, updated_at = now()
              WHERE id = $1`,
             [
               endpoint.id,
               command.endpointUrl,
               command.endpointType,
+              command.htmlListingProfile === undefined
+                ? null
+                : JSON.stringify(command.htmlListingProfile),
+              command.endpointType === 'html_listing'
+                ? endpoint.endpointType === 'html_listing' &&
+                  endpoint.htmlListingProfileRevision !== undefined &&
+                  JSON.stringify(endpoint.htmlListingProfile) ===
+                    JSON.stringify(command.htmlListingProfile)
+                  ? endpoint.htmlListingProfileRevision
+                  : (endpoint.htmlListingProfileRevision ?? 0) + 1
+                : null,
               command.pollIntervalSeconds,
             ],
           );
@@ -719,6 +746,7 @@ async function lockEndpoint(
   const result = await executor.query<EndpointReadRow>(
     `SELECT endpoint.id, endpoint.config_key, endpoint.endpoint_url,
             endpoint.endpoint_type, endpoint.approval_state,
+            endpoint.html_listing_profile, endpoint.html_listing_profile_revision,
             endpoint.lifecycle_state, endpoint.operational_state,
             endpoint.poll_interval_seconds,
             NULL AS default_category_config_key,
@@ -733,11 +761,18 @@ async function lockEndpoint(
     throw new EndpointAdministrationError('endpoint_not_found');
   }
   const id = requiredString(row.id);
+  const profileState = mapHtmlListingProfileState(
+    normalizeEndpointType(row.endpoint_type),
+    row.html_listing_profile,
+    row.html_listing_profile_revision,
+  );
   return Object.freeze({
     id,
     configKey: normalizeConfigKey(row.config_key),
     endpointUrl: parseEndpointUrl(row.endpoint_url).value,
     endpointType: normalizeEndpointType(row.endpoint_type),
+    htmlListingProfile: profileState.htmlListingProfile ?? null,
+    htmlListingProfileRevision: profileState.htmlListingProfileRevision ?? null,
     approvalState: normalizeApprovalState(row.approval_state),
     lifecycleState: normalizeLifecycleState(row.lifecycle_state),
     operationalState: normalizeOperationalState(row.operational_state),
@@ -785,6 +820,7 @@ async function readEndpoints(
   const result = await executor.query<EndpointReadRow>(
     `SELECT endpoint.id, endpoint.config_key, endpoint.endpoint_url,
             endpoint.endpoint_type, endpoint.approval_state,
+            endpoint.html_listing_profile, endpoint.html_listing_profile_revision,
             endpoint.lifecycle_state, endpoint.operational_state,
             endpoint.poll_interval_seconds,
             category.config_key AS default_category_config_key,
@@ -833,6 +869,11 @@ function mapEndpointReadRow(
       configKey: normalizeConfigKey(row.config_key),
       endpointUrl: parseEndpointUrl(row.endpoint_url).value,
       endpointType: normalizeEndpointType(row.endpoint_type),
+      ...mapHtmlListingProfileState(
+        normalizeEndpointType(row.endpoint_type),
+        row.html_listing_profile,
+        row.html_listing_profile_revision,
+      ),
       approvalState: normalizeApprovalState(row.approval_state),
       lifecycleState: normalizeLifecycleState(row.lifecycle_state),
       operationalState: normalizeOperationalState(row.operational_state),
@@ -852,6 +893,31 @@ function mapEndpointReadRow(
   } catch {
     throw new Error('Database returned invalid endpoint administration data');
   }
+}
+
+function mapHtmlListingProfileState(
+  endpointType: EndpointType,
+  profile: unknown,
+  revision: unknown,
+): Pick<
+  AdminEndpointReadModel,
+  'htmlListingProfile' | 'htmlListingProfileRevision'
+> {
+  if (endpointType === 'rss_atom') {
+    if (profile !== null || revision !== null) throw new Error();
+    return { htmlListingProfile: null, htmlListingProfileRevision: null };
+  }
+  if (
+    profile === null ||
+    typeof revision !== 'number' ||
+    !Number.isSafeInteger(revision) ||
+    revision < 1
+  )
+    throw new Error();
+  return {
+    htmlListingProfile: normalizeHtmlListingProfile(profile),
+    htmlListingProfileRevision: revision,
+  };
 }
 
 function mapOutstandingJob(
@@ -949,7 +1015,9 @@ export function normalizeEndpointCreateCommand(
   input: unknown,
   sourceDomainRules: readonly DomainRule[],
 ): NormalizedEndpointCreateCommand {
-  const record = exactRecord(input, ENDPOINT_CREATE_KEYS);
+  const record = exactRecord(input, ENDPOINT_CREATE_KEYS, [
+    'htmlListingProfile',
+  ]);
   const defaultCategoryConfigKey = normalizeDefaultCategoryKey(
     record.defaultCategoryConfigKey,
   );
@@ -964,6 +1032,7 @@ export function normalizeEndpointCreateCommand(
         operationalState: record.operationalState,
         pollIntervalSeconds: record.pollIntervalSeconds,
         endpointDomainRules: record.endpointDomainRules,
+        htmlListingProfile: record.htmlListingProfile,
       },
       sourceDomainRules,
     ),
@@ -981,7 +1050,9 @@ function normalizeMutableEndpointConfiguration(
   sourceDomainRules: readonly DomainRule[],
   current: LockedEndpoint,
 ): NormalizedMutableEndpointConfiguration {
-  const record = exactRecord(input, ENDPOINT_CONFIGURATION_KEYS);
+  const record = exactRecord(input, ENDPOINT_CONFIGURATION_KEYS, [
+    'htmlListingProfile',
+  ]);
   const defaultCategoryConfigKey = normalizeDefaultCategoryKey(
     record.defaultCategoryConfigKey,
   );
@@ -996,6 +1067,7 @@ function normalizeMutableEndpointConfiguration(
         operationalState: current.operationalState,
         pollIntervalSeconds: record.pollIntervalSeconds,
         endpointDomainRules: record.endpointDomainRules,
+        htmlListingProfile: record.htmlListingProfile,
       },
       sourceDomainRules,
     ),
@@ -1005,6 +1077,9 @@ function normalizeMutableEndpointConfiguration(
     endpointType: endpoint.endpointType,
     pollIntervalSeconds: endpoint.pollIntervalSeconds,
     endpointDomainRules: endpoint.endpointDomainRules,
+    ...(endpoint.endpointType === 'html_listing'
+      ? { htmlListingProfile: endpoint.htmlListingProfile }
+      : {}),
     ...(defaultCategoryConfigKey === undefined
       ? {}
       : { defaultCategoryConfigKey }),
@@ -1160,12 +1235,13 @@ function normalizeAdminValue<T>(operation: () => T): T {
 function exactRecord(
   input: unknown,
   requiredKeys: readonly string[],
+  optionalKeys: readonly string[] = [],
 ): Record<string, unknown> {
   if (typeof input !== 'object' || input === null || Array.isArray(input)) {
     throw new EndpointAdministrationError('invalid_request');
   }
   const record = input as Record<string, unknown>;
-  const allowed = new Set(requiredKeys);
+  const allowed = new Set([...requiredKeys, ...optionalKeys]);
   if (
     requiredKeys.some((key) => !(key in record)) ||
     Object.keys(record).some((key) => !allowed.has(key))

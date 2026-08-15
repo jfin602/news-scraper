@@ -116,7 +116,7 @@ export function normalizeBootstrapDocument(
             'pollIntervalSeconds',
           ],
           endpointField,
-          ['endpointDomainRules'],
+          ['endpointDomainRules', 'htmlListingProfile'],
         );
         const endpoint = normalizeSourceEndpointConfigurationForSource(
           endpointRecord,
@@ -209,6 +209,9 @@ function endpointPersistenceInput(endpoint: SourceEndpointConfiguration) {
     operationalState: endpoint.operationalState,
     pollIntervalSeconds: endpoint.pollIntervalSeconds,
     endpointDomainRules: endpoint.endpointDomainRules,
+    ...(endpoint.endpointType === 'html_listing'
+      ? { htmlListingProfile: endpoint.htmlListingProfile }
+      : {}),
   };
 }
 
