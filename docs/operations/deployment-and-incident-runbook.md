@@ -2,7 +2,7 @@
 
 This provider-neutral procedure covers the repository's actual Node Web process, Node Worker process, and PostgreSQL database. Hosting process-control commands and Cloudflare/origin controls are deployment-specific; this repository does not define Docker, Kubernetes, systemd, or an automatic zero-downtime orchestrator.
 
-Phase 19 remains pre-production. The `0013` to `0014` exercise proves this procedure against a repository-defined pre-launch state only. It does not make old pre-production databases supported inputs. Phase 20 acceptance identifies the first supported production SHA, package version, schema ledger, and customer data baseline.
+Phase 19 completed this pre-production operational validation. The project remains pre-production during Phase 20 until customer-launch acceptance. The `0013` to `0014` exercise proves this procedure against a repository-defined pre-launch state only. It does not make old pre-production databases supported inputs. Phase 20 acceptance identifies the first supported production SHA, package version, schema ledger, and customer data baseline.
 
 ## Ordered deployment procedure
 
@@ -19,7 +19,7 @@ Use a change record that never contains secrets.
 9. Start Worker and require `worker.ready`. Observe scheduler, dispatcher, lease, and stale-recovery diagnostics. Startup failure or repeated scheduler/job/recovery failures is a stop/rollback signal.
 10. Through authorized Cloudflare Access, load `/admin`, Operations, Sources/endpoints, and a harmless read. Do not automate an authorized Access identity in the shared validator.
 11. Require no unexplained unhealthy endpoints, scheduling delay, queue age, capacity saturation, expired jobs, or growing failures in Operations. Compare with the pre-deploy snapshot.
-12. Run `npm run deployment:validate -- <private-reference-config.json>` and retain its observations. Complete authorized-operator and actual origin-protection observations manually during P7.
+12. Run `npm run deployment:validate -- <private-reference-config.json>` and retain its observations. For Phase 20 launch validation, repeat the authorized-operator and actual origin-protection observations manually against the launched-tree candidate.
 13. Record SHA, package version, runtime/database versions, migration state, backup identifier, process observations, validator output, timestamp, and approver. This is not the Phase 20 production baseline unless Phase 20 is formally accepted.
 
 ## Rollback decisions
@@ -43,7 +43,7 @@ Use a private credential-free configuration:
 }
 ```
 
-Run `npm run deployment:validate -- <path>`. Both distinct targets are required. Redirects are not followed. Output contains check, classification, status, and safe redirect origin only; paths, queries, bodies, cookies, and credentials are omitted. A public redirect needs review. A public-host admin redirect is an observed unauthenticated challenge, not proof of authorized access. A direct-origin redirect is inconclusive and fails; an unreachable or denied origin passes this bounded check. P7 must identify the real Tunnel/firewall/authenticated-origin/equivalent mechanism and observe authorized access.
+Run `npm run deployment:validate -- <path>`. Both distinct targets are required. Redirects are not followed. Output contains check, classification, status, and safe redirect origin only; paths, queries, bodies, cookies, and credentials are omitted. A public redirect needs review. A public-host admin redirect is an observed unauthenticated challenge, not proof of authorized access. A direct-origin redirect is inconclusive and fails; an unreachable or denied origin passes this bounded check. Phase 20 launch validation must reconfirm the real Tunnel/firewall/authenticated-origin/equivalent mechanism and observe authorized access against the launched-tree candidate.
 
 ## Incident runbooks
 
@@ -75,9 +75,9 @@ Keep admin disabled or origin-inaccessible instead of bypassing Access. Through 
 
 Find the stable Article ID in Admin and use existing visibility moderation to hide it with a reason. Do not delete Source instances, observations, duplicate membership, or audit history. Confirm removal from the ordinary feed. Restore only through the same governed authority.
 
-## Reference operations record required before P7
+## Reference operations record required for Phase 20 launch
 
-Complete deployment-specific values; shared engine code intentionally defines no universal defaults:
+Reconfirm the deployment-specific values recorded during Phase 19; shared engine code intentionally defines no universal defaults:
 
 - monitoring/alert owner and escalation path;
 - recovery incident commander and database/Cloudflare owners;
