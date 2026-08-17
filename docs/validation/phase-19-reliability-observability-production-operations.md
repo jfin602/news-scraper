@@ -8,12 +8,13 @@ This is not Phase 19 GREEN. Stage 1 does not claim Level 8 Cloudflare Access or 
 
 ## Candidate and environment
 
-- Stage 1 completed: 2026-08-15 13:54:50 -05:00 (America/Chicago).
+- Stage 1 rerun completed: 2026-08-17 12:07:29 -05:00 (America/Chicago).
 - Environment: Windows, local controlled HTTP fixtures, disposable PostgreSQL, and local Chromium.
 - Executable base commit: `148db43fdcda7f8b8230e5d733b2a22bf9f96db2`.
-- Exact executable candidate tree: `871fbfd2edf53353bab70aa0e972c637fb85c3e8` (represented during validation by temporary Git object `648cf555fc9ba7863ae08862f3e661863735bcec`; the validation-artifact text itself is evidence-only and is not part of this executable tree).
+- Exact executable candidate commit: `829e7eae81d8d353bc7dc1ffdf8c7e927546fd69`.
+- Exact executable candidate tree: `c121e8f836ad530e40226d466c1f92283a466f4e` (the validation-artifact text itself is evidence-only and is not part of this executable tree).
 - Package version: `0.19.7`.
-- Phase 19 implementation base/range: `e1911fb6be5b5dc0632e2bc61c7ba30f08d92368..148db43fdcda7f8b8230e5d733b2a22bf9f96db2`, plus the bounded P7 candidate changes represented by the executable tree above.
+- Phase 19 implementation base/range: `e1911fb6be5b5dc0632e2bc61c7ba30f08d92368..829e7eae81d8d353bc7dc1ffdf8c7e927546fd69`.
 - Node: `v24.11.1`; npm: `11.6.2`.
 - PostgreSQL client tools: `18.3`; disposable PostgreSQL server: `18.3`.
 - Playwright: `1.56.1`; Chromium: `141.0.7390.37`.
@@ -26,15 +27,17 @@ All required selections were non-zero and reported zero skipped, cancelled, or t
 | --- | --- | --- |
 | `npm install --ignore-scripts` | PASS; 216 packages audited, 0 vulnerabilities; no package lock created | Level 1 |
 | `npm run codex:phase:validate -- p19` | PASS; P1–P7 contiguous, P7 is the sole manual closeout, version `0.19.7` | Level 1 |
-| `npm run check` | PASS on the repaired final executable candidate: formatting, lint, typecheck, 454/454 deterministic unit/integration/collection tests | Levels 1–5 as exercised |
+| `npm run check` | PASS: formatting, lint, typecheck, 455/455 deterministic unit/integration/collection tests | Levels 1–5 as exercised |
 | `npm run test:db` | PASS: 218/218 tests against disposable PostgreSQL, including operational snapshot, concurrency/pool headroom, Worker/job recovery, migrations, and the representative `0013` to `0014` pre-launch upgrade/restore | Level 4 |
 | `npm run test:security` | PASS: 3/3 specialized integrated security tests; the broader deterministic matrix supplied the network/parser/fetch/error cases listed below | Levels 2–3 and 5 |
-| `npm run test:recovery` | PASS after the P7 repair: 1/1 native `pg_dump`/`pg_restore` controlled recovery procedure; 4.649 seconds for the test case (5.760 seconds total runner duration) | Level 4 |
+| `npm run test:recovery` | PASS: 1/1 native `pg_dump`/`pg_restore` controlled recovery procedure; 11.890 seconds for the test case (15.075 seconds total runner duration) | Level 4 |
 | `npm run test:browser` | PASS: 61/61 Chromium tests, including Operations and retained Publication/Sources/Editorial/Articles/public workspaces | Level 6 |
 | P6 upgrade/reference-validator proof | Covered without duplicate execution by `test:db` (`0013` to `0014`, 11.789 seconds) and `check` reference-validator tests | Levels 2–4 |
-| `git diff --check e1911fb...HEAD` and final working-diff check | PASS | Level 1 |
+| `git diff --check e1911fb` and final working-diff check | PASS across the executable candidate plus this evidence-only artifact update | Level 1 |
 
 The recovery implementation returned and asserted nonnegative individual backup and restore durations; the test output did not emit those two values separately. The controlled combined procedure duration above is the locally retained duration evidence. Stage 2 must record real deployment backup and restore durations separately.
+
+This rerun was required by executable commit `829e7ea`, which moved the admin API from `/api/admin` to `/admin/api` beneath the configured admin perimeter. The final deterministic, database, security, and browser suites all exercised the relocated routes; focused integration coverage also proved that the obsolete route is neither registered nor redirected.
 
 ## Pass 1 conclusions
 
@@ -86,11 +89,15 @@ Classification uses: (1) protected with meaningful evidence; (2) governed but co
 
 No unresolved classification 2–5 finding remains.
 
+The 2026-08-17 rerun independently repeated this review against the relocated `/admin/api` boundary. It found no new classification 2–5 issue; obsolete-route non-registration, mutation integrity, disabled-admin behavior, hostile content, stale refresh handling, and provider-neutral Stage 2 classification all retained meaningful evidence.
+
 ## Pass 3 structural review
 
 The Phase 19 diff and important producers/consumers were independently inspected. Health/alert/queue SQL remains server-owned; observability does not mutate workflow; capacity and timing values have one production authority; the browser is a thin consumer; the measurement proof remains in tests; native PostgreSQL tooling is used through one small process boundary; restore and migration status reuse the existing migration engine; the validator is provider-neutral; runbook commands and routes exist; outputs are bounded and secret-safe; no legacy Publication tenancy, topic logic, vendor framework, custom backup format, second semaphore/lease architecture, or premature production-baseline claim was introduced.
 
 No meaningful behavior-preserving structural refactor was found. No Terra High remediation handoff occurred.
+
+The rerun also found no duplicated legacy/admin router, browser-owned security calculation, provider-specific validator assumption, stale runbook command, secret-bearing diagnostic, or premature Phase 20 production-baseline claim introduced by `829e7ea`.
 
 ## Limitations
 
@@ -104,53 +111,53 @@ No meaningful behavior-preserving structural refactor was found. No Terra High r
 
 Run one safe block at a time using `docs/operations/deployment-and-incident-runbook.md` and `docs/operations/database-backup-and-restore.md`. Stop on a material mismatch. Never record credentials, database URLs, Access cookies/tokens, origin secrets, or private keys.
 
-1. Pre-deployment state and prerequisites  
-   Result:  
+1. Pre-deployment state and prerequisites
+   Result:
    Evidence/time/environment:
-2. Real pre-deployment backup and bounded duration  
-   Result:  
+2. Real pre-deployment backup and bounded duration
+   Result:
    Evidence:
-3. Real schema status/preflight  
-   Result:  
+3. Real schema status/preflight
+   Result:
    Evidence:
-4. Safe quiescence, migration, and Web/Worker startup order  
-   Result:  
+4. Safe quiescence, migration, and Web/Worker startup order
+   Result:
    Evidence:
-5. Public `/`, `/api/feed`, liveness, and readiness observation  
-   Result:  
+5. Public `/`, `/api/feed`, liveness, and readiness observation
+   Result:
    Evidence:
-6. Worker, scheduler/recovery diagnostics, PostgreSQL connectivity/current schema  
-   Result:  
+6. Worker, scheduler/recovery diagnostics, PostgreSQL connectivity/current schema
+   Result:
    Evidence:
-7. Real Operations state, Source failures/queue delay when warranted, and paused-state truthfulness  
-   Result:  
+7. Real Operations state, Source failures/queue delay when warranted, and paused-state truthfulness
+   Result:
    Evidence:
-8. Real backup restore into a safe fresh non-production target, semantic reads, and separate durations  
-   Result:  
+8. Real backup restore into a safe fresh non-production target, semantic reads, and separate durations
+   Result:
    Evidence:
-9. Deployment/rollback decision points and every required incident runbook  
-   Result:  
+9. Deployment/rollback decision points and every required incident runbook
+   Result:
    Evidence:
-10. External unauthenticated Cloudflare Access challenge/denial; application admin UI not returned  
-    Result:  
+10. External unauthenticated Cloudflare Access challenge/denial; application admin UI not returned
+    Result:
     Evidence:
-11. External authorized operator reaches `/admin` and Operations through Access; no cookie/token recorded  
-    Result:  
+11. External authorized operator reaches `/admin` and Operations through Access; no cookie/token recorded
+    Result:
     Evidence:
-12. External direct-origin/IP/alternate-host bypass fails; actual Tunnel/firewall/authenticated-origin/equivalent mechanism identified  
-    Result:  
+12. External direct-origin/IP/alternate-host bypass fails; actual Tunnel/firewall/authenticated-origin/equivalent mechanism identified
+    Result:
     Evidence:
-13. Operational ownership and policy  
-    Monitoring/alert owner:  
-    Recovery/incident owner:  
-    Backup schedule/location/encryption/access and retention:  
-    Chosen RPO/RTO and rationale:  
-    Cloudflare/admin access-log retention/access owner:  
-    Application change-history retention/access owner:  
-    Infrastructure/IP-log retention/access owner:  
+13. Operational ownership and policy
+    Monitoring/alert owner:
+    Recovery/incident owner:
+    Backup schedule/location/encryption/access and retention:
+    Chosen RPO/RTO and rationale:
+    Cloudflare/admin access-log retention/access owner:
+    Application change-history retention/access owner:
+    Infrastructure/IP-log retention/access owner:
     Bounded Raw-item/Source metadata retention/access owner:
-14. Final post-deployment smoke and exact candidate/version/schema/backup confirmation  
-    Result:  
+14. Final post-deployment smoke and exact candidate/version/schema/backup confirmation
+    Result:
     Evidence/limitations/retries:
 
 ## Lifecycle boundary
