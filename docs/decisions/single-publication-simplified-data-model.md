@@ -60,7 +60,7 @@ The same cleanup rule applies outside SQL: source files, APIs, types, wrappers, 
 - Databases created by older pre-production source trees must be recreated and bootstrapped.
 - Superseded migration files and legacy-only implementation artifacts may be removed from the active tree even though they remain visible in Git history.
 - A future requirement to host multiple Publications concurrently would require a new architecture/data-model project.
-- Production upgrade compatibility, when required, needs its own explicit migration contract.
+- Production upgrade/data compatibility is governed separately by [`production-data-and-schema-compatibility.md`](./production-data-and-schema-compatibility.md); this ADR does not define that lifecycle.
 
 ## Rejected alternatives
 
@@ -96,4 +96,4 @@ A change violates this ADR when it:
 - adds pre-production database compatibility machinery without a concrete supported-data requirement; or
 - preserves legacy-only migration/source/API/type/test/fixture/configuration structure when deletion produces the smaller canonical supported implementation.
 
-Any future proposal for concurrent multi-Publication hosting inside one installation or durable production upgrade compatibility requires an explicit contract/ADR change and deliberate data-model work.
+Any future proposal for concurrent multi-Publication hosting inside one installation requires an explicit contract/ADR change and deliberate data-model work. Durable production upgrade/data compatibility is now governed by [`production-data-and-schema-compatibility.md`](./production-data-and-schema-compatibility.md); changing that lifecycle policy requires its own explicit contract/ADR decision.
