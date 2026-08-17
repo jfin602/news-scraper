@@ -15,14 +15,14 @@ Phases are intentionally narrow. Each phase represents one cohesive implementati
 - Publication is a singleton editorial/configuration concept, not a relational tenancy key. Do not introduce Publication IDs, slugs, foreign keys, joins, uniqueness scopes, or compatibility plumbing solely for hypothetical concurrent hosting.
 - Real Source/endpoint/run/Article/observation relationships remain explicit where they protect identity, provenance, safety, lifecycle, or data integrity.
 - Before production database compatibility is established, the supported persistence setup is a fresh database built from the repository's current migration chain and bootstrap/configuration. Pre-production schema corrections are destructive resets: legacy-only migrations, compatibility code, selector APIs, tests/fixtures, and obsolete configuration paths are removed when the current canonical system no longer needs them, and databases created by older source trees are rebuilt rather than preserved.
-- Phase 19 establishes and validates production backup/restore, deployment/rollback, and schema-upgrade procedures. Acceptance of Phase 20 customer launch establishes the first supported production schema/data baseline; from that baseline forward `docs/decisions/production-data-and-schema-compatibility.md` governs data preservation and supported upgrades.
+- Phase 19 established and validated production backup/restore, deployment/rollback, and schema-upgrade procedures. Acceptance of Phase 20 customer launch establishes the first supported production schema/data baseline; from that baseline forward `docs/decisions/production-data-and-schema-compatibility.md` governs data preservation and supported upgrades.
 - Network safety, Source approval boundaries, Collection-run provenance, normalization, Relevance ordering, and idempotent Article identity are not deferred for the tech demo because they are expensive and risky to retrofit.
 - Before configurable Relevance rules exist, the canonical Relevance boundary runs with an empty rule set and deterministically includes safe candidates by default.
 - The optional Source RSS/Atom item admission filter is Source-owned, topic-independent, include-only configuration evaluated over parsed Raw-item editorial text before Article-candidate normalization; it is distinct from Phase 11 Relevance.
 - Native application-managed administrator accounts, passwords/passkeys, sessions, roles, account recovery, Publication-scoped user authorization, and identity-linked audit attribution are outside MVP.
 - MVP admin UI/API routes use Cloudflare Access as the external perimeter; supported deployments MUST prevent direct-origin bypass.
 - Cloudflare Access does not replace request-integrity, resource-validation, fetch/network-safety, output/content-safety, secrets, or origin protections.
-- Observed Level 8 proof that Cloudflare Access protects deployed admin routes and that direct-origin bypass fails is deferred to Phase 19; earlier admin phases still implement and regression-test their application-side security boundaries and do not weaken the deployment invariant.
+- Observed Level 8 proof that Cloudflare Access protects deployed admin routes and that direct-origin bypass fails was deferred to Phase 19 and is now satisfied there; earlier admin phases still implement and regression-test their application-side security boundaries and do not weaken the deployment invariant.
 - Public-feed and collection behavior should become useful before admin convenience and moderation workflows are expanded.
 - Automated behavioral regression coverage is the primary defense against regressions. Every implementation phase and gating correction inherits `docs/contracts/testing-and-validation-contract.md`.
 - After Phase 20 customer launch, new product-feature implementation is frozen until Phase 21 closes. Critical production defects, security fixes, data-integrity fixes, and required operational repairs remain permitted through the appropriate correction/fix workflow; unrelated new capability does not.
@@ -777,7 +777,7 @@ Replace bootstrap/manual Source configuration with a practical control surface i
 - Filter changes are prospective and do not rewrite historical Articles, observations, or Collection runs.
 - The filter does not bypass approval/lifecycle/operational eligibility, endpoint locking, network/redirect/fetch/parser safety, admitted-candidate Article-link validation, scheduling, jobs, or provenance.
 - Existing Phase 11 predicates and deterministic precedence/category behavior remain unchanged.
-- Phase 14's recorded application-side admin, request-integrity, resource-boundary, persistence, job, collection-fixture, and browser evidence remains historical evidence of its original BLOCKED/RED closeout determination. Its sole blocker was the then-required but unavailable Level 8 Cloudflare Access/direct-origin deployment observation. That observation is now a blocking Phase 19 responsibility; owner acceptance advanced Phase 14 without rewriting the artifact or claiming deployed-perimeter proof.
+- Phase 14's recorded application-side admin, request-integrity, resource-boundary, persistence, job, collection-fixture, and browser evidence remains historical evidence of its original BLOCKED/RED closeout determination. Its sole blocker was the then-required but unavailable Level 8 Cloudflare Access/direct-origin deployment observation. That observation became a blocking Phase 19 responsibility and was later satisfied there; owner acceptance advanced Phase 14 without rewriting the artifact or claiming deployed-perimeter proof for Phase 14.
 
 ### Exit gate
 
@@ -786,7 +786,7 @@ Replace bootstrap/manual Source configuration with a practical control surface i
 - Deterministic tests prove bounded literal any-match behavior across supported parsed fields, missing/empty/invalid configuration, all-items-filtered accounting, separation from normalization/Relevance/identity/observations, and prospective non-retroactive edits.
 - Admin actions cannot bypass state, real resource relationships, locking, or network safety.
 - Request-integrity/resource-boundary regressions pass.
-- The unobserved Level 8 Cloudflare Access/direct-origin proof is a blocking Phase 19 exit requirement before production readiness; it was not observed or retrospectively made green for Phase 14.
+- The unobserved Level 8 Cloudflare Access/direct-origin proof remained a blocking Phase 19 exit requirement before production readiness and was later observed in Phase 19; it was not observed or retrospectively made green for Phase 14.
 
 ## Phase 15 — Publication and Relevance administration
 
@@ -827,7 +827,7 @@ Expose the installation's singleton Publication/editorial configuration, Categor
 - Admin browser/API/database validation preserves request integrity, real resource relationships, rollback, retained Article/provenance integrity, and Source/endpoint default-Category behavior.
 - Presentation-timezone validation proves invalid IANA identifiers are rejected, absence retains UTC, and configured calendar-date rendering does not change persisted timestamps or canonical feed ordering.
 - Relevance validation proves the established literal vocabulary, action/target compatibility, Source/Category relationships, prospective behavior, and deterministic precedence/default semantics remain unchanged.
-- Phase 15 closeout does not require Level 8 Cloudflare Access/direct-origin deployment observation; Phase 19 remains responsible for that proof.
+- Phase 15 closeout does not require Level 8 Cloudflare Access/direct-origin deployment observation; Phase 19 later supplied that proof without rewriting Phase 15 evidence.
 - A separately deployed unrelated Publication remains generic and requires no aggregation-engine topic changes.
 
 ## Phase 16 — True duplicate detection and grouping
@@ -1008,7 +1008,7 @@ Add approved non-feed Sources without creating another downstream pipeline.
 
 ## Phase 19 — Reliability, observability, and production operations
 
-**Status:** Current roadmap phase.
+**Status:** Complete with durable GREEN validation recorded in `docs/validation/phase-19-reliability-observability-production-operations.md`.
 
 ### Goal
 
@@ -1052,6 +1052,8 @@ Make the completed MVP safe to operate continuously and recoverably, strengtheni
 - Required deterministic regression suites remain green on the final tree.
 
 ## Phase 20 — Customer launch validation
+
+**Status:** Current roadmap phase.
 
 ### Goal
 
