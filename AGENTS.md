@@ -91,6 +91,8 @@ docs/contracts/public-feed-and-admin-contract.md
 docs/contracts/testing-and-validation-contract.md
 docs/architecture/system-architecture.md
 docs/operations/security-reliability-and-operations.md
+docs/operations/database-backup-and-restore.md
+docs/operations/deployment-and-incident-runbook.md
 docs/roadmap/mvp-roadmap.md
 docs/design/README.md
 docs/design/ui-workflow.md
@@ -149,7 +151,7 @@ High-risk distinctions:
 - Public feed date uses parsed `published_at` when available and otherwise `first_seen_at`, with the fallback source detectable.
 - The public headline destination is stored Article `original_url`; `canonical_identity_url` remains an identity field.
 - Before production compatibility is established, databases are created fresh from the smallest current canonical migration chain; old pre-production database contents are disposable, and legacy-only migration/code/API/type/test/fixture/configuration artifacts are not retained merely as an upgrade/history surface.
-- Phase 19 establishes and validates production upgrade/restore/rollback procedures; acceptance of Phase 20 establishes the first supported production schema/data baseline. From that point forward, customer production data is durable supported state, supported production migration history must remain upgrade-capable, and normal changes preserve governed data/relationships. Clean migration-from-zero remains required but does not alone prove a production upgrade.
+- Phase 19 established and validated production upgrade/restore/rollback procedures; acceptance of Phase 20 establishes the first supported production schema/data baseline. From that point forward, customer production data is durable supported state, supported production migration history must remain upgrade-capable, and normal changes preserve governed data/relationships. Clean migration-from-zero remains required but does not alone prove a production upgrade.
 
 ## Collection law
 
@@ -276,24 +278,23 @@ Governed by `docs/contracts/testing-and-validation-contract.md`.
 - Phase 12 is complete with durable API/database/browser discovery evidence.
 - Phase 13 is complete with durable persistence/read-model, responsive presentation, branding, theme, accessibility, loading-state, browser, and Phase 12 regression evidence.
 - Phase 14 is complete by explicit repository-owner acceptance on August 14, 2026. Its historical validation artifact remains BLOCKED/RED solely because the Level 8 Cloudflare Access/direct-origin deployment observation was unavailable; the roadmap/testing contract moved that observation to Phase 19 without rewriting historical evidence or claiming it was observed.
-- Phase 19 must validate the production schema-upgrade/restore/rollback procedure before launch; Phase 20 acceptance identifies the supported production baseline.
+- Phase 19 completed the required production schema-upgrade/restore/rollback and Level 8 reference-deployment validation with durable GREEN evidence; Phase 20 acceptance still identifies the supported production baseline.
 - Phase 21 refactors inherit the full applicable regression/evidence matrix. Schema/persisted-state changes require both migration-from-zero and supported Phase 20-baseline upgrade/data preservation; performance/resource claims require materially comparable before/after measurements; final Phase 21 closeout requires Level 8 reference-deployment evidence on the refactored tree.
 
 ## Roadmap law
 
 Use `docs/roadmap/mvp-roadmap.md`.
 
-Current phase: **Phase 19 — Reliability, observability, and production operations**.
+Current phase: **Phase 20 — Customer launch validation**.
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with its recorded live-source limitation preserved. The Phase 10 entry singleton correction and Phases 10–15 are complete.
 
-Phase 15 is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 is complete with durable GREEN validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`; the non-versioned `c16-test-efficiency` correction remains completed historical work. Phase 17 is complete with durable GREEN validation in `docs/validation/phase-17-article-and-duplicate-moderation.md`. Phase 18 is complete with durable GREEN validation in `docs/validation/phase-18-configurable-html-collection.md`.
+Phase 15 is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 is complete with durable GREEN validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`; the non-versioned `c16-test-efficiency` correction remains completed historical work. Phase 17 is complete with durable GREEN validation in `docs/validation/phase-17-article-and-duplicate-moderation.md`. Phase 18 is complete with durable GREEN validation in `docs/validation/phase-18-configurable-html-collection.md`. Phase 19 is complete with durable GREEN validation in `docs/validation/phase-19-reliability-observability-production-operations.md`, including the deferred Level 8 Cloudflare Access/direct-origin reference-deployment proof.
 
-Phase 19 questions route primarily to `docs/operations/security-reliability-and-operations.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/architecture/system-architecture.md`, `docs/decisions/production-data-and-schema-compatibility.md`, and `docs/decisions/cloudflare-access-admin-perimeter.md`. Phase 19 owns production operations, recovery and deployment/rollback procedures, representative schema-upgrade/data-preservation/rollback/restore proof, security/abuse regressions, and the deferred Level 8 Cloudflare Access/direct-origin reference-deployment observation. It prepares the production boundary; Phase 20 acceptance establishes the first supported production baseline.
+Phase 20 questions route primarily to `docs/roadmap/mvp-roadmap.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/operations/database-backup-and-restore.md`, `docs/operations/deployment-and-incident-runbook.md`, `docs/operations/security-reliability-and-operations.md`, and `docs/decisions/production-data-and-schema-compatibility.md`. Phase 20 owns customer configuration, approved-live-Source/feed quality validation, responsive/accessibility validation, operator handoff, launch checklist/ownership/metrics/known limitations, and final launched-tree/deployment/schema evidence. It adds no new foundational engine capability, and its acceptance establishes the first supported production baseline.
 
 Remaining roadmap order:
 
-- Phase 20 — Customer launch validation
 - Phase 21 — Codebase simplification and maintainability hardening
 
 Phase 20 acceptance establishes the first supported production schema/data baseline and begins a feature freeze. No deferred product feature is implemented until Phase 21 closes, except bounded critical production/security/data-integrity/operational fixes. Phase 21 is the terminal documented roadmap phase; closing it does not create Phase 22 or a `0.22.0` baseline. Any later feature roadmap requires explicit repository-owner approval and documentation alignment.
@@ -333,7 +334,7 @@ This rule applies only before the accepted Phase 20 production baseline and must
 
 ## Production compatibility rule
 
-Phase 19 establishes and validates production backup/restore/deployment/rollback/schema-upgrade procedures. Acceptance of Phase 20 customer launch establishes the first supported production source/version/schema baseline. From that point forward, normal upgrades/refactors preserve customer production data and governed relationships, supported production migration history remains upgrade-capable, and clean migration-from-zero does not substitute for supported-upgrade proof. `docs/decisions/production-data-and-schema-compatibility.md` is authoritative.
+Phase 19 established and validated production backup/restore/deployment/rollback/schema-upgrade procedures. Acceptance of Phase 20 customer launch establishes the first supported production source/version/schema baseline. From that point forward, normal upgrades/refactors preserve customer production data and governed relationships, supported production migration history remains upgrade-capable, and clean migration-from-zero does not substitute for supported-upgrade proof. `docs/decisions/production-data-and-schema-compatibility.md` is authoritative.
 
 ## Repository identity
 
