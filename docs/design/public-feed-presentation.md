@@ -6,7 +6,7 @@ This document defines the durable Phase 13 visual treatment for the root public 
 
 Visual direction: **modern editorial / publication desk**. The Publication and its headlines are the product. Avoid generic SaaS-dashboard framing, card-heavy news-portal styling, sidebars, glassmorphism, heavy shadows, decorative gradients, zebra tables, and unrelated application chrome.
 
-Presentation must preserve Phase 12 search/filter/pagination/URL semantics, feed eligibility/order, UTC date rendering, and exact stored `original_url` destinations.
+Presentation must preserve Phase 12 search/filter/pagination/URL semantics, feed eligibility/order, the governed date-presentation semantics (configured valid IANA `presentation_timezone` when present and UTC fallback otherwise), and exact stored `original_url` destinations.
 
 ## Composition and masthead
 
