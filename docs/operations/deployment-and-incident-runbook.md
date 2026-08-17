@@ -11,7 +11,7 @@ Use a change record that never contains secrets.
 1. Record the exact Git SHA (`git rev-parse HEAD`) and `package.json` version. Confirm the intended commit is reviewed and the worktree is clean.
 2. Confirm Node satisfies `package.json` `engines`, npm is available, and PostgreSQL plus `psql`, `pg_dump`, and `pg_restore` are compatible with the target. Install from `package.json`; this project intentionally has no npm lockfile.
 3. Check that `NODE_ENV`, `NEWS_SCRAPER_DATABASE_URL`, Web host/port, and deployment-specific process/origin configuration exist. When admin is intended, confirm `NEWS_SCRAPER_ADMIN_ENABLED=true`. Check presence only; never print environment dumps, URLs, tokens, cookies, or credentials.
-4. Confirm the most recent tested backup, off-host durability, and restore record satisfy the recorded RPO. If schema/data risk exceeds that recovery point, run `npm run db:backup -- <private-directory>` and protect both dump and manifest. Follow [database-backup-and-restore.md](database-backup-and-restore.md).
+4. Confirm the most recent tested backup and restore record satisfy the deployment's recorded recovery policy. Backup durability is deployment-specific rather than universally off-host. When backups are intentionally local-only, record the accepted total-host-loss posture and which state would require reconstruction. If schema/data risk exceeds the recorded recovery point, run `npm run db:backup -- <private-directory>` and protect both dump and manifest. Follow [database-backup-and-restore.md](database-backup-and-restore.md).
 5. Review every pending migration. Decide and record whether its locks/data changes are compatible with running processes. If not proven, stop scheduling, gracefully stop Worker, then gracefully stop Web. The safe default for an unknown migration is quiescence.
 6. Run `npm run db:status`. Save its bounded JSON (`uninitialized`, `current`, `pending`, or `incompatible`). Incompatible is a stop condition. Uninitialized is a production stop unless this is an approved new installation.
 7. Apply migrations only with `npm run db:migrate`. Run status again and require `{"state":"current"}`. Record ordered filenames and ledger state; never edit migration files or the ledger.
@@ -81,7 +81,7 @@ Complete deployment-specific values; shared engine code intentionally defines no
 
 - monitoring/alert owner and escalation path;
 - recovery incident commander and database/Cloudflare owners;
-- backup frequency/location/encryption/access, retention count/period, and last tested restore;
+- backup frequency/location/durability model/encryption/access, retention count/period, last tested restore, and accepted loss posture;
 - chosen RPO/RTO, rationale, and measurement method;
 - Cloudflare/admin access-log retention/access/export policy;
 - application `audit_events` retention/access policy;
