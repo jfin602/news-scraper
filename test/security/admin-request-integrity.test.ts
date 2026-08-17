@@ -37,7 +37,7 @@ test('nested duplicate JSON keys and handler failures cannot mutate or disclose 
   const baseUrl = `http://${server.host}:${String(server.port)}`;
 
   try {
-    const duplicate = await fetch(`${baseUrl}/api/admin/mutation`, {
+    const duplicate = await fetch(`${baseUrl}/admin/api/mutation`, {
       method: 'POST',
       headers: adminJsonHeaders(),
       body: '{"operation":"safe","nested":{"role":"reader","role":"admin"}}',
@@ -46,7 +46,7 @@ test('nested duplicate JSON keys and handler failures cannot mutate or disclose 
     assert.deepEqual(await duplicate.json(), { error: 'invalid_json' });
     assert.equal(mutations, 0);
 
-    const malformed = await fetch(`${baseUrl}/api/admin/mutation`, {
+    const malformed = await fetch(`${baseUrl}/admin/api/mutation`, {
       method: 'POST',
       headers: adminJsonHeaders(),
       body: '{"operation":',
@@ -55,7 +55,7 @@ test('nested duplicate JSON keys and handler failures cannot mutate or disclose 
     assert.deepEqual(await malformed.json(), { error: 'invalid_json' });
     assert.equal(mutations, 0);
 
-    const missingIntegrity = await fetch(`${baseUrl}/api/admin/mutation`, {
+    const missingIntegrity = await fetch(`${baseUrl}/admin/api/mutation`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: '{}',
@@ -66,7 +66,7 @@ test('nested duplicate JSON keys and handler failures cannot mutate or disclose 
     });
     assert.equal(mutations, 0);
 
-    const handlerFailure = await fetch(`${baseUrl}/api/admin/mutation`, {
+    const handlerFailure = await fetch(`${baseUrl}/admin/api/mutation`, {
       method: 'POST',
       headers: adminJsonHeaders(),
       body: '{}',

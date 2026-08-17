@@ -73,7 +73,7 @@ describe('Endpoint administration HTTP API', () => {
   it('serves the protected pure HTML draft preview without consulting endpoint services', async () => {
     const calls: string[] = [];
     await withAdminServer(mockService(calls), async (baseUrl) => {
-      const path = `${baseUrl}/api/admin/html-listing/preview`;
+      const path = `${baseUrl}/admin/api/html-listing/preview`;
       const valid = await fetch(path, {
         method: 'POST',
         headers: adminHeaders(),
@@ -129,19 +129,19 @@ describe('Endpoint administration HTTP API', () => {
     const service = mockService(calls);
     await withAdminServer(service, async (baseUrl) => {
       const list = await fetch(
-        `${baseUrl}/api/admin/sources/journal/endpoints`,
+        `${baseUrl}/admin/api/sources/journal/endpoints`,
       );
       assert.equal(list.status, 200);
       assert.deepEqual(await list.json(), { endpoints: [endpoint] });
 
       const detail = await fetch(
-        `${baseUrl}/api/admin/sources/journal/endpoints/main_feed`,
+        `${baseUrl}/admin/api/sources/journal/endpoints/main_feed`,
       );
       assert.equal(detail.status, 200);
       assert.deepEqual(await detail.json(), { endpoint });
 
       const healthResponse = await fetch(
-        `${baseUrl}/api/admin/sources/journal/endpoints/main_feed/health`,
+        `${baseUrl}/admin/api/sources/journal/endpoints/main_feed/health`,
       );
       assert.equal(healthResponse.status, 200);
       assert.deepEqual(await healthResponse.json(), {
@@ -154,34 +154,34 @@ describe('Endpoint administration HTTP API', () => {
       });
 
       const runsResponse = await fetch(
-        `${baseUrl}/api/admin/sources/journal/endpoints/main_feed/runs?limit=5`,
+        `${baseUrl}/admin/api/sources/journal/endpoints/main_feed/runs?limit=5`,
       );
       assert.equal(runsResponse.status, 200);
       assert.deepEqual(await runsResponse.json(), recentRuns);
 
       const commands: readonly [string, string, number][] = [
         [
-          '/api/admin/sources/journal/endpoints',
+          '/admin/api/sources/journal/endpoints',
           JSON.stringify({ command: 'create' }),
           201,
         ],
         [
-          '/api/admin/sources/journal/endpoints/main_feed/configuration',
+          '/admin/api/sources/journal/endpoints/main_feed/configuration',
           JSON.stringify({ command: 'configuration' }),
           200,
         ],
         [
-          '/api/admin/sources/journal/endpoints/main_feed/approval',
+          '/admin/api/sources/journal/endpoints/main_feed/approval',
           JSON.stringify({ command: 'approval' }),
           200,
         ],
         [
-          '/api/admin/sources/journal/endpoints/main_feed/operational-state',
+          '/admin/api/sources/journal/endpoints/main_feed/operational-state',
           JSON.stringify({ command: 'operational' }),
           200,
         ],
         [
-          '/api/admin/sources/journal/endpoints/main_feed/lifecycle',
+          '/admin/api/sources/journal/endpoints/main_feed/lifecycle',
           JSON.stringify({ command: 'lifecycle' }),
           200,
         ],
@@ -197,7 +197,7 @@ describe('Endpoint administration HTTP API', () => {
       }
 
       const checkNowResponse = await fetch(
-        `${baseUrl}/api/admin/sources/journal/endpoints/main_feed/check-now`,
+        `${baseUrl}/admin/api/sources/journal/endpoints/main_feed/check-now`,
         {
           method: 'POST',
           headers: adminHeaders(),
@@ -231,7 +231,7 @@ describe('Endpoint administration HTTP API', () => {
   it('keeps P3 request integrity in front of endpoint mutations', async () => {
     const calls: string[] = [];
     await withAdminServer(mockService(calls), async (baseUrl) => {
-      const path = `${baseUrl}/api/admin/sources/journal/endpoints`;
+      const path = `${baseUrl}/admin/api/sources/journal/endpoints`;
       const withoutHeader = await fetch(path, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -248,7 +248,7 @@ describe('Endpoint administration HTTP API', () => {
       assert.deepEqual(await malformed.json(), { error: 'invalid_json' });
 
       const checkNowWithoutHeader = await fetch(
-        `${baseUrl}/api/admin/sources/journal/endpoints/main_feed/check-now`,
+        `${baseUrl}/admin/api/sources/journal/endpoints/main_feed/check-now`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -276,13 +276,13 @@ describe('Endpoint administration HTTP API', () => {
     };
     await withAdminServer(service, async (baseUrl) => {
       const missing = await fetch(
-        `${baseUrl}/api/admin/sources/wrong/endpoints/main_feed`,
+        `${baseUrl}/admin/api/sources/wrong/endpoints/main_feed`,
       );
       assert.equal(missing.status, 404);
       assert.deepEqual(await missing.json(), { error: 'endpoint_not_found' });
 
       const conflict = await fetch(
-        `${baseUrl}/api/admin/sources/journal/endpoints`,
+        `${baseUrl}/admin/api/sources/journal/endpoints`,
         {
           method: 'POST',
           headers: adminHeaders(),
@@ -295,7 +295,7 @@ describe('Endpoint administration HTTP API', () => {
       });
 
       const notCollectable = await fetch(
-        `${baseUrl}/api/admin/sources/journal/endpoints/main_feed/check-now`,
+        `${baseUrl}/admin/api/sources/journal/endpoints/main_feed/check-now`,
         {
           method: 'POST',
           headers: adminHeaders(),
@@ -309,7 +309,7 @@ describe('Endpoint administration HTTP API', () => {
       });
 
       const deletion = await fetch(
-        `${baseUrl}/api/admin/sources/journal/endpoints/main_feed`,
+        `${baseUrl}/admin/api/sources/journal/endpoints/main_feed`,
         {
           method: 'DELETE',
           headers: adminHeaders(),

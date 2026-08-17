@@ -80,7 +80,7 @@ export function createWebApp(
 
   if (options.adminEnabled === true) {
     app.use('/admin', createAdminPageRouter());
-    app.use('/api/admin', createAdminApiRouter(options.registerAdminApiRoutes));
+    app.use('/admin/api', createAdminApiRouter(options.registerAdminApiRoutes));
   }
 
   app.get('/api/feed', async (request, response) => {

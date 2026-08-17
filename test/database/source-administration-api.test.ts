@@ -271,7 +271,7 @@ describe('Source administration HTTP API', () => {
         true,
         service,
         async (baseUrl) => {
-          const withoutHeader = await fetch(`${baseUrl}/api/admin/sources`, {
+          const withoutHeader = await fetch(`${baseUrl}/admin/api/sources`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(sourceCreateInput()),
@@ -279,14 +279,14 @@ describe('Source administration HTTP API', () => {
           assert.equal(withoutHeader.status, 403);
           assert.deepEqual(await service.listSources(), []);
 
-          const wrongHeader = await fetch(`${baseUrl}/api/admin/sources`, {
+          const wrongHeader = await fetch(`${baseUrl}/admin/api/sources`, {
             method: 'POST',
             headers: adminJsonHeaders('wrong'),
             body: JSON.stringify(sourceCreateInput()),
           });
           assert.equal(wrongHeader.status, 403);
 
-          const malformed = await fetch(`${baseUrl}/api/admin/sources`, {
+          const malformed = await fetch(`${baseUrl}/admin/api/sources`, {
             method: 'POST',
             headers: adminJsonHeaders(),
             body: '{',
@@ -294,7 +294,7 @@ describe('Source administration HTTP API', () => {
           assert.equal(malformed.status, 400);
           assert.deepEqual(await malformed.json(), { error: 'invalid_json' });
 
-          const created = await fetch(`${baseUrl}/api/admin/sources`, {
+          const created = await fetch(`${baseUrl}/admin/api/sources`, {
             method: 'POST',
             headers: adminJsonHeaders(),
             body: JSON.stringify(
@@ -304,13 +304,13 @@ describe('Source administration HTTP API', () => {
           assert.equal(created.status, 201);
           assert.equal((await created.json()).source.configKey, 'journal');
 
-          const categories = await fetch(`${baseUrl}/api/admin/categories`);
+          const categories = await fetch(`${baseUrl}/admin/api/categories`);
           assert.equal(categories.status, 200);
           assert.deepEqual(await categories.json(), {
             categories: [{ configKey: 'industry', displayName: 'Industry' }],
           });
           const categoryMutation = await fetch(
-            `${baseUrl}/api/admin/categories`,
+            `${baseUrl}/admin/api/categories`,
             {
               method: 'POST',
               headers: adminJsonHeaders(),
@@ -328,15 +328,15 @@ describe('Source administration HTTP API', () => {
               displayName: 'Not created',
             },
           ]);
-          const detail = await fetch(`${baseUrl}/api/admin/sources/journal`);
+          const detail = await fetch(`${baseUrl}/admin/api/sources/journal`);
           assert.equal(detail.status, 200);
           assert.equal((await detail.json()).source.endpointCount, 0);
-          const list = await fetch(`${baseUrl}/api/admin/sources`);
+          const list = await fetch(`${baseUrl}/admin/api/sources`);
           assert.equal(list.status, 200);
           assert.equal((await list.json()).sources.length, 1);
 
           const configured = await fetch(
-            `${baseUrl}/api/admin/sources/journal/configuration`,
+            `${baseUrl}/admin/api/sources/journal/configuration`,
             {
               method: 'PUT',
               headers: adminJsonHeaders(),
@@ -354,7 +354,7 @@ describe('Source administration HTTP API', () => {
             'HTTP Updated Journal',
           );
           const unapproved = await fetch(
-            `${baseUrl}/api/admin/sources/journal/approval`,
+            `${baseUrl}/admin/api/sources/journal/approval`,
             {
               method: 'PUT',
               headers: adminJsonHeaders(),
@@ -367,7 +367,7 @@ describe('Source administration HTTP API', () => {
             'unapproved',
           );
           const paused = await fetch(
-            `${baseUrl}/api/admin/sources/journal/operational-state`,
+            `${baseUrl}/admin/api/sources/journal/operational-state`,
             {
               method: 'PUT',
               headers: adminJsonHeaders(),
@@ -377,7 +377,7 @@ describe('Source administration HTTP API', () => {
           assert.equal(paused.status, 200);
           assert.equal((await paused.json()).source.operationalState, 'paused');
 
-          const duplicate = await fetch(`${baseUrl}/api/admin/sources`, {
+          const duplicate = await fetch(`${baseUrl}/admin/api/sources`, {
             method: 'POST',
             headers: adminJsonHeaders(),
             body: JSON.stringify(sourceCreateInput()),
@@ -393,7 +393,7 @@ describe('Source administration HTTP API', () => {
           );
 
           const archived = await fetch(
-            `${baseUrl}/api/admin/sources/journal/lifecycle`,
+            `${baseUrl}/admin/api/sources/journal/lifecycle`,
             {
               method: 'PUT',
               headers: adminJsonHeaders(),
@@ -414,7 +414,7 @@ describe('Source administration HTTP API', () => {
   it('keeps the real Source API unavailable and non-mutating when admin is disabled', async () => {
     await withSourceAdministration(async ({ service }) => {
       await withAdminServer(false, service, async (baseUrl) => {
-        const response = await fetch(`${baseUrl}/api/admin/sources`, {
+        const response = await fetch(`${baseUrl}/admin/api/sources`, {
           method: 'POST',
           headers: adminJsonHeaders(),
           body: JSON.stringify(sourceCreateInput()),

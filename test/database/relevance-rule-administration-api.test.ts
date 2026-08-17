@@ -34,7 +34,7 @@ test('Relevance-rule admin API exposes the bounded rule model and mutations', as
     await insertSource(database, sourceInput('publisher'));
 
     const missingIntegrity = await fetch(
-      `${baseUrl}/api/admin/relevance-rules`,
+      `${baseUrl}/admin/api/relevance-rules`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -97,7 +97,7 @@ test('Relevance-rule admin API exposes the bounded rule model and mutations', as
       error: 'relevance_rule_config_key_conflict',
     });
 
-    const list = await fetch(`${baseUrl}/api/admin/relevance-rules`);
+    const list = await fetch(`${baseUrl}/admin/api/relevance-rules`);
     assert.equal(list.status, 200);
     assert.deepEqual(await list.json(), {
       relevanceRules: [
@@ -134,7 +134,7 @@ test('Relevance-rule admin API exposes the bounded rule model and mutations', as
     });
 
     const detail = await fetch(
-      `${baseUrl}/api/admin/relevance-rules/title_rule`,
+      `${baseUrl}/admin/api/relevance-rules/title_rule`,
     );
     assert.equal(detail.status, 200);
     assert.deepEqual(await detail.json(), {
@@ -178,7 +178,7 @@ test('Relevance-rule admin API exposes the bounded rule model and mutations', as
     });
 
     const disabled = await fetch(
-      `${baseUrl}/api/admin/relevance-rules/title_rule/enabled`,
+      `${baseUrl}/admin/api/relevance-rules/title_rule/enabled`,
       {
         method: 'PUT',
         headers: adminJsonHeaders(),
@@ -189,7 +189,7 @@ test('Relevance-rule admin API exposes the bounded rule model and mutations', as
     assert.equal((await disabled.json()).relevanceRule.enabled, false);
 
     const invalidEnabled = await fetch(
-      `${baseUrl}/api/admin/relevance-rules/title_rule/enabled`,
+      `${baseUrl}/admin/api/relevance-rules/title_rule/enabled`,
       {
         method: 'PUT',
         headers: adminJsonHeaders(),
@@ -202,7 +202,7 @@ test('Relevance-rule admin API exposes the bounded rule model and mutations', as
     });
 
     const unknown = await fetch(
-      `${baseUrl}/api/admin/relevance-rules/missing_rule`,
+      `${baseUrl}/admin/api/relevance-rules/missing_rule`,
     );
     assert.equal(unknown.status, 404);
     assert.deepEqual(await unknown.json(), {
@@ -210,7 +210,7 @@ test('Relevance-rule admin API exposes the bounded rule model and mutations', as
     });
 
     const deleted = await fetch(
-      `${baseUrl}/api/admin/relevance-rules/title_rule`,
+      `${baseUrl}/admin/api/relevance-rules/title_rule`,
       { method: 'DELETE', headers: adminJsonHeaders(), body: '{}' },
     );
     assert.equal(deleted.status, 204);
@@ -356,7 +356,7 @@ test('Relevance-rule removal rejects retained winning and categorization provena
     );
 
     const deleted = await fetch(
-      `${baseUrl}/api/admin/relevance-rules/category_rule`,
+      `${baseUrl}/admin/api/relevance-rules/category_rule`,
       { method: 'DELETE', headers: adminJsonHeaders(), body: '{}' },
     );
     assert.equal(deleted.status, 204);
@@ -415,7 +415,7 @@ async function withRuleAdmin(
 }
 
 async function postRule(baseUrl: string, input: Record<string, unknown>) {
-  return fetch(`${baseUrl}/api/admin/relevance-rules`, {
+  return fetch(`${baseUrl}/admin/api/relevance-rules`, {
     method: 'POST',
     headers: adminJsonHeaders(),
     body: JSON.stringify(input),
@@ -428,7 +428,7 @@ async function putRule(
   input: Record<string, unknown>,
 ) {
   return fetch(
-    `${baseUrl}/api/admin/relevance-rules/${configKey}/configuration`,
+    `${baseUrl}/admin/api/relevance-rules/${configKey}/configuration`,
     {
       method: 'PUT',
       headers: adminJsonHeaders(),
@@ -442,7 +442,7 @@ async function assertRuleInUse(
   configKey: string,
 ): Promise<void> {
   const response = await fetch(
-    `${baseUrl}/api/admin/relevance-rules/${configKey}`,
+    `${baseUrl}/admin/api/relevance-rules/${configKey}`,
     { method: 'DELETE', headers: adminJsonHeaders(), body: '{}' },
   );
   assert.equal(response.status, 409);

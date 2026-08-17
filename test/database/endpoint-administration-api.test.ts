@@ -487,7 +487,7 @@ describe('Endpoint administration database service', () => {
       );
       await withEndpointAdminServer(endpoints, async (baseUrl) => {
         const response = await fetch(
-          `${baseUrl}/api/admin/html-listing/preview`,
+          `${baseUrl}/admin/api/html-listing/preview`,
           {
             method: 'POST',
             headers: adminJsonHeaders(),
@@ -585,7 +585,7 @@ describe('Endpoint administration database service', () => {
 
       await withEndpointAdminServer(endpoints, async (baseUrl) => {
         const wrongDetail = await fetch(
-          `${baseUrl}/api/admin/sources/other/endpoints/main_feed`,
+          `${baseUrl}/admin/api/sources/other/endpoints/main_feed`,
         );
         assert.equal(wrongDetail.status, 404);
         assert.deepEqual(await wrongDetail.json(), {
@@ -594,7 +594,7 @@ describe('Endpoint administration database service', () => {
 
         for (const suffix of ['health', 'runs']) {
           const response = await fetch(
-            `${baseUrl}/api/admin/sources/other/endpoints/main_feed/${suffix}`,
+            `${baseUrl}/admin/api/sources/other/endpoints/main_feed/${suffix}`,
           );
           assert.equal(response.status, 404, suffix);
           assert.deepEqual(await response.json(), {
@@ -603,7 +603,7 @@ describe('Endpoint administration database service', () => {
         }
 
         const wrongCheckNow = await fetch(
-          `${baseUrl}/api/admin/sources/other/endpoints/main_feed/check-now`,
+          `${baseUrl}/admin/api/sources/other/endpoints/main_feed/check-now`,
           {
             method: 'POST',
             headers: adminJsonHeaders(),
@@ -625,7 +625,7 @@ describe('Endpoint administration database service', () => {
           ['lifecycle', { lifecycleState: 'archived' }],
         ] as const) {
           const response = await fetch(
-            `${baseUrl}/api/admin/sources/other/endpoints/main_feed/${suffix}`,
+            `${baseUrl}/admin/api/sources/other/endpoints/main_feed/${suffix}`,
             {
               method: 'PUT',
               headers: adminJsonHeaders(),
@@ -639,7 +639,7 @@ describe('Endpoint administration database service', () => {
         }
 
         const rejectedByIntegrity = await fetch(
-          `${baseUrl}/api/admin/sources/owner/endpoints/main_feed/approval`,
+          `${baseUrl}/admin/api/sources/owner/endpoints/main_feed/approval`,
           {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -649,7 +649,7 @@ describe('Endpoint administration database service', () => {
         assert.equal(rejectedByIntegrity.status, 403);
 
         const rejectedCheckNowByIntegrity = await fetch(
-          `${baseUrl}/api/admin/sources/owner/endpoints/main_feed/check-now`,
+          `${baseUrl}/admin/api/sources/owner/endpoints/main_feed/check-now`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -659,7 +659,7 @@ describe('Endpoint administration database service', () => {
         assert.equal(rejectedCheckNowByIntegrity.status, 403);
 
         const ownerDetail = await fetch(
-          `${baseUrl}/api/admin/sources/owner/endpoints/main_feed`,
+          `${baseUrl}/admin/api/sources/owner/endpoints/main_feed`,
         );
         const ownerBody = await ownerDetail.text();
         assert.equal(ownerDetail.status, 200);

@@ -13,7 +13,7 @@ import {
 test('operational snapshot is a protected read-only admin route with stable JSON', async () => {
   const snapshot = testSnapshot();
   await withServer({ readSnapshot: async () => snapshot }, async (baseUrl) => {
-    const response = await fetch(`${baseUrl}/api/admin/operations/snapshot`);
+    const response = await fetch(`${baseUrl}/admin/api/operations/snapshot`);
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('cache-control'), 'no-store');
     assert.deepEqual(await response.json(), {
@@ -33,7 +33,7 @@ test('operational snapshot is a protected read-only admin route with stable JSON
         },
       },
     });
-    const mutation = await fetch(`${baseUrl}/api/admin/operations/snapshot`, {
+    const mutation = await fetch(`${baseUrl}/admin/api/operations/snapshot`, {
       method: 'POST',
     });
     assert.equal(mutation.status, 403);
@@ -48,7 +48,7 @@ test('operational snapshot hides dependency failures rather than returning stale
       },
     },
     async (baseUrl) => {
-      const response = await fetch(`${baseUrl}/api/admin/operations/snapshot`);
+      const response = await fetch(`${baseUrl}/admin/api/operations/snapshot`);
       assert.equal(response.status, 503);
       const body = await response.text();
       assert.deepEqual(JSON.parse(body), { error: 'service_unavailable' });

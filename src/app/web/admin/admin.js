@@ -426,7 +426,7 @@
     setOperationsState('loading', 'Loading current operational snapshot…');
     required('[data-refresh-operations]').disabled = true;
     try {
-      const result = await api('/api/admin/operations/snapshot');
+      const result = await api('/admin/api/operations/snapshot');
       if (sequence !== state.operationsRequestSequence) return;
       state.operationsSnapshot = result.snapshot;
       renderOperations();
@@ -626,7 +626,7 @@
     elements.publicationForm.hidden = true;
     hideMessage(elements.publicationFormError);
     try {
-      const result = await api('/api/admin/publication');
+      const result = await api('/admin/api/publication');
       state.publication = result.publication;
       renderPublication();
       setPublicationState('ready', 'Publication configuration is ready.');
@@ -678,7 +678,7 @@
     };
     try {
       const result = await mutate(submitter, () =>
-        api('/api/admin/publication/configuration', {
+        api('/admin/api/publication/configuration', {
           method: 'PUT',
           body,
         }),
@@ -703,8 +703,8 @@
     setListState(elements.sourceListState, 'loading', 'Loading Sources…');
     try {
       const [categoriesResult, sourcesResult] = await Promise.all([
-        api('/api/admin/categories'),
-        api('/api/admin/sources'),
+        api('/admin/api/categories'),
+        api('/admin/api/sources'),
       ]);
       state.categories = categoriesResult.categories ?? [];
       state.sources = sourcesResult.sources ?? [];
@@ -778,8 +778,8 @@
     setListState(elements.endpointListState, 'loading', 'Loading endpoints…');
     try {
       const [sourceResult, endpointResult] = await Promise.all([
-        api(`/api/admin/sources/${encodeURIComponent(sourceKey)}`),
-        api(`/api/admin/sources/${encodeURIComponent(sourceKey)}/endpoints`),
+        api(`/admin/api/sources/${encodeURIComponent(sourceKey)}`),
+        api(`/admin/api/sources/${encodeURIComponent(sourceKey)}/endpoints`),
       ]);
       state.selectedSource = sourceResult.source;
       state.endpoints = endpointResult.endpoints ?? [];
@@ -906,8 +906,8 @@
       : configuration;
     const sourceKey = creating ? '' : (state.selectedSource?.configKey ?? '');
     const path = creating
-      ? '/api/admin/sources'
-      : `/api/admin/sources/${encodeURIComponent(sourceKey)}/configuration`;
+      ? '/admin/api/sources'
+      : `/admin/api/sources/${encodeURIComponent(sourceKey)}/configuration`;
     try {
       const result = await mutate(submitter, () =>
         api(path, { method: creating ? 'POST' : 'PUT', body }),
@@ -977,7 +977,7 @@
     try {
       const result = await mutate(document.activeElement, () =>
         api(
-          `/api/admin/sources/${encodeURIComponent(source.configKey)}/${action}`,
+          `/admin/api/sources/${encodeURIComponent(source.configKey)}/${action}`,
           { method: 'PUT', body },
         ),
       );
@@ -1056,7 +1056,7 @@
     setGlobalStatus('loading', `Loading endpoint ${endpointKey}…`);
     try {
       const result = await api(
-        `/api/admin/sources/${encodeURIComponent(source.configKey)}/endpoints/${encodeURIComponent(endpointKey)}`,
+        `/admin/api/sources/${encodeURIComponent(source.configKey)}/endpoints/${encodeURIComponent(endpointKey)}`,
       );
       if (selectionSequence !== state.endpointSelectionSequence) return;
       state.selectedEndpoint = result.endpoint;
@@ -1203,7 +1203,7 @@
           operationalState: input(form, 'operationalState').value,
         }
       : configuration;
-    const base = `/api/admin/sources/${encodeURIComponent(source.configKey)}/endpoints`;
+    const base = `/admin/api/sources/${encodeURIComponent(source.configKey)}/endpoints`;
     const path = creating
       ? base
       : `${base}/${encodeURIComponent(state.selectedEndpoint?.configKey ?? '')}/configuration`;
@@ -1284,7 +1284,7 @@
     try {
       const result = await mutate(document.activeElement, () =>
         api(
-          `/api/admin/sources/${encodeURIComponent(source.configKey)}/endpoints/${encodeURIComponent(endpoint.configKey)}/${action}`,
+          `/admin/api/sources/${encodeURIComponent(source.configKey)}/endpoints/${encodeURIComponent(endpoint.configKey)}/${action}`,
           { method: 'PUT', body },
         ),
       );
@@ -1310,7 +1310,7 @@
     const source = state.selectedSource;
     if (source === null) return;
     const result = await api(
-      `/api/admin/sources/${encodeURIComponent(source.configKey)}/endpoints`,
+      `/admin/api/sources/${encodeURIComponent(source.configKey)}/endpoints`,
     );
     state.endpoints = result.endpoints ?? [];
     renderEndpointList();
@@ -1331,7 +1331,7 @@
     elements.healthGrid.replaceChildren();
     elements.runsList.replaceChildren();
     try {
-      const base = `/api/admin/sources/${encodeURIComponent(source.configKey)}/endpoints/${encodeURIComponent(endpoint.configKey)}`;
+      const base = `/admin/api/sources/${encodeURIComponent(source.configKey)}/endpoints/${encodeURIComponent(endpoint.configKey)}`;
       const [healthResult, runsResult] = await Promise.all([
         api(`${base}/health`),
         api(`${base}/runs`),
@@ -1623,7 +1623,7 @@
     );
     elements.htmlPreviewResults.replaceChildren();
     try {
-      const result = await api('/api/admin/html-listing/preview', {
+      const result = await api('/admin/api/html-listing/preview', {
         method: 'POST',
         body: {
           html: elements.htmlPreviewSample.value,
@@ -1754,7 +1754,7 @@
     try {
       const result = await mutate(elements.checkNow, () =>
         api(
-          `/api/admin/sources/${encodeURIComponent(source.configKey)}/endpoints/${encodeURIComponent(endpoint.configKey)}/check-now`,
+          `/admin/api/sources/${encodeURIComponent(source.configKey)}/endpoints/${encodeURIComponent(endpoint.configKey)}/check-now`,
           { method: 'POST', body: {} },
         ),
       );
@@ -1888,7 +1888,7 @@
       query.set('pageSize', '20');
       if (append && state.articleCursor !== null)
         query.set('cursor', state.articleCursor);
-      const result = await api(`/api/admin/articles?${query.toString()}`);
+      const result = await api(`/admin/api/articles?${query.toString()}`);
       if (sequence !== state.articleRequestSequence) return;
       state.articles = append
         ? [...state.articles, ...(result.articles ?? [])]
@@ -1963,7 +1963,7 @@
     elements.articleDetailState.hidden = false;
     try {
       const result = await api(
-        `/api/admin/articles/${encodeURIComponent(articleId)}`,
+        `/admin/api/articles/${encodeURIComponent(articleId)}`,
       );
       if (state.selectedArticleId !== articleId) return;
       state.selectedArticle = result.article;
@@ -2097,7 +2097,7 @@
         action === 'hide' ? elements.articleHide : elements.articleRestore,
         () =>
           api(
-            `/api/admin/articles/${encodeURIComponent(article.articleId)}/visibility`,
+            `/admin/api/articles/${encodeURIComponent(article.articleId)}/visibility`,
             {
               method: 'PUT',
               body: { action, reason: null },
@@ -2127,7 +2127,7 @@
     try {
       const result = await mutate(event.submitter, () =>
         api(
-          `/api/admin/articles/${encodeURIComponent(article.articleId)}/display-title`,
+          `/admin/api/articles/${encodeURIComponent(article.articleId)}/display-title`,
           {
             method: 'PUT',
             body: { displayTitleOverride: value, reason: null },
@@ -2159,7 +2159,7 @@
     try {
       const result = await mutate(elements.articleDisplayClear, () =>
         api(
-          `/api/admin/articles/${encodeURIComponent(article.articleId)}/display-title`,
+          `/admin/api/articles/${encodeURIComponent(article.articleId)}/display-title`,
           {
             method: 'DELETE',
             body: { reason: null },
@@ -2198,7 +2198,7 @@
     try {
       const result = await mutate(event.submitter, () =>
         api(
-          `/api/admin/articles/${encodeURIComponent(article.articleId)}/categories`,
+          `/admin/api/articles/${encodeURIComponent(article.articleId)}/categories`,
           {
             method: 'PUT',
             body: { categoryConfigKeys: keys, reason: null },
@@ -2232,7 +2232,7 @@
     try {
       const result = await mutate(elements.articleCategoryClear, () =>
         api(
-          `/api/admin/articles/${encodeURIComponent(article.articleId)}/categories`,
+          `/admin/api/articles/${encodeURIComponent(article.articleId)}/categories`,
           {
             method: 'DELETE',
             body: { reason: null },
@@ -2365,7 +2365,7 @@
       if (append && state.reviewCursor !== null)
         query.set('cursor', state.reviewCursor);
       const result = await api(
-        `/api/admin/duplicate-reviews?${query.toString()}`,
+        `/admin/api/duplicate-reviews?${query.toString()}`,
       );
       if (sequence !== state.reviewRequestSequence) return;
       state.reviews = append
@@ -2431,7 +2431,7 @@
     elements.reviewDetailState.hidden = false;
     try {
       const result = await api(
-        `/api/admin/duplicate-reviews/${encodeURIComponent(candidateId)}`,
+        `/admin/api/duplicate-reviews/${encodeURIComponent(candidateId)}`,
       );
       if (state.selectedReviewId !== candidateId) return;
       state.selectedReview = result.review;
@@ -2595,7 +2595,7 @@
       'Dismiss review candidate',
       () =>
         api(
-          `/api/admin/duplicate-reviews/${encodeURIComponent(review.candidateId)}/dismiss`,
+          `/admin/api/duplicate-reviews/${encodeURIComponent(review.candidateId)}/dismiss`,
           {
             method: 'POST',
             body: { reason: reviewReason() },
@@ -2609,7 +2609,7 @@
     if (review === null) return;
     const primaryArticleId = elements.reviewMergePrimary.value;
     await runReviewCommand(elements.reviewMerge, 'Duplicate merge', () =>
-      api('/api/admin/duplicate-groups/merge', {
+      api('/admin/api/duplicate-groups/merge', {
         method: 'POST',
         body: {
           articleIds: review.articles.map((article) => article.articleId),
@@ -2637,7 +2637,7 @@
       return;
     }
     await runReviewCommand(elements.reviewSplit, 'Duplicate split', () =>
-      api(`/api/admin/duplicate-groups/${encodeURIComponent(groupId)}/split`, {
+      api(`/admin/api/duplicate-groups/${encodeURIComponent(groupId)}/split`, {
         method: 'POST',
         body: { articleIds, reason: reviewReason() },
       }),
@@ -2658,7 +2658,7 @@
     }
     await runReviewCommand(elements.reviewPrimary, 'Primary selection', () =>
       api(
-        `/api/admin/duplicate-groups/${encodeURIComponent(groupId)}/primary`,
+        `/admin/api/duplicate-groups/${encodeURIComponent(groupId)}/primary`,
         {
           method: 'POST',
           body: { articleId, reason: reviewReason() },
@@ -2788,9 +2788,9 @@
     setListState(elements.ruleListState, 'loading', 'Loading Relevance rules…');
     try {
       const [categories, rules, sources] = await Promise.all([
-        api('/api/admin/categories'),
-        api('/api/admin/relevance-rules'),
-        api('/api/admin/sources'),
+        api('/admin/api/categories'),
+        api('/admin/api/relevance-rules'),
+        api('/admin/api/sources'),
       ]);
       state.categories = categories.categories ?? [];
       state.relevanceRules = rules.relevanceRules ?? [];
@@ -2848,7 +2848,7 @@
   async function selectCategory(key) {
     try {
       const result = await api(
-        `/api/admin/categories/${encodeURIComponent(key)}`,
+        `/admin/api/categories/${encodeURIComponent(key)}`,
       );
       state.selectedCategory = result.category;
       state.categoryMode = 'edit';
@@ -2900,8 +2900,8 @@
       const result = await mutate(event.submitter, () =>
         api(
           creating
-            ? '/api/admin/categories'
-            : `/api/admin/categories/${encodeURIComponent(key)}`,
+            ? '/admin/api/categories'
+            : `/admin/api/categories/${encodeURIComponent(key)}`,
           {
             method: creating ? 'POST' : 'PUT',
             body: creating
@@ -2936,7 +2936,7 @@
       return;
     try {
       await mutate(elements.categoryDelete, () =>
-        api(`/api/admin/categories/${encodeURIComponent(category.configKey)}`, {
+        api(`/admin/api/categories/${encodeURIComponent(category.configKey)}`, {
           method: 'DELETE',
           body: {},
         }),
@@ -2981,7 +2981,7 @@
   async function selectRule(key) {
     try {
       const result = await api(
-        `/api/admin/relevance-rules/${encodeURIComponent(key)}`,
+        `/admin/api/relevance-rules/${encodeURIComponent(key)}`,
       );
       state.selectedRule = result.relevanceRule;
       state.ruleMode = 'edit';
@@ -3099,8 +3099,8 @@
       const result = await mutate(event.submitter, () =>
         api(
           creating
-            ? '/api/admin/relevance-rules'
-            : `/api/admin/relevance-rules/${encodeURIComponent(key)}/configuration`,
+            ? '/admin/api/relevance-rules'
+            : `/admin/api/relevance-rules/${encodeURIComponent(key)}/configuration`,
           { method: creating ? 'POST' : 'PUT', body: ruleBody() },
         ),
       );
@@ -3122,7 +3122,7 @@
     try {
       const result = await mutate(elements.ruleEnabled, () =>
         api(
-          `/api/admin/relevance-rules/${encodeURIComponent(rule.configKey)}/enabled`,
+          `/admin/api/relevance-rules/${encodeURIComponent(rule.configKey)}/enabled`,
           { method: 'PUT', body: { enabled: !rule.enabled } },
         ),
       );
@@ -3145,7 +3145,7 @@
     try {
       await mutate(elements.ruleDelete, () =>
         api(
-          `/api/admin/relevance-rules/${encodeURIComponent(rule.configKey)}`,
+          `/admin/api/relevance-rules/${encodeURIComponent(rule.configKey)}`,
           { method: 'DELETE', body: {} },
         ),
       );

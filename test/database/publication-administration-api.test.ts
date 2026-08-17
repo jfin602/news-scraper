@@ -78,7 +78,7 @@ describe('Publication administration API', () => {
       );
       try {
         const missing = await fetch(
-          `http://${server.host}:${String(server.port)}/api/admin/publication`,
+          `http://${server.host}:${String(server.port)}/admin/api/publication`,
         );
         assert.equal(missing.status, 404);
         assert.deepEqual(await missing.json(), {
@@ -86,7 +86,7 @@ describe('Publication administration API', () => {
         });
 
         const rejected = await fetch(
-          `http://${server.host}:${String(server.port)}/api/admin/publication/configuration`,
+          `http://${server.host}:${String(server.port)}/admin/api/publication/configuration`,
           {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },

@@ -28,15 +28,15 @@ describe('Admin HTTP perimeter foundation', () => {
         '/admin',
         '/admin/assets/admin.css',
         '/admin/assets/admin.js',
-        '/api/admin',
-        '/api/admin/sources',
+        '/admin/api',
+        '/admin/api/sources',
       ]) {
         const response = await fetch(`${baseUrl}${path}`);
         assert.equal(response.status, 404, path);
         assert.doesNotMatch(await response.text(), /Administration/u, path);
       }
 
-      const mutation = await fetch(`${baseUrl}/api/admin/test-mutation`, {
+      const mutation = await fetch(`${baseUrl}/admin/api/test-mutation`, {
         method: 'POST',
         headers: adminJsonHeaders(),
         body: '{}',
@@ -86,15 +86,53 @@ describe('Admin HTTP perimeter foundation', () => {
       });
     };
     await withWebServer(true, registerRoutes, async (baseUrl) => {
-      const read = await fetch(`${baseUrl}/api/admin/test-read`);
+      const read = await fetch(`${baseUrl}/admin/api/test-read`);
       assert.equal(read.status, 200);
       assert.deepEqual(await read.json(), { status: 'ok' });
       assertAdminSecurityHeaders(read);
 
-      const unknown = await fetch(`${baseUrl}/api/admin/unknown`);
+      const unknown = await fetch(`${baseUrl}/admin/api/unknown`);
       assert.equal(unknown.status, 404);
       assert.deepEqual(await unknown.json(), { error: 'not_found' });
       assertAdminSecurityHeaders(unknown);
+    });
+  });
+
+  it('does not register the obsolete API path or redirect it to the admin perimeter', async () => {
+    let handlerCalls = 0;
+    const registerRoutes = (router: Router) => {
+      router.get('/test-read', (_request, response) => {
+        handlerCalls += 1;
+        response.status(200).json({ status: 'ok' });
+      });
+      router.post('/test-mutation', (_request, response) => {
+        handlerCalls += 1;
+        response.status(204).end();
+      });
+    };
+    await withWebServer(true, registerRoutes, async (baseUrl) => {
+      for (const path of ['/api/admin', '/api/admin/test-read']) {
+        const response = await fetch(`${baseUrl}${path}`, {
+          redirect: 'manual',
+        });
+        assert.equal(response.status, 404, path);
+        assert.equal(response.headers.get('location'), null, path);
+        assert.match(
+          response.headers.get('content-type') ?? '',
+          /^text\/html/u,
+        );
+      }
+
+      const mutation = await fetch(`${baseUrl}/api/admin/test-mutation`, {
+        method: 'POST',
+        headers: adminJsonHeaders(),
+        body: '{}',
+        redirect: 'manual',
+      });
+      assert.equal(mutation.status, 404);
+      assert.equal(mutation.headers.get('location'), null);
+      assert.match(mutation.headers.get('content-type') ?? '', /^text\/html/u);
+      assert.equal(handlerCalls, 0);
     });
   });
 
@@ -104,7 +142,7 @@ describe('Admin HTTP perimeter foundation', () => {
       receivedBody = requestBody;
     });
     await withWebServer(true, registerRoutes, async (baseUrl) => {
-      const response = await fetch(`${baseUrl}/api/admin/test-mutation`, {
+      const response = await fetch(`${baseUrl}/admin/api/test-mutation`, {
         method: 'POST',
         headers: adminJsonHeaders(),
         body: JSON.stringify({ value: 'accepted' }),
@@ -128,7 +166,7 @@ describe('Admin HTTP perimeter foundation', () => {
         if (headerValue !== undefined) {
           headers[ADMIN_REQUEST_HEADER] = headerValue;
         }
-        const response = await fetch(`${baseUrl}/api/admin/test-mutation`, {
+        const response = await fetch(`${baseUrl}/admin/api/test-mutation`, {
           method: 'POST',
           headers,
           body: '{}',
@@ -153,7 +191,7 @@ describe('Admin HTTP perimeter foundation', () => {
     await withWebServer(true, registerRoutes, async (baseUrl) => {
       for (const method of ['POST', 'PUT', 'PATCH', 'DELETE']) {
         const rejected = await fetch(
-          `${baseUrl}/api/admin/test-unsafe-methods`,
+          `${baseUrl}/admin/api/test-unsafe-methods`,
           {
             method,
             headers: { 'Content-Type': 'application/json' },
@@ -163,7 +201,7 @@ describe('Admin HTTP perimeter foundation', () => {
         assert.equal(rejected.status, 403, method);
 
         const accepted = await fetch(
-          `${baseUrl}/api/admin/test-unsafe-methods`,
+          `${baseUrl}/admin/api/test-unsafe-methods`,
           {
             method,
             headers: adminJsonHeaders(),
@@ -186,7 +224,7 @@ describe('Admin HTTP perimeter foundation', () => {
         'application/x-www-form-urlencoded',
         'text/plain',
       ]) {
-        const response = await fetch(`${baseUrl}/api/admin/test-mutation`, {
+        const response = await fetch(`${baseUrl}/admin/api/test-mutation`, {
           method: 'POST',
           headers: {
             [ADMIN_REQUEST_HEADER]: ADMIN_REQUEST_HEADER_VALUE,
@@ -209,7 +247,7 @@ describe('Admin HTTP perimeter foundation', () => {
       handlerCalls += 1;
     });
     await withWebServer(true, registerRoutes, async (baseUrl) => {
-      const response = await fetch(`${baseUrl}/api/admin/test-mutation`, {
+      const response = await fetch(`${baseUrl}/admin/api/test-mutation`, {
         method: 'POST',
         headers: adminJsonHeaders(),
         body: '{"broken":',
@@ -231,7 +269,7 @@ describe('Admin HTTP perimeter foundation', () => {
         Buffer.byteLength(exactBody),
         ADMIN_API_JSON_BODY_LIMIT_BYTES,
       );
-      const accepted = await fetch(`${baseUrl}/api/admin/test-mutation`, {
+      const accepted = await fetch(`${baseUrl}/admin/api/test-mutation`, {
         method: 'POST',
         headers: adminJsonHeaders(),
         body: exactBody,
@@ -244,7 +282,7 @@ describe('Admin HTTP perimeter foundation', () => {
         Buffer.byteLength(oversizedBody),
         ADMIN_API_JSON_BODY_LIMIT_BYTES + 1,
       );
-      const rejected = await fetch(`${baseUrl}/api/admin/test-mutation`, {
+      const rejected = await fetch(`${baseUrl}/admin/api/test-mutation`, {
         method: 'POST',
         headers: adminJsonHeaders(),
         body: oversizedBody,
@@ -260,7 +298,7 @@ describe('Admin HTTP perimeter foundation', () => {
   it('does not emit permissive CORS headers for cross-origin mutation attempts', async () => {
     const registerRoutes = mutationRoute(() => undefined);
     await withWebServer(true, registerRoutes, async (baseUrl) => {
-      const response = await fetch(`${baseUrl}/api/admin/test-mutation`, {
+      const response = await fetch(`${baseUrl}/admin/api/test-mutation`, {
         method: 'POST',
         headers: {
           ...adminJsonHeaders(),
@@ -275,7 +313,7 @@ describe('Admin HTTP perimeter foundation', () => {
         null,
       );
 
-      const preflight = await fetch(`${baseUrl}/api/admin/test-mutation`, {
+      const preflight = await fetch(`${baseUrl}/admin/api/test-mutation`, {
         method: 'OPTIONS',
         headers: {
           Origin: 'https://attacker.invalid',
@@ -296,7 +334,7 @@ describe('Admin HTTP perimeter foundation', () => {
       });
     };
     await withWebServer(true, registerRoutes, async (baseUrl) => {
-      const response = await fetch(`${baseUrl}/api/admin/test-error`);
+      const response = await fetch(`${baseUrl}/admin/api/test-error`);
       const body = await response.text();
       assert.equal(response.status, 500);
       assert.deepEqual(JSON.parse(body), { error: 'internal_error' });

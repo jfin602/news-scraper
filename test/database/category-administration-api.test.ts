@@ -28,14 +28,14 @@ after(async () => databaseTestScope.dispose());
 
 test('Category admin API owns the compatible list and CRUD boundary', async () => {
   await withCategoryAdmin(async ({ database, baseUrl }) => {
-    const missingIntegrity = await fetch(`${baseUrl}/api/admin/categories`, {
+    const missingIntegrity = await fetch(`${baseUrl}/admin/api/categories`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ configKey: 'blocked', displayName: 'Blocked' }),
     });
     assert.equal(missingIntegrity.status, 403);
 
-    const invalid = await fetch(`${baseUrl}/api/admin/categories`, {
+    const invalid = await fetch(`${baseUrl}/admin/api/categories`, {
       method: 'POST',
       headers: adminJsonHeaders(),
       body: JSON.stringify({
@@ -47,7 +47,7 @@ test('Category admin API owns the compatible list and CRUD boundary', async () =
     assert.deepEqual(await invalid.json(), { error: 'invalid_request' });
     assert.equal(invalid.status, 400);
 
-    const created = await fetch(`${baseUrl}/api/admin/categories`, {
+    const created = await fetch(`${baseUrl}/admin/api/categories`, {
       method: 'POST',
       headers: adminJsonHeaders(),
       body: JSON.stringify({
@@ -60,7 +60,7 @@ test('Category admin API owns the compatible list and CRUD boundary', async () =
       category: { configKey: 'industry_news', displayName: 'Industry News' },
     });
 
-    const duplicate = await fetch(`${baseUrl}/api/admin/categories`, {
+    const duplicate = await fetch(`${baseUrl}/admin/api/categories`, {
       method: 'POST',
       headers: adminJsonHeaders(),
       body: JSON.stringify({
@@ -73,7 +73,7 @@ test('Category admin API owns the compatible list and CRUD boundary', async () =
       error: 'category_config_key_conflict',
     });
 
-    const list = await fetch(`${baseUrl}/api/admin/categories`);
+    const list = await fetch(`${baseUrl}/admin/api/categories`);
     assert.equal(list.status, 200);
     assert.deepEqual(await list.json(), {
       categories: [
@@ -81,14 +81,14 @@ test('Category admin API owns the compatible list and CRUD boundary', async () =
       ],
     });
 
-    const detail = await fetch(`${baseUrl}/api/admin/categories/industry_news`);
+    const detail = await fetch(`${baseUrl}/admin/api/categories/industry_news`);
     assert.equal(detail.status, 200);
     assert.deepEqual(await detail.json(), {
       category: { configKey: 'industry_news', displayName: 'Industry News' },
     });
 
     const updated = await fetch(
-      `${baseUrl}/api/admin/categories/industry_news`,
+      `${baseUrl}/admin/api/categories/industry_news`,
       {
         method: 'PUT',
         headers: adminJsonHeaders(),
@@ -104,7 +104,7 @@ test('Category admin API owns the compatible list and CRUD boundary', async () =
     });
 
     const immutable = await fetch(
-      `${baseUrl}/api/admin/categories/industry_news`,
+      `${baseUrl}/admin/api/categories/industry_news`,
       {
         method: 'PUT',
         headers: adminJsonHeaders(),
@@ -117,12 +117,12 @@ test('Category admin API owns the compatible list and CRUD boundary', async () =
     assert.equal(immutable.status, 400);
     assert.deepEqual(await immutable.json(), { error: 'invalid_request' });
 
-    const missing = await fetch(`${baseUrl}/api/admin/categories/missing`);
+    const missing = await fetch(`${baseUrl}/admin/api/categories/missing`);
     assert.equal(missing.status, 404);
     assert.deepEqual(await missing.json(), { error: 'category_not_found' });
 
     const missingDelete = await fetch(
-      `${baseUrl}/api/admin/categories/missing`,
+      `${baseUrl}/admin/api/categories/missing`,
       { method: 'DELETE', headers: adminJsonHeaders(), body: '{}' },
     );
     assert.equal(missingDelete.status, 404);
@@ -263,7 +263,7 @@ test('Category removal is guarded by every retained relationship and rolls back'
     );
 
     const rejected = await fetch(
-      `${baseUrl}/api/admin/categories/guarded_category`,
+      `${baseUrl}/admin/api/categories/guarded_category`,
       { method: 'DELETE', headers: adminJsonHeaders(), body: '{}' },
     );
     assert.equal(rejected.status, 409);
@@ -274,7 +274,7 @@ test('Category removal is guarded by every retained relationship and rolls back'
     );
 
     const deleted = await fetch(
-      `${baseUrl}/api/admin/categories/guarded_category`,
+      `${baseUrl}/admin/api/categories/guarded_category`,
       { method: 'DELETE', headers: adminJsonHeaders(), body: '{}' },
     );
     assert.equal(deleted.status, 204);
@@ -362,7 +362,7 @@ async function withCategoryAdmin(
 
 async function assertCategoryInUse(baseUrl: string): Promise<void> {
   const response = await fetch(
-    `${baseUrl}/api/admin/categories/guarded_category`,
+    `${baseUrl}/admin/api/categories/guarded_category`,
     { method: 'DELETE', headers: adminJsonHeaders(), body: '{}' },
   );
   assert.equal(response.status, 409);

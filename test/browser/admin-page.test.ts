@@ -179,7 +179,7 @@ describe('Source administration page browser behavior', () => {
       async (page) => {
         page.on('request', (request) => {
           if (
-            request.url().includes('/api/admin/publication/configuration') &&
+            request.url().includes('/admin/api/publication/configuration') &&
             request.method() === 'PUT'
           ) {
             mutationHeaders.push(
@@ -674,7 +674,7 @@ describe('Source administration page browser behavior', () => {
           body: string;
         }> = [];
         page.on('request', (request) => {
-          if (request.url().endsWith('/api/admin/html-listing/preview')) {
+          if (request.url().endsWith('/admin/api/html-listing/preview')) {
             previewRequests.push({
               url: request.url(),
               header: request.headers()['x-news-scraper-admin-request'] ?? null,
@@ -695,7 +695,7 @@ describe('Source administration page browser behavior', () => {
         assert.equal(previewRequests.length, 1);
         assert.equal(previewRequests[0]?.header, '1');
         assert.equal(
-          previewRequests[0]?.url.endsWith('/api/admin/html-listing/preview'),
+          previewRequests[0]?.url.endsWith('/admin/api/html-listing/preview'),
           true,
         );
         assert.match(previewRequests[0]?.body ?? '', /"profile"/u);
@@ -749,7 +749,7 @@ describe('Source administration page browser behavior', () => {
         const createResponsePromise = page.waitForResponse(
           (response) =>
             response.request().method() === 'POST' &&
-            response.url().endsWith('/api/admin/sources/journal/endpoints'),
+            response.url().endsWith('/admin/api/sources/journal/endpoints'),
         );
         await page
           .getByRole('button', { name: 'Create endpoint', exact: true })
@@ -892,7 +892,7 @@ describe('Source administration page browser behavior', () => {
         const previewHeld = new Promise<void>((resolve) => {
           releasePreview = resolve;
         });
-        await page.route('**/api/admin/html-listing/preview', async (route) => {
+        await page.route('**/admin/api/html-listing/preview', async (route) => {
           await previewHeld;
           await route.continue();
         });
@@ -902,7 +902,7 @@ describe('Source administration page browser behavior', () => {
             '<article class="item"><h2 class="title">Stale preview</h2><a href="/stale">Read</a></article>',
           );
         const stalePreviewResponse = page.waitForResponse((response) =>
-          response.url().endsWith('/api/admin/html-listing/preview'),
+          response.url().endsWith('/admin/api/html-listing/preview'),
         );
         await page.getByRole('button', { name: 'Preview draft' }).click();
         assert.equal(
@@ -914,7 +914,7 @@ describe('Source administration page browser behavior', () => {
         await page.getByRole('button', { name: 'main_feed' }).click();
         releasePreview?.();
         await stalePreviewResponse;
-        await page.unroute('**/api/admin/html-listing/preview');
+        await page.unroute('**/admin/api/html-listing/preview');
         await page.waitForSelector(
           '[data-endpoint-form] [name="endpointType"]',
         );
