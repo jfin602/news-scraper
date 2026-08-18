@@ -1,0 +1,142 @@
+TASK: Phase 21 / P5 — Canonicalize admin request-shape validation
+
+ROADMAP PHASE
+Phase 21 — Codebase simplification and maintainability hardening.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra Medium`.
+- Model-family basis: this is a bounded cross-cutting admin validation consolidation across six service modules at a security-sensitive API boundary.
+- Reasoning basis: Medium reasoning is sufficient because only the structural exact-record primitive should move; domain validation/error vocabularies remain explicitly owned by each service.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna High`; it would normally be adequate for this explicit helper extraction, but the repository owner set a Terra-or-higher implementation floor for the final Phase 21 cleanup.
+- Escalation trigger: source inspection shows materially different structural semantics that cannot be represented by one small plain-object/required-key/allowed-key primitive without obscuring domain behavior.
+- Escalation target: `Terra High`; stop for replanning before introducing a generic validation framework.
+- Estimate confidence: `High`.
+- Efficiency rationale: consolidate only the duplicated structural rule and deliberately leave UUID/config/domain/Relevance/duplicate semantics local, avoiding a speculative abstraction.
+- Plan delta: `Escalated` to the owner-requested Terra floor; implementation boundary remains the same.
+
+VERSIONING
+- This is Phase 21 prompt 5 and its assigned project version is `0.21.5`.
+- On first execution require top-level `package.json` version `0.21.4`, then update only that version to `0.21.5`.
+- On rerun of this same P5 retain `0.21.5`; any other version is sequence drift and must stop execution.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, Phase 21 roadmap, `docs/contracts/testing-and-validation-contract.md`, `docs/contracts/public-feed-and-admin-contract.md`, and relevant admin/security architecture guidance;
+2. inspect the current complete implementations of Source, Endpoint, Editorial, Publication, Article, and Duplicate administration services;
+3. locate every local `exactRecord` or equivalent structural request-object validator and compare required-key, optional-key, empty-object, array/null/primitive, and unknown-key behavior;
+4. inspect direct unit/component/API/database tests for each service's `invalid_request` behavior;
+5. inspect admin routers only as consumers; do not move semantic validation into HTTP handlers;
+6. stop and report `Planning needed` if one common primitive would need to understand domain-specific errors, cursor semantics, configuration validation, or persistence constraints.
+
+GOAL
+Create one canonical admin input-shape primitive for validating that an untrusted value is a plain request object with the allowed/required top-level keys, then migrate all duplicated admin-service copies to that primitive without merging their domain semantics.
+
+SHARED PRIMITIVE BOUNDARY
+Add the smallest module appropriate for admin-only structural input validation, for example `src/admin/input-validation.ts`.
+
+It should own only concepts such as:
+- input must be a non-null object and not an array;
+- all required keys are present when a caller declares them;
+- no keys outside required + optional/allowed keys are present;
+- return of a `Record<string, unknown>` or an equivalent neutral success result.
+
+Prefer a neutral failure representation (`undefined`, boolean/result type, or a small structural error) that lets each calling service retain its own `invalid_request` error class. Do not make the helper throw `ArticleAdministrationError`, `EndpointAdministrationError`, etc.
+
+CALLER MIGRATION
+Migrate the duplicated structural check in all currently relevant admin services, expected to include:
+- `src/admin/source-administration.ts`;
+- `src/admin/endpoint-administration.ts`;
+- `src/admin/editorial-administration.ts`;
+- `src/admin/publication-administration.ts`;
+- `src/admin/article-administration.ts`;
+- `src/admin/duplicate-administration.ts`.
+
+Preserve each caller's current distinction between:
+- required keys;
+- optional/allowed-only keys;
+- commands where all keys are optional and `{}` is valid;
+- invalid extra fields.
+
+Do not force all commands into one required-key signature for symmetry.
+
+DO NOT CONSOLIDATE
+Keep these authorities local unless an already-existing canonical helper is simply reused:
+- UUID validation/normalization;
+- config-key validation;
+- page-size/cursor decoding/fingerprinting;
+- Source/endpoint domain-policy/configuration errors;
+- Publication field validation;
+- Category/Relevance semantic normalization;
+- duplicate review/group state validation;
+- database constraint/error translation;
+- persisted-row validation.
+
+Those rules have different contracts/error semantics and are not P5 cleanup targets merely because their code looks similar.
+
+SECURITY / REQUEST INTEGRITY
+This is service-level shape validation, not a replacement for Web-layer JSON parsing or mutation request-integrity controls. Preserve:
+- duplicate JSON object-key rejection;
+- body/content-type bounds;
+- admin request-integrity header policy;
+- Cloudflare perimeter assumptions;
+- generic secret-safe HTTP failures.
+
+P5 must not move or weaken any of those server middleware responsibilities.
+
+TESTS
+Add focused tests for the shared structural primitive covering, as appropriate:
+- null;
+- arrays;
+- primitives;
+- allowed object;
+- missing required key;
+- unknown extra key;
+- optional key present/absent;
+- empty object where legal;
+- inherited properties not accidentally treated as own request keys, if relevant to current implementation.
+
+Then preserve/update service/API tests proving every migrated caller still returns its established `invalid_request` behavior and valid commands remain accepted.
+
+Do not replace all domain tests with helper tests; consumer coverage is required because a shared helper change affects six important callers.
+
+EXPECTED FILE AREA
+- new small admin input-validation module + focused test;
+- six admin service modules named above;
+- directly affected tests/imports;
+- `package.json` version.
+
+No schema/migration or browser-client change is expected.
+
+FOCUSED DEVELOPMENT VALIDATION
+Run the new helper test and the smallest direct service/API tests for migrated consumers while iterating. Use focused DB tests only for consumers whose behavior is proven through real persistence; do not repeatedly run the full DB matrix for helper edits.
+
+FINAL-TREE VALIDATION FOR THIS PROMPT
+Run:
+- `npm run check`;
+- `npm run test:db` because several migrated admin commands are persistence-backed and shared-helper regressions can affect multiple DB suites;
+- committed-range `git diff --check` for P5.
+
+No browser/security suite is required solely for this service-level structural extraction unless implementation changes those boundaries unexpectedly; if it does, run the corresponding invalidated suite.
+
+ACCEPTANCE
+P5 is complete only when:
+- one canonical admin structural input-shape primitive replaces the six duplicated copies;
+- domain-specific error classes and semantic validation remain with each service;
+- valid/invalid request behavior is unchanged for all migrated consumers;
+- no generic validation framework or cross-domain error abstraction was introduced;
+- final affected database/service regressions pass;
+- package version is `0.21.5`.
+
+NON-GOALS
+Do not consolidate row validators, UUID helpers, cursor codecs, configuration normalizers, HTTP middleware, persistence errors, or unrelated small helpers merely for deduplication metrics.
+
+FINAL REPORT
+Report:
+- canonical helper API and callers migrated;
+- duplicated code removed versus intentionally retained domain validation;
+- focused and final validation actually run;
+- package version confirmation `0.21.5`;
+- any structural validation difference that was intentionally not consolidated and why.

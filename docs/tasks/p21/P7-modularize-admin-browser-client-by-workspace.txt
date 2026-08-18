@@ -1,0 +1,220 @@
+TASK: Phase 21 / P7 — Modularize the admin browser client by workspace
+
+ROADMAP PHASE
+Phase 21 — Codebase simplification and maintainability hardening.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: this is the largest maintainability refactor in Phase 21, decomposing one browser application that currently owns all workspace state, DOM references, async sequencing, mutations, and navigation.
+- Reasoning basis: High reasoning is needed to split ownership without introducing stale-response races, duplicate catalog loads, mutation-integrity drift, cyclic module state, broken workspace navigation, or accessibility regressions.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because the current client has several interacting request-sequence guards, one global mutation lock, cross-workspace Source/Category metadata, and browser focus/navigation behavior that must remain coherent after modularization.
+- Escalation trigger: source inspection after P6 reveals substantially more cyclic state ownership or race-sensitive coupling than the planned workspace decomposition can safely isolate with native modules.
+- Escalation target: `Terra Ultra`; stop for replanning before introducing a framework/store architecture or changing admin UX semantics.
+- Estimate confidence: `High`.
+- Efficiency rationale: native browser modules provide durable ownership boundaries without adding a bundler, framework, dependency, or build step.
+- Plan delta: `Unchanged` from `/prompt-plan`; P6 now provides the server/static-asset handoff that makes this client-only refactor independently reviewable.
+
+VERSIONING
+- This is Phase 21 prompt 7 and its assigned project version is `0.21.7`.
+- On first execution require top-level `package.json` version `0.21.6`, then update only that version to `0.21.7`.
+- On rerun of this same P7 retain `0.21.7`; any other version is sequence drift and must stop execution.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, Phase 21 roadmap, `docs/contracts/testing-and-validation-contract.md`, `docs/contracts/public-feed-and-admin-contract.md`, admin security/operations guidance, and system architecture;
+2. read P6 and inspect its actual committed page/static/API-security decomposition and asset allowlist tests;
+3. inspect the complete current admin browser client, current HTML data attributes, CSS selectors used by behavior, and all browser tests for Publication, Operations, Sources/endpoints, Editorial, Articles, and duplicate review;
+4. map current global mutable state, DOM element ownership, shared helper consumers, async request-sequence counters, mutation serialization, workspace activation, refresh-all, and Operations-to-endpoint navigation;
+5. identify which Source/Category metadata is shared across workspaces and which state is truly workspace-local;
+6. inspect the canonical client `api()`/mutation request-header behavior and P6 security constants/asset paths;
+7. stop and report `Planning needed` if native modules cannot separate the current ownership cleanly without a new framework/build system or material product/UX change.
+
+GOAL
+Replace the single giant admin browser IIFE/global state owner with a small native-ES-module application whose shared infrastructure and workspace state have explicit canonical owners.
+
+NO FRAMEWORK / BUILD SYSTEM
+Use browser-native ES modules served through P6's explicit same-origin admin asset allowlist.
+
+Do not add:
+- React/Vue/Svelte/etc.;
+- a bundler/transpiler;
+- a client state-management dependency;
+- npm production dependencies;
+- code generation;
+- a second admin API/client transport layer.
+
+The existing CSP should continue to permit same-origin module scripts without inline script or unsafe-eval changes.
+
+TARGET MODULE SHAPE
+A reasonable target is:
+
+- `admin.js` — minimal bootstrap/workspace coordinator;
+- `core.js` — canonical API/mutation/status/common DOM utilities shared by several workspaces;
+- `catalog.js` — shared current Source/Category choice data and refresh semantics;
+- `publication.js` — Publication workspace;
+- `operations.js` — Operations workspace;
+- `sources.js` — Sources + endpoints + HTML preview + endpoint operational behavior;
+- `editorial.js` — Categories/Relevance workspace;
+- `moderation.js` — Articles + duplicate-review workspace.
+
+Exact filenames/grouping may vary when inspection proves a cleaner equivalent. Do not fragment tiny helpers into one-file abstractions merely to reduce line counts.
+
+OWNERSHIP RULES
+A. BOOTSTRAP / COORDINATOR
+Own only cross-workspace concerns:
+- active workspace/tab/panel switching;
+- initial application boot;
+- global Refresh All coordination;
+- workspace activation callbacks;
+- explicit Operations -> Source/Endpoint navigation handoff.
+
+It should not retain all workspace domain state.
+
+B. CORE
+Own genuinely shared infrastructure:
+- one canonical `api()` function;
+- one canonical mutation helper/global unsafe-mutation serialization if current behavior requires only one mutation at a time;
+- request-integrity header application for unsafe requests;
+- common bounded error-message mapping/status helpers;
+- common DOM utility functions used by multiple workspaces.
+
+Do not copy API/mutation/error logic into each workspace.
+
+C. CATALOG
+Own shared Source and Category choice data needed by multiple workspaces. Define explicit refresh/update semantics so Sources, Editorial, and Moderation do not each invent a competing metadata authority.
+
+Do not make Catalog own Source editor state or Category/Relevance mutation state; those remain workspace concerns.
+
+D. WORKSPACE MODULES
+Each workspace owns its own mutable state and request sequencing.
+
+In particular preserve distinct stale-response protection for:
+- endpoint selection;
+- HTML preview;
+- Operations snapshot;
+- Article list/detail requests;
+- duplicate review list/detail requests.
+
+Do not replace the current giant global state object with a giant exported `state` singleton imported everywhere.
+
+Articles + duplicate review may remain one `moderation` module because they form one current workspace and share mutation/refresh/navigation behavior.
+
+CROSS-WORKSPACE RELATIONSHIPS TO PRESERVE
+- initial Source/Category choices remain available to relevant forms/filters;
+- Publication edit can return to/use other workspaces normally;
+- Editorial Category changes refresh the shared choices needed by Source/Endpoint defaults and Article filters without reload-only stale state;
+- Source changes refresh shared Source choices used by Article filters and Operations navigation;
+- Operations can open the Sources workspace and select the named Source/Endpoint;
+- global Refresh All retains its current user-visible semantics without issuing uncontrolled duplicate requests;
+- unsafe mutations remain globally serialized if that is the current intentional protection;
+- switching workspaces does not cause stale in-flight responses to overwrite newer selections.
+
+REQUEST / SECURITY PRESERVATION
+All unsafe browser requests must continue through one shared client boundary that supplies the canonical request-integrity header/value required by P6's server security owner.
+
+Do not hard-code a divergent header name/value in multiple modules. Use a tiny client constant if needed, but keep one source inside the browser application and preserve server tests that verify the actual wire header.
+
+Do not change API paths, methods, JSON shapes, Cloudflare perimeter assumptions, or server-side validation.
+
+PAGE / ASSET INTEGRATION
+- Change the admin entry script to `type="module"` or equivalent native-module loading.
+- Extend only P6's explicit admin asset allowlist for the real module files added by P7.
+- Relative imports should resolve beneath `/admin/assets/` and receive the established JavaScript media type/security headers.
+- No wildcard/static-directory exposure.
+- Preserve CSS and DOM data attributes unless a minimal markup change materially improves ownership and all browser tests are updated around behavior rather than private structure.
+
+ACCESSIBILITY / UX PRESERVATION
+No visual redesign is in scope. Preserve:
+- tab roles/selected state;
+- keyboard/focus behavior when switching workspaces and loading details;
+- responsive/mobile behavior;
+- loading/ready/error/empty states;
+- disabled mutation controls while operations are in flight;
+- existing accessible status/alert semantics;
+- current operator workflows and labels except incidental stale-code cleanup already authorized by P6.
+
+CLEANUP EXPECTATIONS
+As responsibilities move:
+- delete dead functions/state/elements left in the old entry file;
+- consolidate genuinely shared browser helpers in `core.js` rather than duplicating them across new modules;
+- keep workspace-specific helpers local when they have one owner;
+- remove compatibility globals/IIFE bridges rather than exporting them for old code;
+- do not preserve one monolithic `elements` registry if each workspace can own/query its own stable DOM roots;
+- avoid repeated selector lookups when a workspace can resolve its bounded element set at initialization.
+
+TEST STRATEGY
+Existing real-browser tests are the primary behavioral contract. Adapt them only where they assert private script structure rather than behavior.
+
+Add focused browser coverage where necessary for module-specific risks not already protected, especially:
+- module asset load failure/404 behavior when relevant to the server boundary;
+- Refresh All after several workspaces have loaded;
+- Operations -> Source/Endpoint navigation;
+- Category/Source metadata refresh across workspaces;
+- stale Endpoint/HTML-preview response suppression;
+- stale Article/review response suppression;
+- one unsafe mutation header on mutations from representative workspaces;
+- workspace switching/focus at desktop and representative mobile viewport.
+
+Do not duplicate every existing browser scenario in a new test file solely because modules changed.
+
+EXPECTED FILE AREA
+Primary browser assets under `src/app/web/admin/` plus the P6 page/static asset manifest and minimal HTML entry-script change.
+
+Direct tests:
+- `test/browser/admin-page.test.ts`;
+- Article/duplicate moderation browser suites;
+- operations/admin browser suites;
+- any focused page/static component test required by module loading.
+
+Do not change database/schema or server domain/service behavior.
+
+FOCUSED DEVELOPMENT VALIDATION
+During iteration run the smallest relevant browser test file(s) for the workspace being moved plus static/lint checks. Move one coherent workspace at a time while keeping the native module graph loadable; do not wait until the final step to discover import cycles or asset routing failures.
+
+FINAL-TREE VALIDATION FOR THIS PROMPT
+Run:
+- `npm run check`;
+- `npm run test:security` because browser mutation/header behavior still crosses the P6 request-integrity boundary;
+- `npm run test:browser` for the complete admin browser regression surface;
+- committed-range `git diff --check` for P7.
+
+Do not separately rerun contained ordinary suites after `npm run check`.
+
+DOWNSTREAM HANDOFF TO P8
+Leave the browser architecture inspectable as explicit ownership:
+
+`bootstrap coordinator -> workspace activation/navigation only`
+
+`core -> one API/mutation/shared utility authority`
+
+`catalog -> one shared Source/Category choice authority`
+
+`workspace module -> workspace-local state/request sequencing/rendering`
+
+P8 must be able to inspect these owners independently. Avoid compatibility globals or hidden cross-module mutation that would make the final ownership graph harder to reason about than the original file.
+
+ACCEPTANCE
+P7 is complete only when:
+- the old single-IIFE application no longer owns every admin domain;
+- shared state/infrastructure has explicit minimal owners;
+- workspace mutable state/request sequencing is localized;
+- no framework/build/dependency was added;
+- same-origin native module loading uses P6's explicit allowlisted asset boundary;
+- unsafe mutation integrity and all admin API behavior are unchanged;
+- complete browser/security regressions pass;
+- package version is `0.21.7`.
+
+NON-GOALS
+Do not redesign the admin UI, change endpoint/Article/editorial behavior, add client routing, persist browser workspace state, introduce new features, rewrite CSS for aesthetics, or alter public feed behavior.
+
+FINAL REPORT
+Report:
+- final module graph and ownership responsibilities;
+- old global state/helper responsibility removed;
+- cross-workspace handoffs preserved;
+- focused/final browser/security commands and results;
+- package version confirmation `0.21.7`;
+- any remaining client/server structural concern for P8's optimization reassessment.

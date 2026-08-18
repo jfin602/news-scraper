@@ -1,0 +1,143 @@
+TASK: Phase 21 / P2 — Canonicalize collection dependency ownership
+
+ROADMAP PHASE
+Phase 21 — Codebase simplification and maintainability hardening.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: this refactor changes the canonical collection dependency contract across orchestration, duplicate-aware Article processing, HTML parser dispatch, production service wiring, and multiple integration/database consumers.
+- Reasoning basis: High reasoning is needed to remove legacy/test seams without creating a second persistence path, weakening per-candidate transaction ownership, or reducing collection failure/accounting coverage.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because the change crosses a transaction-sensitive producer/consumer boundary and must prove that every included Article still flows through duplicate-aware atomic processing.
+- Escalation trigger: source inspection reveals that the fallback persistence seam is still required by a supported runtime caller, or removal requires redesigning transaction ownership/parser composition rather than tightening the existing canonical path.
+- Escalation target: `Terra Ultra`; stop for replanning before changing the collection transaction architecture.
+- Estimate confidence: `High`.
+- Efficiency rationale: one canonical dependency surface eliminates retained compatibility/test branching before P3 simplifies the larger attempt/accounting state machine.
+- Plan delta: `Escalated` from the provisional Luna recommendation to Terra High after source inspection confirmed the dependency surface is transaction-sensitive and directly coupled to duplicate processing.
+
+VERSIONING
+- This is Phase 21 prompt 2 and its assigned project version is `0.21.2`.
+- On first execution require top-level `package.json` version `0.21.1`, then update only that version to `0.21.2`.
+- On rerun of this same P2 retain `0.21.2`; any other version is sequence drift and must stop execution.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, the complete Phase 21 roadmap entry, `docs/codex-model-selection.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/contracts/source-and-collection-contract.md`, `docs/contracts/article-lifecycle-and-deduplication.md`, and `docs/architecture/system-architecture.md`;
+2. inspect current `src/collection/collect-endpoint.ts`, `src/collection/endpoint-collection-service.ts`, `src/collection/included-article-processing.ts`, Article persistence APIs, duplicate detection/grouping producers, and collection-run persistence;
+3. trace every current caller/constructor of `CollectEndpointDependencies` and `EndpointCollectionServiceDependencies`, including direct command/Worker paths and tests;
+4. inspect integration, collection-fixture, and database tests that inject `persistArticle`, `processIncludedArticle`, or `createHtmlListingParser`;
+5. reread the P3 planned consumer requirement below before declaring P2 complete;
+6. stop and report `Planning needed` if a supported runtime caller genuinely depends on the legacy fallback/test-only seam or if current source materially differs from this plan.
+
+GOAL
+Make the production collection dependency contract express exactly one supported included-Article processing authority and one canonical parser dispatch path.
+
+CURRENT PROBLEM
+At planning time `CollectEndpointDependencies` contains both:
+- required plain `persistArticle`;
+- optional `processIncludedArticle`;
+
+and collection chooses `processIncludedArticle ?? persistArticle`.
+
+That representable fallback can bypass duplicate-aware included-Article processing even though production wiring already provides the canonical processor. The same production dependency interface also carries optional `createHtmlListingParser` explicitly as a test seam while production otherwise constructs `HtmlListingParser` directly.
+
+IMPLEMENTATION BOUNDARY
+A. INCLUDED ARTICLE PROCESSING
+- Remove `persistArticle` from the collection orchestration dependency surface.
+- Make the duplicate-aware `processIncludedArticle` dependency required wherever `collectEndpoint` processes an included Article.
+- Remove the collection-service `persistIncludedArticle` fallback/wiring if it exists only to populate that obsolete collector dependency.
+- Do NOT delete or weaken legitimate lower-level Article persistence primitives used by `processIncludedArticle` or other real consumers.
+- On successful included processing, duplicate effect counts remain explicit required outputs owned by `IncludedArticleProcessingSuccess`; failed persistence retains its existing failure result semantics.
+- Simplify result validation/effect extraction so a successful included result cannot silently omit duplicate effect counts and be interpreted as zero.
+
+B. HTML PARSER DISPATCH
+- Remove `createHtmlListingParser` from the production `CollectEndpointDependencies` interface.
+- Keep the production parser selection path canonical: `html_listing` configuration constructs/uses the static `HtmlListingParser` with the persisted normalized profile and existing adapter/version diagnostics.
+- Adapt tests to exercise real parser behavior through controlled HTML/profile fixtures rather than replacing the parser constructor solely to force outcomes.
+- Do not create a generic parser registry or dependency-injection framework merely to replace this seam.
+
+C. SERVICE DEPENDENCY CLEANUP
+- Tighten `EndpointCollectionServiceDependencies` only as far as justified by the canonical runtime path.
+- Preserve useful high-level service injection used to isolate database/network/collection boundaries in tests; remove only compatibility alternatives that allow a supported production behavior to be bypassed or exist solely for unit convenience.
+
+PRESERVED COLLECTION LAW
+This refactor MUST NOT alter:
+- singleton Publication collection-active gate;
+- Source/endpoint approval, lifecycle, operational state, domain policy, or endpoint lock;
+- pre-request and redirect network safety;
+- fetch limits/retry/conditional-request semantics;
+- RSS/Atom Source admission filtering before normalization;
+- HTML items bypassing that RSS/Atom-specific admission filter;
+- Raw item -> normalization -> Article-link policy -> Relevance/Categories ordering;
+- Source-scoped Article identity/idempotency and retained observations/provenance;
+- included Article + duplicate work sharing the existing per-candidate transaction;
+- excluded Article observation semantics;
+- duplicate review/group topology rules;
+- Collection-run outcome/accounting semantics;
+- durable job scheduling/capacity/health behavior.
+
+TEST ADAPTATION RULE
+Do not preserve a production test seam merely because existing tests use it. Rewrite tests around supported observable boundaries.
+
+For parser failures, use a real bounded profile/input that naturally produces the required success/failure/diagnostic result. For included processing, inject the required canonical processor where a component test does not use the database, and use the real `processIncludedArticle` path in the database/integration coverage that proves transaction and duplicate behavior.
+
+DOWNSTREAM HANDOFF TO P3
+P3 is allowed to assume all of the following only if P2 proves them:
+
+`one required included-processing capability -> CollectEndpointDependencies.processIncludedArticle -> focused integration proof that plain Article persistence cannot be selected as a collector fallback`
+
+`successful duplicate effects are explicit -> IncludedArticleProcessingSuccess -> focused proof for zero/nonzero review/group effects and invalid-result rejection`
+
+`one HTML parser dispatch path -> canonical HtmlListingParser construction in collector -> controlled integration/fixture proof for success, diagnostics, and parser failure`
+
+Before declaring P2 complete, reread the P3 task expectations and ensure P3 will not need to invent or rediscover persistence/parser ownership.
+
+EXPECTED FILE AREA
+Likely production files:
+- `src/collection/collect-endpoint.ts`;
+- `src/collection/endpoint-collection-service.ts`;
+- `src/collection/included-article-processing.ts` only if type tightening is needed;
+- directly affected imports/types.
+
+Likely tests:
+- `test/integration/collect-endpoint.test.ts`;
+- `test/integration/endpoint-collection-service.test.ts`;
+- relevant HTML/collection fixture tests;
+- `test/database/collection-article-processing.test.ts` and directly affected database collection tests.
+
+Avoid unrelated repository cleanup in this prompt.
+
+FOCUSED DEVELOPMENT VALIDATION
+During iteration use direct affected integration/collection tests and `npm run test:db:focused -- <affected collection database files>` where real transactions are part of the claim. Run static/type checks as needed for dependency-interface changes.
+
+FINAL-TREE VALIDATION FOR THIS PROMPT
+Run the smallest non-overlapping final set that proves the full blast radius:
+- `npm run check`;
+- `npm run test:db` because the canonical included-processing boundary participates in Article/observation/duplicate transactions across multiple database tests;
+- committed-range `git diff --check` for P2.
+
+`npm run check` already contains ordinary collection/integration suites; do not rerun those aliases separately solely for duplicate evidence.
+
+ACCEPTANCE
+P2 is complete only when:
+- collector included-Article processing has one required duplicate-aware authority and no `persistArticle` fallback;
+- successful included-processing effects cannot be absent/defaulted by the collector;
+- production collector dependencies contain no HTML parser-constructor seam solely for tests;
+- controlled tests prove real parser dispatch and canonical included processing;
+- all important collection/database consumers remain green;
+- P3's downstream handoff is complete;
+- package version is `0.21.2`.
+
+NON-GOALS
+Do not redesign Collection-run accounting yet; P3 owns that. Do not change duplicate algorithms, Article identity, parser profile semantics, network policy, schema/migrations, scheduling, public feed behavior, or add new endpoint types.
+
+FINAL REPORT
+Report:
+- production dependency paths removed/tightened;
+- how tests were rewritten without preserving test-only runtime seams;
+- downstream P3 handoff proof;
+- focused/final commands actually run and results;
+- package version confirmation `0.21.2`;
+- any unresolved ownership ambiguity requiring replanning.
