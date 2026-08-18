@@ -9,10 +9,7 @@ import {
   type CollectionRunStore,
 } from '../../src/collection/collect-endpoint.ts';
 import { applyArticleLinkPolicy } from '../../src/collection/article-links/policy.ts';
-import type {
-  ArticlePersistenceResult,
-  ExcludedArticlePersistenceResult,
-} from '../../src/articles/repository.ts';
+import type { ExcludedArticlePersistenceResult } from '../../src/articles/repository.ts';
 import type { EndpointExecutionLockRunner } from '../../src/collection/execution.ts';
 import type {
   HttpFetcher,
@@ -26,8 +23,8 @@ import type {
   ParserResult,
 } from '../../src/collection/parsers/parser.ts';
 import { RssAtomParser } from '../../src/collection/parsers/rss-atom-parser.ts';
-import { HtmlListingParser } from '../../src/collection/parsers/html-listing-parser.ts';
 import { normalizeHtmlListingProfile } from '../../src/collection/parsers/html-listing-profile.ts';
+import type { IncludedArticleProcessingResult } from '../../src/collection/included-article-processing.ts';
 import { normalizeArticleCandidate } from '../../src/collection/normalization/normalizer.ts';
 import { evaluateRelevance } from '../../src/collection/relevance/evaluator.ts';
 import type { ArticleNormalizationContext } from '../../src/collection/normalization/article-candidate.ts';
@@ -81,9 +78,9 @@ describe('canonical endpoint collection service', () => {
         events.push('relevance');
         return evaluateRelevance(candidate, configuration);
       },
-      async persistArticle() {
+      async processIncludedArticle() {
         events.push('persist');
-        return persistenceSuccess('created');
+        return includedProcessingSuccess('created');
       },
       async persistExcludedArticle() {
         events.push('persist excluded');
@@ -195,9 +192,6 @@ describe('canonical endpoint collection service', () => {
         return EMPTY_RELEVANCE_CONFIGURATION;
       },
       evaluateRelevance,
-      async persistArticle() {
-        throw new Error('legacy Article persistence path was used');
-      },
       async processIncludedArticle(candidate) {
         events.push(`included:${candidate.displayTitle}`);
         return {
@@ -233,6 +227,42 @@ describe('canonical endpoint collection service', () => {
     );
     assert.equal(runs.finalizations[0]?.duplicateReviewCreatedCount, 3);
     assert.equal(runs.finalizations[0]?.duplicateGroupedCount, 1);
+  });
+
+  it('rejects included processing successes that omit a required duplicate effect', async () => {
+    const events: string[] = [];
+    const runs = runStore(events);
+    const result = await collectEndpoint(aggregate(), {
+      lockRunner: acquiredLock(events),
+      runs,
+      fetcher: fetcher(events, contentResult()),
+      rssAtomParser: parser(events, {
+        ok: true,
+        dialect: 'rss',
+        items: [
+          {
+            title: 'Invalid effect fixture',
+            url: 'https://feeds.example.test/invalid-effect',
+          },
+        ],
+      }),
+      ...phase6Dependencies,
+      ...phase7Dependencies,
+      async processIncludedArticle() {
+        return {
+          outcome: 'created',
+          duplicateReviewCreatedCount: 0,
+        } as never;
+      },
+      executionId: () => EXECUTION_ID,
+    });
+
+    assert.equal(result.status, 'failed');
+    if (result.status !== 'failed') return;
+    assert.equal(result.reason, 'included_article_processing_result_invalid');
+    assert.equal(result.failedCount, 1);
+    assert.equal(result.duplicateReviewCreatedCount, 0);
+    assert.equal(result.duplicateGroupedCount, 0);
   });
 
   it('filters mismatching Raw items before normalization and all candidate work', async () => {
@@ -275,9 +305,9 @@ describe('canonical endpoint collection service', () => {
           events.push(`relevance:${candidate.displayTitle}`);
           return evaluateRelevance(candidate, configuration);
         },
-        async persistArticle(candidate) {
+        async processIncludedArticle(candidate) {
           events.push(`persist:${candidate.displayTitle}`);
-          return persistenceSuccess('created');
+          return includedProcessingSuccess('created');
         },
         async persistExcludedArticle() {
           events.push('persist excluded');
@@ -344,9 +374,6 @@ describe('canonical endpoint collection service', () => {
           return unreachable();
         },
         evaluateRelevance: unreachable,
-        async persistArticle() {
-          return unreachable();
-        },
         async processIncludedArticle() {
           return unreachable();
         },
@@ -576,7 +603,7 @@ describe('canonical endpoint collection service', () => {
         receivedSnapshots.push(configuration);
         return evaluateRelevance(candidate, configuration);
       },
-      async persistArticle(candidate) {
+      async processIncludedArticle(candidate) {
         events.push(`persist:${candidate.displayTitle}`);
         if (candidate.displayTitle === 'Expected failure') {
           return Object.freeze({
@@ -584,7 +611,7 @@ describe('canonical endpoint collection service', () => {
             reason: 'identity_conflict' as const,
           });
         }
-        return persistenceSuccess(
+        return includedProcessingSuccess(
           candidate.displayTitle.toLowerCase() as
             'created' | 'updated' | 'unchanged',
         );
@@ -697,7 +724,7 @@ describe('canonical endpoint collection service', () => {
           }
           return new Date('2026-08-08T12:00:00.000Z');
         },
-        async persistArticle() {
+        async processIncludedArticle() {
           throw new Error(
             'excluded candidates must not use Article persistence',
           );
@@ -777,7 +804,7 @@ describe('canonical endpoint collection service', () => {
           }
           return new Date('2026-08-08T12:00:00.000Z');
         },
-        async persistArticle() {
+        async processIncludedArticle() {
           persistenceCalls += 1;
           if (
             stage === 'article_persistence_execution_failed' &&
@@ -785,7 +812,7 @@ describe('canonical endpoint collection service', () => {
           ) {
             throw new Error('SYNTHETIC_DATABASE_SECRET');
           }
-          return persistenceSuccess('created');
+          return includedProcessingSuccess('created');
         },
         executionId: () => EXECUTION_ID,
       });
@@ -1394,15 +1421,11 @@ describe('canonical endpoint collection service', () => {
             transport,
           }),
           rssAtomParser: parser(events, parserSuccess()),
-          createHtmlListingParser(profile) {
-            events.push('html parse adapter');
-            return new HtmlListingParser(profile);
-          },
           ...phase6Dependencies,
           ...phase7Dependencies,
-          async persistArticle() {
+          async processIncludedArticle() {
             events.push('persist');
-            return persistenceSuccess('created');
+            return includedProcessingSuccess('created');
           },
           executionId: () => EXECUTION_ID,
         },
@@ -1430,7 +1453,7 @@ describe('canonical endpoint collection service', () => {
         ['/redirect-html-listing', '/lists/current/index.html'],
       );
       assert.equal(events.includes('parse'), false);
-      assert.equal(events.includes('html parse adapter'), true);
+      assert.equal(events.includes('html parse adapter'), false);
     } finally {
       await server.close();
     }
@@ -1455,13 +1478,6 @@ describe('canonical endpoint collection service', () => {
         }),
       ),
       rssAtomParser: parser(events, parserSuccess()),
-      createHtmlListingParser() {
-        return parser(events, {
-          ok: false,
-          reason: 'no_matching_items',
-          detail: 'HTML profile matched no listing items.',
-        });
-      },
       ...phase6Dependencies,
       ...phase7Dependencies,
       executionId: () => EXECUTION_ID,
@@ -1513,8 +1529,8 @@ const phase7Dependencies = Object.freeze({
     return EMPTY_RELEVANCE_CONFIGURATION;
   },
   evaluateRelevance,
-  async persistArticle() {
-    return persistenceSuccess('created');
+  async processIncludedArticle() {
+    return includedProcessingSuccess('created');
   },
   async persistExcludedArticle() {
     return excludedPersistenceSuccess();
@@ -1526,10 +1542,14 @@ const EMPTY_RELEVANCE_CONFIGURATION = Object.freeze({
   rules: Object.freeze([]),
 });
 
-function persistenceSuccess(
+function includedProcessingSuccess(
   outcome: 'created' | 'updated' | 'unchanged',
-): ArticlePersistenceResult {
-  return { outcome } as ArticlePersistenceResult;
+): IncludedArticleProcessingResult {
+  return {
+    outcome,
+    duplicateReviewCreatedCount: 0,
+    duplicateGroupedCount: 0,
+  } as IncludedArticleProcessingResult;
 }
 
 function excludedPersistenceSuccess(): ExcludedArticlePersistenceResult {

@@ -1,10 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
-import {
-  persistExcludedArticleObservation,
-  persistIncludedArticle,
-  type ArticlePersistenceResult,
-} from '../articles/repository.ts';
+import { persistExcludedArticleObservation } from '../articles/repository.ts';
 import {
   processIncludedArticle,
   type IncludedArticleProcessingResult,
@@ -109,8 +105,7 @@ export interface EndpointCollectionServiceDependencies {
   readonly applyRuntimeState: typeof applyTerminalCollectionRunToEndpointRuntime;
   readonly loadRelevanceConfiguration: typeof loadEffectiveRelevanceConfiguration;
   readonly evaluateRelevance: typeof evaluateRelevance;
-  readonly persistIncludedArticle: typeof persistIncludedArticle;
-  readonly processIncludedArticle?: typeof processIncludedArticle;
+  readonly processIncludedArticle: typeof processIncludedArticle;
   readonly persistExcludedArticle: typeof persistExcludedArticleObservation;
 }
 
@@ -125,7 +120,6 @@ const DEFAULT_DEPENDENCIES: EndpointCollectionServiceDependencies =
     applyRuntimeState: applyTerminalCollectionRunToEndpointRuntime,
     loadRelevanceConfiguration: loadEffectiveRelevanceConfiguration,
     evaluateRelevance,
-    persistIncludedArticle,
     processIncludedArticle,
     persistExcludedArticle: persistExcludedArticleObservation,
   });
@@ -264,23 +258,12 @@ function collectionDependencies(
       return snapshot;
     },
     evaluateRelevance: dependencies.evaluateRelevance,
-    persistArticle: (
-      candidate: ArticleCandidate,
-      observationTime: Date,
-      decision: Extract<RelevanceDecision, { readonly included: true }>,
-    ): Promise<ArticlePersistenceResult> =>
-      dependencies.persistIncludedArticle(
-        database,
-        candidate,
-        observationTime,
-        decision,
-      ),
     processIncludedArticle: (
       candidate: ArticleCandidate,
       observationTime: Date,
       decision: Extract<RelevanceDecision, { readonly included: true }>,
     ): Promise<IncludedArticleProcessingResult> =>
-      (dependencies.processIncludedArticle ?? processIncludedArticle)(
+      dependencies.processIncludedArticle(
         database,
         candidate,
         observationTime,

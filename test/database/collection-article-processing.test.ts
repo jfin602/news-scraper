@@ -1,12 +1,11 @@
 import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 
+import { persistExcludedArticleObservation } from '../../src/articles/repository.ts';
 import {
-  persistExcludedArticleObservation,
-  persistIncludedArticle,
-  type ArticlePersistenceResult,
-} from '../../src/articles/repository.ts';
-import { processIncludedArticle } from '../../src/collection/included-article-processing.ts';
+  processIncludedArticle,
+  type IncludedArticleProcessingResult,
+} from '../../src/collection/included-article-processing.ts';
 import { detectDuplicateReviewsInTransaction } from '../../src/deduplication/repository.ts';
 import { applyArticleLinkPolicy } from '../../src/collection/article-links/policy.ts';
 import {
@@ -130,7 +129,7 @@ test('canonical collection persists idempotent Articles and isolated outcomes wi
         ],
         {
           observationTime: () => new Date('2026-08-10T14:00:00.000Z'),
-          persistArticle(candidate, observationTime, decision) {
+          processIncludedArticle(candidate, observationTime, decision) {
             return candidate.displayTitle === 'Expected conflict'
               ? Promise.resolve(
                   Object.freeze({
@@ -138,7 +137,7 @@ test('canonical collection persists idempotent Articles and isolated outcomes wi
                     reason: 'identity_conflict' as const,
                   }),
                 )
-              : persistIncludedArticle(
+              : processIncludedArticle(
                   database,
                   candidate,
                   observationTime,
@@ -172,12 +171,12 @@ test('canonical collection persists idempotent Articles and isolated outcomes wi
         ],
         {
           observationTime: () => new Date('2026-08-10T15:00:00.000Z'),
-          async persistArticle(candidate, observationTime, decision) {
+          async processIncludedArticle(candidate, observationTime, decision) {
             stagePersistenceCalls += 1;
             if (stagePersistenceCalls === 2) {
               throw new Error('SYNTHETIC_DATABASE_SECRET');
             }
-            return persistIncludedArticle(
+            return processIncludedArticle(
               database,
               candidate,
               observationTime,
@@ -761,11 +760,11 @@ async function execute(
   items: readonly RawItem[],
   options: Readonly<{
     observationTime: () => Date;
-    persistArticle?: (
-      candidate: Parameters<typeof persistIncludedArticle>[1],
+    processIncludedArticle?: (
+      candidate: Parameters<typeof processIncludedArticle>[1],
       observationTime: Date,
       decision: Extract<RelevanceDecision, { readonly included: true }>,
-    ) => Promise<ArticlePersistenceResult>;
+    ) => Promise<IncludedArticleProcessingResult>;
     loadRelevanceConfiguration?: () => Promise<EffectiveRelevanceConfiguration>;
     runs?: CollectionRunStore;
   }>,
@@ -789,10 +788,10 @@ async function execute(
         return snapshot;
       }),
     evaluateRelevance,
-    persistArticle:
-      options.persistArticle ??
+    processIncludedArticle:
+      options.processIncludedArticle ??
       ((candidate, observationTime, decision) =>
-        persistIncludedArticle(database, candidate, observationTime, decision)),
+        processIncludedArticle(database, candidate, observationTime, decision)),
     persistExcludedArticle: (candidate, observationTime, decision) =>
       persistExcludedArticleObservation(
         database,

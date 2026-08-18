@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { after, test } from 'node:test';
 
 import { applyArticleLinkPolicy } from '../../src/collection/article-links/policy.ts';
-import type { ArticlePersistenceResult } from '../../src/articles/repository.ts';
+import type { IncludedArticleProcessingResult } from '../../src/collection/included-article-processing.ts';
 import {
   collectEndpoint,
   createCollectionRunStore,
@@ -170,8 +170,12 @@ const processingDependencies = Object.freeze({
     return { rules: [] };
   },
   evaluateRelevance,
-  async persistArticle() {
-    return { outcome: 'created' } as ArticlePersistenceResult;
+  async processIncludedArticle() {
+    return {
+      outcome: 'created',
+      duplicateReviewCreatedCount: 0,
+      duplicateGroupedCount: 0,
+    } as IncludedArticleProcessingResult;
   },
   async persistExcludedArticle() {
     throw new Error('default-include fixture cannot be excluded');

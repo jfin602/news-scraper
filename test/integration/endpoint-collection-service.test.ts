@@ -87,7 +87,7 @@ test('direct manual and durable scheduled executions use one production collecti
       const loaded = await dependencies.loadRelevanceConfiguration();
       assert.equal(loaded, snapshot);
       dependencies.evaluateRelevance(candidate, loaded);
-      await dependencies.persistArticle(
+      await dependencies.processIncludedArticle(
         candidate,
         new Date('2026-08-11T12:00:00.000Z'),
         includedDecision as Extract<
@@ -132,7 +132,7 @@ test('direct manual and durable scheduled executions use one production collecti
       compositionEvents.push('evaluate');
       return includedDecision;
     },
-    async persistIncludedArticle(
+    async processIncludedArticle(
       receivedDatabase: Pick<Database, 'transaction'>,
       receivedCandidate: ArticleCandidate,
       _observationTime: Date,
@@ -220,7 +220,8 @@ test('direct manual and durable scheduled executions use one production collecti
     assert.equal(typeof dependencies.applyArticleLinkPolicy, 'function');
     assert.equal(typeof dependencies.loadRelevanceConfiguration, 'function');
     assert.equal(typeof dependencies.evaluateRelevance, 'function');
-    assert.equal(typeof dependencies.persistArticle, 'function');
+    assert.equal(typeof dependencies.processIncludedArticle, 'function');
+    assert.equal('persistArticle' in dependencies, false);
     assert.equal(typeof dependencies.persistExcludedArticle, 'function');
   }
 });

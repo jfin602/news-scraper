@@ -3,7 +3,7 @@ import { request as requestHttp } from 'node:http';
 import { test } from 'node:test';
 
 import { applyArticleLinkPolicy } from '../../src/collection/article-links/policy.ts';
-import type { ArticlePersistenceResult } from '../../src/articles/repository.ts';
+import type { IncludedArticleProcessingResult } from '../../src/collection/included-article-processing.ts';
 import {
   collectEndpoint,
   type CollectionRunStore,
@@ -143,8 +143,12 @@ async function collect(
       return { rules: [] };
     },
     evaluateRelevance,
-    async persistArticle() {
-      return { outcome: 'created' } as ArticlePersistenceResult;
+    async processIncludedArticle() {
+      return {
+        outcome: 'created',
+        duplicateReviewCreatedCount: 0,
+        duplicateGroupedCount: 0,
+      } as IncludedArticleProcessingResult;
     },
     async persistExcludedArticle() {
       throw new Error('default-include fixture cannot be excluded');

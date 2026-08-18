@@ -1,8 +1,5 @@
 import type { QueryExecutor } from '../database/database.ts';
-import type {
-  ArticlePersistenceResult,
-  ExcludedArticlePersistenceResult,
-} from '../articles/repository.ts';
+import type { ExcludedArticlePersistenceResult } from '../articles/repository.ts';
 import type { IncludedArticleProcessingResult } from './included-article-processing.ts';
 import type { EndpointConfigurationAggregate } from '../sources/repository.ts';
 import { isSourceRssAtomItemAdmitted } from './admission/source-rss-atom-item-filter.ts';
@@ -71,10 +68,6 @@ export interface CollectEndpointDependencies {
   readonly runs: CollectionRunStore;
   readonly fetcher: HttpFetcher;
   readonly rssAtomParser: FeedParser;
-  /** Optional test seam; production uses the P1 static parser directly. */
-  readonly createHtmlListingParser?: (
-    profile: import('./parsers/html-listing-profile.ts').NormalizedHtmlListingProfile,
-  ) => FeedParser;
   readonly normalizeArticleCandidate: (
     rawItem: RawItem,
     context: ArticleNormalizationContext,
@@ -88,12 +81,7 @@ export interface CollectEndpointDependencies {
     candidate: ArticleCandidate,
     configuration: EffectiveRelevanceConfiguration,
   ) => RelevanceDecision;
-  readonly persistArticle: (
-    candidate: ArticleCandidate,
-    observationTime: Date,
-    decision: Extract<RelevanceDecision, { readonly included: true }>,
-  ) => Promise<ArticlePersistenceResult>;
-  readonly processIncludedArticle?: (
+  readonly processIncludedArticle: (
     candidate: ArticleCandidate,
     observationTime: Date,
     decision: Extract<RelevanceDecision, { readonly included: true }>,
@@ -603,14 +591,13 @@ async function processCandidates(
       continue;
     }
 
-    let persistence: ArticlePersistenceResult | IncludedArticleProcessingResult;
+    let persistence: IncludedArticleProcessingResult;
     try {
-      persistence = await (
-        dependencies.processIncludedArticle ?? dependencies.persistArticle
-      )(relevance.candidate, observationTime, relevance);
-      if (!isArticlePersistenceResult(persistence)) {
-        throw new TypeError('Invalid Article persistence result.');
-      }
+      persistence = await dependencies.processIncludedArticle(
+        relevance.candidate,
+        observationTime,
+        relevance,
+      );
     } catch {
       return processingFailure(
         counters,
@@ -620,20 +607,19 @@ async function processCandidates(
       );
     }
 
+    if (!isIncludedArticleProcessingResult(persistence)) {
+      return processingFailure(
+        counters,
+        candidates.length - index,
+        'included_article_processing_result_invalid',
+        'Included Article processing returned invalid duplicate effects.',
+      );
+    }
+
     if (persistence.outcome !== 'failed') {
-      try {
-        const effects = includedProcessingEffects(persistence);
-        counters.duplicateReviewCreatedCount +=
-          effects.duplicateReviewCreatedCount;
-        counters.duplicateGroupedCount += effects.duplicateGroupedCount;
-      } catch {
-        return processingFailure(
-          counters,
-          candidates.length - index,
-          'included_article_processing_result_invalid',
-          'Included Article processing returned invalid duplicate effects.',
-        );
-      }
+      counters.duplicateReviewCreatedCount +=
+        persistence.duplicateReviewCreatedCount;
+      counters.duplicateGroupedCount += persistence.duplicateGroupedCount;
     }
     if (persistence.outcome === 'failed') {
       counters.failedCount += 1;
@@ -662,9 +648,9 @@ function isExcludedArticlePersistenceResult(
   return reason === 'identity_conflict' || reason === 'provenance_mismatch';
 }
 
-function isArticlePersistenceResult(
+function isIncludedArticleProcessingResult(
   value: unknown,
-): value is ArticlePersistenceResult {
+): value is IncludedArticleProcessingResult {
   if (value === null || typeof value !== 'object') return false;
   const outcome = Reflect.get(value, 'outcome');
   if (
@@ -672,41 +658,18 @@ function isArticlePersistenceResult(
     outcome === 'updated' ||
     outcome === 'unchanged'
   ) {
-    return true;
+    return (
+      isEffectCount(Reflect.get(value, 'duplicateReviewCreatedCount')) &&
+      isEffectCount(Reflect.get(value, 'duplicateGroupedCount'))
+    );
   }
   if (outcome !== 'failed') return false;
   const reason = Reflect.get(value, 'reason');
   return reason === 'identity_conflict' || reason === 'provenance_mismatch';
 }
 
-function includedProcessingEffects(
-  value: ArticlePersistenceResult | IncludedArticleProcessingResult,
-): {
-  readonly duplicateReviewCreatedCount: number;
-  readonly duplicateGroupedCount: number;
-} {
-  const duplicateReviewCreatedCount = Reflect.get(
-    value,
-    'duplicateReviewCreatedCount',
-  );
-  const duplicateGroupedCount = Reflect.get(value, 'duplicateGroupedCount');
-  return {
-    duplicateReviewCreatedCount:
-      duplicateReviewCreatedCount === undefined
-        ? 0
-        : requiredEffectCount(duplicateReviewCreatedCount),
-    duplicateGroupedCount:
-      duplicateGroupedCount === undefined
-        ? 0
-        : requiredEffectCount(duplicateGroupedCount),
-  };
-}
-
-function requiredEffectCount(value: unknown): number {
-  if (typeof value !== 'number' || !Number.isSafeInteger(value) || value < 0) {
-    throw new TypeError('Invalid included Article effect count.');
-  }
-  return value;
+function isEffectCount(value: unknown): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0;
 }
 
 function processingFailure(
@@ -1016,7 +979,7 @@ const RSS_ATOM_ADAPTER: ParserAdapterIdentity = Object.freeze({
 
 function parserForEndpoint(
   configuration: EndpointConfigurationAggregate,
-  dependencies: CollectEndpointDependencies,
+  dependencies: Pick<CollectEndpointDependencies, 'rssAtomParser'>,
 ): ParserSelection | undefined {
   if (configuration.endpoint.endpointType === 'rss_atom') {
     return Object.freeze({
@@ -1029,10 +992,7 @@ function parserForEndpoint(
     const revision = configuration.endpoint.htmlListingProfileRevision;
     if (profile === undefined || revision === undefined) return undefined;
     return Object.freeze({
-      parser: (
-        dependencies.createHtmlListingParser ??
-        ((value) => new HtmlListingParser(value))
-      )(profile),
+      parser: new HtmlListingParser(profile),
       adapter: Object.freeze({
         kind: 'html_listing',
         version: HTML_LISTING_PARSER_VERSION,
