@@ -10,8 +10,8 @@ Phases are intentionally narrow. Each phase represents one cohesive implementati
 - Initial singleton Publication/Source configuration may use explicit operator-maintained bootstrap without bypassing Source trust, domain, lifecycle, or network-safety rules.
 - Every phase inherits the project, domain, security, singleton-architecture, and testing contracts routed by `BOOT.md`; a roadmap entry does not replace them.
 - Phase 20 acceptance established the first supported production schema/data baseline. Phase 21 therefore preserves supported customer data and upgrades under `docs/decisions/production-data-and-schema-compatibility.md`.
-- New product features remain frozen through the Phase 22 1.0.0 transition; bounded critical production, security, data-integrity, and required operational repairs use the appropriate fix/correction workflow.
-- On 2026-08-18 the repository owner explicitly approved Phase 22 as the 1.0.0 Platform/Publication repository transition. Phase 21 therefore hands off to Phase 22 rather than terminating the roadmap; deferred ideas still do not imply any later phase.
+- New product features remain frozen until Phase 21 closes; bounded critical production, security, data-integrity, and required operational repairs use the appropriate fix/correction workflow.
+- Phase 21 is terminal unless the repository owner explicitly approves and documents a roadmap extension. Deferred ideas do not imply Phase 22.
 
 ## Global phase validation gate
 
@@ -1052,11 +1052,11 @@ Configure, validate, and hand off the first real Publication without adding new 
 - Final deterministic regression, browser, recovery, schema-upgrade/rollback, and reference-deployment evidence required by the testing contract is recorded for the launched tree.
 - Known limitations and production ownership are documented.
 - The accepted launch evidence identifies the first supported production source tree/version/schema baseline. From this point forward customer production data is durable supported state under `docs/decisions/production-data-and-schema-compatibility.md`.
-- New product-feature implementation remains frozen through the explicitly approved Phase 22 1.0.0 repository transition; only critical defect/security/data-integrity/operations fixes may interrupt that freeze through an appropriate bounded fix/correction path.
+- New product-feature implementation remains frozen until Phase 21 closes; only critical defect/security/data-integrity/operations fixes may interrupt that freeze through an appropriate bounded fix/correction path.
 
 ## Phase 21 — Codebase simplification and maintainability hardening
 
-**Status:** Current phase; explicitly approved successor Phase 22 follows after green closeout.
+**Status:** Current and terminal roadmap phase.
 
 ### Goal
 
@@ -1121,90 +1121,11 @@ Until Phase 21 closes:
 - Relevant database, collection-fixture, browser, security, recovery, and other specialized evidence required by the testing contract is green on the final tree.
 - A final Level 8 reference-deployment validation observes the refactored build operating against preserved production-compatible state and the governed public/admin/Worker boundaries.
 - A durable Phase 21 validation artifact records the accepted source tree, what complexity was removed, what intentionally remains and why, tests/procedures actually executed, production-upgrade evidence where applicable, before/after measurements, evidence levels, and limitations.
-- Phase 21 closes with no deferred feature automatically promoted and hands off to the explicitly approved Phase 22 1.0.0 Platform/Publication repository transition.
-
-## Phase 22 — 1.0.0 Platform/Publication repository transition
-
-**Status:** Approved successor to Phase 21; begins only after green Phase 21 closeout. Detailed transition contract: `docs/roadmap/phase-22-1.0-platform-publication-transition.md`.
-
-### Goal
-
-Transition the completed MVP into a maintainable upstream/downstream repository model while cutting the first reusable generic Platform release at `1.0.0`: `jfin602/news-scraper` remains the authoritative topic-independent Platform and the Indie Author product becomes a dedicated downstream Publication repository with shared Git ancestry and deliberate stable-release synchronization.
-
-### Depends on
-
-- green Phase 21 closeout and durable validation;
-- the Phase 20 supported production-data baseline;
-- `docs/decisions/production-data-and-schema-compatibility.md`;
-- `docs/decisions/platform-publication-repository-maintenance.md`.
-
-### Version transition
-
-- Green Phase 21 `/closeout` is now non-terminal and creates the normal `0.22.0` Phase 22 entry baseline.
-- Ordinary Phase 22 preparation work may use `0.22.x` versions.
-- The final Phase 22 release-transition task is the only task authorized to move the fully validated reusable Platform tree from the final `0.22.x` preparation version to `1.0.0`.
-- The terminal Phase 22 `/closeout` verifies the already-created `1.0.0` release tree and performs no further package-version write.
-- `v1.0.0` may identify only the exact reusable generic Platform tree that has passed the Phase 22 release gate.
-
-### Deliverables
-
-- final-tree inventory of every active Indie Author-specific configuration value, Source/endpoint, admission phrase, Category, Relevance rule/data source, branding asset/value, bootstrap path, runtime consumer, and deployment dependency;
-- explicit Platform-owned vs Publication-owned source/configuration/asset boundaries, with ordinary Publication customization no longer requiring routine edits to shared engine implementation;
-- smallest safe reorganization needed to make the Publication layer portable without adding multi-Publication tenancy, a plugin framework, submodules, or a package split;
-- reusable generic Platform release tree with active Indie Author-specific data removed from the shared release while generic schema/validation/tests/examples and historical evidence remain where appropriate;
-- preserved schema/migration ownership in the Platform repository with no downstream-only migration fork;
-- exact validated reusable Platform version `1.0.0` and corresponding `v1.0.0` tag/release;
-- dedicated Indie Author Publication repository created from the Platform 1.0.0 Git history so common ancestry is retained;
-- downstream `origin` = Indie Author repository and `upstream` = `jfin602/news-scraper` relationship documented and proven;
-- Indie Author Publication configuration/assets applied downstream as Publication-owned commits without reverse-merging topic-specific state into the Platform;
-- stable Platform-release-to-Publication merge procedure that consumes deliberate releases rather than arbitrary in-progress upstream `main`;
-- controlled no-op/bounded synchronization proof demonstrating shared ancestry, correct merge base, and the documented update workflow without manufacturing a fake release;
-- one-log issue and feature-idea ownership routing in which each new entry is classified as `Platform` or `Publication — Indie Author`, with genuinely mixed requests split into linked work;
-- non-destructive production cutover of the existing Indie Author deployment to the downstream repository while preserving supported customer data and governed state;
-- durable Phase 22 validation evidence recording exact Platform, downstream Publication, deployment, schema, tag, and merge-base identities.
-
-### Ownership rule
-
-Classification follows where the correct solution belongs, not where a defect or request was first observed.
-
-Platform changes are implemented, validated, and released in `jfin602/news-scraper` first, then merged downstream from a stable release. Publication-specific commits stay downstream. If a Publication request reveals missing generic capability, that capability is designed and implemented upstream rather than creating an Indie Author engine fork.
-
-Database schema and migrations remain Platform-owned. Publication-specific requirements must not create downstream-only schema evolution.
-
-### Feature freeze
-
-No deferred product feature is promoted merely because the project is crossing 1.0.0. Phase 22 owns repository/configuration separation, release identity, synchronization, and production cutover only. Critical production/security/data-integrity/operational repairs may still use the bounded correction path.
-
-### Out of scope
-
-- SEO/SSR implementation, Article descriptions, thumbnails, newsletters, AI summaries, ranking, personalization, push adapters, related-story clustering, API products, multilingual support, or other deferred capabilities;
-- native administrator identity/accounts;
-- concurrent multi-Publication hosting in one deployment;
-- permanent Indie Author branch inside `jfin602/news-scraper`;
-- history-free creation of the active Indie Author downstream repository;
-- downstream-only schema or migrations;
-- npm-package/plugin extraction, monorepo conversion, Git submodules, or another framework-level split without separate evidence and approval;
-- destructive production database reset;
-- automatic multi-repository release automation before the manual stable-release workflow is proven;
-- requiring future Publications to start permanently from 1.0.0 instead of the latest suitable stable Platform release.
-
-### Exit gate
-
-- The active reusable Platform tree contains no Indie Author-specific engine behavior and no active Indie Author Publication data outside explicitly generic example/test/historical contexts.
-- Platform-owned and Publication-owned paths/configuration responsibilities are explicit and enforceable in normal review/planning.
-- The exact reusable Platform tree is versioned `1.0.0`, fully validated, and identified by `v1.0.0`.
-- The Indie Author repository exists with retained common ancestry, documented `origin`/`upstream` remotes, and downstream-only Publication configuration/assets.
-- No downstream schema/migration fork exists.
-- The stable-release merge procedure is documented and a no-op/bounded ancestry/synchronization proof has been observed.
-- The Indie Author downstream final tree passes applicable deterministic, database, collection-fixture, browser, security, recovery, and reference-deployment validation.
-- Production cutover uses the supported existing database without destructive reset and preserves Sources, Articles, observations, Categories, Relevance configuration, duplicate/moderation state, change history, and other governed customer data.
-- Backlog/workflow documentation records solution ownership as Platform vs Publication after the concurrent docs cull is integrated.
-- A durable Phase 22 validation artifact records the exact Platform 1.0.0 SHA/tag, downstream Publication SHA, deployed SHA, schema state, merge-base proof, tests/procedures actually observed, data-preservation evidence, and limitations.
-- Terminal `/closeout` accepts the already-versioned `1.0.0` tree and reports the roadmap complete unless a later explicit owner-approved extension exists.
+- Phase 21 closes with no deferred feature automatically promoted and no implicit Phase 22. The roadmap is complete unless the repository owner later approves an explicit roadmap extension.
 
 ## Deferred roadmap candidates
 
-After Phase 22 closes and evidence supports promoting new work:
+After Phase 21 closes and evidence supports promoting new work:
 
 - native application-managed administrator accounts/identity;
 - passwords/passkeys or application-managed identity-provider integration;
@@ -1224,4 +1145,4 @@ After Phase 22 closes and evidence supports promoting new work:
 - API access;
 - multilingual feeds.
 
-Deferred features reuse normalized Articles and singleton Publication configuration rather than bypassing them. Any future proposal for concurrent multi-Publication hosting within one installation requires an explicit future contract/ADR and deliberate data-model work; it is not inferred from the MVP architecture. A deferred feature becomes roadmap work only through explicit owner-approved roadmap extension beyond Phase 22; the existence of this list does not reserve any later phase or package-version baseline.
+Deferred features reuse normalized Articles and singleton Publication configuration rather than bypassing them. Any future proposal for concurrent multi-Publication hosting within one installation requires an explicit future contract/ADR and deliberate data-model work; it is not inferred from the MVP architecture. A deferred feature becomes roadmap work only through explicit owner-approved roadmap extension; the existence of this list does not reserve Phase 22 or any package-version baseline.
