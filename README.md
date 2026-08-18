@@ -8,7 +8,7 @@ Publication is the singleton editorial/configuration concept for the installed n
 
 ## Current project state
 
-Current phase: **Phase 20 — Customer launch validation**.
+Current phase: **Phase 21 — Codebase simplification and maintainability hardening**.
 
 Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation and closeout validation are complete. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; that accepted limitation is not rewritten as passing evidence.
 
@@ -24,7 +24,7 @@ Phase 13 — Public presentation polish — is complete with durable validation 
 
 Phase 14 — Source administration — is complete by explicit repository-owner acceptance on August 14, 2026. Its historical validation artifact retains its original BLOCKED/RED determination: the then-required Level 8 Cloudflare Access/direct-origin deployment observation was unavailable, despite the recorded local/static/unit/integration/database/fixture/browser evidence. The governing roadmap and testing contract moved that deployment proof to Phase 19; acceptance did not rewrite the artifact or claim Level 8 was observed.
 
-Phase 15 — Publication and Relevance administration — is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 — True duplicate detection and grouping — is complete with durable validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`. Phase 17 — Article and duplicate moderation — is complete with durable GREEN validation in `docs/validation/phase-17-article-and-duplicate-moderation.md`. Phase 18 — Configurable HTML collection — is complete with durable GREEN validation in `docs/validation/phase-18-configurable-html-collection.md`; its bounded static HTML behavior uses the shared pipeline, keeps Source admission phrases RSS/Atom-only, and adds no browser collection. Phase 19 — Reliability, observability, and production operations — is complete with durable GREEN validation in `docs/validation/phase-19-reliability-observability-production-operations.md`, including the deferred Level 8 Cloudflare Access/direct-origin deployment-perimeter proof. Phase 20 is current and owns configuration, customer-launch validation, and handoff without adding new engine capability. The project remains pre-production until Phase 20 launch acceptance establishes the first supported production baseline.
+Phase 15 — Publication and Relevance administration — is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 — True duplicate detection and grouping — is complete with durable validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`. Phase 17 — Article and duplicate moderation — is complete with durable GREEN validation in `docs/validation/phase-17-article-and-duplicate-moderation.md`. Phase 18 — Configurable HTML collection — is complete with durable GREEN validation in `docs/validation/phase-18-configurable-html-collection.md`; its bounded static HTML behavior uses the shared pipeline, keeps Source admission phrases RSS/Atom-only, and adds no browser collection. Phase 19 — Reliability, observability, and production operations — is complete with durable GREEN validation in `docs/validation/phase-19-reliability-observability-production-operations.md`, including the deferred Level 8 Cloudflare Access/direct-origin deployment-perimeter proof. Phase 20 — Customer launch validation — is complete and accepted with durable evidence in `docs/validation/phase-20-customer-launch-validation.md`, which establishes the first supported production baseline. Phase 21 is current and performs behavior-preserving engineering work under post-launch production compatibility.
 
 ## Delivery priority
 
@@ -404,13 +404,9 @@ Completed after the tech-demo milestone:
 
 Current:
 
-- **Phase 20 — Customer launch validation**
+- **Phase 21 — Codebase simplification and maintainability hardening**
 
-Then:
-
-- Phase 21 — Codebase simplification and maintainability hardening
-
-Phase 20 acceptance establishes the first supported production baseline and begins the feature freeze. Phase 21 is behavior-preserving final-tree simplification/optimization derived from the launched implementation and measured evidence; its exact prompt stack is intentionally not predetermined now. Phase 21 is terminal unless the repository owner later approves an explicit roadmap extension.
+Phase 20 acceptance established the first supported production baseline and began the feature freeze. Phase 21 is behavior-preserving final-tree simplification/optimization derived from the launched implementation and measured evidence. New product features remain frozen until it closes except for appropriately bounded critical production/security/data-integrity/operations fixes. Phase 21 is terminal unless the repository owner later approves an explicit roadmap extension.
 
 Deferred after Phase 21: native administrator identity/accounts, historical Relevance bulk reprocessing, push/webhook adapters, AI summaries, related-story clustering, public personalization, outbound publishing, self-service tenancy, generic relevance ranking/boost scoring, pinning/featured ordering, API access, multilingual feeds. Concurrent multi-Publication hosting inside one installation is not deferred-by-default behavior; it would require an explicit future contract/ADR and deliberate data-model work. Deferred ideas do not reserve or imply Phase 22.
 

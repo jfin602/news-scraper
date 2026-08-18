@@ -1053,7 +1053,7 @@ Make the completed MVP safe to operate continuously and recoverably, strengtheni
 
 ## Phase 20 — Customer launch validation
 
-**Status:** Current roadmap phase.
+**Status:** Complete and accepted with durable validation in `docs/validation/phase-20-customer-launch-validation.md`; that artifact's exact launched source/version/schema state establishes the first supported production baseline.
 
 ### Goal
 
@@ -1093,6 +1093,8 @@ Configure, validate, and hand off the first real Publication without adding new 
 
 ## Phase 21 — Codebase simplification and maintainability hardening
 
+**Status:** Current and terminal roadmap phase.
+
 ### Goal
 
 Perform a final behavior-preserving engineering pass over the completed, launched Platform so the maintained codebase is simpler, clearer, safer to extend, and operationally efficient without adding new product capability or weakening production-data compatibility.
@@ -1103,11 +1105,13 @@ Perform a final behavior-preserving engineering pass over the completed, launche
 
 ### Planning boundary
 
-Phase 21 scope is deliberately defined now, but its exact implementation prompt stack MUST NOT be predetermined from the Phase 16 source tree. Phases 17–20 will materially change the implementation.
+The required sequence is `/prompt-ass` → deep final-tree research and evidence-backed candidate assessment → `/prompt-plan` → implementation planning for selected candidates → `/prompt-write p21`.
 
-After Phase 20 closes, `/prompt-ass` and especially `/prompt-plan` MUST inspect the accepted launched source tree, important producers/consumers, tests, runtime evidence, dependencies, database/query behavior, Worker/Web ownership, and actual measured bottlenecks. They then derive the smallest number of independently reviewable Phase 21 prompts that address evidence-backed maintainability or efficiency problems.
+For Phase 21, `/prompt-ass` owns broad candidate discovery before prompt boundaries are chosen. It MUST inspect, as relevant, the accepted launched codebase's module/dependency structure; important producers and consumers; duplicated semantic authority; dead, obsolete, redundant, unreachable, or compatibility-only code; unnecessary orchestration/control-flow/data-flow indirection; TypeScript/API/type-safety problems; transactions, PostgreSQL connections, locks, timers, listeners, and process lifecycle; Worker/Web/API responsibility boundaries; repository/query/SQL ownership and inefficiencies; unnecessary production dependencies; test-support leakage into production; duplicated or overcomplicated test helpers/harnesses; recent changes needed to explain accidental complexity; and evidenced database/runtime/startup/Worker/Web/memory/resource/scheduling bottlenecks. This is candidate discovery, not implementation planning.
 
-Do not manufacture cleanup tasks merely to create a large Phase 21 stack. Areas already simple and well-owned remain unchanged.
+`/prompt-ass` MUST produce an evidence-backed candidate register: `observed problem → evidence/location → impact → candidate remedy → preserved invariants → validation blast radius → include/defer/reject`. It MUST reject or defer candidates unsupported by evidence, cosmetic only, primarily line/file/module-count reduction, riskier than their demonstrated benefit, destructive to meaningful domain/provenance/security/transaction boundaries, unjustified schema churn, or actually deferred product features. Do not manufacture work merely to create a large Phase 21 stack; areas already simple and correctly owned remain unchanged.
+
+`/prompt-plan` consumes that completed candidate assessment. For selected candidates it chooses the smallest independently reviewable implementation boundaries, deeply traces affected producers/consumers, identifies preserved behavior and risks, defines focused and broader regression coverage, defines comparable before/after measurements for real optimization work, handles producer → consumer readiness, and accounts for production-data compatibility. It may investigate selected candidates more deeply, but broad candidate discovery MUST already have occurred during `/prompt-ass`.
 
 ### Deliverables
 
