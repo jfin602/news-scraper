@@ -142,6 +142,14 @@ test('provides criteria-bound keyset review queue and canonical candidate detail
         ],
       );
       assert.equal(detail.articles[0].displayTitle, 'Updated title A');
+      assert.deepEqual(
+        detail.articles[0].automaticCategories.map(
+          (category) => category.configKey,
+        ),
+        ['automatic_category'],
+      );
+      assert.equal(detail.articles[0].manualCategoryOverride.active, true);
+      assert.deepEqual(detail.articles[0].effectiveCategories, []);
       assert.equal(detail.automaticGroupingBlockedByManualSeparation, true);
       assert.equal(detail.automaticMergeBlockedByManualPrimaryConflict, true);
       assert.equal(detail.groups.length, 2);
@@ -152,6 +160,11 @@ test('provides criteria-bound keyset review queue and canonical candidate detail
       assert.equal(detail.groups[0]!.memberCount, 101);
       assert.equal(detail.groups[0]!.members.length, 100);
       assert.equal(detail.groups[0]!.membersTruncated, true);
+      assert.equal(
+        detail.groups[0]!.members.find((member) => member.articleId === ids.a)
+          ?.manualCategoryOverride.active,
+        true,
+      );
       const directSeparation = await service.getReview(
         '73000000-0000-4000-8000-000000000002',
       );
@@ -191,6 +204,22 @@ async function fixture(executor: QueryExecutor): Promise<void> {
     `INSERT INTO articles (id, source_id, original_url, canonical_identity_url, display_title, normalized_title, published_at_status, source_updated_at_status, first_seen_at, last_seen_at)
     VALUES ($1,$7,'https://a.example/1','https://same.example/1','Updated title A','same','missing','missing',now(),now()), ($2,$8,'https://b.example/1','https://same.example/1','Title B','same','missing','missing',now(),now()), ($3,$7,'https://a.example/2','https://same.example/2','Title C','same','missing','missing',now(),now()), ($4,$8,'https://b.example/2','https://same.example/2','Title D','same','missing','missing',now(),now()), ($5,$7,'https://a.example/3','https://same.example/3','Title E','same','missing','missing',now(),now()), ($6,$8,'https://b.example/3','https://same.example/3','Title F','same','missing','missing',now(),now())`,
     [ids.a, ids.b, ids.c, ids.d, ids.e, ids.f, ids.sourceA, ids.sourceB],
+  );
+  await executor.query(
+    `INSERT INTO categories (id, config_key, display_name)
+     VALUES
+       ('75000000-0000-4000-8000-000000000001', 'automatic_category', 'Automatic Category'),
+       ('75000000-0000-4000-8000-000000000002', 'manual_category', 'Manual Category')`,
+  );
+  await executor.query(
+    `INSERT INTO article_categories (article_id, category_id)
+     VALUES ($1, '75000000-0000-4000-8000-000000000001'),
+            ($2, '75000000-0000-4000-8000-000000000001')`,
+    [ids.a, ids.b],
+  );
+  await executor.query(
+    `INSERT INTO article_category_overrides (article_id) VALUES ($1)`,
+    [ids.a],
   );
   const first = '73000000-0000-4000-8000-000000000001';
   const second = '73000000-0000-4000-8000-000000000002';

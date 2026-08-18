@@ -181,9 +181,16 @@ interface ArticleRow {
   readonly manual_override_active: unknown;
 }
 
-interface CategoryRow {
+interface CategoryMembershipRow {
+  readonly article_id: unknown;
+  readonly membership_kind: unknown;
   readonly config_key: unknown;
   readonly display_name: unknown;
+}
+
+interface ModerationCategoryBundles {
+  readonly automatic: readonly ModerationCategory[];
+  readonly manual: readonly ModerationCategory[];
 }
 
 interface ObservationRow {
@@ -374,8 +381,13 @@ export async function readModeratedArticles(
   );
   const hasMore = result.rows.length > criteria.pageSize;
   const rows = hasMore ? result.rows.slice(0, criteria.pageSize) : result.rows;
-  const articles: ModeratedArticle[] = [];
-  for (const row of rows) articles.push(await mapArticle(executor, row));
+  const categories = await loadModerationCategories(
+    executor,
+    rows.map((row) => requiredUuid(row.article_id)),
+  );
+  const articles = rows.map((row) =>
+    mapArticle(row, categoryBundlesFor(categories, row.article_id)),
+  );
   const last = rows.at(-1);
   return Object.freeze({
     articles: Object.freeze(articles),
@@ -398,7 +410,13 @@ export async function readModeratedArticle(
     [articleId],
   );
   const row = result.rows[0];
-  return row === undefined ? undefined : mapArticleWithReviews(executor, row);
+  if (row === undefined) return undefined;
+  const categories = await loadModerationCategories(executor, [articleId]);
+  return mapArticleWithReviews(
+    executor,
+    row,
+    categoryBundlesFor(categories, row.article_id),
+  );
 }
 
 export async function lockModeratedArticle(
@@ -410,7 +428,13 @@ export async function lockModeratedArticle(
     [articleId],
   );
   const row = result.rows[0];
-  return row === undefined ? undefined : mapArticleWithReviews(executor, row);
+  if (row === undefined) return undefined;
+  const categories = await loadModerationCategories(executor, [articleId]);
+  return mapArticleWithReviews(
+    executor,
+    row,
+    categoryBundlesFor(categories, row.article_id),
+  );
 }
 
 export async function readObservations(
@@ -579,13 +603,13 @@ export async function readCategoryIds(
   return Object.freeze(result.rows.map((row) => requiredUuid(row.id)));
 }
 
-async function mapArticle(
-  executor: QueryExecutor,
+function mapArticle(
   row: ArticleRow,
-): Promise<ModeratedArticle> {
+  categories: ModerationCategoryBundles,
+): ModeratedArticle {
   const articleId = requiredUuid(row.article_id);
-  const automaticCategories = await readCategories(executor, articleId, false);
-  const manualCategories = await readCategories(executor, articleId, true);
+  const automaticCategories = categories.automatic;
+  const manualCategories = categories.manual;
   const effectiveCategories =
     row.manual_override_active === true
       ? manualCategories
@@ -638,28 +662,74 @@ async function mapArticle(
   });
 }
 
-async function readCategories(
+async function loadModerationCategories(
   executor: QueryExecutor,
-  articleId: string,
-  manual: boolean,
-): Promise<readonly ModerationCategory[]> {
-  const result = await executor.query<CategoryRow>(
-    `SELECT category.config_key, category.display_name
-     FROM categories AS category
-     JOIN ${manual ? 'article_category_override_memberships' : 'article_categories'} AS membership
-       ON membership.category_id = category.id
-     WHERE membership.article_id = $1
-     ORDER BY category.config_key ASC`,
-    [articleId],
+  articleIds: readonly string[],
+): Promise<ReadonlyMap<string, ModerationCategoryBundles>> {
+  const requestedArticleIds = [...new Set(articleIds)];
+  const categories = new Map<
+    string,
+    { automatic: ModerationCategory[]; manual: ModerationCategory[] }
+  >();
+  for (const articleId of requestedArticleIds) {
+    categories.set(articleId, { automatic: [], manual: [] });
+  }
+  if (requestedArticleIds.length === 0) return categories;
+
+  const result = await executor.query<CategoryMembershipRow>(
+    `SELECT membership.article_id, membership.membership_kind,
+            category.config_key, category.display_name
+     FROM (
+       SELECT article_id, category_id, 'automatic'::text AS membership_kind
+       FROM article_categories
+       WHERE article_id = ANY($1::uuid[])
+       UNION ALL
+       SELECT article_id, category_id, 'manual'::text AS membership_kind
+       FROM article_category_override_memberships
+       WHERE article_id = ANY($1::uuid[])
+     ) AS membership
+     JOIN categories AS category ON category.id = membership.category_id
+     ORDER BY membership.article_id ASC, membership.membership_kind ASC,
+              category.config_key ASC`,
+    [requestedArticleIds],
   );
-  return Object.freeze(
-    result.rows.map((row) =>
+  for (const row of result.rows) {
+    const articleId = requiredUuid(row.article_id);
+    const bundle = categories.get(articleId);
+    if (bundle === undefined)
+      throw new Error('Unexpected moderation Category membership Article.');
+    const category = Object.freeze({
+      configKey: requiredText(row.config_key, 100),
+      displayName: requiredText(row.display_name, 200),
+    });
+    if (row.membership_kind === 'automatic') {
+      bundle.automatic.push(category);
+    } else if (row.membership_kind === 'manual') {
+      bundle.manual.push(category);
+    } else {
+      throw new Error('Invalid moderation Category membership kind.');
+    }
+  }
+
+  return new Map(
+    [...categories].map(([articleId, bundle]) => [
+      articleId,
       Object.freeze({
-        configKey: requiredText(row.config_key, 100),
-        displayName: requiredText(row.display_name, 200),
+        automatic: Object.freeze(bundle.automatic),
+        manual: Object.freeze(bundle.manual),
       }),
-    ),
+    ]),
   );
+}
+
+function categoryBundlesFor(
+  categories: ReadonlyMap<string, ModerationCategoryBundles>,
+  articleId: unknown,
+): ModerationCategoryBundles {
+  const bundle = categories.get(requiredUuid(articleId));
+  if (bundle === undefined)
+    throw new Error('Missing moderation Category membership bundle.');
+  return bundle;
 }
 
 async function readCategoryReasons(
@@ -827,9 +897,10 @@ async function readSignals(
 async function mapArticleWithReviews(
   executor: QueryExecutor,
   row: ArticleRow,
+  categories: ModerationCategoryBundles,
 ): Promise<ModeratedArticleDetail> {
   return Object.freeze({
-    ...(await mapArticle(executor, row)),
+    ...mapArticle(row, categories),
     duplicateReviews: await readReviews(executor, requiredUuid(row.article_id)),
   });
 }
