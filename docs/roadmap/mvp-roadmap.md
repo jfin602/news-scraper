@@ -6,46 +6,18 @@ Phases are intentionally narrow. Each phase represents one cohesive implementati
 
 ## Roadmap principles
 
-- The first implementation milestone is a real end-to-end aggregation vertical slice, not a complete administrative control plane.
-- Initial singleton Publication/Source configuration may be bootstrapped through operator-maintained seed/configuration tooling so collection can be proven before full admin UX exists.
-- Bootstrap approval is explicit operator approval; it never bypasses whitelist eligibility or silently expands approved domains.
-- The aggregation engine remains topic independent; the initial indie-author Publication is configuration only.
-- Each deployed installation hosts exactly one Publication/topic. Reuse for another topic means another configured deployment of the same codebase, not concurrently hosting multiple topic Publications in one installation.
-- The canonical customer-visible feed route is the deployment root `/`; public readers and ordinary runtime flows do not select a Publication by slug.
-- Publication is a singleton editorial/configuration concept, not a relational tenancy key. Do not introduce Publication IDs, slugs, foreign keys, joins, uniqueness scopes, or compatibility plumbing solely for hypothetical concurrent hosting.
-- Real Source/endpoint/run/Article/observation relationships remain explicit where they protect identity, provenance, safety, lifecycle, or data integrity.
-- Before production database compatibility is established, the supported persistence setup is a fresh database built from the repository's current migration chain and bootstrap/configuration. Pre-production schema corrections are destructive resets: legacy-only migrations, compatibility code, selector APIs, tests/fixtures, and obsolete configuration paths are removed when the current canonical system no longer needs them, and databases created by older source trees are rebuilt rather than preserved.
-- Phase 19 established and validated production backup/restore, deployment/rollback, and schema-upgrade procedures. Acceptance of Phase 20 customer launch establishes the first supported production schema/data baseline; from that baseline forward `docs/decisions/production-data-and-schema-compatibility.md` governs data preservation and supported upgrades.
-- Network safety, Source approval boundaries, Collection-run provenance, normalization, Relevance ordering, and idempotent Article identity are not deferred for the tech demo because they are expensive and risky to retrofit.
-- Before configurable Relevance rules exist, the canonical Relevance boundary runs with an empty rule set and deterministically includes safe candidates by default.
-- The optional Source RSS/Atom item admission filter is Source-owned, topic-independent, include-only configuration evaluated over parsed Raw-item editorial text before Article-candidate normalization; it is distinct from Phase 11 Relevance.
-- Native application-managed administrator accounts, passwords/passkeys, sessions, roles, account recovery, Publication-scoped user authorization, and identity-linked audit attribution are outside MVP.
-- MVP admin UI/API routes use Cloudflare Access as the external perimeter; supported deployments MUST prevent direct-origin bypass.
-- Cloudflare Access does not replace request-integrity, resource-validation, fetch/network-safety, output/content-safety, secrets, or origin protections.
-- Observed Level 8 proof that Cloudflare Access protects deployed admin routes and that direct-origin bypass fails was deferred to Phase 19 and is now satisfied there; earlier admin phases still implement and regression-test their application-side security boundaries and do not weaken the deployment invariant.
-- Public-feed and collection behavior should become useful before admin convenience and moderation workflows are expanded.
-- Automated behavioral regression coverage is the primary defense against regressions. Every implementation phase and gating correction inherits `docs/contracts/testing-and-validation-contract.md`.
-- After Phase 20 customer launch, new product-feature implementation is frozen until Phase 21 closes. Critical production defects, security fixes, data-integrity fixes, and required operational repairs remain permitted through the appropriate correction/fix workflow; unrelated new capability does not.
-- Phase 21 is the terminal roadmap phase unless the repository owner explicitly approves a later roadmap extension. Deferred feature ideas do not implicitly create Phase 22.
+- Phases are narrow, ordered implementation boundaries. The first milestone is the safe end-to-end aggregation vertical slice; administration, moderation, and presentation deepen after that path works.
+- Initial singleton Publication/Source configuration may use explicit operator-maintained bootstrap without bypassing Source trust, domain, lifecycle, or network-safety rules.
+- Every phase inherits the project, domain, security, singleton-architecture, and testing contracts routed by `BOOT.md`; a roadmap entry does not replace them.
+- Phase 20 acceptance established the first supported production schema/data baseline. Phase 21 therefore preserves supported customer data and upgrades under `docs/decisions/production-data-and-schema-compatibility.md`.
+- New product features remain frozen until Phase 21 closes; bounded critical production, security, data-integrity, and required operational repairs use the appropriate fix/correction workflow.
+- Phase 21 is terminal unless the repository owner explicitly approves and documents a roadmap extension. Deferred ideas do not imply Phase 22.
 
 ## Global phase validation gate
 
-The exit gate written inside each implementation phase is necessary but not sufficient by itself.
+A phase's own exit gate is necessary but not sufficient. Every implementation phase and gating correction MUST satisfy `docs/contracts/testing-and-validation-contract.md` against the exact final tree, including every applicable specialized evidence level and durable closeout artifact.
 
-Every implementation phase MUST also satisfy the testing and validation contract against the final source tree before it can close. That means, as applicable:
-
-- focused automated tests for new/corrected behavior;
-- relevant broader regression suites for the change's blast radius;
-- negative/failure/boundary coverage for contract-critical behavior;
-- real disposable PostgreSQL evidence for persistence/concurrency/migration claims;
-- deterministic collection-fixture evidence rather than live-public-network dependence in ordinary deterministic validation;
-- browser evidence for browser-dependent behavior;
-- repeatable local static/test/runtime validation executed against the exact final tree using a non-overlapping command set where aggregate commands already contain subordinate checks/suites;
-- no skipped/flaky/zero-selected suite standing in for required proof;
-- terminal evidence and limitations reported explicitly;
-- a durable closeout validation artifact when required by the phase/correction gate.
-
-Earlier passing evidence does not automatically validate later source changes. Historical validation remains evidence for the exact tree/behavior that was observed; later implementation corrections do not rewrite it.
+Claims may not exceed observed evidence. Required prerequisites/suites may not skip, flake, or select zero tests and still count as green. Use the smallest non-overlapping final command set that covers the required evidence. Historical validation applies only to the exact tree/environment observed and is never rewritten by later implementation.
 
 ## Tech-demo critical path
 
@@ -941,15 +913,6 @@ Give Cloudflare-authorized operators reversible control over Article presentatio
 - Duplicate review queue plus dismiss, merge, split, and choose-Primary controls whose manual decisions outrank materially unchanged automatic outcomes until intentionally revised.
 - Transactionally coherent, append-only, bounded change history for successful material moderation mutations.
 - Functional moderation API/UI delivered as normal versioned Phase 17 roadmap work on `main`; presentation-only `ui-polish` tasks do not own this behavior.
-
-- Article search/filter across stored instances;
-- provenance inspection;
-- hide/restore;
-- Category overrides;
-- display overrides preserving Source-derived values;
-- duplicate review queue;
-- merge/split/dismiss/choose-Primary;
-- bounded change history with action/target/time/reason as applicable, without requiring native administrator identity.
 
 ### Out of scope
 

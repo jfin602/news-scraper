@@ -4,7 +4,7 @@
 
 Deliver a dependable single-Publication website and administrative control plane that continuously collects recent headlines from a whitelist of approved Sources, persists Source instances idempotently, suppresses true duplicates, and sends readers to the original Article.
 
-Delivery is demo-first. The first implementation milestone is a real vertical slice that collects approved RSS/Atom Sources, normalizes and persists Articles idempotently with provenance, and displays them in the public rolling feed. Full admin UX follows after that vertical slice is working.
+Delivery followed a demo-first sequence: the initial vertical slice proved approved RSS/Atom collection, normalization, idempotent persistence with provenance, and the public rolling feed before the full admin UX.
 
 The MVP must prove:
 
@@ -59,11 +59,11 @@ MVP MUST provide:
 - configuration-backed public Publication branding/presentation data rather than topic-specific shared UI constants;
 - accessible external-link behavior.
 
-The earlier tech-demo milestone may expose the core `Date | Headline | Source` feed before search, filters, final responsive polish, theming, duplicate grouping, or admin UI are complete; the roadmap defines the exact staged boundary. The canonical backend is the database-backed singleton public read model/API with persisted Article visibility, Publication `public_status` and Source trust/lifecycle gates, and the canonical effective feed date (`published_at` with `first_seen_at` fallback). The canonical customer-visible page is `/` and no public Publication selector exists.
+The canonical backend is the database-backed singleton public read model/API with persisted Article visibility, Publication `public_status` and Source trust/lifecycle gates, and the canonical effective feed date (`published_at` with `first_seen_at` fallback). The canonical customer-visible page is `/` and no public Publication selector exists. Historical milestone boundaries remain in the roadmap.
 
 ### Administration
 
-MVP MUST provide, after the tech-demo vertical slice:
+MVP MUST provide:
 
 - Cloudflare Access-protected administrative UI/API routes with direct-origin bypass prevented by the supported deployment;
 - configuration for the installation's singleton Publication settings, including the branding/feed/presentation settings introduced before the admin surface;
@@ -121,11 +121,11 @@ Suggested initial Categories:
 
 These are not global Platform Categories. They are installation-specific configuration for the first deployment and are not shared-engine behavior. Bootstrap contains only configuration needed by implemented behavior; later branding/feed, Category, and Relevance data are introduced in the phases that use them.
 
-Phase 13 introduced the minimum persisted public presentation configuration needed by the customer-facing feed—Publication description, same-origin logo path, and accent color in addition to the existing name—and exposed those values through the canonical public-feed boundary. Phase 15 adds Cloudflare-protected administrative editing for those settings and optional `presentation_timezone`: a valid IANA identifier that changes calendar-date presentation only. Until configured, the established UTC public-date fallback remains authoritative.
+The customer-facing feed uses persisted Publication description, same-origin logo path, and accent color in addition to the required name. Cloudflare-protected administration edits those settings and optional `presentation_timezone`, a valid IANA identifier that changes calendar-date presentation only. Until configured, UTC public-date presentation remains authoritative.
 
-Phase 14 adds optional Source-owned RSS/Atom item admission phrases and the protected Source-management surface needed to configure them without code or direct database editing. The first Publication's actual phrases are installation configuration, never shared Platform logic. Absence of the optional filter preserves the current collect-all behavior.
+Optional Source-owned RSS/Atom item admission phrases are managed through the protected Source surface without code or direct database editing. The first Publication's actual phrases are installation configuration, never shared Platform logic. Absence of the optional filter preserves collect-all behavior.
 
-Initial singleton Publication/Source/endpoint configuration may be created through operator-maintained seed/bootstrap tooling before admin UI exists. Bootstrap approval is explicit operator approval, not an eligibility bypass or auto-discovery mechanism. Ordinary bootstrap remains create-if-absent and does not overwrite existing operator-managed state; before full Publication administration exists, the tech-demo path therefore uses the smallest explicit operator-controlled generic state transition needed to expose the Publication deliberately.
+Initial singleton Publication/Source/endpoint configuration may be created through operator-maintained seed/bootstrap tooling. Bootstrap approval is explicit operator approval, not an eligibility bypass or auto-discovery mechanism. Ordinary bootstrap remains create-if-absent, does not overwrite existing operator-managed state, and is not the state-transition mechanism for already-created configuration.
 
 Bootstrap/deployment/runtime configuration does not resolve or select among Publication slugs. It supplies one singleton Publication configuration for the installation. Source `config_key` is installation-wide; endpoint `config_key` is Source-scoped. A different topic uses a different deployment/configuration of the same codebase.
 

@@ -24,37 +24,18 @@ It establishes project identity, canonical terminology, authority, document rout
 - Admin direction: Cloudflare Access-protected singleton Publication/Source/endpoint/Relevance/Category/Article/duplicate/health/change-history control plane, built after the tech-demo vertical slice
 - Core constraint: Publication-specific behavior is configuration; shared engine logic remains topic independent
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication/Source configuration, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend implementation/validation are complete with durable validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026. Its durable validation artifact remains authoritative that the required two-Source Level 7 live-source gate was not observed in the recorded run because The Creative Penn timed out under the recorded execution environment; owner acceptance advances roadmap state without rewriting that evidence.
+Phases 0–20 and the Phase 10 singleton correction are complete; detailed history and validation links belong to `docs/roadmap/mvp-roadmap.md` and `docs/validation/`. Two qualifications remain prominent because summaries must not turn owner acceptance into unobserved proof:
 
-The Phase 10 entry singleton implementation correction is complete with durable validation in `docs/validation/single-publication-simplification-correction.md`. It removed obsolete Publication tenancy/scoping/selectors from the supported source/schema/configuration/public/Worker paths and established the canonical singleton migration-from-zero model, `/api/feed`, and root `/` without rewriting historical evidence.
+- Phase 9 was accepted by the repository owner on August 11, 2026 although its artifact records that the required two-Source Level 7 observation was incomplete after one Source timed out in that environment.
+- Phase 14 was accepted by the repository owner on August 14, 2026 while its artifact retained the original BLOCKED/RED Level 8 deployment-observation limitation. Phase 19 later supplied that proof without rewriting the historical artifact.
 
-Phase 10 — Automated polling, durable jobs, and endpoint health — is complete with durable validation in `docs/validation/phase-10-automated-polling-durable-jobs-endpoint-health.md`. Durable jobs, due-endpoint scheduling, retry/recovery, conditional-fetch state, shared capacity/locking, Worker orchestration, and baseline endpoint health now surround the same canonical endpoint execution unit proven during the tech-demo path.
-
-Phase 11 — Categories and configurable Relevance execution — is complete with durable validation in `docs/validation/phase-11-categories-configurable-relevance-execution.md`. Persisted installation-wide Categories, deterministic include/exclude/categorize rules, Source/endpoint default Category fallback, stable reasons, prospective exclusions, and the explicit pre-admin editorial configuration path now extend the same pre-identity Relevance boundary.
-
-Phase 12 — Feed discovery features — is complete with durable validation in `docs/validation/phase-12-feed-discovery-features.md`. Deterministic Source/Category filters, bounded literal search, stable keyset pagination/load-more, URL/reset navigation behavior, and MVP-scale query/index behavior now extend the canonical public-feed boundary without changing feed eligibility or chronological ordering.
-
-Phase 13 — Public presentation polish — is complete with durable validation in `docs/validation/phase-13-public-presentation-polish.md`. Minimum singleton Publication public-presentation/branding support, polished responsive desktop/mobile presentation, system/light/dark modes, accessibility behavior, intentional pending/loading presentation including resolved issue R7KM, and preserved Phase 12 discovery semantics now form the integrated public-presentation baseline.
-
-Phase 14 — Source administration — is complete by explicit repository-owner acceptance on August 14, 2026. Its historical validation artifact remains truthful evidence of the recorded passing local/static/unit/integration/database/fixture/browser evidence and its original BLOCKED/RED determination: the then-required Level 8 Cloudflare Access/direct-origin deployment observation was unavailable. The governing roadmap and testing contract subsequently moved that observation to Phase 19; owner acceptance advanced the roadmap without rewriting the historical artifact or claiming Level 8 was observed.
-
-Phase 15 — Publication and Relevance administration — is complete with durable validation in `docs/validation/phase-15-publication-relevance-administration.md`. Phase 16 — True duplicate detection and grouping — is complete with durable GREEN validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`; its non-versioned testing-efficiency correction remains completed historical work. Phase 17 — Article and duplicate moderation — is complete with durable GREEN validation in `docs/validation/phase-17-article-and-duplicate-moderation.md`. Phase 18 — Configurable HTML collection — is complete with durable GREEN validation in `docs/validation/phase-18-configurable-html-collection.md`. Phase 19 — Reliability, observability, and production operations — is complete with durable GREEN validation in `docs/validation/phase-19-reliability-observability-production-operations.md`, including the deferred Level 8 Cloudflare Access/direct-origin deployment-perimeter proof.
-
-The canonical architecture is one Publication/topic per installation, singleton Publication editorial configuration without relational tenancy, Source-scoped identity/provenance, persisted Relevance/Categories, canonical `/api/feed`, canonical root `/`, and durable endpoint scheduling/jobs. Historical validation artifacts remain evidence only for the exact SHAs and environments they recorded.
+All historical validation artifacts remain truthful, SHA/environment-specific evidence and do not redefine current contracts.
 
 ## Delivery priority
 
-Phases 1–9 are the historical tech-demo critical path.
+Phases 1–9 are the historical tech-demo critical path; Phase 20 completed customer launch and established the supported production baseline. The roadmap owns detailed sequencing and completed-phase history.
 
-The first demonstrable milestone is: at least two real approved RSS/Atom Sources are collected through the Worker, recorded in Collection runs, normalized, passed through the canonical default-include Relevance boundary, persisted idempotently with Article-observation provenance, and displayed in the public feed with original-publisher headline links.
-
-Phase 11 completed deterministic persisted Categories and configurable Relevance execution. Phase 12 completed deterministic Source/Category filters, bounded literal search, keyset/load-more cursors, and URL/reset navigation behavior. Phase 13 completed the governed public-presentation work while preserving those discovery semantics. Phase 14 completed Source administration and the Source RSS/Atom item admission filter by owner acceptance on August 14, 2026, with the historical Level 8 deployment-proof limitation preserved; Phase 19 later supplied the deferred deployment-perimeter proof without rewriting that historical evidence. Phase 15 completed Publication/Category/Relevance administration, Phase 16 completed true duplicate detection/grouping plus its non-versioned testing-efficiency correction, Phase 17 completed reversible Article and duplicate moderation, and Phase 18 completed bounded static HTML listing profiles while keeping every downstream stage shared. Phase 19 completed production operations, recovery procedures, integrated security/reliability evidence, schema-upgrade/rollback/restore validation, and the deferred Level 8 deployment-perimeter proof. Phase 20 completed customer launch validation and operator handoff with durable accepted evidence in `docs/validation/phase-20-customer-launch-validation.md`, establishing the first supported production baseline.
-
-Phase 21 operates entirely after the accepted Phase 20 production baseline. Normal refactors preserve supported customer data and governed relationships, and any justified persisted/schema change must retain supported upgradeability and prove the applicable forward data-preserving migration path under `docs/decisions/production-data-and-schema-compatibility.md`.
-
-New product-feature work remains frozen until Phase 21 closes. Appropriately bounded critical production defects, security fixes, data-integrity fixes, and required operational repairs may use a fix/correction path; unrelated deferred capability does not. Phase 21 is the terminal roadmap phase unless the repository owner explicitly approves a later roadmap extension.
-
-Every implementation phase and correction inherits `docs/contracts/testing-and-validation-contract.md`. Fast delivery does not permit regression protection, persistence proof, network-safety tests, or final-tree validation to be deferred when the corresponding behavior is introduced or changed. Validation efficiency means eliminating redundant execution and repeated setup while preserving the same applicable evidence coverage.
+Current delivery is terminal Phase 21 behavior-preserving simplification under post-launch production compatibility. New features remain frozen until it closes; only bounded critical production, security, data-integrity, or operational fixes may interrupt. Every implementation/correction inherits the testing contract, and any persisted/schema change must prove supported forward upgrade and data preservation as well as migration from zero.
 
 ## New-session startup
 
@@ -165,122 +146,34 @@ If a path does not exist, search for its current equivalent before assuming inte
 
 ## High-risk project invariants
 
-- Shared engine code remains topic independent.
-- Each supported deployed installation hosts exactly one Publication/topic; another topic uses another configured deployment of the same codebase.
-- Singleton Publication configuration owns installation-wide name, collection/public state, branding/presentation, Categories, Relevance, Sources, and Source priority conceptually.
-- Publication is not a relational tenant key. Do not introduce Publication UUIDs, slugs, FKs, joins, composite uniqueness scopes, API/repository parameters, admin authorization scopes, or compatibility aliases solely for hypothetical concurrent hosting.
-- Source `config_key` is installation-wide; endpoint `config_key` remains Source-scoped. Category and Relevance-rule `config_key` values are installation-wide and immutable once persisted.
-- Source owns endpoints and Articles; endpoints own Collection runs; observations preserve endpoint/run and Article/Source consistency. Simplification MUST NOT weaken these real relationships.
-- Article candidate provenance excludes Publication identity and retains Source + endpoint + Collection run.
-- Article identity is Source-scoped: strong external ID first, canonical URL fallback second, explicit adapter key only when concrete need exists.
-- Before production database compatibility is established, the active migration chain is the smallest supported schema-from-zero authority. Legacy-only pre-production migration steps and compatibility-only source/API/type/test/fixture/config paths MUST be removed when the canonical current system no longer needs them; older pre-production database contents are disposable and are rebuilt rather than migrated.
-- Phase 19 established/validated production backup/restore/deployment/rollback/schema-upgrade procedures; accepted Phase 20 customer launch establishes the first supported production baseline. After that baseline, customer data is durable supported state, supported production migration history remains upgrade-capable, and normal changes preserve governed persisted data under `docs/decisions/production-data-and-schema-compatibility.md`.
-- After Phase 20, new product-feature implementation is frozen until terminal Phase 21 closes; only critical production defect/security/data-integrity/operational fixes may interrupt through a bounded fix/correction path. Deferred features do not implicitly create Phase 22.
-- Canonical public page is `GET /`; canonical basic public feed API is `GET /api/feed`.
-- Accepted Phase 8/9 slug-addressed route evidence remains historical truth for its recorded SHAs and is not rewritten to claim root-route validation.
-- The Phase 10 entry singleton implementation correction, Phase 10 scheduler/job/health implementation, and Phase 11 Category/Relevance implementation are complete with durable validation; do not treat them as active gates.
-- Source/endpoint approval/trust, lifecycle (`active/archived`), operational state (`enabled/paused/disabled`), and derived health are distinct.
-- Bootstrap may explicitly create approved configuration as operator input but may not auto-discover/auto-approve, infer approval from fetch success, widen domains silently, or overwrite later operator-managed state on normal startup.
-- Bootstrap/Worker/runtime paths do not select a Publication slug/id; singleton Publication state is installation configuration.
-- Only approved + active + operationally enabled Sources/endpoints are contacted while singleton Publication `active_for_collection` is true.
-- Every request/redirect passes pre-fetch network-safety validation before contact.
-- Parsed Article links pass a separate post-normalization Source/domain gate.
-- Source approved domains are the maximum boundary; endpoint rules may narrow, not silently widen.
-- Parsers output Raw items and never persist Articles directly.
-- An optional Source RSS/Atom item admission filter uses bounded non-empty phrases with deterministic case-insensitive literal any-match semantics over existing parsed title, summary/content text, and Source-provided category labels. No configured phrases preserves collect-all behavior. A mismatch terminates before normalization and is not a Relevance `excluded` outcome or Article observation.
-- Source-shaped data is normalized before Relevance, identity, duplicate, or feed use.
-- Relevance ordering is never bypassed: before configurable rules exist the empty rule set deterministically returns `include`; Phase 11 extends the same boundary rather than replacing it.
-- MVP rule predicates are only literal `title_contains`, `summary_contains`, and `source_category_equals`; missing fields do not match. Regex/glob/fuzzy/stemming/semantic/AI/general-expression behavior is not implied.
-- Matching include/exclude precedence is priority descending → Source-scoped before installation-wide → `exclude` before `include` → immutable rule `config_key` ascending as the final deterministic winning-reason tie-break; if no rule decides, include by default.
-- Matching categorize rules are additive and deduplicated by Category `config_key`; categorize priority orders reasons but does not suppress another matching Category. Endpoint default then Source default are fallback-only when no categorize rule assigns a Category.
-- An excluded candidate stops before Article identity, records the canonical `excluded` outcome with endpoint/run provenance and reason, and does not look up an earlier Article merely to hide/delete/recategorize it.
-- Configurable MVP Relevance edits are prospective by default; automatic bulk historical reprocessing is deferred. An ordinary later included observation may apply then-current Category configuration without constituting a bulk historical scan.
-- Phase 11 introduced the explicit pre-admin topic-independent operator mechanism for Category/Relevance/default-Category configuration. It remains explicitly invoked, validates real relationships, does not weaken ordinary bootstrap no-overwrite behavior, and does not trigger automatic bulk reprocessing; Phase 15 exposes the same governed model through the protected admin control plane.
-- Article identity is transactionally idempotent.
-- Article observations preserve endpoint/run provenance.
-- Minimal Collection-run persistence begins with the first real fetch in Phase 5 and expands as pipeline stages are introduced.
-- During Phases 5–9, collection was manually invoked through the Worker; Web/API never fetched Sources inline.
-- Phase 10 added durable scheduling/jobs around the same endpoint execution unit and does not add multi-Publication scheduling or tenancy.
-- True-duplicate grouping applies to separately stored Articles; duplicate state is installation-wide and preserves every Article/observation.
-- Article visibility is independent from duplicate role; before Duplicate groups exist, Articles are logically `ungrouped`.
-- Ordinary public-feed eligibility requires singleton `public_status = public`, an approved active Source, and a visible Article that is `ungrouped` or the `primary` member once grouping exists.
-- Publication collection activity, Source operational state, and endpoint approval/lifecycle/operational/health state govern collection and do not by themselves suppress retained otherwise-eligible public rows.
-- Public feed effective date uses parsed `published_at` when available and otherwise `first_seen_at`, with fallback provenance detectable and deterministic tie ordering.
-- Public headline destination is stored Article `original_url`; `canonical_identity_url` remains an identity-comparison field and is not substituted silently.
-- Phase 12 discovery extends the canonical `/api/feed` read path rather than creating a second eligibility/query path. Optional public discovery inputs are `q`, `source`, `category`, and `cursor`.
-- Public Source/Category filters use immutable `config_key` identities. MVP supports at most one Source and one Category filter; supplied `q`/Source/Category dimensions compose with AND semantics, and Category filtering uses current `article_categories` membership.
-- Phase 12 keyword search is bounded deterministic case-insensitive literal filtering over safe normalized textual Article metadata; it does not introduce regex/fuzzy/semantic/ranking behavior or alter canonical chronological order.
-- Phase 12 pagination uses bounded server-defined pages and opaque/versioned keyset cursors tied to the canonical effective-date → `first_seen_at` → stable-Article-ID ordering tuple and normalized discovery criteria. Cursor/query mismatch is invalid; no public `limit` is introduced.
-- Phase 12 root-page URL state reflects `q`, `source`, and `category`; criteria changes reset pagination, Reset clears discovery state, and browser back/forward restores URL-reflected discovery state. Load-more cursor depth need not be canonical shareable URL state.
-- Until optional Publication `presentation_timezone` is configured, the public UI renders the calendar date from `effectiveFeedDate` in UTC; a configured valid IANA timezone changes calendar-date presentation only.
-- Absent singleton Publication configuration and non-public configuration remain indistinguishable on public page/API and use the same generic unavailable/not-found behavior.
-- Weak duplicate evidence persists as review state; unchanged dismissed evidence does not recur indefinitely.
-- Source runs/jobs fail independently and public-feed reads remain readable during collection failures.
-- MVP admin UI/API routes are behind Cloudflare Access and supported deployments prevent direct-origin bypass.
-- State-changing admin browser actions use CSRF/equivalent request-integrity controls; application commands validate real resource relationships/domain invariants rather than Publication tenancy.
-- Native application administrator accounts/sessions/roles/account recovery/per-user Publication authorization/identity-linked audit attribution are deferred beyond MVP.
-- Push/webhook adapters and pinning/featured ordering are deferred beyond MVP unless explicitly promoted.
-- Every implementation change requires focused automated coverage and relevant broader regression coverage under the testing contract.
-- Iterative validation uses the narrowest useful focused suite; final-tree validation uses the smallest non-overlapping command set that covers all required evidence. Aggregate commands satisfy the subordinate checks/suites they actually execute on the same unchanged final tree.
-- Persistence/concurrency/migration claims require the evidence level capable of proving real PostgreSQL behavior; mocks do not substitute for database guarantees.
-- Ordinary PostgreSQL test isolation may reuse one unique migrated disposable database per independently executed test file/equivalent scope with deterministic application-state reset between cases; migration/database-lifecycle/schema-mutation claims retain the fresh-database path.
-- Independently isolated test files may use bounded concurrency when semantics/resource limits remain safe; parallel database files do not share a mutable database unless shared-state concurrency is the behavior under test.
-- Phase 11 is complete with deterministic predicate/precedence/category/default/prospective/excluded-accounting coverage plus real PostgreSQL proof for Category/rule schema, relationships, uniqueness, membership, and reason persistence.
-- Phase 12 is complete with focused API/database/browser evidence for bounded discovery input, unchanged feed eligibility, Source/Category filtering, literal search, stable keyset pagination, cursor/query mismatch rejection, URL/reset/back-forward behavior, and relevant query/index behavior recorded in `docs/validation/phase-12-feed-discovery-features.md`.
-- Phase 13 is complete with durable persistence/read-model, responsive presentation, branding, theme, accessibility, loading-state, browser, and Phase 12 regression evidence recorded in `docs/validation/phase-13-public-presentation-polish.md`.
-- Ordinary deterministic validation does not rely on live public Sources and must not weaken production whitelist/SSRF policy.
-- Required suites do not pass by silently skipping prerequisites or selecting zero tests.
-- Validation claims apply to the exact final source tree tested; previous passing evidence does not automatically transfer to later source changes.
-- Phase 9 roadmap progression was explicitly accepted on August 11, 2026 despite the durable artifact recording the incomplete two-Source Level 7 observation; this owner exception does not rewrite the evidence.
-- Roadmap phase closeout and a gating correction closeout require durable `docs/validation/` evidence tied to the exact accepted source tree when required by the testing contract.
+Read the routed contract for full matrices and algorithms. BOOT keeps only distinctions whose omission commonly causes architectural or evidentiary errors:
+
+- Shared engine code is topic independent. One deployed installation hosts one singleton Publication/topic; another topic uses another configured deployment. Publication owns editorial configuration but is not a relational tenant key.
+- Do not introduce Publication IDs/slugs/FKs/joins/uniqueness scopes/repository or authorization parameters/compatibility aliases solely for hypothetical concurrent hosting. Preserve genuine Source/endpoint/run/Article/observation relationships.
+- Source is the approved publisher/trust boundary; endpoint is its concrete feed/API/HTML location. Approval, lifecycle, operational state, and derived health are separate.
+- Collection requires singleton Publication collection-active state plus approved, active, enabled Source/endpoint state. Bootstrap never auto-discovers/auto-approves, infers approval from fetch success, silently widens domains, or overwrites operator-managed state.
+- Every request and redirect hop passes approval plus DNS/address/port/SSRF validation before contact. Normalized Article links pass a separate post-normalization Source/domain policy gate. Endpoint policy may narrow the Source maximum, never widen it.
+- Parsers emit Raw items and never persist Articles. The optional Source-owned RSS/Atom admission filter is a literal include-only pre-normalization gate distinct from Relevance; a mismatch is neither a Relevance `excluded` outcome nor an Article observation. HTML bypasses this RSS/Atom-only stage.
+- Normalization precedes Article-link policy, Relevance/Categories, identity, duplicates, and feed use. Relevance exclusion terminates before identity; rule edits are prospective by default.
+- Article identity is Source-scoped and transactionally idempotent. True-duplicate identity relates separately retained Articles; all Source instances/provenance remain stored and each Duplicate group has exactly one Primary.
+- Article visibility is independent from duplicate role. Collection activity, endpoint operational state, and current run health do not themselves hide retained otherwise-feed-eligible rows.
+- Public headlines use stored `original_url`; `canonical_identity_url` remains an identity-comparison field. `GET /api/feed` and `GET /` share the canonical public-feed read model rather than parallel eligibility/query paths.
+- Web/API never collects Sources inline. Source runs/jobs fail independently, and collection failures do not make the retained public feed unavailable.
+- Admin uses Cloudflare Access with direct-origin protection, request-integrity controls, and application validation of real resource relationships/domain invariants. Native application accounts/roles and Publication-tenant authorization remain deferred.
+- Accepted Phase 20 established durable supported customer state. Clean migration from zero remains required for new/disposable installations, but post-baseline persisted/schema changes must preserve supported data/relationships and prove the supported forward upgrade under the production-compatibility ADR.
+- Every implementation change requires focused plus relevant broader regression coverage. Evidence must actually be observed at the capable level and applies only to the exact final tree/environment tested; source inspection, mocks, fixtures, browser, database, live-Source, and deployment evidence are not interchangeable.
+- Required suites do not pass through missing prerequisites, skips, flakiness, or zero selected tests. Use narrow focused iteration and the smallest non-overlapping final command set that covers the applicable testing contract.
+- Roadmap closeout and correction closeout remain distinct; historical validation remains truthful and SHA/environment-specific.
 
 ## Roadmap state
 
-Use `docs/roadmap/mvp-roadmap.md`.
+Use `docs/roadmap/mvp-roadmap.md` for phase history, dependencies, and exit gates.
 
-Current phase: **Phase 21 — Codebase simplification and maintainability hardening**.
+Current phase: **Phase 21 — Codebase simplification and maintainability hardening**. Phases 0–20 and the Phase 10 singleton correction are complete. Accepted Phase 20 launch evidence identifies the first supported production source/version/schema baseline.
 
-Phase 0 documentation alignment, Phase 1 Application foundation, Phase 2 Database foundation, Phase 3 Publication and Source configuration core, Phase 4 Collection eligibility and network safety, Phase 5 RSS/Atom transport, parsing, and minimal Collection runs, Phase 6 Article normalization, Phase 7 Default Relevance/Article identity/persistence, and Phase 8 Basic public-feed backend are complete with durable closeout validation. Phase 9 Basic public-feed UI and tech demo is complete by explicit repository-owner acceptance on August 11, 2026 with the recorded live-source limitation preserved. The Phase 10 entry singleton correction and Phases 10–15 are complete. Phase 14 was accepted on August 14, 2026 while preserving its historical BLOCKED/RED Level 8 Cloudflare Access/direct-origin deployment observation; Phase 19 later supplied that deferred proof without rewriting the historical artifact. Phase 15 has durable validation in `docs/validation/phase-15-publication-relevance-administration.md`.
+Phase 21 is behavior-preserving work under post-launch compatibility and the feature freeze. It is terminal: closing it creates neither Phase 22 nor a `0.22.0` baseline. Later roadmap work requires explicit owner approval and documentation alignment. Do not advance or close it by assumption; verify its exit gate and inherited testing contract against the exact final tree.
 
-### Tech-demo critical path
-
-1. Phase 1 — Application foundation
-2. Phase 2 — Database foundation
-3. Phase 3 — Publication and Source configuration core
-4. Phase 4 — Collection eligibility and network safety
-5. Phase 5 — RSS/Atom transport, parsing, and minimal Collection runs
-6. Phase 6 — Article normalization
-7. Phase 7 — Default Relevance, Article identity, and persistence
-8. Phase 8 — Basic public-feed backend
-9. Phase 9 — Basic public-feed UI and tech demo
-
-### Completed post-demo work
-
-- Phase 10 entry singleton implementation correction — complete with durable correction validation.
-- Phase 10 — Automated polling, durable jobs, and endpoint health — complete with durable closeout validation.
-- Phase 11 — Categories and configurable Relevance execution — complete with durable closeout validation.
-- Phase 12 — Feed discovery features — complete with durable closeout validation in `docs/validation/phase-12-feed-discovery-features.md`.
-- Phase 13 — Public presentation polish — complete with durable closeout validation in `docs/validation/phase-13-public-presentation-polish.md`.
-- Phase 14 — Source administration — complete by explicit repository-owner acceptance on August 14, 2026; its historical BLOCKED/RED Level 8 deployment-observation artifact remains unchanged, and Phase 19 later supplied that proof.
-- Phase 15 — Publication and Relevance administration — complete with durable closeout validation in `docs/validation/phase-15-publication-relevance-administration.md`.
-
-### Completed implementation phases
-
-16. Phase 16 — True duplicate detection and grouping — complete with durable GREEN validation in `docs/validation/phase-16-true-duplicate-detection-and-grouping.md`.
-
-17. Phase 17 — Article and duplicate moderation — complete with durable GREEN validation in `docs/validation/phase-17-article-and-duplicate-moderation.md`.
-
-18. Phase 18 — Configurable HTML collection — complete with durable GREEN validation in `docs/validation/phase-18-configurable-html-collection.md`.
-
-19. Phase 19 — Reliability, observability, and production operations — complete with durable GREEN validation in `docs/validation/phase-19-reliability-observability-production-operations.md`, including the deferred Level 8 Cloudflare Access/direct-origin reference-deployment proof.
-
-### Current implementation phase
-
-21. Phase 21 — Codebase simplification and maintainability hardening
-
-Phase 20 — Customer launch validation — is complete and accepted with durable evidence in `docs/validation/phase-20-customer-launch-validation.md`; that artifact's exact launched source/version/schema state remains the first supported production baseline. Phase 21 is behavior-preserving engineering work under post-launch production compatibility. New product-feature implementation remains frozen until Phase 21 closes except for appropriately bounded critical production/security/data-integrity/operations fixes. Phase 21 is terminal: closing it does not create Phase 22 or a `0.22.0` baseline, and later roadmap work requires explicit repository-owner approval and documentation alignment first.
-
-Do not advance by assumption. Verify each phase/correction exit gate plus the inherited testing-and-validation gate against the final tree before updating state.
+Historical qualifications remain as summarized in Project identity: Phase 9 and Phase 14 owner acceptances did not rewrite their recorded evidence limitations, and Phase 19 later supplied Phase 14's deferred Level 8 proof.
 
 ## Working preferences
 
@@ -578,74 +471,13 @@ Runner fail-closed execution invariants: clean working tree, no `package-lock.js
 
 ## Prompt model/reasoning and usage selection
 
-Every implementation and closeout task MUST carry an explicit recommended Codex model/reasoning configuration and token/credit-usage estimate. Model family and reasoning effort are separate dimensions; there is no repository-defined linear ladder such as `Terra Max` or `Sol Max`. Use `docs/codex-model-selection.md` for the detailed selection workflow.
+`docs/codex-model-selection.md` is the detailed authority for model family, reasoning effort, usage estimation, quality floors, downgrade/escalation decisions, and prompt-token discipline. BOOT retains these workflow requirements:
 
-Use exact model/reasoning labels currently available in the runner: `Luna Low`, `Luna Medium`, `Luna High`, `Terra Medium`, `Terra High`, `Terra Ultra`, `Sol Light`, `Sol Medium`, `Sol High`, and `Sol Ultra`. Never invent a name or assume a more expensive model is inherently the safer recommendation.
-
-### Minimum-adequate usage-conservation rule
-
-The objective is the **lowest expected total token/credit usage that still gives the task enough capability and reasoning headroom to be reliable**.
-
-1. Establish the non-negotiable correctness floor from actual security, data-integrity, concurrency/transaction, architecture/blast-radius, failure-handling, and validation risk.
-2. Start from the lowest-expected-cost current configuration that plausibly satisfies that floor; do not start from the strongest model and work downward.
-3. Escalate model capability or reasoning effort only when a concrete task characteristic makes the cheaper configuration materially less reliable. Name that escalation trigger explicitly.
-4. Compare expected total credits/usage, not model prestige or token count in isolation. Current official Codex rates and likely reasoning/output volume both matter.
-5. Never reduce below the correctness floor merely to save usage; when the cheaper option creates material implementation/review risk, use the minimum higher configuration that removes that risk.
-
-The following do **not** independently justify a higher rating: prompt length, phase number, number of acceptance criteria, size of the test matrix, the fact that production code is touched, or the general importance of the feature. Highly explicit prompts often need **less** reasoning because ambiguity has already been removed. A broad but mechanical validation/closeout task may consume many tokens while still needing only a workhorse model.
-
-High-cost recommendations must therefore be earned by concrete evidence such as unresolved architectural choice, materially ambiguous contracts, difficult root-cause debugging, cross-cutting shared-state behavior, concurrency/transaction ownership, high-risk security boundaries, or review work that requires substantial independent inference. Failure or newly discovered ambiguity during execution should trigger a stop/escalation rather than pre-rating every task for a worst-case scenario.
-
-### Complexity / quality classes
-
-Complexity class describes the task's correctness/risk shape; it does **not** map mechanically to a model tier.
-
-| Class      | Typical task shape                                                                                                                                                                                                                                        |
-| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `Standard` | Bounded implementation, leaf modules, straightforward migrations/repositories, deterministic tests, contained refactors. Expect the most economical adequate configuration.                                                                               |
-| `Elevated` | Subtle validation/state behavior, security-sensitive narrow policy, meaningful persistence semantics, or difficult edge cases. Still prefer an economical workhorse when the behavior is explicit and bounded.                                            |
-| `High`     | Cross-cutting integration, multiple interacting modules, concurrency/transaction ownership, shared infrastructure, high-risk security, or broad regression surface. A higher class permits escalation but does not itself prove that Sol/Ultra is needed. |
-| `Critical` | Rare work combining several high-risk dimensions where the strongest available reasoning is materially justified. Treat this classification as exceptional and state why cheaper configurations are inadequate.                                           |
-
-### Required usage estimate
-
-`/prompt-ass` and `/prompt-plan` provide for each prompt:
-
-- **Recommended configuration:** exact current model + reasoning choice.
-- **Model-family basis:** why Luna, Terra, or Sol capability is needed.
-- **Reasoning basis:** why the selected effort is needed independently of model family.
-- **Complexity / quality floor:** `Standard`, `Elevated`, `High`, or `Critical`, with concise rationale.
-- **Estimated usage:** `Low`, `Moderate`, `High`, or `Very High`.
-- **Lower-cost alternative considered:** the most relevant cheaper configuration, or state that the recommendation is already the lowest adequate current option.
-- **Escalation trigger:** the concrete reason the lower-cost alternative is inadequate; use `None` when no escalation was needed.
-- **Efficiency rationale:** why this is the minimum adequate configuration rather than merely a safe/powerful choice.
-- **Estimate confidence:** `Low`, `Medium`, or `High` when meaningful.
-
-When current official OpenAI Codex token/credit rates are available, use them instead of stale repository numbers. Do not invent precise counts when uncertain. Reassess relative model pricing when it changes: a lower reasoning level on a more expensive-per-token model is not automatically cheaper than a workhorse model with more reasoning. Expensive recommendations MUST identify a specific lower-cost alternative and explain why it fails the task's actual correctness floor.
-
-### Prompt/token discipline
-
-Prompt quality does not require repeatedly restating the same contract. To reduce input usage while keeping tasks implementation-ready:
-
-- reference governing contracts/ADRs by path and restate only the invariants that materially constrain this task;
-- avoid duplicating the same requirement across Context, Constraints, Preserved behavior, Acceptance criteria, and Final report unless repetition prevents a real failure mode;
-- inspect and list only the source/tests/consumers relevant to the task boundary rather than producing ceremonial exhaustive lists;
-- keep tests explicit, but do not narrate identical test intent multiple times;
-- distinguish iterative focused validation from final-tree validation rather than prescribing a full expensive suite for every implementation feedback cycle;
-- final validation commands use the smallest non-overlapping set that covers the required evidence; do not list subordinate commands next to an aggregate command that already executes them unless repetition has a concrete diagnostic purpose;
-- prefer concise implementation instructions over ornamental rationale once a decision is already governed;
-- do not make a prompt longer merely to make the task appear safer or more sophisticated.
-
-Correctness and validation requirements remain mandatory; this discipline removes redundancy, not evidence.
-
-### Workflow ownership
-
-- `/prompt-ass` starts from the lowest-cost plausible current configuration and escalates only with an explicit task-specific trigger. It records provisional task classification, model-family basis, reasoning basis, recommendation, complexity, usage, lower-cost alternative, escalation trigger/target, and rationale. It also identifies the focused iterative test boundary and the broader final regression/evidence boundary without duplicating contained command aliases.
-- `/prompt-plan` is the final model gate after source-level investigation. It MUST reassess from observed source evidence, downgrade when investigation makes the task more bounded/explicit than provisionally assessed, and may upgrade only when newly observed complexity demonstrates that the cheaper configuration is inadequate. It records a `Downgraded`, `Unchanged`, or `Escalated` delta. It MUST trace current package scripts/runner containment so the planned final validation command set executes all required evidence once without redundant subordinate reruns.
-- `/prompt-write` consumes the finalized `/prompt-plan` decision, validates its exact label against current `MODEL_CONFIGS`, writes the finalized minimum-adequate `MODEL / REASONING / USAGE` block, and keeps implementation prose concise under the token-discipline rules above. It MUST NOT speculate upward because of prompt length, importance, or validation volume. It MUST clearly separate focused development validation from final-tree regression validation and MUST NOT require overlapping final commands solely to reproduce the same evidence.
-- Material boundary/quality change during revalidation returns `Planning needed` rather than silently changing approved implementation scope. A model-only downgrade under the same task boundary may be applied during explicit revalidation/owner-authorized task maintenance.
-- `/revalidate` compares existing prompt/stack to current repo/contracts/model-usage/validation-efficiency policy and actively looks for safe downgrades, stale redundant validation commands, as well as necessary upgrades.
-- Historical completed prompts may retain model/effort/validation wording in force when executed; unexecuted obsolete, over-provisioned, or materially redundant prompt instructions require revalidation before execution when governing policy has changed.
+- select the minimum-cost current `MODEL_CONFIGS` label that plausibly meets the task's correctness floor; family and effort are independent choices;
+- justify escalation with concrete task complexity, not phase number, importance, prompt length, or validation volume;
+- every implementation/closeout prompt includes a finalized `MODEL / REASONING / USAGE` block with recommendation label, family/effort basis, complexity/quality floor, estimated implementation usage, lower-cost alternative, escalation trigger/target, efficiency rationale, and confidence;
+- `/prompt-ass` makes the provisional recommendation, `/prompt-plan` re-evaluates it after decomposition and records `Downgraded`, `Unchanged`, or `Escalated`, and `/prompt-write` preserves the approved result;
+- use compact repository references and precise constraints rather than pasting contracts into prompts; prompt-token estimates are separate from implementation-usage estimates.
 
 ## Versioning and phase-prompt numbering
 
@@ -717,21 +549,18 @@ Phase 21 prompts are behavior-preserving maintainability/optimization work only.
 
 # Parallel UI workflow
 
-The UI workstream is governed by `docs/design/README.md` and `docs/design/ui-workflow.md`. It exists so presentation work can proceed independently from roadmap/correction implementation without sharing a worktree or consuming roadmap versions.
+Detailed authority is `docs/design/ui-workflow.md`. `main` is authoritative integration; presentation work uses permanent branch `ui-polish` and a separate worktree whenever roadmap/correction runner work is active. UI work is non-versioned, does not consume roadmap/correction numbers or advance their state, and is never merged automatically. Refresh/integrate current `main` non-destructively before new UI work and re-plan when relevant drift changes the boundary.
 
-`main` remains the authoritative integration branch. `ui-polish` is the permanent presentation branch. UI implementation MUST use a separate worktree when roadmap/correction runner work is active. Before each new UI task, refresh remote state and incorporate current `main` into `ui-polish` using a non-destructive strategy; if relevant main changes invalidate the planned task boundary, re-plan. Do not force-update shared history merely to synchronize the UI workstream, and do not merge `ui-polish` into `main` automatically.
-
-The normal implementation path is:
+Normal path:
 
 ```text
 /ui-plan <task>
 → /ui-write <lower-kebab-slug>
-→ execute the single prompt in the ui-polish worktree
-→ review and validate
-→ integrate when accepted
+→ execute/review/validate on ui-polish
+→ integrate only when accepted
 ```
 
-If `/ui-plan` determines durable design guidance is missing, contradictory, materially ambiguous, or must change, the required path is:
+If durable guidance is missing, contradictory, materially ambiguous, or must change:
 
 ```text
 /ui-plan <task>
@@ -741,58 +570,16 @@ If `/ui-plan` determines durable design guidance is missing, contradictory, mate
 → /ui-apply
 → /ui-plan <task>
 → /ui-write <lower-kebab-slug>
-→ execute/review/validate
 ```
 
-A previous blocked `/ui-plan` does not authorize `/ui-write`; planning must be rerun after the approved design-guidance change.
+A blocked plan never authorizes writing; `/ui-plan` must be rerun after `/ui-apply`.
 
-## `/ui-review <area>`
+- `/ui-review` is a read-only, scoped review of relevant design guidance, higher authorities, and observable implementation.
+- `/ui-apply` applies only approved durable design-guidance changes under `docs/design/` excluding `tasks/`, on `ui-polish`; it does not implement UI/source, write prompts, change version/roadmap state, or merge.
+- `/ui-plan` is the read-only source-level task plan and decides whether guidance is sufficient. It identifies scope, preserved contracts, responsive/accessibility needs, validation/evidence, acceptance/non-goals, slug, and model/usage recommendation.
+- `/ui-write` requires an unblocked plan and writes exactly one non-versioned prompt under `docs/design/tasks/<slug>.txt`. The prompt identifies `Workstream: UI`, execution on `ui-polish`, allowed/forbidden scope, preserved version/roadmap state, and focused/broader/browser validation. It never implements, invokes `codex:phase`, changes durable guidance, or implies integration.
 
-Read-only design-guidance review. It is the UI counterpart to `/docs-review`, but it is conditional rather than a required preflight for every UI task.
-
-Review the relevant non-task design documents under `docs/design/`, the narrowest higher-authority product/domain/testing documents, and current UI implementation/observable presentation where needed. Do not perform an indiscriminate full-repository documentation review.
-
-Return at minimum the interpreted design scope, reviewed/excluded design docs, existing relevant presentation rules, missing/ambiguous/contradictory/stale guidance, higher-authority conflicts, material implementation/design drift, recommended design-doc changes, application order, and decisions requiring explicit owner approval.
-
-`/ui-review` never modifies files, source, branches, project version, or roadmap state.
-
-## `/ui-apply`
-
-Requires an approved `/ui-review` change group in the current conversation.
-
-Before editing, re-read the approved target design documents and relevant higher-authority guidance, and confirm branch/source drift has not invalidated the review. Apply only the explicitly approved design-document changes on `ui-polish`.
-
-`/ui-apply` may create or update substantive design guidance under `docs/design/`, excluding `docs/design/tasks/`. It MUST NOT implement source/UI changes, create implementation prompts, modify `docs/design/tasks/`, change product/domain contracts unless separately authorized through the normal documentation workflow, change package version or roadmap/correction state, merge branches, or invoke `codex:phase`.
-
-After `/ui-apply`, the next implementation command is `/ui-plan` again, not `/ui-write`.
-
-## `/ui-plan <task>`
-
-Read-only normal entry point for one targeted UI implementation task. It combines task-boundary assessment with source-level planning and decides whether durable design review/application is required first.
-
-Before planning:
-
-1. read `BOOT.md`;
-2. read `docs/design/README.md` and `docs/design/ui-workflow.md`;
-3. read the narrowest governing product/design/testing contracts;
-4. inspect current relevant `ui-polish` implementation, tests, and recent changes;
-5. inspect relevant drift from current `main` when branch freshness could affect the task.
-
-Return at minimum task goal/UI-workstream fit, current and desired presentation behavior, governing approved design guidance, whether existing design guidance is sufficient or `/ui-review` → `/ui-apply` is required, likely/allowed file scope and shared-file boundaries, preserved contracts/behavior, forbidden backend/domain changes, responsive/accessibility considerations, focused and broader/browser tests, runtime/browser evidence needed, acceptance criteria/non-goals, one recommended lower-kebab slug, and recommended configuration/complexity/usage/lower-cost alternative/escalation/efficiency/confidence using the repository minimum-adequate usage-conservation policy.
-
-If design guidance is missing/conflicting/materially ambiguous or must change, return `Planning needed: UI design guidance required` and identify the required `/ui-review` area. If a required backend/domain behavior change or unsafe branch drift is discovered, return `Planning needed` and route/split the work appropriately. `/ui-plan` never writes.
-
-## `/ui-write <lower-kebab-slug>`
-
-Requires a completed unblocked `/ui-plan` in the current conversation. Re-read relevant `ui-polish` source/docs/tests and relevant `main` drift before writing.
-
-Write exactly one implementation-ready prompt under `docs/design/tasks/<lower-kebab-slug>.txt`. Do not overwrite an existing UI task without explicit authorization.
-
-The prompt MUST identify `Workstream: UI`, require execution on `ui-polish`, preserve `package.json` version and roadmap state, identify governing contracts/design docs/source, state allowed/forbidden files and behavior, include finalized model/reasoning/usage guidance, define focused and broader/browser validation, and prohibit unrelated cleanup, roadmap advancement, phase/correction closeout, or automatic merging.
-
-`/ui-write` writes only the approved UI prompt. It does not run Codex, invoke `codex:phase`, implement source, modify project version, advance roadmap state, merge branches, or create/modify durable design guidance. If missing/contradictory design guidance is discovered during revalidation, return `Planning needed` and route through `/ui-review` → explicit approval → `/ui-apply` → rerun `/ui-plan`.
-
-The accepted Phase 13 public-presentation implementation is the integrated presentation baseline. Later presentation-only refinements may continue through this UI workflow, but roadmap-owned administration and its domain behavior must not be recast as generic parallel UI work.
+The integrated Phase 13 presentation is the baseline. Presentation-only refinement may use this workstream; roadmap-owned administration/domain behavior may not be recast as UI-only work.
 
 # Review and validation commands
 

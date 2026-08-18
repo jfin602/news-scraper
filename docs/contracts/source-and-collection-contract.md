@@ -20,7 +20,7 @@ An endpoint is collectable only when all are true:
 
 ## Bootstrap configuration and approval
 
-Before Source administration UI exists, operator-maintained seed/bootstrap tooling MAY create the singleton Publication configuration plus Source and endpoint configuration, including explicitly setting approval state to `approved`.
+Operator-maintained seed/bootstrap tooling MAY create the initial singleton Publication, Source, and endpoint configuration, including explicitly setting approval state to `approved`.
 
 Bootstrap approval counts as deliberate operator approval; it is not a bypass of the approval boundary.
 
@@ -42,25 +42,25 @@ Bootstrap tooling:
 - MUST be idempotent;
 - MUST NOT blindly overwrite later operator-managed Publication/Source/endpoint state or other existing configuration.
 
-Once admin UI becomes the normal management surface, bootstrap data is initialization input rather than competing runtime authority.
+Bootstrap data is initialization input rather than competing runtime authority for the admin-managed state.
 
 Bootstrap/runtime commands operate on the installation's singleton Publication configuration and MUST NOT require a Publication slug or selector.
 
-### Phase 11 explicit editorial configuration path
+### Explicit editorial configuration path
 
-Phase 11 introduced the smallest explicit topic-independent operator mechanism needed to create and edit Categories, Relevance rules, and Source/endpoint default Category references before the Phase 15 Publication/Relevance administration UI existed.
+An explicit topic-independent operator mechanism creates and edits Categories, Relevance rules, and Source/endpoint default Category references outside ordinary bootstrap semantics. Protected administration exposes the same governed model.
 
 That operator path is distinct from ordinary Source/endpoint bootstrap semantics:
 
 - it runs only when explicitly invoked and MUST NOT be applied implicitly during Web/API or Worker startup;
 - Category and Relevance-rule identities use their immutable installation-wide `config_key` values;
-- it MAY deliberately create/update/enable/disable Phase 11 editorial configuration because configuration edits are the purpose of the operation;
+- it MAY deliberately create/update/enable/disable governed editorial configuration because configuration edits are the purpose of the operation;
 - it MUST validate referenced Source and Category identities and all domain invariants before commit;
 - it MUST NOT auto-discover topic vocabulary, infer rules from collected content, or inject indie-author-specific behavior into shared engine code;
 - it MUST NOT weaken ordinary bootstrap's create-if-absent/no-overwrite guarantee for existing Publication/Source/endpoint configuration;
 - it MUST NOT perform automatic bulk historical Article reprocessing as a side effect of a rule edit.
 
-That path remains explicit and MUST never run implicitly at Web/Worker startup. Phase 15 subsequently exposed the same governed Category and Relevance configuration through the Cloudflare-protected admin control plane without creating a second rule model. It manages the valid Category set used by the existing Source/endpoint default-Category selectors; it does not duplicate Phase 14 Source administration or Source-priority controls. There remains exactly one Relevance model.
+That path remains explicit and MUST never run implicitly at Web/Worker startup. The protected admin control plane does not create a second rule model: it manages the same valid Category set used by Source/endpoint default-Category selectors without duplicating Source administration or Source-priority controls. There remains exactly one Relevance model.
 
 ## Approved-domain policy
 
@@ -76,11 +76,9 @@ Configuration representation is intentionally structural and deterministic:
 - when endpoint narrowing exists, every endpoint rule MUST be equal to or narrower than an approved Source rule;
 - an endpoint cannot enter `approved` state when its configured hostname falls outside the Source approved-domain policy.
 
-Phase 3 validated and persisted these configuration relationships only. It did not resolve DNS, classify resolved addresses, enforce runtime port policy, follow redirects, or contact endpoints. Those pre-request network-safety behaviors begin in Phase 4.
+### Pre-fetch network-safety policy
 
-### Phase 4 pre-fetch network-safety policy
-
-Before every outbound request, including every redirect hop once transport exists, the destination MUST pass the same safety gate:
+Before every outbound request, including every redirect hop, the destination MUST pass the same safety gate:
 
 - only `http:` and `https:` schemes are permitted;
 - the normalized hostname MUST remain inside the effective Source/endpoint approved-domain policy;
@@ -92,21 +90,19 @@ Before every outbound request, including every redirect hop once transport exist
 - redirects MUST resolve relative locations safely and rerun scheme, domain, port, DNS, and resolved-address validation before any redirected network contact;
 - redirect limits are enforced by the transport phase that follows redirects and do not weaken per-hop safety validation.
 
-The validated safety result consumed by transport MUST retain enough concrete destination information to prevent a second unchecked DNS decision. Phase 5 transport MUST connect to an address that was validated by the Phase 4 gate, or use an equivalent resolver-binding mechanism that guarantees the actual destination is one of the validated addresses, while preserving the original hostname for HTTP Host/TLS semantics where required. A transport that independently re-resolves the hostname after safety approval is not compliant.
+The validated safety result consumed by transport MUST retain enough concrete destination information to prevent a second unchecked DNS decision. Transport MUST connect to a validated address, or use an equivalent resolver-binding mechanism that guarantees the actual destination is one of the validated addresses, while preserving the original hostname for HTTP Host/TLS semantics where required. A transport that independently re-resolves the hostname after safety approval is not compliant.
 
-Phase 4 may perform DNS resolution because address classification is part of the safety decision. It does **not** issue publisher HTTP requests, follow real HTTP redirects, create Collection runs, or add the manual Worker collection command. An eligible endpoint reaches an injected/controlled outbound-fetch boundary with a validated destination; Phase 5 is the first phase that performs real HTTP transport and follows redirects through this gate.
-
-### Phase 4 endpoint run lock
+### Endpoint run lock
 
 The endpoint run lock is a shared, cross-process exclusivity primitive keyed by Source endpoint identity. It MUST prevent two Worker processes from simultaneously owning execution for the same endpoint while permitting unrelated endpoints to proceed independently.
 
-The lock MUST use PostgreSQL or another equivalently shared/durable coordination mechanism available to all Worker processes; a process-local mutex alone is insufficient. Acquisition failure is a normal non-execution outcome, and lock release MUST be safe on success and failure paths. Phase 10 durable jobs/scheduling reuse this Phase 4 primitive rather than introducing the first distributed endpoint lock.
+The lock MUST use PostgreSQL or another equivalently shared/durable coordination mechanism available to all Worker processes; a process-local mutex alone is insufficient. Acquisition failure is a normal non-execution outcome, and lock release MUST be safe on success and failure paths. Durable jobs, scheduling, and manual checks reuse this same lock.
 
-### Phase 4 decision reasons
+### Eligibility and safety decision reasons
 
 Eligibility and network-safety decisions MUST expose stable machine-readable reason codes rather than relying on free-form text. Bounded human detail MAY accompany the code but MUST NOT replace it.
 
-The Phase 4 reason vocabulary MUST distinguish at least:
+The eligibility/safety reason vocabulary MUST distinguish at least:
 
 - `publication_inactive` — singleton Publication collection is disabled;
 - `source_unapproved`;
@@ -150,15 +146,15 @@ A lower-priority method requires an operational reason. Convenience alone does n
 
 The fetcher/parser adapter boundary is established with the first structured-feed implementation. Later HTML/custom collectors implement that existing boundary rather than redefining it.
 
-### Phase 3 endpoint type and polling configuration
+### Endpoint type and polling configuration
 
-Phase 3 persisted only the structured-feed type needed for the initial critical path. The canonical initial endpoint type is `rss_atom`; the parser determines whether fetched content is RSS or Atom rather than requiring an operator to pre-classify the XML dialect correctly.
+The structured-feed endpoint type is `rss_atom`; the parser determines whether fetched content is RSS or Atom rather than requiring an operator to pre-classify the XML dialect correctly.
 
-The canonical basic polling field is `poll_interval_seconds`. It MUST be a positive bounded value. `0` MUST NOT mean disabled because operational state already owns `enabled`, `paused`, and `disabled` semantics. Other endpoint types and their adapter-specific configuration arrive only with the roadmap phase that implements them.
+The canonical basic polling field is `poll_interval_seconds`. It MUST be a positive bounded value. `0` MUST NOT mean disabled because operational state already owns `enabled`, `paused`, and `disabled` semantics. Only implemented endpoint types and their governed adapter-specific configuration are accepted.
 
-### Phase 18 configurable HTML listing collection
+### Configurable HTML listing collection
 
-Phase 18 adds endpoint type `html_listing` beside `rss_atom`. The canonical path is:
+Endpoint type `html_listing` exists beside `rss_atom`. Its canonical path is:
 
 ```text
 configured approved html_listing endpoint
@@ -198,17 +194,17 @@ Relative Article URLs remain Raw-item input and normalization resolves them agai
 
 #### RSS/Atom admission-filter boundary
 
-Phase 18 does not adopt the Source RSS/Atom item admission filter for HTML listings. When a Source owns both endpoint types, Source admission phrases apply only to supported RSS/Atom Raw items; the HTML profile determines which DOM items become HTML Raw items, and those items proceed directly to Article-candidate normalization. This does not create a second HTML keyword filter or another Relevance model.
+The Source RSS/Atom item admission filter does not apply to HTML listings. When a Source owns both endpoint types, Source admission phrases apply only to supported RSS/Atom Raw items; the HTML profile determines which DOM items become HTML Raw items, and those items proceed directly to Article-candidate normalization. This does not create a second HTML keyword filter or another Relevance model.
 
 #### Browser fallback gate
 
-Browser automation remains unsupported in Phase 18. There is no browser endpoint type, Playwright/Puppeteer/headless-browser collector, or automatic escalation from static parsing. Static-parser diagnostics may inform an operator, but selector failure alone does not prove that browser automation is required. A later browser collector requires an explicit future promotion/decision for a specifically approved Source after ordinary HTTP extraction is shown insufficient.
+Browser automation remains unsupported. There is no browser endpoint type, Playwright/Puppeteer/headless-browser collector, or automatic escalation from static parsing. Static-parser diagnostics may inform an operator, but selector failure alone does not prove that browser automation is required. A later browser collector requires an explicit future promotion/decision for a specifically approved Source after ordinary HTTP extraction is shown insufficient.
 
 #### Safe selector preview
 
 Selector preview is a pure parsing operation over a bounded operator-supplied HTML sample and draft HTML profile. It performs no outbound network request or DNS lookup; creates no Collection run; acquires no endpoint lock; changes no conditional validator/cache, scheduler timing, or endpoint health; and persists no Article, Article observation, duplicate state, or Relevance outcome. It executes no scripts/subresources and returns only bounded extracted preview rows plus safe diagnostics without echoing an unbounded/raw HTML document.
 
-A protected admin endpoint MAY use POST because sample/profile data is request input. Existing request-integrity rules still apply to browser-originating unsafe requests even though preview is non-persistent. Network-backed verification remains the existing governed manual check-now path after a persisted endpoint is collectable; Phase 18 does not create a preview fetcher. Sample preview proves parser/profile behavior only, while check-now proves the real governed collection path. Neither is Level 7 live-Source evidence unless the Level 7 procedure is intentionally performed.
+A protected admin endpoint MAY use POST because sample/profile data is request input. Existing request-integrity rules still apply to browser-originating unsafe requests even though preview is non-persistent. Network-backed verification remains the governed manual check-now path after a persisted endpoint is collectable; preview is not a fetcher. Sample preview proves parser/profile behavior only, while check-now proves the real governed collection path. Neither is Level 7 live-Source evidence unless the Level 7 procedure is intentionally performed.
 
 ## Configuration precedence
 
@@ -243,7 +239,7 @@ Default Category resolution is fallback-only: if no matching categorize rule ass
 
 ## Source RSS/Atom item admission filter
 
-Phase 14 adds one optional, topic-independent Source-level admission filter for parsed RSS/Atom Raw items. It is Source configuration, not endpoint configuration, a Publication tenancy mechanism, a public-feed search filter, or a second Relevance-rule engine. Phase 18 HTML listing endpoints do not use it; any future adoption by another adapter requires an explicit contract change rather than unconditional application by endpoint type.
+One optional, topic-independent Source-level admission filter applies to parsed RSS/Atom Raw items. It is Source configuration, not endpoint configuration, a Publication tenancy mechanism, a public-feed search filter, or a second Relevance-rule engine. HTML listing endpoints do not use it; any future adoption by another adapter requires an explicit contract change rather than unconditional application by endpoint type.
 
 A configured filter contains one or more bounded, trimmed, non-empty keyword/phrase literals:
 
@@ -254,7 +250,7 @@ A configured filter contains one or more bounded, trimmed, non-empty keyword/phr
 - missing fields do not match, and the filter does not fetch or inspect the Article page or full Article body;
 - text may be normalized only as needed for deterministic safe comparison at this boundary; canonical Article-candidate normalization remains a later stage.
 
-There is no Phase 14 exclude-phrase list and no independently persisted enabled toggle. Absence of phrase configuration is the disabled/collect-all state.
+There is no exclude-phrase list and no independently persisted enabled toggle. Absence of phrase configuration is the disabled/collect-all state.
 
 The canonical supported order is:
 
@@ -265,12 +261,12 @@ fetch
 → optional Source RSS/Atom item admission filter
 → Article-candidate normalization
 → Article-link policy
-→ Phase 11 Relevance/Categories
+→ governed Relevance/Categories
 → Source-scoped Article identity/persistence
 → downstream behavior
 ```
 
-The feed is still fetched and safely parsed before item text can be evaluated. The filter controls only whether an individual successfully parsed Raw item enters candidate processing. It does not bypass Source/endpoint approval or lifecycle/operational eligibility, endpoint locking, network safety, redirect validation, fetch bounds, parser safety, Article-link validation for admitted candidates, Phase 11 Relevance, Source-scoped identity, provenance, scheduling, or jobs.
+The feed is still fetched and safely parsed before item text can be evaluated. The filter controls only whether an individual successfully parsed Raw item enters candidate processing. It does not bypass Source/endpoint approval or lifecycle/operational eligibility, endpoint locking, network safety, redirect validation, fetch bounds, parser safety, Article-link validation for admitted candidates, Relevance, Source-scoped identity, provenance, scheduling, or jobs.
 
 A mismatching Raw item terminates before Article-candidate normalization. It is not a normalized candidate, does not receive the Relevance outcome `excluded`, does not run Article identity, and does not create an Article observation. It does not create, update, hide, delete, or recategorize an Article, including an Article persisted by an earlier admitted observation. Existing Relevance predicates remain exactly `title_contains`, `summary_contains`, and `source_category_equals`; Source admission does not add a Relevance predicate.
 
@@ -292,25 +288,15 @@ Fetcher MUST provide:
 
 Fetcher SHOULD respect published Source guidance and avoid unnecessary traffic.
 
-## Pre-scheduler Worker execution
+## Worker execution ownership
 
-The tech-demo critical path performed real collection before durable scheduling existed.
-
-During this historical pre-scheduler period:
-
-- collection was invoked manually through the Worker process, not inline inside Web/API request handling;
-- one endpoint invocation created one isolated Collection run;
-- the same eligibility → run lock → network-safety → fetch/redirect → parse → normalize → Article-link validation → Relevance → identity/persistence stages were used as they became available;
-- a failure for one endpoint did not invalidate an unrelated endpoint run;
-- no temporary second parser/persistence path was introduced.
-
-Phase 4 established eligibility, the shared endpoint lock, and network-safety primitives only. Manual Worker endpoint execution and Collection-run creation began in Phase 5. Phase 10 placed the already-proven endpoint execution unit behind durable jobs and due-endpoint scheduling while reusing the Phase 4 lock.
+Manual checks and durable scheduled jobs use the same Worker-owned endpoint execution unit: eligibility → run lock → network safety → fetch/redirect → parse → conditional RSS/Atom admission → normalize → Article-link validation → Relevance/Categories → identity/persistence/observation → duplicate processing → run/health finalization. One endpoint invocation creates one isolated Collection run, and its failure does not invalidate an unrelated endpoint run. Web/API never performs collection inline.
 
 Worker/manual/scheduler execution selects the Source/endpoint directly. It MUST NOT require a Publication slug or identifier to choose among topics in one installation.
 
 ## Retry and backoff
 
-Once automated polling/jobs exist:
+Automated polling/job retries obey these rules:
 
 - retries apply only to transient failures;
 - attempts are bounded;
@@ -319,7 +305,7 @@ Once automated polling/jobs exist:
 - repeated failures influence derived endpoint health and may trigger cooldown/circuit-breaking;
 - one endpoint's retry loop cannot monopolize Worker capacity.
 
-Manual pre-scheduler runs may report retry classification, but they do not need to implement the durable automated retry scheduler early.
+Manual checks report the same retry classification without creating a separate retry policy.
 
 ## Parser contract
 
@@ -396,11 +382,11 @@ Categorization is independent from inclusion:
 
 An `exclude` result terminates candidate processing before Article identity and produces the canonical `excluded` processing outcome with persisted endpoint/run provenance and exclusion reason. It MUST NOT perform Article identity lookup merely to find/hide/delete/recategorize an Article stored by an earlier included observation.
 
-Before configurable Relevance rules are implemented, normalized safe candidates still pass through this canonical boundary with an empty rule set and therefore receive the deterministic default `include` decision. The pipeline never bypasses Relevance merely because configuration UI/rule persistence has not arrived yet.
+With an empty rule set, normalized safe candidates still pass through this canonical boundary and receive deterministic default `include`. The pipeline never bypasses Relevance merely because no rule matches or is configured.
 
 Relevance-rule edits are prospective by default in MVP. They affect future candidate processing. Automatic bulk retroactive re-evaluation of already persisted Articles is deferred unless a dedicated reprocessing operation is explicitly added later. Existing Articles retain prior persisted state until ordinary later included observations, explicit moderation, or a dedicated future reprocessing operation changes it. Applying then-current Category rules during an ordinary later included observation is normal candidate processing, not a bulk historical scan.
 
-When Phase 17 manual Category moderation is active, ordinary included observations continue evaluating and persisting the latest automatic Relevance/default Category assignment and reasons, but MUST NOT overwrite or clear the active operator-selected effective Category set. Automatic state remains recoverable, and clearing the override returns effective control to the latest automatic assignment. Likewise, normal collection continues updating governed Source-derived display values without overwriting or clearing an active display override. Collection never rewrites historical runs/observations, Source ownership, identity fields, or `original_url` as a moderation shortcut.
+When manual Category moderation is active, ordinary included observations continue evaluating and persisting the latest automatic Relevance/default Category assignment and reasons, but MUST NOT overwrite or clear the active operator-selected effective Category set. Automatic state remains recoverable, and clearing the override returns effective control to the latest automatic assignment. Likewise, normal collection continues updating governed Source-derived display values without overwriting or clearing an active display override. Collection never rewrites historical runs/observations, Source ownership, identity fields, or `original_url` as a moderation shortcut.
 
 Generic `boost` ranking is deferred until a ranking/scoring contract exists.
 
@@ -429,7 +415,7 @@ True duplicate grouping between separately stored Articles is governed by the Ar
 
 A minimal persisted Collection run begins with the first real transport/parser phase. It records the endpoint, start/finish timing, transport/parser status, bounded errors, and stage counts that actually exist.
 
-When Source RSS/Atom item admission filtering and normalization are introduced, the same run model gains a normalization stage status plus bounded pre-persistence item counts:
+The same run model records normalization stage status plus bounded pre-persistence item counts:
 
 - `source_item_filtered_count` counts successfully parsed Raw items rejected by the configured Source RSS/Atom item admission filter before Article-candidate normalization;
 - normalization stage status uses `not_run`, `succeeded`, or `failed`;

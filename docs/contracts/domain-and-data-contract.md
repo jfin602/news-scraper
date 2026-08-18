@@ -18,7 +18,7 @@ A configured publisher or outlet in the installation. Approval state determines 
 
 ### Source endpoint
 
-A configured machine-readable feed, API URL, or HTML listing page belonging to a Source. Approval, lifecycle/operational state, polling state, HTTP cache metadata, parser settings, and derived health are endpoint-level concerns. Phase 18 supports endpoint types `rss_atom` and `html_listing`.
+A configured machine-readable feed, API URL, or HTML listing page belonging to a Source. Approval, lifecycle/operational state, polling state, HTTP cache metadata, parser settings, and derived health are endpoint-level concerns. Supported endpoint types are `rss_atom` and `html_listing`.
 
 ### Collection run
 
@@ -87,8 +87,8 @@ Required concepts:
 - `active_for_collection`: whether eligible Sources may be scheduled/fetched;
 - `public_status`: whether the public feed is exposed;
 - required Publication name;
-- optional Phase 13 public presentation configuration: `description`, `logo_path`, and `accent_color`;
-- optional valid-IANA `presentation_timezone` administrator configuration, exposed through the Phase 15 protected editing surface.
+- optional public presentation configuration: `description`, `logo_path`, and `accent_color`;
+- optional valid-IANA `presentation_timezone` administrator configuration.
 
 The singleton Publication may collect while its public feed is not exposed. Public feed reads require `public_status = public`; `active_for_collection` is a collection-state control and does not independently expose or suppress already-persisted feed rows.
 
@@ -118,7 +118,7 @@ Required concepts:
 
 `paused`, `disabled`, and `archived` are not health values. A Source-level health summary, if shown, is derived from endpoint state/health rather than stored as competing authority.
 
-Phase 18 endpoint/profile compatibility is part of endpoint configuration validity:
+Endpoint/profile compatibility is part of endpoint configuration validity:
 
 - an `html_listing` endpoint owns one bounded persisted HTML listing profile and requires a valid compatible profile before it can become collectable;
 - an `rss_atom` endpoint rejects HTML-only profile configuration;
@@ -147,26 +147,26 @@ Duplicate role:
 
 Joining/leaving a Duplicate group does not inherently change Article visibility. Hiding/restoring does not inherently change group membership.
 
-Phase 7 persisted Articles before a public read path consumed Article visibility. Phase 8 introduced persisted Article visibility with the canonical states above, migrated existing Phase 7 Articles to `visible`, and used `visible` as the baseline for newly persisted Articles unless a separately implemented policy deliberately produces another visibility state. Phase 8 did not introduce moderation controls.
+Persisted Article visibility uses the canonical states above. Existing Articles were initialized to `visible`, which remains the default for new Articles unless a governed policy deliberately produces another state.
 
-Before Duplicate-group persistence exists, Articles are logically `ungrouped`. Duplicate groups/roles are not persisted speculatively merely to implement the baseline feed.
+Articles outside a Duplicate group are `ungrouped`; group/role state exists only for actual duplicate behavior, not as a separate feed-only mechanism.
 
 ## Logical entities
 
-Names below define logical concepts, not final SQL. Roadmap phases introduce only fields needed by behavior that exists in that phase. Earlier phases MUST NOT front-load later scheduling/cache/health/parser/Relevance/Category/branding fields merely because they appear below.
+Names below define current logical concepts, not final SQL. Persist only fields owned by implemented behavior; this contract is not permission to front-load speculative state.
 
 ### Singleton Publication configuration
 
-One persisted Publication/settings record contains only the fields actually used by implemented phases, including:
+One persisted Publication/settings record contains the governed fields used by the installation, including:
 
 - name;
 - `active_for_collection`;
 - `public_status`;
-- Phase 13 optional `description`, `logo_path`, and `accent_color` public-presentation values;
+- optional `description`, `logo_path`, and `accent_color` public-presentation values;
 - optional valid-IANA `presentation_timezone` configuration;
 - created/updated timestamps where useful.
 
-Phase 13 public-presentation field semantics are deliberately small and topic independent:
+Public-presentation field semantics are deliberately small and topic independent:
 
 - `description` is nullable bounded plain text, trimmed at the configuration boundary, with no HTML/markup interpretation; an absent value is distinct from invented generic editorial copy;
 - `logo_path` is nullable bounded same-origin asset-path data beginning with `/`; it is not an arbitrary external URL, data URL, scriptable URL, Publication selector, or HTML fragment;
@@ -174,7 +174,7 @@ Phase 13 public-presentation field semantics are deliberately small and topic in
 - missing optional values are valid and MUST allow a complete generic public presentation using safe application defaults;
 - these values are public presentation configuration once exposed through the canonical feed read model, but they do not create another public routing/scoping identity.
 
-Phase 13 established those values through the existing explicit operator/bootstrap configuration mechanisms needed before full admin UX. Phase 15 provides the protected administrator editing surface; ordinary bootstrap no-overwrite behavior remains unchanged.
+Protected administration edits these values; ordinary bootstrap no-overwrite behavior remains unchanged.
 
 `presentation_timezone` is optional and, when configured, MUST be a valid IANA time-zone identifier. Its absence preserves the UTC calendar-date fallback. It changes presentation/calendar-date interpretation only: it MUST NOT rewrite persisted timestamps, change canonical feed ordering, create locale or arbitrary date/time-format configuration, or become Publication routing or tenancy identity.
 
@@ -223,9 +223,9 @@ For `html_listing`, the endpoint-owned profile defines the smallest deterministi
 - optional summary/excerpt extraction;
 - optional Source category-label extraction.
 
-The persisted representation MAY use bounded structured field descriptors. CSS selectors are the Phase 18 selector language. XPath, JavaScript, regex-driven DOM extraction, template expressions, arbitrary code, and generic expression engines are not profile features. Attribute extraction is narrowly allowlisted for the field being extracted rather than exposing arbitrary DOM-property execution.
+The persisted representation MAY use bounded structured field descriptors. CSS selectors are the supported selector language. XPath, JavaScript, regex-driven DOM extraction, template expressions, arbitrary code, and generic expression engines are not profile features. Attribute extraction is narrowly allowlisted for the field being extracted rather than exposing arbitrary DOM-property execution.
 
-The generic HTML listing adapter MUST NOT synthesize `RawItem.externalId` from list position, selector path, normalized title, title/date hashes, content fingerprints, DOM markup, or any other generated HTML fingerprint. Generic Phase 18 HTML Article identity therefore uses the existing canonical-URL fallback unless a later explicit adapter contract supplies a genuinely trustworthy Source-provided strong identifier.
+The generic HTML listing adapter MUST NOT synthesize `RawItem.externalId` from list position, selector path, normalized title, title/date hashes, content fingerprints, DOM markup, or any other generated HTML fingerprint. Generic HTML Article identity therefore uses the existing canonical-URL fallback unless a later explicit adapter contract supplies a genuinely trustworthy Source-provided strong identifier.
 
 Configuration inheritance:
 
@@ -247,11 +247,11 @@ Configuration inheritance:
 - structured error code/bounded detail;
 - worker/execution identifier.
 
-Where Phase 18 HTML collection is used, bounded run diagnostics additionally identify the parser/adapter kind and version, the persisted HTML profile revision used, and bounded item/extraction failure codes and detail. Collection-run diagnostics MUST NOT retain raw response bodies merely to explain parser behavior.
+For HTML collection, bounded run diagnostics identify the parser/adapter kind and version, persisted HTML profile revision, and bounded item/extraction failure codes/detail. Collection-run diagnostics MUST NOT retain raw response bodies merely to explain parser behavior.
 
-A minimal Collection run exists from the first real transport implementation. Before Article persistence exists it records only the stages that actually exist and MUST NOT pretend post-identity outcomes have occurred.
+A Collection run begins with the first real fetch phase and records only stages/outcomes that actually occurred; it MUST NOT pretend post-identity outcomes occurred when processing terminated earlier.
 
-Pre-normalization and Phase 6 accounting use the stage vocabulary defined by the Source/collection contract:
+Pre-normalization accounting uses the stage vocabulary defined by the Source/collection contract:
 
 - `source_item_filtered_count` counts successfully parsed Raw items rejected by the configured Source RSS/Atom item admission filter before Article-candidate normalization;
 - normalization status is `not_run`, `succeeded`, or `failed`;
@@ -331,7 +331,7 @@ A Raw item rejected by the Source RSS/Atom item admission filter is not a candid
 
 ### `categories` and `article_categories`
 
-Categories are installation-wide Publication configuration. Each Category has an immutable installation-wide `config_key`, a mutable bounded display label, and any later presentation metadata introduced by the phase that uses it. Articles may have multiple Categories; the singleton Publication may define a preferred display Category. Phase 15 supports Category creation, read, and update; it does not invent a Category archive/lifecycle state.
+Categories are installation-wide Publication configuration. Each Category has an immutable installation-wide `config_key` and a mutable bounded display label. Articles may have multiple Categories; the singleton Publication may define a preferred display Category. Administration supports Category creation, read, and update without inventing a Category archive/lifecycle state.
 
 Article/Category membership is unique per Article + Category. A Category referenced by a Relevance rule or Source/endpoint default MUST exist in the same installation. No Publication foreign key is required because another Publication cannot exist in the same supported installation.
 
@@ -339,7 +339,7 @@ Phase 17 manual Category moderation distinguishes automatic assignment from an a
 
 Physical Category removal is permitted only when transactionally shown to be unreferenced. Removal MUST be atomically rejected while any retained relationship requires the Category, including a `categorize` rule target, Source or endpoint default, current Article/Category membership, or retained observation/category-reason provenance. A removal path MUST NOT silently null, cascade away, or rewrite retained Article, provenance, or editorial relationships; operators first explicitly clear or change removable configuration references. Article moderation/manual recategorization remains Phase 17.
 
-For ordinary Phase 11 candidate processing, Category assignment is determined as follows:
+For ordinary candidate processing, Category assignment is determined as follows:
 
 1. Evaluate every applicable enabled `categorize` rule independently.
 2. All matching categorize rules apply; Category targets are deduplicated by immutable Category `config_key` rather than mutable label.
@@ -382,11 +382,11 @@ Deterministic MVP include/exclude procedure:
 
 Applied categorize-rule reasons are ordered by priority descending, Source-scoped before installation-wide at equal priority, then immutable rule `config_key` ascending. Default-Category reasons are explicit and distinguish endpoint default from Source fallback.
 
-Before configurable Relevance-rule persistence exists, the canonical Relevance boundary still executes with an empty rule set. Safe normalized candidates receive deterministic default `include` rather than bypassing Relevance evaluation.
+An empty configured Relevance-rule set still executes the canonical boundary and gives safe normalized candidates deterministic default `include` rather than bypassing evaluation.
 
 MVP Relevance-rule edits are prospective by default. They affect future candidate processing and MUST NOT cause automatic bulk retroactive re-evaluation of previously persisted Articles. Because Relevance precedes Article identity, a newly excluded future observation terminates before Article identity and MUST NOT look up an earlier Article merely to hide, delete, or recategorize it. A previously persisted Article remains in its prior persisted state unless an explicit moderation or dedicated future reprocessing capability changes it. A later included observation may apply then-current Category assignment through the ordinary candidate pipeline; that normal observation is not a bulk historical scan.
 
-Phase 15 administrator mutation exposes only this bounded model. A Source scope, when set, MUST reference a real Source. A `categorize` action MUST reference a real Category; `include` and `exclude` MUST NOT carry a Category target. Multi-resource changes validate relationships transactionally and roll back invalid combinations. Enabled/disabled is the ordinary non-destructive rule operation; no archive state is implied. Physical rule removal, if exposed, is permitted only when retained relationships, reasons, and provenance permit it. If retained history references the rule, removal MUST be rejected rather than cascading or rewriting history.
+Administrator mutation exposes only this bounded model. A Source scope, when set, MUST reference a real Source. A `categorize` action MUST reference a real Category; `include` and `exclude` MUST NOT carry a Category target. Multi-resource changes validate relationships transactionally and roll back invalid combinations. Enabled/disabled is the ordinary non-destructive rule operation; no archive state is implied. Physical rule removal, if exposed, is permitted only when retained relationships, reasons, and provenance permit it. If retained history references the rule, removal MUST be rejected rather than cascading or rewriting history.
 
 Generic `boost`/ranking behavior is deferred until a ranking/scoring contract exists.
 
@@ -456,7 +456,7 @@ A feed row is eligible only when all of the following are true:
 - the Article is `visible`; and
 - the Article is either logically/persistently `ungrouped` or the `primary` member of its Duplicate group.
 
-Before Duplicate groups exist, all persisted Articles are logically `ungrouped`. A visible `non_primary` member is duplicate-suppressed from ordinary rows but remains administratively available once grouping exists. Hidden/archived Articles are not restored merely because duplicate membership changes.
+Articles outside groups are `ungrouped`. A visible `non_primary` member is duplicate-suppressed from ordinary rows but remains administratively available. Hidden/archived Articles are not restored merely because duplicate membership changes.
 
 Collection and presentation state remain separate. Publication `active_for_collection`, Source operational state, and endpoint approval/lifecycle/operational/health state govern whether collection work runs; they do not by themselves suppress retained Articles that otherwise satisfy the public-row rule. Source approval/lifecycle and singleton Publication public exposure remain explicit public-row gates.
 
@@ -471,9 +471,9 @@ The public headline destination is `articles.original_url`; `canonical_identity_
 - Public feed uses trusted `published_at`; otherwise `first_seen_at` with detectable fallback metadata.
 - Persist UTC; render according to singleton Publication presentation rules when implemented.
 
-Through Phase 13, no Publication presentation timezone is configured, so the canonical public calendar-date presentation remains the deterministic UTC fallback. Phase 15 may introduce only the optional singleton `presentation_timezone` setting and corresponding administrator control: it must be a valid IANA identifier, retains UTC when absent, changes calendar-date presentation only, and must not reinterpret stored timestamps or canonical feed ordering.
+The optional singleton `presentation_timezone` setting and administrator control accept only a valid IANA identifier. Absence retains the deterministic UTC calendar-date fallback; configuration changes presentation only and must not reinterpret stored timestamps or canonical feed ordering.
 
-Phase 6 may parse Source publication/update values into UTC and attach confidence/reason/fallback metadata, but it does not create persistence observation times. Missing or invalid Source publication dates remain distinguishable, and normalization MUST NOT substitute a Collection-run timestamp as `published_at`. Article/observation persistence establishes `first_seen_at`/`last_seen_at` from actual Platform observations.
+Normalization may parse Source publication/update values into UTC and attach confidence/reason/fallback metadata, but it does not create persistence observation times. Missing or invalid Source publication dates remain distinguishable, and normalization MUST NOT substitute a Collection-run timestamp as `published_at`. Article/observation persistence establishes `first_seen_at`/`last_seen_at` from actual Platform observations.
 
 Processing semantics:
 
@@ -497,7 +497,7 @@ Before production database compatibility is established:
 - compatibility columns, dual schemas, data-copy bridges, transformation migrations, upgrade fixtures/tests, or other compatibility machinery MUST NOT be retained solely to preserve disposable pre-production database contents;
 - migration-from-zero MUST establish singleton Publication semantics, installation-wide Source uniqueness, Source-scoped Article identity, and all Source/endpoint/run/Article/observation integrity constraints required by implemented behavior.
 
-The pre-production rule remains authoritative through the pre-launch roadmap. Phase 19 establishes and validates the operational schema-upgrade/rollback/restore procedures required for production; acceptance of Phase 20 customer launch establishes the first supported production schema/data baseline.
+The pre-production rule governed only disposable pre-launch databases. Phase 19 established and validated the operational schema-upgrade/rollback/restore procedures required for production; accepted Phase 20 customer launch established the first supported production schema/data baseline.
 
 ## Production database schema contract
 

@@ -30,8 +30,8 @@ flowchart LR
     N --> L[Article-link / Source Policy Validation]
     L --> V[Installation Relevance + Categories]
     V --> I[Source-scoped Article Identity Resolution]
-    I --> X[Duplicate Candidate / Grouping when implemented]
-    X --> D
+    I --> DP[Duplicate Candidate / Grouping]
+    DP --> D
     W --> O[Metrics + Structured Logs]
     B --> O
 ```
@@ -40,7 +40,7 @@ flowchart LR
 
 One installation contains one singleton Publication configuration and its Sources/endpoints/Articles/editorial state.
 
-The singleton Publication configuration carries the installation-wide news-product settings actually used by implemented phases, such as name, `active_for_collection`, `public_status`, and later branding/presentation/Relevance/Category settings.
+The singleton Publication configuration carries installation-wide news-product settings such as name, `active_for_collection`, `public_status`, branding/presentation, Relevance, and Categories.
 
 Publication is not a tenant key:
 
@@ -64,33 +64,21 @@ The initial deployment may use one repository/database, but it MUST support at l
 
 A slow/crashed Source request in the Worker must not block normal public-feed requests.
 
-During the tech-demo critical path before durable jobs/scheduling existed, collection was invoked manually through the Worker process once transport existed. Phase 10 added durable scheduling around that same endpoint execution unit rather than creating a second collection path.
-
 Operator/Worker entry points select Sources/endpoints directly and MUST NOT require Publication selection merely to choose among topics.
 
-### Phase 1 process bootstrap contract
+### Process lifecycle contract
 
-Phase 1 establishes the process/lifecycle boundary without implementing collection or persistence.
+- Web/API owns the HTTP listener plus liveness/readiness endpoints. Liveness means the process/server is responsive; readiness means startup initialization is complete and current critical dependencies are usable.
+- Worker is independently executable with testable startup, dependency validation, and clean shutdown. It needs no separate HTTP server unless deployment requires one.
+- Runtime configuration is centralized, typed, and validated; malformed or out-of-range startup configuration fails predictably.
+- Manual checks and durable jobs use the same Worker endpoint-execution unit. Publication-aware naming separates configuration from shared behavior and does not imply relational tenancy.
 
-- The Web/API process owns the HTTP listener and exposes liveness/readiness endpoints.
-- Web/API liveness means the process/server is responsive. Readiness means startup initialization has completed and every critical dependency implemented in the current phase is usable.
-- Phase 1 has no PostgreSQL dependency. Phase 2 extends readiness to cover the shared database dependency.
-- The Worker is an independently executable process role with a testable bootstrap/startup and clean-shutdown contract.
-- Phase 1 does not require a separate Worker HTTP server merely to expose health probes. Worker readiness is proven through startup/configuration/dependency validation until a concrete deployment requirement justifies an HTTP probe.
-- Phase 5 added manual endpoint execution behind this same Worker boundary. Phase 10 added durable job consumption/scheduling around the same endpoint execution unit rather than creating another Worker path.
-- Phase 1 runtime configuration is centralized and typed/validated. Malformed or out-of-range startup configuration must fail predictably; database, Source, scheduler, and collection secrets/configuration are not invented early merely to make validation non-empty.
+### Endpoint execution safety boundary
 
-Publication-aware structure means generic naming and separation of topic configuration from shared engine behavior; it does not imply relational Publication tenancy.
-
-### Phase 4 execution boundary
-
-Phase 4 introduces the reusable pre-transport gate without introducing transport itself.
-
-- Eligibility reads singleton Publication collection-active state plus persisted Source/endpoint state and approved-domain policy established in Phase 3.
-- A shared cross-process per-endpoint run lock prevents overlapping ownership for one endpoint and is available to every Worker process. PostgreSQL or an equivalently shared coordination mechanism is required; process-local locking alone is insufficient.
-- Network safety may resolve DNS and classifies the concrete destination before transport. Eligible results carry validated destination/address information forward so later transport cannot silently make a second unchecked DNS decision.
-- Eligible execution stops at an injected/controlled outbound-fetch boundary in Phase 4. No publisher HTTP request, real HTTP redirect following, persisted Collection run, or manual endpoint collection command exists yet.
-- Redirect destination revalidation is exposed as a reusable primitive in Phase 4; Phase 5 is the first phase that follows actual HTTP redirects through it.
+- Eligibility reads singleton Publication collection state plus persisted Source/endpoint approval, lifecycle, operational, and domain policy.
+- A shared cross-process per-endpoint lock prevents overlapping ownership; process-local locking alone is insufficient.
+- Network safety validates configured destinations and every redirect, including DNS/address/port policy, before transport contact.
+- Validated destination/address information crosses the fetch boundary so transport cannot silently make an unchecked second DNS decision.
 
 ## Module boundaries
 
@@ -128,7 +116,7 @@ Rules:
 
 - Source-specific retrieval/parsing lives behind fetcher/parser adapter interfaces established with the first RSS/Atom implementation.
 - The optional Source RSS/Atom item admission filter is Source-owned include-only configuration evaluated over existing parsed RSS/Atom Raw-item text before Article-candidate normalization; it is distinct from downstream Relevance.
-- Phase 18 adds a configurable static-HTML parser implementation behind that same boundary. Endpoint type selects RSS/Atom or HTML parsing; both produce the same Raw-item contract, HTML bypasses the RSS/Atom-only admission filter, and all stages from normalization onward are shared.
+- A configurable static-HTML parser sits behind that same boundary. Endpoint type selects RSS/Atom or HTML parsing; both produce the same Raw-item contract, HTML bypasses the RSS/Atom-only admission filter, and all stages from normalization onward are shared.
 - Source-admin sample preview is a pure bounded parser/profile-validation path over operator-supplied HTML. It has no network, Collection run, endpoint lock, scheduler/health, or Article persistence edge and is not another collector.
 - Public-feed code consumes normalized Article read models only.
 - Admin controllers do not perform collection inline; manual check-now requests the same governed endpoint execution/job path rather than a second collector.
@@ -180,45 +168,29 @@ flowchart TD
     O --> P[Update run counters + endpoint health]
 ```
 
-This is the completed staged pipeline through Phase 11 plus the contracted later duplicate node; it is not a claim that every node existed in Phase 4. Every redirect returns through the pre-request network-safety gate before being followed.
+This is the canonical current pipeline. Every redirect returns through the pre-request network-safety gate before being followed.
 
-The pipeline grew by phase without inventing outcomes for stages that did not exist yet:
+Evolution constraints that still matter:
 
-- Phase 4 established eligibility, the shared endpoint lock, network-safety decisions, and the controlled outbound-fetch boundary only.
-- Phase 5 added manual endpoint execution, real HTTP transport/redirect following, minimal persisted Collection runs, and transport/parser status/counts.
-- Phase 6 added normalization status/counts and validated candidates.
-- Before configurable Relevance rules exist, candidates pass the empty-rule/default-include Relevance boundary.
-- Phase 7 added Article identity/persistence, observations, and canonical post-identity outcomes.
-- Phase 10 added durable scheduling/jobs, conditional-fetch state, retry/recovery, concurrency controls, and endpoint health around the same endpoint execution unit.
-- Phase 11 extended the existing pre-identity Relevance boundary with persisted installation-wide/Source-scoped include/exclude/categorize rules, Category/default assignment, deterministic persisted reasons, exact pre-identity `excluded` accounting, and the explicit pre-admin editorial-configuration path.
-- Phase 14 adds the optional Source RSS/Atom item admission filter before normalization, with distinct `source_item_filtered_count` accounting and no Article observation or Relevance `excluded` outcome for a mismatch.
-- Phase 16 added duplicate effects/grouping without redefining Article identity, and Phase 17 added reversible moderation over retained Article/duplicate state.
-- Phase 18 adds endpoint-selected bounded static HTML parsing behind the existing adapter boundary. HTML Raw items bypass the RSS/Atom-only Source admission stage and rejoin before normalization; scheduling, safety, Relevance, Source-scoped identity/persistence, observations, duplicate processing, and run/health behavior remain shared.
-
-Phase 18 adds no Web/API inline collection and no browser-automation collection process. Admin sample preview is intentionally outside this collection flow because it performs pure parsing with no network or persistence.
+- no stage invents outcomes owned by a later stage;
+- the empty-rule/default-include Relevance boundary is never bypassed;
+- manual and durable execution share one endpoint unit;
+- duplicate processing does not redefine Source-scoped Article identity;
+- RSS/Atom and static-HTML adapters share every downstream stage after their explicit admission difference;
+- there is no Web/API inline collection or browser-automation collector;
+- admin sample preview remains a pure parsing path with no network or persistence.
 
 ## Scheduling model
 
-### Tech-demo execution
+### Manual execution
 
-During Phases 5–9 before durable scheduling existed:
-
-- collection was manually invoked in the Worker for one configured endpoint at a time;
-- eligibility, the Phase 4 shared lock, network safety, fetch/redirect, parsing, normalization, Relevance, identity/persistence, and run accounting used the canonical pipeline stages that existed;
-- separate endpoint runs failed independently;
-- Web/API did not fetch Sources inline.
-
-Phase 4 itself stopped at the controlled outbound-fetch boundary and did not yet create endpoint Collection runs.
-
-Implementation-level Publication selectors that remained from earlier source trees were obsolete plumbing and were removed by the completed Phase 10 entry singleton correction.
+Manual endpoint checks remain an operator path through the same Worker-owned eligibility, locking, network-safety, fetch/redirect, parsing, normalization, Relevance, identity/persistence, duplicate, run-accounting, and health behavior as scheduled work. Separate endpoint runs fail independently; Web/API does not fetch Sources inline.
 
 ### Automated polling
 
-From Phase 10 onward:
-
 - polling is endpoint-specific within the installation;
 - scheduler identifies due approved + active + enabled endpoints when singleton Publication collection is active and enqueues independent jobs;
-- jobs reuse the Phase 4 shared/database-backed endpoint lock to prevent overlapping runs for one endpoint;
+- jobs reuse the shared/database-backed endpoint lock to prevent overlapping runs for one endpoint;
 - bounded jitter avoids synchronized spikes;
 - manual `check now` uses the same approval, lifecycle, operational, locking, network-safety, timeout, concurrency, and rate-limit rules and requests the same endpoint execution unit;
 - no scheduler/job design chooses among multiple topic Publications in one installation;
@@ -233,8 +205,8 @@ From Phase 10 onward:
 - Existing development/pre-production databases created by superseded source trees are destroyed/recreated and bootstrapped rather than migrated through compatibility transformations.
 - Migration-from-zero MUST deterministically create the complete canonical singleton schema.
 - Publication tenancy/scoping is absent; Source/endpoint/run/Article/observation relationships and critical uniqueness remain explicit.
-- The Phase 4 endpoint lock is shared across Worker processes and requires real persistence/concurrency evidence when implemented through PostgreSQL or another shared coordination store.
-- Minimal Collection-run persistence begins with real transport in Phase 5; it does not wait for Article persistence.
+- The endpoint lock is shared across Worker processes and requires real persistence/concurrency evidence when implemented through PostgreSQL or another shared coordination store.
+- Collection-run persistence begins with the first real fetch phase and does not wait for Article persistence.
 - Article identity resolution plus Article create/update and the corresponding successful identity-resolving observation form one atomic per-candidate transaction with critical uniqueness constraints.
 - `created`, `updated`, and `unchanged` observations reference the resolved Article; pre-identity outcomes such as `rejected` or `excluded` may persist provenance without an Article identifier as governed by the domain contract.
 - An Article observation is linked to the actual Source endpoint and existing Collection run that produced the candidate; endpoint/run and Article Source relationships must remain consistent.
@@ -245,7 +217,7 @@ From Phase 10 onward:
 - Once Article persistence exists, Collection-run accounting uses the canonical post-identity outcome taxonomy from the domain contract.
 - Database constraints are preferred over application-only assumptions for critical identity/uniqueness rules.
 
-Phase 19 establishes and validates the production backup/restore, deployment/rollback, and schema-upgrade procedures. Acceptance of Phase 20 establishes the first supported production schema/data baseline. From that baseline forward, `docs/decisions/production-data-and-schema-compatibility.md` governs upgrades: supported production state is preserved, supported migration history remains upgrade-capable, and clean migration-from-zero continues for new/disposable installations but is not sufficient evidence for production upgrade safety.
+Phase 19 established and validated production backup/restore, deployment/rollback, and schema-upgrade procedures. Accepted Phase 20 established the first supported production schema/data baseline. From that baseline forward, `docs/decisions/production-data-and-schema-compatibility.md` governs upgrades: supported production state is preserved, supported migration history remains upgrade-capable, and clean migration-from-zero continues for new/disposable installations but is not sufficient evidence for production upgrade safety.
 
 ## Administrative perimeter
 
@@ -267,8 +239,8 @@ Unless superseded by an Accepted ADR:
 - one Publication/topic per deployed installation;
 - singleton Publication configuration without relational tenancy;
 - root `/` as the canonical customer-visible feed route;
-- manual Worker collection preserved as an operator path established during the tech-demo critical path;
-- durable scheduler/job mechanism suitable for retries and separate Workers from Phase 10 onward;
+- manual Worker collection preserved as an operator path through the canonical endpoint execution unit;
+- durable scheduler/job mechanism suitable for retries and separate Workers;
 - server-rendered or lightweight client-rendered web UI;
 - container-friendly environment/secrets configuration.
 

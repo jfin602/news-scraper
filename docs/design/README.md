@@ -28,31 +28,6 @@ Use:
 
 ## UI workflow
 
-For a targeted UI implementation, start with:
+`docs/design/ui-workflow.md` is the detailed authority. Targeted presentation work runs on permanent branch `ui-polish`, isolated in a separate worktree from active roadmap/correction runner work. It is non-versioned, does not advance roadmap/correction state, and is not merged merely because a prompt completes.
 
-```text
-/ui-plan <task>
-```
-
-If existing durable design guidance is sufficient, continue directly:
-
-```text
-/ui-plan <task>
-→ /ui-write <lower-kebab-slug>
-```
-
-If `/ui-plan` determines that durable design guidance is missing, contradictory, materially ambiguous, or must be changed, it blocks implementation and requires:
-
-```text
-/ui-plan <task>
-→ Planning needed: UI design guidance required
-→ /ui-review <area>
-→ explicit approval
-→ /ui-apply
-→ /ui-plan <task>
-→ /ui-write <lower-kebab-slug>
-```
-
-`/ui-review` may also be invoked directly when the user wants to establish or revise design guidance independently of a specific implementation task.
-
-`/ui-plan` and `/ui-write` must not silently revise durable design guidance. After `/ui-apply`, `/ui-plan` must be rerun before `/ui-write` so implementation is planned against the newly approved guidance.
+The normal path is `/ui-plan` → `/ui-write`. If durable guidance is missing, contradictory, materially ambiguous, or must change, use `/ui-review` → explicit approval → `/ui-apply`, then rerun `/ui-plan` before `/ui-write`. A blocked earlier plan never authorizes writing.

@@ -19,7 +19,7 @@ Visible `non_primary` members remain stored and administratively accessible but 
 
 Source/Category filters, literal keyword search, and keyset pagination operate only over this canonical feed-eligible stream. They MUST NOT resurrect a visible `non_primary` member, and duplicate processing MUST NOT create a parallel public-feed query or eligibility path. Related coverage remains separate and stored `original_url` remains the headline destination.
 
-Before duplicate grouping exists, visible persisted Articles are logically `ungrouped` and therefore use the same eligibility rule rather than a temporary feed-only exception. Phase 8 MUST NOT invent duplicate-group/role persistence before the duplicate-grouping roadmap phase.
+Articles outside Duplicate groups are `ungrouped` and use the same eligibility rule rather than a feed-only exception.
 
 Collection eligibility and public-feed eligibility are separate. `active_for_collection`, Source operational state (`enabled`/`paused`/`disabled`), endpoint operational/lifecycle/health state, and the success/failure of current collection attempts do not by themselves suppress an already-persisted otherwise-eligible Article. Retained provenance remains readable while collection is paused or failing. Source approval and Source lifecycle remain public-row trust/lifecycle gates as stated above.
 
@@ -62,7 +62,7 @@ The basic item read model is intentionally small. Each item exposes only the fie
 
 The canonical public response exposes the bounded public Publication presentation values required by `/`: required `name` plus nullable `description`, `logoPath`, and `accentColor` corresponding to the singleton persisted configuration defined by the domain contract. These values are inert presentation data, not HTML/CSS/code, and do not create a reader-selectable Publication identity. The response MUST NOT expose or depend on a Publication UUID/slug as a routing/scoping identity, and MUST NOT expose Raw items, Article observations, internal identity digests, normalized-title matching fields, database internals, unbounded summaries/content, or other fields merely because they are stored.
 
-Phase 12 extends this same endpoint/read-model boundary with deterministic discovery and pagination. It does not create a parallel feed query, eligibility rule, or alternate public endpoint. Ranking and presentation/theme behavior remain separate concerns.
+Deterministic discovery and pagination extend this same endpoint/read-model boundary. They do not create a parallel feed query, eligibility rule, or alternate public endpoint. Ranking and presentation/theme behavior remain separate concerns.
 
 The accepted Phase 8 validation artifact remains evidence for the slug-scoped endpoint that existed at its accepted source SHA. The Phase 10 entry singleton implementation correction removes that implementation drift and supplies new evidence for this canonical endpoint; the historical artifact is not rewritten.
 
@@ -82,7 +82,7 @@ The page MUST:
 - render explicit loading, empty, unavailable/not-found, and dependency/error states without leaking private Publication configuration or backend details;
 - treat absent singleton Publication configuration and non-public configuration as the same generic unavailable/not-found public-page state, consistent with the API's generic `404` behavior;
 - link each headline directly to the stored Article `original_url` supplied by the public-feed read model;
-- provide the core desktop `Date | Headline | Source` presentation and a sane stacked mobile presentation without pulling Phase 13 presentation polish forward;
+- provide the core desktop `Date | Headline | Source` presentation and an accessible responsive stacked mobile presentation;
 - avoid Source collection in Web/API page handling; collection remains Worker-owned.
 
 A lightweight same-origin client that fetches `GET /api/feed` is a valid implementation. Server rendering is also valid only when it reuses the same canonical public-feed read-model boundary rather than duplicating feed eligibility/query logic.
@@ -91,7 +91,7 @@ The obsolete pre-production route `GET /publications/:publicationSlug` is not a 
 
 Optional singleton `presentation_timezone` is persisted and editable through the protected Phase 15 administrator surface. When configured it MUST be a valid IANA time-zone identifier; absence preserves UTC calendar-date presentation from `effectiveFeedDate`. It changes presentation only and MUST NOT rewrite stored timestamps, change canonical feed ordering, create routing/tenancy identity, or introduce locale, arbitrary date-template, time-format, or general formatting configuration.
 
-Phase 12 adds the discovery controls and navigation behavior defined below while preserving this same page/read-model boundary. Final accessibility/responsive polish, completed light/dark theming, duplicate moderation, and admin UI remain later work.
+The discovery controls and navigation behavior below preserve this same page/read-model boundary.
 
 The accepted Phase 9 validation artifact remains authoritative evidence for the slug-addressed route that was actually tested at its source SHA. It MUST NOT be edited to claim root-route evidence that was not observed; the singleton implementation correction owns the new root-route evidence.
 
@@ -136,11 +136,11 @@ Linked article headline
 
 Tap targets, wrapping, Source identification, and external-link behavior must remain accessible.
 
-The tech-demo milestone may use a basic mobile layout before the later presentation-polish phase completes the full accessibility/responsive pass.
+The completed presentation provides the governed responsive/accessibility behavior below.
 
 ## Search, filters, and pagination
 
-Phase 12 extends `GET /api/feed` and the root page with deterministic discovery behavior while preserving the feed-eligibility and chronological-order laws above.
+`GET /api/feed` and the root page provide deterministic discovery while preserving the feed-eligibility and chronological-order laws above.
 
 ### Public discovery inputs
 
@@ -176,9 +176,9 @@ Keyword search is a filtering operation, not a ranking operation.
 
 ### Keyset cursor contract
 
-Phase 12 uses bounded keyset/load-more pagination rather than offset-based public pagination.
+Public discovery uses bounded keyset/load-more pagination rather than offset-based pagination.
 
-- Page size remains server-defined and bounded; Phase 12 does not add a public `limit` parameter.
+- Page size remains server-defined and bounded; there is no public `limit` parameter.
 - A response with more matching rows available exposes a nullable opaque `nextCursor` or equivalent continuation value.
 - Cursor contents are an implementation detail but MUST be versioned/validated and encode enough state to continue strictly after the last returned row under the canonical order tuple: effective feed date descending, `first_seen_at` descending, then stable Article identifier.
 - A cursor MUST be bound to the normalized `q`/`source`/`category` criteria under which it was issued. Reusing it with different discovery criteria is invalid rather than silently continuing a different result set.
@@ -200,7 +200,7 @@ Completed MVP requires configuration-driven public presentation without changing
 
 ### Publication presentation configuration
 
-Phase 13 uses the singleton Publication presentation fields defined by the domain contract:
+The public page uses the singleton Publication presentation fields defined by the domain contract:
 
 - required Publication `name`;
 - optional bounded plain-text `description`;
@@ -210,7 +210,7 @@ Phase 13 uses the singleton Publication presentation fields defined by the domai
 
 Missing optional branding values MUST degrade to a complete generic presentation rather than causing page/API failure. Publication branding is data/configuration; shared engine/UI code MUST NOT embed indie-author-specific names, copy, logos, colors, or topic conditionals.
 
-Phase 13 introduced the persistence/read-model use of these minimum public values. Phase 15 provides Cloudflare-protected administrator editing for them; the completed Phase 13 work did not pull that admin control plane forward.
+The canonical read model exposes these minimum public values, and Cloudflare-protected administration edits them.
 
 ### Theme selection
 
@@ -240,9 +240,9 @@ The exact typography, spacing, visual hierarchy, token values, component shapes,
 
 While the canonical `/api/feed` request is pending, the visible page MUST present a neutral, intentional loading state and MUST NOT visibly paint generic/unset Publication copy such as a placeholder `News feed` heading that is then replaced by configured Publication content. A centered loading indicator may be used together with an accessible status message. Reduced-motion users MUST receive an equivalent non-motion loading indication. Populated, empty, unavailable, invalid-discovery, continuation-error, and dependency-error behavior must remain distinguishable after the loading state resolves.
 
-### Phase 12 preservation boundary
+### Presentation preservation boundary
 
-Phase 13 may refine markup and presentation around the discovery controls/feed, but MUST NOT redefine Phase 12 behavior. In particular it preserves:
+Presentation changes may refine markup around the discovery controls/feed but MUST NOT redefine discovery behavior. In particular they preserve:
 
 - `GET /api/feed` as the one canonical public feed/discovery endpoint and `/` as the canonical page;
 - canonical feed eligibility and effective-date/`first_seen_at`/Article-ID chronological ordering;
@@ -259,7 +259,7 @@ Presentation work must keep the relevant Phase 12 API/database/browser regressio
 - The Article's stored `original_url` is the primary public destination.
 - `canonical_identity_url` is an identity-comparison field and MUST NOT silently replace `original_url` as the public headline destination.
 - A future separately governed Source-derived public/canonical destination field may change this only through an explicit contract decision; none exists in the basic feed.
-- The default headline activation is an ordinary direct same-context browser navigation to stored `original_url`; Phase 13 MUST NOT force a new browsing context merely for presentation polish. Readers retain their normal browser controls for opening links in another tab/window when desired.
+- The default headline activation is an ordinary direct same-context browser navigation to stored `original_url`; presentation code MUST NOT force a new browsing context merely for polish. Readers retain their normal browser controls for opening links in another tab/window when desired.
 - UI must not imply Platform authorship of linked content.
 - External navigation is visually/accessibly understandable.
 - Redirector/tracking links are not MVP behavior unless separately approved/documented.
@@ -273,9 +273,9 @@ A Platform-hosted detail page is optional in MVP. If implemented, it may show no
 
 The aggregation vertical slice and basic public feed are implemented before the full administrative control plane.
 
-Initial singleton Publication/Source configuration MAY be supplied through approved operator-maintained bootstrap/seed tooling until the corresponding admin screens exist. That mechanism does not bypass Source approval or other collection eligibility rules.
+Initial singleton Publication/Source configuration MAY be supplied through approved operator-maintained bootstrap/seed tooling. That mechanism does not bypass Source approval or other collection eligibility rules or compete with later operator-managed state.
 
-Ordinary bootstrap remains create-if-absent and MUST NOT overwrite existing operator-managed Publication state. Before Publication administration exists, the tech-demo path therefore requires an explicit operator-controlled, topic-independent way to change `public_status` deliberately. Changing committed bootstrap input alone is not a state-transition mechanism for already-created state.
+Ordinary bootstrap remains create-if-absent and MUST NOT overwrite existing operator-managed Publication state. Changing committed bootstrap input alone is not a state-transition mechanism for already-created state.
 
 Bootstrap/deployment configuration supplies one singleton Publication configuration; it MUST NOT require a slug selector or choose among multiple Publication records. Before production database compatibility is established, older pre-production databases may be recreated and bootstrapped rather than supported through an in-place upgrade path.
 
@@ -315,9 +315,9 @@ Once the Source-administration phase is complete, authorized operators MUST be a
 
 The Source editor/API presents the admission filter as an include-only Source setting: no configured phrases means collect/process all otherwise-valid RSS/Atom items, while one or more bounded non-empty phrases admit an item when any phrase matches. It MUST NOT expose an exclude-phrase list or an independent enabled toggle, and MUST NOT store the configuration on individual endpoints. This is collection admission before normalization, not public-feed filtering or Phase 11 Relevance management.
 
-Phase 18 extends this existing Source/endpoint administration surface. Authorized operators can choose/configure the supported `html_listing` endpoint type, edit its bounded endpoint-owned HTML listing profile, receive deterministic profile-validation errors, and run safe sample preview. Endpoint detail exposes the parser/adapter version, persisted profile revision, and bounded latest parser-failure diagnostics relevant to that endpoint. Existing approval, lifecycle, operational, approved-domain, polling, default-Category, health, recent-run, and manual check-now controls remain the governing controls.
+The Source/endpoint administration surface supports `html_listing` endpoint configuration, bounded endpoint-owned HTML listing profiles, deterministic profile-validation errors, and safe sample preview. Endpoint detail exposes the parser/adapter version, persisted profile revision, and bounded latest parser-failure diagnostics. Existing approval, lifecycle, operational, approved-domain, polling, default-Category, health, recent-run, and manual check-now controls remain governing.
 
-The UI/API makes clear that Source RSS/Atom admission phrases apply to RSS/Atom endpoints and are not an HTML-listing admission mechanism. Phase 18 adds no Publication selector, browser collector control, arbitrary scraping script, or generic expression editor.
+The UI/API makes clear that Source RSS/Atom admission phrases apply to RSS/Atom endpoints and are not an HTML-listing admission mechanism. It exposes no Publication selector, browser collector control, arbitrary scraping script, or generic expression editor.
 
 ### Phase 18 safe selector preview
 
@@ -335,7 +335,7 @@ Administrators can create, read, and update Categories with immutable installati
 
 Administrators can manage the existing Relevance rules with immutable installation-wide `config_key`, optional real-Source scope, the existing literal predicate vocabulary, action, pattern, priority, enabled state, explanatory label/reason, and a Category target only for `categorize`. `include` and `exclude` have no Category target. Existing deterministic precedence, categorization/default fallback, and prospective-only behavior remain unchanged. Enable/disable is the ordinary non-destructive operation; destructive removal must preserve retained reason/provenance history and is rejected when it cannot. All multi-resource mutations validate relationships transactionally and roll back invalid combinations.
 
-Phase 15 integrates the managed Category set with existing Source/endpoint default-Category controls: endpoint default overrides Source default, and defaults apply only when no categorize rule assigns a Category. Source priority and Source/endpoint administration remain Phase 14-owned. Phase 15 does not add Article or duplicate moderation, a Publication switcher, tenant scope, native accounts/sessions/roles, or Level 8 Cloudflare deployment-observation work; that observation remains Phase 19.
+The managed Category set integrates with Source/endpoint default-Category controls: endpoint default overrides Source default, and defaults apply only when no categorize rule assigns a Category. Source priority remains owned by Source administration. Publication/Category/Relevance administration adds no Publication switcher, tenant scope, or native accounts/sessions/roles; Article/duplicate moderation remains a separate governed surface.
 
 ## Article management UI
 
@@ -380,6 +380,6 @@ Dismissed decisions persist so unchanged evidence does not repeatedly recreate t
 
 ## Change history
 
-Successful material Phase 17 moderation changes produce append-only application change/audit records sufficient to explain the action, including bounded action, target, time, reason, and bounded prior/new state where appropriate. A required record is written transactionally with its mutation and cannot claim success after validation failure or rollback. Ordinary Phase 17 administration cannot edit history; reads are bounded/paginated. Phase 17 does not invent retention/pruning policy, which remains Phase 19 work.
+Successful material moderation changes produce append-only application change/audit records sufficient to explain the action, including bounded action, target, time, reason, and bounded prior/new state where appropriate. A required record is written transactionally with its mutation and cannot claim success after validation failure or rollback. Ordinary administration cannot edit history; reads are bounded/paginated and retention/pruning follows the governed operations policy.
 
 MVP change records do not require a stable native administrator identifier or guaranteed per-user attribution. Cloudflare identity/access logs are operational evidence rather than the application's canonical domain identity.
