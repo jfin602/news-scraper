@@ -58,7 +58,10 @@ describe('Admin HTTP perimeter foundation', () => {
       assert.match(body, /data-workspace="sources"/u);
       assert.match(body, /data-workspace="editorial"/u);
       assert.match(body, /href="\/admin\/assets\/admin\.css"/u);
-      assert.match(body, /src="\/admin\/assets\/admin\.js"/u);
+      assert.match(
+        body,
+        /<script type="module" src="\/admin\/assets\/admin\.js"><\/script>/u,
+      );
       assert.doesNotMatch(body, /<script(?:\s[^>]*)?>[^<]+<\/script>/iu);
       assert.doesNotMatch(body, /password|login|on(?:click|load)=/iu);
 
@@ -75,9 +78,20 @@ describe('Admin HTTP perimeter foundation', () => {
         /^(?:text|application)\/javascript/u,
       );
       assertAdminSecurityHeaders(script);
-      assert.match(await script.text(), /X-News-Scraper-Admin-Request/u);
+      assert.match(await script.text(), /from '\.\/core\.js'/u);
 
-      const unlistedAsset = await fetch(`${baseUrl}/admin/assets/core.js`);
+      const core = await fetch(`${baseUrl}/admin/assets/core.js`);
+      assert.equal(core.status, 200);
+      assert.match(
+        core.headers.get('content-type') ?? '',
+        /^(?:text|application)\/javascript/u,
+      );
+      assertAdminSecurityHeaders(core);
+      assert.match(await core.text(), /X-News-Scraper-Admin-Request/u);
+
+      const unlistedAsset = await fetch(
+        `${baseUrl}/admin/assets/not-listed.js`,
+      );
       assert.equal(unlistedAsset.status, 404);
       assertAdminSecurityHeaders(unlistedAsset);
     });

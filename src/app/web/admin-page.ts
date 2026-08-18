@@ -10,6 +10,26 @@ const adminClient = readFileSync(
   new URL('./admin/admin.js', import.meta.url),
   'utf8',
 );
+const adminModuleAssets = Object.fromEntries(
+  [
+    'catalog.js',
+    'core.js',
+    'editorial.js',
+    'moderation.js',
+    'operations.js',
+    'publication.js',
+    'sources.js',
+  ].map((name) => [
+    name,
+    {
+      content: readFileSync(
+        new URL(`./admin/${name}`, import.meta.url),
+        'utf8',
+      ),
+      type: 'js',
+    },
+  ]),
+);
 const adminPage = `<!doctype html>
 <html lang="en">
   <head>
@@ -17,7 +37,7 @@ const adminPage = `<!doctype html>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>News Scraper administration</title>
     <link rel="stylesheet" href="/admin/assets/admin.css">
-    <script src="/admin/assets/admin.js" defer></script>
+    <script type="module" src="/admin/assets/admin.js"></script>
   </head>
   <body>
     <header class="admin-masthead">
@@ -694,6 +714,7 @@ const adminAssets = new Map<
 >([
   ['admin.css', { content: adminStylesheet, type: 'css' }],
   ['admin.js', { content: adminClient, type: 'js' }],
+  ...Object.entries(adminModuleAssets),
 ]);
 
 /**
