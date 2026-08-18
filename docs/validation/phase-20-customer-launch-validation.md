@@ -9,7 +9,9 @@ Stage 1 certifies a launch candidate for operator-controlled deployment. It does
 ## Candidate and environments
 
 - Phase 20 closeout base: `8013523b24743694d46efc80f544efeef84ec287` (tree `b2f9a3aacf02f55578e8ac956dbcd6f7f39efbd7`).
-- Exact executable candidate: the direct Stage 1 commit containing this provisional artifact. Its SHA and tree are recorded by the immediate evidence-only follow-up after commit; that follow-up does not change executable source, migrations, package, or runtime configuration.
+- Exact executable candidate commit: `3870970f5581a13c521565993cbb573d9d39e029`.
+- Exact executable candidate tree: `7b4bb1032f23f57dea4ace2d2b3beef8d7c60ecc`.
+- This identity is recorded by an immediate evidence-only follow-up that changes no executable source, migrations, package, or runtime configuration.
 - Package version: `0.20.1`.
 - Stage 1 completed: 2026-08-17, America/Chicago.
 - Environment: Windows local validation, controlled fixtures, disposable PostgreSQL, local Chromium, and approved public live feeds.
@@ -53,7 +55,7 @@ All passing selections reported zero skipped, cancelled, or todo tests.
 | `npm run test:browser` | PASS; 61/61 Chromium tests |
 | `npm run test:live-sources` | PASS on final live-test tree; 2/2 tests for the two Sources named below |
 
-The final candidate commit and range `git diff --check` are recorded after the commit is created. No subordinate deterministic suite was rerun separately from `check`.
+`git diff --check 8013523b24743694d46efc80f544efeef84ec287...3870970f5581a13c521565993cbb573d9d39e029` passed, and the candidate commit left a clean working tree. No subordinate deterministic suite was rerun separately from `check`.
 
 ## Product and authority inspection
 
