@@ -10,8 +10,8 @@ Phases are intentionally narrow. Each phase represents one cohesive implementati
 - Initial singleton Publication/Source configuration may use explicit operator-maintained bootstrap without bypassing Source trust, domain, lifecycle, or network-safety rules.
 - Every phase inherits the project, domain, security, singleton-architecture, and testing contracts routed by `BOOT.md`; a roadmap entry does not replace them.
 - Phase 20 acceptance established the first supported production schema/data baseline. Phase 21 therefore preserves supported customer data and upgrades under `docs/decisions/production-data-and-schema-compatibility.md`.
-- New product features remain frozen until Phase 21 closes; bounded critical production, security, data-integrity, and required operational repairs use the appropriate fix/correction workflow.
-- Phase 21 is terminal unless the repository owner explicitly approves and documents a roadmap extension. Deferred ideas do not imply Phase 22.
+- New product features remain frozen until Phase 21 closes into the `1.0.0` launch state; bounded critical production, security, data-integrity, and required operational repairs use the appropriate fix/correction workflow.
+- Phase 21 is the final pre-1.0 engineering phase. A green terminal Phase 21 `/closeout` transitions the project directly to the `1.0.0` launch state; it creates neither Phase 22 nor a `0.22.0` baseline.
 
 ## Global phase validation gate
 
@@ -1052,11 +1052,11 @@ Configure, validate, and hand off the first real Publication without adding new 
 - Final deterministic regression, browser, recovery, schema-upgrade/rollback, and reference-deployment evidence required by the testing contract is recorded for the launched tree.
 - Known limitations and production ownership are documented.
 - The accepted launch evidence identifies the first supported production source tree/version/schema baseline. From this point forward customer production data is durable supported state under `docs/decisions/production-data-and-schema-compatibility.md`.
-- New product-feature implementation remains frozen until Phase 21 closes; only critical defect/security/data-integrity/operations fixes may interrupt that freeze through an appropriate bounded fix/correction path.
+- New product-feature implementation remains frozen until Phase 21 closes into the `1.0.0` launch state; only critical defect/security/data-integrity/operations fixes may interrupt that freeze through an appropriate bounded fix/correction path.
 
 ## Phase 21 — Codebase simplification and maintainability hardening
 
-**Status:** Current and terminal roadmap phase.
+**Status:** Current and terminal roadmap phase; a green closeout transitions directly to the `1.0.0` launch state.
 
 ### Goal
 
@@ -1111,6 +1111,20 @@ Until Phase 21 closes:
 - arbitrary rewrites, framework migrations, or dependency substitutions without a concrete maintainability/correctness/measurement case;
 - optimization claims based only on fewer lines/files/modules or synthetic microbenchmarks that do not represent the affected workload.
 
+### 1.0.0 closeout transition
+
+Phase 21 is the final pre-1.0 engineering phase. Its terminal `/closeout` is the deliberate release transition from the final validated `0.21.x` tree to the `1.0.0` launch state.
+
+On a green Phase 21 `/closeout`:
+
+- all Phase 21 exit-gate and inherited validation evidence must be satisfied against the exact final tree before the version changes;
+- update only the top-level `package.json` version from the final `0.21.x` Phase 21 version to `1.0.0`;
+- create no Phase 22, no `0.22.0` baseline, and reserve no later phase number;
+- report `Final project version: 1.0.0`, `Launch state: 1.0.0`, and `Roadmap status: COMPLETE`;
+- treat any later roadmap as a separate explicit owner-approved post-1.0 extension, with the default product direction focused on improving the reusable Platform/engine rather than creating a Publication-specific fork.
+
+The version does not advance merely because Phase 21 appears complete. The `1.0.0` transition occurs only through a green terminal `/closeout`.
+
 ### Exit gate
 
 - Every Phase 21 change is traceable to an observed final-tree maintainability, correctness-risk, structural, or measured operational problem rather than speculative cleanup.
@@ -1121,11 +1135,11 @@ Until Phase 21 closes:
 - Relevant database, collection-fixture, browser, security, recovery, and other specialized evidence required by the testing contract is green on the final tree.
 - A final Level 8 reference-deployment validation observes the refactored build operating against preserved production-compatible state and the governed public/admin/Worker boundaries.
 - A durable Phase 21 validation artifact records the accepted source tree, what complexity was removed, what intentionally remains and why, tests/procedures actually executed, production-upgrade evidence where applicable, before/after measurements, evidence levels, and limitations.
-- Phase 21 closes with no deferred feature automatically promoted and no implicit Phase 22. The roadmap is complete unless the repository owner later approves an explicit roadmap extension.
+- A green terminal Phase 21 `/closeout` transitions the exact accepted final tree to version `1.0.0`, reports the 1.0.0 launch state and roadmap complete, and creates no Phase 22 or `0.22.0` baseline.
 
 ## Deferred roadmap candidates
 
-After Phase 21 closes and evidence supports promoting new work:
+After Phase 21 closes into the `1.0.0` launch state and evidence supports promoting new work:
 
 - native application-managed administrator accounts/identity;
 - passwords/passkeys or application-managed identity-provider integration;
@@ -1145,4 +1159,4 @@ After Phase 21 closes and evidence supports promoting new work:
 - API access;
 - multilingual feeds.
 
-Deferred features reuse normalized Articles and singleton Publication configuration rather than bypassing them. Any future proposal for concurrent multi-Publication hosting within one installation requires an explicit future contract/ADR and deliberate data-model work; it is not inferred from the MVP architecture. A deferred feature becomes roadmap work only through explicit owner-approved roadmap extension; the existence of this list does not reserve Phase 22 or any package-version baseline.
+Deferred features reuse normalized Articles and singleton Publication configuration rather than bypassing them. Any future proposal for concurrent multi-Publication hosting within one installation requires an explicit future contract/ADR and deliberate data-model work; it is not inferred from the MVP architecture. A deferred feature becomes roadmap work only through explicit owner-approved post-1.0 roadmap extension; the existence of this list does not reserve Phase 22 or any package-version baseline.
