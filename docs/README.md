@@ -30,6 +30,7 @@ docs/
 │   └── system-architecture.md
 ├── operations/
 │   ├── security-reliability-and-operations.md
+│   ├── source-onboarding.md
 │   ├── database-backup-and-restore.md
 │   └── deployment-and-incident-runbook.md
 ├── roadmap/
@@ -69,6 +70,7 @@ Git does not track empty directories, so `testing/`, `tasks/`, `design/tasks/`, 
 - `design/public-feed-presentation.md` — durable public-feed layout, typography, themes, states, responsive behavior, accessibility presentation, and design-token guidance for Phase 13 and later presentation work.
 - `design/ui-workflow.md` — permanent `ui-polish` branch/worktree rules, presentation task boundaries, conditional `/ui-review` → `/ui-apply` design-guidance workflow, and targeted `/ui-plan` → `/ui-write` prompt workflow.
 - `operations/security-reliability-and-operations.md` — admin perimeter, fetch security, real resource validation, failure isolation, observability, recovery requirements, deployment security, and the production-operations boundary established and hardened through Phase 19.
+- `operations/source-onboarding.md` — operator-facing Source/endpoint onboarding procedure, field-by-field purpose, approved-domain configuration, RSS/Atom admission-phrase semantics, state model, HTML listing profile guidance, approval/enablement sequence, and Check-now/run interpretation.
 - `operations/database-backup-and-restore.md` — governed PostgreSQL backup, restore verification, managed-backup retention, recovery validation, and Phase 20 launch reconfirmation procedure.
 - `operations/deployment-and-incident-runbook.md` — ordered deployment/schema-upgrade/rollback procedure, reference-deployment validation, incident response, and the deployment-specific operations record that Phase 20 must reconfirm before launch acceptance.
 - `roadmap/mvp-roadmap.md` — Phase 0–21 sequence, tech-demo critical path, completed Phase 10 entry singleton correction and work through Phase 19, dependencies, non-goals, exit gates, current Phase 20 customer launch validation, production-baseline handoff, and terminal Phase 21 codebase simplification/maintainability hardening.
