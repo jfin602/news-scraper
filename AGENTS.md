@@ -16,12 +16,12 @@ Follow `BOOT.md`.
 - `/docs-apply` changes only approved documentation scope. Preserve unrelated wording.
 - Normal non-terminal handoff is `/closeout` → `/docs-review` → `/docs-apply` → `/prompt-ass` → `/prompt-plan` → `/prompt-write <folder name>`.
 - Roadmap `/closeout` and a correction stack's final manual closeout are different. A correction closeout clears only that correction and preserves roadmap phase/package version.
-- Terminal Phase 21 `/closeout` verifies the closeout, preserves the final package version, and reports `Roadmap status: COMPLETE`; it never invents Phase 22 or `0.22.0`.
+- Terminal Phase 21 `/closeout` verifies the closeout and, on green, performs the explicit final pre-1.0 version-only transition from the validated `0.21.x` version to `1.0.0`, reports `Launch state: 1.0.0` and `Roadmap status: COMPLETE`, and never invents Phase 22 or `0.22.0`.
 - Use `docs/codex-model-selection.md` for detailed minimum-cost-adequate model/reasoning/usage policy.
 
 ## Versioning and task-stack grammar
 
-`package.json` is the sole current-version authority. Documentation, correction, UI, and terminal-closeout work is non-versioned. A version changes only through an executed roadmap prompt, a green non-terminal `/closeout` baseline transition, or another explicit owner-authorized transition.
+`package.json` is the sole current-version authority. Documentation, correction, and UI work is non-versioned. A version changes only through an executed roadmap prompt, a green non-terminal `/closeout` baseline transition, the explicit green terminal Phase 21 `/closeout` transition to `1.0.0`, or another explicit owner-authorized transition.
 
 The machine parser is `scripts/codex-phase-core.mjs`; parser changes must update BOOT and focused parser tests. Before reporting `/prompt-write` complete, run `npm run codex:phase:validate -- <task-folder>` when local execution is available. `npm run codex:phase -- <task-folder>` executes implementation prompts and stops before the parsed final closeout prompt.
 
@@ -87,7 +87,7 @@ The Phase 9 owner acceptance retains its recorded incomplete two-Source Level 7 
 
 ## Roadmap state
 
-**Phase 21 — Codebase simplification and maintainability hardening** is current and terminal. Accepted Phase 20 established the supported production baseline and feature freeze. Phase 21 removes only evidence-backed accidental complexity or measured inefficiency while preserving launched behavior, real integrity/provenance/security boundaries, and supported customer data. No deferred feature is implemented until Phase 21 closes, except bounded critical production/security/data-integrity/operational fixes. Later roadmap work requires explicit repository-owner approval and documentation alignment.
+**Phase 21 — Codebase simplification and maintainability hardening** is current and terminal. Accepted Phase 20 established the supported production baseline and feature freeze. Phase 21 removes only evidence-backed accidental complexity or measured inefficiency while preserving launched behavior, real integrity/provenance/security boundaries, and supported customer data. No deferred feature is implemented until Phase 21 closes, except bounded critical production/security/data-integrity/operational fixes. A green Phase 21 `/closeout` transitions directly to the `1.0.0` launch state and creates no Phase 22 or `0.22.0`; later roadmap work requires explicit repository-owner approval and documentation alignment, with the default post-1.0 direction focused on reusable Platform/engine improvement.
 
 Use `docs/roadmap/mvp-roadmap.md` for detailed phase history and exit gates.
 
