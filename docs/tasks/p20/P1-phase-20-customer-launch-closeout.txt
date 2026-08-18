@@ -42,13 +42,13 @@ TWO-STAGE MANUAL CLOSEOUT
 P1 is a hard two-stage handoff:
 
 - **Stage 1 — Codex launch-candidate certification:** establish version `0.20.1`, inspect the exact final product, run the final local/deterministic/PostgreSQL/recovery/browser/live-Source matrix, perform three independent closeout review passes, repair only bounded governed defects, create the provisional durable artifact, and commit the exact launch candidate.
-- **Stage 2 — Operator-controlled customer launch:** the human operator deploys that exact candidate, curates/finalizes the real Publication through the existing Cloudflare-protected admin surfaces, validates approved live Sources and feed quality, reconfirms recovery and perimeter evidence, records launch metrics/ownership/limitations, creates and restores a post-curation backup, and supplies observations for final artifact acceptance.
+- **Stage 2 — Operator-controlled customer launch:** the human operator deploys that exact candidate, curates/finalizes the real Publication through the existing Cloudflare-protected admin surfaces, validates approved live Sources and feed quality, reconfirms recovery policy/ownership and perimeter evidence, records launch metrics/ownership/limitations, and supplies observations for final artifact acceptance.
 
 Stage 1 GREEN means only that the candidate is ready for the operator-controlled launch. It MUST NOT establish or claim the first supported production baseline.
 
 If Stage 2 exposes a source, migration, package, runtime-contract, or test defect that changes executable behavior, the candidate is invalidated. Return to Stage 1, repair through the permitted bounded path or stop for correction/escalation, rerun all invalidated evidence, commit a new exact candidate, and restart affected Stage 2 evidence. Never combine executable evidence from different candidate trees.
 
-Database/admin configuration changes made deliberately during Stage 2 are launch curation, not executable-source drift. Record the final governed database state and post-curation recovery point as part of the accepted baseline.
+Database/admin configuration changes made deliberately during Stage 2 are launch curation, not executable-source drift. Record the final governed live database configuration, moderation, and provenance state as part of the accepted baseline.
 
 MANDATORY HANDOFF BEFORE WRITES
 Before any P1 version/source/artifact write:
@@ -106,7 +106,7 @@ The artifact must identify at minimum:
 - real public desktop/mobile/accessibility/theme/link/date observations;
 - real authorized admin and Cloudflare/direct-origin observations;
 - final Operations/health/queue/alert metric baseline using only facts the existing product actually exposes;
-- pre-launch and post-curation backup identifiers plus post-curation restore verification/duration evidence;
+- the observed pre-launch backup identifier;
 - monitoring/recovery/database/Cloudflare/origin ownership and escalation path;
 - backup frequency/location/durability/encryption/access/retention policy, RPO/RTO, and total-host-loss posture;
 - relevant log/audit/metadata retention/access ownership;
@@ -116,7 +116,7 @@ The artifact must identify at minimum:
 - Pass 3 structural findings and whether a Terra High remediation handoff occurred;
 - explicit statement that bootstrap JSON is initialization input and the accepted production configuration is the governed database/admin state;
 - explicit statement that the final accepted source SHA is the launched executable candidate, even if a later evidence-only commit finalizes this artifact;
-- exact post-curation recovery point that contains the accepted customer configuration/moderation state;
+- explicit identification of the governed live customer database configuration/moderation/provenance state observed during launch;
 - intended next roadmap phase if GREEN: Phase 21 — Codebase simplification and maintainability hardening;
 - statement that conversational `/closeout` remains required for the separate `0.21.0` baseline transition.
 
@@ -199,8 +199,6 @@ At minimum challenge:
 - authorized admin validation accidentally reaching a direct origin rather than the Cloudflare Access path;
 - public root/API/readiness being healthy while Worker scheduling/collection is degraded;
 - direct-origin bypass becoming reachable after deployment changes;
-- a backup being taken before final launch curation and then incorrectly called the production recovery point;
-- a post-curation backup succeeding but restore/semantic verification not being observed;
 - local-only backup risk or no-guarantee total-host-loss RPO/RTO disappearing from production handoff wording;
 - artifact text containing credentials, Access tokens/cookies, private keys, secret URLs, or raw logs;
 - an evidence-only artifact commit being misidentified as the deployed executable candidate;
@@ -368,18 +366,7 @@ After final curation/collection settles, capture only the bounded facts actually
 
 This is a baseline observation, not a new analytics feature or SLA promise.
 
-12. POST-CURATION PRODUCTION RECOVERY POINT
-After configuration/editorial/moderation state is final:
-- create a second managed backup intended to represent the accepted customer state;
-- record its safe backup/manifest identity, checksum metadata, and duration;
-- restore it into a fresh explicit non-production target using the governed restore procedure;
-- verify current migration ledger and semantic application reads for the final Publication, Sources/endpoints, Categories/Relevance, Articles/observations, duplicate/moderation/history/job/run state as applicable;
-- record restore duration and cleanup;
-- never restore over the production source database.
-
-The production baseline MUST NOT rely solely on a backup taken before launch curation.
-
-13. OWNERSHIP / RECOVERY / LIMITATIONS
+12. OWNERSHIP / RECOVERY / LIMITATIONS
 Reconfirm or deliberately amend the Phase 19 deployment-specific record:
 - monitoring/alert owner and escalation path;
 - recovery incident commander;
@@ -393,7 +380,7 @@ Reconfirm or deliberately amend the Phase 19 deployment-specific record:
 
 If backup remains local-only, explicitly preserve the accepted limitation that total VPS/storage loss has no guaranteed recovery point or recovery time for configuration/moderation/operator-created state. Do not hide this behind generic production-ready wording.
 
-14. FINAL LAUNCH ACCEPTANCE SNAPSHOT
+13. FINAL LAUNCH ACCEPTANCE SNAPSHOT
 Before changing the artifact to final GREEN, reconfirm and record:
 - exact deployed executable candidate SHA/tree and `0.20.1`;
 - current schema status and complete migration ledger identity;
@@ -403,7 +390,7 @@ Before changing the artifact to final GREEN, reconfirm and record:
 - public desktop/mobile/admin observations;
 - Operations baseline;
 - Cloudflare/origin results;
-- post-curation backup/restore result and recovery-point identity;
+- observed pre-launch backup identity plus backup/recovery policy and ownership;
 - production ownership/limitations;
 - no required Stage 2 item left blank, inferred, or borrowed from a different candidate/deployment.
 
@@ -413,8 +400,8 @@ Only after all required Stage 1 and Stage 2 evidence is GREEN against one cohere
 The accepted baseline identity is the combination of:
 - the exact launched executable source SHA/tree and package version `0.20.1`;
 - the exact launched current migration ledger/schema state;
-- the governed customer database/configuration/moderation/provenance state represented by the accepted post-curation recovery point;
-- the recorded deployment/ownership/limitations under which that state was accepted.
+- the governed live customer database/configuration/moderation/provenance state observed during launch;
+- the recorded deployment ownership, operational policy, and accepted limitations under which that state was accepted.
 
 From that acceptance forward, customer production data is durable supported state. Future schema/persisted/data-access work must preserve this baseline under `docs/decisions/production-data-and-schema-compatibility.md`; clean migration-from-zero alone is no longer sufficient production-upgrade proof.
 
@@ -424,7 +411,7 @@ FINAL CLOSEOUT RESULT
 If and only if all requirements are green:
 1. finalize the durable artifact with the exact final GREEN status specified above;
 2. commit only the evidence-only artifact update if the launched executable candidate itself did not change;
-3. report the accepted launched executable SHA/tree, package `0.20.1`, schema ledger baseline, post-curation recovery-point identity, final evidence artifact commit SHA, and any explicitly accepted limitations;
+3. report the accepted launched executable SHA/tree, package `0.20.1`, schema ledger baseline, governed live customer database/configuration/moderation/provenance state, final evidence artifact commit SHA, and any explicitly accepted limitations;
 4. report Phase 20 GREEN and identify Phase 21 as the next roadmap phase;
 5. state that conversational `/closeout` is still required and must perform only the separate Phase 21 `0.21.0` version-only baseline transition after its normal structural handoff check.
 

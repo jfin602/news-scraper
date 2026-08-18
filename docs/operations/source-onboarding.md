@@ -559,4 +559,4 @@ Before calling a new Source ready for launch, confirm:
 - health is understood as an observation, not a state-control shortcut; and
 - collected/public Articles link to the intended original publisher destinations.
 
-For Phase 20 launch acceptance, continue with the final approved-endpoint health, per-Source public-feed quality sampling, duplicate/moderation, real public presentation, admin-perimeter, operational-baseline, and post-curation recovery procedures defined by the Phase 20 closeout task and governing operations documentation.
+For Phase 20 launch acceptance, continue with the final approved-endpoint health, per-Source public-feed quality sampling, duplicate/moderation review, deployed public/admin validation, operational baseline, and ownership/limitations requirements defined by the Phase 20 closeout task and governing operations documentation.

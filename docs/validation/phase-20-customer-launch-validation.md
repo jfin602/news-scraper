@@ -38,7 +38,7 @@ Migration-from-zero and the pre-launch `0013` to `0014` upgrade/restore exercise
 | `0013_article_duplicate_moderation.sql` | `4322b27b444bae5de1bcdc954b8b7c71364165819430954b6222cf8093e6c30f` |
 | `0014_html_endpoint_profile_and_run_diagnostics.sql` | `6f90bb2bcfb8fe6009849922601fbfe26eae1d9fc28d3e7505f62d2720b8c385` |
 
-This is only the schema candidate until Stage 2 confirms the launched ledger and post-curation recovery point.
+This is only the schema candidate until Stage 2 confirms the launched ledger and governed live customer database/admin configuration and moderation state.
 
 ## Stage 1 command evidence
 
@@ -70,7 +70,7 @@ Both were explicitly approved/active/enabled in the disposable bootstrap state. 
 
 ## Pass 2 adversarial review
 
-The review challenged bootstrap/database divergence, approval/domain widening, partial live-suite coverage, stale runs, `304` interpretation, prospective editorial edits, bad-row moderation, duplicate false positives/Primary choice, pending review backlog, timezone dates, stale assets/SHA, Access versus origin paths, Web/Worker split health, pre-curation backup misuse, restore semantics, local-only recovery risk, secret-bearing evidence, executable/evidence commit identity, and premature baseline acceptance.
+The review challenged bootstrap/database divergence, approval/domain widening, partial live-suite coverage, stale runs, `304` interpretation, prospective editorial edits, bad-row moderation, duplicate false positives/Primary choice, pending review backlog, timezone dates, stale assets/SHA, Access versus origin paths, Web/Worker split health, backup-policy continuity, local-only recovery risk, secret-bearing evidence, executable/evidence commit identity, and premature baseline acceptance.
 
 One classification-3 defect was found: the Phase 5 live test required a second conditional poll to return fresh `200` content and misclassified valid `304 not_modified` as failure. It now requires content on the first poll and truthfully validates either content or a zero-item `304` on the second. One related Windows-only live-test lifecycle defect was repaired by requiring `web.stopped` and disconnecting the test IPC wrapper before process-exit assertion. The final `check` and live suite passed after these repairs. No unresolved classification 2–5 finding remains in Stage 1.
 
@@ -89,15 +89,16 @@ Stage 2 is not yet executed. Before final acceptance, the operator must deploy t
 - real desktop `1280x900`, mobile `390x844`, theme, keyboard/focus, overflow, loading/error/empty, date, and original-navigation observations;
 - authorized operator training through Cloudflare Access and unauthenticated/direct-origin/reference-validator evidence against the exact candidate;
 - final Operations/queue/alert/endpoint-health baseline;
-- post-curation backup and fresh non-production restore with semantic verification and duration;
 - monitoring, recovery, database, Cloudflare/origin ownership; backup frequency/location/durability/encryption/access/retention; RPO/RTO; total-host-loss posture; log/audit/metadata retention/access; operator checklist; known limitations and accepted risk.
 
 Phase 19 recorded local-only backups, a 24-hour ordinary RPO, four-hour ordinary RTO, and no guaranteed recovery point/time for total VPS/storage loss. Stage 2 must reconfirm or deliberately amend that policy; it cannot silently disappear from launch handoff.
 
-The exact post-curation recovery point, final approved inventory, feed-quality sample counts, duplicate disposition, operator training notes, metrics, ownership, limitations, and Stage 2 dates/environments remain unverified and must not be inferred from this Stage 1 artifact.
+The final approved inventory, governed live database/admin configuration and moderation state, feed-quality sample counts, duplicate disposition, operator training notes, metrics, ownership, limitations, and Stage 2 dates/environments remain unverified and must not be inferred from this Stage 1 artifact.
+
+On 2026-08-18, the repository owner explicitly removed the Phase 20 launch-time post-curation backup/restore exit gate. Phase 19 remains the governing validated backup/restore procedure evidence, and normal backup policy and recovery ownership remain required operational handoff information. No post-curation restore is claimed here.
 
 ## Lifecycle boundary
 
-Stage 1 GREEN does not establish production compatibility. Only final Stage 2 acceptance may change the status to `PHASE 20 GREEN — CUSTOMER LAUNCH ACCEPTED; FIRST SUPPORTED PRODUCTION BASELINE ESTABLISHED`. The accepted baseline will combine the launched executable SHA/tree and `0.20.1`, launched migration ledger, governed customer state represented by the post-curation recovery point, and recorded deployment ownership/limitations.
+Stage 1 GREEN does not establish production compatibility. Only final Stage 2 acceptance may change the status to `PHASE 20 GREEN — CUSTOMER LAUNCH ACCEPTED; FIRST SUPPORTED PRODUCTION BASELINE ESTABLISHED`. The accepted baseline will combine the launched executable SHA/tree and `0.20.1`, launched migration ledger/schema state, governed live database/admin configuration and moderation state observed during launch, and recorded deployment ownership, operational policy, and accepted limitations.
 
 If Stage 2 is GREEN, the intended next roadmap phase is **Phase 21 — Codebase simplification and maintainability hardening**. Conversational `/closeout` remains separately required for the version-only `0.21.0` baseline transition.
