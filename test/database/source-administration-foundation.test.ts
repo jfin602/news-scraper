@@ -173,6 +173,8 @@ test('Collection-run filtered-item accounting round-trips and preserves downstre
       rejectedCount: 0,
       excludedCount: 0,
       failedCount: 0,
+      duplicateReviewCreatedCount: 0,
+      duplicateGroupedCount: 0,
     });
     assert.equal(finalized.sourceItemFilteredCount, 2);
 
@@ -198,6 +200,8 @@ test('Collection-run filtered-item accounting round-trips and preserves downstre
         rejectedCount: 0,
         excludedCount: 0,
         failedCount: 0,
+        duplicateReviewCreatedCount: 0,
+        duplicateGroupedCount: 0,
       }),
     );
     await assert.rejects(

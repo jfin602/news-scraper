@@ -149,12 +149,43 @@ export type CollectEndpointResult =
   | EndpointRunLockBlocked
   | EndpointCollectionAttemptResult;
 
-interface AttemptDraft {
-  readonly result: Omit<
-    EndpointCollectionAttemptResult,
-    'collectionRunId' | 'executionId'
-  >;
-  readonly finalization: FinalizeCollectionRunInput;
+/**
+ * The single terminal truth for a collector-owned attempt. Persistence and
+ * caller-facing results are deliberately projected from this snapshot rather
+ * than authored alongside one another.
+ */
+interface TerminalAttempt {
+  readonly outcome: CollectionAttemptOutcome;
+  readonly endpointId: string;
+  readonly runStatus: 'succeeded' | 'failed';
+  readonly transportStatus: EndpointCollectionAttemptResult['transportStatus'];
+  readonly parserStatus: EndpointCollectionAttemptResult['parserStatus'];
+  readonly parserDiagnostics?: FinalizeCollectionRunInput['parserDiagnostics'];
+  readonly normalizationStatus: EndpointCollectionAttemptResult['normalizationStatus'];
+  readonly processingStatus: CollectionRunProcessingStatus;
+  readonly rawItemCount: number;
+  readonly sourceItemFilteredCount: number;
+  readonly normalizedCandidateCount: number;
+  readonly normalizationFailureCount: number;
+  readonly articleLinkRejectionCount: number;
+  readonly createdCount: number;
+  readonly updatedCount: number;
+  readonly unchangedCount: number;
+  readonly rejectedCount: number;
+  readonly excludedCount: number;
+  readonly failedCount: number;
+  readonly duplicateReviewCreatedCount: number;
+  readonly duplicateGroupedCount: number;
+  readonly error?: Readonly<{ readonly code: string; readonly detail: string }>;
+  readonly candidates?: readonly ArticleCandidate[];
+  readonly safetyContext?: 'initial' | 'redirect';
+  readonly httpStatusCode?: number;
+  readonly wireByteCount?: number;
+  readonly decompressedByteCount?: number;
+  readonly redirectCount?: number;
+  readonly elapsedMilliseconds?: number;
+  readonly retryClassification?: RetryClassification;
+  readonly responseValidators?: ConditionalRequestValidators;
 }
 
 export class CollectionRunFinalizationError extends Error {
@@ -200,19 +231,20 @@ export async function collectEndpoint(
         executionId,
         triggerKind: dependencies.triggerKind ?? 'manual',
       });
-      const draft = await executeAttempt(
+      const attempt = await executeAttempt(
         configuration,
         running.id,
         dependencies,
       );
-      const attemptedResult = resultFromDraft(running, draft);
+      const attemptedResult = resultFromAttempt(running, attempt);
 
       try {
         const finalized = await dependencies.runs.finalize(
           running.id,
-          draft.finalization,
+          finalizationFromAttempt(attempt),
         );
-        return resultFromFinalized(attemptedResult, finalized);
+        assertFinalizedAttempt(running, attempt, finalized);
+        return attemptedResult;
       } catch (error) {
         throw new CollectionRunFinalizationError(attemptedResult, error);
       }
@@ -226,7 +258,7 @@ async function executeAttempt(
   configuration: EndpointConfigurationAggregate,
   collectionRunId: string,
   dependencies: CollectEndpointDependencies,
-): Promise<AttemptDraft> {
+): Promise<TerminalAttempt> {
   let fetchResult: HttpFetcherResult;
   try {
     fetchResult = await dependencies.fetcher.fetch({
@@ -274,28 +306,15 @@ async function executeAttempt(
   }
   if (fetchResult.outcome === 'not_modified') {
     return Object.freeze({
-      result: Object.freeze({
-        status: 'succeeded',
-        outcome: 'not_modified',
-        endpointId: configuration.endpoint.id,
-        runStatus: 'succeeded',
-        transportStatus: 'not_modified',
-        parserStatus: 'not_run',
-        rawItemCount: 0,
-        ...normalizationNotRun,
-        ...processingNotRun,
-        ...metadata,
-      }),
-      finalization: Object.freeze({
-        runStatus: 'succeeded',
-        transportStatus: 'not_modified',
-        parserStatus: 'not_run',
-        rawItemCount: 0,
-        ...normalizationNotRun,
-        ...processingNotRun,
-        ...persistenceMetadata(metadata),
-        outcomeCode: 'not_modified',
-      }),
+      outcome: 'not_modified',
+      endpointId: configuration.endpoint.id,
+      runStatus: 'succeeded',
+      transportStatus: 'not_modified',
+      parserStatus: 'not_run',
+      rawItemCount: 0,
+      ...normalizationNotRun,
+      ...processingNotRun,
+      ...metadata,
     });
   }
 
@@ -420,48 +439,25 @@ async function executeAttempt(
   );
   const processingFailed = processing.failure !== undefined;
   return Object.freeze({
-    result: Object.freeze({
-      status: processingFailed ? 'failed' : 'succeeded',
-      outcome: processingFailed ? 'processing_failed' : 'content',
-      endpointId: configuration.endpoint.id,
-      runStatus: processingFailed ? 'failed' : 'succeeded',
-      transportStatus: 'succeeded',
-      parserStatus: 'succeeded',
-      rawItemCount: rawItems.length,
-      sourceItemFilteredCount,
-      normalizationStatus: 'succeeded',
-      normalizedCandidateCount: normalizedCandidates.length,
-      normalizationFailureCount,
-      articleLinkRejectionCount,
-      ...processing.accounting,
-      candidates,
-      ...(processing.failure === undefined ? {} : processing.failure),
-      ...(processingFailed
-        ? { retryClassification: 'permanent' as const }
-        : {}),
-      ...metadata,
-    }),
-    finalization: Object.freeze({
-      runStatus: processingFailed ? 'failed' : 'succeeded',
-      transportStatus: 'succeeded',
-      parserStatus: 'succeeded',
-      ...(parserDiagnostics === undefined ? {} : { parserDiagnostics }),
-      rawItemCount: rawItems.length,
-      sourceItemFilteredCount,
-      normalizationStatus: 'succeeded',
-      normalizedCandidateCount: normalizedCandidates.length,
-      normalizationFailureCount,
-      articleLinkRejectionCount,
-      ...processing.accounting,
-      ...persistenceMetadata(metadata),
-      outcomeCode: processingFailed ? 'processing_failed' : 'content',
-      ...(processingFailed
-        ? { retryClassification: 'permanent' as const }
-        : {}),
-      ...(processing.failure === undefined
-        ? {}
-        : { error: processing.failureError }),
-    }),
+    outcome: processingFailed ? 'processing_failed' : 'content',
+    endpointId: configuration.endpoint.id,
+    runStatus: processingFailed ? 'failed' : 'succeeded',
+    transportStatus: 'succeeded',
+    parserStatus: 'succeeded',
+    ...(parserDiagnostics === undefined ? {} : { parserDiagnostics }),
+    rawItemCount: rawItems.length,
+    sourceItemFilteredCount,
+    normalizationStatus: 'succeeded',
+    normalizedCandidateCount: normalizedCandidates.length,
+    normalizationFailureCount,
+    articleLinkRejectionCount,
+    ...processing.accounting,
+    candidates,
+    ...(processing.failure === undefined
+      ? {}
+      : { error: processing.failureError }),
+    ...(processingFailed ? { retryClassification: 'permanent' as const } : {}),
+    ...metadata,
   });
 }
 
@@ -696,47 +692,27 @@ function normalizationExecutionFailedDraft(
   sourceItemFilteredCount: number,
   metadata: ReturnType<typeof fetchMetadata>,
   parserDiagnostics: FinalizeCollectionRunInput['parserDiagnostics'],
-): AttemptDraft {
+): TerminalAttempt {
   const reason = 'normalization_execution_failed';
   const detail =
     'Article normalization failed outside its bounded result contract.';
   return Object.freeze({
-    result: Object.freeze({
-      status: 'failed',
-      outcome: 'normalization_failed',
-      endpointId,
-      runStatus: 'failed',
-      transportStatus: 'succeeded',
-      parserStatus: 'succeeded',
-      normalizationStatus: 'failed',
-      rawItemCount,
-      sourceItemFilteredCount,
-      normalizedCandidateCount: 0,
-      normalizationFailureCount: 0,
-      articleLinkRejectionCount: 0,
-      ...processingNotRun,
-      reason,
-      detail,
-      retryClassification: 'permanent',
-      ...metadata,
-    }),
-    finalization: Object.freeze({
-      runStatus: 'failed',
-      transportStatus: 'succeeded',
-      parserStatus: 'succeeded',
-      ...(parserDiagnostics === undefined ? {} : { parserDiagnostics }),
-      normalizationStatus: 'failed',
-      rawItemCount,
-      sourceItemFilteredCount,
-      normalizedCandidateCount: 0,
-      normalizationFailureCount: 0,
-      articleLinkRejectionCount: 0,
-      ...processingNotRun,
-      ...persistenceMetadata(metadata),
-      outcomeCode: 'normalization_failed',
-      retryClassification: 'permanent',
-      error: Object.freeze({ code: reason, detail }),
-    }),
+    outcome: 'normalization_failed',
+    endpointId,
+    runStatus: 'failed',
+    transportStatus: 'succeeded',
+    parserStatus: 'succeeded',
+    ...(parserDiagnostics === undefined ? {} : { parserDiagnostics }),
+    normalizationStatus: 'failed',
+    rawItemCount,
+    sourceItemFilteredCount,
+    normalizedCandidateCount: 0,
+    normalizationFailureCount: 0,
+    articleLinkRejectionCount: 0,
+    ...processingNotRun,
+    error: Object.freeze({ code: reason, detail }),
+    retryClassification: 'permanent',
+    ...metadata,
   });
 }
 
@@ -749,47 +725,27 @@ function articleLinkPolicyExecutionFailedDraft(
   articleLinkRejectionCount: number,
   metadata: ReturnType<typeof fetchMetadata>,
   parserDiagnostics: FinalizeCollectionRunInput['parserDiagnostics'],
-): AttemptDraft {
+): TerminalAttempt {
   const reason = 'article_link_policy_execution_failed';
   const detail =
     'Article-link policy failed outside its bounded decision contract.';
   return Object.freeze({
-    result: Object.freeze({
-      status: 'failed',
-      outcome: 'article_link_policy_failed',
-      endpointId,
-      runStatus: 'failed',
-      transportStatus: 'succeeded',
-      parserStatus: 'succeeded',
-      normalizationStatus: 'succeeded',
-      rawItemCount,
-      sourceItemFilteredCount,
-      normalizedCandidateCount,
-      normalizationFailureCount,
-      articleLinkRejectionCount,
-      ...processingNotRun,
-      reason,
-      detail,
-      retryClassification: 'permanent',
-      ...metadata,
-    }),
-    finalization: Object.freeze({
-      runStatus: 'failed',
-      transportStatus: 'succeeded',
-      parserStatus: 'succeeded',
-      ...(parserDiagnostics === undefined ? {} : { parserDiagnostics }),
-      normalizationStatus: 'succeeded',
-      rawItemCount,
-      sourceItemFilteredCount,
-      normalizedCandidateCount,
-      normalizationFailureCount,
-      articleLinkRejectionCount,
-      ...processingNotRun,
-      ...persistenceMetadata(metadata),
-      outcomeCode: 'article_link_policy_failed',
-      retryClassification: 'permanent',
-      error: Object.freeze({ code: reason, detail }),
-    }),
+    outcome: 'article_link_policy_failed',
+    endpointId,
+    runStatus: 'failed',
+    transportStatus: 'succeeded',
+    parserStatus: 'succeeded',
+    ...(parserDiagnostics === undefined ? {} : { parserDiagnostics }),
+    normalizationStatus: 'succeeded',
+    rawItemCount,
+    sourceItemFilteredCount,
+    normalizedCandidateCount,
+    normalizationFailureCount,
+    articleLinkRejectionCount,
+    ...processingNotRun,
+    error: Object.freeze({ code: reason, detail }),
+    retryClassification: 'permanent',
+    ...metadata,
   });
 }
 
@@ -812,138 +768,199 @@ function failedDraft(
       | 'decompressedByteCount'
       | 'redirectCount'
       | 'elapsedMilliseconds'
+      | 'responseValidators'
     >
   > = {},
   retryClassification: RetryClassification = 'permanent',
   parserDiagnostics?: FinalizeCollectionRunInput['parserDiagnostics'],
-): AttemptDraft {
+): TerminalAttempt {
   return Object.freeze({
-    result: Object.freeze({
-      status: 'failed',
-      outcome,
-      endpointId,
-      runStatus: 'failed',
-      transportStatus,
-      parserStatus,
-      rawItemCount: 0,
-      ...normalizationNotRun,
-      ...processingNotRun,
-      reason,
-      detail,
-      retryClassification,
-      ...metadata,
-    }),
-    finalization: Object.freeze({
-      runStatus: 'failed',
-      transportStatus,
-      parserStatus,
-      ...(parserDiagnostics === undefined ? {} : { parserDiagnostics }),
-      rawItemCount: 0,
-      ...normalizationNotRun,
-      ...processingNotRun,
-      ...persistenceMetadata(metadata),
-      outcomeCode: outcome,
-      retryClassification,
-      error: Object.freeze({ code: reason, detail }),
-    }),
+    outcome,
+    endpointId,
+    runStatus: 'failed',
+    transportStatus,
+    parserStatus,
+    ...(parserDiagnostics === undefined ? {} : { parserDiagnostics }),
+    rawItemCount: 0,
+    ...normalizationNotRun,
+    ...processingNotRun,
+    error: Object.freeze({ code: reason, detail }),
+    retryClassification,
+    ...metadata,
   });
 }
 
-function resultFromDraft(
+function resultFromAttempt(
   running: PersistedCollectionRun,
-  draft: AttemptDraft,
+  attempt: TerminalAttempt,
 ): EndpointCollectionAttemptResult {
   return Object.freeze({
-    ...draft.result,
+    status: attempt.runStatus,
+    outcome: attempt.outcome,
+    endpointId: attempt.endpointId,
     collectionRunId: running.id,
     executionId: running.executionId,
+    runStatus: attempt.runStatus,
+    transportStatus: attempt.transportStatus,
+    parserStatus: attempt.parserStatus,
+    normalizationStatus: attempt.normalizationStatus,
+    processingStatus: attempt.processingStatus,
+    rawItemCount: attempt.rawItemCount,
+    sourceItemFilteredCount: attempt.sourceItemFilteredCount,
+    normalizedCandidateCount: attempt.normalizedCandidateCount,
+    normalizationFailureCount: attempt.normalizationFailureCount,
+    articleLinkRejectionCount: attempt.articleLinkRejectionCount,
+    createdCount: attempt.createdCount,
+    updatedCount: attempt.updatedCount,
+    unchangedCount: attempt.unchangedCount,
+    rejectedCount: attempt.rejectedCount,
+    excludedCount: attempt.excludedCount,
+    failedCount: attempt.failedCount,
+    duplicateReviewCreatedCount: attempt.duplicateReviewCreatedCount,
+    duplicateGroupedCount: attempt.duplicateGroupedCount,
+    ...(attempt.candidates === undefined
+      ? {}
+      : { candidates: attempt.candidates }),
+    ...(attempt.error === undefined
+      ? {}
+      : { reason: attempt.error.code, detail: attempt.error.detail }),
+    ...(attempt.safetyContext === undefined
+      ? {}
+      : { safetyContext: attempt.safetyContext }),
+    ...(attempt.httpStatusCode === undefined
+      ? {}
+      : { httpStatusCode: attempt.httpStatusCode }),
+    ...(attempt.wireByteCount === undefined
+      ? {}
+      : { wireByteCount: attempt.wireByteCount }),
+    ...(attempt.decompressedByteCount === undefined
+      ? {}
+      : { decompressedByteCount: attempt.decompressedByteCount }),
+    ...(attempt.redirectCount === undefined
+      ? {}
+      : { redirectCount: attempt.redirectCount }),
+    ...(attempt.elapsedMilliseconds === undefined
+      ? {}
+      : { elapsedMilliseconds: attempt.elapsedMilliseconds }),
+    ...(attempt.retryClassification === undefined
+      ? {}
+      : { retryClassification: attempt.retryClassification }),
+    ...(attempt.responseValidators === undefined
+      ? {}
+      : { responseValidators: attempt.responseValidators }),
   });
 }
 
-function resultFromFinalized(
-  attempted: EndpointCollectionAttemptResult,
+function finalizationFromAttempt(
+  attempt: TerminalAttempt,
+): FinalizeCollectionRunInput {
+  return Object.freeze({
+    runStatus: attempt.runStatus,
+    transportStatus: attempt.transportStatus,
+    parserStatus: attempt.parserStatus,
+    ...(attempt.parserDiagnostics === undefined
+      ? {}
+      : { parserDiagnostics: attempt.parserDiagnostics }),
+    normalizationStatus: attempt.normalizationStatus,
+    processingStatus: attempt.processingStatus,
+    ...(attempt.httpStatusCode === undefined
+      ? {}
+      : { httpStatusCode: attempt.httpStatusCode }),
+    ...(attempt.wireByteCount === undefined
+      ? {}
+      : { wireByteCount: attempt.wireByteCount }),
+    ...(attempt.decompressedByteCount === undefined
+      ? {}
+      : { decompressedByteCount: attempt.decompressedByteCount }),
+    ...(attempt.redirectCount === undefined
+      ? {}
+      : { redirectCount: attempt.redirectCount }),
+    ...(attempt.elapsedMilliseconds === undefined
+      ? {}
+      : { transportElapsedMilliseconds: attempt.elapsedMilliseconds }),
+    ...(attempt.retryClassification === undefined
+      ? {}
+      : { retryClassification: attempt.retryClassification }),
+    outcomeCode: attempt.outcome,
+    ...(attempt.responseValidators === undefined
+      ? {}
+      : { responseValidators: attempt.responseValidators }),
+    rawItemCount: attempt.rawItemCount,
+    sourceItemFilteredCount: attempt.sourceItemFilteredCount,
+    normalizedCandidateCount: attempt.normalizedCandidateCount,
+    normalizationFailureCount: attempt.normalizationFailureCount,
+    articleLinkRejectionCount: attempt.articleLinkRejectionCount,
+    createdCount: attempt.createdCount,
+    updatedCount: attempt.updatedCount,
+    unchangedCount: attempt.unchangedCount,
+    rejectedCount: attempt.rejectedCount,
+    excludedCount: attempt.excludedCount,
+    failedCount: attempt.failedCount,
+    duplicateReviewCreatedCount: attempt.duplicateReviewCreatedCount,
+    duplicateGroupedCount: attempt.duplicateGroupedCount,
+    ...(attempt.error === undefined ? {} : { error: attempt.error }),
+  });
+}
+
+function assertFinalizedAttempt(
+  running: PersistedCollectionRun,
+  attempt: TerminalAttempt,
   finalized: PersistedCollectionRun,
-): EndpointCollectionAttemptResult {
+): void {
+  const expected = finalizationFromAttempt(attempt);
+  const parserDiagnostics = expected.parserDiagnostics;
   if (
-    finalized.id !== attempted.collectionRunId ||
-    finalized.sourceEndpointId !== attempted.endpointId ||
-    finalized.executionId !== attempted.executionId ||
+    running.runStatus !== 'running' ||
+    finalized.id !== running.id ||
+    finalized.sourceEndpointId !== attempt.endpointId ||
+    finalized.executionId !== running.executionId ||
     finalized.runStatus === 'running' ||
-    finalized.runStatus !== attempted.runStatus ||
-    finalized.transportStatus !== attempted.transportStatus ||
-    finalized.parserStatus !== attempted.parserStatus ||
-    finalized.rawItemCount !== attempted.rawItemCount ||
-    finalized.sourceItemFilteredCount !== attempted.sourceItemFilteredCount ||
-    finalized.normalizationStatus !== attempted.normalizationStatus ||
-    finalized.processingStatus !== attempted.processingStatus ||
-    finalized.normalizedCandidateCount !== attempted.normalizedCandidateCount ||
-    finalized.normalizationFailureCount !==
-      attempted.normalizationFailureCount ||
-    finalized.articleLinkRejectionCount !==
-      attempted.articleLinkRejectionCount ||
-    finalized.createdCount !== attempted.createdCount ||
-    finalized.updatedCount !== attempted.updatedCount ||
-    finalized.unchangedCount !== attempted.unchangedCount ||
-    finalized.rejectedCount !== attempted.rejectedCount ||
-    finalized.excludedCount !== attempted.excludedCount ||
-    finalized.failedCount !== attempted.failedCount ||
-    finalized.duplicateReviewCreatedCount !==
-      attempted.duplicateReviewCreatedCount ||
-    finalized.duplicateGroupedCount !== attempted.duplicateGroupedCount ||
-    finalized.outcomeCode !== attempted.outcome ||
-    finalized.retryClassification !== attempted.retryClassification ||
-    finalized.responseEtag !== attempted.responseValidators?.etag ||
+    finalized.finishedAt === undefined ||
+    finalized.runStatus !== expected.runStatus ||
+    finalized.transportStatus !== expected.transportStatus ||
+    finalized.parserStatus !== expected.parserStatus ||
+    finalized.parserKind !== parserDiagnostics?.kind ||
+    finalized.parserVersion !== parserDiagnostics?.version ||
+    finalized.htmlListingProfileRevision !==
+      parserDiagnostics?.htmlListingProfileRevision ||
+    finalized.parserItemFailureCount !==
+      (parserDiagnostics?.itemFailureCount ?? 0) ||
+    finalized.parserDiagnosticCode !== parserDiagnostics?.code ||
+    finalized.parserDiagnosticDetail !== parserDiagnostics?.detail ||
+    finalized.normalizationStatus !== expected.normalizationStatus ||
+    finalized.processingStatus !== expected.processingStatus ||
+    finalized.httpStatusCode !== expected.httpStatusCode ||
+    finalized.wireByteCount !== expected.wireByteCount ||
+    finalized.decompressedByteCount !== expected.decompressedByteCount ||
+    finalized.redirectCount !== expected.redirectCount ||
+    finalized.transportElapsedMilliseconds !==
+      expected.transportElapsedMilliseconds ||
+    finalized.retryClassification !== expected.retryClassification ||
+    finalized.outcomeCode !== expected.outcomeCode ||
+    finalized.responseEtag !== expected.responseValidators?.etag ||
     finalized.responseLastModified !==
-      attempted.responseValidators?.lastModified
+      expected.responseValidators?.lastModified ||
+    finalized.rawItemCount !== expected.rawItemCount ||
+    finalized.sourceItemFilteredCount !== expected.sourceItemFilteredCount ||
+    finalized.normalizedCandidateCount !== expected.normalizedCandidateCount ||
+    finalized.normalizationFailureCount !==
+      expected.normalizationFailureCount ||
+    finalized.articleLinkRejectionCount !==
+      expected.articleLinkRejectionCount ||
+    finalized.createdCount !== expected.createdCount ||
+    finalized.updatedCount !== expected.updatedCount ||
+    finalized.unchangedCount !== expected.unchangedCount ||
+    finalized.rejectedCount !== expected.rejectedCount ||
+    finalized.excludedCount !== expected.excludedCount ||
+    finalized.failedCount !== expected.failedCount ||
+    finalized.duplicateReviewCreatedCount !==
+      expected.duplicateReviewCreatedCount ||
+    finalized.duplicateGroupedCount !== expected.duplicateGroupedCount ||
+    finalized.errorCode !== expected.error?.code ||
+    finalized.errorDetail !== expected.error?.detail
   ) {
     throw new Error('Collection run finalization returned inconsistent state.');
   }
-  return Object.freeze({
-    ...attempted,
-    collectionRunId: finalized.id,
-    executionId: finalized.executionId,
-    runStatus: finalized.runStatus,
-    transportStatus: finalized.transportStatus,
-    parserStatus: finalized.parserStatus,
-    rawItemCount: finalized.rawItemCount,
-    sourceItemFilteredCount: finalized.sourceItemFilteredCount,
-    normalizationStatus: finalized.normalizationStatus,
-    processingStatus: finalized.processingStatus,
-    normalizedCandidateCount: finalized.normalizedCandidateCount,
-    normalizationFailureCount: finalized.normalizationFailureCount,
-    articleLinkRejectionCount: finalized.articleLinkRejectionCount,
-    createdCount: finalized.createdCount,
-    updatedCount: finalized.updatedCount,
-    unchangedCount: finalized.unchangedCount,
-    rejectedCount: finalized.rejectedCount,
-    excludedCount: finalized.excludedCount,
-    failedCount: finalized.failedCount,
-    ...(finalized.retryClassification === undefined
-      ? {}
-      : { retryClassification: finalized.retryClassification }),
-    ...(finalized.responseEtag === undefined &&
-    finalized.responseLastModified === undefined
-      ? {}
-      : {
-          responseValidators: Object.freeze({
-            ...(finalized.responseEtag === undefined
-              ? {}
-              : { etag: finalized.responseEtag }),
-            ...(finalized.responseLastModified === undefined
-              ? {}
-              : { lastModified: finalized.responseLastModified }),
-          }),
-        }),
-    ...(finalized.httpStatusCode === undefined
-      ? {}
-      : { httpStatusCode: finalized.httpStatusCode }),
-    ...(finalized.wireByteCount === undefined
-      ? {}
-      : { wireByteCount: finalized.wireByteCount }),
-    ...(finalized.decompressedByteCount === undefined
-      ? {}
-      : { decompressedByteCount: finalized.decompressedByteCount }),
-  });
 }
 
 const normalizationNotRun = Object.freeze({
@@ -1081,44 +1098,6 @@ function isSafetyBlock(
   result: HttpFetcherResult,
 ): result is Extract<HttpFetcherResult, { readonly status: 'blocked' }> {
   return 'status' in result && result.status === 'blocked';
-}
-
-function persistenceMetadata(
-  metadata: Partial<
-    Pick<
-      EndpointCollectionAttemptResult,
-      | 'httpStatusCode'
-      | 'wireByteCount'
-      | 'decompressedByteCount'
-      | 'redirectCount'
-      | 'elapsedMilliseconds'
-      | 'responseValidators'
-    >
-  >,
-): Pick<
-  FinalizeCollectionRunInput,
-  'httpStatusCode' | 'wireByteCount' | 'decompressedByteCount'
-> {
-  return {
-    ...(metadata.httpStatusCode === undefined
-      ? {}
-      : { httpStatusCode: metadata.httpStatusCode }),
-    ...(metadata.wireByteCount === undefined
-      ? {}
-      : { wireByteCount: metadata.wireByteCount }),
-    ...(metadata.decompressedByteCount === undefined
-      ? {}
-      : { decompressedByteCount: metadata.decompressedByteCount }),
-    ...(metadata.redirectCount === undefined
-      ? {}
-      : { redirectCount: metadata.redirectCount }),
-    ...(metadata.elapsedMilliseconds === undefined
-      ? {}
-      : { transportElapsedMilliseconds: metadata.elapsedMilliseconds }),
-    ...(metadata.responseValidators === undefined
-      ? {}
-      : { responseValidators: metadata.responseValidators }),
-  };
 }
 
 function immutableRawItems(items: readonly RawItem[]): readonly RawItem[] {

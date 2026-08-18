@@ -121,8 +121,8 @@ export interface FinalizeCollectionRunInput {
   readonly rejectedCount: number;
   readonly excludedCount: number;
   readonly failedCount: number;
-  readonly duplicateReviewCreatedCount?: number;
-  readonly duplicateGroupedCount?: number;
+  readonly duplicateReviewCreatedCount: number;
+  readonly duplicateGroupedCount: number;
   readonly error?: {
     readonly code: string;
     readonly detail: string;
@@ -342,8 +342,8 @@ export async function finalizeCollectionRun(
       finalization.rejectedCount,
       finalization.excludedCount,
       finalization.failedCount,
-      finalization.duplicateReviewCreatedCount ?? 0,
-      finalization.duplicateGroupedCount ?? 0,
+      finalization.duplicateReviewCreatedCount,
+      finalization.duplicateGroupedCount,
       finalization.errorCode,
       finalization.errorDetail,
     ],
@@ -598,14 +598,10 @@ function validateFinalization(
       rejectedCount: nonnegativeInteger(input.rejectedCount),
       excludedCount: nonnegativeInteger(input.excludedCount),
       failedCount: nonnegativeInteger(input.failedCount),
-      duplicateReviewCreatedCount:
-        input.duplicateReviewCreatedCount === undefined
-          ? 0
-          : nonnegativeInteger(input.duplicateReviewCreatedCount),
-      duplicateGroupedCount:
-        input.duplicateGroupedCount === undefined
-          ? 0
-          : nonnegativeInteger(input.duplicateGroupedCount),
+      duplicateReviewCreatedCount: nonnegativeInteger(
+        input.duplicateReviewCreatedCount,
+      ),
+      duplicateGroupedCount: nonnegativeInteger(input.duplicateGroupedCount),
       errorCode:
         error === undefined
           ? null

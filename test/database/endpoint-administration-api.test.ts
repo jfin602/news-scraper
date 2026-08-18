@@ -360,6 +360,8 @@ describe('Endpoint administration database service', () => {
         rejectedCount: 0,
         excludedCount: 0,
         failedCount: 0,
+        duplicateReviewCreatedCount: 0,
+        duplicateGroupedCount: 0,
       });
       const diagnostics = await endpoints.listRecentRuns(
         'journal',
@@ -812,6 +814,8 @@ describe('Endpoint administration database service', () => {
         rejectedCount: 0,
         excludedCount: 0,
         failedCount: 0,
+        duplicateReviewCreatedCount: 0,
+        duplicateGroupedCount: 0,
       });
       assert.ok(
         await terminalizeEndpointCollectionJob(
@@ -1141,6 +1145,8 @@ describe('Endpoint administration database service', () => {
           rejectedCount: 0,
           excludedCount: 0,
           failedCount: 0,
+          duplicateReviewCreatedCount: 0,
+          duplicateGroupedCount: 0,
         });
         await database.query(
           `UPDATE collection_runs

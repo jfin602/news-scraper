@@ -207,6 +207,8 @@ const processingNotRun = {
   rejectedCount: 0,
   excludedCount: 0,
   failedCount: 0,
+  duplicateReviewCreatedCount: 0,
+  duplicateGroupedCount: 0,
 } as const;
 
 test('persists complete processing outcomes for succeeded and failed stages', async () => {
@@ -234,6 +236,8 @@ test('persists complete processing outcomes for succeeded and failed stages', as
       rejectedCount: 1,
       excludedCount: 0,
       failedCount: 2,
+      duplicateReviewCreatedCount: 0,
+      duplicateGroupedCount: 0,
     });
     assert.equal(completed.processingStatus, 'succeeded');
     assert.deepEqual(processingCounts(completed), [1, 1, 1, 1, 0, 2]);
@@ -261,6 +265,8 @@ test('persists complete processing outcomes for succeeded and failed stages', as
       rejectedCount: 0,
       excludedCount: 0,
       failedCount: 1,
+      duplicateReviewCreatedCount: 0,
+      duplicateGroupedCount: 0,
       error: {
         code: 'processing_execution_failed',
         detail: 'Bounded batch failed.',

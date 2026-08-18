@@ -1275,6 +1275,31 @@ describe('canonical endpoint collection service', () => {
     );
   });
 
+  it('rejects persisted transport and parser state that contradicts the attempted result', async () => {
+    for (const options of [
+      { contradictTransport: true },
+      { contradictParserDiagnostics: true },
+    ] as const) {
+      const events: string[] = [];
+      await assert.rejects(
+        collectEndpoint(aggregate(), {
+          lockRunner: acquiredLock(events),
+          runs: runStore(events, options),
+          fetcher: fetcher(events, contentResult()),
+          rssAtomParser: parser(events, parserSuccess()),
+          ...phase6Dependencies,
+          ...phase7Dependencies,
+          executionId: () => EXECUTION_ID,
+        }),
+        (error: unknown) => {
+          assert.ok(error instanceof CollectionRunFinalizationError);
+          assert.match(String(error.cause), /inconsistent state/u);
+          return true;
+        },
+      );
+    }
+  });
+
   it('fails predictably when corrupted mapped state contains an unsupported endpoint type', async () => {
     const events: string[] = [];
     const configuration = aggregate() as EndpointConfigurationAggregate & {
@@ -1588,6 +1613,8 @@ function runStore(
     readonly runId?: string;
     readonly contradictNormalization?: boolean;
     readonly contradictProcessing?: boolean;
+    readonly contradictTransport?: boolean;
+    readonly contradictParserDiagnostics?: boolean;
   } = {},
 ): CollectionRunStore & {
   readonly finalizations: FinalizeCollectionRunInput[];
@@ -1625,6 +1652,12 @@ function runStore(
       }
       if (options.contradictProcessing) {
         return Object.freeze({ ...persisted, createdCount: 1 });
+      }
+      if (options.contradictTransport) {
+        return Object.freeze({ ...persisted, redirectCount: 99 });
+      }
+      if (options.contradictParserDiagnostics) {
+        return Object.freeze({ ...persisted, parserKind: 'rss_atom' as const });
       }
       return persisted;
     },
@@ -1669,11 +1702,21 @@ function persistedRun(input: {
     runStatus: finalization?.runStatus ?? 'running',
     transportStatus: finalization?.transportStatus ?? 'not_run',
     parserStatus: finalization?.parserStatus ?? 'not_run',
+    parserKind: finalization?.parserDiagnostics?.kind,
+    parserVersion: finalization?.parserDiagnostics?.version,
+    htmlListingProfileRevision:
+      finalization?.parserDiagnostics?.htmlListingProfileRevision,
+    parserItemFailureCount:
+      finalization?.parserDiagnostics?.itemFailureCount ?? 0,
+    parserDiagnosticCode: finalization?.parserDiagnostics?.code,
+    parserDiagnosticDetail: finalization?.parserDiagnostics?.detail,
     normalizationStatus: finalization?.normalizationStatus ?? 'not_run',
     processingStatus: finalization?.processingStatus ?? 'not_run',
     httpStatusCode: finalization?.httpStatusCode,
     wireByteCount: finalization?.wireByteCount,
     decompressedByteCount: finalization?.decompressedByteCount,
+    redirectCount: finalization?.redirectCount,
+    transportElapsedMilliseconds: finalization?.transportElapsedMilliseconds,
     retryClassification: finalization?.retryClassification,
     outcomeCode: finalization?.outcomeCode,
     responseEtag: finalization?.responseValidators?.etag,

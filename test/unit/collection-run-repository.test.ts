@@ -157,6 +157,8 @@ test('rejects invalid terminal normalization accounting before querying', async 
     rejectedCount: 0,
     excludedCount: 0,
     failedCount: 0,
+    duplicateReviewCreatedCount: 0,
+    duplicateGroupedCount: 0,
     sourceItemFilteredCount: 0,
   } as const;
   for (const input of [
@@ -173,6 +175,8 @@ test('rejects invalid terminal normalization accounting before querying', async 
     { ...valid, runStatus: 'succeeded', normalizationStatus: 'failed' },
     { ...valid, processingStatus: 'invalid' },
     { ...valid, createdCount: -1 },
+    { ...valid, duplicateReviewCreatedCount: undefined },
+    { ...valid, duplicateGroupedCount: undefined },
     { ...valid, duplicateReviewCreatedCount: -1 },
     { ...valid, duplicateGroupedCount: -1 },
     { ...valid, createdCount: 1 },
