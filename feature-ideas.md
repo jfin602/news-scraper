@@ -22,6 +22,18 @@ This file is the running feature idea log for ideas proposed in this chat.
 - Initial scope stores the remote image URL only; it does not download, proxy, cache, transform, or host publisher image bytes. A controlled image proxy/cache may be considered separately if hotlink reliability, privacy, or content-delivery requirements justify it.
 - Keep extraction and normalization topic independent and preserve existing Source approval, provenance, network-safety, idempotency, and feed behavior.
 
+### +H5QZ — 2026-08-18 — Public Article summaries from Source descriptions
+
+- **Status:** Proposed
+- The existing collection pipeline already captures available RSS/Atom description/summary/content metadata, normalizes it into bounded plain-text `Article.summary`, and persists it with the Article. This proposal does **not** add a second description collector or duplicate persisted field.
+- Extend the public Article/read-model boundary so the stored optional Source-derived summary can be used by public presentation and SEO-oriented server-rendered output when available.
+- Preserve the existing bounded/plain-text normalization and treat the value as untrusted Source-derived metadata. Do not render publisher-supplied HTML directly.
+- Missing summaries remain normal and must produce a clean headline-only fallback.
+- Do not fetch Article pages merely to manufacture missing summaries, and do not introduce AI-generated summaries or full Article-body republication.
+- The exact visible treatment can be decided during later UI/design work; possibilities include short excerpts beneath headlines or use in appropriate semantic/SEO presentation without changing the headline's direct `original_url` destination.
+- Keep the behavior topic independent and preserve Source approval, provenance, Article identity, duplicate handling, moderation, and public-feed ordering.
+- **Required documentation work when implemented:** review the governing collection/data/public-feed/design/testing documentation and record the now-public role and presentation rules for `Article.summary`. Those changes are deferred until this feature is promoted for implementation.
+
 ## Shipped Ideas
 
 ### +W6HF — 2026-08-13 — Source RSS/Atom item admission filter
