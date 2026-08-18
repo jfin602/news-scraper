@@ -1,4 +1,5 @@
 import type { Database, QueryExecutor } from '../database/database.ts';
+import { validateAdminInputRecord } from './input-validation.ts';
 import {
   normalizeCategoryConfiguration,
   normalizeMutableCategoryConfiguration,
@@ -364,15 +365,8 @@ function exactRecord(
   requiredKeys: readonly string[],
   optionalKeys: readonly string[] = [],
 ): Record<string, unknown> {
-  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
-    throw new EditorialAdministrationError('invalid_request');
-  }
-  const record = input as Record<string, unknown>;
-  const allowed = new Set([...requiredKeys, ...optionalKeys]);
-  if (
-    requiredKeys.some((key) => !(key in record)) ||
-    Object.keys(record).some((key) => !allowed.has(key))
-  ) {
+  const record = validateAdminInputRecord(input, requiredKeys, optionalKeys);
+  if (record === undefined) {
     throw new EditorialAdministrationError('invalid_request');
   }
   return record;

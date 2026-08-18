@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 
+import { validateAdminInputRecord } from './input-validation.ts';
 import type { Database, QueryExecutor } from '../database/database.ts';
 import {
   readModeratedArticle,
@@ -414,14 +415,10 @@ function exactRecord(
   input: unknown,
   keys: readonly string[],
 ): Record<string, unknown> {
-  if (
-    input === null ||
-    typeof input !== 'object' ||
-    Array.isArray(input) ||
-    Object.keys(input).some((key) => !keys.includes(key))
-  )
+  const record = validateAdminInputRecord(input, [], keys);
+  if (record === undefined)
     throw new DuplicateAdministrationError('invalid_request');
-  return input as Record<string, unknown>;
+  return record;
 }
 function pageSize(value: unknown): number {
   if (value === undefined) return PAGE_SIZE;

@@ -1,4 +1,5 @@
 import type { Database } from '../database/database.ts';
+import { validateAdminInputRecord } from './input-validation.ts';
 import {
   ConfigurationValidationError,
   normalizePublicationConfiguration,
@@ -78,17 +79,12 @@ function normalizePublicationInput(input: unknown) {
 }
 
 function exactRecord(input: unknown): Record<string, unknown> {
-  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
-    throw new PublicationAdministrationError('invalid_request');
-  }
-  const record = input as Record<string, unknown>;
-  const allowed = new Set<string>(PUBLICATION_CONFIGURATION_KEYS);
-  if (
-    !('name' in record) ||
-    !('activeForCollection' in record) ||
-    !('publicStatus' in record) ||
-    Object.keys(record).some((key) => !allowed.has(key))
-  ) {
+  const record = validateAdminInputRecord(
+    input,
+    ['name', 'activeForCollection', 'publicStatus'],
+    PUBLICATION_CONFIGURATION_KEYS,
+  );
+  if (record === undefined) {
     throw new PublicationAdministrationError('invalid_request');
   }
   return record;

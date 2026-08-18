@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 
+import { validateAdminInputRecord } from './input-validation.ts';
 import type { Database, QueryExecutor } from '../database/database.ts';
 import {
   ARTICLE_MODERATION_HISTORY_PAGE_SIZE,
@@ -757,10 +758,8 @@ function exactRecord(
   input: unknown,
   optionalKeys: readonly string[],
 ): Record<string, unknown> {
-  if (input === null || typeof input !== 'object' || Array.isArray(input))
-    throw new ArticleAdministrationError('invalid_request');
-  const record = input as Record<string, unknown>;
-  if (Object.keys(record).some((key) => !optionalKeys.includes(key)))
+  const record = validateAdminInputRecord(input, [], optionalKeys);
+  if (record === undefined)
     throw new ArticleAdministrationError('invalid_request');
   return record;
 }

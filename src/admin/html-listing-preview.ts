@@ -1,6 +1,7 @@
 import type { RawItem } from '../collection/raw-item.ts';
 import { previewHtmlListing } from '../collection/parsers/html-listing-preview.ts';
 import type { ParserDiagnosticSummary } from '../collection/parsers/parser.ts';
+import { validateAdminInputRecord } from './input-validation.ts';
 
 /**
  * Fits below the admin JSON body limit after the maximum canonical profile and
@@ -63,15 +64,8 @@ function exactPreviewInput(input: unknown): {
   readonly html: string;
   readonly profile: unknown;
 } {
-  if (typeof input !== 'object' || input === null || Array.isArray(input))
-    throw new HtmlListingPreviewError();
-  const record = input as Record<string, unknown>;
-  if (
-    Object.keys(record).length !== 2 ||
-    !Object.hasOwn(record, 'html') ||
-    !Object.hasOwn(record, 'profile') ||
-    typeof record.html !== 'string'
-  ) {
+  const record = validateAdminInputRecord(input, ['html', 'profile']);
+  if (record === undefined || typeof record.html !== 'string') {
     throw new HtmlListingPreviewError();
   }
   return { html: record.html, profile: record.profile };

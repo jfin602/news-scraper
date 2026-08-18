@@ -1,5 +1,6 @@
 import type { QueryResultRow } from 'pg';
 
+import { validateAdminInputRecord } from './input-validation.ts';
 import { type Database, type QueryExecutor } from '../database/database.ts';
 import { ConfigurationValidationError } from '../publication/configuration.ts';
 import {
@@ -667,15 +668,8 @@ function exactRecord(
   input: unknown,
   requiredKeys: readonly string[],
 ): Record<string, unknown> {
-  if (typeof input !== 'object' || input === null || Array.isArray(input)) {
-    throw new SourceAdministrationError('invalid_request');
-  }
-  const record = input as Record<string, unknown>;
-  const allowed = new Set(requiredKeys);
-  if (
-    requiredKeys.some((key) => !(key in record)) ||
-    Object.keys(record).some((key) => !allowed.has(key))
-  ) {
+  const record = validateAdminInputRecord(input, requiredKeys);
+  if (record === undefined) {
     throw new SourceAdministrationError('invalid_request');
   }
   return record;
