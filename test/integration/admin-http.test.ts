@@ -8,8 +8,8 @@ import {
   ADMIN_REQUEST_HEADER,
   ADMIN_REQUEST_HEADER_VALUE,
   adminContentSecurityPolicy,
-  type AdminApiRouteRegistrar,
-} from '../../src/app/web/admin-router.ts';
+} from '../../src/app/web/admin-api-security.ts';
+import type { AdminApiRouteRegistrar } from '../../src/app/web/admin-router.ts';
 import {
   createWebApp,
   type WebDependencies,
@@ -76,6 +76,10 @@ describe('Admin HTTP perimeter foundation', () => {
       );
       assertAdminSecurityHeaders(script);
       assert.match(await script.text(), /X-News-Scraper-Admin-Request/u);
+
+      const unlistedAsset = await fetch(`${baseUrl}/admin/assets/core.js`);
+      assert.equal(unlistedAsset.status, 404);
+      assertAdminSecurityHeaders(unlistedAsset);
     });
   });
 

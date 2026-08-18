@@ -6,7 +6,7 @@ import type { Router } from 'express';
 import {
   ADMIN_REQUEST_HEADER,
   ADMIN_REQUEST_HEADER_VALUE,
-} from '../../src/app/web/admin-router.ts';
+} from '../../src/app/web/admin-api-security.ts';
 import {
   createWebApp,
   type WebDependencies,

@@ -12,7 +12,7 @@ import {
 import {
   ADMIN_REQUEST_HEADER,
   ADMIN_REQUEST_HEADER_VALUE,
-} from '../../src/app/web/admin-router.ts';
+} from '../../src/app/web/admin-api-security.ts';
 import { createWebApp } from '../../src/app/web/create-app.ts';
 import { registerEndpointAdministrationRoutes } from '../../src/app/web/endpoint-administration-router.ts';
 import { startWebServer } from '../../src/app/web/server.ts';

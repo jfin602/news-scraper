@@ -7,7 +7,7 @@ import { createWebApp } from '../../src/app/web/create-app.ts';
 import {
   ADMIN_REQUEST_HEADER,
   ADMIN_REQUEST_HEADER_VALUE,
-} from '../../src/app/web/admin-router.ts';
+} from '../../src/app/web/admin-api-security.ts';
 import { registerEditorialAdministrationRoutes } from '../../src/app/web/editorial-administration-router.ts';
 import { registerSourceAdministrationRoutes } from '../../src/app/web/source-administration-router.ts';
 import { startWebServer } from '../../src/app/web/server.ts';
