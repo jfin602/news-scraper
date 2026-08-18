@@ -85,8 +85,8 @@ describe('approved live feed collection pipeline', () => {
             endpoint.endpointConfigKey,
           );
           assert.equal(configuredUrl, endpoint.expectedUrl);
-          const first = await collect(endpoint, environment);
-          const second = await collect(endpoint, environment);
+          const first = await collect(endpoint, environment, true);
+          const second = await collect(endpoint, environment, false);
           await assertPersistedRuns(databaseUrl, [first, second]);
           results.push({
             source: endpoint.sourceName,
@@ -118,6 +118,7 @@ describe('approved live feed collection pipeline', () => {
 async function collect(
   endpoint: (typeof APPROVED_ENDPOINTS)[number],
   environment: NodeJS.ProcessEnv,
+  requireContent: boolean,
 ): Promise<CollectionOutput> {
   const { stdout } = await run(
     'src/app/worker/collect-main.ts',
@@ -127,8 +128,19 @@ async function collect(
   const output = JSON.parse(stdout.trim()) as CollectionOutput;
   assert.equal(output.event, 'endpoint_collection.result');
   assert.equal(output.status, 'succeeded');
-  assert.equal(output.outcome, 'content');
   assert.equal(output.runStatus, 'succeeded');
+  if (output.outcome === 'not_modified') {
+    assert.equal(requireContent, false, 'first run must return content');
+    assert.equal(output.transportStatus, 'not_modified');
+    assert.equal(output.httpStatusCode, 304);
+    assert.equal(output.rawItemCount, 0);
+    assert.equal(output.normalizedCandidateCount, 0);
+    assert.equal(output.normalizationFailureCount, 0);
+    assert.equal(output.articleLinkRejectionCount, 0);
+    assert.equal(output.candidateSample, undefined);
+    return output;
+  }
+  assert.equal(output.outcome, 'content');
   assert.equal(output.transportStatus, 'succeeded');
   assert.equal(output.parserStatus, 'succeeded');
   assert.equal(output.normalizationStatus, 'succeeded');

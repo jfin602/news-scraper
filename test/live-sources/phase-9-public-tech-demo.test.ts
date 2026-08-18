@@ -15,6 +15,7 @@ import {
 import { withDisposableDatabase } from '../support/database/disposable-database.ts';
 import {
   cleanupChild,
+  disconnectTestIpc,
   sendGracefulTermination,
   spawnRole,
   waitForExit,
@@ -224,8 +225,14 @@ describe('Phase 9 approved live-Source public tech demo', () => {
           } finally {
             await page.close();
           }
+          const webStopped = waitForJsonEvent(web, 'stdout', 'web.stopped');
           sendGracefulTermination(web);
-          assert.deepEqual(await waitForExit(web), { code: 0, signal: null });
+          await webStopped;
+          disconnectTestIpc(web);
+          assert.deepEqual(await waitForExit(web), {
+            code: 0,
+            signal: null,
+          });
         } finally {
           await cleanupChild(web);
         }
