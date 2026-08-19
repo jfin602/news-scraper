@@ -1,5 +1,7 @@
 # MVP Scope and Users
 
+**Status:** Historical `1.0.0` MVP scope. This document explains the product that was built and accepted through the MVP roadmap; it does not govern the current post-1.0 headless distribution direction. Current product scope is `docs/contracts/product-scope-and-users.md`.
+
 ## MVP objective
 
 Deliver a dependable single-Publication website and administrative control plane that continuously collects recent headlines from a whitelist of approved Sources, persists Source instances idempotently, suppresses true duplicates, and sends readers to the original Article.
