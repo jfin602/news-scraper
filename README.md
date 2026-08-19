@@ -13,9 +13,11 @@ GET /api/feed  # public feed API
 
 ## Current state
 
-The Platform is launched. Accepted Phase 20 customer-launch evidence establishes the first supported production source/version/schema baseline. **Phase 21 — Codebase simplification and maintainability hardening** is the current and terminal documented roadmap phase: it preserves launched behavior and supported production data while removing evidence-backed accidental complexity. New product features remain frozen until Phase 21 closes, apart from bounded critical production, security, data-integrity, or operational fixes.
+The Platform is launched at `1.0.0`. Accepted Phase 20 customer-launch evidence established the first supported production source/version/schema baseline, and the completed terminal Phase 21 maintainability pass closed the MVP roadmap into the `1.0.0` release.
 
-Detailed phase status, including the qualified Phase 9 and Phase 14 owner acceptances, lives in `docs/roadmap/mvp-roadmap.md` and `docs/validation/`. Historical validation remains evidence only for the exact source tree and environment recorded.
+The current owner-approved roadmap is `docs/roadmap/post-1.0-roadmap.md`, beginning at **post-1.0 Phase 0 — Server-rendered public feed** on the existing `1.0.0` baseline. Before Phase 0 implementation prompts can be generated/executed, the documented non-versioned runner-compatibility gate must extend the pre-1.0 phase parser to support Phase 0 and `1.<phase>.<prompt>` roadmap versions without consuming `1.0.1`.
+
+Detailed MVP history, including the qualified Phase 9 and Phase 14 owner acceptances, remains in `docs/roadmap/mvp-roadmap.md` and `docs/validation/`. Historical validation remains evidence only for the exact source tree and environment recorded.
 
 ## Architecture
 
@@ -89,7 +91,8 @@ Start every repository-aware session with `BOOT.md`, which routes to the narrowe
 - `docs/contracts/testing-and-validation-contract.md` — regression and evidence requirements.
 - `docs/architecture/system-architecture.md` — process, module, pipeline, scheduling, and transaction ownership.
 - `docs/operations/` — onboarding, security/reliability, backup/restore, deployment, rollback, and incidents.
-- `docs/roadmap/mvp-roadmap.md` — phase history, current Phase 21 commitments, and exit gates.
+- `docs/roadmap/mvp-roadmap.md` — completed MVP phase history and exit gates through the `1.0.0` release.
+- `docs/roadmap/post-1.0-roadmap.md` — current post-1.0 Phase 0–6 roadmap and `1.<phase>.<prompt>` version sequence.
 - `docs/decisions/` — Accepted and superseded architectural decisions.
 - `docs/design/` — presentation guidance and the isolated `ui-polish` workflow.
 
