@@ -1,0 +1,323 @@
+TASK: Phase 0 / P1 — Server-rendered root and progressive enhancement
+
+PHASE SCOPE
+This is the sole implementation prompt for post-1.0 Phase 0 — Server-rendered public feed. The accepted baseline is `1.0.0`; the runner-compatibility gate is GREEN. Implement the Phase 0 ownership transition in one coherent change: `GET /` becomes the server-rendered canonical first public-feed page, and the existing browser client becomes progressive enhancement of that already-rendered state.
+
+Do not split this into a server-only intermediate state or a client-only intermediate state. The current client unconditionally clears/refetches the first page, so SSR and client adoption must land together to keep the tree coherent.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: this is bounded but cross-cutting Web/UI work spanning request parsing, HTTP outcome mapping, server-side output safety, SSR/client state ownership, browser history, and no-JavaScript behavior; Terra is the appropriate balanced engineering tier.
+- Reasoning basis: High is warranted by interacting security and state invariants: root-form normalization must not weaken API parsing, CSP must allow only the required same-origin form navigation, server rendering must fail closed on unsafe data, and JavaScript must hydrate rather than erase/refetch correct server state while preserving stale-request and cursor behavior.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because the SSR/client ownership transition plus output-context safety, form/API parsing differences, history restoration, and continuation state create enough coupled edge cases to justify deeper reasoning.
+- Escalation trigger: source inspection reveals a genuinely new shared read-model/security architecture decision, a required persistence/schema change, or a materially different hydration/state architecture than the governed bounded transition below.
+- Escalation target: `Sol Medium`.
+- Estimate confidence: `High`.
+- Efficiency rationale: reuse the existing canonical `PublicFeedDependency.read()` boundary and existing DOM/CSS/client machinery; do not add another repository/query path, templating framework, hydration framework, or speculative abstraction.
+
+VERSIONING
+This prompt's assigned project version is `1.0.1`.
+- Before editing, require `package.json` to be either the expected preceding baseline `1.0.0` or already `1.0.1` for a safe rerun.
+- Set top-level `package.json` version to `1.0.1` as part of this prompt before final validation.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Do not perform a manual Git commit; the phase runner owns the implementation-prompt commit boundary and exact roadmap commit subject.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/roadmap/post-1.0-roadmap.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/architecture/system-architecture.md`, `docs/design/public-feed-presentation.md`, `docs/operations/security-reliability-and-operations.md`, and `known-issues.md`;
+2. inspect current `src/public-feed/discovery.ts`, `src/public-feed/repository.ts`, `src/app/web/create-app.ts`, `src/app/web/public-feed-page.ts`, `src/app/web/public/public-feed.js`, `src/app/web/public/public-feed.css`, `src/app/web/public/public-theme.js`, and `src/app/web/main.ts`;
+3. inspect the existing public-feed unit/integration/security/browser/database tests, especially `test/unit/public-feed-discovery.test.ts`, `test/integration/public-feed-page-http.test.ts`, `test/integration/public-feed-http.test.ts`, `test/security/public-content-safety.test.ts`, `test/browser/public-feed-page.test.ts`, `test/browser/public-feed-theme.test.ts`, `test/database/public-feed-http.test.ts`, `test/database/public-feed-repository.test.ts`, and `test/database/public-feed-discovery-repository.test.ts`;
+4. trace `PublicFeedDependency.read()` from production composition through `readPublicFeed()` and confirm it already supplies the canonical Publication presentation, discovery choices, ordered eligible Articles, exact `original_url`, and opaque `nextCursor` needed by SSR;
+5. confirm product source has not already implemented Phase 0 differently and that package version is still compatible with this prompt;
+6. stop and report planning drift rather than forcing this task if a governing contract changed, a second read/query authority is now required, or schema/persisted-data work has become necessary.
+
+GOAL
+Make the canonical root useful before JavaScript executes:
+
+`GET /` raw query -> root-specific discovery normalization -> existing canonical public-feed dependency -> safe HTML renderer -> already-resolved first-page DOM -> optional JavaScript progressive enhancement.
+
+The server-rendered root and `GET /api/feed` must consume the same canonical feed application/read-model semantics. Rendering and JSON shaping may differ; eligibility, Source trust/lifecycle, visibility, duplicate suppression, filtering, ordering, keyset semantics, public-state behavior, and publisher destinations must not fork.
+
+IMPLEMENTATION BOUNDARY
+Expected production files are narrowly:
+- `src/public-feed/discovery.ts`
+- `src/app/web/create-app.ts`
+- `src/app/web/public-feed-page.ts`
+- `src/app/web/public/public-feed.js`
+- `src/app/web/public/public-feed.css` only where required for semantic Reset/state parity
+- `package.json`
+
+Expected focused test files are:
+- `test/unit/public-feed-discovery.test.ts`
+- `test/integration/public-feed-page-http.test.ts`
+- `test/integration/public-feed-http.test.ts` only if needed to prove API semantics remain unchanged
+- `test/security/public-content-safety.test.ts`
+- `test/browser/public-feed-page.test.ts`
+- `test/browser/public-feed-theme.test.ts` where startup assumptions need adjustment
+- `test/database/public-feed-http.test.ts` where root-through-production-reader proof belongs
+
+Do not modify `src/public-feed/repository.ts`, SQL, migrations, Publication persistence, collection/Worker code, admin behavior, or unrelated UI unless source inspection proves a concrete Phase 0 requirement cannot be met without it. If such a change would alter the approved architecture or persisted state, stop and report scope drift.
+
+ROOT-SPECIFIC DISCOVERY PARSING
+The canonical API parser currently supports `q`, `source`, `category`, and `cursor`, keeps cursor criteria-bound, and intentionally rejects blank Source/Category config keys. Preserve those `/api/feed` semantics exactly.
+
+Add the smallest sibling root parsing boundary, for example `parsePublicRootDiscoveryRequest(rawQuery)`, by reusing the existing raw decoding, duplicate detection, bounds, keyword normalization, config-key validation, and `PublicDiscoveryInputError` ownership rather than writing a second independent parser.
+
+For root first-page navigation only:
+- supported dimensions are `q`, `source`, and `category`;
+- one blank `q=`, `source=`, or `category=` produced by an ordinary HTML form means that criterion is inactive after normalization;
+- duplicate/repeated forms remain invalid even if one value is blank;
+- unknown keys, malformed percent encoding, invalid config keys, and out-of-bound values remain invalid;
+- any `cursor` parameter on `/` is bounded generic `400` in Phase 0, including a syntactically valid cursor; crawlable/server-rendered cursor continuation belongs to Phase 1;
+- do not make plain root forms capable of weakening API cursor validation or changing API acceptance of blank Source/Category values.
+
+Add focused unit tests that prove the root/API distinction explicitly. Do not expose decoder internals merely for testing if the public parser boundaries provide sufficient proof.
+
+ROOT HTTP ORCHESTRATION
+Convert the current static root handler into an async handler that:
+1. obtains the raw query string through the same bounded request extraction style used by the API;
+2. parses it through the root-specific first-page parser;
+3. calls `dependencies.publicFeed.read(discoveryRequest)` exactly once for a valid request;
+4. passes only the resulting canonical public feed plus normalized criteria/outcome class into the page renderer;
+5. maps errors without leaking backend detail.
+
+Required root status mapping:
+- valid populated result -> `200` HTML;
+- valid empty result -> `200` HTML;
+- malformed/repeated/unknown/out-of-bound/root-cursor input -> `400` generic invalid-discovery HTML without calling the feed dependency;
+- canonical `unsupported_discovery_filter` from Source/Category validation -> `400` generic invalid-discovery HTML;
+- absent singleton Publication or non-public Publication -> generic `404` HTML;
+- dependency/read/invalid-row/render-safety failure -> generic `503` HTML.
+
+Retain `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, and a strict same-origin CSP. Do not expose SQL, stack traces, connection strings, private Publication state, internal IDs, normalized titles, summaries, authors, cursor internals, or other non-public fields in error or success HTML.
+
+SERVER RENDERER
+Evolve `src/app/web/public-feed-page.ts` from a constant loading shell into the narrow renderer for the root page. Do not introduce a general template engine or a new rendering framework for this one route.
+
+For a successful public read, initial HTML must directly contain:
+- configured Publication name;
+- optional configured description;
+- optional configured same-origin logo path;
+- configured accent presentation where safe under the existing style approach;
+- normalized active `q`/Source/Category controls;
+- bounded public Source/Category choices from the canonical feed model;
+- the canonical first Article page;
+- effective feed date presentation using configured valid IANA `presentationTimezone`, falling back to UTC;
+- Article headline;
+- Source display name;
+- exact stored `original_url` as the same-context headline anchor;
+- populated or empty state/status markup;
+- a configured, non-loading document title consistent with existing presentation behavior.
+
+Keep the SSR row/list/control structure semantically compatible with the existing client-generated DOM so desktop/mobile CSS, accessibility, selectors, and later client transitions do not become parallel presentation implementations.
+
+For `400`, `404`, and `503`, render bounded useful HTML with the same restrained public-page presentation. Do not manufacture Publication branding for unavailable/error states from private or failed data.
+
+SERVER-SIDE CONTENT SAFETY
+SSR is now an output security boundary. Treat dependency-fed Publication/Article/Source/discovery data as untrusted even though ordinary production persistence validates it earlier.
+
+At minimum:
+- escape every text node for HTML text context;
+- escape every attribute value for HTML attribute context;
+- validate Publication presentation values to the same bounded public contract before emitting them;
+- logo path remains bounded same-origin path data, not arbitrary remote markup/content;
+- accent remains the canonical safe color representation already governed by Publication configuration; do not emit arbitrary CSS text;
+- effective feed dates must be valid before formatting/emission;
+- `original_url` must be valid absolute HTTP/HTTPS and must contain no username/password credentials before it is emitted as an `href`;
+- hostile values such as `<script>`, quote-breaking strings, event-handler-looking text, and markup-looking Source/headline labels must remain inert;
+- if an injected/malformed dependency object violates required public render invariants, fail closed to generic `503` rather than emit unsafe/partial success HTML.
+
+Keep existing client validation as defense in depth for API-driven enhanced transitions. Do not weaken it merely because the server now validates initial data.
+
+NO-JAVASCRIPT DISCOVERY AND RESET
+Make the SSR controls genuinely functional without JavaScript:
+- discovery form must explicitly use same-origin root GET navigation, e.g. `method="get" action="/"`;
+- allow only the necessary same-origin form destination by changing CSP `form-action 'none'` to `form-action 'self'`; do not add `unsafe-inline`, wildcard form targets, or other unrelated CSP relaxation;
+- keep empty `All sources` / `All categories` options compatible with root-form normalization;
+- provide Reset as a real same-origin `/` navigation that works with JavaScript disabled, preferably semantic `<a href="/" data-discovery-reset>` styled as the existing quiet secondary action;
+- JavaScript may intercept/enhance Search and Reset when available, but no-JS behavior must remain the same first-page semantics.
+
+Preserve native semantics, keyboard order, visible focus, target sizing, responsive reflow, and theme styling. This is not a redesign.
+
+PROGRESSIVE CLIENT HYDRATION
+The current client unconditionally calls `loadFirstPage(...)` on startup, clears the shell, and fetches `/api/feed`. Remove that initial ownership.
+
+On a successful SSR page, `public-feed.js` must adopt the already-rendered DOM/state without reconstructing or replacing correct server output and without issuing an initial `/api/feed` request.
+
+Use the smallest explicit bootstrap contract. Prefer semantic DOM plus bounded `data-*` attributes containing only values already public, such as:
+- normalized criteria;
+- Article IDs and any item fields genuinely needed by existing client state/continuation validation;
+- opaque `nextCursor`;
+- Publication presentation/timezone values required for later client rendering;
+- resolved view state.
+
+Do not add inline executable JavaScript, an unsafe inline CSP exception, a client framework, or a second serialized private read model. If a small inert serialized bootstrap representation is objectively simpler than many attributes, it must still contain only the canonical public fields, be safely encoded for its output context, preserve the CSP, and not become a competing public-feed authority.
+
+Client startup must:
+- validate/adopt the SSR state;
+- initialize internal criteria/items/item-ID/next-cursor state needed by later interactions;
+- keep the existing SSR Article nodes in place;
+- attach/re-establish any required broken-logo fallback, including a logo that failed before deferred client startup;
+- preserve configured accent/theme behavior;
+- initialize the existing Load More control from the SSR cursor when present;
+- leave populated/empty server states stable;
+- never request `/api/feed` merely to reconstruct the same initial root state.
+
+After hydration, preserve existing enhanced behavior:
+- Search/Source/Category transitions may use `/api/feed` and `history.pushState`;
+- Reset may be enhanced while remaining a real `/` link without JS;
+- Back/Forward restores URL-reflected criteria/results;
+- first-page stale-response generation/AbortController protection remains intact;
+- changing criteria discards old continuation state;
+- Load More uses the existing criteria-bound opaque API cursor and stays out of canonical root URL state in Phase 0;
+- continuation duplicate-ID/repeated-cursor/empty-page guards and local failure UI remain intact;
+- themes remain presentation-only and do not trigger feed requests.
+
+Do not attempt full SPA hydration of `400`/`404`/`503` into an API-driven state. Error pages must already be useful server-side; client code may safely no-op where the required successful-feed DOM/state is absent.
+
+DOWNSTREAM HANDOFF / CONSUMER READINESS
+The final P2 closeout is a reviewer, not a producer that should invent missing semantics. Before reporting P1 complete, map and prove:
+
+`root q/source/category form semantics -> root-specific parser -> unit + HTTP proof`
+
+`canonical public-feed semantics -> existing PublicFeedDependency.read()/readPublicFeed() -> HTTP + existing real-PostgreSQL proof`
+
+`HTTP outcome class -> create-app root handler -> focused page HTTP proof`
+
+`canonical feed + normalized criteria -> safe SSR HTML -> HTTP/security proof`
+
+`SSR DOM/bootstrap -> public-feed.js internal first-page state -> JavaScript-enabled browser proof with zero initial API request`
+
+`SSR nextCursor + criteria -> existing API continuation path -> browser load-more proof`
+
+`ordinary root GET form/reset -> no-JavaScript navigation -> JavaScript-disabled browser proof`
+
+If P2 would need to invent feed SQL, eligibility/order logic, parser rules, unsafe URL policy, cursor semantics, or a missing SSR/client bootstrap contract to review the phase, P1 is incomplete. Fix the producer boundary here or stop and report planning drift.
+
+PRESERVED BEHAVIOR
+Preserve all existing behavior not explicitly changed by Phase 0, including:
+- one Publication/topic per deployment and topic-independent shared code;
+- canonical public feed eligibility, Source approval/lifecycle gates, visibility, duplicate suppression, effective-date ordering, exact `original_url`, q/source/category semantics, and API keyset cursor behavior;
+- `/api/feed` request/response/error behavior;
+- no reader authentication;
+- Worker ownership of collection;
+- Publication presentation timezone as presentation-only state;
+- themes and local theme persistence;
+- desktop/mobile presentation, accessibility, keyboard/focus behavior, reduced-motion behavior, and exact publisher navigation;
+- client stale-response protection and local continuation failure behavior;
+- obsolete slug-addressed public route remaining absent;
+- supported production database state and migration history unchanged.
+
+NON-GOALS
+Do not implement or broaden:
+- configurable page size;
+- no-JavaScript/crawlable cursor continuation or server-rendered older-page links;
+- offset/page-number pagination;
+- historical archive routes;
+- sitemap or `robots.txt`;
+- canonical tags, broad SEO metadata, Open Graph work, or trusted public-origin configuration;
+- Article summaries or thumbnails;
+- local Article-detail pages;
+- collection/source changes;
+- database schema, migration, cache, index, or performance infrastructure;
+- unrelated visual redesign;
+- topic-specific indie-author behavior in shared engine/UI code.
+
+FOCUSED TEST REQUIREMENTS
+Extend/replace existing focused tests so the new behavior is protected rather than preserving obsolete shell assertions.
+
+A. UNIT DISCOVERY
+Prove:
+- existing API parser behavior remains unchanged for empty/valid q/source/category/cursor;
+- API blank Source/Category remains invalid;
+- root parser accepts ordinary form blanks as inactive criteria;
+- root parser preserves q trimming/bounds and immutable config-key rules;
+- root repeated/unknown/malformed/out-of-bound forms fail;
+- any root cursor fails, including a syntactically valid criteria-bound cursor;
+- root/API parsing remains topic-independent.
+
+B. ROOT HTTP / COMPONENT
+Replace the current assertion that `/` must not read the feed. Prove:
+- populated `200` calls the canonical feed dependency exactly once and embeds Publication, dates, headlines, Sources, selected discovery controls, and exact publisher anchors in raw HTML;
+- empty `200` is explicit and useful;
+- q/source/category direct root URLs normalize and forward exactly once;
+- valid HTML-form blank Source/Category values do not create false `400`;
+- malformed/repeated/unknown/root-cursor input returns generic `400` without a feed read;
+- unsupported Source/Category returns generic `400`;
+- absent/non-public outcome returns generic `404`;
+- dependency/read/render-safety failures return generic secret-free `503`;
+- response headers retain no-store/nosniff and CSP now allows only same-origin form action;
+- obsolete slug route and explicit static-resource delivery remain unchanged.
+
+C. CONTENT SAFETY
+Use hostile synthetic values to prove server output keeps Publication/headline/Source/discovery text inert, quotes cannot break attributes, credential-bearing/unsupported Article URLs are rejected, no internal fields leak, and the browser still sees publisher text as text rather than executable markup. Preserve the existing client/API safety tests for enhanced responses.
+
+D. JAVASCRIPT-ENABLED BROWSER
+Update existing browser tests to prove:
+- successful initial page is already populated from SSR;
+- initial client startup issues zero `/api/feed` requests and does not replace correct server rows/masthead merely to initialize;
+- direct q/source/category refresh starts from corresponding SSR state with zero duplicate initial API request;
+- later Search/filter/Reset transitions use the canonical API enhancement path as appropriate;
+- Back/Forward restores controls/results without cursor URL leakage;
+- Load More works from the SSR-supplied cursor and preserves existing continuation failure/stale/duplicate guards;
+- empty/invalid/unavailable/dependency pages render meaningfully;
+- branding, broken-logo degradation, presentation timezone, exact link navigation, long-content/mobile layout, keyboard/focus, reduced motion, and existing theme behavior remain intact.
+
+E. JAVASCRIPT-DISABLED BROWSER
+Create real Playwright contexts with JavaScript disabled. Prove:
+- direct `/` displays configured Publication and first Article page;
+- direct q/source/category URL navigation displays the matching first page;
+- submitting the real Search form performs root GET discovery successfully, including default All values;
+- Source-only and Category-only form navigation work;
+- Reset reaches `/` and restores the unfiltered first page;
+- exact publisher headline navigation remains a normal anchor;
+- populated, empty, invalid `400`, unavailable `404`, and dependency `503` pages remain understandable without JavaScript;
+- no-JavaScript cursor continuation is not required and must not be invented.
+
+F. REAL POSTGRESQL
+Use the existing public-feed HTTP/repository/discovery suites to protect canonical eligibility/filtering/order/duplicate/moderation semantics. Extend `test/database/public-feed-http.test.ts` where appropriate so the production `readPublicFeed()` composition is observed through `GET /` as raw SSR HTML without introducing another SQL/query path.
+
+FOCUSED DEVELOPMENT VALIDATION
+During implementation, run the smallest commands/files that answer the current question. Examples include direct `node scripts/run-tests.mjs` invocations for the touched unit/integration file, focused security/browser files, and `npm run test:db:focused -- <specific files>` for PostgreSQL iteration. Do not repeatedly run full expensive suites while debugging one boundary.
+
+FINAL-TREE VALIDATION
+After all P1 edits are complete and package version is `1.0.1`, run the smallest non-overlapping applicable matrix on the unchanged final tree:
+- `npm run check`
+- `npm run test:security`
+- `npm run test:browser`
+- `npm run test:db:focused -- test/database/public-feed-http.test.ts test/database/public-feed-repository.test.ts test/database/public-feed-discovery-repository.test.ts`
+- committed-range `git diff --check` against the P1 baseline, or an equivalent command that actually checks the complete P1 change range
+
+`npm run check` already owns ordinary format/lint/type/unit/integration/collection coverage; do not separately rerun subordinate ordinary suites solely to duplicate evidence on the unchanged tree.
+
+Do not run live-Source, recovery, migration-upgrade, or reference-deployment suites unless actual implementation unexpectedly enters those boundaries. If persistence/schema changes become necessary, stop and report planning drift because the approved Phase 0 design does not require them.
+
+ACCEPTANCE CRITERIA
+P1 is complete only when:
+- `GET /` returns the configured Publication plus canonical first Article page in raw HTML without client execution;
+- valid direct root q/source/category criteria are server-rendered through the same canonical public-feed dependency;
+- 200/400/404/503 root states are bounded, useful, and secret-free;
+- no parallel Article SQL/eligibility/order/filter path exists for SSR;
+- server output safely escapes untrusted public data and validates URLs/presentation fields;
+- no-JavaScript Search/Source/Category/Reset first-page navigation works;
+- JavaScript startup adopts correct SSR state and makes zero redundant first-page API request;
+- existing enhanced search/history/load-more/theme/responsive/accessibility behavior remains protected;
+- exact `original_url` publisher destinations remain unchanged;
+- no schema/persisted-data change occurred;
+- package version is exactly `1.0.1`, no npm lockfile exists, and final applicable validation is green.
+
+FINAL REPORT
+Report:
+- files changed and the final root request/render ownership flow;
+- root/API parser distinction and why API semantics remain unchanged;
+- SSR output-safety decisions and CSP form-action change;
+- SSR-to-client bootstrap/hydration contract;
+- no-JavaScript behavior implemented;
+- downstream handoff mapping and focused proof;
+- focused commands actually run during development;
+- final validation commands actually run and results;
+- confirmation that the canonical repository/read model and production schema were unchanged;
+- confirmation that package version is `1.0.1` and no npm lockfile exists;
+- any remaining limitation, failed evidence, or planning drift.
