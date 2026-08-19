@@ -1,0 +1,301 @@
+TASK: Correction 21 / P3 — Post-1 runner compatibility closeout
+
+CORRECTION SCOPE
+Final manual closeout for the non-versioned Pre-Phase-0 runner-compatibility correction. The MVP roadmap is already complete at `1.0.0`; this closeout validates only P1–P2 runner/tooling work, preserves package version `1.0.0`, and clears the Pre-Phase-0 tooling gate only if the complete correction is GREEN. It does not implement or close post-1.0 Phase 0 product work.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Model-family basis: repository policy deliberately uses Sol as the independent closeout/review capability tier; this closeout must challenge parser/version/history and auto-run state semantics independently rather than trusting the implementation prompts' reports.
+- Reasoning basis: Light/low reasoning is the repository closeout default because the governing contracts and P1/P2 boundaries are explicit; use the required three distinct review passes and escalate only if a concrete ambiguity exceeds that boundary.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Terra High`; not selected because repository policy intentionally prefers Sol Light for final independent closeout review, while the owner requirement of Terra-family or higher is still satisfied by the higher Sol family.
+- Escalation trigger: review exposes material roadmap/version-contract ambiguity, difficult Git-history/resume correctness uncertainty, or another issue requiring stronger independent cross-system inference than the explicit correction design provides.
+- Escalation target: `Sol High` for deeper review/inference; meaningful behavior-preserving structural refactors use the mandatory `Terra High` remediation handoff below.
+- Estimate confidence: `High`.
+- Efficiency rationale: spend Sol capability once at the integrated correction boundary, use source-derived adversarial hypotheses rather than redundant command reruns, and rely on `npm run check` containment for the ordinary regression matrix.
+
+VERSIONING
+- Required unchanged project version: `1.0.0`.
+- This closeout MUST NOT change `package.json` version.
+- It consumes no Phase 0 prompt/version number.
+- It does not invoke conversational roadmap `/closeout` and does not advance the post-1.0 roadmap phase.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+MANUAL CLOSEOUT BOUNDARY
+This is the sole final closeout prompt for correction `c21-post-1-runner-compatibility`.
+
+DO NOT invoke this P3 through the newly added `--closeout` flag. The automation mechanism is itself under review here, so this correction retains the independent manual launch/human checkpoint.
+
+P3 is a verification, adversarial review, bounded-fix, and durable-evidence task. It is not a third feature implementation prompt.
+
+MANDATORY HANDOFF
+Before any closeout write:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/codex-model-selection.md`, `docs/contracts/testing-and-validation-contract.md`, and `docs/roadmap/post-1.0-roadmap.md`;
+2. read P1 and P2 task files and inspect their actual committed implementation/tests rather than trusting their final reports;
+3. inspect current `scripts/codex-phase-core.mjs`, `scripts/codex-phase.mjs`, `scripts/validate-codex-phase.mjs`, and every changed focused runner/parser test;
+4. inspect current `package.json` and package-script regression coverage so command-containment claims are based on the executable tree;
+5. identify from Git history the exact P1 and P2 runner-owned implementation commits and their direct correction baseline/range; prompt-writing/documentation-only commits before P1 are not executable correction evidence;
+6. trace every important producer/consumer changed by P1/P2: parser -> normalized plan -> target version -> history resume -> CLI/run state -> Codex execution -> implementation commit path -> auto-run final-prompt path -> dashboard/failure/final terminal handoff;
+7. confirm P1 and P2 are complete, package version is `1.0.0`, working tree is in an intentional closeout state, and no Phase 0 product prompt has executed;
+8. stop and report sequence/planning drift if the implemented architecture materially differs from the approved correction design or if Phase 0 product work has already begun before this gate is green.
+
+CLOSEOUT GOAL
+Prove that the runner can safely execute both retained historical pre-1.0 task stacks and new post-1.0 Phase-0+ task stacks, while optional `--closeout` invocation removes the manual launch step without weakening human closeout acceptance, commit/history safety, version safety, or terminal truthfulness.
+
+The correction is GREEN only when:
+- the post-1.0 roadmap grammar/version law is executable and unambiguous;
+- historical/correction behavior remains safe;
+- `--closeout` is optional, truthful, and bounded to invocation/review-required semantics;
+- the ordinary implementation runner remains regression-safe;
+- documentation matches the exact implemented machine behavior;
+- all applicable final-tree evidence is green at package `1.0.0`.
+
+PASS 1 — CONTRACT / EVIDENCE REVIEW
+Review P1–P2 against current authoritative contracts, roadmap requirements, source, tests, and actual Git behavior.
+
+A. POST-1.0 ROADMAP GRAMMAR
+Verify from implementation and tests:
+- canonical post-1.0 roadmap folder grammar is exactly `p1-<phase>`;
+- `<phase>` is canonical non-negative decimal with no leading zero except `0`;
+- `p1-0` is Phase 0, `p1-1` is Phase 1, etc.;
+- TASK header remains `TASK: Phase <phase> / P<number> — <title>`;
+- prompt numbering remains one-based and P0 is invalid;
+- post-1.0 target versions are exactly `1.<phase>.<prompt>`;
+- historical `p<number>` stacks still map only to `0.<phase>.<prompt>`;
+- plain `p0` is not accepted as an alias;
+- folder/header/version mismatches fail closed.
+
+B. CORRECTION GRAMMAR
+Verify:
+- `c0-<lower-kebab-slug>` and matching `Correction 0` TASK metadata are valid now;
+- historical positive correction folders remain valid;
+- leading-zero/malformed phase forms remain invalid;
+- correction prompt numbers remain one-based;
+- correction unchanged-version metadata remains identical across the stack and independent of contextual phase number.
+
+C. SINGLE VERSION / RESUME AUTHORITY
+Trace actual source and prove:
+- roadmap family/major is normalized once rather than reparsed independently by downstream consumers;
+- prompt target validation and resume expected-version reconstruction consume the same owning derivation/representation;
+- P2 does not parse `p1-<phase>` or reconstruct post-1.0 version formulas;
+- historical commit subjects remain exact assigned semantic versions;
+- correction commit subjects remain exact correction-folder/P-number/title subjects;
+- duplicate matching subjects fail;
+- completion gaps fail;
+- unrelated newer commits remain tolerated only when the exact required prefix is proven;
+- package/history version mismatch fails;
+- Phase 0 baseline resume with zero completed prompts expects `1.0.0`.
+
+D. DEFAULT RUNNER BEHAVIOR
+Verify without `--closeout`:
+- one task folder plus optional `--verbose` still behaves as before;
+- implementation prompts execute/resume/commit under the existing strong commit boundary;
+- final parsed closeout remains manual;
+- run.json and dashboard retain truthful manual-closeout state;
+- implementation-complete handoff remains available;
+- dirty tree, package-lock, HEAD/version, staging, and commit-parent checks remain fail closed.
+
+E. `--closeout` INVOCATION BOUNDARY
+Verify with the new flag:
+- it is explicit opt-in and never inferred;
+- it can coexist with `--verbose` under documented parsing;
+- unknown/malformed options fail closed;
+- implementations complete/resume first and retain normal commits;
+- all-implementation-complete history can launch only the final prompt;
+- the parsed closeout's own model/reasoning/text is used;
+- existing structured events/usage/final-response capture are reused;
+- the closeout is NOT sent through `commitPromptChanges()`;
+- process exit 0 becomes review-required, not semantic GREEN/accepted state;
+- no prose classifier attempts to detect GREEN/RED/BLOCKED/remediation wording.
+
+F. AUTO-RUN REPOSITORY / VERSION SAFETY
+Verify:
+- pre-closeout HEAD/version/clean state is captured intentionally;
+- closeout self-commit/HEAD drift is rejected;
+- no package-lock is tolerated;
+- resulting diff must pass `git diff --check`;
+- read-only closeout is allowed;
+- closeout changes may remain intentionally uncommitted for human review;
+- correction closeout version must remain exact unchanged version;
+- roadmap closeout may keep the implementation-complete version or move exactly to its assigned closeout target, and no third version is accepted;
+- a later ordinary runner invocation still fails on unreviewed dirty closeout changes rather than silently proceeding.
+
+G. RUN STATE / TERMINAL TRUTHFULNESS
+Verify:
+- auto-run states distinguish waiting/running/review-required/failed/interrupted as applicable;
+- review-required is never reported as passed/accepted;
+- implementation overall counts are not inflated by the closeout;
+- failure summary does not claim NOT EXECUTED after an attempted closeout;
+- dashboard/timer lifecycle finalizes once;
+- after a captured closeout response, runner-owned diagnostics/header occur first and the complete response is the final terminal content;
+- nothing is printed after the response;
+- runner-level failure after response capture remains nonzero while still ending with the response;
+- raw `P<number>.final.txt` content remains intact.
+
+H. DOCUMENTATION CONSISTENCY
+Verify current `BOOT.md`, `AGENTS.md`, `docs/codex-model-selection.md`, and `docs/roadmap/post-1.0-roadmap.md` describe exactly implemented behavior:
+- post-1.0 grammar is no longer described as unresolved after P1;
+- overall Pre-Phase-0 gate is still pending until this P3 becomes GREEN;
+- manual closeout remains default;
+- `--closeout` means automated invocation + HUMAN REVIEW REQUIRED, not automatic acceptance;
+- Sol Light three-pass closeout and Terra High remediation semantics remain intact.
+
+PASS 2 — ERROR / EDGE-CASE ADVERSARIAL REVIEW
+Independently derive realistic failure modes from actual source. Do not satisfy this pass merely by noting that tests are green.
+
+At minimum investigate:
+- `p1-0` colliding conceptually or programmatically with historical `p1`;
+- `p1-00`, `p1-01`, `p1--1`, empty phase, uppercase or malformed folder variants;
+- TASK `Phase 0` in a historical folder or wrong post-1 folder;
+- P0 filename/TASK metadata;
+- wrong post-1 target major, minor, or patch;
+- version derivation implemented twice and drifting between plan and resume;
+- historical pre-1 resume accidentally expecting `1.x`;
+- Phase 0 no-completion resume expecting anything other than `1.0.0`;
+- duplicate commit subjects, completion gaps, or unrelated newer commits;
+- `c0-...` accepted while a leading-zero correction variant also slips through;
+- correction phase value accidentally affecting package version;
+- `--closeout` supplied before P1/P2 implementation prefix is complete;
+- all implementations already complete;
+- implementation failure preventing closeout launch;
+- dirty pre-run/pre-closeout worktree;
+- closeout modifying HEAD or self-committing;
+- closeout creating no changes;
+- closeout creating normal review changes;
+- correction closeout changing package version;
+- roadmap closeout staying on old version versus preparing target version;
+- roadmap closeout changing to an unrelated version;
+- closeout creating package-lock or whitespace-conflicted output;
+- closeout Codex exit nonzero, structured-output failure, or SIGINT;
+- captured final response followed accidentally by logs/dashboard/footer;
+- interactive redraw occurring after final-response handoff;
+- failure after final-response capture being reported as success;
+- a semantic RED/BLOCKED closeout process being falsely recorded as passed;
+- implementation commit helper being weakened to accommodate closeout;
+- auto-run leaving dirty review changes and a subsequent normal run proceeding anyway.
+
+For each plausible failure, determine from source/tests/executed evidence whether it is protected, requires a bounded defect/test fix, requires the Terra High refactor handoff, or requires replanning.
+
+PASS 3 — CODE-QUALITY / STRUCTURAL REVIEW
+Inspect the complete P1–P2 diff plus important consumers for maintainability.
+
+Look specifically for:
+- duplicate folder/version parsing outside the core plan authority;
+- duplicate semantic-version formula helpers that can drift;
+- compatibility aliases for unsupported alternative folder grammar;
+- speculative major-version abstraction beyond 0/1 needs;
+- P2 cloning the implementation execution loop rather than reusing appropriate execution machinery;
+- P2 weakening `commitPromptChanges()` invariants instead of keeping closeout's genuinely different boundary distinct;
+- global state/timer/final-response plumbing that can leak between prompts/runs;
+- run.json state vocabulary that conflates execution with acceptance;
+- render helpers with closeout-specific branches that contradict each other;
+- final-output logic duplicated across success/failure paths in a brittle way;
+- tests coupled only to private implementation details instead of observable runner/Git/output behavior;
+- stale documentation describing pre-correction grammar or claiming unresolved behavior already implemented;
+- unnecessary product/package/dependency changes.
+
+Small local cleanup or bounded defects directly inside this correction MAY be fixed with focused regression coverage and every invalidated broader final check rerun.
+
+TERRA HIGH REFACTOR HANDOFF
+If PASS 2 or PASS 3 discovers a meaningful behavior-preserving structural refactor, STOP before implementing that refactor and output exactly one self-contained Terra High remediation prompt following `docs/codex-model-selection.md`.
+
+The generated remediation prompt must:
+- recommend exactly `Terra High`;
+- state the observed structural problem and concrete evidence;
+- define the smallest behavior-preserving refactor boundary and important producers/consumers;
+- preserve historical/post-1 grammar, version/resume safety, implementation commit integrity, optional auto-run/human-review semantics, terminal-output truthfulness, and package `1.0.0`;
+- forbid product/contract/ADR/roadmap expansion, speculative future-major abstractions, and unrelated cleanup;
+- consume no roadmap/correction prompt or package version;
+- require focused tests plus every broader runner/static regression invalidated by the refactor;
+- require an implementation report but MUST NOT declare this correction GREEN or finalize its durable validation artifact;
+- instruct Terra High to stop if the work actually requires a new roadmap/version contract, difficult Git-history redesign, or another materially different architecture decision.
+
+After remediation is applied and implementation-level validation is green, rerun this P3 closeout from the beginning. Only that rerun may certify the correction.
+
+FINAL-TREE VALIDATION
+After all bounded closeout fixes are complete, execute the smallest non-overlapping applicable matrix against the exact final candidate tree:
+- `npm run check`
+- `npm run codex:phase:validate -- c21-post-1-runner-compatibility`
+- committed correction-range `git diff --check <pre-P1-executable-baseline>...HEAD` or an equivalent command that actually checks the accepted executable correction range
+
+Before claiming containment, inspect current `package.json` and runner scripts to confirm what `npm run check` actually executes.
+
+Do NOT separately rerun `format:check`, `lint`, `typecheck`, `test:unit`, `npm test`, or other subordinate ordinary suites solely to duplicate evidence already executed by `npm run check` on the unchanged tree.
+
+No PostgreSQL, collection-fixture, browser, live-source, recovery, or deployment validation is required for this tooling-only correction unless source inspection shows P1/P2 unexpectedly changed those boundaries. If that occurred, treat it as scope drift and resolve it before acceptance rather than manufacturing unrelated evidence.
+
+Do not run `npm run codex:phase -- c21-post-1-runner-compatibility --closeout`; P3 is intentionally manual.
+
+OPTIONAL DIRECT RUNNER SANITY
+If a safe local synthetic procedure can exercise the real CLI argument/display path without invoking a real Codex model or modifying the repository under review, it may supplement unit evidence. Do not create a fake claim of real Codex closeout validation, and do not risk launching this P3 automatically merely for demonstration.
+
+DURABLE VALIDATION ARTIFACT
+Only after the final candidate evidence is gathered, create/update:
+
+`docs/validation/post-1-runner-compatibility-correction.md`
+
+Record at minimum:
+- correction purpose/scope and why `c21-...` was the bootstrap folder;
+- exact pre-P1 executable baseline and accepted P1/P2/final source SHAs/range;
+- package version `1.0.0` preserved;
+- relevant Node/npm/Codex CLI versions actually observed;
+- final historical and post-1.0 roadmap grammar;
+- Phase-0 correction grammar;
+- owning version/resume derivation and preserved Git safety;
+- final default/manual and `--closeout` behavior;
+- explicit statement that auto-run means review-required, not machine acceptance;
+- final-response-last behavior and relevant focused proof;
+- commands/procedures actually executed with results and evidence levels;
+- PASS 1 contract/evidence findings;
+- PASS 2 adversarial hypotheses/findings/disposition;
+- PASS 3 structural findings/disposition;
+- bounded defects/tests added during closeout, if any;
+- whether a Terra High remediation handoff occurred before final rerun;
+- remaining limitations or unresolved findings;
+- final GREEN/RED/BLOCKED disposition.
+
+GATE-STATE DOCUMENTATION IF AND ONLY IF GREEN
+Only after the final applicable evidence is green and the durable artifact is truthful, update the narrow current-state wording in:
+- `BOOT.md`
+- `AGENTS.md`
+- `docs/roadmap/post-1.0-roadmap.md`
+
+Change the Pre-Phase-0 runner compatibility gate from pending/required to completed/cleared, identify the accepted correction artifact/range as appropriate, and state that normal post-1.0 Phase 0 `/prompt-ass` -> `/prompt-plan` -> `/prompt-write` may proceed.
+
+Preserve Phase 0 product scope, dependencies, version baseline `1.0.0`, and all unrelated roadmap/history wording.
+
+If RED/BLOCKED, do NOT mark the gate complete.
+
+ACCEPTANCE CRITERIA
+P3 may declare the correction GREEN only when:
+- P1/P2 implementation matches the governing plan/contracts;
+- `p1-<phase>` and `1.<phase>.<prompt>` are implemented safely including Phase 0;
+- historical pre-1 roadmap and correction semantics remain intact;
+- `c0-...` is supported without malformed leading-zero aliases;
+- one roadmap-version authority owns target and resume reconstruction;
+- default runner behavior remains manual-closeout and regression-safe;
+- `--closeout` is explicit opt-in, runs only after implementation completion, and remains HUMAN REVIEW REQUIRED;
+- implementation commit invariants are not weakened;
+- closeout repository/version/HEAD/failure boundaries are fail closed;
+- run.json/dashboard/failure/final terminal output are truthful;
+- no semantic prose classifier or automatic closeout commit/acceptance exists;
+- required three-pass review found no unresolved defect or architectural ambiguity;
+- final applicable validation passes on the exact accepted tree;
+- durable validation evidence is created and truthful;
+- package version remains exactly `1.0.0` and no npm lockfile exists;
+- gate-state docs are updated only after GREEN.
+
+FINAL REPORT
+Report:
+- GREEN/RED/BLOCKED disposition;
+- exact accepted source/range and package version;
+- final post-1.0/historical/correction grammar conclusions;
+- resume/commit/version-safety conclusions;
+- `--closeout` execution/review-state conclusions;
+- PASS 1/2/3 findings and any bounded fixes/tests;
+- whether Terra High remediation was required;
+- exact final validation commands/results/evidence levels;
+- durable artifact path;
+- gate-state documentation changes if GREEN;
+- remaining limitations or next required action.
