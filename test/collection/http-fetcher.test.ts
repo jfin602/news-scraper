@@ -37,6 +37,24 @@ describe('redirect-aware HTTP fetcher', () => {
     assert.deepEqual(requests, []);
   });
 
+  it('blocks an initial DNS-empty destination before transport', async () => {
+    const requests: FetchRequest[] = [];
+    const fetcher = createHttpFetcher({
+      resolver: resolverSequence([[]]),
+      transport: recordingTransport(requests, () => content()),
+    });
+
+    const result = await fetcher.fetch(requestFor('/xml'));
+
+    assert.deepEqual(result, {
+      status: 'blocked',
+      stage: 'network_safety',
+      context: 'initial',
+      reason: 'dns_resolution_failed',
+    });
+    assert.deepEqual(requests, []);
+  });
+
   it('hands the exact newly validated initial address set to one-hop transport', async () => {
     const requests: FetchRequest[] = [];
     const answers = Object.freeze([

@@ -1025,6 +1025,30 @@ describe('canonical endpoint collection service', () => {
     }
   });
 
+  it('propagates lock infrastructure failures before run or fetch work', async () => {
+    const events: string[] = [];
+    const expected = new Error('synthetic lock infrastructure failure');
+
+    await assert.rejects(
+      collectEndpoint(aggregate(), {
+        lockRunner: {
+          async run<T>(): Promise<EndpointRunLockResult<T>> {
+            events.push('lock');
+            throw expected;
+          },
+        },
+        runs: runStore(events),
+        fetcher: fetcher(events, contentResult()),
+        rssAtomParser: parser(events, parserSuccess()),
+        ...phase6Dependencies,
+        ...phase7Dependencies,
+        executionId: () => EXECUTION_ID,
+      }),
+      expected,
+    );
+    assert.deepEqual(events, ['lock']);
+  });
+
   it('releases the lock and performs no network/parser work when run creation fails', async () => {
     const events: string[] = [];
     const expected = new Error('synthetic run start failure');

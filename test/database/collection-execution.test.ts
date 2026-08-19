@@ -114,6 +114,20 @@ test('canonical collection coordinates real endpoint locks, aggregate loading, a
       );
       assert.equal(safetyFailure.status, 'failed');
 
+      const unexpectedFetchFailure = await execute(
+        actorB,
+        endpointA,
+        'execution-a-unexpected-fetch-failure',
+        fetcher(async () => {
+          throw new Error('synthetic unexpected fetch boundary failure');
+        }),
+      );
+      assert.equal(unexpectedFetchFailure.status, 'failed');
+      if (unexpectedFetchFailure.status === 'failed') {
+        assert.equal(unexpectedFetchFailure.outcome, 'fetch_failed');
+        assert.equal(unexpectedFetchFailure.reason, 'fetch_execution_failed');
+      }
+
       const recovered = await execute(
         actorA,
         endpointA,
@@ -135,7 +149,7 @@ test('canonical collection coordinates real endpoint locks, aggregate loading, a
          FROM collection_runs
          ORDER BY started_at, execution_id`,
       );
-      assert.equal(persisted.rows.length, 6);
+      assert.equal(persisted.rows.length, 7);
       assert.deepEqual(
         persisted.rows.map((row) => [
           row.execution_id,
@@ -180,6 +194,14 @@ test('canonical collection coordinates real endpoint locks, aggregate loading, a
             'unsafe_resolved_address',
           ],
           [
+            'execution-a-unexpected-fetch-failure',
+            'failed',
+            'failed',
+            'not_run',
+            0,
+            'fetch_execution_failed',
+          ],
+          [
             'execution-a-recovered',
             'succeeded',
             'succeeded',
@@ -189,7 +211,7 @@ test('canonical collection coordinates real endpoint locks, aggregate loading, a
           ],
         ],
       );
-      assert.equal(await runCount(actorA, endpointA.endpoint.id), 5);
+      assert.equal(await runCount(actorA, endpointA.endpoint.id), 6);
       assert.equal(await runCount(actorA, endpointB.endpoint.id), 1);
     } finally {
       releaseOwner.resolve();
