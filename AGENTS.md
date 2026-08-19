@@ -16,7 +16,7 @@ Follow `BOOT.md`.
 - `/docs-apply` changes only approved documentation scope. Preserve unrelated wording.
 - Normal non-terminal handoff is `/closeout` → `/docs-review` → `/docs-apply` → `/prompt-ass` → `/prompt-plan` → `/prompt-write <folder name>`.
 - Roadmap `/closeout` and a correction stack's final manual closeout are different. A correction closeout clears only that correction and preserves roadmap phase/package version.
-- Terminal MVP Phase 21 `/closeout` is complete: it performed the version-only transition from validated `0.21.11` to `1.0.0` and created no Phase 22/`0.22.0` baseline.
+- Terminal MVP Phase 21 `/closeout` is complete: it performed the version-only transition from the validated `0.21.11` tree to `1.0.0`, created no Phase 22/`0.22.0` baseline, and closed the MVP roadmap.
 - The owner-approved post-1.0 roadmap now begins at Phase 0 on the existing `1.0.0` baseline.
 - Before the first post-1.0 `/prompt-write`, complete the roadmap's non-versioned runner-compatibility gate; current parser/runner source still implements the pre-1.0 phase grammar and must not be documented or used as if Phase 0 / `1.<phase>.<prompt>` were already executable.
 - Use `docs/codex-model-selection.md` for detailed minimum-cost-adequate model/reasoning/usage policy.
@@ -25,35 +25,29 @@ Follow `BOOT.md`.
 
 `package.json` is the sole current-version authority and is currently `1.0.0`. Documentation, correction, and UI work is non-versioned. A version changes only through an executed roadmap prompt, a green roadmap `/closeout` baseline transition, or another explicit owner-authorized transition.
 
-The current machine parser is `scripts/codex-phase-core.mjs`. It still implements the historical pre-1.0 roadmap grammar: positive integer `p<number>` folders and `0.<phase>.<prompt>` targets. The post-1.0 roadmap instead requires Phase 0+ with versions `1.<phase>.<prompt>`. **Do not generate or execute a post-1.0 roadmap task stack until the documented non-versioned runner-compatibility correction updates parser source, focused parser tests, BOOT machine grammar, and this section together.** That correction must leave `package.json` at `1.0.0` and consume no Phase 0 patch number.
+The machine parser is `scripts/codex-phase-core.mjs`; parser changes must update BOOT and focused parser tests. Before reporting `/prompt-write` complete, run `npm run codex:phase:validate -- <task-folder>` when local execution is available. `npm run codex:phase -- <task-folder>` executes implementation prompts and stops before the parsed final closeout prompt.
 
-Before reporting `/prompt-write` complete for any supported stack, run `npm run codex:phase:validate -- <task-folder>` when local execution is available. `npm run codex:phase -- <task-folder>` executes implementation prompts and stops before the parsed final closeout prompt.
+The current parser still implements the historical pre-1.0 roadmap grammar: positive integer `p<number>` folders and `0.<phase>.<prompt>` targets. The post-1.0 roadmap instead requires Phase 0+ with versions `1.<phase>.<prompt>`. **Do not generate or execute a post-1.0 roadmap task stack until the documented non-versioned runner-compatibility correction updates parser source, focused parser tests, BOOT machine grammar, and this section together.** That correction must leave `package.json` at `1.0.0` and consume no Phase 0 patch number.
 
-Current executable common grammar:
+Common grammar:
 
 - filenames are `P<number>-<lower-kebab-slug>.txt`, one-based, unique, and contiguous from P1;
 - every prompt has exactly one `- Recommended configuration:` line containing one supported backtick-delimited `MODEL_CONFIGS` label and a final period;
 - exactly one final prompt is the manual closeout; both its filename slug and parsed `TASK:` title contain `closeout`; body prose does not determine prompt kind.
 
-Historical pre-1.0 roadmap stacks supported by the current parser:
+Historical pre-1.0 roadmap stacks under the current parser:
 
 - folder `p<number>` with no leading zero;
 - exact header `TASK: Phase <phase> / P<number> — <title>` matching folder/filename;
 - exactly one `assigned project version is` phrase followed by backtick-delimited `0.<phase>.<prompt number>`;
 - no correction unchanged-version metadata.
 
-Post-1.0 roadmap version law is already approved in `docs/roadmap/post-1.0-roadmap.md`:
+The approved post-1.0 version law is defined in `docs/roadmap/post-1.0-roadmap.md`: phase numbers restart at 0, Phase 0 baseline is `1.0.0`, roadmap prompt targets are `1.<phase>.<prompt number>`, and prompt numbering remains one-based. Exact post-1.0 folder/header/parser grammar is finalized by the required runner-compatibility correction before Phase 0 task generation.
 
-- Phase numbers restart at 0;
-- Phase 0 baseline is `1.0.0`;
-- roadmap prompt targets are `1.<phase>.<prompt number>`;
-- prompt numbering remains one-based and `P0` is never used;
-- exact post-1.0 folder/header/parser grammar is finalized by the required runner-compatibility correction before Phase 0 task generation.
+Correction stacks:
 
-Correction stacks remain non-versioned:
-
-- folder `c<roadmap-phase>-<lower-kebab-slug>` under the currently executable grammar;
-- exact header `TASK: Correction <phase> / P<number> — <title>` matching folder numeric component;
+- folder `c<roadmap-phase>-<lower-kebab-slug>`;
+- exact header `TASK: Correction <phase> / P<number> — <title>` matching folder/filename;
 - exactly one `- Required unchanged project version: `<version>`.` line in every prompt, identical across the stack and equal to `package.json` throughout execution;
 - no assigned-version metadata; P-numbers are local and do not consume roadmap patch numbers;
 - correction commits identify the correction stack/prompt, and its closeout does not invoke/substitute for roadmap `/closeout`.
@@ -93,7 +87,7 @@ Do not apply the earlier pre-production destructive-reset rule to customer state
 - Explicitly required suites fail when prerequisites are absent, skipped, flaky, or select zero tests.
 - Persistence/concurrency/migration claims require real disposable PostgreSQL where applicable. Ordinary isolated test files may reuse one migrated disposable database with deterministic state reset; lifecycle/schema-mutation claims retain fresh-database proof.
 - Deterministic collection validation uses controlled fixtures/servers without weakening production trust or SSRF policy.
-- Post-1.0 work remains under the supported production-data compatibility boundary; performance/resource claims require comparable before/after measurements when the active phase requires them.
+- Post-1.0 work remains under the supported production-data compatibility boundary; schema changes require migration-from-zero plus supported Phase 20-baseline upgrade/data preservation, and performance/resource claims require comparable before/after measurements when applicable.
 
 The Phase 9 owner acceptance retains its recorded incomplete two-Source Level 7 observation. The Phase 14 owner acceptance retains its historical BLOCKED/RED Level 8 limitation; Phase 19 later supplied that deployment-perimeter proof without rewriting history.
 
@@ -107,7 +101,7 @@ The MVP roadmap is complete through terminal Phase 21 and the project is release
 
 Before Phase 0 product prompts are written or executed, complete the roadmap's non-versioned runner-compatibility gate. The current parser cannot represent Phase 0 or enforce `1.<phase>.<prompt>` targets, so attempting to use the ordinary roadmap runner before that correction would be invalid. The tooling correction leaves version `1.0.0` unchanged and consumes no Phase 0 prompt number; after it is green, normal `/prompt-ass` → `/prompt-plan` → `/prompt-write` may plan Phase 0 product work.
 
-Use `docs/roadmap/mvp-roadmap.md` for completed MVP history and `docs/roadmap/post-1.0-roadmap.md` for current/future post-1.0 phases.
+Use `docs/roadmap/mvp-roadmap.md` for detailed completed MVP history and `docs/roadmap/post-1.0-roadmap.md` for current/future post-1.0 phase state.
 
 ## UI workstream
 
