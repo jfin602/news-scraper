@@ -1,0 +1,238 @@
+TASK: Correction 21 / P1 — Post-1 roadmap grammar and version compatibility
+
+CORRECTION SCOPE
+This is the first implementation prompt in the non-versioned Pre-Phase-0 runner-compatibility correction. The MVP roadmap is complete at `1.0.0`; post-1.0 Phase 0 product work remains gated until this correction is GREEN. This prompt changes only Codex task-stack parser/runner grammar, version-chain/resume interpretation, focused runner tests, and the machine/workflow documentation that must stay synchronized with that implementation.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: this task changes shared task-stack grammar and Git/version resume semantics used by every later roadmap/correction run; Terra is appropriate for the cross-file state/integrity coupling while the target design is explicit.
+- Reasoning basis: High is warranted because historical pre-1.0 grammar, new post-1.0 grammar, correction-stack grammar, exact commit subjects, baseline reconstruction, resume safety, and synchronized machine documentation must coexist without ambiguous interpretation.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because a subtle parser/version-history mistake can make valid stacks unexecutable or, worse, make unsafe history/version state appear resumable.
+- Escalation trigger: source inspection reveals an unavoidable ambiguity between retained historical task-stack identity and the approved post-1.0 roadmap/version law, or requires changing the roadmap/version contract rather than implementing it.
+- Escalation target: `Sol High`.
+- Estimate confidence: `High`.
+- Efficiency rationale: centralize roadmap-family/version derivation once in the existing plan/version boundary and extend the current focused suites rather than introducing parallel parsers or compatibility wrappers.
+
+VERSIONING
+- Required unchanged project version: `1.0.0`.
+- This correction MUST NOT change `package.json` version.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Correction prompt numbering is local only and consumes no post-1.0 Phase 0 patch number.
+
+BOOTSTRAP CONTEXT
+This correction intentionally lives in folder `c21-post-1-runner-compatibility` and uses `TASK: Correction 21 ...` because the current pre-correction parser accepts only positive correction phase numbers. The correction phase component is context only; it does not consume roadmap versions. P1 must make future post-1.0 Phase 0 correction folders such as `c0-<slug>` valid without requiring this bootstrap convention again.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/roadmap/post-1.0-roadmap.md`, `docs/contracts/testing-and-validation-contract.md`, and `docs/codex-model-selection.md`;
+2. inspect current `scripts/codex-phase-core.mjs`, `scripts/codex-phase.mjs`, and `scripts/validate-codex-phase.mjs`;
+3. inspect all focused parser/runner tests in `test/unit/codex-phase-prompt-grammar.test.ts` and `test/unit/codex-phase-runner.test.ts`;
+4. trace every consumer of `plan.phase`, `prompt.targetVersion`, correction `unchangedVersion`, `promptCommitSubject`, `assertVersionCompatible`, and `detectCompletedPromptPrefix` before changing shared plan/version behavior;
+5. confirm `package.json` is still exactly `1.0.0` and that this correction's P2/P3 task files are present but unexecuted;
+6. stop and report planning drift if post-1.0 grammar/version support has already been implemented differently or if current authoritative docs no longer require the Pre-Phase-0 runner gate.
+
+CURRENT PROBLEM
+The current runner/parser is intentionally pre-1.0:
+- roadmap folders are only `p<number>` with positive integer phases;
+- roadmap TASK headers require positive integer `Phase <phase>` values;
+- roadmap versions are reconstructed as `0.<phase>.<prompt>`;
+- resume baseline/version expectations are reconstructed independently as `0.<phase>.<completedCount>`;
+- correction folders/headers also reject phase 0.
+
+The approved post-1.0 roadmap instead restarts roadmap phase numbering at Phase 0 on baseline `1.0.0` and assigns prompt versions as `1.<phase>.<prompt>`. Historical pre-1.0 stacks and existing correction history must remain interpretable and safe.
+
+GOAL
+Extend the existing shared plan/parser/version authority so it can unambiguously represent both retained historical pre-1.0 roadmap stacks and new post-1.0 roadmap stacks, including Phase 0, while preserving correction-stack fixed-version semantics and exact Git-history resume safety.
+
+FINAL POST-1.0 ROADMAP GRAMMAR
+Implement this canonical post-1.0 roadmap folder convention:
+
+`p1-<phase>`
+
+where `<phase>` is a canonical non-negative decimal integer with no leading zero except the single value `0`.
+
+Examples:
+- `p1-0` = post-1.0 Phase 0;
+- `p1-1` = post-1.0 Phase 1;
+- `p1-12` = post-1.0 Phase 12.
+
+Inside those folders, keep the human-facing TASK header form:
+
+`TASK: Phase <phase> / P<number> — <title>`
+
+Prompt numbering remains one-based and MUST NOT permit P0.
+
+The assigned roadmap version for post-1.0 prompts is exactly:
+
+`1.<phase>.<prompt number>`
+
+Examples:
+- `p1-0` / P1 -> `1.0.1`;
+- `p1-0` / P2 -> `1.0.2`;
+- `p1-1` / P1 -> `1.1.1`.
+
+HISTORICAL PRE-1.0 GRAMMAR MUST REMAIN VALID
+Retain existing historical roadmap interpretation:
+- folder `p<number>` where number is positive and canonical;
+- TASK header `TASK: Phase <phase> / P<number> — <title>` matching that folder phase;
+- assigned versions exactly `0.<phase>.<prompt number>`.
+
+Do not reinterpret historical `p1`, `p2`, etc. as post-1.0 work. Do not rename/archive/rewrite historical task artifacts or commit history.
+
+CORRECTION GRAMMAR
+Preserve correction syntax:
+
+`c<roadmap-phase>-<lower-kebab-slug>`
+
+but allow `<roadmap-phase>` to be canonical non-negative decimal, including `0`, with no leading zero except the single value `0`.
+
+Required examples:
+- `c0-phase-zero-fix` -> valid after P1;
+- `c10-single-publication` -> remains valid;
+- `c00-x`, `c01-x`, `c-1-x`, uppercase or malformed slugs -> invalid.
+
+Correction TASK headers remain `TASK: Correction <phase> / P<number> — <title>`, must match the folder numeric component, retain one-based P numbering, and retain identical required unchanged-version metadata across the stack. Correction versions are never derived from the contextual phase number.
+
+SINGLE ROADMAP VERSION AUTHORITY
+Do not solve the new grammar by scattering new `if major === 1` formulas through consumers.
+
+`buildPlan()` or a narrow shared helper owned by the same core module must normalize enough roadmap-family metadata that downstream code can derive the correct expected semantic version without reparsing the task-folder string.
+
+The normalized plan must make these distinctions explicit enough for consumers:
+- historical pre-1.0 roadmap family -> major `0`;
+- post-1.0 roadmap family -> major `1`;
+- roadmap phase number -> canonical non-negative integer;
+- correction mode remains a distinct fixed-version mode.
+
+Use the smallest representation that fits the current architecture. Do not add speculative support for future major versions, aliases, or generic pluggable version schemes.
+
+The same authoritative version derivation must own both:
+1. prompt target validation during plan construction;
+2. expected package-version reconstruction during Git-history resume detection.
+
+P2 DOWNSTREAM HANDOFF CONTRACT
+P1 is the sole producer of roadmap-family/version interpretation for P2.
+
+Before reporting P1 complete, explicitly map and prove:
+
+`post-1.0 folder/header identity -> owning parser/plan representation -> focused grammar test`
+
+`plan roadmap family + phase + prompt number -> owning expected-version derivation -> focused target-version test`
+
+`Git-proven completed prefix -> same owning version derivation -> focused resume/version test`
+
+`correction phase 0 -> owning correction parser/plan representation -> focused correction grammar test`
+
+P2 must be able to consume `plan.closeout`, prompt model/version metadata, and existing version assertions without parsing `p1-<phase>` itself or inventing another version formula. If that is not true after P1, stop and report P1 incomplete rather than leaving P2 to repair producer-owned semantics.
+
+COMMIT / RESUME SAFETY
+Preserve existing behavior unless the new version family requires the direct analogous extension:
+- roadmap prompt commit subject remains exactly the assigned semantic version;
+- correction commit subject remains `<correction-folder>/P<number>: <title>`;
+- duplicate matching commit subjects remain an error;
+- a completed later prompt with an earlier missing prompt remains unsafe;
+- unrelated newer commits remain tolerated when the exact prompt prefix is still proven;
+- package version must match the Git-proven completed prefix before resume;
+- historical pre-1.0 version expectations remain unchanged;
+- corrections retain exact unchanged-version checks throughout execution.
+
+Do not add fuzzy history inference, tag lookup, branch naming semantics, or compatibility aliases.
+
+VALIDATOR / DISPLAY CONSISTENCY
+Inspect `scripts/validate-codex-phase.mjs` and runner display/handoff consumers. Update only what is needed so validation/output accurately describes the normalized plan after post-1.0 support. Do not create a second validation grammar separate from `buildPlan()`.
+
+DOCUMENTATION ATOMICITY
+Update `BOOT.md` and `AGENTS.md` in this same P1 implementation so their machine grammar matches the parser now implemented.
+
+Also update only the narrow Pre-Phase-0 grammar-finalization wording in `docs/roadmap/post-1.0-roadmap.md` needed to record the now-final `p1-<phase>` convention and Phase-0-capable correction grammar.
+
+Do NOT mark the overall runner compatibility gate complete in P1. P2 and P3 remain required before Phase 0 product prompt generation/execution is unblocked.
+
+PRESERVED BEHAVIOR
+Preserve:
+- all supported MODEL_CONFIGS labels and model/effort mapping;
+- prompt filename grammar and one-based prompt numbering;
+- exactly one final unambiguous closeout prompt;
+- correction fixed-version semantics;
+- immutable parsed prompt snapshots;
+- Codex launcher/version preflight;
+- structured event capture and final-response capture;
+- implementation prompt commit ownership;
+- dirty-tree and package-lock safety;
+- current interactive/non-interactive display behavior except wording required by accurate new plan metadata;
+- all product/application behavior;
+- package version `1.0.0`.
+
+NON-GOALS
+Do not:
+- implement Phase 0 server-rendered public feed behavior;
+- generate the Phase 0 product prompt stack;
+- add `--closeout` in P1;
+- change normal closeout automation/manual behavior;
+- rewrite historical prompt files or commits;
+- support hypothetical roadmap major 2+;
+- create migration/compatibility aliases for alternate folder names;
+- change product code, database schema, network behavior, or dependencies.
+
+FOCUSED TEST REQUIREMENTS
+Extend the existing parser/runner suites rather than creating redundant new suites.
+
+Prove at minimum:
+- historical `p9` still maps P1/P2 to `0.9.1` / `0.9.2`;
+- `p1-0` maps P1/P2 to `1.0.1` / `1.0.2`;
+- `p1-1` maps P1 to `1.1.1`;
+- Phase 0 TASK metadata is accepted for `p1-0`;
+- P0 remains invalid;
+- plain `p0` remains invalid and is not an alias for `p1-0`;
+- malformed/leading-zero post-1.0 folders fail closed;
+- wrong post-1.0 major/minor/patch target versions fail closed;
+- `c0-<slug>` and matching `Correction 0` metadata are valid;
+- leading-zero/malformed correction phase forms still fail closed;
+- historical correction stacks remain valid;
+- post-1.0 resume at no completed prompts expects `1.<phase>.0`;
+- post-1.0 completed P1 expects `1.<phase>.1`;
+- resumed post-1.0 prefixes tolerate unrelated newer commits exactly as historical stacks do;
+- gaps, duplicate subjects, and package/history mismatch still fail closed;
+- historical resume expectations are unchanged.
+
+Add negative tests for the exact ambiguity/collision cases the new folder convention is intended to prevent.
+
+FOCUSED DEVELOPMENT VALIDATION
+During implementation, use the narrowest commands that answer the current question. At minimum exercise the prompt-grammar tests and the runner resume/version tests affected by the change.
+
+FINAL-TREE VALIDATION
+After all P1 edits are complete, run the smallest non-overlapping applicable matrix on the unchanged final tree:
+- `npm run check`
+- `npm run codex:phase:validate -- c21-post-1-runner-compatibility`
+- committed-range `git diff --check` or an equivalent command that checks the accepted P1 range
+
+Do not separately rerun subordinate format/lint/type/unit/ordinary suites solely to duplicate evidence already executed by `npm run check`.
+
+No PostgreSQL, browser, live-source, recovery, or deployment suite is required unless P1 unexpectedly changes code within those evidence boundaries; if it does, stop and report scope drift before broadening validation.
+
+ACCEPTANCE CRITERIA
+P1 is complete only when:
+- post-1.0 roadmap stacks have one unambiguous executable folder/header/version grammar;
+- Phase 0 roadmap stacks are representable as `p1-0` with P1+ versions `1.0.x`;
+- future Phase-0 correction stacks can use `c0-<slug>`;
+- historical pre-1.0 and correction behavior remains valid and unambiguous;
+- prompt target and resume expected versions use one shared roadmap-family authority;
+- P2 does not need to reparse folder/version grammar;
+- focused negative/history/resume coverage is substantive;
+- BOOT/AGENTS/roadmap machine wording matches actual implementation without claiming the full correction gate is complete;
+- package version remains exactly `1.0.0` and no npm lockfile exists;
+- final applicable validation is green.
+
+FINAL REPORT
+Report:
+- files changed;
+- final historical and post-1.0 roadmap folder/version grammar;
+- correction Phase-0 grammar support;
+- the single owning roadmap-version derivation and its consumers;
+- downstream P2 handoff mapping and focused proof;
+- focused and final validation commands actually run/results;
+- confirmation that historical commit/resume semantics remain preserved;
+- confirmation that package version remains `1.0.0`;
+- any limitation, ambiguity, or planning drift.
