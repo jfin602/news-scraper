@@ -1,0 +1,345 @@
+TASK: Phase 21 / P11 — Phase 21 optimization reassessment and closeout
+
+ROADMAP PHASE
+Phase 21 — Codebase simplification and maintainability hardening.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol High`.
+- Model-family basis: this is the independent terminal engineering gate and, unlike an ordinary closeout, it begins with a fresh whole-codebase optimization/maintainability assessment of the actual post-P1-P10 tree before any closeout write is allowed.
+- Reasoning basis: High reasoning is justified because the prompt must independently discover/classify residual structural problems, distinguish justified architecture from accidental complexity, decide whether Phase 21 needs another implementation-tail rewrite, and only then perform integrated adversarial/local/deployment closeout validation.
+- Complexity / quality floor: `Critical`.
+- Estimated usage: `Very High`.
+- Lower-cost alternative considered: `Sol Light`; it is the normal repository closeout baseline, but it is inadequate for the owner-requested fresh whole-tree optimization deep dive and candidate classification that precedes closeout.
+- Escalation trigger: Stage 0 or later closeout review exposes difficult unresolved transaction/recovery/concurrency ownership, ambiguous production compatibility, architectural security uncertainty, or another problem requiring reasoning beyond the approved Phase 21 boundaries.
+- Escalation target: `Sol Ultra` when stronger cross-system inference is required; compare `Terra Ultra` when the dominant problem is deeper reasoning over explicit transaction/state interactions. Meaningful behavior-preserving refactors discovered only after Stage 0 use the repository's normal transient Terra High closeout remediation handoff.
+- Estimate confidence: `High`.
+- Efficiency rationale: spend the strongest review on the actual cleaned tree, stop before writes when more roadmap work is justified, otherwise execute each final evidence layer once and leave one coherent terminal Phase 21 candidate.
+- Plan delta: this is the rewritten former P8 closeout, moved to the final position after the first Stage-0 reassessment produced three additional evidence-backed implementation prompts.
+
+VERSIONING
+- This is Phase 21 prompt 11 and its assigned project version is `0.21.11`.
+- On first execution require P10 to have left top-level `package.json` at `0.21.10`.
+- **Do not change `package.json` during Stage 0.** If Stage 0 returns `Planning needed — Phase 21 remains open.`, leave the repository completely unchanged at `0.21.10` so the unfinished tail can be replanned/renumbered cleanly.
+- Only after Stage 0 concludes that no additional prompt-worthy Phase 21 cleanup remains may P11 advance top-level `package.json` to `0.21.11` and begin closeout writes/validation.
+- On a later rerun after P11 has legitimately entered closeout, retain `0.21.11`; do not increment again.
+- Any other package version is sequence drift and must stop execution.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- P11 does **not** perform the later `1.0.0` release transition. A green conversational terminal `/closeout phase 21` performs the separate version-only `0.21.11 -> 1.0.0` transition under current BOOT/roadmap policy.
+
+MANUAL TERMINAL BOUNDARY
+This is the sole final manual closeout prompt in `docs/tasks/p21`.
+
+`npm run codex:phase -- p21` must detect the reachable completed P1-P7 commit prefix, execute/commit P8-P10 in order, and leave P11 for explicit manual execution.
+
+P11 has a mandatory Stage-0 no-write decision gate. Closeout does not begin until Stage 0 passes.
+
+======================================================================
+STAGE 0 — FRESH WHOLE-TREE OPTIMIZATION / MAINTAINABILITY REASSESSMENT
+======================================================================
+
+NO-WRITE RULE
+Before Stage 0 reaches outcome B below:
+- do not edit source, tests, docs, task prompts, package metadata, configuration, migrations, or dependencies;
+- do not create/finalize the Phase 21 validation artifact;
+- do not apply even an apparently easy cleanup that the owner may choose to turn into another ordered Phase 21 implementation prompt;
+- do not amend/rewrite P1-P10 history;
+- source/docs/Git inspection and read-only diagnostic/validation commands are allowed.
+
+The purpose is to let the repository owner decide whether the actual post-P10 tree deserves more implementation prompts before terminal release validation.
+
+STAGE 0 REQUIRED AUTHORITY / STATE REFRESH
+Before deciding anything:
+1. read current `BOOT.md` first, then `AGENTS.md`, the complete Phase 21 roadmap entry, `docs/codex-model-selection.md`, `docs/contracts/testing-and-validation-contract.md`, and the narrow governing project/domain/collection/public-admin/architecture/security/production-compatibility documents needed by the code under review;
+2. inspect current `docs/tasks/p21` and require contiguous P1-P11 numbering with exactly one final closeout;
+3. inspect actual reachable P1-P10 implementation commits/diffs/final source rather than assuming prompt prose equals implementation;
+4. identify the Phase 21 base SHA and exact implementation range;
+5. inspect implementation-prompt commit bodies because the runner preserves final prompt reports there; recover measurement/test evidence instead of inventing it;
+6. require current top-level `package.json` to be exactly `0.21.10` before Stage 0 can pass;
+7. run `npm run codex:phase:validate -- p21` read-only and require grammar/order/version/model coherence;
+8. inspect current migrations against the accepted Phase 20 baseline and confirm no Phase 21 prompt changed schema/migration history unless separately authorized and proven;
+9. recognize the Phase 20 migration-0010 checksum correction as a documentation erratum only: the accepted/current migration bytes are unchanged and the corrected SHA-256 is `1583c4af4379d63aedc89260d0f38d5bb1006d118fa9d47268df8a3db7e02f01`;
+10. stop for sequence/planning drift if P1-P10 are incomplete, package/history do not match the completed prefix, or governing docs materially contradict this prompt.
+
+RECOVERED OPTIMIZATION EVIDENCE TO VERIFY
+Do not merely copy these numbers into the final artifact; recover/verify their original reports and limitations.
+
+P1 recorded DB-suite evidence:
+- before: 218 tests; runner 240.700 s; wall-clock 243.455 s;
+- after: 217 tests; runner 123.722 s; wall-clock 124.325 s;
+- retain the recorded environmental/noise limitation and do not imply laboratory-grade performance causality.
+
+P4 recorded moderation hydration evidence:
+- before: 201 queries; 118.68 ms on the measured representative workload;
+- after: 2 queries; 9.62 ms focused measurement and 12.55 ms observation in the full DB-suite context;
+- verify workload/environment/measurement limitations and do not generalize beyond what was actually measured.
+
+STAGE 0 DEEP-DIVE SCOPE
+Perform a fresh whole-codebase investigation of the actual post-P10 tree. Do not limit review to files changed in P8-P10 or to the original Phase 21 candidate list.
+
+Actively inspect, as relevant:
+- dead, unreachable, obsolete, redundant, and compatibility-only source/test/config paths;
+- duplicate semantic authority or parallel implementations of governed rules;
+- unnecessary wrappers, adapters, orchestration, indirection, or data/control-flow complexity that no longer earns its cost;
+- weak TypeScript/API boundaries, permissive optionality/casts retained only for superseded callers, and stale compatibility exports;
+- test-only seams/support leaking into production;
+- transaction ownership, database connections/sessions, locks, timers, listeners, process startup/shutdown, child processes, and resource cleanup;
+- Worker versus Web/API responsibility leakage;
+- repository/query/SQL ownership, N+1 behavior, repeated reads, avoidable sequential I/O, and real query/index bottlenecks;
+- unnecessary production dependencies and duplicated utilities;
+- test harness duplication/expense/flaky timing assumptions that can be simplified without weakening evidence;
+- browser module ownership, hidden cross-workspace state, import cycles, duplicate initialization, broad DOM dependencies, stale-request sequencing, and global mutation behavior;
+- startup/runtime/memory/DB/Worker/Web/scheduling inefficiencies for which materially comparable evidence exists or can be obtained safely;
+- stale comments/docs only when they materially misdescribe current behavior;
+- topic-specific shared-engine behavior or production compatibility drift accidentally introduced by cleanup.
+
+P8-P10 MUST RECEIVE SPECIAL SCRUTINY
+Explicitly verify:
+- P8 actually removed duplicated all-workspace DOM/helper ownership and broad unused-variable suppressions without introducing generic selector plumbing or changing coordinator/core/catalog behavior;
+- P9 deleted only the obsolete `reachValidatedOutboundBoundary`/historical composite test surface, retained `withEligibleEndpointExecution` and `createEndpointExecutionLockRunner`, and preserved unique eligibility/lock/per-hop-safety evidence in canonical owners;
+- P10 removed all active `FeedParser` compatibility references and the dead deduplication barrel without replacement aliases/barrels or parser/deduplication behavior change.
+
+RETAINED/REJECTED CANDIDATES TO RECHECK, NOT AUTOMATICALLY REVIVE
+The prior reassessment intentionally rejected/deferred:
+- duplicate-review detail query consolidation because fan-out was bounded and no comparable measurement demonstrated a release-blocking bottleneck;
+- direct `persistIncludedArticle` / strong-duplicate grouping transaction wrappers because they own meaningful independent transaction/error behavior used by identity/concurrency/grouping proof.
+
+Only revive either candidate if the post-P10 tree provides new concrete evidence. Do not manufacture work because it was previously discussed.
+
+STAGE 0 CANDIDATE REGISTER
+For every meaningful candidate record:
+
+`observed problem -> concrete evidence/location -> maintainability/correctness/operational impact -> smallest candidate remedy -> preserved invariants -> validation blast radius -> include/defer/reject`
+
+Reject/defer when:
+- no concrete problem is demonstrated;
+- improvement is cosmetic or primarily a line/file/module-count target;
+- replacement abstraction would be more generic/speculative than the code removed;
+- risk exceeds demonstrated benefit;
+- work would flatten meaningful Source/endpoint/run/Article/observation/duplicate/security/transaction/process boundaries;
+- it causes unjustified schema churn;
+- it is actually a deferred feature/product enhancement rather than behavior-preserving cleanup.
+
+STAGE 0 DECISION GATE
+There are exactly two acceptable outcomes.
+
+A. ADDITIONAL PROMPT-WORTHY WORK EXISTS
+If one or more `include` candidates deserve implementation before the 1.0 release gate:
+- stop immediately before any repository write;
+- output exactly the leading status line `Planning needed — Phase 21 remains open.`;
+- provide the evidence-backed candidate register;
+- recommend the smallest independent prompt boundaries/order/dependencies and relevant test/evidence blast radius;
+- recommend Terra Medium/High/Ultra or stronger under the owner-set Terra-or-higher implementation floor;
+- do not edit `docs/tasks/p21`;
+- do not change `package.json` from `0.21.10`;
+- do not create/finalize Phase 21 validation evidence;
+- do not claim Phase 21 GREEN, `1.0.0`, or roadmap complete.
+
+The repository owner may return to `/prompt-plan` and `/prompt-write p21`, insert the additional implementation tail, and move this closeout to the new highest prompt number.
+
+B. NO ADDITIONAL PROMPT-WORTHY WORK REMAINS
+If every discovered item is reasonably `reject`/`defer` and no evidence-backed cleanup should block release:
+- retain the Stage-0 candidate register/dispositions for the durable artifact;
+- update only top-level `package.json` from `0.21.10` to `0.21.11`;
+- continue to Stage 1.
+
+Do not manufacture an extra prompt merely to demonstrate thoroughness.
+
+======================================================================
+STAGE 1 — TERMINAL LOCAL CLOSEOUT
+======================================================================
+
+After Stage 0 passes, perform three independent review passes on the exact `0.21.11` candidate.
+
+PASS 1 — CONTRACT / EVIDENCE
+Verify P1-P10 against governing contracts and the Phase 21 exit gate.
+
+At minimum verify:
+- P1 removed unsupported pre-production compatibility testing while preserving current migration/status/recovery proof and retained its measured DB-suite improvement honestly;
+- P2 leaves exactly one required duplicate-aware included-Article collection path with real canonical parser dispatch;
+- P3 leaves one canonical terminal Collection-run attempt/accounting authority while strict persisted consistency, finalization-error attempted result, metadata, and recovery semantics remain;
+- P4 uses constant-query moderation Category hydration while preserving automatic/manual/effective Category semantics, order, filters/cursors, locked reads, and duplicate-group member reads; measurement evidence remains traceable;
+- P5 has one structural admin request-shape primitive without absorbing domain-specific validation/error semantics;
+- P6 separates admin page/static-asset ownership from API security while retaining explicit static allowlisting, CSP, duplicate/malformed JSON protection, body/content-type/integrity controls, and bounded error secrecy;
+- P7 establishes native ES-module coordinator/core/catalog/workspace ownership with no framework/build/dependency migration;
+- P8 finishes local workspace DOM/helper ownership and removes broad unused-variable suppression without changing cross-workspace behavior;
+- P9 removes the obsolete pretransport adapter/test composition while preserving canonical eligibility-before-lock and initial/redirect network safety/lock-release evidence;
+- P10 removes parser/dead-export compatibility residue without runtime behavior changes;
+- no Phase 21 prompt introduced topic-specific engine behavior, new product capability, schema/migration churn, production-data loss, or a hidden second semantic authority.
+
+Trace important preserved consumers, including scheduler/jobs/recovery, capacity/endpoint locks, RSS/Atom and HTML collection, normalization/Relevance, Article identity/observations/provenance, duplicate processing/moderation, public feed, admin APIs/browser, security, backup/restore, and deployment tooling.
+
+MEASUREMENT EVIDENCE
+The durable artifact must record the recovered P1/P4 measurements with environment/workload/limitations and explain whether they support the claimed optimization. Never invent missing measurements or silently normalize incomparable timings.
+
+PASS 2 — ERROR / EDGE-CASE ADVERSARIAL REVIEW
+Derive realistic failure hypotheses from the final implementation, not merely existing test names.
+
+Challenge at minimum:
+- collection bypassing duplicate-aware included processing;
+- included-processing success omitting/forging duplicate-effect accounting;
+- terminal outward Collection-run state diverging from persisted finalization state;
+- finalization failure losing attempted result, conditional validators, transport/parser metadata, or retry classification;
+- `304`, safety block, fetcher throw, parser failure, normalization failure, Article-link rejection, Relevance exclusion, candidate processing failure, and Worker interruption accounting;
+- endpoint lock contention/release and infrastructure errors after P9 cleanup;
+- initial and redirect SSRF/domain/DNS/port safety after removing the old outbound adapter;
+- moderation batching losing Category order, active empty manual override, filters/cursors, group member semantics, or transaction-local reads;
+- admin request-shape validation accepting inherited/extra/missing fields or changing service-owned error mapping;
+- admin API security extraction changing middleware ordering, malformed/duplicate JSON handling, request integrity, body/content type, headers, error secrecy, or disabled-admin behavior;
+- static asset/module routing becoming broader than the explicit allowlist;
+- browser module load/import cycles, duplicate initialization, unrelated-workspace DOM dependencies, stale catalog state, stale async results, lost mutation serialization, or focus/navigation regressions;
+- Operations -> endpoint navigation, Editorial/Source/Moderation shared catalog behavior, Refresh All, Source/endpoint preview/check-now, Publication mutation, Article/review mutation refresh;
+- resource/connection/timer/listener leaks introduced during refactoring;
+- supported production state becoming unreadable despite unchanged migration files;
+- live approved Source collection/public/admin behavior diverging from controlled fixtures.
+
+Classify findings:
+1. protected by code + meaningful evidence;
+2. clear governed behavior with weak coverage — add bounded focused regression/evidence if safe;
+3. concrete bounded defect — repair minimally and rerun invalidated evidence;
+4. meaningful behavior-preserving structural refactor not apparent at Stage 0 — use the Terra High handoff below;
+5. material ambiguity/new architecture/product decision — stop for escalation/replanning.
+
+PASS 3 — CODE-QUALITY / STRUCTURAL REVIEW
+Independently inspect the Phase 21 final diff and important current producers/consumers for:
+- leftover compatibility aliases, dead exports, obsolete tests, test-only production seams, or old admin assets/global state;
+- duplicate Collection-run/accounting/admin-validation/Category-hydration authority;
+- unnecessary re-exports kept only for old imports;
+- cyclic/hidden browser dependencies or regenerated broad DOM registries;
+- wrappers/build steps/dependencies introduced without a concrete need;
+- weak module/process/transaction/resource ownership;
+- unnecessary optional types/defaults retained solely for removed callers;
+- brittle/missing tests or validation commands that duplicate expensive work without new evidence;
+- documentation/task/implementation drift likely to mislead post-1.0 maintainers.
+
+This pass is not a line-count contest. Record intentionally retained complexity and explain the real domain/security/data/process boundary it protects.
+
+TERRA HIGH STRUCTURAL REMEDIATION HANDOFF
+Stage 0 has already passed. If Pass 2 or Pass 3 now uncovers a meaningful behavior-preserving structural refactor that was not apparent at Stage 0:
+- stop before implementing the meaningful refactor;
+- output exactly one self-contained transient `Terra High` remediation prompt under the repository closeout policy;
+- preserve package version `0.21.11` and consume no roadmap prompt number;
+- define the smallest boundary, producers/consumers, preserved invariants, focused tests, broader invalidated evidence, and stop conditions;
+- forbid feature/contract/ADR/roadmap expansion;
+- after remediation is applied, rerun P11 from the beginning, including Stage 0, against the resulting tree.
+
+A small local cleanup or concrete bounded defect MAY be repaired inside Stage 1 only when governed behavior is unambiguous and all invalidated evidence is rerun.
+
+STAGE 1 FINAL NON-OVERLAPPING LOCAL MATRIX
+Re-read current `package.json` scripts immediately before execution and use actual equivalent commands if script names changed.
+
+Expected final matrix:
+- `npm install --ignore-scripts`
+- `npm run codex:phase:validate -- p21`
+- `npm run check`
+- `npm run test:db`
+- `npm run test:security`
+- `npm run test:recovery`
+- `npm run test:browser`
+- `npm run test:live-sources`
+- `git diff --check <PHASE_21_PRE_P1_SHA>...HEAD`
+
+`npm run check` already covers formatting, lint, typecheck, unit, integration, and collection suites under the current runner. Do not rerun those subordinate aliases solely for duplicate evidence.
+
+Required suites must fail clearly rather than silently pass through missing prerequisites, skips, or zero selections. Live-Source failure must be reported truthfully and cannot be replaced by fixtures while claiming Level 7.
+
+If any source/test change occurs after a suite passed, rerun every evidence layer invalidated by that change before claiming final local GREEN.
+
+======================================================================
+STAGE 2 — REFERENCE DEPLOYMENT / LEVEL 8 VALIDATION
+======================================================================
+
+Phase 21 cannot close on local evidence alone. Reuse the existing Phase 19 deployment/runbook/reference-validator procedures and accepted Phase 20 deployment topology.
+
+The human operator controls real VPS/Cloudflare/deployment observations. Do not fabricate, infer, or impersonate those results.
+
+Validate the exact final Stage-1 executable candidate, including as applicable:
+- exact candidate commit SHA/tree/version deployed;
+- schema status remains current/compatible and migration bytes/checksums match the supported baseline;
+- governed customer Publication/Source/endpoint/Category/Relevance/moderation/provenance data remain preserved;
+- Web and Worker start cleanly and liveness/readiness are healthy;
+- scheduler/Worker collection remains operational;
+- approved live Sources collect only through the governed Worker path and preserve approval/network-safety boundaries;
+- public `/` and `/api/feed` remain correct with original-publisher links;
+- protected admin static modules/API work through Cloudflare Access;
+- unauthenticated admin access is challenged/denied and direct-origin bypass remains unavailable;
+- representative admin workspace navigation/mutation, Operations endpoint navigation, Source/endpoint controls, Article/duplicate moderation remain usable in a real browser;
+- backup/recovery/deployment ownership/policy remains intact;
+- no new operational alert/resource leak/regression attributable to Phase 21 is observed.
+
+If Stage 2 exposes an executable defect requiring source/test/package/runtime-contract changes, invalidate the candidate, repair through the appropriate bounded/remediation/planning path, rerun every invalidated Stage-1 evidence layer, and repeat affected Stage-2 evidence on one coherent final tree.
+
+======================================================================
+DURABLE PHASE 21 VALIDATION ARTIFACT
+======================================================================
+
+Only after Stage 0 passes and Stage 1/Stage 2 evidence actually exists, create/finalize:
+
+`docs/validation/phase-21-codebase-simplification-maintainability-hardening.md`
+
+Record at minimum:
+- Phase 21 pre-P1 base SHA/tree/version;
+- exact final accepted SHA/tree/version `0.21.11`;
+- P1-P10 ordered implementation commits;
+- Stage-0 whole-tree candidate register and all include/defer/reject dispositions;
+- complexity/duplicate authority/dead compatibility/test leakage actually removed by P1-P10;
+- important complexity intentionally retained and why;
+- confirmation of no schema/migration change, or full supported-upgrade evidence if this assumption was unexpectedly invalidated and separately authorized;
+- accepted Phase 20 production baseline identity and the migration-0010 documentation erratum/correct checksum without implying schema drift;
+- P1 before/after DB-suite counts/timings/environment/limitations;
+- P4 before/after moderation query-count/timings/workload/environment/limitations;
+- every command/procedure actually executed and observed result/evidence level;
+- Pass-2 adversarial hypotheses/findings/dispositions and any bounded defects/tests added;
+- Pass-3 structural findings/dispositions and whether any Terra High remediation handoff occurred before the final rerun;
+- live-Source evidence and limitations;
+- Level-8 deployment candidate/environment/operator observations and limitations;
+- production-data preservation/schema-current observations;
+- remaining known limitations/accepted operational constraints;
+- explicit statement that P11 does not itself perform the later `1.0.0` version-only release transition.
+
+Do not rewrite historical validation artifacts except through a separately governed documentation correction. Do not turn later successful evidence into a claim that an earlier artifact observed something it did not.
+
+======================================================================
+TERMINAL ACCEPTANCE
+======================================================================
+
+P11 may report Phase 21 engineering GREEN only when:
+- Stage 0 found no additional prompt-worthy cleanup;
+- package version is exactly `0.21.11`;
+- P1-P10 behavior and structural claims survive the three-pass review;
+- the final non-overlapping local matrix is green on the exact accepted tree;
+- required live-Source evidence is actually observed;
+- Level 8 reference-deployment evidence is actually observed against the exact candidate;
+- supported production state/schema compatibility remains intact;
+- the durable Phase 21 artifact truthfully records the final evidence and limitations;
+- no unresolved classification-2-through-5 issue remains without explicit disposition that satisfies the governing exit gate.
+
+A green P11 final status must make the handoff explicit:
+- `PHASE 21 GREEN — TERMINAL ENGINEERING VALIDATION COMPLETE`
+- `Final validated pre-1.0 version: 0.21.11`
+- `Next action: conversational /closeout phase 21 for the version-only 1.0.0 transition`
+- do not claim `Roadmap status: COMPLETE` or `Launch state: 1.0.0` until that separate terminal `/closeout` succeeds.
+
+If Stage 0 found more work, use only the planning-needed outcome and perform zero writes. If later evidence is blocked, report the blocker truthfully; do not downgrade required evidence or close by assumption.
+
+NON-GOALS
+- no new product/admin capability;
+- no deferred SEO/SSR/description/image/AI/newsletter/ranking/etc. feature work;
+- no topic-specific shared-engine behavior;
+- no arbitrary framework/dependency/schema migration;
+- no destructive production reset;
+- no Phase 22 or `0.22.0` baseline;
+- no `1.0.0` version change inside P11.
+
+FINAL RESPONSE
+If GREEN, report:
+- final accepted SHA/tree/version;
+- Stage-0 candidate register summary;
+- Pass-1/2/3 findings and dispositions;
+- P1/P4 measurement evidence with limitations;
+- exact local/live/deployment validation actually observed;
+- durable artifact path;
+- remaining accepted limitations;
+- whether any remediation occurred and was revalidated;
+- the exact next action `/closeout phase 21`.
+
+If not GREEN, lead with the applicable planning/blocker status and provide only evidence actually established.
