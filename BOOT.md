@@ -14,17 +14,20 @@ It establishes project identity, canonical terminology, authority, document rout
 - Deployment cardinality: exactly one Publication/topic per deployed installation
 - Topic reuse model: configure and deploy another installation of the same shared codebase; do not concurrently host multiple topic Publications in one installation
 - Publication data-model role: singleton editorial/configuration state, **not** a relational tenant/ownership key
-- Current phase: **Phase 21 — Codebase simplification and maintainability hardening**
-- Current implementation direction: **behavior-preserving final-tree simplification and maintainability hardening derived from evidence-backed candidate assessment, without adding product capability or weakening the launched production-data compatibility boundary**
-- Production status: launched; the accepted Phase 20 customer launch established the first supported production baseline
+- Current roadmap: **`docs/roadmap/post-1.0-roadmap.md`**
+- Current phase: **Post-1.0 Phase 0 — Server-rendered public feed**
+- Current baseline: **`1.0.0`**
+- Current implementation direction: **server-render the canonical root page from the existing canonical public-feed read-model semantics, with JavaScript as progressive enhancement and no competing Article eligibility/order/query authority**
+- Pre-Phase-0 gate: **before Phase 0 roadmap prompts are generated or executed, complete the post-1.0 roadmap's bounded non-versioned runner-compatibility correction; current parser/runner machine grammar remains pre-1.0 until that correction changes source, focused tests, BOOT, and AGENTS together**
+- Production status: launched at `1.0.0`; accepted Phase 20 customer launch established the first supported production baseline and completed Phase 21 closed the MVP roadmap into the `1.0.0` release
 - Production database policy: preserve supported customer data, governed relationships, and supported migration upgradeability under `docs/decisions/production-data-and-schema-compatibility.md`; the earlier destructive pre-production rebuild policy does not apply to supported customer state
 - Production compatibility boundary: Phase 19 established/validated upgrade/restore/rollback procedures and accepted Phase 20 launch evidence established the first supported production schema/data baseline
 - Initial Publication: publishing-industry news relevant to indie authors
 - Public direction: canonical root `/` rolling recent-headline feed plus canonical basic API `/api/feed`, sending readers to original publishers
-- Admin direction: Cloudflare Access-protected singleton Publication/Source/endpoint/Relevance/Category/Article/duplicate/health/change-history control plane, built after the tech-demo vertical slice
+- Admin direction: Cloudflare Access-protected singleton Publication/Source/endpoint/Relevance/Category/Article/duplicate/health/change-history control plane
 - Core constraint: Publication-specific behavior is configuration; shared engine logic remains topic independent
 
-Phases 0–20 and the Phase 10 singleton correction are complete; detailed history and validation links belong to `docs/roadmap/mvp-roadmap.md` and `docs/validation/`. Two qualifications remain prominent because summaries must not turn owner acceptance into unobserved proof:
+MVP Phases 0–21 and the Phase 10 singleton correction are complete; detailed history and validation links belong to `docs/roadmap/mvp-roadmap.md` and `docs/validation/`. Two historical qualifications remain prominent because summaries must not turn owner acceptance into unobserved proof:
 
 - Phase 9 was accepted by the repository owner on August 11, 2026 although its artifact records that the required two-Source Level 7 observation was incomplete after one Source timed out in that environment.
 - Phase 14 was accepted by the repository owner on August 14, 2026 while its artifact retained the original BLOCKED/RED Level 8 deployment-observation limitation. Phase 19 later supplied that proof without rewriting the historical artifact.
@@ -33,9 +36,9 @@ All historical validation artifacts remain truthful, SHA/environment-specific ev
 
 ## Delivery priority
 
-Phases 1–9 are the historical tech-demo critical path; Phase 20 completed customer launch and established the supported production baseline. The roadmap owns detailed sequencing and completed-phase history.
+The MVP roadmap is complete through terminal Phase 21 and the project is released at `1.0.0`. The owner-approved post-1.0 roadmap owns current sequencing, beginning with Phase 0 — Server-rendered public feed.
 
-Current delivery is terminal Phase 21 behavior-preserving simplification under post-launch production compatibility. New features remain frozen until it closes into the `1.0.0` launch state; only bounded critical production, security, data-integrity, or operational fixes may interrupt. Every implementation/correction inherits the testing contract, and any persisted/schema change must prove supported forward upgrade and data preservation as well as migration from zero.
+Phase 0 product prompt generation/execution is currently gated only by the bounded non-versioned runner-compatibility correction documented in `docs/roadmap/post-1.0-roadmap.md`. That tooling gate consumes no Phase 0 prompt/version number and leaves `package.json` at `1.0.0`. After the gate is green, Phase 0 implementation must preserve the canonical public-feed read model, topic independence, supported production data, and the inherited testing contract. Any persisted/schema change must prove supported forward upgrade and data preservation as well as migration from zero.
 
 ## New-session startup
 
@@ -45,10 +48,12 @@ For project-wide work refresh:
 2. `README.md`
 3. `AGENTS.md`
 4. `docs/contracts/project-contract.md`
-5. `docs/roadmap/mvp-roadmap.md`
+5. `docs/roadmap/post-1.0-roadmap.md`
 6. narrowest governing contract/ADR, including `docs/contracts/testing-and-validation-contract.md` for implementation/review work
 7. relevant implementation/tests
 8. recent commits affecting the area when recency matters
+
+Use `docs/roadmap/mvp-roadmap.md` when completed MVP history, historical correction scope, or pre-1.0 exit-gate context is material.
 
 For UI-workstream tasks, additionally read `docs/design/README.md` and `docs/design/ui-workflow.md` before planning, design review/application, or writing a UI prompt.
 
@@ -128,7 +133,8 @@ Report authoritative conflicts rather than choosing silently.
 | Admin perimeter / SSRF / content safety / isolation / observability / recovery                                                                               | `docs/operations/security-reliability-and-operations.md`     |
 | PostgreSQL backup / restore / managed backup retention                                                                                                       | `docs/operations/database-backup-and-restore.md`             |
 | Deployment / schema upgrade / rollback / incidents / reference operations                                                                                    | `docs/operations/deployment-and-incident-runbook.md`         |
-| Phase sequence / correction history / exit gates                                                                                                             | `docs/roadmap/mvp-roadmap.md`                                |
+| Current post-1.0 phase sequence / dependencies / exit gates                                                                                                  | `docs/roadmap/post-1.0-roadmap.md`                           |
+| Completed MVP phase / correction history                                                                                                                     | `docs/roadmap/mvp-roadmap.md`                                |
 | Singleton Publication data-model decision                                                                                                                    | `docs/decisions/single-publication-simplified-data-model.md` |
 | Production data/schema compatibility / supported upgrade boundary                                                                                            | `docs/decisions/production-data-and-schema-compatibility.md` |
 | Historical superseded data-model decision                                                                                                                    | `docs/decisions/topic-independent-publication-model.md`      |
@@ -157,7 +163,7 @@ Read the routed contract for full matrices and algorithms. BOOT keeps only disti
 - Normalization precedes Article-link policy, Relevance/Categories, identity, duplicates, and feed use. Relevance exclusion terminates before identity; rule edits are prospective by default.
 - Article identity is Source-scoped and transactionally idempotent. True-duplicate identity relates separately retained Articles; all Source instances/provenance remain stored and each Duplicate group has exactly one Primary.
 - Article visibility is independent from duplicate role. Collection activity, endpoint operational state, and current run health do not themselves hide retained otherwise-feed-eligible rows.
-- Public headlines use stored `original_url`; `canonical_identity_url` remains an identity-comparison field. `GET /api/feed` and `GET /` share the canonical public-feed read model rather than parallel eligibility/query paths.
+- Public headlines use stored `original_url`; `canonical_identity_url` remains an identity-comparison field. `GET /api/feed` and `GET /` share the canonical public-feed read model rather than parallel eligibility/query paths. Post-1.0 Phase 0 requires the successful initial `GET /` HTML to contain configured Publication presentation and the canonical first feed page directly; JavaScript is progressive enhancement, not the initial content authority.
 - Web/API never collects Sources inline. Source runs/jobs fail independently, and collection failures do not make the retained public feed unavailable.
 - Admin uses Cloudflare Access with direct-origin protection, request-integrity controls, and application validation of real resource relationships/domain invariants. Native application accounts/roles and Publication-tenant authorization remain deferred.
 - Accepted Phase 20 established durable supported customer state. Clean migration from zero remains required for new/disposable installations, but post-baseline persisted/schema changes must preserve supported data/relationships and prove the supported forward upgrade under the production-compatibility ADR.
@@ -167,11 +173,11 @@ Read the routed contract for full matrices and algorithms. BOOT keeps only disti
 
 ## Roadmap state
 
-Use `docs/roadmap/mvp-roadmap.md` for phase history, dependencies, and exit gates.
+Use `docs/roadmap/post-1.0-roadmap.md` for current phase dependencies and exit gates. Use `docs/roadmap/mvp-roadmap.md` for completed MVP history.
 
-Current phase: **Phase 21 — Codebase simplification and maintainability hardening**. Phases 0–20 and the Phase 10 singleton correction are complete. Accepted Phase 20 launch evidence identifies the first supported production source/version/schema baseline.
+The MVP roadmap is complete through terminal Phase 21 and the project is released at `1.0.0`. Current phase is **Post-1.0 Phase 0 — Server-rendered public feed**, baseline `1.0.0`.
 
-Phase 21 is behavior-preserving work under post-launch compatibility and the feature freeze. It is terminal: a green `/closeout` transitions the final validated `0.21.x` tree directly to the `1.0.0` launch state and creates neither Phase 22 nor a `0.22.0` baseline. Later roadmap work requires explicit owner approval and documentation alignment. Do not advance or close it by assumption; verify its exit gate and inherited testing contract against the exact final tree.
+Before Phase 0 product prompts are generated or executed, complete the post-1.0 roadmap's non-versioned runner-compatibility gate. The current parser still implements the historical pre-1.0 positive-phase / `0.<phase>.<prompt>` machine grammar. Do not represent the post-1.0 Phase 0 stack as executable until the bounded tooling correction updates parser/runner source, focused parser tests, BOOT machine grammar, and AGENTS machine grammar in the same change. The correction leaves `package.json` at `1.0.0` and consumes no Phase 0 patch number.
 
 Historical qualifications remain as summarized in Project identity: Phase 9 and Phase 14 owner acceptances did not rewrite their recorded evidence limitations, and Phase 19 later supplied Phase 14's deferred Level 8 proof.
 
@@ -190,7 +196,7 @@ Historical qualifications remain as summarized in Project identity: Phase 9 and 
 - Prefer smallest correct incremental change and simplest supported architecture over speculative future-proofing.
 - For pre-production canonicalization, prefer deletion over wrappers/aliases: remove legacy-only migrations, code, types, APIs, tests, fixtures, and configuration paths instead of preserving superseded behavior in the active tree.
 - After the Phase 20 production baseline, never apply the pre-production destructive-reset rule to supported customer data; trace supported baseline → migrations/persisted representation → data/relationship preservation → backup/rollback/restore → application consumers/tests before approving post-launch persistence refactors.
-- For Phase 21, derive tasks from the accepted launched final tree and observed maintainability/measurement evidence. Do not target arbitrary LOC/file/module/dependency metrics, and do not create cleanup tasks for areas already simple and well-owned.
+- For post-1.0 roadmap work, derive tasks from current implementation and the active roadmap rather than historical MVP prompt structure; preserve the supported production-data boundary and do not manufacture infrastructure or abstractions without demonstrated need.
 - Trace shared helpers/consumers before changes.
 - Before Phase 16 duplicate changes trace Source-scoped Article identity → separately persisted Articles → duplicate evidence/signals → canonical review pair/state → Duplicate-group membership → Primary selection → public-feed eligibility/suppression → Collection-run duplicate effects → tests.
 - Before Phase 18 collection changes trace endpoint type/profile → approval/lifecycle/operational state → endpoint lock/network safety → bounded HTTP fetch/redirect → endpoint-selected parser adapter → conditional RSS/Atom-only admission stage → shared normalization/Article-link policy/Relevance/Source-scoped identity/persistence/observation/duplicate path → run/health diagnostics → admin sample preview versus check-now → focused/shared regressions.
@@ -420,6 +426,8 @@ Strict order:
 
 Do not silently run missing stages. If unstable requirements, contradictory docs, repository drift, or a material decision blocks progress, return `Planning needed` and stop before next stage.
 
+**Post-1.0 runner gate:** the approved post-1.0 version law is already documented, but the machine grammar below still describes the currently implemented pre-1.0 parser. Do not use `/prompt-write` to emit a post-1.0 Phase 0 roadmap stack until the non-versioned runner-compatibility correction updates parser/runner source, focused parser tests, this machine-grammar section, and `AGENTS.md` together.
+
 ## Codex task-stack prompt-file grammar
 
 The phase runner and parse-only validator share the same executable parser in `scripts/codex-phase-core.mjs`. Runner supports two explicit stack modes: versioned roadmap phase stacks and non-versioned correction stacks. Parser changes MUST update this section and focused regression tests in the same change.
@@ -498,6 +506,8 @@ Project versions use `0.<roadmap phase>.<phase prompt number>` for roadmap phase
 - Correction closeout never transitions package version and is not automatically followed by `/closeout`.
 - The completed Phase 10 singleton implementation correction is the historical first non-versioned correction stack.
 - Parallel UI work is non-versioned, not a `codex:phase` stack, and MUST NOT modify package version or consume roadmap prompt numbers.
+
+This versioning subsection records the current parser's pre-1.0 executable grammar. The approved post-1.0 law (`1.<phase>.<prompt>`, beginning with Phase 0 at baseline `1.0.0`) is governed by `docs/roadmap/post-1.0-roadmap.md` and becomes executable only after the required runner-compatibility correction updates this subsection and parser/tests together.
 
 ## `/prompt-ass`
 
@@ -632,7 +642,7 @@ Publication/Relevance prompts preserve topic independence, singleton Publication
 
 Duplicate prompts preserve every Article/observation, exactly one Primary/group, review-state persistence, false-positive safeguards, manual reversibility, and regression corpus coverage; duplicate state is installation-wide.
 
-Public-feed prompts preserve singleton public exposure, Source approval/lifecycle trust, Article visibility + ungrouped-or-Primary eligibility, deterministic published-at/first-seen semantics, bounded safe output, and stored `original_url`. Routing is `GET /` and `GET /api/feed`; no Publication selector/scoping argument.
+Public-feed prompts preserve singleton public exposure, Source approval/lifecycle trust, Article visibility + ungrouped-or-Primary eligibility, deterministic published-at/first-seen semantics, bounded safe output, and stored `original_url`. Routing is `GET /` and `GET /api/feed`; no Publication selector/scoping argument. For post-1.0 Phase 0, the root's successful initial HTML is server-rendered from the canonical public-feed read-model semantics and client JavaScript is progressive enhancement rather than another feed authority.
 
 UI prompts preserve the same public-feed/domain behavior while changing approved presentation. Shared frontend/runtime files may be changed only when explicitly planned; material backend/domain changes are routed out of the UI workstream. UI prompts never change project version or roadmap state.
 
@@ -694,7 +704,7 @@ This rule governs only the pre-production lifecycle. It MUST NOT be extended to 
 
 Phase 19 established and validated the upgrade/backup/restore/rollback procedures required for production. Acceptance of Phase 20 customer launch establishes the first supported production source/version/schema baseline. From that point forward, normal upgrades/refactors preserve supported customer data and governed relationships, supported production migration history remains upgrade-capable, and clean migration-from-zero is required for new/disposable installations but does not substitute for production-upgrade proof. Detailed authority is `docs/decisions/production-data-and-schema-compatibility.md`.
 
-Phase 21 operates entirely under this production compatibility rule. It may simplify source structure aggressively where safe, but it may not destroy the launched customer database or rewrite supported migration history merely to make the final schema appear cleaner.
+Completed Phase 21 operated entirely under this production compatibility rule. All post-1.0 work continues under the same boundary: it may evolve the product and source structure as authorized by the active roadmap, but it may not destroy supported customer data or rewrite supported migration history merely to simplify development.
 
 # Boot maintenance
 

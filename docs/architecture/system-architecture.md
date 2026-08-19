@@ -51,7 +51,7 @@ Publication is not a tenant key:
 - endpoint/Collection-run and Source/Article/observation relationships remain explicit because they protect real provenance/integrity;
 - no supported runtime path selects among Publications.
 
-The canonical public page is `GET /`. The canonical basic public feed API is `GET /api/feed`.
+The canonical public page is `GET /`. The canonical basic public feed API is `GET /api/feed`. Post-1.0 Phase 0 makes the initial root response server-rendered while preserving the same canonical public-feed read-model semantics used by the API.
 
 A second topic uses another configured deployment of the same codebase and therefore has separate deployment/runtime state unless a later explicit architecture decision defines shared infrastructure without changing the one-Publication-per-installation product boundary.
 
@@ -59,7 +59,7 @@ A second topic uses another configured deployment of the same codebase and there
 
 The initial deployment may use one repository/database, but it MUST support at least two independently runnable process roles:
 
-- **Web/API process:** serves the installation's public/admin interfaces, validates commands, reads normalized data, and may request/enqueue jobs. It does not perform Source collection inline.
+- **Web/API process:** serves the installation's public/admin interfaces, validates commands, reads normalized data, server-renders the initial canonical root feed through the same public-feed read boundary used by the API, and may request/enqueue jobs. It does not perform Source collection inline and MUST NOT introduce an SSR-only Article eligibility/order query authority.
 - **Worker process:** performs scheduled/manual collection execution, eligibility/network-safety checks, parsing, normalization, validation, Relevance, identity resolution, duplicate evaluation where implemented, and persistence.
 
 A slow/crashed Source request in the Worker must not block normal public-feed requests.
@@ -118,7 +118,7 @@ Rules:
 - The optional Source RSS/Atom item admission filter is Source-owned include-only configuration evaluated over existing parsed RSS/Atom Raw-item text before Article-candidate normalization; it is distinct from downstream Relevance.
 - A configurable static-HTML parser sits behind that same boundary. Endpoint type selects RSS/Atom or HTML parsing; both produce the same Raw-item contract, HTML bypasses the RSS/Atom-only admission filter, and all stages from normalization onward are shared.
 - Source-admin sample preview is a pure bounded parser/profile-validation path over operator-supplied HTML. It has no network, Collection run, endpoint lock, scheduler/health, or Article persistence edge and is not another collector.
-- Public-feed code consumes normalized Article read models only.
+- Public-feed code consumes normalized Article read models only. The server-rendered root page and `GET /api/feed` MUST share the same canonical public-feed application/read-model boundary; rendering and JSON shaping may differ, but eligibility, filtering, ordering, cursor semantics, and Article selection MUST NOT fork into competing query paths.
 - Admin controllers do not perform collection inline; manual check-now requests the same governed endpoint execution/job path rather than a second collector.
 - Deduplication logic does not depend on topic-specific keywords.
 - Relevance/Categories enter through singleton Publication configuration interfaces and may use Source scope where defined.
@@ -141,7 +141,7 @@ Architecture quality is judged by clear ownership, preserved invariants, and und
 - Optimize runtime, database, Worker, Web/API, startup, and resource behavior from observed measurements and real bottlenecks rather than speculative caching, concurrency, batching, or complexity.
 - Behavior-preserving simplification MUST NOT flatten or weaken genuine Source/endpoint/run/Article/observation, transaction, security, provenance, idempotency, or duplicate-integrity boundaries merely because fewer types/joins/modules would result.
 
-Phase 21 performs the deliberate whole-codebase application of these principles after customer launch. Later feature work inherits them; Phase 21 is not a one-time permission to simplify at the expense of governed behavior.
+Phase 21 performed the deliberate whole-codebase application of these principles after customer launch. Later feature work inherits them; Phase 21 was not a one-time permission to simplify at the expense of governed behavior.
 
 ## Collection pipeline
 
@@ -231,17 +231,17 @@ MVP administrative UI/API routes are protected by Cloudflare Access according to
 
 ## Initial technical baseline
 
-Unless superseded by an Accepted ADR:
+Unless superseded by an Accepted ADR or later governing roadmap/contract requirement:
 
 - Node.js with TypeScript;
 - Express-compatible HTTP structure;
 - PostgreSQL as system of record;
 - one Publication/topic per deployed installation;
 - singleton Publication configuration without relational tenancy;
-- root `/` as the canonical customer-visible feed route;
+- root `/` as the canonical customer-visible feed route, with the initial successful response server-rendered from the canonical public-feed read model and lightweight JavaScript used only as progressive enhancement;
+- `GET /api/feed` as the canonical public JSON/discovery endpoint using that same public-feed read-model semantics;
 - manual Worker collection preserved as an operator path through the canonical endpoint execution unit;
 - durable scheduler/job mechanism suitable for retries and separate Workers;
-- server-rendered or lightweight client-rendered web UI;
 - container-friendly environment/secrets configuration.
 
 The architecture contract matters more than a specific library choice.

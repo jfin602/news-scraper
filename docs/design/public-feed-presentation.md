@@ -2,7 +2,7 @@
 
 ## Authority and direction
 
-This document defines the durable Phase 13 visual treatment for the root public feed. Higher-authority product/domain contracts, the roadmap, ADRs, and testing contract remain authoritative for behavior.
+This document defines the durable public-feed visual treatment established in Phase 13 and preserved through post-1.0 Phase 0 server rendering. Higher-authority product/domain contracts, the roadmap, ADRs, and testing contract remain authoritative for behavior.
 
 Visual direction: **modern editorial / publication desk**. The Publication and its headlines are the product. Avoid generic SaaS-dashboard framing, card-heavy news-portal styling, sidebars, glassmorphism, heavy shadows, decorative gradients, zebra tables, and unrelated application chrome.
 
@@ -66,18 +66,20 @@ Theme changes presentation tokens only, never feed requests, URL state, Publicat
 
 Use a compact semantic token layer with equivalents of `--page-bg`, `--surface`, `--surface-subtle`, `--text-primary`, `--text-muted`, `--border`, `--link`, `--focus-ring`, `--brand-accent`, `--danger`, and `--control-bg`, with effective light/dark values and safe application-controlled contrast fallbacks.
 
-## Loading and public states
+## Server-rendered initial and enhanced loading states
 
-The initial `/api/feed` pending state must resolve R7KM. While pending:
+Post-1.0 Phase 0 removes the JavaScript-owned initial loading lifecycle for a successful public request. The initial `GET /` HTML already contains the resolved Publication presentation, discovery state, and first feed page when the request succeeds.
 
-- do not visibly paint `News feed` or any generic Publication name;
-- do not show fake description/logo or fake/skeleton headlines;
-- show a centered loading region with a small indicator and accessible text such as `Loading publication…`;
-- under `prefers-reduced-motion`, use an equivalent static/non-continuously-animated indication.
+For the initial successful page:
 
-Remove placeholder-first rendering rather than hiding it cosmetically after paint.
+- do not visibly paint `News feed` or any generic/unset Publication name before configured content;
+- do not show fake description/logo, skeleton headlines, or an initial loading spinner in place of available server-rendered content;
+- JavaScript must treat the server-rendered DOM as the initial canonical state and must not clear or reconstruct it merely to refetch the same first page;
+- delayed or unavailable JavaScript must leave the rendered first page useful and readable.
 
-Empty, unavailable, invalid, and dependency-error states share a restrained feed-state treatment, not giant alert cards. State must not rely on color alone. Invalid discovery keeps Reset easy to find. Continuation failure remains local to pagination and must not destroy already loaded Articles.
+Loading presentation remains relevant to later JavaScript-enhanced transitions such as a new search/filter request or load-more continuation. Those transitions may use the established small indicator and accessible status text, and under `prefers-reduced-motion` must use an equivalent static/non-continuously-animated indication.
+
+Empty, unavailable, invalid, and dependency-error server-rendered states share the same restrained feed-state treatment, not giant alert cards. State must not rely on color alone. Invalid discovery keeps Reset easy to find. Continuation failure remains local to pagination and must not destroy already loaded Articles.
 
 `Load more` is visually secondary, keeps its footprint while busy, and keeps progress/error messaging local to pagination.
 
@@ -85,7 +87,7 @@ Empty, unavailable, invalid, and dependency-error states share a restrained feed
 
 Headline activation remains a direct same-context link to exact stored `original_url`; do not force new tabs or add redirect/tracking wrappers.
 
-Motion stays minimal. Short focus/color transitions and a lightweight loader are acceptable; avoid row entrance animation, theme crossfades, sliding filter panels, parallax, and animated headline reflow. Honor `prefers-reduced-motion`.
+Motion stays minimal. Short focus/color transitions and a lightweight loader for enhanced transitions are acceptable; avoid row entrance animation, theme crossfades, sliding filter panels, parallax, and animated headline reflow. Honor `prefers-reduced-motion`.
 
 Across supported widths:
 
@@ -99,8 +101,8 @@ The Phase 13 root feed targets WCAG 2.2 AA: semantic/native controls, coherent k
 
 ## Non-goals
 
-This specification does not authorize changes to `/` or `/api/feed`, feed eligibility/order, discovery/cursor/history semantics, Publication admin UI, configurable timezone/date behavior, duplicate moderation, featured ordering, Article-body republishing, Article thumbnails/images, remote font dependencies, or topic-specific shared-engine/UI behavior.
+This specification does not authorize changes to feed eligibility/order, discovery/cursor/history semantics, Publication admin UI, configurable timezone/date behavior, duplicate moderation, featured ordering, Article-body republishing, Article thumbnails/images, remote font dependencies, or topic-specific shared-engine/UI behavior. Post-1.0 Phase 0 changes the initial rendering ownership of `/` under its governing contract; it does not authorize unrelated visual redesign or alter `/api/feed` semantics.
 
 ## Validation intent
 
-Phase 13 browser validation should cover representative desktop/mobile layouts, effective light/dark presentation, System/Light/Dark selection and persistence, system-following behavior, keyboard/focus, reduced motion, loading/empty/unavailable/error states, long-content reflow, direct publisher links, and preserved Phase 12 discovery workflows.
+Post-1.0 Phase 0 browser validation should preserve representative desktop/mobile layouts, effective light/dark presentation, System/Light/Dark selection and persistence, system-following behavior, keyboard/focus, reduced motion, empty/unavailable/invalid/error states, long-content reflow, direct publisher links, and preserved discovery workflows. It should also observe that the successful first page is already populated from server-rendered HTML before client JavaScript enhancement and remains useful with JavaScript disabled. Direct HTTP/source validation belongs to the testing contract and complements, rather than replaces, browser evidence.

@@ -72,20 +72,35 @@ The canonical customer-visible route is:
 
 `GET /`
 
-The page MUST:
+Post-1.0 Phase 0 makes the initial root response server-rendered. The page MUST:
 
 - represent the installation's singleton Publication configuration and remain topic independent in shared code;
-- consume the canonical public-feed read model/semantics rather than introducing a second Article-eligibility, ordering, or database-query path;
-- preserve the same Publication public-exposure, Source trust/lifecycle, Article visibility, bounded-window, effective-date, ordering, and `original_url` destination rules as the canonical feed endpoint;
-- use descriptive Publication configuration returned by the canonical public-feed boundary rather than hard-coding the initial topic/name into shared UI behavior;
+- obtain the initial public state through the same canonical public-feed application/read-model boundary used by `GET /api/feed`, rather than introducing a second Article-eligibility, ordering, filtering, cursor, or database-query authority;
+- preserve the same Publication public-exposure, Source trust/lifecycle, Article visibility, bounded-window, effective-date, ordering, duplicate suppression, discovery, and `original_url` destination rules as the canonical feed endpoint;
+- render configured Publication name and available bounded public presentation data directly into the initial HTML response when the public read succeeds;
+- render the canonical first page of current Article rows directly into the initial HTML response, including effective date, headline, Source name, and exact stored `original_url` headline destination;
+- render supported root discovery criteria (`q`, `source`, and `category`) server-side when supplied, using the same normalized request semantics as the canonical public feed;
 - require no reader authentication;
-- render explicit loading, empty, unavailable/not-found, and dependency/error states without leaking private Publication configuration or backend details;
+- render explicit populated, empty, unavailable/not-found, invalid-discovery, and bounded dependency/error states without leaking private Publication configuration or backend details;
 - treat absent singleton Publication configuration and non-public configuration as the same generic unavailable/not-found public-page state, consistent with the API's generic `404` behavior;
+- escape untrusted Publication, Article, Source, and discovery text for its HTML output context and preserve the content-safety/CSP requirements in the operations contract;
 - link each headline directly to the stored Article `original_url` supplied by the public-feed read model;
 - provide the core desktop `Date | Headline | Source` presentation and an accessible responsive stacked mobile presentation;
+- remain useful for first-page reading and discovery navigation when JavaScript is unavailable or delayed;
 - avoid Source collection in Web/API page handling; collection remains Worker-owned.
 
-A lightweight same-origin client that fetches `GET /api/feed` is a valid implementation. Server rendering is also valid only when it reuses the same canonical public-feed read-model boundary rather than duplicating feed eligibility/query logic.
+The successful initial page MUST NOT depend on client JavaScript or a secondary HTTP request to construct its Publication identity or first Article page. JavaScript MAY progressively enhance the already-rendered state for discovery transitions, history behavior, theme controls, load-more continuation, and other interaction, but it MUST NOT create a competing feed interpretation or discard correct server-rendered content merely to refetch the same first page.
+
+### Root HTML status semantics
+
+The root HTML surface mirrors the public feed's bounded outcome classes rather than returning a successful shell for every condition:
+
+- a populated or empty valid public result returns `200`;
+- malformed, repeated/ambiguous, unsupported, or out-of-bound discovery input returns bounded generic `400` HTML;
+- absent singleton Publication configuration or non-public Publication state returns bounded generic `404` HTML without revealing private state;
+- dependency/read failure returns bounded generic `503` HTML without SQL, stack traces, connection details, or other secrets.
+
+The body for each outcome remains useful and presentation-consistent, but HTTP status is not hidden behind JavaScript state.
 
 The obsolete pre-production route `GET /publications/:publicationSlug` is not a supported public product surface. The Phase 10 entry correction removes that implementation path rather than preserving a compatibility alias without an explicit requirement.
 
@@ -123,7 +138,7 @@ Requirements:
 - headline links directly to the Article's stored `original_url`;
 - Source identity is clear;
 - until Publication presentation settings exist, calendar-date rendering uses the UTC fallback defined above;
-- loading, empty, and error states are explicit.
+- empty and error states are explicit, while a successful initial response is already resolved in server-rendered HTML rather than beginning in an application loading state.
 
 ## Mobile feed
 
@@ -151,9 +166,11 @@ The canonical API supports these optional query parameters:
 - `category` — one Category filter;
 - `cursor` — opaque continuation cursor for load-more/keyset pagination.
 
+The root page accepts the supported first-page discovery dimensions `q`, `source`, and `category` and server-renders their corresponding initial result state. Phase 0 does not promote cursor-depth continuation into crawlable/no-JavaScript navigation; server-rendered cursor continuation links are Phase 1 scope.
+
 Each discovery parameter represents one logical value. Repeated/ambiguous forms, malformed encodings, unsupported values, invalid cursors, or values outside the implementation's documented bounds MUST fail with bounded generic `400` behavior rather than being silently reinterpreted. Existing generic `404` behavior for absent/non-public singleton Publication state and bounded dependency-error behavior remain unchanged.
 
-When no discovery parameter is supplied, `GET /api/feed` represents the unfiltered first page of the same canonical feed and preserves the established eligibility, ordering, public-state, and error semantics.
+When no discovery parameter is supplied, `GET /api/feed` represents the unfiltered first page of the same canonical feed and preserves the established eligibility, ordering, public-state, and error semantics. `GET /` server-renders that same first-page state.
 
 ### Source and Category filters
 
@@ -187,8 +204,11 @@ Public discovery uses bounded keyset/load-more pagination rather than offset-bas
 
 ### Browser URL and reset behavior
 
-- The root public page reflects active `q`, `source`, and `category` discovery state in the URL where those controls are active, so direct navigation/refresh can reconstruct the same filters/search.
-- Load-more cursor depth does not need to become canonical shareable URL state in Phase 12.
+- The root public page reflects active `q`, `source`, and `category` discovery state in the URL where those controls are active, so direct navigation/refresh server-renders the same filters/search before JavaScript enhancement.
+- The discovery form MUST remain usable as ordinary root `GET` navigation without JavaScript for `q`, `source`, and `category`; JavaScript MAY intercept/enhance the same navigation when available.
+- A no-JavaScript Reset path returns to `/` and the unfiltered first page.
+- Phase 0 no-JavaScript scope is first-page reading, direct publisher navigation, first-page `q`/Source/Category discovery, and Reset. No-JavaScript continuation to older results is explicitly deferred to Phase 1.
+- Load-more cursor depth does not need to become canonical shareable URL state in Phase 0; existing JavaScript continuation remains governed by the opaque cursor contract until Phase 1 introduces crawlable server-rendered continuation navigation.
 - Changing `q`, `source`, or `category` starts again from the first page and discards any previous continuation cursor/items from the earlier criteria.
 - A clear Reset action removes all discovery criteria and returns the page to the unfiltered first-page feed state.
 - Browser back/forward navigation restores the URL-reflected discovery criteria and corresponding feed state rather than leaving stale controls/results.
@@ -232,23 +252,27 @@ Phase 13 targets WCAG 2.2 Level AA for the in-scope root public-feed experience.
 - desktop/mobile layouts wrap long headlines, Source names, Category labels, and discovery values without destructive overlap or horizontal page overflow under the supported responsive range;
 - tap/click controls satisfy the applicable WCAG 2.2 AA target-size requirement or permitted spacing exception;
 - status/loading/error presentation remains understandable to assistive technology and does not rely only on color;
-- animation honors `prefers-reduced-motion`; a loading indicator remains understandable without requiring continuous motion.
+- animation honors `prefers-reduced-motion`; any loading indicator used for enhanced transitions remains understandable without requiring continuous motion.
 
 The exact typography, spacing, visual hierarchy, token values, component shapes, and approved aesthetic treatment belong to durable `docs/design/` guidance and remain subordinate to this behavioral contract.
 
-### Initial loading presentation
+### Initial server-rendered presentation and later loading states
 
-While the canonical `/api/feed` request is pending, the visible page MUST present a neutral, intentional loading state and MUST NOT visibly paint generic/unset Publication copy such as a placeholder `News feed` heading that is then replaced by configured Publication content. A centered loading indicator may be used together with an accessible status message. Reduced-motion users MUST receive an equivalent non-motion loading indication. Populated, empty, unavailable, invalid-discovery, continuation-error, and dependency-error behavior must remain distinguishable after the loading state resolves.
+A successful initial `GET /` response MUST already contain the configured Publication presentation and first feed page. It MUST NOT begin by visibly painting generic/unset Publication copy or an application-owned loading shell that waits for `/api/feed` before useful content appears.
+
+JavaScript initialization MUST preserve the correct server-rendered state rather than clearing it for a duplicate first-page fetch. Loading presentation remains applicable to later JavaScript-owned search/filter transitions or continuation requests. Those later pending states may use the established accessible loading treatment, must preserve already-known appropriate Publication content, and must honor reduced-motion behavior.
+
+Populated, empty, unavailable, invalid-discovery, continuation-error, and dependency-error behavior remain distinguishable. Server-rendered errors use the HTTP status semantics defined above; enhanced transition errors remain bounded and must not destroy unrelated already-rendered valid content.
 
 ### Presentation preservation boundary
 
 Presentation changes may refine markup around the discovery controls/feed but MUST NOT redefine discovery behavior. In particular they preserve:
 
-- `GET /api/feed` as the one canonical public feed/discovery endpoint and `/` as the canonical page;
+- `GET /api/feed` as the canonical public JSON feed/discovery endpoint and `/` as the canonical server-rendered page using the same read-model semantics;
 - canonical feed eligibility and effective-date/`first_seen_at`/Article-ID chronological ordering;
 - bounded literal `q`, Source, and Category filtering semantics and immutable `config_key` public identities;
 - opaque query-bound keyset cursor behavior and server-defined page size;
-- URL-reflected `q`/`source`/`category`, criteria-reset behavior, direct navigation/refresh, browser Back/Forward restoration, and non-URL load-more depth;
+- URL-reflected `q`/`source`/`category`, criteria-reset behavior, direct navigation/refresh, browser Back/Forward restoration, and current non-URL load-more depth until Phase 1;
 - stale request/continuation protection and safe continuation retry behavior;
 - exact stored `original_url` headline destinations.
 

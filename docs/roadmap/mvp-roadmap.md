@@ -1,5 +1,7 @@
 # MVP Roadmap
 
+**Status:** Complete historical roadmap. Terminal Phase 21 closed into the `1.0.0` release; current implementation work is governed by `docs/roadmap/post-1.0-roadmap.md`.
+
 This roadmap prioritizes the fastest safe path to a working product demonstration: collect real Articles from administrator-approved Sources, normalize and persist them idempotently, and display them in a public rolling feed whose headlines link to the original publishers.
 
 Phases are intentionally narrow. Each phase represents one cohesive implementation boundary that can be implemented, tested, reviewed, and closed without bundling unrelated feature domains.
@@ -9,9 +11,10 @@ Phases are intentionally narrow. Each phase represents one cohesive implementati
 - Phases are narrow, ordered implementation boundaries. The first milestone is the safe end-to-end aggregation vertical slice; administration, moderation, and presentation deepen after that path works.
 - Initial singleton Publication/Source configuration may use explicit operator-maintained bootstrap without bypassing Source trust, domain, lifecycle, or network-safety rules.
 - Every phase inherits the project, domain, security, singleton-architecture, and testing contracts routed by `BOOT.md`; a roadmap entry does not replace them.
-- Phase 20 acceptance established the first supported production schema/data baseline. Phase 21 therefore preserves supported customer data and upgrades under `docs/decisions/production-data-and-schema-compatibility.md`.
-- New product features remain frozen until Phase 21 closes into the `1.0.0` launch state; bounded critical production, security, data-integrity, and required operational repairs use the appropriate fix/correction workflow.
-- Phase 21 is the final pre-1.0 engineering phase. A green terminal Phase 21 `/closeout` transitions the project directly to the `1.0.0` launch state; it creates neither Phase 22 nor a `0.22.0` baseline.
+- Phase 20 acceptance established the first supported production schema/data baseline. Phase 21 therefore preserved supported customer data and upgrades under `docs/decisions/production-data-and-schema-compatibility.md`.
+- New product features remained frozen until Phase 21 closed into the `1.0.0` launch state; bounded critical production, security, data-integrity, and required operational repairs used the appropriate fix/correction workflow.
+- Phase 21 was the final pre-1.0 engineering phase. Its green terminal `/closeout` transitioned the project directly to the `1.0.0` launch state and created neither Phase 22 nor a `0.22.0` baseline.
+- Current post-1.0 sequencing and exit gates live in `docs/roadmap/post-1.0-roadmap.md`; this file remains the completed MVP history.
 
 ## Global phase validation gate
 
@@ -1052,11 +1055,11 @@ Configure, validate, and hand off the first real Publication without adding new 
 - Final deterministic regression, browser, recovery, schema-upgrade/rollback, and reference-deployment evidence required by the testing contract is recorded for the launched tree.
 - Known limitations and production ownership are documented.
 - The accepted launch evidence identifies the first supported production source tree/version/schema baseline. From this point forward customer production data is durable supported state under `docs/decisions/production-data-and-schema-compatibility.md`.
-- New product-feature implementation remains frozen until Phase 21 closes into the `1.0.0` launch state; only critical defect/security/data-integrity/operations fixes may interrupt that freeze through an appropriate bounded fix/correction path.
+- New product-feature implementation remained frozen until Phase 21 closed into the `1.0.0` launch state; only critical defect/security/data-integrity/operations fixes could interrupt that freeze through an appropriate bounded fix/correction path.
 
 ## Phase 21 — Codebase simplification and maintainability hardening
 
-**Status:** Current and terminal roadmap phase; a green closeout transitions directly to the `1.0.0` launch state.
+**Status:** Complete. Its green terminal closeout transitioned the validated final Phase 21 tree to `1.0.0`, closed the MVP roadmap, and created no Phase 22 or `0.22.0` baseline. Durable validation is recorded in `docs/validation/phase-21-codebase-simplification-maintainability-hardening.md`.
 
 ### Goal
 
@@ -1092,13 +1095,13 @@ As justified by final-tree evidence:
 - remove unnecessary complexity without targeting arbitrary line-count, file-count, module-count, dependency-count, or complexity-score quotas;
 - leave durable code/architecture/test structure that future feature work can extend without immediately recreating the removed accidental complexity.
 
-### Feature freeze
+### Historical feature freeze
 
-Until Phase 21 closes:
+During Phase 21:
 
-- no deferred product feature is promoted or implemented merely because customer launch is complete;
-- critical production defects, security issues, data-integrity problems, and required operational repairs may be addressed through an appropriately scoped fix/correction workflow;
-- such repairs must preserve or update the Phase 21 assessment rather than silently turning Phase 21 into a feature-development phase.
+- no deferred product feature was promoted or implemented merely because customer launch was complete;
+- critical production defects, security issues, data-integrity problems, and required operational repairs could be addressed through an appropriately scoped fix/correction workflow;
+- such repairs had to preserve or update the Phase 21 assessment rather than silently turning Phase 21 into a feature-development phase.
 
 ### Out of scope
 
@@ -1111,19 +1114,19 @@ Until Phase 21 closes:
 - arbitrary rewrites, framework migrations, or dependency substitutions without a concrete maintainability/correctness/measurement case;
 - optimization claims based only on fewer lines/files/modules or synthetic microbenchmarks that do not represent the affected workload.
 
-### 1.0.0 closeout transition
+### Completed 1.0.0 closeout transition
 
-Phase 21 is the final pre-1.0 engineering phase. Its terminal `/closeout` is the deliberate release transition from the final validated `0.21.x` tree to the `1.0.0` launch state.
+Phase 21 was the final pre-1.0 engineering phase. Its green terminal `/closeout` performed the deliberate release transition from the final validated `0.21.x` tree to the `1.0.0` launch state.
 
-On a green Phase 21 `/closeout`:
+The governing closeout requirements were:
 
-- all Phase 21 exit-gate and inherited validation evidence must be satisfied against the exact final tree before the version changes;
+- all Phase 21 exit-gate and inherited validation evidence had to be satisfied against the exact final tree before the version changed;
 - update only the top-level `package.json` version from the final `0.21.x` Phase 21 version to `1.0.0`;
 - create no Phase 22, no `0.22.0` baseline, and reserve no later phase number;
 - report `Final project version: 1.0.0`, `Launch state: 1.0.0`, and `Roadmap status: COMPLETE`;
 - treat any later roadmap as a separate explicit owner-approved post-1.0 extension, with the default product direction focused on improving the reusable Platform/engine rather than creating a Publication-specific fork.
 
-The version does not advance merely because Phase 21 appears complete. The `1.0.0` transition occurs only through a green terminal `/closeout`.
+Those requirements were satisfied by the completed terminal transition; the current post-1.0 roadmap is a separate owner-approved successor and does not reopen this MVP sequence.
 
 ### Exit gate
 
@@ -1139,7 +1142,7 @@ The version does not advance merely because Phase 21 appears complete. The `1.0.
 
 ## Deferred roadmap candidates
 
-After Phase 21 closes into the `1.0.0` launch state and evidence supports promoting new work:
+Phase 21 closed into the `1.0.0` launch state and the repository owner subsequently approved `docs/roadmap/post-1.0-roadmap.md`. Ideas promoted there are now scheduled under that roadmap; candidates not promoted there remain unscheduled until separately approved.
 
 - native application-managed administrator accounts/identity;
 - passwords/passkeys or application-managed identity-provider integration;

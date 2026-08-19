@@ -1,10 +1,11 @@
 # Post-1.0 Roadmap
 
-**Status:** Owner-approved post-MVP roadmap.  
-**Starting baseline:** `1.0.0` after green terminal Phase 21 closeout.  
+**Status:** Active owner-approved post-MVP roadmap; current phase is Phase 0 — Server-rendered public feed.  
+**Current baseline:** `1.0.0`.  
+**Runner gate:** The documented non-versioned Pre-Phase-0 runner compatibility correction remains required before Phase 0 roadmap prompt generation/execution.  
 **Primary direction:** Improve the reusable News Scraper Platform while preserving the first indie-author Publication as configuration rather than engine behavior.
 
-This roadmap begins only after the MVP roadmap has closed successfully into the `1.0.0` production baseline. It does not reopen, renumber, or rewrite completed MVP phases.
+The MVP roadmap closed successfully into the `1.0.0` production baseline. This roadmap is now the active implementation roadmap; it does not reopen, renumber, or rewrite completed MVP phases.
 
 The post-1.0 roadmap restarts phase numbering at Phase 0. Project versions map the post-1.0 phase number to the semantic-version minor component and the prompt number to the patch component:
 
