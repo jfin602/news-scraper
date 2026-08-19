@@ -1,0 +1,273 @@
+TASK: Correction 0 / P1 — Restore public-feed browser regressions
+
+CORRECTION SCOPE
+This correction repairs the evidence regression discovered by the RED post-1.0 Phase 0 closeout. The current Phase 0 implementation at commit `905da50274db8584ac938dbe456121b2ea4b8f05` introduced the intended server-rendered root/progressive-enhancement architecture, but `test/browser/public-feed-page.test.ts` was reduced from the prior broad browser regression matrix to six scenarios. The closeout therefore could not prove preserved browser behavior, stale-request safety, continuation guards, history behavior, presentation parity, or the complete JavaScript-disabled contract.
+
+This prompt restores/adapts the missing governed browser proof against the CURRENT SSR lifecycle. It is not permission to revert Phase 0, resurrect the obsolete client-owned initial page fetch, or inflate the suite by mechanically copying historical tests.
+
+- Recommended configuration: `Terra Medium`.
+- Model rationale: the behavior is explicit and the production architecture is already settled, but the work still requires meaningful reasoning across SSR bootstrap state, enhanced first-page generation/AbortController ownership, history, continuation generations, cursor guards, asynchronous browser races, and test-fixture ownership. Terra Medium is the minimum reliable balanced tier for that stateful adaptation.
+- Lower-cost alternative considered: `Luna High`; rejected because the difficult part is preserving asynchronous browser-state invariants and translating old lifecycle assumptions, not writing Playwright syntax.
+- Escalation trigger: an adapted regression exposes a production defect that requires non-local restructuring of SSR bootstrap ownership, first-page request generations, history state, or continuation architecture rather than one bounded unambiguous repair.
+- Escalation target: `Terra High`.
+- Expected usage: Very High because the browser matrix is large; usage volume alone is not an escalation reason.
+
+VERSION / RUNNER CONTRACT
+- Required unchanged project version: `1.0.1`.
+- This is a non-versioned correction. Do not modify the top-level package version.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Do not consume a Phase 0 roadmap prompt/version number.
+- Do not manually commit when running under the correction runner; the runner owns the implementation-prompt commit boundary.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/codex-model-selection.md`, `docs/roadmap/post-1.0-roadmap.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/design/public-feed-presentation.md`, and `docs/operations/security-reliability-and-operations.md`;
+2. read the original Phase 0 prompts `docs/tasks/p1-0/P1-server-rendered-root-progressive-enhancement.txt` and `docs/tasks/p1-0/P2-server-rendered-public-feed-closeout.txt`;
+3. inspect current `test/browser/public-feed-page.test.ts`, `test/browser/public-feed-theme.test.ts`, `test/security/public-content-safety.test.ts`, and `test/integration/public-feed-page-http.test.ts`;
+4. inspect current `src/app/web/public/public-feed.js`, `src/app/web/public-feed-page.ts`, `src/app/web/create-app.ts`, and `src/public-feed/discovery.ts` so tests assert the real current lifecycle rather than an imagined one;
+5. inspect the pre-P1 browser suite from the parent tree of `905da50274db8584ac938dbe456121b2ea4b8f05` (expected parent `971cc644492c71ba74bd3c420f7eef877b6e7841`) and reconstruct the complete prior `test/browser/public-feed-page.test.ts` scenario inventory;
+6. inspect current Git status/history and require top-level `package.json` to remain `1.0.1`;
+7. stop and report scope drift instead of forcing this correction if current source has materially changed since the RED closeout, if Phase 1 work has begun, or if the required repair needs a new product/contract/ADR/schema/read-model decision.
+
+PRIMARY GOAL
+Restore meaningful Level 6 browser regression protection for all still-governed public-feed behavior that Phase 0 was required to preserve while translating obsolete client-owned-startup assertions into the correct SSR/progressive-enhancement invariants.
+
+The success metric is NOT a target test count. The success metric is that every materially governed behavior formerly protected by the broad browser suite has one clear disposition and sufficient current observable proof.
+
+DEFAULT IMPLEMENTATION BOUNDARY
+Start as a test-only correction whose primary writable file is:
+- `test/browser/public-feed-page.test.ts`
+
+Inspect but do not normally modify:
+- `test/browser/public-feed-theme.test.ts`
+- `test/security/public-content-safety.test.ts`
+- `test/integration/public-feed-page-http.test.ts`
+- `src/app/web/public/public-feed.js`
+- `src/app/web/public-feed-page.ts`
+- `src/app/web/create-app.ts`
+- `src/public-feed/discovery.ts`
+
+A production file may be modified ONLY when an adapted/restored browser test demonstrates a real current Phase 0 defect and the governed correct behavior is unambiguous. Prefer the smallest local repair, expected primarily in `src/app/web/public/public-feed.js` if one is needed.
+
+If a failing regression would require any of the following, STOP and report rather than widening this correction:
+- a different SSR/client bootstrap architecture;
+- new canonical public-feed eligibility/filter/order/cursor semantics;
+- a new root/API discovery rule;
+- database schema, migration, persistence, or repository-query changes;
+- Phase 1 crawlable pagination/page-size behavior;
+- a meaningful multi-module behavior-preserving refactor;
+- any new product/contract/ADR decision.
+
+OLD-SUITE DISPOSITION REQUIREMENT
+Before substantial test edits, build a working inventory of every prior `it(...)` scenario in the pre-P1 `test/browser/public-feed-page.test.ts`. For each scenario classify its behavioral intent as exactly one of:
+- ADAPT — still governed, rewrite expectations around SSR startup/current progressive enhancement;
+- REPLACE_BY_SSR_INVARIANT — old mechanism intentionally disappeared, but its safety/product intent now needs a different SSR assertion;
+- COVERED_EQUIVALENTLY_ELSEWHERE — equivalent or stronger proof exists in another current browser/security/integration test; identify the exact owning test/suite;
+- REMOVED_AS_INTENTIONALLY_OBSOLETE — the old behavior itself no longer exists by Phase 0 design, with the exact lifecycle change that makes it impossible.
+
+Do not commit a permanent inventory document unless genuinely useful to the correction closeout. The final implementation report must summarize the disposition categories and call out any old scenario intentionally not restored.
+
+KNOWN INTENTIONALLY CHANGED STARTUP BEHAVIOR
+Do NOT restore the old initial-client-loading architecture.
+
+1. The old scenario equivalent to `keeps loading visible until the owned first-page response resolves` is obsolete as written. Replace its useful intent with current Phase 0 assertions that:
+   - direct root navigation yields already-resolved server-rendered Publication/feed content;
+   - the initial browser page is useful without waiting for `/api/feed`;
+   - JavaScript startup issues zero initial `/api/feed` requests;
+   - startup adopts/preserves the existing SSR Article DOM rather than clearing/rebuilding it solely for hydration.
+
+2. The old scenario equivalent to `prevents a slow initial response from overwriting a newer Apply result` is obsolete as written because there is no client-owned initial feed request anymore. Do not manufacture one for testing. Its safety intent is covered by the SSR ownership invariant plus stale-response protection for LATER enhanced first-page requests.
+
+ALL OTHER STILL-GOVERNED BEHAVIOR
+Restore or coherently adapt observable browser proof for the substantive prior behaviors that Phase 0 did not intentionally remove. Consolidation is allowed only when the resulting test still diagnoses the protected behavior clearly.
+
+At minimum cover these groups:
+
+A. SSR STARTUP / PRESENTATION
+- configured Publication name/description/logo/accent/title is present and stable from SSR startup;
+- a broken SSR logo degrades safely even if its error event occurs before deferred client startup; later API presentation changes also retain deterministic broken-logo behavior;
+- absent optional presentation removes/hides the relevant elements cleanly;
+- initial correct SSR page generates zero `/api/feed` requests;
+- exact SSR Article nodes/row identity remain present through client startup rather than being replaced merely for hydration;
+- configured presentation timezone produces the same intended calendar date independently of viewer timezone; null timezone preserves UTC fallback.
+
+B. CONTENT / NAVIGATION / RESPONSIVE BEHAVIOR
+- hostile markup-looking Publication, Source, Category, headline, and Source-name content remains inert in the browser;
+- exact stored external publisher `original_url` remains the headline destination;
+- representative desktop/mobile widths do not create horizontal document overflow;
+- feed row/column presentation remains coherent at desktop and mobile widths;
+- relevant native controls/headline/load-more targets remain usable/focus-visible where this behavior is not already equivalently owned by `public-feed-theme.test.ts`;
+- do not duplicate the full theme contrast/persistence/keyboard contract merely to increase coverage count.
+
+C. DISCOVERY / ROOT / HISTORY
+- direct q/source/category URL criteria start from corresponding SSR state with zero initial API requests;
+- refresh reconstructs that root state without a startup API fetch;
+- enhanced combined q/source/category Search emits deterministic root URL criteria and corresponding `/api/feed` criteria;
+- Source-only and Category-only enhanced discovery work independently;
+- Reset from a resolved filtered page returns to `/` and uses the existing enhanced first-page API path when JavaScript is enabled;
+- Back/Forward restores criteria and first-page rows without adding cursor depth to the root URL;
+- after load-more depth, Back/Forward restores the first URL page for each history entry rather than reconstructing old continuation depth;
+- malformed direct root discovery is handled by the SSR root contract rather than being repaired into an API call;
+- literal and percent-encoded root `cursor` parameter names are rejected by root Phase 0 semantics with no client feed reconstruction.
+
+D. ENHANCED FIRST-PAGE OWNERSHIP / RACES
+Adapt/reintroduce deterministic controlled-fetch/deferred-promise tests so later enhanced first-page requests prove:
+- resolved branding remains visible/coherent while Search, Reset, or popstate replacement is pending, while old Article rows are cleared according to existing governed transition behavior;
+- an owned enhanced 404/unavailable response clears stale prior Publication presentation as currently governed;
+- malformed successful API payloads fail to a generic bounded client error state;
+- malformed Publication presentation in a successful enhanced API response fails safely;
+- stale success, stale 404, and stale network/error responses cannot overwrite a newer owned first-page result/branding;
+- a slow enhanced Apply cannot overwrite a newer Reset result;
+- slow enhanced Apply/history requests cannot overwrite a newer popstate/Forward result.
+
+Controlled-fetch indexing MUST reflect Phase 0 ownership:
+- root SSR startup is a real server navigation, not controlled fetch request zero;
+- controlled request index 0 is the FIRST enhanced `/api/feed` request generated after startup.
+Do not fake an initial `/api/feed` call merely to preserve historical helper indices.
+
+E. CONTINUATION / CURSOR SAFETY
+Starting from an SSR-supplied `nextCursor`, prove:
+- Load More uses the current opaque cursor plus active criteria and never adds cursor depth to the root browser URL;
+- appended Articles remain in server order, use exact publisher links, preserve presentation timezone formatting, and keep hostile appended text inert;
+- continuation Publication/discovery metadata does not unexpectedly replace first-page-owned Publication/controls if the existing contract does not permit that;
+- no Load More control exists for a final first page;
+- while a continuation is pending, keyboard/click reactivation cannot issue duplicate continuation requests;
+- a successful continuation can replace the cursor and the next Load More uses the replacement cursor;
+- resolving the same response path again cannot append the same page twice;
+- duplicate Article IDs against already-rendered items cause a local continuation failure, do not mutate existing rows/cursor, and allow safe retry;
+- repeated continuation cursor is rejected locally;
+- an empty continuation page carrying a non-null cursor is rejected locally;
+- network abort/failure, malformed JSON, 400, 404, 503, mismatched criteria, and malformed successful payloads remain local continuation failures that preserve existing rows and allow retry where governed;
+- a later valid retry can append safely and clear the local failure state;
+- criteria change after loaded depth discards old continuation depth and makes a first-page API request without a cursor;
+- Source, Category, keyword, Reset, and history transitions all invalidate old continuation state.
+
+F. STALE CONTINUATION RACES
+Restore deterministic browser proof that:
+- a slow continuation invalidated by Apply cannot append or display a stale failure after the newer first page owns the UI;
+- a slow continuation invalidated by Reset cannot append after the fresh unfiltered first page;
+- a slow continuation invalidated through Back/Forward cannot append after restored state;
+- an abort-insensitive stale continuation SUCCESS after Apply is ignored;
+- an abort-insensitive stale continuation FAILURE after Reset/history is ignored;
+- stale continuation outcomes cannot reintroduce pagination errors or stale controls into the newer owned state.
+
+G. ERROR / EMPTY STATES
+With JavaScript enabled, retain useful browser proof for:
+- valid empty `200` state;
+- server-rendered invalid `400` state;
+- absent/non-public-equivalent `404` state;
+- dependency/render `503` state;
+- generic secret-free public messaging;
+- Reset recovery where supported.
+
+JAVASCRIPT-DISABLED LEVEL 6 MATRIX
+The prior pre-SSR suite could not own this requirement, so expand the current single combined no-JS test into enough clear scenarios to prove the Phase 0 contract with `javaScriptEnabled: false`.
+
+At minimum observe:
+- populated `/` with Publication and Article content;
+- direct q URL;
+- direct Source-only URL;
+- direct Category-only URL;
+- native GET Search with blank `All sources`/`All categories` controls;
+- native Source-only submission;
+- native Category-only submission;
+- Reset as a real `/` navigation;
+- exact publisher headline anchor/navigation;
+- empty `200`;
+- invalid `400`;
+- absent/private-equivalent `404`;
+- dependency `503`;
+- no Phase 1 cursor continuation UI/link introduced simply to satisfy this correction.
+
+REDUCED MOTION
+The old initial-loading reduced-motion test's startup premise is obsolete. Preserve its presentation intent by testing reduced motion during a deliberately delayed ENHANCED Search/Reset/history transition where the current client legitimately enters a loading state. Prove the loading indicator/transition behavior remains static/disabled as governed and that the page does not overflow.
+
+THEME-SUITE OWNERSHIP
+`test/browser/public-feed-theme.test.ts` already owns the detailed System/Light/Dark contract including persistence, unavailable/corrupt storage, theme-only request independence, contrast/focus, and keyboard traversal. Preserve that suite and run it as part of `test:browser`.
+
+Do not duplicate all theme tests into `public-feed-page.test.ts`. Page-suite coverage may assert theme-adjacent behavior only when it is specifically coupled to SSR markup, Publication accent, feed layout, discovery controls, load-more, responsive behavior, or reduced motion.
+
+TEST QUALITY RULES
+- Prefer observable outcomes over private implementation details.
+- Do not use arbitrary sleeps/timeouts as correctness proof.
+- Use deferred promises, route interception, controlled fetch, selectors, and explicit state/request observations.
+- Keep SSR root navigation and enhanced `/api/feed` ownership distinct in every helper.
+- Assert zero initial API requests where relevant.
+- Assert exact API/root URLs where request ownership or cursor binding matters.
+- Close every created BrowserContext in `finally` blocks.
+- Reuse the suite-level Browser/server where practical; do not launch a new Chromium per scenario.
+- Keep helpers small and purpose-specific; do not build a second fake application/state machine inside the test suite.
+- Avoid giant all-in-one tests when a failure would no longer identify which governed behavior regressed.
+- Do not preserve obsolete loading-shell selectors/assertions merely because they existed before Phase 0.
+
+BOUNDED PRODUCTION REPAIR AUTHORITY
+If an adapted test exposes a concrete defect, P1 may make the smallest local correction only when:
+- the correct outcome is already explicit in current Phase 0 contracts/prompts;
+- no new architecture or product decision is needed;
+- no database/persistence/read-model semantics change;
+- the defect receives a focused regression test;
+- all affected broader suites are rerun.
+
+Examples that MAY fit this authority include:
+- a generation not being invalidated correctly;
+- repeated cursor mistakenly advancing state;
+- stale continuation failure surfacing after Reset;
+- initial broken SSR logo missing the post-load fallback;
+- client continuation date presentation diverging from the governed timezone.
+
+If the repair becomes multi-module structural work rather than a bounded defect fix, stop and report the exact failing scenario and affected ownership boundary for a Terra High remediation/replan.
+
+PRESERVED PRODUCT BEHAVIOR
+Do not change:
+- one Publication/topic per deployment and topic-independent shared code;
+- canonical public-feed database eligibility, visibility, duplicate suppression, order, filters, or API cursor semantics;
+- exact stored `original_url` publisher destinations;
+- root 200/400/404/503 semantics established by Phase 0;
+- no-JS first-page scope versus Phase 1 cursor continuation;
+- API/public Source/Category behavior;
+- collection/Worker ownership;
+- admin behavior;
+- persistence/schema/migration history;
+- Phase 1+ roadmap features;
+- current package version.
+
+NON-GOALS
+Do not add:
+- configurable page size;
+- crawlable/server-rendered cursor links;
+- offset pagination;
+- archives;
+- sitemap/robots/canonical/SEO metadata;
+- Article summaries;
+- thumbnails;
+- unrelated visual redesign;
+- test-runner architecture changes;
+- speculative browser abstractions.
+
+VALIDATION DURING ITERATION
+Primary narrow loop:
+`node scripts/run-tests.mjs --test-concurrency=1 test/browser/public-feed-page.test.ts`
+
+After the repaired page suite is coherent, run:
+`npm run check`
+`npm run test:browser`
+
+If ANY production content-safety/rendering/client code is modified, also run:
+`npm run test:security`
+
+If an HTTP/component boundary is modified, run the narrow affected integration test(s) plus `npm run check`.
+
+Do not run the full database matrix solely for ceremony when this correction remains browser-test-only. If source inspection indicates that database/read-model behavior must change, that is scope drift and should normally STOP this prompt rather than expand it.
+
+FINAL SELF-REVIEW BEFORE REPORTING COMPLETE
+1. Re-read the pre-P1 scenario inventory and ensure every substantive old scenario has a disposition.
+2. Confirm the only intentionally obsolete scenarios are tied to deliberate SSR lifecycle changes or exact equivalent proof elsewhere.
+3. Confirm the repaired suite starts from real SSR and never expects an initial client `/api/feed` request.
+4. Confirm stale first-page and continuation races are tested with deterministic asynchronous control.
+5. Confirm no-JS q/Source/Category/Search/Reset/error behavior has real Chromium proof.
+6. Confirm theme-specific detail was not needlessly duplicated.
+7. Confirm package version remains exactly `1.0.1` and no lockfile was created.
+8. Run `git diff --check` over the correction change if available.
+9. Report exact files changed, scenario disposition summary, production defects found/fixed if any, commands actually run and results, and any remaining risk.
+
+Do not declare Phase 0 GREEN. This prompt only repairs the browser regression evidence producer. The correction closeout P2 must independently accept this correction, after which the ORIGINAL Phase 0 P2 closeout must be rerun from the beginning.
