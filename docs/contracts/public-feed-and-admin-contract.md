@@ -1,8 +1,16 @@
 # Public Feed and Admin Contract
 
+## Current product-role interpretation
+
+This contract governs the **existing outward/public surfaces** implemented through `1.0.1`: `GET /api/feed`, the bundled/reference `GET /` frontend, and the Cloudflare-protected administrator UX described below.
+
+The 2026-08-19 headless product shift does not remove these surfaces or weaken their Article-selection rules. It changes their product role. Under the amended Project Contract and `docs/decisions/headless-distribution-product-boundary.md`, `/` is the canonical route **for the bundled reference/standalone frontend**, not a requirement that every customer website use News Scraper's presentation. `GET /api/feed` remains the current JSON outward/feed interface, but this contract does not yet declare it the permanent/versioned external integration API.
+
+Future distribution adapters must reuse the canonical Article eligibility/selection semantics defined here or a deliberately evolved successor contract; they must not create transport-specific Source-trust, visibility, duplicate, moderation, ordering, or `original_url` rules. The exact distribution methods, consumer authentication/CORS/rate-limit/cache behavior, profiles, backlink/SEO policy, and analytics remain unresolved pending the dedicated distribution/SEO architecture review.
+
 ## Public-feed purpose
 
-The public experience is a fast, readable index of recent relevant headlines. It promotes discovery and sends readers to the original publisher.
+The bundled public experience is a fast, readable index of recent relevant headlines. It promotes discovery and sends readers to the original publisher.
 
 A deployed installation hosts exactly one Publication. The deployment itself identifies the news product/topic; public readers do not select among Publications.
 
@@ -28,14 +36,15 @@ Collection eligibility and public-feed eligibility are separate. `active_for_col
 Each deployed installation contains one singleton Publication configuration as its topic/editorial boundary.
 
 - Publication configuration owns installation-wide name, collection/public state, branding/feed settings, Categories, Relevance rules, Sources, Source priority, and presentation settings.
-- Publication is not a relational tenant/ownership key. Public-feed, Source, Article, Category, Relevance, duplicate, scheduler, and admin behavior MUST NOT require a Publication UUID/slug/foreign key merely to scope the one installation.
-- Public routing MUST NOT require a Publication slug or expose a topic-selection surface.
-- Concurrent multi-Publication/topic hosting inside one installation is not supported MVP behavior.
+- Publication is not a relational tenant/ownership key. Public-feed, Source, Article, Category, Relevance, duplicate, scheduler, admin, and future distribution-consumer behavior MUST NOT require a Publication UUID/slug/foreign key merely to scope the one installation.
+- Public/reference routing MUST NOT require a Publication slug or expose a topic-selection surface.
+- Concurrent multi-Publication/topic hosting inside one installation is not supported behavior.
 - A different topic is served by another configured deployment of the same topic-independent codebase.
+- Multiple outward consumers for one Publication do not imply or authorize Publication tenancy.
 
 ## Basic public-feed backend
 
-The canonical public endpoint is:
+The current canonical JSON public/feed endpoint is:
 
 `GET /api/feed`
 
@@ -60,19 +69,19 @@ The basic item read model is intentionally small. Each item exposes only the fie
 - Source display name;
 - stored Article `original_url` as the external destination.
 
-The canonical public response exposes the bounded public Publication presentation values required by `/`: required `name` plus nullable `description`, `logoPath`, and `accentColor` corresponding to the singleton persisted configuration defined by the domain contract. These values are inert presentation data, not HTML/CSS/code, and do not create a reader-selectable Publication identity. The response MUST NOT expose or depend on a Publication UUID/slug as a routing/scoping identity, and MUST NOT expose Raw items, Article observations, internal identity digests, normalized-title matching fields, database internals, unbounded summaries/content, or other fields merely because they are stored.
+The canonical public response exposes the bounded public Publication presentation values required by the bundled `/` frontend: required `name` plus nullable `description`, `logoPath`, and `accentColor` corresponding to the singleton persisted configuration defined by the domain contract. These values are inert presentation data, not HTML/CSS/code, and do not create a reader-selectable Publication identity. The response MUST NOT expose or depend on a Publication UUID/slug as a routing/scoping identity, and MUST NOT expose Raw items, Article observations, internal identity digests, normalized-title matching fields, database internals, unbounded summaries/content, or other fields merely because they are stored.
 
-Deterministic discovery and pagination extend this same endpoint/read-model boundary. They do not create a parallel feed query, eligibility rule, or alternate public endpoint. Ranking and presentation/theme behavior remain separate concerns.
+Deterministic discovery and pagination extend this same endpoint/read-model boundary. They do not create a parallel feed query, eligibility rule, or alternate Article-selection authority. Ranking and presentation/theme behavior remain separate concerns.
 
 The accepted Phase 8 validation artifact remains evidence for the slug-scoped endpoint that existed at its accepted source SHA. The Phase 10 entry singleton implementation correction removes that implementation drift and supplies new evidence for this canonical endpoint; the historical artifact is not rewritten.
 
 ## Basic public-feed UI
 
-The canonical customer-visible route is:
+The canonical route for the bundled/reference frontend is:
 
 `GET /`
 
-Post-1.0 Phase 0 makes the initial root response server-rendered. The page MUST:
+The `1.0.1` server-rendering implementation makes the initial root response server-rendered. The page MUST:
 
 - represent the installation's singleton Publication configuration and remain topic independent in shared code;
 - obtain the initial public state through the same canonical public-feed application/read-model boundary used by `GET /api/feed`, rather than introducing a second Article-eligibility, ordering, filtering, cursor, or database-query authority;
@@ -155,18 +164,18 @@ The completed presentation provides the governed responsive/accessibility behavi
 
 ## Search, filters, and pagination
 
-`GET /api/feed` and the root page provide deterministic discovery while preserving the feed-eligibility and chronological-order laws above.
+`GET /api/feed` and the bundled root page provide deterministic discovery while preserving the feed-eligibility and chronological-order laws above.
 
 ### Public discovery inputs
 
-The canonical API supports these optional query parameters:
+The current API supports these optional query parameters:
 
 - `q` — bounded keyword search;
 - `source` — one Source filter;
 - `category` — one Category filter;
 - `cursor` — opaque continuation cursor for load-more/keyset pagination.
 
-The root page accepts the supported first-page discovery dimensions `q`, `source`, and `category` and server-renders their corresponding initial result state. Phase 0 does not promote cursor-depth continuation into crawlable/no-JavaScript navigation; server-rendered cursor continuation links are Phase 1 scope.
+The root page accepts the supported first-page discovery dimensions `q`, `source`, and `category` and server-renders their corresponding initial result state. The current `1.0.1` reference frontend does not promote cursor-depth continuation into crawlable/no-JavaScript navigation. Any later evolution of reference-frontend continuation is subject to the replacement roadmap rather than the retired former Phase 1 plan.
 
 Each discovery parameter represents one logical value. Repeated/ambiguous forms, malformed encodings, unsupported values, invalid cursors, or values outside the implementation's documented bounds MUST fail with bounded generic `400` behavior rather than being silently reinterpreted. Existing generic `404` behavior for absent/non-public singleton Publication state and bounded dependency-error behavior remain unchanged.
 
@@ -175,7 +184,7 @@ When no discovery parameter is supplied, `GET /api/feed` represents the unfilter
 ### Source and Category filters
 
 - Public Source and Category filter identity MUST use immutable `config_key` values, not database UUIDs or mutable display labels.
-- MVP supports at most one Source filter and one Category filter at a time.
+- The current feed supports at most one Source filter and one Category filter at a time.
 - When multiple discovery dimensions are supplied, `q`, `source`, and `category` compose with logical AND: a returned Article must satisfy every supplied criterion in addition to ordinary feed eligibility.
 - Category filtering uses the Article's effective current Category membership, including an active Phase 17 manual Category override. Historical observation/category reasons alone do not make an Article currently match a Category filter. Clearing an override restores the latest current automatic membership; an intentionally empty active manual set, if represented, matches no Category.
 - Source filtering MUST NOT weaken the ordinary Source approval/lifecycle eligibility gates.
@@ -207,8 +216,8 @@ Public discovery uses bounded keyset/load-more pagination rather than offset-bas
 - The root public page reflects active `q`, `source`, and `category` discovery state in the URL where those controls are active, so direct navigation/refresh server-renders the same filters/search before JavaScript enhancement.
 - The discovery form MUST remain usable as ordinary root `GET` navigation without JavaScript for `q`, `source`, and `category`; JavaScript MAY intercept/enhance the same navigation when available.
 - A no-JavaScript Reset path returns to `/` and the unfiltered first page.
-- Phase 0 no-JavaScript scope is first-page reading, direct publisher navigation, first-page `q`/Source/Category discovery, and Reset. No-JavaScript continuation to older results is explicitly deferred to Phase 1.
-- Load-more cursor depth does not need to become canonical shareable URL state in Phase 0; existing JavaScript continuation remains governed by the opaque cursor contract until Phase 1 introduces crawlable server-rendered continuation navigation.
+- Current no-JavaScript scope is first-page reading, direct publisher navigation, first-page `q`/Source/Category discovery, and Reset. No-JavaScript continuation to older results is not part of the current `1.0.1` reference frontend.
+- Load-more cursor depth does not currently become canonical shareable root URL state. Existing JavaScript continuation remains governed by the opaque cursor contract unless a future approved roadmap changes that reference-frontend behavior.
 - Changing `q`, `source`, or `category` starts again from the first page and discards any previous continuation cursor/items from the earlier criteria.
 - A clear Reset action removes all discovery criteria and returns the page to the unfiltered first-page feed state.
 - Browser back/forward navigation restores the URL-reflected discovery criteria and corresponding feed state rather than leaving stale controls/results.
@@ -216,7 +225,7 @@ Public discovery uses bounded keyset/load-more pagination rather than offset-bas
 
 ## Theme, branding, and Phase 13 presentation behavior
 
-Completed MVP requires configuration-driven public presentation without changing feed semantics.
+The bundled/reference frontend requires configuration-driven public presentation without changing feed semantics.
 
 ### Publication presentation configuration
 
@@ -244,7 +253,7 @@ The public page supports three reader theme selections: `system`, `light`, and `
 
 ### Accessibility and responsive target
 
-Phase 13 targets WCAG 2.2 Level AA for the in-scope root public-feed experience. At minimum:
+Phase 13 established the WCAG 2.2 Level AA target for the bundled root public-feed experience. At minimum:
 
 - interactive controls use appropriate native/semantic elements and are operable by keyboard without a keyboard trap;
 - focus order remains coherent and `:focus-visible` or equivalent focus indication is clearly visible in both themes;
@@ -268,46 +277,46 @@ Populated, empty, unavailable, invalid-discovery, continuation-error, and depend
 
 Presentation changes may refine markup around the discovery controls/feed but MUST NOT redefine discovery behavior. In particular they preserve:
 
-- `GET /api/feed` as the canonical public JSON feed/discovery endpoint and `/` as the canonical server-rendered page using the same read-model semantics;
+- `GET /api/feed` as the current canonical JSON feed/discovery endpoint and `/` as the bundled server-rendered reference page using the same read-model semantics;
 - canonical feed eligibility and effective-date/`first_seen_at`/Article-ID chronological ordering;
 - bounded literal `q`, Source, and Category filtering semantics and immutable `config_key` public identities;
 - opaque query-bound keyset cursor behavior and server-defined page size;
-- URL-reflected `q`/`source`/`category`, criteria-reset behavior, direct navigation/refresh, browser Back/Forward restoration, and current non-URL load-more depth until Phase 1;
+- URL-reflected `q`/`source`/`category`, criteria-reset behavior, direct navigation/refresh, browser Back/Forward restoration, and current non-URL load-more depth;
 - stale request/continuation protection and safe continuation retry behavior;
 - exact stored `original_url` headline destinations.
 
-Presentation work must keep the relevant Phase 12 API/database/browser regressions green rather than replacing those contracts with visually convenient alternatives.
+Presentation work must keep the relevant API/database/browser regressions green rather than replacing those contracts with visually convenient alternatives.
 
 ## External destination behavior
 
-- The Article's stored `original_url` is the primary public destination.
+- The Article's stored `original_url` is the primary public/outward reader destination.
 - `canonical_identity_url` is an identity-comparison field and MUST NOT silently replace `original_url` as the public headline destination.
 - A future separately governed Source-derived public/canonical destination field may change this only through an explicit contract decision; none exists in the basic feed.
 - The default headline activation is an ordinary direct same-context browser navigation to stored `original_url`; presentation code MUST NOT force a new browsing context merely for polish. Readers retain their normal browser controls for opening links in another tab/window when desired.
 - UI must not imply Platform authorship of linked content.
 - External navigation is visually/accessibly understandable.
-- Redirector/tracking links are not MVP behavior unless separately approved/documented.
+- Redirector/tracking links are not current reference-frontend behavior unless separately approved/documented.
 - Broken-link handling never silently substitutes another Article.
 
 ## Public Article detail pages
 
-A Platform-hosted detail page is optional in MVP. If implemented, it may show normalized metadata, Source attribution, Categories, and duplicate provenance, but the primary read action remains the Article's stored `original_url`. Full Article content is not reproduced without a separate rights contract.
+A Platform-hosted detail page is not part of the current `1.0.1` reference frontend. If later implemented through an approved roadmap, it may show normalized metadata, Source attribution, Categories, and duplicate provenance, but the primary read action remains the Article's stored `original_url`. Full Article content is not reproduced without a separate rights/content contract.
 
 ## Admin delivery model
 
-The aggregation vertical slice and basic public feed are implemented before the full administrative control plane.
+The aggregation vertical slice and basic public feed were implemented before the full administrative control plane.
 
 Initial singleton Publication/Source configuration MAY be supplied through approved operator-maintained bootstrap/seed tooling. That mechanism does not bypass Source approval or other collection eligibility rules or compete with later operator-managed state.
 
 Ordinary bootstrap remains create-if-absent and MUST NOT overwrite existing operator-managed Publication state. Changing committed bootstrap input alone is not a state-transition mechanism for already-created state.
 
-Bootstrap/deployment configuration supplies one singleton Publication configuration; it MUST NOT require a slug selector or choose among multiple Publication records. Before production database compatibility is established, older pre-production databases may be recreated and bootstrapped rather than supported through an in-place upgrade path.
+Bootstrap/deployment configuration supplies one singleton Publication configuration; it MUST NOT require a slug selector or choose among multiple Publication records. Before production database compatibility was established, older pre-production databases could be recreated and bootstrapped rather than supported through an in-place upgrade path; accepted production state is now governed separately by the production-data compatibility ADR.
 
-When administrative UI/API routes are introduced, they are protected by Cloudflare Access under `docs/decisions/cloudflare-access-admin-perimeter.md`.
+Administrative UI/API routes are protected by Cloudflare Access under `docs/decisions/cloudflare-access-admin-perimeter.md`.
 
 ## Admin information architecture
 
-Administrative area SHOULD eventually contain:
+Administrative area SHOULD contain:
 
 - Dashboard;
 - Publication;
@@ -321,9 +330,11 @@ Administrative area SHOULD eventually contain:
 
 Navigation is single-Publication and does not expose a topic switcher. Application commands validate actual Source/endpoint/run/Article/observation/duplicate relationships and domain invariants rather than a Publication tenancy boundary.
 
+Future distribution configuration may be added to the control plane only after the pending distribution/SEO architecture work defines its semantics; this contract does not pre-create a distribution-profile model.
+
 ## Source management UI
 
-Once the Source-administration phase is complete, authorized operators MUST be able to view/change:
+Authorized operators MUST be able to view/change:
 
 - Source name/site URL/approved domains/Source priority/default Category;
 - optional Source-level RSS/Atom item admission phrases;
@@ -337,7 +348,7 @@ Once the Source-administration phase is complete, authorized operators MUST be a
 - manual check-now;
 - approve/unapprove, enable, pause, disable, and archive/state-management actions as permitted.
 
-The Source editor/API presents the admission filter as an include-only Source setting: no configured phrases means collect/process all otherwise-valid RSS/Atom items, while one or more bounded non-empty phrases admit an item when any phrase matches. It MUST NOT expose an exclude-phrase list or an independent enabled toggle, and MUST NOT store the configuration on individual endpoints. This is collection admission before normalization, not public-feed filtering or Phase 11 Relevance management.
+The Source editor/API presents the admission filter as an include-only Source setting: no configured phrases means collect/process all otherwise-valid RSS/Atom items, while one or more bounded non-empty phrases admit an item when any phrase matches. It MUST NOT expose an exclude-phrase list or an independent enabled toggle, and MUST NOT store the configuration on individual endpoints. This is collection admission before normalization, not outward-feed filtering or Relevance management.
 
 The Source/endpoint administration surface supports `html_listing` endpoint configuration, bounded endpoint-owned HTML listing profiles, deterministic profile-validation errors, and safe sample preview. Endpoint detail exposes the parser/adapter version, persisted profile revision, and bounded latest parser-failure diagnostics. Existing approval, lifecycle, operational, approved-domain, polling, default-Category, health, recent-run, and manual check-now controls remain governing.
 
@@ -373,7 +384,7 @@ Phase 17 Article administration is a bounded, deterministic, paginated read surf
 - hide/restore and categorize Articles;
 - enter Duplicate review/merge/split workflows.
 
-An active display override is separate from and takes precedence only for its governed human-facing field. Source updates continue maintaining the latest underlying normalized value and never silently overwrite or clear the override; clearing it reveals that latest value. Display overrides cannot mutate Source ownership, external/normalized identity, provenance, Source-derived publication timestamps, or `canonical_identity_url`. They do not turn `original_url` into an editable display field: the public feed uses the effective display value but continues navigating to stored publisher `original_url`.
+An active display override is separate from and takes precedence only for its governed human-facing field. Source updates continue maintaining the latest underlying normalized value and never silently overwrite or clear the override; clearing it reveals that latest value. Display overrides cannot mutate Source ownership, external/normalized identity, provenance, Source-derived publication timestamps, or `canonical_identity_url`. They do not turn `original_url` into an editable display field: outward/public output may use the effective display value while continuing to navigate to stored publisher `original_url`.
 
 An active manual Category override is the operator-selected effective current set used by admin/public behavior and filtering. Automatic assignment/reasons continue updating underneath it; clearing returns to the latest automatic set. An intentionally empty override, if supported, is distinct from clearing.
 
@@ -394,16 +405,18 @@ Dismissed decisions persist so unchanged evidence does not repeatedly recreate t
 
 ## Administrative access and request integrity
 
-- Public readers do not authenticate in MVP.
-- All MVP admin UI and admin API routes require the Cloudflare Access perimeter.
+- Public readers do not authenticate in the current bundled/reference frontend.
+- All admin UI and admin API routes require the Cloudflare Access perimeter.
 - Supported deployments MUST prevent direct-origin access from bypassing that perimeter.
-- The MVP application does not implement native administrator accounts, login/logout sessions, account recovery, roles, or per-user Publication authorization.
+- The application does not currently implement native administrator accounts, login/logout sessions, account recovery, roles, or per-user Publication authorization.
 - State-changing admin browser actions MUST use CSRF protection or an equivalent request-integrity control.
 - Administrative commands MUST validate real resource relationships and domain invariants even without per-user permissions.
 - Administrative errors must not expose secrets, stack traces, or raw database details.
+
+This admin-authentication rule does not define authentication for future external distribution consumers. That question remains part of the pending distribution/security architecture work.
 
 ## Change history
 
 Successful material moderation changes produce append-only application change/audit records sufficient to explain the action, including bounded action, target, time, reason, and bounded prior/new state where appropriate. A required record is written transactionally with its mutation and cannot claim success after validation failure or rollback. Ordinary administration cannot edit history; reads are bounded/paginated and retention/pruning follows the governed operations policy.
 
-MVP change records do not require a stable native administrator identifier or guaranteed per-user attribution. Cloudflare identity/access logs are operational evidence rather than the application's canonical domain identity.
+Current change records do not require a stable native administrator identifier or guaranteed per-user attribution. Cloudflare identity/access logs are operational evidence rather than the application's canonical domain identity.
