@@ -14,7 +14,7 @@ import type {
 } from '../../src/collection/fetchers/http-fetcher.ts';
 import { normalizeArticleCandidate } from '../../src/collection/normalization/normalizer.ts';
 import { evaluateRelevance } from '../../src/collection/relevance/evaluator.ts';
-import type { FeedParser } from '../../src/collection/parsers/parser.ts';
+import type { CollectionParser } from '../../src/collection/parsers/parser.ts';
 import { findCollectionRunById } from '../../src/collection/runs/repository.ts';
 import { createDatabase } from '../../src/database/database.ts';
 import { insertPublicationSettings } from '../../src/publication/repository.ts';
@@ -225,7 +225,7 @@ function contentFetcher(): HttpFetcher {
 
 function parser(
   items: readonly { readonly title?: string; readonly url?: string }[],
-): FeedParser {
+): CollectionParser {
   return Object.freeze({
     parse() {
       return Object.freeze({

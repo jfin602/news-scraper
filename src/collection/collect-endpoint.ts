@@ -32,7 +32,7 @@ import {
   HTML_LISTING_PARSER_VERSION,
 } from './parsers/html-listing-parser.ts';
 import type {
-  FeedParser,
+  CollectionParser,
   ParserAdapterIdentity,
   ParserDiagnosticSummary,
   ParserResult,
@@ -67,7 +67,7 @@ export interface CollectEndpointDependencies {
   readonly lockRunner: EndpointExecutionLockRunner;
   readonly runs: CollectionRunStore;
   readonly fetcher: HttpFetcher;
-  readonly rssAtomParser: FeedParser;
+  readonly rssAtomParser: CollectionParser;
   readonly normalizeArticleCandidate: (
     rawItem: RawItem,
     context: ArticleNormalizationContext,
@@ -984,7 +984,7 @@ const processingNotRun = Object.freeze({
 });
 
 interface ParserSelection {
-  readonly parser: FeedParser;
+  readonly parser: CollectionParser;
   readonly adapter: ParserAdapterIdentity;
   readonly htmlListingProfileRevision?: number;
 }

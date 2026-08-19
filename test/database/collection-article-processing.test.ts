@@ -20,7 +20,7 @@ import type {
   HttpFetcherResult,
 } from '../../src/collection/fetchers/http-fetcher.ts';
 import { normalizeArticleCandidate } from '../../src/collection/normalization/normalizer.ts';
-import type { FeedParser } from '../../src/collection/parsers/parser.ts';
+import type { CollectionParser } from '../../src/collection/parsers/parser.ts';
 import type { RawItem } from '../../src/collection/raw-item.ts';
 import {
   evaluateRelevance,
@@ -1007,7 +1007,7 @@ function finalization(
   };
 }
 
-function parser(items: readonly RawItem[]): FeedParser {
+function parser(items: readonly RawItem[]): CollectionParser {
   return Object.freeze({
     parse() {
       return Object.freeze({

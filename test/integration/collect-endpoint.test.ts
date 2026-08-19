@@ -19,7 +19,7 @@ import { createHttpFetcher } from '../../src/collection/fetchers/http-fetcher.ts
 import { createHttpTransport } from '../../src/collection/fetchers/http-transport.ts';
 import type { EndpointRunLockResult } from '../../src/collection/locks/endpoint-run-lock.ts';
 import type {
-  FeedParser,
+  CollectionParser,
   ParserResult,
 } from '../../src/collection/parsers/parser.ts';
 import { RssAtomParser } from '../../src/collection/parsers/rss-atom-parser.ts';
@@ -1697,7 +1697,7 @@ function fetcher(events: string[], result: HttpFetcherResult): HttpFetcher {
   };
 }
 
-function parser(events: string[], result: ParserResult): FeedParser {
+function parser(events: string[], result: ParserResult): CollectionParser {
   return {
     parse() {
       events.push('parse');

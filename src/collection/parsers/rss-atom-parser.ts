@@ -2,7 +2,7 @@ import { XMLParser, XMLValidator } from 'fast-xml-parser';
 
 import type { RawItem } from '../raw-item.ts';
 import type {
-  FeedParser,
+  CollectionParser,
   ParserFailure,
   ParserFailureReason,
   ParserInput,
@@ -43,7 +43,7 @@ const parser = new XMLParser({
   stopNodes: ['*.description', '*.content', '*.content:encoded', '*.summary'],
 });
 
-export class RssAtomParser implements FeedParser {
+export class RssAtomParser implements CollectionParser {
   parse(input: ParserInput): ParserResult {
     const decoded = decode(input.content);
     if (!decoded.ok) return decoded;

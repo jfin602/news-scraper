@@ -78,6 +78,3 @@ export type ParserResult = ParserSuccess | ParserFailure;
 export interface CollectionParser {
   parse(input: ParserInput): ParserResult;
 }
-
-/** @deprecated Kept as the source-compatible name for the RSS/Atom pipeline. */
-export type FeedParser = CollectionParser;
