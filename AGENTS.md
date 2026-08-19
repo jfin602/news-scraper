@@ -25,7 +25,7 @@ Follow `BOOT.md`.
 
 `package.json` is the sole current-version authority and is currently `1.0.0`. Documentation, correction, and UI work is non-versioned. A version changes only through an executed roadmap prompt, a green roadmap `/closeout` baseline transition, or another explicit owner-authorized transition.
 
-The machine parser is `scripts/codex-phase-core.mjs`; parser changes must update BOOT and focused parser tests. Before reporting `/prompt-write` complete, run `npm run codex:phase:validate -- <task-folder>` when local execution is available. `npm run codex:phase -- <task-folder>` executes implementation prompts and stops before the parsed final closeout prompt.
+The machine parser is `scripts/codex-phase-core.mjs`; parser changes must update BOOT and focused parser tests. Before reporting `/prompt-write` complete, run `npm run codex:phase:validate -- <task-folder>` when local execution is available. `npm run codex:phase -- <task-folder>` executes implementation prompts and stops before the parsed final closeout prompt by default. `npm run codex:phase -- <task-folder> --closeout` explicitly invokes that final prompt after the Git-proven implementation prefix completes, but leaves its result HUMAN REVIEW REQUIRED: it is never automatically committed or accepted, and its captured final response is intentionally the final terminal output.
 
 The parser supports both retained historical and post-1.0 roadmap families. Historical stacks use positive canonical `p<number>` folders and `0.<phase>.<prompt>` targets; post-1.0 stacks use `p1-<phase>`, canonical non-negative `<phase>`, and `1.<phase>.<prompt>` targets. **Do not generate or execute a post-1.0 roadmap task stack until the documented non-versioned runner-compatibility correction is GREEN; P2/P3 remain required after P1.** The correction leaves `package.json` at `1.0.0` and consumes no Phase 0 patch number.
 
@@ -33,7 +33,7 @@ Common grammar:
 
 - filenames are `P<number>-<lower-kebab-slug>.txt`, one-based, unique, and contiguous from P1;
 - every prompt has exactly one `- Recommended configuration:` line containing one supported backtick-delimited `MODEL_CONFIGS` label and a final period;
-- exactly one final prompt is the manual closeout; both its filename slug and parsed `TASK:` title contain `closeout`; body prose does not determine prompt kind.
+- exactly one final prompt is the manual-by-default closeout; both its filename slug and parsed `TASK:` title contain `closeout`; body prose does not determine prompt kind. `--closeout` may invoke it, but never accepts it automatically.
 
 Historical pre-1.0 roadmap stacks:
 

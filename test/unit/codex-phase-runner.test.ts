@@ -36,6 +36,7 @@ const {
   isAscii,
   parsePrompt,
   printableAscii,
+  renderCloseoutFinalResponse,
   renderDashboard,
   renderFailureSummary,
   renderSuccessHandoff,
@@ -49,6 +50,7 @@ const {
   checkCodexLauncher,
   compareNumericVersions,
   commitPromptChanges,
+  handleFailure,
   MINIMUM_GPT_5_6_CODEX_VERSION,
   parseCodexCliVersion,
   invokeGit,
@@ -2435,4 +2437,397 @@ test('successful handoff preserves exit-success manual-closeout semantics', () =
   assert.match(output, /Execution:\s+MANUAL/);
   assert.match(output, /Automation stopped by design/);
   assert.doesNotMatch(output, /executing closeout/i);
+});
+
+test('auto-run closeout executes after implementation commits and ends terminal output with its full response', async () => {
+  const rootDirectory = await createPhaseRepository(1);
+  const output = testOutput(false);
+  const calls: number[] = [];
+  const closeoutResponse = 'Closeout review: human acceptance is required.\n';
+  try {
+    assert.equal(
+      await runCli(['--closeout', 'p8', '--verbose'], {
+        rootDirectory,
+        stdout: output,
+        resolveLauncher: async () => ({
+          launcher: directTestLauncher,
+          version: compatibleCodexVersion,
+        }),
+        runCodexProcess: async (
+          parsedPrompt: {
+            number: number;
+            model: string;
+            reasoning: string;
+            text: string;
+          },
+          runDirectory: string,
+        ) => {
+          calls.push(parsedPrompt.number);
+          if (parsedPrompt.number === 1) {
+            await writeFile(
+              path.join(rootDirectory, 'package.json'),
+              `${JSON.stringify({ name: 'phase-test', version: '0.8.1' })}\n`,
+            );
+            await writeFile(
+              path.join(rootDirectory, 'implementation.txt'),
+              'done\n',
+            );
+            return {
+              code: 0,
+              signal: null,
+              finalResponse: 'implementation response',
+              stderr: '',
+              childArgs: [],
+            };
+          }
+          assert.equal(parsedPrompt.model, 'gpt-5.6-terra');
+          assert.equal(parsedPrompt.reasoning, 'high');
+          assert.match(parsedPrompt.text, /Perform Phase 8 closeout/);
+          assert.equal(
+            gitResult(rootDirectory, ['log', '-1', '--format=%s']),
+            '0.8.1',
+          );
+          assert.equal(
+            gitResult(rootDirectory, ['status', '--porcelain=v1']),
+            '',
+          );
+          await writeFile(
+            path.join(rootDirectory, 'closeout-evidence.txt'),
+            'review\n',
+          );
+          await writeFile(
+            path.join(runDirectory, 'P2.final.txt'),
+            closeoutResponse,
+          );
+          return {
+            code: 0,
+            signal: null,
+            finalResponse: closeoutResponse,
+            stderr: '',
+            childArgs: [],
+          };
+        },
+      }),
+      0,
+    );
+    assert.deepEqual(calls, [1, 2]);
+    assert.deepEqual(
+      gitResult(rootDirectory, ['log', '--format=%s']).split('\n').slice(0, 2),
+      ['0.8.1', 'baseline'],
+    );
+    assert.match(
+      gitResult(rootDirectory, ['status', '--porcelain=v1']),
+      /closeout-evidence/,
+    );
+    const [runName] = await readdir(
+      path.join(rootDirectory, '.codex-runs', 'p8'),
+    );
+    const runDirectory = path.join(
+      rootDirectory,
+      '.codex-runs',
+      'p8',
+      runName!,
+    );
+    const run = JSON.parse(
+      await readFile(path.join(runDirectory, 'run.json'), 'utf8'),
+    );
+    assert.equal(run.closeoutMode, 'auto');
+    assert.equal(run.status, 'closeout_executed_review_required');
+    assert.equal(run.prompts[1].status, 'review_required');
+    assert.equal(run.prompts[1].finalResponseFile, 'P2.final.txt');
+    await assert.rejects(
+      access(path.join(runDirectory, 'P2.commit-message.txt')),
+    );
+    assert.equal(
+      await readFile(path.join(runDirectory, 'P2.final.txt'), 'utf8'),
+      closeoutResponse,
+    );
+    assert.ok(output.read().endsWith(closeoutResponse));
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('auto-run closeout resumes directly from an implementation-complete prefix', async () => {
+  const rootDirectory = await createPhaseRepository(1);
+  const calls: number[] = [];
+  try {
+    await commitRoadmapCompletion(rootDirectory, 1);
+    await runCli(['p8', '--closeout'], {
+      rootDirectory,
+      stdout: testOutput(false),
+      resolveLauncher: async () => ({
+        launcher: directTestLauncher,
+        version: compatibleCodexVersion,
+      }),
+      runCodexProcess: async (parsedPrompt: { number: number }) => {
+        calls.push(parsedPrompt.number);
+        assert.equal(parsedPrompt.number, 2);
+        return {
+          code: 0,
+          signal: null,
+          finalResponse: 'read-only review',
+          stderr: '',
+          childArgs: [],
+        };
+      },
+    });
+    assert.deepEqual(calls, [2]);
+    assert.equal(
+      gitResult(rootDirectory, ['log', '-1', '--format=%s']),
+      '0.8.1',
+    );
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('auto-run closeout enforces normalized phase and correction version boundaries without committing it', async () => {
+  const scenarios = [
+    {
+      create: createPhaseRepository,
+      folder: 'p8',
+      implementationVersion: '0.8.1',
+      closeoutVersion: '0.8.2',
+      allowed: ['0.8.1', '0.8.2'],
+    },
+    {
+      create: createCorrectionRepository,
+      folder: 'c10-single-publication',
+      implementationVersion: '0.10.0',
+      closeoutVersion: '0.10.0',
+      allowed: ['0.10.0'],
+    },
+  ];
+  for (const scenario of scenarios) {
+    for (const version of scenario.allowed) {
+      const rootDirectory = await scenario.create(1);
+      try {
+        await runCli([scenario.folder, '--closeout'], {
+          rootDirectory,
+          stdout: testOutput(false),
+          resolveLauncher: async () => ({
+            launcher: directTestLauncher,
+            version: compatibleCodexVersion,
+          }),
+          runCodexProcess: async (parsedPrompt: { number: number }) => {
+            if (parsedPrompt.number === 1) {
+              await writeFile(
+                path.join(rootDirectory, 'package.json'),
+                `${JSON.stringify({ version: scenario.implementationVersion })}\n`,
+              );
+              await writeFile(
+                path.join(rootDirectory, 'implementation.txt'),
+                'done\n',
+              );
+            } else if (version !== scenario.implementationVersion) {
+              await writeFile(
+                path.join(rootDirectory, 'package.json'),
+                `${JSON.stringify({ version })}\n`,
+              );
+            }
+            return {
+              code: 0,
+              signal: null,
+              finalResponse: 'review',
+              stderr: '',
+              childArgs: [],
+            };
+          },
+        });
+        assert.equal(
+          gitResult(rootDirectory, ['log', '-1', '--format=%s']),
+          scenario.folder === 'p8'
+            ? '0.8.1'
+            : 'c10-single-publication/P1: Correction 1',
+        );
+      } finally {
+        await rm(rootDirectory, { recursive: true, force: true });
+      }
+    }
+  }
+});
+
+test('auto-run closeout rejects HEAD drift, lockfiles, invalid versions, and incoherent diffs', async () => {
+  for (const failure of ['head', 'lockfile', 'version', 'diff'] as const) {
+    const rootDirectory = await createPhaseRepository(1);
+    try {
+      await assert.rejects(
+        runCli(['p8', '--closeout'], {
+          rootDirectory,
+          stdout: testOutput(false),
+          resolveLauncher: async () => ({
+            launcher: directTestLauncher,
+            version: compatibleCodexVersion,
+          }),
+          runCodexProcess: async (parsedPrompt: { number: number }) => {
+            if (parsedPrompt.number === 1) {
+              await writeFile(
+                path.join(rootDirectory, 'package.json'),
+                `${JSON.stringify({ version: '0.8.1' })}\n`,
+              );
+              await writeFile(
+                path.join(rootDirectory, 'implementation.txt'),
+                'done\n',
+              );
+            } else if (failure === 'head') {
+              await writeFile(
+                path.join(rootDirectory, 'self-commit.txt'),
+                'bad\n',
+              );
+              gitResult(rootDirectory, ['add', '-A']);
+              gitResult(rootDirectory, [
+                'commit',
+                '--quiet',
+                '-m',
+                'self commit',
+              ]);
+            } else if (failure === 'lockfile') {
+              await writeFile(
+                path.join(rootDirectory, 'package-lock.json'),
+                '{}\n',
+              );
+            } else if (failure === 'version') {
+              await writeFile(
+                path.join(rootDirectory, 'package.json'),
+                `${JSON.stringify({ version: '9.9.9' })}\n`,
+              );
+            } else {
+              await writeFile(
+                path.join(rootDirectory, 'implementation.txt'),
+                'one\n<<<<<<<\ntwo\n',
+              );
+            }
+            return {
+              code: 0,
+              signal: null,
+              finalResponse: 'captured review',
+              stderr: '',
+              childArgs: [],
+            };
+          },
+        }),
+        /HEAD changed|package-lock|not allowed|diff --check/,
+      );
+    } finally {
+      await rm(rootDirectory, { recursive: true, force: true });
+    }
+  }
+});
+
+test('runner-level closeout failure after a captured response stays nonzero and presents that response last', async () => {
+  const rootDirectory = await createPhaseRepository(1);
+  const output = testOutput(false);
+  const response = 'Captured closeout response after a safety failure.\n';
+  const priorExitCode = process.exitCode;
+  const originalStderrWrite = process.stderr.write;
+  let diagnostics = '';
+  try {
+    await assert.rejects(
+      runCli(['p8', '--closeout'], {
+        rootDirectory,
+        stdout: output,
+        resolveLauncher: async () => ({
+          launcher: directTestLauncher,
+          version: compatibleCodexVersion,
+        }),
+        runCodexProcess: async (parsedPrompt: { number: number }) => {
+          if (parsedPrompt.number === 1) {
+            await writeFile(
+              path.join(rootDirectory, 'package.json'),
+              `${JSON.stringify({ version: '0.8.1' })}\n`,
+            );
+            await writeFile(
+              path.join(rootDirectory, 'implementation.txt'),
+              'done\n',
+            );
+          } else {
+            await writeFile(
+              path.join(rootDirectory, 'package.json'),
+              `${JSON.stringify({ version: '9.9.9' })}\n`,
+            );
+          }
+          return {
+            code: 0,
+            signal: null,
+            finalResponse:
+              parsedPrompt.number === 2 ? response : 'implementation',
+            stderr: '',
+            childArgs: [],
+          };
+        },
+      }),
+      /not allowed/,
+    );
+    process.stderr.write = ((value: string) => {
+      diagnostics += value;
+      return true;
+    }) as typeof process.stderr.write;
+    await handleFailure(
+      new Error('Closeout package version 9.9.9 is not allowed.'),
+    );
+    assert.equal(process.exitCode, 1);
+    assert.match(diagnostics, /P2 - Phase 8 closeout validation - FAILED/);
+    assert.ok(output.read().endsWith(response));
+    const [runName] = await readdir(
+      path.join(rootDirectory, '.codex-runs', 'p8'),
+    );
+    const run = JSON.parse(
+      await readFile(
+        path.join(rootDirectory, '.codex-runs', 'p8', runName!, 'run.json'),
+        'utf8',
+      ),
+    );
+    assert.equal(run.status, 'failed');
+    assert.equal(run.prompts[1].status, 'failed');
+  } finally {
+    process.stderr.write = originalStderrWrite;
+    process.exitCode = priorExitCode;
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('auto-run rendering and CLI validation distinguish review-required closeout state', async () => {
+  const plan = buildPlan([prompt(1), prompt(2, { closeout: true })], 'p8');
+  const states = new Map([
+    [1, { status: 'passed' }],
+    [2, { status: 'review_required', durationMs: 1 }],
+  ]);
+  const dashboard = renderDashboard({
+    plan,
+    states,
+    current: undefined,
+    activity: '',
+    tracker: createEventTracker(),
+    startedAt: 0,
+    closeoutAutoRun: true,
+  });
+  assert.match(dashboard, /AUTO-RUN \/ HUMAN REVIEW/);
+  assert.match(dashboard, /EXECUTED \/ REVIEW REQUIRED/);
+  assert.match(
+    renderFailureSummary({
+      plan,
+      states: new Map([[2, { status: 'failed' }]]),
+      failedPrompt: plan.closeout,
+      reason: 'safety check failed',
+    }),
+    /P2 - Phase 8 closeout validation - FAILED/,
+  );
+  assert.equal(
+    renderCloseoutFinalResponse('complete response'),
+    `\n${'='.repeat(60)}\nCLOSEOUT AGENT FINAL RESPONSE\n${'='.repeat(60)}\ncomplete response`,
+  );
+  for (const argv of [
+    ['p8', '--unknown'],
+    ['p8', '--closeout', '--closeout'],
+    ['p8', '--verbose', '--verbose'],
+    ['--closeout'],
+  ]) {
+    await assert.rejects(runCli(argv), /Usage: npm run codex:phase/);
+  }
+  const runnerSource = await readFile(
+    path.join(process.cwd(), 'scripts', 'codex-phase.mjs'),
+    'utf8',
+  );
+  assert.doesNotMatch(runnerSource, /p1-\\?<phase>|roadmapVersionFor/);
 });

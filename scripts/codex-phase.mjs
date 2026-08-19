@@ -23,6 +23,7 @@ import {
   detectCompletedPromptPrefix,
   interpretEvent,
   printableAscii,
+  renderCloseoutFinalResponse,
   renderDashboard,
   renderFailureSummary,
   renderSuccessHandoff,
@@ -40,6 +41,9 @@ let activePrompt;
 let stopActiveRedraw;
 let activeDisplay;
 let activeDashboard;
+let activeCloseoutFinalResponse;
+let activeCloseoutOutput;
+let closeoutFinalResponsePrinted = false;
 
 const exists = async (file) =>
   access(file).then(
@@ -102,9 +106,15 @@ function formatNumericVersion(version) {
   return version.join('.');
 }
 
-export function assertCodexVersionCompatible(plan, versionOutput) {
+export function assertCodexVersionCompatible(
+  plan,
+  versionOutput,
+  { includeCloseout = false } = {},
+) {
   if (
-    !plan.implementations.some((prompt) => prompt.model.startsWith('gpt-5.6-'))
+    !(includeCloseout ? plan.prompts : plan.implementations).some((prompt) =>
+      prompt.model.startsWith('gpt-5.6-'),
+    )
   )
     return;
   const observed = parseCodexCliVersion(versionOutput);
@@ -570,15 +580,37 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
   const runGit = (arguments_) =>
     invokeGit(arguments_, { rootDirectory, spawnSyncProcess });
   interrupted = false;
-  const verbose = argv.includes('--verbose');
-  const positional = argv.filter((argument) => argument !== '--verbose');
-  if (
-    positional.length !== 1 ||
-    argv.some(
-      (argument) => argument.startsWith('--') && argument !== '--verbose',
-    )
-  ) {
-    throw new Error('Usage: npm run codex:phase -- <task-folder> [--verbose]');
+  activeCloseoutFinalResponse = undefined;
+  activeCloseoutOutput = undefined;
+  closeoutFinalResponsePrinted = false;
+  let verbose = false;
+  let closeoutAutoRun = false;
+  const positional = [];
+  for (const argument of argv) {
+    if (argument === '--verbose') {
+      if (verbose)
+        throw new Error(
+          'Usage: npm run codex:phase -- <task-folder> [--verbose] [--closeout]',
+        );
+      verbose = true;
+    } else if (argument === '--closeout') {
+      if (closeoutAutoRun)
+        throw new Error(
+          'Usage: npm run codex:phase -- <task-folder> [--verbose] [--closeout]',
+        );
+      closeoutAutoRun = true;
+    } else if (argument.startsWith('-')) {
+      throw new Error(
+        'Usage: npm run codex:phase -- <task-folder> [--verbose] [--closeout]',
+      );
+    } else {
+      positional.push(argument);
+    }
+  }
+  if (positional.length !== 1) {
+    throw new Error(
+      'Usage: npm run codex:phase -- <task-folder> [--verbose] [--closeout]',
+    );
   }
 
   const folderName = positional[0];
@@ -636,7 +668,9 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
     await packageVersion(rootDirectory),
   );
   const { launcher, version: codexVersion } = await resolveLauncher();
-  assertCodexVersionCompatible(plan, codexVersion);
+  assertCodexVersionCompatible(plan, codexVersion, {
+    includeCloseout: closeoutAutoRun,
+  });
 
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
   const runDirectory = path.join(
@@ -661,10 +695,16 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
       : {}),
     startedAt: new Date().toISOString(),
     codexVersion,
+    closeoutMode: closeoutAutoRun ? 'auto' : 'manual',
     status: 'running',
     prompts: plan.prompts.map((prompt) => ({
       ...withoutPromptText(prompt),
-      status: prompt.kind === 'closeout' ? 'manual' : 'waiting',
+      status:
+        prompt.kind === 'closeout'
+          ? closeoutAutoRun
+            ? 'waiting'
+            : 'manual'
+          : 'waiting',
     })),
   };
   for (const completed of resume.completed) {
@@ -677,6 +717,9 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
       status: 'previously_completed',
       commitSha: completed.commitSha,
     });
+  }
+  if (closeoutAutoRun) {
+    states.set(plan.closeout.number, { status: 'waiting' });
   }
   const saveRun = () =>
     writeFile(
@@ -737,6 +780,7 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
         startedAt,
         terminalWidth: stdout.columns,
         colorEnabled: isColorEnabled({ interactive: stdout.isTTY, verbose }),
+        closeoutAutoRun,
       });
     const redraw = () => display.render(dashboard());
     activeDashboard = dashboard;
@@ -775,6 +819,7 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
       stopActiveRedraw = undefined;
     }
     if (interrupted || result.signal) throw new Error(interruptionMessage);
+    record.finalResponseFile = `P${prompt.number}.final.txt`;
     const conflicts = runGit(['diff', '--check']);
     assertPostPrompt({
       exitCode: result.code,
@@ -820,6 +865,139 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
       prompt.mode === 'phase' ? prompt.targetVersion : prompt.unchangedVersion;
     await saveRun();
   }
+  if (closeoutAutoRun) {
+    const closeout = plan.closeout;
+    const preCloseoutStatus = successfulGit(
+      runGit(['status', '--porcelain=v1']),
+      'Unable to inspect repository state before closeout',
+    );
+    if (preCloseoutStatus)
+      throw new Error('Repository has uncommitted changes before closeout.');
+    if (await exists(path.join(rootDirectory, 'package-lock.json')))
+      throw new Error('package-lock.json exists before closeout.');
+    const preCloseoutHead = successfulGit(
+      runGit(['rev-parse', 'HEAD']),
+      'Unable to read HEAD before closeout',
+    );
+    const preCloseoutVersion = await packageVersion(rootDirectory);
+    activePrompt = closeout;
+    const state = { status: 'running' };
+    states.set(closeout.number, state);
+    const record = run.prompts.find((item) => item.number === closeout.number);
+    record.status = 'running';
+    record.startedAt = new Date().toISOString();
+    const startedAt = Date.now();
+    const tracker = createEventTracker();
+    let latest = '[.] Waiting for Codex response';
+    const dashboard = () =>
+      renderDashboard({
+        plan,
+        states,
+        current: closeout,
+        activity: latest,
+        tracker,
+        startedAt,
+        terminalWidth: stdout.columns,
+        colorEnabled: isColorEnabled({ interactive: stdout.isTTY, verbose }),
+        closeoutAutoRun,
+      });
+    const redraw = () => display.render(dashboard());
+    activeDashboard = dashboard;
+    display.progress(
+      `[>] P${closeout.number} closeout started - human review required`,
+    );
+    redraw();
+    if (display.interactive) stopActiveRedraw = startElapsedRedraw(redraw);
+
+    let result;
+    try {
+      result = await runCodexProcess(
+        closeout,
+        runDirectory,
+        (event) => {
+          const observation = interpretEvent(event, verbose);
+          applyEventObservation(tracker, observation);
+          if (observation.usage) {
+            record.usage = observation.usage;
+            state.usage = observation.usage;
+          }
+          if (observation.visible && observation.activity) {
+            latest = printableAscii(observation.activity);
+            if (verbose) display.verbose(latest);
+            else redraw();
+          } else if (observation.agentMessage?.trim()) {
+            redraw();
+          }
+        },
+        { launcher, verbose, rootDirectory },
+      );
+    } finally {
+      stopActiveRedraw?.();
+      stopActiveRedraw = undefined;
+    }
+    record.finalResponseFile = `P${closeout.number}.final.txt`;
+    activeCloseoutFinalResponse = result.finalResponse;
+    activeCloseoutOutput = stdout;
+    if (interrupted || result.signal) throw new Error(interruptionMessage);
+    if (result.code !== 0)
+      throw new Error(`Codex exited with status ${result.code}.`);
+    const postCloseoutHead = successfulGit(
+      runGit(['rev-parse', 'HEAD']),
+      'Unable to inspect HEAD after closeout',
+    );
+    if (postCloseoutHead !== preCloseoutHead) {
+      throw new Error(
+        'HEAD changed during closeout; closeout changes require human review and must not self-commit.',
+      );
+    }
+    if (await exists(path.join(rootDirectory, 'package-lock.json')))
+      throw new Error('package-lock.json was created.');
+    const conflicts = runGit(['diff', '--check']);
+    if (conflicts.status !== 0)
+      throw new Error('Closeout changes fail git diff --check.');
+    const postCloseoutVersion = await packageVersion(rootDirectory);
+    const allowedVersions =
+      plan.mode === 'correction'
+        ? [plan.unchangedVersion]
+        : [preCloseoutVersion, closeout.targetVersion];
+    if (!allowedVersions.includes(postCloseoutVersion)) {
+      throw new Error(
+        `Closeout package version ${postCloseoutVersion} is not allowed; expected ${allowedVersions.join(' or ')}.`,
+      );
+    }
+    const durationMs = Date.now() - startedAt;
+    record.status = 'review_required';
+    record.endedAt = new Date().toISOString();
+    record.durationMs = durationMs;
+    states.set(closeout.number, {
+      status: 'review_required',
+      durationMs,
+      ...(record.usage ? { usage: record.usage } : {}),
+    });
+    run.status = 'closeout_executed_review_required';
+    run.endedAt = record.endedAt;
+    await saveRun();
+    activePrompt = undefined;
+    activeDashboard = undefined;
+    const finalDashboard = renderDashboard({
+      plan,
+      states,
+      current: undefined,
+      activity: '',
+      tracker: createEventTracker(),
+      startedAt: Date.now(),
+      terminalWidth: stdout.columns,
+      colorEnabled: isColorEnabled({ interactive: stdout.isTTY, verbose }),
+      closeoutAutoRun,
+    });
+    display.finalize(finalDashboard);
+    activeDisplay = undefined;
+    activeRun = undefined;
+    saveActiveRun = undefined;
+    stdout.write(renderCloseoutFinalResponse(result.finalResponse));
+    closeoutFinalResponsePrinted = true;
+    return 0;
+  }
   run.status = 'implementation_complete';
   run.endedAt = new Date().toISOString();
   await saveRun();
@@ -834,6 +1012,7 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
     startedAt: Date.now(),
     terminalWidth: stdout.columns,
     colorEnabled: isColorEnabled({ interactive: stdout.isTTY, verbose }),
+    closeoutAutoRun,
   });
   display.finalize(finalDashboard);
   stdout.write(
@@ -843,7 +1022,7 @@ export async function runCli(argv = process.argv.slice(2), dependencies = {}) {
   return 0;
 }
 
-async function handleFailure(error) {
+export async function handleFailure(error) {
   stopActiveRedraw?.();
   stopActiveRedraw = undefined;
   if (activePrompt) {
@@ -881,6 +1060,16 @@ async function handleFailure(error) {
       reason: error.message,
     }),
   );
+  if (
+    activeCloseoutFinalResponse !== undefined &&
+    activeCloseoutOutput &&
+    !closeoutFinalResponsePrinted
+  ) {
+    activeCloseoutOutput.write(
+      renderCloseoutFinalResponse(activeCloseoutFinalResponse),
+    );
+    closeoutFinalResponsePrinted = true;
+  }
   process.exitCode = 1;
 }
 

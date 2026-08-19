@@ -115,5 +115,6 @@ export function createDisplaySession(...arguments_: any[]): any;
 export function startElapsedRedraw(...arguments_: any[]): any;
 export function renderFailureSummary(...arguments_: any[]): any;
 export function renderSuccessHandoff(...arguments_: any[]): any;
+export function renderCloseoutFinalResponse(...arguments_: any[]): any;
 export function hasCursorControls(...arguments_: any[]): any;
 export function isAscii(...arguments_: any[]): any;

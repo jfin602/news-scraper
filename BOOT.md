@@ -509,6 +509,8 @@ Historical roadmap stacks use `0.<roadmap phase>.<phase prompt number>`; post-1.
 
 The shared parser normalizes each roadmap stack's historical/post-1.0 family and major once, then uses that authority for prompt target validation and Git-proven resume baseline reconstruction. The approved post-1.0 law (`p1-<phase>` / `1.<phase>.<prompt>`, beginning with Phase 0 at baseline `1.0.0`) is executable; P2/P3 still gate Phase 0 prompt generation/execution.
 
+`npm run codex:phase -- <task-folder>` runs implementation prompts only and stops before the parsed final closeout by default. `npm run codex:phase -- <task-folder> --closeout` explicitly invokes that final prompt only after the Git-proven implementation prefix is complete. Its result remains human review required: it is neither automatically committed nor accepted, and the captured closeout agent final response is intentionally the last terminal output for handoff.
+
 ## `/prompt-ass`
 
 Determine safe task boundaries from established behavior/contracts/roadmap. No writes.

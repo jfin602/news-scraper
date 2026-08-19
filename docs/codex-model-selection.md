@@ -130,6 +130,8 @@ Interpretation rules:
 
 Roadmap-phase and gating-correction closeout prompts SHOULD default to `Sol Light` when that label remains available in the runner. The closeout boundary is an independent final review of work produced by earlier implementation prompts. Its purpose is not merely to certify that the requested feature exists; it deliberately hardens the integrated result against mistakes, missed failure modes, weak edge-case coverage, and structural quality problems that may survive focused implementation prompts. Sol's stronger base code-reading/review capability is therefore intentionally preferred while Light reasoning keeps the normal review economical.
 
+The runner normally stops before this final prompt. `npm run codex:phase -- <task-folder> --closeout` may be useful for a small, low-risk stack when eliminating the manual launch step helps, but it automates invocation only: the resulting closeout remains human review required, is not automatically committed or accepted, and does not weaken this three-pass contract or its escalation rules.
+
 This default does **not** mean repeated low-reasoning passes are equivalent to a deeper model. Every closeout must use three distinct passes:
 
 1. **Contract / evidence pass** — verify the implemented final tree against governing contracts, roadmap exit gates, required evidence levels, focused tests, broader regressions, runtime/database/browser/live prerequisites as applicable, and the exact accepted source tree.

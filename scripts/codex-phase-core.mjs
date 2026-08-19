@@ -615,7 +615,15 @@ export function formatUsage(usage) {
 }
 
 function stateLabel(prompt, state) {
-  if (prompt.kind === 'closeout') return '[M] MANUAL / CLOSEOUT';
+  if (prompt.kind === 'closeout') {
+    if (state?.status === 'running') return '[>] RUNNING / CLOSEOUT';
+    if (state?.status === 'review_required')
+      return '[R] EXECUTED / REVIEW REQUIRED';
+    if (state?.status === 'failed') return '[X] FAILED / CLOSEOUT';
+    if (state?.status === 'interrupted') return '[X] INTERRUPTED / CLOSEOUT';
+    if (state?.status === 'waiting') return '[ ] AUTO-RUN / HUMAN REVIEW';
+    return '[M] MANUAL / CLOSEOUT';
+  }
   if (state?.status === 'previously_completed')
     return '[+] PREVIOUSLY COMPLETED';
   if (state?.status === 'passed') return '[+] PASSED';
@@ -641,6 +649,7 @@ export function renderDashboard({
   now = Date.now(),
   terminalWidth = 100,
   colorEnabled = false,
+  closeoutAutoRun = false,
 }) {
   const lines = [
     'NEWS SCRAPER - CODEX TASK STACK RUNNER',
@@ -658,23 +667,25 @@ export function renderDashboard({
           `Phase:        ${plan.phase}`,
         ]),
     `Task folder:  docs/tasks/${plan.folderName}`,
-    'Mode:         Implementation prompts only',
-    'Closeout:     MANUAL',
+    `Mode:         ${closeoutAutoRun ? 'Implementation prompts + final closeout' : 'Implementation prompts only'}`,
+    `Closeout:     ${closeoutAutoRun ? 'AUTO-RUN / HUMAN REVIEW' : 'MANUAL'}`,
     '',
     'Prompts:',
   ];
   for (const prompt of plan.prompts) {
     const state = states.get(prompt.number);
     const duration =
-      state?.status === 'passed' && Number.isFinite(state.durationMs)
+      ['passed', 'review_required'].includes(state?.status) &&
+      Number.isFinite(state.durationMs)
         ? `  ${formatElapsed(state.durationMs)}`
         : '';
     lines.push(
-      `  ${stateLabel(prompt, state)} P${prompt.number}  ${prompt.title}  ${prompt.recommendation}  ${prompt.kind === 'closeout' ? 'MANUAL' : promptVersionLabel(prompt)}${duration}`,
+      `  ${stateLabel(prompt, state)} P${prompt.number}  ${prompt.title}  ${prompt.recommendation}  ${prompt.kind === 'closeout' ? (closeoutAutoRun ? 'AUTO-RUN' : 'MANUAL') : promptVersionLabel(prompt)}${duration}`,
     );
     if (
       state?.status === 'passed' ||
-      state?.status === 'previously_completed'
+      state?.status === 'previously_completed' ||
+      state?.status === 'review_required'
     ) {
       if (state.commitSha)
         lines.push(`    Commit: ${state.commitSha.slice(0, 7)}`);
@@ -696,7 +707,9 @@ export function renderDashboard({
     lines.push(
       '',
       '-'.repeat(60),
-      `CURRENT - P${current.number} / ${plan.implementations.length}`,
+      current.kind === 'closeout'
+        ? `CURRENT - CLOSEOUT P${current.number}`
+        : `CURRENT - P${current.number} / ${plan.implementations.length}`,
       current.title,
       '',
       `Model:         ${current.recommendation.split(' ')[0]}`,
@@ -856,13 +869,38 @@ export function renderFailureSummary({ plan, states, failedPrompt, reason }) {
     lines.push(...notExecuted.map((prompt) => `  [ ] P${prompt.number}`));
   else lines.push('  (none)');
   lines.push('', 'Closeout:');
-  if (plan?.closeout)
+  const closeoutState = plan?.closeout && states.get(plan.closeout.number);
+  if (plan?.closeout && closeoutState?.status === 'running')
+    lines.push(
+      `  [>] P${plan.closeout.number} - ${plan.closeout.title} - RUNNING`,
+    );
+  else if (plan?.closeout && closeoutState?.status === 'failed')
+    lines.push(
+      `  [X] P${plan.closeout.number} - ${plan.closeout.title} - FAILED`,
+    );
+  else if (plan?.closeout && closeoutState?.status === 'interrupted')
+    lines.push(
+      `  [X] P${plan.closeout.number} - ${plan.closeout.title} - INTERRUPTED`,
+    );
+  else if (plan?.closeout && closeoutState?.status === 'review_required')
+    lines.push(
+      `  [R] P${plan.closeout.number} - ${plan.closeout.title} - EXECUTED / REVIEW REQUIRED`,
+    );
+  else if (plan?.closeout && closeoutState?.status === 'waiting')
+    lines.push(
+      `  [ ] P${plan.closeout.number} - ${plan.closeout.title} - AUTO-RUN / NOT EXECUTED`,
+    );
+  else if (plan?.closeout)
     lines.push(
       `  [M] P${plan.closeout.number} - ${plan.closeout.title} - NOT EXECUTED`,
     );
   else lines.push('  [M] NOT EXECUTED');
   lines.push('', 'No later Codex prompts were started.');
   return `${printableAscii(lines.join('\n'))}\n`;
+}
+
+export function renderCloseoutFinalResponse(finalResponse) {
+  return `\n${'='.repeat(60)}\nCLOSEOUT AGENT FINAL RESPONSE\n${'='.repeat(60)}\n${printableAscii(finalResponse)}`;
 }
 
 export function renderSuccessHandoff(plan, runDirectory) {
