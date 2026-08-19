@@ -1,30 +1,47 @@
 # News Scraper
 
-News Scraper is a reusable, topic-independent news aggregation Platform. It collects Article metadata from administrator-approved Sources, normalizes Source-specific input, persists Source instances idempotently with endpoint/run provenance, groups true duplicates without deleting their Source records, and publishes a rolling headline feed that sends readers to original publishers.
+News Scraper is a reusable, topic-independent **headless news aggregation and distribution Platform**. It collects Article metadata from administrator-approved Sources, normalizes Source-specific input, persists Source instances idempotently with endpoint/run provenance, groups true duplicates without deleting their Source records, gives operators a protected editorial/control plane, and exposes governed normalized Article output for downstream consumers while preserving original publisher destinations.
 
-Each deployed installation hosts exactly one Publication/topic. The first deployment covers publishing-industry news relevant to indie authors; its Sources, Categories, Relevance rules, and branding are configuration, not shared-engine logic. Another topic uses another configured deployment of the same codebase. Publication is singleton editorial configuration, not a relational tenancy key.
+Each deployed installation hosts exactly one Publication/topic. The first deployment covers publishing-industry news relevant to indie authors; its Sources, Categories, Relevance rules, branding, and later distribution configuration are configuration, not shared-engine logic. Another topic uses another configured deployment of the same codebase. Publication is singleton editorial configuration, not a relational tenancy key.
 
-The canonical customer surfaces are:
+The current implemented outward surfaces are:
 
 ```text
-GET /          # public rolling feed
-GET /api/feed  # public feed API
+GET /api/feed  # current JSON feed/output surface
+GET /          # bundled reference/standalone public frontend
 ```
+
+Both currently consume the same canonical outward/public Article-selection semantics. The bundled frontend remains supported, but it is no longer the product's primary architectural identity; future client websites may consume supported distribution output while owning their own presentation.
 
 ## Current state
 
-The Platform is launched at `1.0.0`. Accepted Phase 20 customer-launch evidence established the first supported production source/version/schema baseline, and the completed terminal Phase 21 maintainability pass closed the MVP roadmap into the `1.0.0` release.
+The accepted `1.0.0` customer launch established the first supported production source/version/schema baseline. Post-1.0 server-rendering work then shipped at package version `1.0.1`.
 
-The current owner-approved roadmap is `docs/roadmap/post-1.0-roadmap.md`, beginning at **post-1.0 Phase 0 — Server-rendered public feed** on the existing `1.0.0` baseline. Before Phase 0 implementation prompts can be generated/executed, the documented non-versioned runner-compatibility gate must extend the pre-1.0 phase parser to support Phase 0 and `1.<phase>.<prompt>` roadmap versions without consuming `1.0.1`.
+On 2026-08-19 the repository owner approved a product-direction shift toward the headless aggregation/distribution core after the original client identified integration into an existing website and cross-source outbound-link distribution as the primary use case.
+
+The previous frontend-centric post-1.0 roadmap is now paused. There is **no active implementation phase and no assigned next implementation version** until the distribution-method and SEO architecture investigation is complete and a replacement roadmap is approved. The former Phase 0 P2/`1.0.2` closeout was intentionally retired without execution.
+
+Current product authority is:
+
+- `docs/contracts/project-contract.md`;
+- `docs/contracts/product-scope-and-users.md`;
+- `docs/decisions/headless-distribution-product-boundary.md`;
+- `docs/roadmap/post-1.0-roadmap.md`.
 
 Detailed MVP history, including the qualified Phase 9 and Phase 14 owner acceptances, remains in `docs/roadmap/mvp-roadmap.md` and `docs/validation/`. Historical validation remains evidence only for the exact source tree and environment recorded.
 
 ## Architecture
 
 ```text
-Cloudflare Access-protected Admin UI/API       Root Public Feed
-                    \                           /
-                     -------- Web/API ----------
+                    Supported outward consumers
+                  /            |              \
+      JSON/feed interface   reference UI   future adapters
+                  \            |              /
+                 canonical outward read semantics
+                              |
+Cloudflare Access-protected Admin UI/API
+                \             |
+                 -------- Web/API --------
                               |
                           PostgreSQL
                               |
@@ -42,14 +59,16 @@ Cloudflare Access-protected Admin UI/API       Root Public Feed
                               |
            Source-scoped identity + provenance
                               |
-            duplicate review/grouping → feed
+            duplicate review/grouping/moderation
 ```
 
-Web/API serves normalized public/admin read models and never collects Sources inline. Worker collection validates approval, lifecycle/operational state, and every request/redirect before contact. RSS/Atom and bounded static-HTML adapters produce the same Raw-item contract; the optional Source RSS/Atom admission filter applies only to RSS/Atom before normalization. All accepted candidates share normalization, Article-link policy, Relevance/Category, Source-scoped identity, persistence, observation, duplicate, and run-accounting boundaries.
+Web/API serves normalized admin/outward read models and never collects Sources inline. Worker collection validates approval, lifecycle/operational state, and every request/redirect before contact. RSS/Atom and bounded static-HTML adapters produce the same Raw-item contract; the optional Source RSS/Atom admission filter applies only to RSS/Atom before normalization. All accepted candidates share normalization, Article-link policy, Relevance/Category, Source-scoped identity, persistence, observation, duplicate, and run-accounting boundaries.
 
-The public headline destination is stored Article `original_url`; canonicalized URLs remain identity fields. Article identity answers whether one Source instance was already stored, while duplicate grouping relates separately retained Articles across Sources. Collection state does not itself hide retained otherwise-eligible public rows.
+The reader destination is stored Article `original_url`; canonicalized URLs remain identity fields. Article identity answers whether one Source instance was already stored, while duplicate grouping relates separately retained Articles across Sources. Collection trust and future consumer-specific distribution selection are separate concerns.
 
-See `docs/architecture/system-architecture.md` and the contracts for authoritative detail.
+The exact future distribution methods, authentication/CORS/rate-limit/cache strategy, feed-profile model, backlink/SEO behavior, and analytics model are deliberately unresolved until the follow-up architecture review.
+
+See `docs/architecture/system-architecture.md` and the contracts/ADRs for authoritative detail.
 
 ## Local setup and validation
 
@@ -84,17 +103,20 @@ The testing authority is `docs/contracts/testing-and-validation-contract.md`. Ev
 Start every repository-aware session with `BOOT.md`, which routes to the narrowest authority. `AGENTS.md` contains agent-specific workflow and safety rails; `docs/README.md` is the documentation index.
 
 - `docs/contracts/project-contract.md` — locked laws, authority, and product boundaries.
+- `docs/contracts/product-scope-and-users.md` — current post-1.0 headless product scope and user roles.
+- `docs/contracts/mvp-scope-and-users.md` — historical `1.0.0` MVP scope only.
 - `docs/contracts/domain-and-data-contract.md` — terminology, state, identity, provenance, and persistence semantics.
 - `docs/contracts/source-and-collection-contract.md` — Source trust, network safety, adapters, pipeline, and run accounting.
 - `docs/contracts/article-lifecycle-and-deduplication.md` — visibility, duplicate review/groups, and Primary behavior.
-- `docs/contracts/public-feed-and-admin-contract.md` — public/feed/admin behavior.
+- `docs/contracts/public-feed-and-admin-contract.md` — current `/` reference-frontend and `/api/feed` behavior plus admin UX; its product-surface interpretation is narrowed by the headless-distribution ADR.
 - `docs/contracts/testing-and-validation-contract.md` — regression and evidence requirements.
-- `docs/architecture/system-architecture.md` — process, module, pipeline, scheduling, and transaction ownership.
+- `docs/architecture/system-architecture.md` — process, module, pipeline, scheduling, and transaction ownership for the implemented system.
 - `docs/operations/` — onboarding, security/reliability, backup/restore, deployment, rollback, and incidents.
 - `docs/roadmap/mvp-roadmap.md` — completed MVP phase history and exit gates through the `1.0.0` release.
-- `docs/roadmap/post-1.0-roadmap.md` — current post-1.0 Phase 0–6 roadmap and `1.<phase>.<prompt>` version sequence.
-- `docs/decisions/` — Accepted and superseded architectural decisions.
-- `docs/design/` — presentation guidance and the isolated `ui-polish` workflow.
+- `docs/roadmap/post-1.0-roadmap.md` — current paused roadmap state and the gate for the distribution/SEO architecture reset.
+- `docs/decisions/headless-distribution-product-boundary.md` — Accepted headless product/output boundary decision.
+- `docs/decisions/` — other Accepted and superseded architectural decisions.
+- `docs/design/` — presentation guidance and the isolated `ui-polish` workflow for the bundled/reference frontend.
 
 The supported production-data boundary is governed by `docs/decisions/production-data-and-schema-compatibility.md`: clean migration from zero remains required for new/disposable installations, but it does not replace supported Phase 20-baseline upgrade and data-preservation proof.
 
