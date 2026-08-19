@@ -35,7 +35,7 @@ All historical validation artifacts remain truthful, SHA/environment-specific ev
 
 Phases 1–9 are the historical tech-demo critical path; Phase 20 completed customer launch and established the supported production baseline. The roadmap owns detailed sequencing and completed-phase history.
 
-Current delivery is terminal Phase 21 behavior-preserving simplification under post-launch production compatibility. New features remain frozen until it closes; only bounded critical production, security, data-integrity, or operational fixes may interrupt. Every implementation/correction inherits the testing contract, and any persisted/schema change must prove supported forward upgrade and data preservation as well as migration from zero.
+Current delivery is terminal Phase 21 behavior-preserving simplification under post-launch production compatibility. New features remain frozen until it closes into the `1.0.0` launch state; only bounded critical production, security, data-integrity, or operational fixes may interrupt. Every implementation/correction inherits the testing contract, and any persisted/schema change must prove supported forward upgrade and data preservation as well as migration from zero.
 
 ## New-session startup
 
@@ -171,7 +171,7 @@ Use `docs/roadmap/mvp-roadmap.md` for phase history, dependencies, and exit gate
 
 Current phase: **Phase 21 — Codebase simplification and maintainability hardening**. Phases 0–20 and the Phase 10 singleton correction are complete. Accepted Phase 20 launch evidence identifies the first supported production source/version/schema baseline.
 
-Phase 21 is behavior-preserving work under post-launch compatibility and the feature freeze. It is terminal: closing it creates neither Phase 22 nor a `0.22.0` baseline. Later roadmap work requires explicit owner approval and documentation alignment. Do not advance or close it by assumption; verify its exit gate and inherited testing contract against the exact final tree.
+Phase 21 is behavior-preserving work under post-launch compatibility and the feature freeze. It is terminal: a green `/closeout` transitions the final validated `0.21.x` tree directly to the `1.0.0` launch state and creates neither Phase 22 nor a `0.22.0` baseline. Later roadmap work requires explicit owner approval and documentation alignment. Do not advance or close it by assumption; verify its exit gate and inherited testing contract against the exact final tree.
 
 Historical qualifications remain as summarized in Project identity: Phase 9 and Phase 14 owner acceptances did not rewrite their recorded evidence limitations, and Phase 19 later supplied Phase 14's deferred Level 8 proof.
 
@@ -276,7 +276,7 @@ phase implementation / closeout task
 
 A green non-terminal `/closeout` establishes the next implementation phase by committing its `0.<phase>.0` package baseline. Because `/closeout` is intentionally version-only in that case, roadmap/root phase summaries may still identify the just-completed phase until the immediately following `/docs-review` → `/docs-apply` alignment. This short state is expected and is not itself repository drift.
 
-For the final documented roadmap phase, `/closeout` is terminal: it performs the same bounded structural/evidence verification but does **not** change `package.json`, create a next-phase baseline, reserve a new phase number, or report a Next P1 version. A green terminal closeout reports the accepted final SHA/version and `Roadmap status: COMPLETE`; `/docs-review` → `/docs-apply` may then align summaries to completed state. Any future implementation roadmap requires an explicit owner-approved roadmap extension before another phase baseline may be created.
+For Phase 21, the final documented pre-1.0 roadmap phase, `/closeout` is terminal but has one explicit release-transition exception to the normal terminal no-write rule: after the bounded closeout check is green, it updates only top-level `package.json` from the final validated `0.21.x` version to `1.0.0`, creates no successor-phase baseline, reserves no new phase number, and reports the `1.0.0` launch state plus `Roadmap status: COMPLETE`. Any future implementation roadmap requires an explicit owner-approved post-1.0 roadmap extension before another phase baseline may be created.
 
 A correction stack has its own final manual closeout prompt, but that prompt is **not** `/closeout`. Correction closeout validates and clears only the named correction/gate while preserving the declared unchanged package version; it does not advance the roadmap phase or create a new `.0` baseline.
 
@@ -290,8 +290,8 @@ A correction stack has its own final manual closeout prompt, but that prompt is 
 2. Read the completed phase's durable validation artifact and extract the accepted/validated implementation source SHA and exit-gate conclusion.
 3. Read `package.json` as sole project-version authority and completed phase task filenames/version sequence. Do not require/search npm lockfile metadata.
 4. Perform one accepted-SHA-to-current-`main` compare to classify post-validation drift. Documentation-only changes and explicitly owner-approved non-executable workflow/tooling-policy changes are non-blocking when they do not modify runtime behavior, tests, migrations, committed configuration, `package.json` dependency/script/engine metadata, or other executable product behavior. Relevant executable drift is blocking.
-5. If green and a documented successor phase exists, perform only the next-phase baseline version transition below. If the completed phase is explicitly terminal and no successor phase has been approved, perform no repository write.
-6. For non-terminal handoff, verify transition diff, then re-read `docs/roadmap/mvp-roadmap.md` and print the complete entry for the phase being entered. For terminal closeout, re-read the terminal roadmap entry and report final accepted state without inventing a successor.
+5. If green and a documented successor phase exists, perform only the next-phase baseline version transition below. If the completed phase is Phase 21 with no successor approved, perform only the explicit terminal `1.0.0` release transition below.
+6. For non-terminal handoff, verify transition diff, then re-read `docs/roadmap/mvp-roadmap.md` and print the complete entry for the phase being entered. For Phase 21 terminal closeout, verify the version-only `1.0.0` transition diff, re-read the terminal roadmap entry, and report the final launch state without inventing a successor.
 
 Required structural checks:
 
@@ -311,7 +311,7 @@ The repository intentionally does not use `package-lock.json`; its absence is ex
 - Do not walk every post-validation commit when one range comparison can classify drift.
 - If relevant unvalidated drift exists, report `Closeout check blocked` and stop without root-cause investigation.
 - If required state cannot be established quickly because a safe primitive is unavailable, report blocker rather than expanding into open-ended investigation.
-- A non-terminal version transition gets one predetermined safe write strategy. Do not cycle alternate write mechanisms or hand-build Git objects to overcome connector limitations.
+- A version transition gets one predetermined safe write strategy. Do not cycle alternate write mechanisms or hand-build Git objects to overcome connector limitations.
 - Do not run `npm install` merely to change version.
 
 ### Non-terminal green-path version transition
@@ -324,17 +324,17 @@ Capture pre-transition `main` SHA. Update exactly one JSON value to `0.<next roa
 
 Preserve every other package value. Commit version-only transition directly to `main` unless branch/PR requested. Immediately compare pre/post SHAs; complete range MUST change only `package.json` and exactly the expected version value. Otherwise report `Closeout transition invalid` and stop.
 
-### Terminal roadmap closeout
+### Phase 21 terminal 1.0.0 release transition
 
-When the completed phase is explicitly the final documented roadmap phase and no successor phase has been approved, a green `/closeout` performs **no package or repository transition**.
+When Phase 21 is green and no successor roadmap phase has been approved, invocation of `/closeout` constitutes explicit repository-owner authorization for the final pre-1.0 version-only transition.
 
-- Do not change `package.json`.
-- Do not create `0.<next phase>.0`.
-- Do not reserve or infer another phase number from deferred ideas.
-- Do not create a version-only commit merely to mark completion.
-- Report the accepted current `main` SHA and current package version from the validated terminal tree.
+Capture pre-transition `main` SHA. Require top-level `package.json` to contain the final validated `0.21.x` Phase 21 version, then update exactly one JSON value:
 
-A later roadmap extension requires explicit repository-owner approval plus documentation alignment before any new `.0` baseline transition.
+- `package.json` top-level `version` → `1.0.0`.
+
+Preserve every other package value. Commit the version-only transition directly to `main` unless branch/PR requested. Immediately compare pre/post SHAs; the complete range MUST change only `package.json` and exactly the version value from the final validated `0.21.x` value to `1.0.0`. Otherwise report `Closeout transition invalid` and stop.
+
+Do not create `0.22.0`, reserve Phase 22, infer a successor from deferred ideas, or make any other repository change. A later roadmap extension requires explicit repository-owner approval plus documentation alignment.
 
 ### Required final output
 
@@ -345,13 +345,14 @@ For a successful non-terminal `/closeout`, respond in order:
 3. `Next P1 version: 0.<new phase>.1`;
 4. complete roadmap entry for the phase being entered, freshly re-read rather than summarized from memory.
 
-For a successful terminal `/closeout`, respond in order:
+For a successful terminal Phase 21 `/closeout`, respond in order:
 
 1. `Closeout check: GREEN`;
-2. accepted/final `main` SHA;
+2. accepted/final `main` SHA after the version-only transition;
 3. `Roadmap status: COMPLETE`;
-4. `Final project version: <package.json version>`;
-5. complete terminal roadmap entry, freshly re-read, plus any explicitly recorded limitations from its accepted durable validation artifact.
+4. `Final project version: 1.0.0`;
+5. `Launch state: 1.0.0`;
+6. complete terminal roadmap entry, freshly re-read, plus any explicitly recorded limitations from its accepted durable validation artifact.
 
 # Documentation workflow
 
@@ -487,13 +488,13 @@ Project versions use `0.<roadmap phase>.<phase prompt number>` for roadmap phase
 - Roadmap task number maps to version patch number.
 - `0.<phase>.0` is a non-terminal phase baseline established only by green `/closeout` from the prior roadmap phase or separately explicit owner-authorized `.0` transition.
 - `package.json` is sole current-version authority; project intentionally has no npm lockfile.
-- Version changes occur only through executed Codex roadmap prompt, non-terminal green `/closeout`, or separately explicit owner-authorized `.0` transition after prior phase closes.
-- Terminal roadmap `/closeout` does not change `package.json`, create a successor baseline, or reserve a phase number.
+- Version changes occur only through executed Codex roadmap prompt, non-terminal green `/closeout`, the explicit green terminal Phase 21 `/closeout` transition to `1.0.0`, or another separately explicit owner-authorized transition.
+- Green terminal Phase 21 `/closeout` changes only `package.json` from the final validated `0.21.x` version to `1.0.0`; it creates no successor baseline and reserves no phase number.
 - Non-versioned correction stacks MUST NOT change `package.json`; P-numbers are local sequencing only.
 - Roadmap prompt reruns retain assigned version; correction reruns retain unchanged version.
 - Roadmap prompts verify expected preceding/same-rerun version, update `package.json`, avoid lockfile, and validate versioned tree.
 - Correction prompts state one required unchanged version, verify it, forbid changing it, avoid lockfile, and validate unchanged-version invariant.
-- Roadmap closeout prompt that owns a version change commits it before final source SHA validation; later non-terminal `/closeout` performs separate next-phase `.0` transition. When that roadmap phase is terminal, `/closeout` performs verification only and preserves the final prompt-established package version.
+- Roadmap closeout prompt that owns a version change commits it before final source SHA validation; later non-terminal `/closeout` performs separate next-phase `.0` transition. For terminal Phase 21, the final roadmap closeout prompt leaves the final `0.21.x` candidate in place and the later green `/closeout` performs the explicit version-only `1.0.0` release transition.
 - Correction closeout never transitions package version and is not automatically followed by `/closeout`.
 - The completed Phase 10 singleton implementation correction is the historical first non-versioned correction stack.
 - Parallel UI work is non-versioned, not a `codex:phase` stack, and MUST NOT modify package version or consume roadmap prompt numbers.
@@ -644,7 +645,7 @@ Historical Phase 10 singleton-correction prompts established the smallest canoni
 # Repository modification rules
 
 - Do not modify/commit unless authorized by current request/command.
-- `/closeout` performs bounded handoff/terminal verification; on a green non-terminal phase it performs only the version-only `package.json` successor-baseline transition, while on the final documented roadmap phase it performs no repository write and reports roadmap completion.
+- `/closeout` performs bounded handoff/terminal verification; on a green non-terminal phase it performs only the version-only `package.json` successor-baseline transition, while on terminal Phase 21 it performs only the explicit version-only `package.json` transition from the final validated `0.21.x` version to `1.0.0` and reports roadmap completion.
 - A correction stack's final manual closeout validates/clears correction while preserving unchanged package version/active phase.
 - `/docs-review` never writes.
 - `/docs-apply` writes only approved docs; invocation authorizes documentation-only changes on `main` unless branch/PR/isolation is requested.
@@ -658,7 +659,7 @@ Historical Phase 10 singleton-correction prompts established the smallest canoni
 - UI implementation is non-versioned: it MUST NOT change `package.json` version, consume roadmap prompt numbers, advance roadmap/correction state, or create a phase/correction closeout.
 - Do not run UI implementation in the same working tree used by an active phase/correction runner; keep concurrent work isolated on `ui-polish`/its worktree.
 - Do not merge `ui-polish` into `main` automatically; integration requires review and explicit authorization.
-- Documentation/prompt/review activity, including `/docs-prompt`, does not change package version or roadmap/correction/UI state except for an explicit non-terminal `/closeout` baseline transition; correction execution, terminal `/closeout`, and UI work are non-versioned.
+- Documentation/prompt/review activity, including `/docs-prompt`, does not change package version or roadmap/correction/UI state except for an explicit `/closeout` version transition; correction execution and UI work are non-versioned.
 - No task writes while `Planning needed` remains unresolved.
 - No speculative compatibility bridges or permanent dual schemas.
 - Before production compatibility is established, delete legacy-only migration/code/API/type/test/fixture/configuration artifacts rather than preserving superseded pre-production behavior in the active tree.
