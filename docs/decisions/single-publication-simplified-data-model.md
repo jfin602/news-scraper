@@ -4,6 +4,8 @@
 **Date:** 2026-08-11  
 **Supersedes:** [`topic-independent-publication-model.md`](./topic-independent-publication-model.md)
 
+> **2026-08-19 interpretation note:** This ADR remains fully authoritative for the one-Publication-per-deployment and no-relational-tenancy data model. Its references to `/` and `/api/feed` describe the implemented first-party surfaces that existed when the decision was made. `headless-distribution-product-boundary.md` now governs their product role: `/` is the bundled reference/standalone frontend, `/api/feed` is a current JSON outward interface, and neither makes the standalone frontend the Platform's primary product identity.
+
 ## Context
 
 News Scraper is reusable across topics, but each supported deployed installation hosts exactly one Publication/topic. Topic independence is a code-reuse and configuration property, not a requirement for one database or runtime to host multiple independently selectable Publications.
@@ -96,4 +98,4 @@ A change violates this ADR when it:
 - adds pre-production database compatibility machinery without a concrete supported-data requirement; or
 - preserves legacy-only migration/source/API/type/test/fixture/configuration structure when deletion produces the smaller canonical supported implementation.
 
-Any future proposal for concurrent multi-Publication hosting inside one installation requires an explicit contract/ADR change and deliberate data-model work. Durable production upgrade/data compatibility is now governed by [`production-data-and-schema-compatibility.md`](./production-data-and-schema-compatibility.md); changing that lifecycle policy requires its own explicit contract/ADR decision.
+Any future proposal for concurrent multi-Publication hosting inside one installation requires an explicit contract/ADR change and deliberate data-model work. Multiple outward consumers for one Publication do not by themselves require or authorize that tenancy change. Durable production upgrade/data compatibility is now governed by [`production-data-and-schema-compatibility.md`](./production-data-and-schema-compatibility.md); changing that lifecycle policy requires its own explicit contract/ADR decision.
