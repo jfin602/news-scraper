@@ -1,0 +1,210 @@
+TASK: Correction 0 / P3 — Public-feed browser regression closeout
+
+CORRECTION CLOSEOUT SCOPE
+This is the sole final closeout for correction `c0-public-feed-browser-regression-coverage` after P1 restored the first SSR-aware browser matrix and P2 completed the missing evidence identified by the first RED correction closeout.
+
+This closeout does NOT close post-1.0 Phase 0. A GREEN correction only clears the browser-evidence blocker so the existing roadmap prompt `docs/tasks/p1-0/P2-server-rendered-public-feed-closeout.txt` can be rerun from the beginning.
+
+- Recommended configuration: `Sol Light`.
+- Model rationale: after the first correction closeout found materially overstated coverage, retain Sol Light for independent review and do not optimize downward. This pass must read test bodies and production state ownership rather than trust titles or implementation reports.
+- Escalation trigger: review exposes an actual ambiguous production architecture/security defect, a meaningful behavior-preserving structural refactor, or a product/contract decision rather than another bounded evidence issue.
+- Escalation target: stronger Sol for genuinely ambiguous architecture/security inference; meaningful behavior-preserving structural refactors use the repository-mandated Terra High remediation handoff.
+- Expected usage: High.
+
+VERSION / RUNNER CONTRACT
+- Required unchanged project version: `1.0.1`.
+- This correction consumes no roadmap patch/version number.
+- Do not modify the top-level package version.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Do not transition to `1.0.2`; the original Phase 0 roadmap P2 owns that transition.
+- Do not resolve K8VX or claim Phase 0 GREEN.
+
+MANUAL / HUMAN REVIEW BOUNDARY
+Runner invocation does not imply acceptance. Treat this closeout as HUMAN REVIEW REQUIRED.
+
+This closeout may write only:
+- one genuinely small, unambiguous correction-local defect/test repair if permitted by the bounded repair rule;
+- the durable correction validation artifact after final evidence is actually GREEN.
+
+Do not update roadmap phase state, BOOT phase state, product contracts, ADRs, `known-issues.md`, or the final Phase 0 validation artifact.
+
+MANDATORY HANDOFF
+Before any write:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/codex-model-selection.md`, `docs/roadmap/post-1.0-roadmap.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/design/public-feed-presentation.md`, and `docs/operations/security-reliability-and-operations.md`;
+2. read P1, P2, this P3, and the original Phase 0 P1/P2 prompts;
+3. identify the exact P1 and P2 correction commits and the correction baseline lineage;
+4. inspect the complete correction diff and current source/tests rather than trusting prior final responses;
+5. inspect current `test/browser/public-feed-page.test.ts`, `test/browser/public-feed-theme.test.ts`, `test/browser/admin-page.test.ts`, `test/security/public-content-safety.test.ts`, and relevant integration tests;
+6. inspect current `src/app/web/public/public-feed.js`, `src/app/web/public-feed-page.ts`, `src/app/web/create-app.ts`, and `src/public-feed/discovery.ts`;
+7. inspect the historical pre-Phase-0 `test/browser/public-feed-page.test.ts` containing 34 scenarios;
+8. inspect current package scripts and require package version exactly `1.0.1`;
+9. confirm no Phase 1, schema/persistence/read-model, topic-specific, or unrelated product work was mixed into the correction;
+10. stop and report sequence/scope drift if the current tree is no longer a bounded browser-regression remediation.
+
+GREEN CORRECTION GOAL
+The correction is GREEN only if the exact accepted `1.0.1` source tree has trustworthy Level 6 browser proof for every still-governed historical behavior plus the Phase 0 SSR/no-JavaScript additions, and the required broader browser/security/static matrix is green.
+
+A high test count or green focused file is not sufficient when test titles overstate what their bodies prove.
+
+PASS 1 — CONTRACT / EVIDENCE REVIEW
+Reconstruct all 34 historical public-feed browser scenarios.
+
+Exactly two old client-owned startup scenarios may be replaced by SSR invariants:
+- old initial client-owned loading/fetch behavior;
+- old slow initial client fetch race.
+
+The other 32 retain governed behavioral intent unless current contracts provide a concrete reason otherwise.
+
+For every historical scenario record one disposition:
+- ADAPTED;
+- REPLACED_BY_SSR_INVARIANT;
+- COVERED_EQUIVALENTLY_ELSEWHERE;
+- REMOVED_AS_INTENTIONALLY_OBSOLETE.
+
+For each ADAPTED or COVERED_EQUIVALENTLY_ELSEWHERE disposition, identify the exact current test and exact assertions that prove the behavior. Reject a mapping based only on a test title.
+
+Explicitly verify P2 now proves every item that caused the preceding RED result:
+- stale enhanced first-page success, 404, and network/error ownership;
+- slow Apply losing to Reset and newer popstate/Forward ownership;
+- duplicate continuation Article IDs;
+- repeated continuation cursors;
+- empty continuation + non-null cursor rejection;
+- continuation network/HTTP/malformed/mismatched-criteria failures preserving rows and retry cursor;
+- Source/Category/Reset/history invalidation after actual continuation depth;
+- stale continuation failure after Reset/history;
+- Back/Forward restoring first-page depth after loaded continuation rows;
+- appended-row configured-timezone date parity and UTC fallback;
+- JavaScript-disabled keyword Search with blank peer controls;
+- JavaScript-disabled true Source-only and Category-only submissions;
+- JavaScript-disabled exact publisher navigation;
+- JavaScript-disabled intelligible/recoverable 400/404/503 states;
+- JavaScript-disabled absence of Phase 1 continuation UI even when SSR bootstrap has a cursor;
+- later enhanced broken-logo behavior;
+- deterministic malformed enhanced Publication presentation variants.
+
+Also verify retained evidence for:
+- successful SSR startup issues zero initial `/api/feed` requests;
+- client adopts rather than rebuilds the correct initial SSR state;
+- hostile text remains inert;
+- exact publisher `original_url` remains exact for initial and appended rows;
+- direct q/source/category SSR URLs and refresh reconstruction;
+- deterministic enhanced q/source/category URLs and API requests;
+- Reset and ordinary Back/Forward behavior;
+- responsive/mobile/no-overflow behavior;
+- reduced-motion behavior during a legitimate enhanced loading state;
+- theme-specific System/Light/Dark persistence/contrast/focus/keyboard behavior remains covered by `public-feed-theme.test.ts` rather than deleted or needlessly duplicated.
+
+PASS 2 — ERROR / EDGE-CASE ADVERSARIAL REVIEW
+Independently derive failure hypotheses from the current implementation. Do not satisfy this pass merely by checking whether P2 added named tests.
+
+At minimum challenge:
+- hidden initial API request after SSR startup;
+- SSR rows being cleared/reconstructed before bootstrap validation;
+- broken SSR logo firing before hydration listener attachment;
+- later enhanced broken logo corrupting valid Publication text/state;
+- viewer timezone overriding Publication timezone;
+- appended-row date/link/content safety differing from SSR rows;
+- root form blank Source/Category becoming active/invalid through enhancement or history;
+- encoded root cursor names bypassing root rejection;
+- stale enhanced success/404/network failure overwriting newer owned state;
+- Reset/popstate failing to invalidate an older enhanced Apply;
+- continuation completion after criteria change appending to the wrong page;
+- stale continuation failure leaking an error into a newer Reset/history page;
+- duplicate Article IDs mutating item/cursor state before validation completes;
+- repeated cursor producing loops;
+- empty page with non-null cursor producing loops;
+- failed continuation accidentally advancing the retry cursor;
+- malformed/mismatched continuation destroying already-rendered rows;
+- double activation issuing concurrent continuation reads;
+- continuation depth leaking into canonical root history;
+- JS-disabled Source/Category-only form navigation retaining the wrong peer criterion;
+- JS-disabled error pages lacking usable recovery;
+- a test title naming several behaviors while the body exercises only one.
+
+For each plausible concern classify it as:
+- protected by source + meaningful executed evidence;
+- one small bounded closeout repair;
+- Terra High refactor handoff required;
+- replanning/contract work required.
+
+PASS 3 — CODE QUALITY / TEST QUALITY REVIEW
+Inspect the complete P1+P2 diff and important consumers for:
+- obsolete client-startup assumptions hidden behind helper changes;
+- controlled-fetch helpers fabricating an initial API request;
+- arbitrary sleeps/timing luck;
+- giant non-diagnostic tests;
+- leaked BrowserContexts or excessive Chromium launches;
+- test-only duplicate state-machine logic;
+- brittle internal assertions where browser-visible behavior is available;
+- duplicate helpers/fixtures;
+- duplicated theme coverage without distinct SSR/feed purpose;
+- production changes without a failing regression that justified them;
+- unrelated CSS/HTTP/parser/repository/admin/collection edits;
+- unresolved mismatch between test names and assertions;
+- scenario-count inflation substituting for proof.
+
+BROADER BROWSER BLOCKER REVIEW
+P1 reported a full-suite admin-browser failure where an assertion expected `1200` but observed `600`. P2 was required to reproduce and classify it.
+
+Before accepting the correction:
+- inspect P2's diagnosis and actual diff;
+- confirm any repair was the smallest unambiguous behavior-preserving fix supported by existing contracts/history;
+- if the failure remains unresolved, `npm run test:browser` is not green and this correction is RED;
+- if P2 guessed between ambiguous `600`/`1200` product semantics, reject and require separate planning rather than accepting a convenient test edit.
+
+BOUNDED CLOSEOUT REPAIR RULE
+P3 may repair only one small, unambiguous, correction-local issue such as one missing assertion/helper defect or one narrowly governed client guard. It may not reconstruct another large matrix, rewrite client state ownership, fix an ambiguous admin product issue, change root/API semantics, add persistence/schema behavior, or perform structural cleanup.
+
+If more than one material evidence gap remains, declare RED and require another implementation remediation rather than hiding the work inside closeout.
+
+TERRA HIGH REFACTOR HANDOFF
+If a meaningful behavior-preserving structural refactor is required, stop before implementing it and output exactly one transient Terra High remediation prompt following `docs/codex-model-selection.md`. Preserve unchanged package version and all Phase 0 behavior; consume no roadmap/correction prompt number. Rerun this P3 afterward.
+
+FINAL CORRECTION VALIDATION
+Only after all three passes are satisfied, execute the smallest non-overlapping final matrix:
+1. `npm install`
+2. `npm run check`
+3. `npm run test:security`
+4. `npm run test:browser`
+5. `npm run codex:phase:validate -- c0-public-feed-browser-regression-coverage`
+6. `git diff --check <correction-base>...HEAD`
+
+Real Chromium is required. Do not accept skips, zero selected tests, or a focused green result while another selected browser file fails.
+
+Do not add full database testing solely for this correction if no database/read-model boundary changed. The original Phase 0 roadmap P2 remains responsible for final integrated database evidence.
+
+DURABLE CORRECTION ARTIFACT
+After final evidence is GREEN, create:
+`docs/validation/post-1-phase-0-browser-regression-coverage-correction.md`
+
+Record at minimum:
+- correction purpose and both RED closeout findings that drove P1/P2;
+- baseline SHA and exact accepted correction executable SHA;
+- unchanged package version `1.0.1`;
+- P1/P2 commits and any bounded P3 repair;
+- Node/npm/Chromium environment actually observed;
+- 34-scenario disposition summary with exact replacement/equivalence reasoning;
+- important restored/adapted browser groups;
+- production defects actually found and repaired;
+- admin `1200`/`600` blocker diagnosis and disposition;
+- exact final commands/results and evidence levels;
+- PASS 1, PASS 2, PASS 3 findings/dispositions;
+- any remediation handoff that occurred;
+- explicit statement that correction GREEN does NOT itself establish Phase 0 GREEN;
+- explicit next action: rerun original Phase 0 P2 from the beginning.
+
+FINAL ACCEPTANCE CHECKS
+Before declaring correction GREEN:
+- package version remains exactly `1.0.1`;
+- no lockfile exists;
+- no Phase 1 work exists in correction diff;
+- no schema/persistence/read-model/topic-specific behavior was introduced;
+- full required static/security/browser matrix is genuinely green;
+- browser evidence is behaviorally meaningful and test titles match bodies;
+- K8VX remains Open;
+- Phase 0 remains unclosed.
+
+FINAL RESPONSE
+If GREEN, report correction GREEN, exact accepted SHA, unchanged `1.0.1`, exact commands/results, artifact path, 34-scenario disposition summary, admin-browser blocker disposition, and that the next step is rerunning the original Phase 0 P2 roadmap closeout.
+
+If RED, report the smallest concrete remaining blocker and do not create a misleading GREEN artifact.
