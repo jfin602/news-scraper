@@ -1,0 +1,329 @@
+TASK: Phase 0 / P2 — Server-rendered public feed closeout
+
+PHASE SCOPE
+This is the sole final closeout prompt for post-1.0 Phase 0 — Server-rendered public feed. P1 should have implemented the coherent SSR/progressive-enhancement ownership transition at `1.0.1`. This prompt independently reviews that implementation against the governing contracts, performs only bounded in-scope repairs when behavior is unambiguous, advances the Phase 0 candidate to `1.0.2`, gathers the complete applicable final-tree evidence, and creates the durable Phase 0 validation record.
+
+This is not another feature prompt. Do not expand Phase 0 into pagination, SEO metadata, summaries, thumbnails, archives, redesign, schema work, or unrelated cleanup.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Model-family basis: repository policy deliberately uses Sol as the independent closeout/review capability tier; this task must challenge the integrated SSR/client/security/browser result rather than trust P1's implementation report.
+- Reasoning basis: Light/low reasoning is the repository closeout default because Phase 0's contracts and implementation boundary are explicit; use the required three distinct review passes and escalate only when an observed issue exceeds bounded review/repair.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: none under the normal repository closeout policy; `Sol Light` is the intentional minimum closeout baseline while available.
+- Escalation trigger: review exposes material read-model/security architecture ambiguity, a persistence/schema requirement, difficult cross-subsystem root cause, or another defect whose correct repair cannot be established from the existing Phase 0 contracts.
+- Escalation target: `Sol High` for genuinely ambiguous architecture/security inference; meaningful behavior-preserving structural refactors use the mandatory `Terra High` remediation handoff below.
+- Estimate confidence: `High`.
+- Efficiency rationale: inspect the actual P1 diff and consumers first, derive adversarial hypotheses from source, use bounded focused reruns only when repairs occur, then execute one non-overlapping final evidence matrix on the accepted candidate.
+
+VERSIONING
+This prompt's assigned project version is `1.0.2`.
+- Require the Phase 0 implementation prefix to be complete and `package.json` to be `1.0.1` before beginning normal closeout work, or already `1.0.2` only when deliberately rerunning this same closeout candidate.
+- This roadmap closeout owns the transition of top-level `package.json` to `1.0.2` before final accepted-source validation.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Do not transition to `1.1.0`; the later conversational `/closeout` owns the separate Phase 0 -> Phase 1 baseline transition after this closeout is GREEN.
+
+MANUAL CLOSEOUT BOUNDARY
+Run this P2 manually. Do not use `npm run codex:phase -- p1-0 --closeout` for Phase 0. The runner's flag automates invocation only and is intended for smaller/low-risk stacks; this closeout performs substantial security, browser, database, adversarial, and durable-evidence review and should retain the explicit human checkpoint.
+
+This prompt may write only:
+- the `1.0.2` package version transition;
+- bounded in-scope Phase 0 defect/test repairs discovered by the review;
+- the durable Phase 0 validation artifact;
+- `known-issues.md` only to move K8VX to Resolved after the final evidence is actually GREEN.
+
+Do not update roadmap phase/current-state documentation here. Later `/closeout` followed by `/docs-review` -> `/docs-apply` owns the Phase 1 handoff/alignment.
+
+MANDATORY HANDOFF
+Before any closeout write:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/codex-model-selection.md`, `docs/roadmap/post-1.0-roadmap.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/architecture/system-architecture.md`, `docs/design/public-feed-presentation.md`, `docs/operations/security-reliability-and-operations.md`, and `known-issues.md`;
+2. read P1's task file and inspect P1's actual committed source/tests rather than trusting its final report;
+3. identify the exact P1 implementation commit with roadmap subject `1.0.1`, its parent/baseline, and any later committed drift before closeout;
+4. inspect the complete P1 diff plus current `src/public-feed/discovery.ts`, `src/public-feed/repository.ts`, `src/app/web/create-app.ts`, `src/app/web/public-feed-page.ts`, `src/app/web/public/public-feed.js`, `src/app/web/public/public-feed.css`, `src/app/web/public/public-theme.js`, `src/app/web/main.ts`, and all directly affected tests;
+5. trace production composition from `readPublicFeed()` -> `PublicFeedDependency.read()` -> `/api/feed` and `/` -> SSR DOM/bootstrap -> browser enhancement -> later `/api/feed` discovery/load-more;
+6. inspect current `package.json` scripts before claiming command containment or final matrix coverage;
+7. confirm no schema/migration/persisted-data change was introduced by P1; if one exists, stop and report planning drift unless it is clearly accidental and can be removed as a bounded correction;
+8. confirm working tree/repository state is suitable for deliberate closeout and no Phase 1 product work has begun;
+9. stop and report sequence/planning drift if the implemented architecture materially differs from the approved Phase 0 boundary or if required behavior now needs a contract/ADR/roadmap decision.
+
+CLOSEOUT GOAL
+Phase 0 is GREEN only if the exact accepted `1.0.2` candidate proves all of the following:
+- direct `GET /` contains configured Publication presentation and the canonical first public Article page in HTML without JavaScript or a secondary feed request;
+- root q/source/category first-page discovery reuses canonical feed semantics;
+- root 200/400/404/503 behavior is bounded and secret-free;
+- SSR safely escapes/validates untrusted public content and publisher URLs;
+- no-JavaScript first-page reading, discovery, Reset, and publisher navigation are functional;
+- JavaScript adopts correct SSR state without clearing/refetching the initial page and preserves enhanced search/history/load-more/theme behavior;
+- canonical eligibility, duplicate suppression, ordering, filters, cursor behavior, moderation visibility, and exact `original_url` remain unchanged;
+- no parallel feed database/read-model authority or topic-specific shared-engine behavior was introduced;
+- applicable Level 1/3/4/6/security/broader regressions are green on the exact accepted executable tree.
+
+PASS 1 — CONTRACT / EVIDENCE REVIEW
+Independently compare P1 against current governing contracts and actual source.
+
+A. CANONICAL READ AUTHORITY
+Verify:
+- `/` calls the same existing public-feed dependency/application boundary used to source `/api/feed` semantics;
+- SSR does not query Articles, Sources, Categories, duplicate tables, or moderation state through a second SQL/repository path;
+- `src/public-feed/repository.ts` remains the canonical database-backed eligibility/filter/order/cursor authority unless P1 had a justified non-semantic support change;
+- Source approval/lifecycle, Article visibility, duplicate Primary/ungrouped suppression, effective-date order, q/source/category behavior, and server-bounded page size remain unchanged;
+- collection remains Worker-owned and root/API handlers perform no Source collection.
+
+B. ROOT DISCOVERY BOUNDARY
+Verify from source and tests:
+- the root first-page parser is a narrow reuse of canonical decoding/normalization primitives rather than a second independent query-language implementation;
+- ordinary form blanks for q/source/category behave as inactive root criteria;
+- repeated, unknown, malformed, invalid-key, and out-of-bound forms fail closed;
+- any root `cursor` is `400` in Phase 0;
+- `/api/feed` still accepts governed valid cursors and retains its prior blank Source/Category behavior;
+- unsupported Source/Category values are mapped to generic `400` without leaking the rejected value or private state;
+- absent/private Publication still maps generically to `404`.
+
+C. SERVER RENDERING AND STATUS
+Verify raw HTTP behavior:
+- populated and empty valid root states are `200`;
+- invalid discovery is `400`;
+- absent/non-public Publication is `404`;
+- dependency/read/render-safety failures are `503`;
+- all HTML outcomes retain `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, and the governed CSP;
+- successful HTML contains Publication presentation, normalized controls, effective dates, headlines, Sources, and exact stored publisher anchors before client execution;
+- successful root does not begin as a generic loading/unresolved shell.
+
+D. CONTENT SAFETY / CSP
+Verify:
+- Publication, headline, Source, and discovery labels/values are escaped in the correct HTML context;
+- attribute quoting cannot be broken by hostile strings;
+- markup-looking content stays inert;
+- emitted publisher destinations are absolute HTTP/HTTPS without credentials;
+- same-origin logo path and canonical accent constraints remain safe;
+- invalid injected dependency values fail closed rather than producing unsafe partial success;
+- client API validation remains defense in depth;
+- CSP grants only the required same-origin form submission (`form-action 'self'`) and does not add `unsafe-inline`, wildcard script/style/form permissions, or unrelated relaxation.
+
+E. NO-JAVASCRIPT CONTRACT
+Observe with a real browser context that has JavaScript disabled:
+- root first page is useful and readable;
+- direct q/source/category URLs show corresponding server results;
+- native form Search submits to root and handles default All controls correctly;
+- Source-only and Category-only navigation work;
+- Reset is a real `/` navigation;
+- headline is a normal exact publisher anchor;
+- empty/400/404/503 states remain understandable;
+- no cursor continuation has been added merely to satisfy no-JS Phase 0.
+
+F. PROGRESSIVE ENHANCEMENT
+Verify with JavaScript enabled:
+- initial correct SSR state is adopted without an initial `/api/feed` request;
+- initial masthead/feed rows are not cleared/reconstructed merely for startup;
+- client internal criteria/item-ID/cursor state is coherent enough for later transitions;
+- later Search/Source/Category and Back/Forward use the canonical API enhancement path without stale results/history pollution;
+- Reset remains functionally equivalent to `/`;
+- changing criteria drops old continuation state;
+- Load More starts from the SSR cursor, remains criteria-bound, keeps cursor depth out of root URL, and retains duplicate-ID/repeated-cursor/empty-page/failure safeguards;
+- theme changes remain request-free presentation state;
+- broken-logo, presentation timezone, reduced-motion, keyboard/focus, responsive/mobile, and exact external navigation behavior remain protected.
+
+G. VERSION / SCOPE / PRODUCTION DATA
+Verify P1 did not introduce:
+- migrations/schema/persisted representation changes;
+- unsupported production-data rebuild assumptions;
+- new dependencies or lockfiles without an explicit justified need;
+- topic-specific indie-author logic;
+- Phase 1 cursor links/page-size behavior;
+- Phase 2 SEO metadata/sitemap/robots/canonical behavior;
+- summaries, thumbnails, archives, caching, performance infrastructure, or redesign.
+
+PASS 2 — ERROR / EDGE-CASE ADVERSARIAL REVIEW
+Do not satisfy this pass by merely observing green tests. Derive failure hypotheses from the actual implementation and determine whether source/tests/evidence protect them.
+
+At minimum investigate:
+- `?source=&category=` from a native form incorrectly becoming `400` or an active empty filter;
+- duplicate root parameters where one copy is blank being silently accepted;
+- encoded/obfuscated `cursor` names bypassing the root Phase 0 rejection;
+- malformed percent encodings or excessive query length reaching the feed dependency;
+- valid API cursor behavior accidentally broken by root parser changes;
+- unsupported Source/Category being mistaken for Publication unavailable;
+- Publication becoming private/absent during a multi-query canonical read and leaking stale presentation;
+- hostile Publication/headline/Source/choice text containing `<`, `>`, `&`, quotes, or closing tags escaping text/attribute context;
+- publisher URLs using `javascript:`, unsupported schemes, usernames/passwords, quote-breaking values, or malformed absolute URLs;
+- logo paths becoming protocol-relative, remote, query/fragment/backslash/control-character URLs;
+- invalid accent/timezone/date values reaching HTML or throwing after a partial response;
+- server and client formatting the same effective timestamp to different calendar dates under configured timezone boundaries;
+- SSR emitting duplicate Article IDs that later make continuation state unsafe;
+- an opaque cursor or Article ID bootstrap value being exposed in a way that permits markup/script injection;
+- initial JavaScript startup still performing a hidden duplicate `/api/feed` request;
+- client startup clearing SSR rows before successfully validating its bootstrap state;
+- delayed client startup losing a logo error event that fired before listeners attached;
+- initial SSR `nextCursor` failing to create the Load More control or client criteria binding;
+- Search/Reset/history actions creating duplicate history entries or stale controls/results;
+- stale in-flight first-page success/error/404 winning after a newer navigation;
+- continuation results from old criteria appending after criteria changed;
+- repeated/empty continuation cursors causing loops or duplicate rows;
+- a failed continuation destroying already-rendered Articles instead of remaining local;
+- JS-disabled form Search blocked by CSP or incorrect form method/action;
+- JS-disabled Reset still implemented only as a button/event handler;
+- 400/404/503 error pages leaking SQL, connection strings, rejected private values, internal IDs, or stack details;
+- CSS/selectors assuming the old unresolved/loading shell and causing a visible regression or inaccessible state;
+- mobile wrapping, focus order, theme persistence, or reduced-motion behavior regressing because SSR markup differs from client-generated markup;
+- topic-specific strings or a second feed query path appearing only in server rendering.
+
+For each plausible issue, classify it as:
+- already protected by source + focused evidence;
+- needs a bounded defect/test fix inside Phase 0;
+- needs the Terra High refactor handoff below;
+- needs replanning/contract work.
+
+Any bounded fix must receive a focused regression test and invalidate/rerun every affected final evidence command.
+
+PASS 3 — CODE-QUALITY / STRUCTURAL REVIEW
+Inspect the complete P1 diff plus important producers/consumers for maintainability.
+
+Look specifically for:
+- duplicated root/API raw-query parsing instead of shared normalization primitives;
+- duplicated public-feed response/view-model mapping that can drift semantically;
+- SSR-specific Article eligibility/filter/order logic;
+- a large new templating/hydration abstraction where simple explicit helpers suffice;
+- inline JSON/attributes carrying private or unnecessary stored fields;
+- server and client independently owning subtly different URL/date/presentation validation without a justified defense-in-depth boundary;
+- dead old initial-loading/refetch code that can no longer execute;
+- compatibility-only shell branches retained merely because pre-Phase0 tests referenced them;
+- client startup rebuilding DOM instead of adopting it;
+- brittle query selectors/data attributes with no focused contract tests;
+- CSP relaxation broader than needed;
+- state/control helpers whose ownership is now unclear after SSR adoption;
+- test duplication or timing-based browser assertions that do not prove the actual SSR/no-refetch behavior;
+- unnecessary changes to repository, SQL, persistence, collection, admin, dependencies, or unrelated CSS.
+
+Small local cleanup, dead-branch removal, obvious helper deduplication, or a concrete bounded defect may be repaired here when behavior is unambiguous and the relevant evidence is rerun.
+
+TERRA HIGH REFACTOR HANDOFF
+If PASS 2 or PASS 3 discovers a meaningful behavior-preserving structural refactor, STOP before implementing that refactor and output exactly one self-contained Terra High remediation prompt following `docs/codex-model-selection.md`.
+
+The remediation prompt must:
+- recommend exactly `Terra High`;
+- state the observed structural problem and concrete evidence;
+- define the smallest behavior-preserving refactor boundary and important producers/consumers;
+- preserve canonical public-feed eligibility/order/filter/cursor semantics, exact `original_url`, SSR/no-JS behavior, client progressive enhancement, content safety/CSP, topic independence, supported production data, and package version already established by this closeout state;
+- forbid product/contract/ADR/roadmap expansion, schema changes, new SEO/pagination/features, and unrelated cleanup;
+- consume no roadmap/correction prompt number and no additional package patch version;
+- require focused tests plus every broader static/security/browser/database regression invalidated by the structural change;
+- require a concise implementation report but MUST NOT declare Phase 0 GREEN or finalize the durable validation artifact;
+- instruct Terra High to stop if source inspection shows the work actually requires a product/contract/ADR change, persistence redesign, or another materially different architecture decision.
+
+After Terra High remediation is applied and its implementation-level validation is green, rerun this P2 closeout from the beginning. Only the rerun may establish the accepted final source tree and declare Phase 0 GREEN.
+
+BOUNDED CLOSEOUT REPAIR RULE
+If a concrete defect is small, clearly governed, and inside Phase 0, P2 may repair it directly before final candidate validation. Examples include one missing output escape, one incorrect bounded status mapping, one no-JS form attribute, one startup hydration bug, or one missing focused negative test.
+
+Do not use this authority for a new feature, a second read architecture, a migration, a broad client rewrite, a meaningful structural refactor, or ambiguous security semantics. Those require the handoff/replanning path.
+
+VERSIONED CANDIDATE COMMIT
+After all source/test review and any bounded fixes have reached a locally coherent candidate with focused evidence:
+1. set top-level `package.json` to `1.0.2` if it is not already that value;
+2. verify no npm lockfile exists;
+3. inspect the complete closeout candidate diff;
+4. commit the executable/test/package candidate with exact commit subject `1.0.2` before the final accepted-source validation pass;
+5. record that commit SHA as the initial final-candidate SHA.
+
+Do not include the later durable validation artifact or K8VX resolution in this versioned executable candidate commit. They record evidence after it is observed.
+
+If final validation after that commit finds a bounded defect, repair it with focused proof and an explicit follow-up commit, then rerun every invalidated final command. The accepted executable SHA becomes the final executable/test/package commit after those repairs, not stale evidence from the earlier `1.0.2` candidate. Do not rewrite history merely to hide a closeout repair.
+
+FINAL-TREE VALIDATION
+Against the exact final executable candidate tree, execute the smallest non-overlapping applicable matrix:
+1. `npm install`
+2. `npm run check`
+3. `npm run test:security`
+4. `npm run test:browser`
+5. `npm run test:db`
+6. `git diff --check <phase-0-pre-P1-baseline>...HEAD` or an equivalent committed-range check covering the complete Phase 0 executable change
+
+Before relying on containment, inspect current `package.json`: `npm run check` owns ordinary format/lint/type/unit/integration/collection coverage but does not own security, browser, or database suites.
+
+Do not separately rerun subordinate ordinary commands solely to duplicate evidence on the same unchanged tree. Focused reruns are appropriate only for diagnosis/repairs or when an intervening edit invalidates earlier evidence.
+
+Required specialized suites must fail rather than be skipped when prerequisites are unavailable. A missing PostgreSQL or Chromium prerequisite is BLOCKED evidence, not a pass.
+
+No ordinary Level 7 live-Source or Level 8 reference-deployment observation is required for Phase 0 by the testing contract. Do not manufacture those claims. No production-upgrade/migration evidence is required if the final implementation truly made no persistence/schema change.
+
+DIRECT HTTP / CRAWLABILITY OBSERVATION
+In addition to automated HTTP assertions, perform and record a bounded direct HTTP/source procedure against the final application/test environment demonstrating that a plain request to `/` receives meaningful configured Publication + Article HTML before JavaScript. A local `curl`/equivalent response-body inspection is sufficient for this direct observation when it uses the real Web route with a controlled or disposable canonical feed dependency/database.
+
+Do not claim public reference-deployment SEO behavior unless the deployed environment itself was actually observed.
+
+DURABLE VALIDATION ARTIFACT
+Only after the final executable candidate evidence is complete, create:
+
+`docs/validation/post-1.0-phase-0-server-rendered-public-feed.md`
+
+Record at minimum:
+- Phase 0 goal/scope and baseline;
+- exact P1 implementation commit and exact accepted final executable SHA;
+- package version `1.0.2`;
+- relevant Node/npm/Playwright/PostgreSQL environment details actually observed;
+- source ownership trace showing `/` and `/api/feed` share canonical public-feed read semantics;
+- final root parser/API parser distinction;
+- root 200/400/404/503 semantics;
+- SSR output-safety/CSP behavior;
+- no-JavaScript behavior actually observed;
+- JavaScript hydration/no-initial-API-request behavior actually observed;
+- direct HTTP/curl-style crawlable-content observation;
+- final commands/procedures actually executed, results, and evidence levels;
+- PASS 1 contract/evidence findings;
+- PASS 2 adversarial hypotheses/findings/disposition;
+- PASS 3 structural findings/disposition;
+- every bounded defect/test added during closeout, if any;
+- whether a Terra High remediation handoff occurred before the final rerun;
+- explicit statement that no schema/persisted-data change occurred, if true;
+- limitations or unavailable higher-level evidence;
+- final GREEN/RED/BLOCKED disposition.
+
+The artifact records observed evidence only. Do not rewrite historical Phase 9/13/etc. artifacts to make them claim Phase 0 evidence.
+
+KNOWN ISSUE K8VX
+Only if the final accepted executable tree is GREEN under all required evidence:
+- move K8VX from Open Issues to Resolved Issues in `known-issues.md`;
+- preserve its permanent ID/title/date;
+- set resolution date to the actual closeout date;
+- summarize that root now returns canonical Publication/Article HTML directly, JS is progressive enhancement with no redundant successful initial feed fetch, and required HTTP/security/database/browser evidence passed;
+- keep R7KM resolved and do not reinterpret its historical client-loading evidence as Phase 0 proof.
+
+If Phase 0 is RED/BLOCKED, leave K8VX Open.
+
+POST-EVIDENCE DOCUMENTATION COMMIT
+After writing the truthful validation artifact and, only when GREEN, resolving K8VX:
+- inspect the docs-only diff;
+- commit only the validation artifact and authorized K8VX status change in a separate documentation/evidence commit;
+- do not change package version, source, tests, roadmap phase state, BOOT, AGENTS, or unrelated documentation in that commit.
+
+The durable artifact must name the accepted executable SHA tested before the docs-only evidence commit. Later conversational `/closeout` may treat this evidence-only drift according to BOOT's closeout rules.
+
+ACCEPTANCE CRITERIA
+Declare Phase 0 GREEN only when:
+- P1's implementation boundary is complete and coherent;
+- direct raw `/` HTML exposes configured Publication + canonical first Article page without JS/secondary feed request;
+- root q/source/category discovery, no-JS Search/Reset, exact publisher links, and 200/400/404/503 states satisfy contract;
+- SSR content safety and CSP are fail-closed and no secrets/private fields leak;
+- JavaScript adopts SSR state with zero redundant initial API request and preserves enhanced discovery/history/load-more/theme/responsive/accessibility behavior;
+- canonical feed eligibility/order/duplicate/moderation/filter/cursor semantics remain unchanged and database-backed regressions are green;
+- there is no SSR-only Article query authority, topic-specific engine logic, schema/persisted-data change, or Phase 1+ feature leakage;
+- package version is `1.0.2`, no npm lockfile exists, and the exact accepted executable SHA has the complete required final evidence;
+- the durable validation artifact truthfully records the evidence;
+- K8VX is resolved only if the evidence is GREEN;
+- no unresolved closeout finding requires Terra High remediation, deeper Sol escalation, replanning, or a correction stack.
+
+FINAL REPORT
+Return a concise human-reviewable closeout report containing:
+1. `Phase 0 closeout: GREEN`, `RED`, or `BLOCKED`;
+2. accepted executable SHA and package version;
+3. P1/P2 commits and any bounded repair commits;
+4. PASS 1 contract/evidence findings;
+5. PASS 2 adversarial findings and disposition;
+6. PASS 3 structural findings and disposition;
+7. whether a Terra High remediation handoff occurred;
+8. final commands/procedures actually run and results/evidence levels;
+9. durable validation artifact path and evidence-doc commit SHA when created;
+10. K8VX final status;
+11. any remaining limitations;
+12. explicit statement that Phase 1 baseline transition has NOT been performed and conversational `/closeout` is the next workflow step only when this result is GREEN.
