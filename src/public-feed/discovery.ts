@@ -86,6 +86,37 @@ export function parsePublicDiscoveryRequest(
   }
 }
 
+/**
+ * Parses the first-page discovery form submitted to the public root.  This is
+ * deliberately separate from the API boundary: ordinary HTML forms submit
+ * empty select values, while the API retains its stricter immutable-key input
+ * contract.  Root navigation never accepts a cursor in Phase 0.
+ */
+export function parsePublicRootDiscoveryRequest(
+  rawQuery: string,
+): PublicDiscoveryRequest {
+  try {
+    if (rawQuery.length > PUBLIC_DISCOVERY_LIMITS.maxRawQueryLength) {
+      throw new Error();
+    }
+    const values = decodeRawQuery(rawQuery);
+    if (values.cursor !== undefined) throw new Error();
+    const criteria = normalizeCriteria({
+      ...(values.q === undefined ? {} : { keywordQuery: values.q }),
+      ...(values.source === undefined || values.source === ''
+        ? {}
+        : { sourceConfigKey: values.source }),
+      ...(values.category === undefined || values.category === ''
+        ? {}
+        : { categoryConfigKey: values.category }),
+    });
+    return freezeRequest(criteria, undefined);
+  } catch (error) {
+    if (error instanceof PublicDiscoveryInputError) throw error;
+    throw new PublicDiscoveryInputError();
+  }
+}
+
 export function encodePublicDiscoveryCursor(
   criteria: PublicDiscoveryCriteria,
   position: PublicDiscoveryCursorPosition,

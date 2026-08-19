@@ -96,6 +96,18 @@ test('serves discovery through the production PostgreSQL reader and HTTP stack',
           /normalizedTitle|firstSeen|author|summary|cursor_effective|internal/i,
         );
 
+        const rootResponse = await fetch(
+          `${baseUrl}/?q=HTTP%20HEADLINE&source=http_source&category=industry_news`,
+        );
+        const rootBody = await rootResponse.text();
+        assert.equal(rootResponse.status, 200);
+        assert.equal(rootResponse.headers.get('cache-control'), 'no-store');
+        assert.match(rootBody, /Public Feed HTTP/u);
+        assert.match(rootBody, /Persisted HTTP headline/u);
+        assert.match(rootBody, new RegExp(specialArticle.originalUrl, 'u'));
+        assert.match(rootBody, /data-public-feed-bootstrap/u);
+        assert.doesNotMatch(rootBody, /Hidden Page Needle/u);
+
         const filteredResponse = await fetch(
           `${baseUrl}/api/feed?q=HTTP%20HEADLINE&source=http_source&category=industry_news`,
         );

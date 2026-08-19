@@ -1,4 +1,4 @@
-/* global AbortController, document, HTMLElement, HTMLButtonElement, HTMLFormElement, HTMLInputElement, HTMLSelectElement, URL, URLSearchParams, fetch, history, window */
+/* global AbortController, document, HTMLElement, HTMLButtonElement, HTMLFormElement, HTMLImageElement, HTMLInputElement, HTMLScriptElement, HTMLSelectElement, MouseEvent, URL, URLSearchParams, fetch, history, window */
 
 (() => {
   'use strict';
@@ -528,6 +528,54 @@
     category.value = discovery.query.category ?? '';
   }
 
+  function attachExistingLogoFallback() {
+    const image = publicationLogo.querySelector('.publication-logo-image');
+    if (!(image instanceof HTMLImageElement)) return;
+    const hideBrokenLogo = () => {
+      if (publicationLogo.contains(image)) {
+        image.remove();
+        publicationLogo.hidden = true;
+      }
+    };
+    image.addEventListener('error', hideBrokenLogo, { once: true });
+    if (image.complete && image.naturalWidth === 0) hideBrokenLogo();
+  }
+
+  function hydrateServerRenderedFeed() {
+    const bootstrap = document.querySelector('[data-public-feed-bootstrap]');
+    if (!(bootstrap instanceof HTMLScriptElement)) return false;
+    try {
+      const feed = validatedFeed(JSON.parse(bootstrap.textContent ?? ''));
+      const itemIds = articleIdsFor(feed.items);
+      const populated = feed.items.length > 0;
+      const rows = Array.from(content.querySelectorAll('[data-feed-item-id]'));
+      if (
+        shell.dataset.publicationState !== 'resolved' ||
+        content.dataset.state !== (populated ? 'populated' : 'empty') ||
+        rows.length !== feed.items.length ||
+        rows.some(
+          (row, index) =>
+            !(row instanceof HTMLElement) ||
+            row.dataset.feedItemId !== feed.items[index]?.articleId,
+        ) ||
+        (populated &&
+          !(content.querySelector('[data-feed-list]') instanceof HTMLElement))
+      ) {
+        return false;
+      }
+      state.publication = feed.publication;
+      state.criteria = copiedCriteria(feed.discovery.query);
+      state.items = feed.items;
+      state.itemIds = itemIds;
+      state.nextCursor = feed.nextCursor;
+      attachExistingLogoFallback();
+      if (populated) renderPagination();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   function firstPagePathFromLocation() {
     const rawSearch = window.location.search;
     if (
@@ -727,7 +775,18 @@
     );
   });
 
-  reset.addEventListener('click', () => {
+  reset.addEventListener('click', (event) => {
+    if (
+      event instanceof MouseEvent &&
+      (event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey)
+    ) {
+      return;
+    }
+    event.preventDefault();
     const url = '/';
     if (`${window.location.pathname}${window.location.search}` !== url) {
       history.pushState(null, '', url);
@@ -739,5 +798,5 @@
     void loadFirstPage(firstPagePathFromLocation());
   });
 
-  void loadFirstPage(firstPagePathFromLocation());
+  if (!hydrateServerRenderedFeed()) return;
 })();

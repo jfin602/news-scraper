@@ -60,7 +60,9 @@ test('the browser rejects credential-bearing feed links even if an upstream boun
   const page = await newPage();
   try {
     await page.goto(baseUrl());
-    await page.locator('[data-feed-content][data-state="error"]').waitFor();
+    await page
+      .locator('[data-feed-content][data-state="unavailable"]')
+      .waitFor();
     assert.equal(await page.locator('.feed-headline-link').count(), 0);
     assert.equal(
       await page.locator('[data-feed-status-message]').textContent(),

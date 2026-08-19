@@ -251,7 +251,8 @@ h1 {
 
 .discovery-field input,
 .discovery-field select,
-.discovery-actions button {
+.discovery-actions button,
+.discovery-actions a {
   width: 100%;
   min-width: 0;
   min-height: 2.75rem;
@@ -275,6 +276,7 @@ h1 {
 .discovery-field input:focus-visible,
 .discovery-field select:focus-visible,
 .discovery-actions button:focus-visible,
+.discovery-actions a:focus-visible,
 [data-feed-load-more]:focus-visible {
   outline: 3px solid var(--focus-ring);
   outline-offset: 2px;
@@ -288,6 +290,7 @@ h1 {
 }
 
 .discovery-actions button,
+.discovery-actions a,
 [data-feed-load-more] {
   padding: 0.55rem 0.85rem;
   border: 1px solid var(--border);
@@ -296,6 +299,8 @@ h1 {
   color: var(--text-primary);
   cursor: pointer;
   font-weight: 700;
+  text-align: center;
+  text-decoration: none;
 }
 
 .discovery-actions button[type='submit'] {
@@ -305,6 +310,7 @@ h1 {
 }
 
 .discovery-actions button:hover,
+.discovery-actions a:hover,
 [data-feed-load-more]:hover {
   border-color: var(--text-primary);
   background: var(--surface);

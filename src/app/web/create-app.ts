@@ -6,6 +6,7 @@ import {
   PublicDiscoveryInputError,
   type PublicDiscoveryRequest,
   parsePublicDiscoveryRequest,
+  parsePublicRootDiscoveryRequest,
 } from '../../public-feed/discovery.ts';
 import {
   PublicFeedRepositoryError,
@@ -17,7 +18,10 @@ import {
   createAdminPageRouter,
   type AdminApiRouteRegistrar,
 } from './admin-router.ts';
-import { sendPublicFeedPage } from './public-feed-page.ts';
+import {
+  sendPublicFeedPage,
+  sendPublicFeedPageError,
+} from './public-feed-page.ts';
 
 const publicFeedStylesheet = readFileSync(
   new URL('./public/public-feed.css', import.meta.url),
@@ -167,8 +171,39 @@ export function createWebApp(
       .send(publicThemeClient);
   });
 
-  app.get('/', (_request, response) => {
-    sendPublicFeedPage(response);
+  app.get('/', async (request, response) => {
+    response.set('Cache-Control', 'no-store');
+    let discoveryRequest: PublicDiscoveryRequest;
+    try {
+      discoveryRequest = parsePublicRootDiscoveryRequest(
+        rawQueryString(request),
+      );
+    } catch (error) {
+      if (error instanceof PublicDiscoveryInputError) {
+        sendPublicFeedPageError(response, 'invalid');
+        return;
+      }
+      sendPublicFeedPageError(response, 'unavailable');
+      return;
+    }
+
+    try {
+      const feed = await dependencies.publicFeed.read(discoveryRequest);
+      if (feed === undefined) {
+        sendPublicFeedPageError(response, 'not_found');
+        return;
+      }
+      sendPublicFeedPage(response, feed, discoveryRequest);
+    } catch (error) {
+      if (
+        error instanceof PublicFeedRepositoryError &&
+        error.reason === 'unsupported_discovery_filter'
+      ) {
+        sendPublicFeedPageError(response, 'invalid');
+        return;
+      }
+      sendPublicFeedPageError(response, 'unavailable');
+    }
   });
 
   return app;

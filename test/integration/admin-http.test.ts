@@ -367,7 +367,7 @@ describe('Admin HTTP perimeter foundation', () => {
     assert.deepEqual(enabled, disabled);
     assert.deepEqual(
       disabled.map(({ status }) => status),
-      [200, 200, 200, 404, 200, 200, 200],
+      [200, 200, 404, 404, 200, 200, 200],
     );
   });
 });

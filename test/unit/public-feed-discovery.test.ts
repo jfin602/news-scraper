@@ -5,6 +5,7 @@ import {
   decodePublicDiscoveryCursor,
   encodePublicDiscoveryCursor,
   parsePublicDiscoveryRequest,
+  parsePublicRootDiscoveryRequest,
   publicDiscoveryCriteriaFingerprint,
   PublicDiscoveryInputError,
   PUBLIC_DISCOVERY_LIMITS,
@@ -118,6 +119,32 @@ test('normalizes keyword criteria and validates immutable config keys', () => {
       parsePublicDiscoveryRequest(`category=${value}`),
     );
   }
+});
+
+test('keeps root form blank normalization separate from the API parser', () => {
+  assert.deepEqual(parsePublicRootDiscoveryRequest('q=&source=&category='), {});
+  assert.deepEqual(
+    parsePublicRootDiscoveryRequest(
+      'q=%20Book%20&source=publisher_news&category=',
+    ),
+    { keywordQuery: 'Book', sourceConfigKey: 'publisher_news' },
+  );
+  assertDiscoveryFailure(() => parsePublicDiscoveryRequest('source='));
+  assertDiscoveryFailure(() => parsePublicDiscoveryRequest('category='));
+  assertDiscoveryFailure(() =>
+    parsePublicRootDiscoveryRequest('source=&source=publisher_news'),
+  );
+  assertDiscoveryFailure(() =>
+    parsePublicRootDiscoveryRequest('unknown=value'),
+  );
+  assertDiscoveryFailure(() => parsePublicRootDiscoveryRequest('q=%'));
+  assertDiscoveryFailure(() =>
+    parsePublicRootDiscoveryRequest(`q=${'x'.repeat(201)}`),
+  );
+  const cursor = encodePublicDiscoveryCursor({}, POSITION);
+  assertDiscoveryFailure(() =>
+    parsePublicRootDiscoveryRequest(`cursor=${cursor}`),
+  );
 });
 
 test('encodes and decodes deterministic, criteria-bound high-precision cursors', () => {
