@@ -1,0 +1,308 @@
+TASK: Correction 21 / P2 — Optional final-prompt automation and terminal handoff
+
+CORRECTION SCOPE
+This is the second implementation prompt in the non-versioned Pre-Phase-0 runner-compatibility correction. P1 must already have established the canonical post-1.0 roadmap grammar/version authority. P2 adds an explicit `--closeout` convenience mode to the existing Codex task-stack runner while preserving manual closeout as the default and preserving human acceptance of the closeout result.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: this task is bounded runner work, but it touches CLI parsing, prompt execution ordering, HEAD/worktree ownership, version safety, run-state persistence, failure handling, dashboard state, and terminal handoff semantics; the repository owner also requires Terra-family or higher implementation for this correction.
+- Reasoning basis: High is warranted because the new path must reuse existing execution machinery without accidentally converting a successful Codex process exit into semantic closeout acceptance, and because failure/output ordering must remain trustworthy across interactive and non-interactive runs.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because closeout can legitimately finish GREEN, RED/BLOCKED, or with a remediation handoff, so process-state, repository-state, and semantic-review state must stay deliberately separate.
+- Escalation trigger: safe implementation would require machine interpretation/classification of closeout prose, restructuring the shared prompt commit architecture, or inventing a second task/version grammar instead of consuming P1's normalized plan.
+- Escalation target: `Sol High`.
+- Estimate confidence: `High`.
+- Efficiency rationale: reuse `plan.closeout`, `runCodex()`, existing event/final-response capture, and current display/run-log infrastructure; add only the minimum distinct review-required closeout state and safety checks.
+
+VERSIONING
+- Required unchanged project version: `1.0.0`.
+- This correction MUST NOT change `package.json` version.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Correction prompt numbering is local only and consumes no post-1.0 Phase 0 patch number.
+
+DEPENDENCY
+P1 is a hard dependency. Do not implement P2 against the old pre-1.0 parser/version assumptions.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/codex-model-selection.md`, `docs/contracts/testing-and-validation-contract.md`, and `docs/roadmap/post-1.0-roadmap.md`;
+2. read this correction's P1 task file and inspect P1's actual committed parser/plan/version implementation and focused tests;
+3. inspect current `scripts/codex-phase.mjs` end to end, especially CLI parsing, run initialization, implementation resume, prompt execution, `runCodex()`, `commitPromptChanges()`, active-run failure handling, and final handoff;
+4. inspect current `scripts/codex-phase-core.mjs` display/state helpers, especially `stateLabel`, `renderDashboard`, `renderFailureSummary`, and `renderSuccessHandoff`;
+5. inspect all current runner tests covering CLI validation, implementation commit boundaries, phase/correction resume, run.json state, failure/interruption, final-response capture, interactive/non-interactive rendering, ASCII safety, and manual closeout handoff;
+6. verify P1's downstream handoff: P2 must be able to use normalized plan/prompt version metadata without parsing `p1-<phase>` or reconstructing `1.<phase>.<prompt>` itself;
+7. confirm `package.json` is still exactly `1.0.0` and P3 remains unexecuted;
+8. stop and report P1 incompleteness/planning drift if P2 would need to invent roadmap-family or resume/version semantics that P1 was required to own.
+
+CURRENT BEHAVIOR
+The runner currently:
+- accepts one task-folder positional argument plus optional `--verbose`;
+- parses exactly one final closeout prompt but excludes it from `plan.implementations`;
+- marks closeout as manual in run state/dashboard;
+- executes/resumes/commits implementation prompts only;
+- captures each Codex turn's exact final message through `--output-last-message` into `P<number>.final.txt`;
+- stops after implementation prompts and prints a manual-closeout handoff.
+
+That default behavior is intentional and must remain unchanged when `--closeout` is absent.
+
+GOAL
+Add one explicit operator-selected mode:
+
+`npm run codex:phase -- <task-folder> --closeout`
+
+that automatically launches the parsed final closeout after all implementation prompts are Git-proven complete, captures and displays its final response, and leaves the closeout result for human review rather than automatically accepting/committing it.
+
+CLI CONTRACT
+Accepted runner flags become:
+- `--verbose`
+- `--closeout`
+
+Requirements:
+- exactly one task-folder positional argument remains required;
+- `--verbose` and `--closeout` may appear in either order after/beside the positional argument as supported by the current simple argument parser;
+- duplicate/unknown/malformed options must fail closed rather than being treated as task folders;
+- update the usage message accurately;
+- without `--closeout`, behavior remains implementation-prompts-only with manual closeout;
+- never infer `--closeout` from prompt count, model, stack type, risk, environment, or history;
+- do not add another npm script solely for this flag; existing npm argument forwarding is sufficient unless current package-script tests prove otherwise.
+
+IMPORTANT SEMANTIC BOUNDARY
+`--closeout` automates closeout INVOCATION, not closeout ACCEPTANCE.
+
+A closeout prompt may legitimately:
+- finish GREEN;
+- find a bounded defect and leave reviewed changes/evidence for human acceptance;
+- finish RED/BLOCKED;
+- emit the mandatory Terra High behavior-preserving refactor remediation handoff;
+- stop for replanning/escalation.
+
+A Codex process exit code of 0 does not machine-prove which semantic outcome occurred. Do not parse prose for `GREEN`, `RED`, `BLOCKED`, remediation wording, headings, emoji, or any other semantic classifier.
+
+Therefore the auto-run closeout state must be represented as EXECUTED / REVIEW REQUIRED (or an equally explicit machine state), never automatically as `passed`/accepted/complete solely because Codex returned successfully.
+
+EXECUTION ORDER
+When `--closeout` is supplied:
+1. perform all existing preflight, parser, clean-tree, Codex-version, Git-history, and implementation-resume checks unchanged;
+2. execute/resume/commit all remaining implementation prompts exactly as the normal runner does;
+3. only after every implementation prompt is passed or Git-proven previously completed, establish the pre-closeout HEAD/version and launch `plan.closeout` through the existing `runCodex()` machinery;
+4. the closeout uses its own parsed recommended model/reasoning configuration and its immutable prompt text;
+5. capture structured events, usage, duration, and native final response using the same run directory conventions;
+6. do NOT call the implementation `commitPromptChanges()` boundary for the closeout;
+7. finalize the closeout as review-required if runner-level safety checks pass;
+8. print the final terminal handoff described below.
+
+If all implementation prompts were already Git-proven complete before this invocation, `--closeout` must be able to proceed directly to the closeout without launching an implementation Codex process.
+
+Do not add closeout commits to implementation resume/history detection. Auto-run closeout is intentionally uncommitted/human-reviewed; Git history remains the durable authority for implementation-prefix resume.
+
+PRE-CLOSEOUT REPOSITORY BOUNDARY
+Immediately before launching the closeout:
+- working tree must be clean under the same intentional policy used for normal runner execution;
+- capture exact HEAD;
+- capture current package version;
+- no `package-lock.json` may exist.
+
+The closeout may legitimately modify files. Because it is final, those changes may remain uncommitted for human review.
+
+POST-CLOSEOUT RUNNER-SAFETY CHECKS
+After Codex returns, distinguish runner/process safety from semantic acceptance.
+
+Require at minimum:
+- no interruption/signal;
+- Codex exit code 0 for the successful execution path;
+- structured event processing completed successfully;
+- HEAD is unchanged from the pre-closeout HEAD; the closeout agent must not self-commit behind the runner/human boundary;
+- no `package-lock.json` exists;
+- `git diff --check` succeeds for the resulting worktree;
+- package version satisfies the mode-specific bounded rule below.
+
+Do NOT require closeout to create changes. A valid closeout may be read-only and return a review/escalation report.
+
+Do NOT require the worktree to be clean after closeout. Closeout-generated evidence/fixes/version edits may intentionally remain uncommitted for the human handoff.
+
+VERSION SAFETY FOR AUTO-RUN CLOSEOUT
+For a correction stack:
+- package version after closeout must remain exactly `plan.unchangedVersion`.
+
+For a roadmap phase stack:
+- capture the pre-closeout implementation-complete package version;
+- after closeout, allow exactly either that unchanged pre-closeout version OR the closeout prompt's assigned `targetVersion`;
+- reject any third version.
+
+This supports both a read-only/blocked review and a successful roadmap closeout that prepared its assigned version transition, without pretending either semantic outcome has been accepted.
+
+Consume P1/current plan metadata. Do not parse folder names or reconstruct roadmap version formulas in P2.
+
+RUN STATE CONTRACT
+Without `--closeout`, preserve the current run-state shape/meaning, including closeout status `manual` and terminal `implementation_complete` behavior.
+
+With `--closeout`:
+- initialize the closeout prompt as waiting/eligible for execution rather than manual;
+- transition it to running while Codex executes;
+- record started/ended timestamps, duration, usage, and available final-response artifact metadata consistently with existing prompt records;
+- after runner-level success, record an explicit review-required state such as `review_required` / `executed_review_required`;
+- overall run status after runner-level success must likewise distinguish `closeout_executed_review_required` from `implementation_complete` and from accepted/green completion;
+- never write `passed` for the closeout solely from process exit 0.
+
+Keep state names small and explicit. Do not add a generalized workflow engine.
+
+DASHBOARD / FAILURE DISPLAY
+Update shared rendering only as needed to represent the actual mode/state.
+
+Default/manual path must still render the existing manual closeout semantics.
+
+Auto-run path should clearly communicate states equivalent to:
+- closeout AUTO-RUN / HUMAN REVIEW before execution;
+- RUNNING / CLOSEOUT while active;
+- EXECUTED / REVIEW REQUIRED after runner-level success;
+- FAILED or INTERRUPTED when runner-level execution/safety fails.
+
+Do not count a review-required closeout as another implementation prompt in the existing `Overall: x / n implementation prompts complete` metric.
+
+Failure summaries must not claim the closeout was `NOT EXECUTED` when it actually ran and then failed/interrupted. Preserve completed implementation-prefix reporting and no-later-prompt truthfulness.
+
+FINAL TERMINAL HANDOFF
+This is the main usability requirement.
+
+When `--closeout` reaches a captured closeout final response:
+1. finish/finalize any dashboard or runner-owned diagnostics first;
+2. print one concise runner-owned header/separator indicating that the following text is the closeout agent final response;
+3. print the complete captured closeout final response as the final terminal content;
+4. print NOTHING after that response: no logs path, no manual-closeout instruction, no success sentence, no dashboard redraw, no extra footer.
+
+Preserve the raw exact response in the existing `P<number>.final.txt` artifact. Terminal presentation may use the runner's existing safety/normalization policy, but must not truncate or summarize the response.
+
+If runner-level post-closeout validation fails AFTER a final response was captured, render the failure diagnostics first and still make the captured closeout final response the last terminal content, while returning/failing nonzero. If no closeout final response was captured, preserve normal failure-summary behavior.
+
+Do not let the final-response-last requirement hide the process exit code or convert runner-level failure into success.
+
+INTERRUPTION / ERROR OWNERSHIP
+Preserve current SIGINT behavior and active child ownership.
+
+Ensure:
+- interrupt during closeout kills the closeout child and records interrupted state;
+- timers/redraw state are finalized exactly once;
+- active prompt/dashboard globals cannot leak the prior implementation prompt into closeout failure output;
+- closeout final response is only appended after the display region has been finalized;
+- no later prompt can start after the closeout because it remains the unique final prompt.
+
+PRESERVED IMPLEMENTATION COMMIT CONTRACT
+Implementation prompts must still:
+- use current exact commit subject rules;
+- own one direct successor commit per executed implementation prompt;
+- preserve captured final response in the commit body;
+- fail on HEAD drift, empty implementation changes, staging anomalies, package-lock creation, version mismatch, or dirty post-commit state;
+- resume from exact Git-proven prefixes.
+
+Do not weaken/reuse the implementation commit helper in a way that makes its stronger assumptions conditional for ordinary prompts. Keep the closeout path distinct only where its human-review semantics genuinely differ.
+
+DOCUMENTATION
+Update `BOOT.md` and `AGENTS.md` so they state accurately:
+- normal `codex:phase` stops before the parsed final closeout by default;
+- `--closeout` explicitly opts into automatically invoking that final prompt after implementations succeed;
+- auto-run closeout remains HUMAN REVIEW REQUIRED and is not automatically committed/accepted;
+- the closeout agent final response is intentionally the final terminal output for easy handoff.
+
+Update only the narrow relevant section of `docs/codex-model-selection.md` to recommend `--closeout` primarily for small/low-risk stacks where eliminating the manual launch step is useful. Preserve the existing three-pass closeout quality contract, Sol Light default, Terra High remediation handoff, and escalation rules. Do not imply that `--closeout` weakens any closeout review requirement.
+
+PRESERVED BEHAVIOR
+Preserve:
+- P1's new roadmap-family/version authority;
+- historical pre-1.0 and correction grammar;
+- manual closeout default;
+- exact model/reasoning selection from parsed prompt metadata;
+- structured event logs and exact final-response files;
+- implementation Git/history resume semantics;
+- dirty-tree preflight;
+- package-lock prohibition;
+- ASCII/color/cursor safety of runner-owned display output;
+- verbose behavior except for the intentional final closeout handoff;
+- product/application behavior;
+- package version `1.0.0` for this correction.
+
+NON-GOALS
+Do not:
+- automatically classify closeout prose as GREEN/RED/BLOCKED;
+- automatically commit closeout changes;
+- automatically accept or clear roadmap/correction gates;
+- infer when `--closeout` should be enabled;
+- add risk scoring or stack-size heuristics;
+- make auto-run the default;
+- add another task/version grammar;
+- refactor unrelated runner architecture;
+- modify product code, database schema, UI, network behavior, or dependencies.
+
+FOCUSED TEST REQUIREMENTS
+Extend `test/unit/codex-phase-runner.test.ts` and only other existing focused runner tests that directly own affected behavior.
+
+Prove at minimum:
+- default invocation still launches no closeout Codex process and retains manual handoff/state;
+- `--closeout` is accepted with one task folder;
+- `--closeout` and `--verbose` coexist in supported ordering;
+- unknown/duplicate unsupported flags fail closed;
+- implementation prompts still commit exactly as before under `--closeout`;
+- closeout launches only after every implementation is passed or previously completed;
+- an all-implementations-completed resume launches only closeout;
+- closeout receives its own parsed model/reasoning/text;
+- P2 does not parse post-1.0 folder/version strings itself;
+- closeout is never passed to `commitPromptChanges()`;
+- HEAD change during closeout is rejected;
+- closeout file changes may remain uncommitted after runner-level success;
+- read-only closeout is allowed;
+- correction closeout cannot change package version;
+- roadmap closeout may keep pre-closeout version;
+- roadmap closeout may change to exactly its assigned closeout target;
+- any third roadmap version fails;
+- package-lock creation or incoherent diff fails;
+- interruption/nonzero/malformed structured output remain failures;
+- run.json distinguishes manual, running, review-required, failed/interrupted states truthfully;
+- dashboard distinguishes default manual versus auto-run/review-required closeout;
+- failure summary does not say NOT EXECUTED after an attempted closeout;
+- successful auto-run terminal output ends with the complete closeout final response and nothing after it;
+- runner-level failure after capturing a final response remains nonzero but still ends terminal output with that response;
+- raw `P<number>.final.txt` response remains intact.
+
+Use injected/fake Codex processes and temporary Git repositories already established by the suite. Do not invoke a real Codex implementation prompt in unit tests.
+
+FOCUSED DEVELOPMENT VALIDATION
+During implementation, use the smallest focused runner test selection capable of answering each state/output question. Exercise both phase and correction synthetic repositories because their closeout version rules differ.
+
+FINAL-TREE VALIDATION
+After all P2 edits are complete, run the smallest non-overlapping applicable matrix on the unchanged final tree:
+- `npm run check`
+- `npm run codex:phase:validate -- c21-post-1-runner-compatibility`
+- committed-range `git diff --check` or equivalent against the P2 accepted range
+
+Do not invoke this correction's P3 through `--closeout`; P3 is deliberately manual because it is validating the new automation mechanism itself.
+
+No PostgreSQL, browser, live-source, recovery, or deployment suite is required unless P2 unexpectedly crosses those boundaries; stop and report scope drift rather than silently broadening the task.
+
+ACCEPTANCE CRITERIA
+P2 is complete only when:
+- `--closeout` is explicit and optional;
+- normal runner behavior is unchanged without the flag;
+- implementations retain exact existing commit/resume ownership;
+- closeout invocation reuses existing parsed prompt/Codex machinery after implementations complete;
+- closeout process success is represented as review-required, not semantic acceptance;
+- closeout changes are not automatically committed;
+- repository/version/HEAD safety is bounded and tested for both phase and correction modes;
+- run.json/dashboard/failure output tell the truth about closeout execution state;
+- the captured closeout final response is the final terminal content with nothing after it;
+- BOOT/AGENTS/model-selection wording matches actual behavior without weakening the closeout contract;
+- package version remains exactly `1.0.0` and no npm lockfile exists;
+- final applicable validation is green.
+
+FINAL REPORT
+Report:
+- files changed;
+- exact CLI syntax/default behavior;
+- closeout execution and human-review state machine;
+- closeout repository/version/HEAD safety rules;
+- implementation commit/resume behavior preserved;
+- final-response-last terminal behavior including failure-after-response behavior;
+- focused tests added/updated;
+- focused and final validation commands/results;
+- confirmation P3 was not auto-run;
+- confirmation package version remains `1.0.0`;
+- any limitation or planning drift.
