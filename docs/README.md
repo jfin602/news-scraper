@@ -74,8 +74,8 @@ Git does not track empty directories, so `testing/`, `tasks/`, `design/tasks/`, 
 - `operations/source-onboarding.md` — operator-facing Source/endpoint onboarding procedure, field-by-field purpose, approved-domain configuration, RSS/Atom admission-phrase semantics, state model, HTML listing profile guidance, approval/enablement sequence, and Check-now/run interpretation.
 - `operations/database-backup-and-restore.md` — governed PostgreSQL backup, restore verification, managed-backup retention, recovery validation, and Phase 20 launch reconfirmation procedure.
 - `operations/deployment-and-incident-runbook.md` — ordered deployment/schema-upgrade/rollback procedure, reference-deployment validation, incident response, and the deployment-specific operations record that Phase 20 must reconfirm before launch acceptance.
-- `roadmap/mvp-roadmap.md` — historical Phase 0–21 MVP sequence, tech-demo critical path, completed Phase 20 customer launch validation and production-baseline handoff, dependencies, non-goals, exit gates, and current terminal Phase 21 codebase simplification/maintainability hardening until its green `1.0.0` closeout.
-- `roadmap/post-1.0-roadmap.md` — owner-approved successor roadmap that becomes active only after the MVP closes into `1.0.0`; it restarts roadmap phase numbering at Phase 0, maps versions as `1.<phase>.<prompt>`, and sequences SSR, crawlable pagination/page-size configuration, SEO, summaries, historical archives, thumbnails, and scale validation.
+- `roadmap/mvp-roadmap.md` — historical completed Phase 0–21 MVP sequence, tech-demo critical path, completed Phase 20 customer launch validation/production-baseline handoff, and the terminal Phase 21 transition that closed the MVP at `1.0.0`.
+- `roadmap/post-1.0-roadmap.md` — current owner-approved roadmap beginning at post-1.0 Phase 0 on baseline `1.0.0`; it maps versions as `1.<phase>.<prompt>` and sequences SSR, crawlable pagination/page-size configuration, SEO, summaries, historical archives, thumbnails, and scale validation.
 - `decisions/single-publication-simplified-data-model.md` — **Accepted ADR** for topic-independent separate deployments, singleton Publication configuration without relational tenancy, and the pre-production rebuild-from-zero database rule.
 - `decisions/production-data-and-schema-compatibility.md` — **Accepted ADR** for the Phase 20 production-baseline boundary, durable customer-data preservation, supported production migration history, and post-launch schema-upgrade evidence.
 - `decisions/topic-independent-publication-model.md` — **Superseded historical ADR** retained only as decision history.
@@ -105,7 +105,7 @@ Use root `BOOT.md` as the session router; it points to the narrowest authoritati
 - Do not introduce Publication tenant IDs/slugs/FKs/scopes solely as speculative future compatibility.
 - Before production compatibility exists, do not retain migration/code/API/type/test/fixture/configuration artifacts solely to preserve superseded pre-production behavior; delete them when the current canonical system no longer needs them.
 - After Phase 20 production-baseline acceptance, do not apply that destructive pre-production reset policy to supported customer state. Production schema/persistence changes preserve supported data and upgradeability under `decisions/production-data-and-schema-compatibility.md`.
-- Phase 21 is behavior-preserving maintainability/optimization work. It does not authorize new product capability, arbitrary rewrites, flattening real integrity/provenance/security boundaries, or structural-metric quotas as substitutes for maintainability evidence.
+- Phase 21 was behavior-preserving maintainability/optimization work and is complete. Post-1.0 product work is governed by `roadmap/post-1.0-roadmap.md` while preserving the same locked Platform boundaries and production-data compatibility.
 - Foundational architecture changes require an Accepted/superseding ADR where appropriate.
 - Design guidance under `design/` is subordinate to product/domain contracts, ADRs, roadmap, and the testing contract; it may refine presentation but may not redefine supported product behavior.
 
@@ -113,10 +113,10 @@ Use root `BOOT.md` as the session router; it points to the narrowest authoritati
 
 An implementation phase or gating correction closes only after its exit gate and the inherited testing contract are verified against the exact final tree. Source inspection, partial implementation, stale results, or silently skipped suites are not completion evidence.
 
-Phases 0–20 and the Phase 10 singleton correction are complete; detailed status and historical qualifications are recorded in `roadmap/mvp-roadmap.md` and `validation/`. Phase 9 and Phase 14 retain their explicit owner-acceptance evidence limitations, and later proof does not rewrite those artifacts.
+The MVP roadmap is complete through Phase 21. Phase 9 and Phase 14 retain their explicit owner-acceptance evidence limitations, and later proof does not rewrite those artifacts. The terminal Phase 21 closeout advanced only top-level `package.json` from the validated `0.21.11` candidate to the current `1.0.0` release baseline.
 
-**Phase 21 — Codebase simplification and maintainability hardening** remains current and terminal for the MVP roadmap. It preserves launched behavior and the accepted Phase 20 production baseline under the feature freeze. Its green closeout transitions the project to `1.0.0`. The owner-approved `roadmap/post-1.0-roadmap.md` then becomes the active roadmap at post-1.0 Phase 0 using the same `1.0.0` baseline; no Phase 22 or `0.22.0` is created.
+**Current roadmap state:** post-1.0 **Phase 0 — Server-rendered public feed**, baseline `1.0.0`.
 
-The post-1.0 roadmap currently has a documented runner-compatibility gate before Phase 0 prompt generation because the existing pre-1.0 parser does not yet support Phase 0 / `1.<phase>.<prompt>` roadmap grammar. That gate is non-versioned tooling work and must not consume a Phase 0 patch number.
+Before Phase 0 task generation/execution, the documented runner-compatibility gate must be completed because the current pre-1.0 parser does not yet support Phase 0 / `1.<phase>.<prompt>` roadmap grammar. That gate is non-versioned tooling work and must leave `package.json` at `1.0.0` without consuming a Phase 0 patch number.
 
 Historical validation artifacts describe only the source tree, environment, and observations they record. They do not redefine current contracts.
