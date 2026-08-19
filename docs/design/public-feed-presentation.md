@@ -2,9 +2,11 @@
 
 ## Authority and direction
 
-This document defines the durable public-feed visual treatment established in Phase 13 and preserved through post-1.0 Phase 0 server rendering. Higher-authority product/domain contracts, the roadmap, ADRs, and testing contract remain authoritative for behavior.
+This document defines the durable visual treatment of the **bundled/reference public frontend** established in Phase 13 and preserved through the `1.0.1` server-rendering work. Higher-authority product/domain contracts, the roadmap, ADRs, and testing contract remain authoritative for behavior.
 
-Visual direction: **modern editorial / publication desk**. The Publication and its headlines are the product. Avoid generic SaaS-dashboard framing, card-heavy news-portal styling, sidebars, glassmorphism, heavy shadows, decorative gradients, zebra tables, and unrelated application chrome.
+The 2026-08-19 headless product shift does not remove or de-support this frontend. It changes its product role: the Platform core is collection, normalization, editorial control, persistence, deduplication, and governed distribution; this frontend is one supported consumer of that core. This document does not prescribe the presentation of a client's existing website, CMS, widget, or other future integration.
+
+Visual direction for the bundled/reference frontend: **modern editorial / publication desk**. Within this frontend, the Publication and its headlines should remain the visual focus. Avoid generic SaaS-dashboard framing, card-heavy news-portal styling, sidebars, glassmorphism, heavy shadows, decorative gradients, zebra tables, and unrelated application chrome.
 
 Presentation must preserve Phase 12 search/filter/pagination/URL semantics, feed eligibility/order, the governed date-presentation semantics (configured valid IANA `presentation_timezone` when present and UTC fallback otherwise), and exact stored `original_url` destinations.
 
@@ -68,7 +70,7 @@ Use a compact semantic token layer with equivalents of `--page-bg`, `--surface`,
 
 ## Server-rendered initial and enhanced loading states
 
-Post-1.0 Phase 0 removes the JavaScript-owned initial loading lifecycle for a successful public request. The initial `GET /` HTML already contains the resolved Publication presentation, discovery state, and first feed page when the request succeeds.
+The `1.0.1` server-rendering work removed the JavaScript-owned initial loading lifecycle for a successful reference-frontend request. The initial `GET /` HTML already contains the resolved Publication presentation, discovery state, and first feed page when the request succeeds.
 
 For the initial successful page:
 
@@ -97,12 +99,14 @@ Across supported widths:
 - discovery controls reflow before becoming cramped;
 - desktop transitions cleanly to stacked mobile presentation.
 
-The Phase 13 root feed targets WCAG 2.2 AA: semantic/native controls, coherent keyboard order, visible focus in both themes, applicable contrast, target sizing/spacing, responsive reflow, assistive-technology-understandable status/error/loading states, non-color-only state communication, and reduced-motion behavior.
+The reference frontend targets WCAG 2.2 AA: semantic/native controls, coherent keyboard order, visible focus in both themes, applicable contrast, target sizing/spacing, responsive reflow, assistive-technology-understandable status/error/loading states, non-color-only state communication, and reduced-motion behavior.
 
 ## Non-goals
 
-This specification does not authorize changes to feed eligibility/order, discovery/cursor/history semantics, Publication admin UI, configurable timezone/date behavior, duplicate moderation, featured ordering, Article-body republishing, Article thumbnails/images, remote font dependencies, or topic-specific shared-engine/UI behavior. Post-1.0 Phase 0 changes the initial rendering ownership of `/` under its governing contract; it does not authorize unrelated visual redesign or alter `/api/feed` semantics.
+This specification does not authorize changes to feed eligibility/order, discovery/cursor/history semantics, Publication admin UI, configurable timezone/date behavior, duplicate moderation, featured ordering, Article-body republishing, Article thumbnails/images, remote font dependencies, or topic-specific shared-engine/UI behavior.
+
+It also does not define or authorize future client-site integration presentation, widget styles, iframe behavior, CMS components, distribution transports, backlink/SEO behavior, or consumer-specific feed/profile semantics. Those belong to the pending distribution/SEO architecture work.
 
 ## Validation intent
 
-Post-1.0 Phase 0 browser validation should preserve representative desktop/mobile layouts, effective light/dark presentation, System/Light/Dark selection and persistence, system-following behavior, keyboard/focus, reduced motion, empty/unavailable/invalid/error states, long-content reflow, direct publisher links, and preserved discovery workflows. It should also observe that the successful first page is already populated from server-rendered HTML before client JavaScript enhancement and remains useful with JavaScript disabled. Direct HTTP/source validation belongs to the testing contract and complements, rather than replaces, browser evidence.
+Reference-frontend browser validation should preserve representative desktop/mobile layouts, effective light/dark presentation, System/Light/Dark selection and persistence, system-following behavior, keyboard/focus, reduced motion, empty/unavailable/invalid/error states, long-content reflow, direct publisher links, and preserved discovery workflows. It should also observe that the successful first page is already populated from server-rendered HTML before client JavaScript enhancement and remains useful with JavaScript disabled. Direct HTTP/source validation belongs to the testing contract and complements, rather than replaces, browser evidence.
