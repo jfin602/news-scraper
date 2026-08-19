@@ -34,7 +34,8 @@ docs/
 │   ├── database-backup-and-restore.md
 │   └── deployment-and-incident-runbook.md
 ├── roadmap/
-│   └── mvp-roadmap.md
+│   ├── mvp-roadmap.md
+│   └── post-1.0-roadmap.md
 ├── decisions/
 │   ├── README.md
 │   ├── single-publication-simplified-data-model.md
@@ -73,7 +74,8 @@ Git does not track empty directories, so `testing/`, `tasks/`, `design/tasks/`, 
 - `operations/source-onboarding.md` — operator-facing Source/endpoint onboarding procedure, field-by-field purpose, approved-domain configuration, RSS/Atom admission-phrase semantics, state model, HTML listing profile guidance, approval/enablement sequence, and Check-now/run interpretation.
 - `operations/database-backup-and-restore.md` — governed PostgreSQL backup, restore verification, managed-backup retention, recovery validation, and Phase 20 launch reconfirmation procedure.
 - `operations/deployment-and-incident-runbook.md` — ordered deployment/schema-upgrade/rollback procedure, reference-deployment validation, incident response, and the deployment-specific operations record that Phase 20 must reconfirm before launch acceptance.
-- `roadmap/mvp-roadmap.md` — Phase 0–21 sequence, tech-demo critical path, completed Phase 20 customer launch validation and production-baseline handoff, dependencies, non-goals, exit gates, and current terminal Phase 21 codebase simplification/maintainability hardening.
+- `roadmap/mvp-roadmap.md` — historical Phase 0–21 MVP sequence, tech-demo critical path, completed Phase 20 customer launch validation and production-baseline handoff, dependencies, non-goals, exit gates, and current terminal Phase 21 codebase simplification/maintainability hardening until its green `1.0.0` closeout.
+- `roadmap/post-1.0-roadmap.md` — owner-approved successor roadmap that becomes active only after the MVP closes into `1.0.0`; it restarts roadmap phase numbering at Phase 0, maps versions as `1.<phase>.<prompt>`, and sequences SSR, crawlable pagination/page-size configuration, SEO, summaries, historical archives, thumbnails, and scale validation.
 - `decisions/single-publication-simplified-data-model.md` — **Accepted ADR** for topic-independent separate deployments, singleton Publication configuration without relational tenancy, and the pre-production rebuild-from-zero database rule.
 - `decisions/production-data-and-schema-compatibility.md` — **Accepted ADR** for the Phase 20 production-baseline boundary, durable customer-data preservation, supported production migration history, and post-launch schema-upgrade evidence.
 - `decisions/topic-independent-publication-model.md` — **Superseded historical ADR** retained only as decision history.
@@ -113,6 +115,8 @@ An implementation phase or gating correction closes only after its exit gate and
 
 Phases 0–20 and the Phase 10 singleton correction are complete; detailed status and historical qualifications are recorded in `roadmap/mvp-roadmap.md` and `validation/`. Phase 9 and Phase 14 retain their explicit owner-acceptance evidence limitations, and later proof does not rewrite those artifacts.
 
-**Phase 21 — Codebase simplification and maintainability hardening** is current and terminal. It preserves launched behavior and the accepted Phase 20 production baseline under the feature freeze. Later roadmap work requires explicit owner approval; deferred ideas do not imply Phase 22.
+**Phase 21 — Codebase simplification and maintainability hardening** remains current and terminal for the MVP roadmap. It preserves launched behavior and the accepted Phase 20 production baseline under the feature freeze. Its green closeout transitions the project to `1.0.0`. The owner-approved `roadmap/post-1.0-roadmap.md` then becomes the active roadmap at post-1.0 Phase 0 using the same `1.0.0` baseline; no Phase 22 or `0.22.0` is created.
+
+The post-1.0 roadmap currently has a documented runner-compatibility gate before Phase 0 prompt generation because the existing pre-1.0 parser does not yet support Phase 0 / `1.<phase>.<prompt>` roadmap grammar. That gate is non-versioned tooling work and must not consume a Phase 0 patch number.
 
 Historical validation artifacts describe only the source tree, environment, and observations they record. They do not redefine current contracts.
