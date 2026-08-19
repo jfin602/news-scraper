@@ -1,0 +1,127 @@
+TASK: Phase 21 / P8 — Finish admin browser workspace ownership cleanup
+
+ROADMAP PHASE
+Phase 21 — Codebase simplification and maintainability hardening.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: this is a cross-cutting browser-state cleanup across five production workspace modules with shared catalog, mutation, navigation, stale-request, and security-sensitive request behavior that must remain unchanged.
+- Reasoning basis: High reasoning is justified because the implementation is mostly deletion but must distinguish real workspace ownership from intentionally shared coordinator/core/catalog behavior and avoid breaking asynchronous browser interactions.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because all five workspaces participate in shared browser behavior and incorrect ownership trimming can create module-load, stale-request, focus, catalog, or mutation regressions that are not obvious from local edits.
+- Escalation trigger: inspection shows hidden cyclic module ownership, materially ambiguous shared state, or another architecture issue beyond pruning the duplicated DOM/import surfaces.
+- Escalation target: `Terra Ultra` only if the actual browser-state graph is materially more coupled than the current source indicates; otherwise stop and report rather than broadening scope.
+- Estimate confidence: `High`.
+- Efficiency rationale: keep the task deletion-focused, use existing P7 architecture, and validate through the browser/security suites rather than redesigning the admin client.
+
+VERSIONING
+- This is Phase 21 prompt 8 and its assigned project version is `0.21.8`.
+- On first execution require top-level `package.json` to be `0.21.7`; update only that version to `0.21.8` as part of this implementation prompt.
+- On rerun, `0.21.8` is acceptable; do not increment again.
+- Any other package version is sequence drift and must stop execution.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+
+CONTEXT
+P7 successfully split the former monolithic admin browser client into native ES modules with canonical ownership:
+- `admin.js` coordinates workspace activation, tabs/panels, Refresh All, and Operations -> Sources navigation;
+- `core.js` owns shared API/mutation/status/DOM helpers;
+- `catalog.js` owns shared Source/Category choice state;
+- `publication.js`, `operations.js`, `sources.js`, `editorial.js`, and `moderation.js` own workspace behavior.
+
+The post-P7 optimization reassessment found that the workspace split is incomplete at the local ownership level. Each workspace still carries a copied all-admin `elements` registry and broad helper imports inherited from the original monolith. The five files suppress `@typescript-eslint/no-unused-vars`, hiding hundreds of irrelevant selectors/imports and making every workspace depend on unrelated workspace markup at module load.
+
+GOAL
+Complete the P7 ownership split without redesigning the browser application:
+- each workspace queries only the DOM it actually owns/uses;
+- each workspace imports only helpers/state it actually consumes;
+- remove the broad unused-variable lint suppressions;
+- preserve coordinator/core/catalog responsibilities and every existing admin behavior.
+
+PRIMARY FILES
+Expected production scope:
+- `src/app/web/admin/publication.js`
+- `src/app/web/admin/operations.js`
+- `src/app/web/admin/sources.js`
+- `src/app/web/admin/editorial.js`
+- `src/app/web/admin/moderation.js`
+
+Tests may be updated/added under the existing admin browser/unit/integration suites when needed for focused proof. Touch `admin.js`, `core.js`, or `catalog.js` only if source inspection proves a small correction is necessary to preserve the already-established ownership model. Do not broaden into another module redesign.
+
+IMPLEMENTATION REQUIREMENTS
+1. For each workspace, shrink its `elements` object to selectors actually consumed by that workspace.
+2. Coordinator-owned tabs/panels remain in `admin.js`; do not reintroduce them into workspace registries.
+3. Publication keeps only Publication form/state/error/timezone and other directly used Publication controls.
+4. Operations keeps only Operations snapshot/state/summary/health/queue/endpoints/alerts/policy/refresh controls it actually consumes.
+5. Sources keeps only Source/endpoint/domain/profile/preview/runtime/health/run/check-now controls it actually consumes.
+6. Editorial keeps only Category/Relevance controls it actually consumes.
+7. Moderation keeps only Article/duplicate-review/filter/detail/mutation controls it actually consumes.
+8. Shrink each `core.js` import list to actual consumers. Remove unused `catalog` imports where a workspace does not use the catalog.
+9. Remove `/* eslint-disable @typescript-eslint/no-unused-vars */` from all five workspace modules. Do not replace it with another broad lint suppression.
+10. If a workspace repeatedly calls `required(...)` for one of its own stable controls, it MAY place that handle in its local `elements` object when that makes ownership clearer. This is local cleanup only.
+11. Do not create a generic selector registry, dependency-injection layer, component framework, bundler, build step, or compatibility global to replace the removed duplication.
+
+PRESERVED INVARIANTS
+Keep all behavior from P6/P7 unchanged, including:
+- native browser ES-module loading and the explicit allowlisted static-asset/CSP boundary;
+- one global unsafe-mutation serialization mechanism in `core.js`;
+- request-integrity header behavior and admin API error/security semantics;
+- `catalog.js` as the bounded shared Source/Category choice authority;
+- workspace activation and Refresh All semantics;
+- Operations -> Source/endpoint navigation;
+- Source/Category cross-workspace catalog refresh behavior;
+- endpoint-selection and HTML-preview stale-response sequence guards;
+- Article and duplicate-review stale-response/list/detail guards;
+- keyboard/focus/accessibility behavior already covered by browser tests;
+- no visual redesign or new customer/admin capability.
+
+FOCUSED PROOF
+Add or strengthen focused proof where useful so the ownership claim is testable rather than visual-only. At minimum establish from source/tests that:
+- none of the five workspace files retains the broad unused-vars suppression;
+- no workspace retains the P7-era all-workspace DOM registry;
+- every retained workspace `elements` member is actually consumed by that workspace;
+- unrelated workspace markup is no longer queried solely because another workspace module loaded;
+- the native module graph still initializes once without duplicate event wiring.
+
+Do not introduce a brittle exact-selector-count test merely to enforce a number. Prefer behavioral/module-loading proof plus lint/source structure.
+
+REGRESSION / BROWSER VALIDATION
+Exercise representative paths for every affected workspace, especially:
+- Publication load/save;
+- Operations refresh and endpoint navigation;
+- Source/endpoint selection, profile/preview, and Check now behavior;
+- Category/Relevance editing and shared catalog updates;
+- Article filtering/detail/mutations and duplicate-review flows;
+- Refresh All/cross-workspace catalog behavior;
+- stale async response suppression and mutation serialization;
+- keyboard/focus behavior already governed by the current browser suite.
+
+FINAL VALIDATION
+Run on the final unchanged tree after implementation:
+- `npm run check`
+- `npm run test:security`
+- `npm run test:browser`
+- `git diff --check <P8-base-sha>...HEAD`
+
+Do not add `npm run test:db` merely for this browser-only ownership cleanup unless the implementation unexpectedly changes a server/database boundary; if that occurs, stop and report why scope changed before proceeding.
+
+NON-GOALS
+- no UI redesign;
+- no new admin feature;
+- no framework/bundler/dependency migration;
+- no server API changes;
+- no schema/migration changes;
+- no generic DOM abstraction;
+- no changes to topic-independent product/domain rules.
+
+ACCEPTANCE
+P8 is complete only when the five workspaces own only their actual local DOM/helper dependencies, the broad unused-variable suppressions are gone, coordinator/core/catalog boundaries remain intact, existing browser/admin security behavior is green, and top-level version is exactly `0.21.8`.
+
+FINAL RESPONSE
+Report:
+- files changed;
+- what duplicated workspace ownership was removed;
+- any intentionally shared DOM/helper ownership retained and why;
+- focused and final commands actually run with observed results;
+- any browser/security limitation or remaining structural concern;
+- final package version and commit-ready status.
