@@ -1,46 +1,54 @@
 # Project Contract
 
 **Status:** Locked baseline  
-**Platform:** Reusable News Aggregation Platform  
+**Platform:** Reusable News Aggregation and Distribution Platform  
 **Repository:** `jfin602/news-scraper`  
 **Initial Publication:** Indie-author publishing industry news  
-**Established:** 2026-08-06
+**Established:** 2026-08-06  
+**Product-direction amendment:** 2026-08-19
 
 ## Product definition
 
-The system is a reusable, topic-independent news aggregation Platform. It collects Article metadata from administrator-approved Sources, normalizes that metadata, persists Source instances idempotently, suppresses true duplicates without destroying provenance, and presents a rolling public feed whose headlines send readers to original publishers.
+The system is a reusable, topic-independent **headless news aggregation and distribution Platform**. It collects Article metadata from administrator-approved Sources, normalizes that metadata, persists Source instances idempotently, suppresses true duplicates without destroying provenance, and exposes governed normalized Article output for downstream consumers while preserving the original publisher destination.
+
+The Platform core is the collection, normalization, persistence, editorial/moderation, and distribution system. The protected administrator surface is its control plane. A bundled first-party public feed may consume the same canonical outward read semantics as a reference/standalone frontend, but that frontend is not the identity of the aggregation engine and downstream websites do not need to adopt its presentation.
 
 The indie-author Publication is the first configuration of the Platform, not the identity of the aggregation engine. Reuse occurs by configuring and deploying another installation of the same codebase for another topic; one deployed installation does not concurrently host multiple topic Publications.
+
+The current distribution methods beyond the existing `/api/feed` and bundled `/` reference frontend are intentionally not locked by this contract. Server-side integrations, outbound feeds, widgets, authentication, caching, CORS, feed profiles, analytics, and SEO/link behavior require the later distribution/SEO architecture decision before implementation.
 
 ## Locked project laws
 
 1. **The aggregation engine must never contain indie-author-specific business logic.**
 2. **Every collected Article must originate from an administrator-approved Source.**
 3. **RSS or other structured feeds are preferred over HTML scraping.**
-4. **The original Article URL remains the primary public destination.**
-5. **All Source-specific data must be normalized before reaching the public feed.**
+4. **The original Article URL remains the primary public/outward reader destination.**
+5. **All Source-specific data must be normalized before reaching any public or distribution consumer.**
 6. **Repeated collection must be idempotent and must not create duplicate Article records.**
-7. **True duplicates are hidden behind one Primary Article, but all Source instances remain stored.**
+7. **True duplicates are hidden behind one Primary Article in ordinary outward output, but all Source instances remain stored.**
 8. **Categories, Relevance rules, branding, and Sources belong to Publication configuration.**
 9. **A failing Source must not interrupt collection from other Sources.**
 10. **Near-real-time means configurable polling unless a Source explicitly supports push delivery.**
-11. **Each deployed installation hosts exactly one Publication/topic. Topic independence means the same shared codebase can be configured and deployed for different topics without topic-specific engine changes; it does not mean one installation concurrently hosts multiple Publications. The root public route `/` is the canonical public feed surface for that installation.**
+11. **Each deployed installation hosts exactly one Publication/topic. Topic independence means the same shared codebase can be configured and deployed for different topics without topic-specific engine changes; it does not mean one installation concurrently hosts multiple Publications. The Platform's primary product boundary is the governed collection, normalization, persistence, editorial control, and distribution of normalized Article metadata. Supported outward consumers must reuse canonical distribution eligibility/selection semantics rather than introduce competing Article-selection authorities. A bundled first-party public frontend may consume that same boundary but is not the aggregation engine's primary product identity.**
 
 ## Derived invariants
 
-- Collector code operates on generic Sources, endpoints, candidates, Articles, observations, Duplicate groups, and singleton Publication configuration.
-- A deployed installation has one Publication configuration as its application-level editorial/topic boundary; public readers and ordinary runtime flows do not select a Publication.
+- Collector code operates on generic Sources, endpoints, candidates, Articles, observations, Duplicate groups, singleton Publication configuration, and topic-independent outward read semantics.
+- A deployed installation has one Publication configuration as its application-level editorial/topic boundary; ordinary runtime flows do not select a Publication.
 - Publication is not a tenancy or relational ownership key. Publication UUIDs, slugs, foreign keys, joins, uniqueness scopes, API parameters, or compatibility paths MUST NOT be retained solely for hypothetical concurrent multi-Publication hosting.
-- The singleton Publication configuration owns installation-wide editorial settings such as name, collection/public state, branding, Categories, Relevance rules, Sources, Source priority, and presentation settings without requiring those resources to carry a Publication foreign key.
+- The singleton Publication configuration owns installation-wide editorial settings such as name, collection/public state, branding, Categories, Relevance rules, Sources, Source priority, and presentation/distribution settings when those settings are explicitly implemented, without requiring those resources to carry a Publication foreign key.
 - Real domain relationships remain explicit: a Source owns endpoints and Articles; an endpoint owns Collection runs; observations preserve the endpoint/run and Article/Source provenance needed for integrity.
 - A Source or endpoint cannot be collected while unapproved, archived, paused, or disabled, and global collection is disabled when the singleton Publication configuration is not active for collection.
-- Approval/trust, configuration lifecycle, operational state, public visibility, moderation, duplicate role, and derived health are distinct concepts.
-- Public records are created only from normalized data.
+- Approval/trust, configuration lifecycle, operational state, outward visibility, moderation, duplicate role, distribution selection, and derived health are distinct concepts.
+- **Collection trust and distribution selection are separate concerns.** Source approval authorizes governed collection/trust; it does not by itself require every downstream consumer to receive or advertise every eligible Article from that Source.
+- Public/outward records are created only from normalized data.
 - Fetching the same unchanged Source repeatedly produces no additional logical Article.
 - Article identity and true-duplicate grouping are separate concerns.
 - Source failures are isolated by Source endpoint and Collection run.
 - Duplicate suppression never destroys Article instances or provenance.
 - Topic-specific settings are data/configuration, not topic conditionals in shared engine code.
+- Any outward adapter or integration that presents ordinary Article results MUST consume one governed Article-selection/read boundary for eligibility, ordering, moderation, duplicate suppression, and stored `original_url` destination semantics rather than reimplementing those rules independently.
+- The existing `GET /api/feed` JSON endpoint and bundled `GET /` reference frontend remain supported current consumers of the canonical public/outward read semantics. Their existence does not require future client sites to use the bundled frontend.
 - Polling-only Sources are not described as literally real-time.
 - Network-safety validation occurs before each outbound request/redirect; Article-link validation occurs after parsing/normalization before acceptance.
 - Before production database compatibility is established, pre-production architecture favors the smallest canonical model for supported behavior. Migration files, source files, APIs, types, tests, fixtures, configuration paths, and compatibility layers that exist only to support superseded pre-production architecture MUST be removed rather than retained for historical compatibility or speculative future use. Git history, superseded ADRs, historical task prompts, and validation artifacts preserve that history.
@@ -79,34 +87,46 @@ A locked law may change only through an explicit project decision that:
 
 Ordinary implementation work must not weaken a law indirectly.
 
+### 2026-08-19 product-direction amendment
+
+The repository owner explicitly amended Law 11 after the original client identified integration with an existing website and cross-source outbound-link distribution as the primary product use case. This amendment changes the product/output boundary from "standalone public website as the product" to "headless collection/control/distribution core with supported consumers." It does not change the one-Publication-per-deployment data model, Source trust law, normalization/idempotency/provenance/deduplication laws, original-publisher destination rule, or supported production-data boundary.
+
+The foundational architecture rationale is recorded in `docs/decisions/headless-distribution-product-boundary.md`.
+
 ## Product boundaries
 
 ### The Platform is
 
-- a controlled-Source headline and Article-metadata aggregator;
+- a controlled-Source Article-metadata aggregator and distribution core;
 - a reusable shell for different subject areas through separate configured deployments;
-- a single-Publication public discovery feed backed by an administrative control plane per deployment;
-- a collection system with observable endpoint health and duplicate handling.
+- a single-Publication collection/editorial domain with an administrative control plane per deployment;
+- a system that exposes governed normalized outward Article data to supported consumers/integrations;
+- a collection system with observable endpoint health and duplicate handling;
+- optionally a standalone/reference public discovery feed through the bundled first-party frontend.
 
 ### The Platform is not
 
+- a requirement that the customer's public website be hosted or visually controlled by News Scraper;
 - a multi-topic/multi-Publication host within one deployed installation;
 - an unrestricted web crawler;
 - a full-content republishing system;
 - an open-web search engine;
 - a social network/commenting Platform;
 - an automated plagiarism/copyright-ownership judge;
-- a guarantee that every Source update is delivered instantly.
+- a guarantee that every Source update is delivered instantly;
+- a guarantee that every possible integration or backlink pattern provides SEO value; distribution/SEO behavior must be established by the later governing design.
 
-## Phase 0 acceptance criteria
+## Historical MVP Phase 0 acceptance criteria
 
-Phase 0 is accepted when:
+The original MVP Phase 0 was accepted when:
 
-- foundational laws are represented consistently in repository docs;
-- terminology is topic-independent and internally consistent;
-- MVP scope/exclusions are explicit;
-- singleton Publication configuration plus Source, endpoint, Article, observation, and duplicate relationship boundaries are defined;
-- collection and Article lifecycles have no contradictory state models;
-- public-feed eligibility and admin requirements are explicit;
-- security, reliability, and observability baselines are defined;
-- implementation phases have measurable, internally consistent completion gates.
+- foundational laws were represented consistently in repository docs;
+- terminology was topic-independent and internally consistent;
+- MVP scope/exclusions were explicit;
+- singleton Publication configuration plus Source, endpoint, Article, observation, and duplicate relationship boundaries were defined;
+- collection and Article lifecycles had no contradictory state models;
+- public-feed eligibility and admin requirements were explicit;
+- security, reliability, and observability baselines were defined;
+- implementation phases had measurable, internally consistent completion gates.
+
+This historical acceptance section does not define the current post-1.0 roadmap state.
