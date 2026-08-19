@@ -1,9 +1,7 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 /* global document, HTMLElement, HTMLButtonElement, HTMLInputElement, HTMLSelectElement */
 import {
   api,
   mutate,
-  AdminRequestError,
   messageForError,
   required,
   requiredWithin,
@@ -15,10 +13,8 @@ import {
   hideMessage,
   humanize,
   dateTime,
-  duration,
   actionButton,
   actionLabel,
-  statePill,
   stateLine,
   operationLabel,
 } from './core.js';
@@ -35,24 +31,6 @@ const state = {
   previewSequence: 0,
 };
 const elements = {
-  status: required('[data-admin-status]'),
-  workspaceTabs: Array.from(document.querySelectorAll('[data-workspace]')),
-  workspacePanels: Array.from(
-    document.querySelectorAll('[data-workspace-panel]'),
-  ),
-  operationsState: required('[data-operations-state]'),
-  operationsContent: required('[data-operations-content]'),
-  operationsSummary: required('[data-operations-summary]'),
-  operationsHealthCounts: required('[data-operations-health-counts]'),
-  operationsQueue: required('[data-operations-queue]'),
-  operationsEndpoints: required('[data-operations-endpoints]'),
-  operationsAlerts: required('[data-operations-alerts]'),
-  operationsPolicy: required('[data-operations-policy]'),
-  publicationState: required('[data-publication-state]'),
-  publicationForm: required('[data-publication-form]'),
-  publicationFormError: required('[data-publication-form-error]'),
-  publicationSubmit: required('[data-publication-submit]'),
-  timezoneHint: required('[data-timezone-hint]'),
   sourceList: required('[data-source-list]'),
   sourceListState: required('[data-source-list-state]'),
   sourceEditorHeading: required('[data-source-editor-heading]'),
@@ -67,6 +45,11 @@ const elements = {
   sourceLifecycleActions: required('[data-source-lifecycle-actions]'),
   sourceDomains: required('[data-source-domains]'),
   admissionPhrases: required('[data-admission-phrases]'),
+  sourceSubmit: required('[data-source-submit]'),
+  newSource: required('[data-new-source]'),
+  sourceCancel: required('[data-source-cancel]'),
+  addSourceDomain: required('[data-add-source-domain]'),
+  addAdmissionPhrase: required('[data-add-admission-phrase]'),
   endpointSection: required('[data-endpoint-section]'),
   endpointList: required('[data-endpoint-list]'),
   endpointListState: required('[data-endpoint-list-state]'),
@@ -82,6 +65,9 @@ const elements = {
   endpointLifecycleActions: required('[data-endpoint-lifecycle-actions]'),
   endpointDomains: required('[data-endpoint-domains]'),
   endpointDomainEditor: required('[data-endpoint-domain-editor]'),
+  endpointSubmit: required('[data-endpoint-submit]'),
+  endpointCancel: required('[data-endpoint-cancel]'),
+  addEndpointDomain: required('[data-add-endpoint-domain]'),
   htmlProfile: required('[data-html-profile]'),
   htmlPreviewPanel: required('[data-html-preview-panel]'),
   htmlPreviewSample: required('[data-html-preview-sample]'),
@@ -93,67 +79,10 @@ const elements = {
   operationalState: required('[data-operational-state]'),
   healthGrid: required('[data-health-grid]'),
   runsList: required('[data-runs-list]'),
+  refreshOperational: required('[data-refresh-operational]'),
   checkNowResult: required('[data-check-now-result]'),
   checkNow: required('[data-check-now]'),
   newEndpoint: required('[data-new-endpoint]'),
-  categoryList: required('[data-category-list]'),
-  categoryListState: required('[data-category-list-state]'),
-  categoryForm: required('[data-category-form]'),
-  categoryFormError: required('[data-category-form-error]'),
-  categoryHeading: required('[data-category-editor-heading]'),
-  categoryHelp: required('[data-category-editor-help]'),
-  categoryDelete: required('[data-category-delete]'),
-  ruleList: required('[data-rule-list]'),
-  ruleListState: required('[data-rule-list-state]'),
-  ruleForm: required('[data-rule-form]'),
-  ruleFormError: required('[data-rule-form-error]'),
-  ruleHeading: required('[data-rule-editor-heading]'),
-  ruleHelp: required('[data-rule-editor-help]'),
-  ruleEnabled: required('[data-rule-enabled]'),
-  ruleDelete: required('[data-rule-delete]'),
-  ruleSourceField: required('[data-rule-source-field]'),
-  ruleCategoryField: required('[data-rule-category-field]'),
-  articleFilterForm: required('[data-article-filter-form]'),
-  articleSourceFilter: required('[data-article-source-filter]'),
-  articleCategoryFilter: required('[data-article-category-filter]'),
-  articleList: required('[data-article-list]'),
-  articleListState: required('[data-article-list-state]'),
-  articleLoadMore: required('[data-article-load-more]'),
-  articleDetailHeading: required('[data-article-detail-heading]'),
-  articleDetailHelp: required('[data-article-detail-help]'),
-  articleDetailState: required('[data-article-detail-state]'),
-  articleDetailContent: required('[data-article-detail-content]'),
-  articleStateSummary: required('[data-article-state-summary]'),
-  articleOverview: required('[data-article-overview]'),
-  articleHide: required('[data-article-hide]'),
-  articleRestore: required('[data-article-restore]'),
-  articleDisplayForm: required('[data-article-display-form]'),
-  articleDisplayError: required('[data-article-display-error]'),
-  articleDisplayClear: required('[data-article-display-clear]'),
-  articleCategoryForm: required('[data-article-category-form]'),
-  articleCategoryOptions: required('[data-article-category-options]'),
-  articleCategoryError: required('[data-article-category-error]'),
-  articleCategoryClear: required('[data-article-category-clear]'),
-  articleObservations: required('[data-article-observations]'),
-  articleHistory: required('[data-article-history]'),
-  reviewFilterForm: required('[data-review-filter-form]'),
-  reviewList: required('[data-review-list]'),
-  reviewListState: required('[data-review-list-state]'),
-  reviewLoadMore: required('[data-review-load-more]'),
-  reviewDetailHeading: required('[data-review-detail-heading]'),
-  reviewDetailHelp: required('[data-review-detail-help]'),
-  reviewDetailState: required('[data-review-detail-state]'),
-  reviewDetailContent: required('[data-review-detail-content]'),
-  reviewConflictMessage: required('[data-review-conflict-message]'),
-  reviewArticles: required('[data-review-articles]'),
-  reviewSignals: required('[data-review-signals]'),
-  reviewDismiss: required('[data-review-dismiss]'),
-  reviewMerge: required('[data-review-merge]'),
-  reviewGroupSelect: required('[data-review-group-select]'),
-  reviewMergePrimary: required('[data-review-merge-primary]'),
-  reviewSplitMembers: required('[data-review-split-members]'),
-  reviewSplit: required('[data-review-split]'),
-  reviewPrimary: required('[data-review-primary]'),
 };
 
 function populateCategorySelects() {
@@ -321,7 +250,7 @@ function beginSourceCreate() {
   elements.sourceStateSummary.hidden = true;
   elements.sourceStateActions.hidden = true;
   input(elements.sourceForm, 'configKey').disabled = false;
-  required('[data-source-submit]').textContent = 'Create Source';
+  elements.sourceSubmit.textContent = 'Create Source';
   hideMessage(elements.sourceFormError);
   elements.endpointSection.hidden = true;
   elements.operationalPanel.hidden = true;
@@ -364,7 +293,7 @@ function renderSourceEditor() {
     source.defaultCategory?.configKey ?? '';
   renderDomainRows(elements.sourceDomains, source.approvedDomains);
   renderPhraseRows(source.rssAtomAdmissionPhrases);
-  required('[data-source-submit]').textContent = 'Save Source configuration';
+  elements.sourceSubmit.textContent = 'Save Source configuration';
   hideMessage(elements.sourceFormError);
   renderSourceStateActions();
 }
@@ -592,7 +521,7 @@ function beginEndpointCreate() {
   elements.endpointStateSummary.hidden = true;
   elements.endpointStateActions.hidden = true;
   input(elements.endpointForm, 'configKey').disabled = false;
-  required('[data-endpoint-submit]').textContent = 'Create endpoint';
+  elements.endpointSubmit.textContent = 'Create endpoint';
   hideMessage(elements.endpointFormError);
   elements.operationalPanel.hidden = true;
   renderEndpointDomainMode();
@@ -648,10 +577,8 @@ function renderEndpointEditor() {
   renderHtmlProfileVisibility();
   renderEndpointProfileRevision(endpoint);
   renderEndpointDomainMode();
-  required('[data-endpoint-submit]').textContent =
-    'Save endpoint configuration';
-  required('[data-endpoint-submit]').disabled =
-    source.lifecycleState === 'archived';
+  elements.endpointSubmit.textContent = 'Save endpoint configuration';
+  elements.endpointSubmit.disabled = source.lifecycleState === 'archived';
   hideMessage(elements.endpointFormError);
   renderEndpointStateActions();
   elements.operationalPanel.hidden = false;
@@ -1373,14 +1300,12 @@ function renderEndpointDomainMode() {
 }
 
 function wireSources() {
-  required('[data-new-source]').addEventListener('click', beginSourceCreate);
-  required('[data-source-cancel]').addEventListener('click', cancelSourceEdit);
-  required('[data-add-source-domain]').addEventListener('click', () =>
+  elements.newSource.addEventListener('click', beginSourceCreate);
+  elements.sourceCancel.addEventListener('click', cancelSourceEdit);
+  elements.addSourceDomain.addEventListener('click', () =>
     addDomainRow(elements.sourceDomains),
   );
-  required('[data-add-admission-phrase]').addEventListener('click', () =>
-    addPhraseRow(''),
-  );
+  elements.addAdmissionPhrase.addEventListener('click', () => addPhraseRow(''));
   elements.sourceForm.addEventListener('submit', (event) => {
     event.preventDefault();
     void submitSource(event);
@@ -1391,11 +1316,8 @@ function wireSources() {
       void selectSource(button.dataset.sourceKey);
   });
   elements.newEndpoint.addEventListener('click', beginEndpointCreate);
-  required('[data-endpoint-cancel]').addEventListener(
-    'click',
-    cancelEndpointEdit,
-  );
-  required('[data-add-endpoint-domain]').addEventListener('click', () =>
+  elements.endpointCancel.addEventListener('click', cancelEndpointEdit);
+  elements.addEndpointDomain.addEventListener('click', () =>
     addDomainRow(elements.endpointDomains),
   );
   elements.endpointForm.addEventListener('change', (event) => {
@@ -1424,7 +1346,7 @@ function wireSources() {
     if (button instanceof HTMLButtonElement)
       void selectEndpoint(button.dataset.endpointKey);
   });
-  required('[data-refresh-operational]').addEventListener(
+  elements.refreshOperational.addEventListener(
     'click',
     () => void loadOperationalData(),
   );

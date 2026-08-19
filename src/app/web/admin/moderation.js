@@ -1,26 +1,18 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* global document, HTMLElement, HTMLButtonElement, HTMLInputElement, HTMLSelectElement, URLSearchParams */
+/* global document, HTMLButtonElement, URLSearchParams */
 import {
   api,
   mutate,
   AdminRequestError,
   messageForError,
   required,
-  requiredWithin,
   input,
-  radio,
   setGlobalStatus,
   setListState,
   showMessage,
   hideMessage,
   humanize,
   dateTime,
-  duration,
-  actionButton,
-  actionLabel,
   statePill,
-  stateLine,
-  operationLabel,
 } from './core.js';
 import { catalog } from './catalog.js';
 
@@ -42,85 +34,8 @@ const state = {
   mergeNeedsPrimary: false,
 };
 const elements = {
-  status: required('[data-admin-status]'),
-  workspaceTabs: Array.from(document.querySelectorAll('[data-workspace]')),
-  workspacePanels: Array.from(
-    document.querySelectorAll('[data-workspace-panel]'),
-  ),
-  operationsState: required('[data-operations-state]'),
-  operationsContent: required('[data-operations-content]'),
-  operationsSummary: required('[data-operations-summary]'),
-  operationsHealthCounts: required('[data-operations-health-counts]'),
-  operationsQueue: required('[data-operations-queue]'),
-  operationsEndpoints: required('[data-operations-endpoints]'),
-  operationsAlerts: required('[data-operations-alerts]'),
-  operationsPolicy: required('[data-operations-policy]'),
-  publicationState: required('[data-publication-state]'),
-  publicationForm: required('[data-publication-form]'),
-  publicationFormError: required('[data-publication-form-error]'),
-  publicationSubmit: required('[data-publication-submit]'),
-  timezoneHint: required('[data-timezone-hint]'),
-  sourceList: required('[data-source-list]'),
-  sourceListState: required('[data-source-list-state]'),
-  sourceEditorHeading: required('[data-source-editor-heading]'),
-  sourceEditorHelp: required('[data-source-editor-help]'),
-  sourceForm: required('[data-source-form]'),
-  sourceFormError: required('[data-source-form-error]'),
-  sourceCreateState: required('[data-source-create-state]'),
-  sourceStateSummary: required('[data-source-state-summary]'),
-  sourceStateActions: required('[data-source-state-actions]'),
-  sourceApprovalActions: required('[data-source-approval-actions]'),
-  sourceOperationalActions: required('[data-source-operational-actions]'),
-  sourceLifecycleActions: required('[data-source-lifecycle-actions]'),
-  sourceDomains: required('[data-source-domains]'),
-  admissionPhrases: required('[data-admission-phrases]'),
-  endpointSection: required('[data-endpoint-section]'),
-  endpointList: required('[data-endpoint-list]'),
-  endpointListState: required('[data-endpoint-list-state]'),
-  endpointEditorHeading: required('[data-endpoint-editor-heading]'),
-  endpointEditorHelp: required('[data-endpoint-editor-help]'),
-  endpointForm: required('[data-endpoint-form]'),
-  endpointFormError: required('[data-endpoint-form-error]'),
-  endpointCreateState: required('[data-endpoint-create-state]'),
-  endpointStateSummary: required('[data-endpoint-state-summary]'),
-  endpointStateActions: required('[data-endpoint-state-actions]'),
-  endpointApprovalActions: required('[data-endpoint-approval-actions]'),
-  endpointOperationalActions: required('[data-endpoint-operational-actions]'),
-  endpointLifecycleActions: required('[data-endpoint-lifecycle-actions]'),
-  endpointDomains: required('[data-endpoint-domains]'),
-  endpointDomainEditor: required('[data-endpoint-domain-editor]'),
-  htmlProfile: required('[data-html-profile]'),
-  htmlPreviewPanel: required('[data-html-preview-panel]'),
-  htmlPreviewSample: required('[data-html-preview-sample]'),
-  htmlPreview: required('[data-html-preview]'),
-  htmlPreviewStatus: required('[data-html-preview-status]'),
-  htmlPreviewResults: required('[data-html-preview-results]'),
-  endpointProfileRevision: required('[data-endpoint-profile-revision]'),
-  operationalPanel: required('[data-operational-panel]'),
-  operationalState: required('[data-operational-state]'),
-  healthGrid: required('[data-health-grid]'),
-  runsList: required('[data-runs-list]'),
-  checkNowResult: required('[data-check-now-result]'),
-  checkNow: required('[data-check-now]'),
-  newEndpoint: required('[data-new-endpoint]'),
-  categoryList: required('[data-category-list]'),
-  categoryListState: required('[data-category-list-state]'),
-  categoryForm: required('[data-category-form]'),
-  categoryFormError: required('[data-category-form-error]'),
-  categoryHeading: required('[data-category-editor-heading]'),
-  categoryHelp: required('[data-category-editor-help]'),
-  categoryDelete: required('[data-category-delete]'),
-  ruleList: required('[data-rule-list]'),
-  ruleListState: required('[data-rule-list-state]'),
-  ruleForm: required('[data-rule-form]'),
-  ruleFormError: required('[data-rule-form-error]'),
-  ruleHeading: required('[data-rule-editor-heading]'),
-  ruleHelp: required('[data-rule-editor-help]'),
-  ruleEnabled: required('[data-rule-enabled]'),
-  ruleDelete: required('[data-rule-delete]'),
-  ruleSourceField: required('[data-rule-source-field]'),
-  ruleCategoryField: required('[data-rule-category-field]'),
   articleFilterForm: required('[data-article-filter-form]'),
+  articleFilterReset: required('[data-article-filter-reset]'),
   articleSourceFilter: required('[data-article-source-filter]'),
   articleCategoryFilter: required('[data-article-category-filter]'),
   articleList: required('[data-article-list]'),
@@ -154,6 +69,7 @@ const elements = {
   reviewConflictMessage: required('[data-review-conflict-message]'),
   reviewArticles: required('[data-review-articles]'),
   reviewSignals: required('[data-review-signals]'),
+  reviewActionForm: required('[data-review-action-form]'),
   reviewDismiss: required('[data-review-dismiss]'),
   reviewMerge: required('[data-review-merge]'),
   reviewGroupSelect: required('[data-review-group-select]'),
@@ -933,10 +849,7 @@ function renderReviewGroupActions() {
 }
 
 function reviewReason() {
-  const value = input(
-    required('[data-review-action-form]'),
-    'reason',
-  ).value.trim();
+  const value = input(elements.reviewActionForm, 'reason').value.trim();
   return value === '' ? null : value;
 }
 
@@ -1138,7 +1051,7 @@ export function createModerationWorkspace() {
     event.preventDefault();
     void applyArticleFilters();
   });
-  required('[data-article-filter-reset]').addEventListener('click', () => {
+  elements.articleFilterReset.addEventListener('click', () => {
     resetArticleFilters();
     void loadArticleList();
   });
