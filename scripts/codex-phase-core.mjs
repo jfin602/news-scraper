@@ -31,6 +31,15 @@ export function resolveModelConfig(recommendation) {
   return config;
 }
 
+const ROADMAP_FAMILIES = Object.freeze({
+  historical: Object.freeze({ id: 'pre-1.0', major: 0 }),
+  post1: Object.freeze({ id: 'post-1.0', major: 1 }),
+});
+
+export function roadmapVersionFor(plan, promptNumber) {
+  return `${plan.roadmapMajor}.${plan.phase}.${promptNumber}`;
+}
+
 function oneMatch(text, expression, label) {
   const matches = [...text.matchAll(expression)];
   if (matches.length !== 1) {
@@ -52,7 +61,7 @@ export function parsePrompt(filename, text) {
   const filenameSlug = fileMatch[2];
   const task = oneMatch(text, /^TASK:\s*(.+)$/gm, 'TASK title');
   const taskMatch =
-    /^(Phase|Correction) ([1-9]\d*) \/ P([1-9]\d*) — (.+)$/u.exec(task);
+    /^(Phase|Correction) (0|[1-9]\d*) \/ P([1-9]\d*) — (.+)$/u.exec(task);
   if (!taskMatch || !taskMatch[4].trim()) {
     throw new Error(
       `TASK title must have the form "Phase <phase> / P<number> — <title>" or "Correction <phase> / P<number> — <title>": ${filename}`,
@@ -142,20 +151,35 @@ export function parsePrompt(filename, text) {
 }
 
 export function buildPlan(entries, folderName) {
-  const phaseFolderMatch = /^p([1-9]\d*)$/.exec(folderName);
-  const correctionFolderMatch = /^c([1-9]\d*)-([a-z0-9]+(?:-[a-z0-9]+)*)$/.exec(
-    folderName,
-  );
-  if (!phaseFolderMatch && !correctionFolderMatch) {
+  const historicalPhaseFolderMatch = /^p([1-9]\d*)$/.exec(folderName);
+  const post1PhaseFolderMatch = /^p1-(0|[1-9]\d*)$/.exec(folderName);
+  const correctionFolderMatch =
+    /^c(0|[1-9]\d*)-([a-z0-9]+(?:-[a-z0-9]+)*)$/.exec(folderName);
+  if (
+    !historicalPhaseFolderMatch &&
+    !post1PhaseFolderMatch &&
+    !correctionFolderMatch
+  ) {
     throw new Error(
-      'Task folder must have the form p<number> or c<phase>-<lower-kebab-slug>.',
+      'Task folder must have the form p<number>, p1-<phase>, or c<phase>-<lower-kebab-slug>.',
     );
   }
   if (entries.length === 0) throw new Error('No prompt files were found.');
-  const mode = phaseFolderMatch ? 'phase' : 'correction';
-  const folderMatch = phaseFolderMatch ?? correctionFolderMatch;
+  const mode =
+    historicalPhaseFolderMatch || post1PhaseFolderMatch
+      ? 'phase'
+      : 'correction';
+  const folderMatch =
+    historicalPhaseFolderMatch ??
+    post1PhaseFolderMatch ??
+    correctionFolderMatch;
   const phase = Number(folderMatch[1]);
   const correctionSlug = correctionFolderMatch?.[2];
+  const roadmapFamily = historicalPhaseFolderMatch
+    ? ROADMAP_FAMILIES.historical
+    : post1PhaseFolderMatch
+      ? ROADMAP_FAMILIES.post1
+      : undefined;
   const prompts = entries.map(({ filename, text }) =>
     parsePrompt(filename, text),
   );
@@ -189,8 +213,13 @@ export function buildPlan(entries, folderName) {
   }
   let unchangedVersion;
   if (mode === 'phase') {
+    const versionPlan = Object.freeze({
+      phase,
+      roadmapFamily: roadmapFamily.id,
+      roadmapMajor: roadmapFamily.major,
+    });
     for (const prompt of prompts) {
-      const expected = `0.${phase}.${prompt.number}`;
+      const expected = roadmapVersionFor(versionPlan, prompt.number);
       if (prompt.targetVersion !== expected) {
         throw new Error(
           `P${prompt.number} target ${prompt.targetVersion} does not match ${expected}.`,
@@ -212,6 +241,12 @@ export function buildPlan(entries, folderName) {
     mode,
     phase,
     folderName,
+    ...(mode === 'phase'
+      ? {
+          roadmapFamily: roadmapFamily.id,
+          roadmapMajor: roadmapFamily.major,
+        }
+      : {}),
     ...(mode === 'correction' ? { correctionSlug, unchangedVersion } : {}),
     prompts: immutablePrompts,
     implementations: Object.freeze(immutablePrompts.slice(0, -1)),
@@ -266,7 +301,7 @@ export function detectCompletedPromptPrefix(plan, history, packageVersion) {
 
   const expectedVersion =
     plan.mode === 'phase'
-      ? `0.${plan.phase}.${completedCount}`
+      ? roadmapVersionFor(plan, completedCount)
       : plan.unchangedVersion;
   if (packageVersion !== expectedVersion) {
     if (plan.mode === 'correction') {
@@ -618,7 +653,10 @@ export function renderDashboard({
           `Roadmap phase:${String(plan.phase).padStart(3, ' ')}`,
           `Version:      ${plan.unchangedVersion} (UNCHANGED)`,
         ]
-      : [`Phase:        ${plan.phase}`]),
+      : [
+          `Roadmap:      ${plan.roadmapFamily === 'post-1.0' ? 'Post-1.0' : 'Historical pre-1.0'}`,
+          `Phase:        ${plan.phase}`,
+        ]),
     `Task folder:  docs/tasks/${plan.folderName}`,
     'Mode:         Implementation prompts only',
     'Closeout:     MANUAL',
@@ -834,7 +872,7 @@ export function renderSuccessHandoff(plan, runDirectory) {
     );
   }
   return printableAscii(
-    `\n${'='.repeat(60)}\nPHASE ${plan.phase} IMPLEMENTATION PROMPTS COMPLETE\n${'='.repeat(60)}\n\nAutomation stopped by design.\n[M] P${plan.closeout.number} - ${plan.closeout.title}\n    Recommended: ${plan.closeout.recommendation}\n    Target:      ${plan.closeout.targetVersion}\n    Execution:   MANUAL\n\nRun the closeout prompt manually when ready.\nLogs: ${runDirectory}\n`,
+    `\n${'='.repeat(60)}\n${plan.roadmapFamily === 'post-1.0' ? 'POST-1.0 ' : 'HISTORICAL PRE-1.0 '}PHASE ${plan.phase} IMPLEMENTATION PROMPTS COMPLETE\n${'='.repeat(60)}\n\nAutomation stopped by design.\n[M] P${plan.closeout.number} - ${plan.closeout.title}\n    Recommended: ${plan.closeout.recommendation}\n    Target:      ${plan.closeout.targetVersion}\n    Execution:   MANUAL\n\nRun the closeout prompt manually when ready.\nLogs: ${runDirectory}\n`,
   );
 }
 

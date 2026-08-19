@@ -18,7 +18,7 @@ Follow `BOOT.md`.
 - Roadmap `/closeout` and a correction stack's final manual closeout are different. A correction closeout clears only that correction and preserves roadmap phase/package version.
 - Terminal MVP Phase 21 `/closeout` is complete: it performed the version-only transition from the validated `0.21.11` tree to `1.0.0`, created no Phase 22/`0.22.0` baseline, and closed the MVP roadmap.
 - The owner-approved post-1.0 roadmap now begins at Phase 0 on the existing `1.0.0` baseline.
-- Before the first post-1.0 `/prompt-write`, complete the roadmap's non-versioned runner-compatibility gate; current parser/runner source still implements the pre-1.0 phase grammar and must not be documented or used as if Phase 0 / `1.<phase>.<prompt>` were already executable.
+- Before the first post-1.0 `/prompt-write`, complete the roadmap's non-versioned runner-compatibility gate; P1 now makes the parser/runner grammar Phase-0 capable, but P2/P3 must still be GREEN before Phase 0 product prompt generation/execution.
 - Use `docs/codex-model-selection.md` for detailed minimum-cost-adequate model/reasoning/usage policy.
 
 ## Versioning and task-stack grammar
@@ -27,7 +27,7 @@ Follow `BOOT.md`.
 
 The machine parser is `scripts/codex-phase-core.mjs`; parser changes must update BOOT and focused parser tests. Before reporting `/prompt-write` complete, run `npm run codex:phase:validate -- <task-folder>` when local execution is available. `npm run codex:phase -- <task-folder>` executes implementation prompts and stops before the parsed final closeout prompt.
 
-The current parser still implements the historical pre-1.0 roadmap grammar: positive integer `p<number>` folders and `0.<phase>.<prompt>` targets. The post-1.0 roadmap instead requires Phase 0+ with versions `1.<phase>.<prompt>`. **Do not generate or execute a post-1.0 roadmap task stack until the documented non-versioned runner-compatibility correction updates parser source, focused parser tests, BOOT machine grammar, and this section together.** That correction must leave `package.json` at `1.0.0` and consume no Phase 0 patch number.
+The parser supports both retained historical and post-1.0 roadmap families. Historical stacks use positive canonical `p<number>` folders and `0.<phase>.<prompt>` targets; post-1.0 stacks use `p1-<phase>`, canonical non-negative `<phase>`, and `1.<phase>.<prompt>` targets. **Do not generate or execute a post-1.0 roadmap task stack until the documented non-versioned runner-compatibility correction is GREEN; P2/P3 remain required after P1.** The correction leaves `package.json` at `1.0.0` and consumes no Phase 0 patch number.
 
 Common grammar:
 
@@ -35,18 +35,25 @@ Common grammar:
 - every prompt has exactly one `- Recommended configuration:` line containing one supported backtick-delimited `MODEL_CONFIGS` label and a final period;
 - exactly one final prompt is the manual closeout; both its filename slug and parsed `TASK:` title contain `closeout`; body prose does not determine prompt kind.
 
-Historical pre-1.0 roadmap stacks under the current parser:
+Historical pre-1.0 roadmap stacks:
 
 - folder `p<number>` with no leading zero;
 - exact header `TASK: Phase <phase> / P<number> — <title>` matching folder/filename;
 - exactly one `assigned project version is` phrase followed by backtick-delimited `0.<phase>.<prompt number>`;
 - no correction unchanged-version metadata.
 
-The approved post-1.0 version law is defined in `docs/roadmap/post-1.0-roadmap.md`: phase numbers restart at 0, Phase 0 baseline is `1.0.0`, roadmap prompt targets are `1.<phase>.<prompt number>`, and prompt numbering remains one-based. Exact post-1.0 folder/header/parser grammar is finalized by the required runner-compatibility correction before Phase 0 task generation.
+Post-1.0 roadmap stacks:
+
+- folder `p1-<phase>`, where `<phase>` is canonical non-negative decimal with no leading zero except `0`;
+- exact header `TASK: Phase <phase> / P<number> — <title>` matching folder/filename, including Phase 0;
+- exactly one `assigned project version is` phrase followed by backtick-delimited `1.<phase>.<prompt number>`;
+- no correction unchanged-version metadata.
+
+The shared plan normalizes roadmap family/major (`pre-1.0`/`0` or `post-1.0`/`1`) and uses one owning version derivation for prompt targets and Git-proven resume baselines.
 
 Correction stacks:
 
-- folder `c<roadmap-phase>-<lower-kebab-slug>`;
+- folder `c<roadmap-phase>-<lower-kebab-slug>`, with canonical non-negative phase including `0`;
 - exact header `TASK: Correction <phase> / P<number> — <title>` matching folder/filename;
 - exactly one `- Required unchanged project version: `<version>`.` line in every prompt, identical across the stack and equal to `package.json` throughout execution;
 - no assigned-version metadata; P-numbers are local and do not consume roadmap patch numbers;
@@ -99,7 +106,7 @@ The MVP roadmap is complete through terminal Phase 21 and the project is release
 **Current phase:** **Phase 0 — Server-rendered public feed**  
 **Current baseline:** `1.0.0`
 
-Before Phase 0 product prompts are written or executed, complete the roadmap's non-versioned runner-compatibility gate. The current parser cannot represent Phase 0 or enforce `1.<phase>.<prompt>` targets, so attempting to use the ordinary roadmap runner before that correction would be invalid. The tooling correction leaves version `1.0.0` unchanged and consumes no Phase 0 prompt number; after it is green, normal `/prompt-ass` → `/prompt-plan` → `/prompt-write` may plan Phase 0 product work.
+Before Phase 0 product prompts are written or executed, complete the roadmap's non-versioned runner-compatibility gate. The parser can now represent Phase 0 as `p1-0` and enforce `1.<phase>.<prompt>` targets, but P2/P3 remain before the correction is green. The tooling correction leaves version `1.0.0` unchanged and consumes no Phase 0 prompt number; after it is green, normal `/prompt-ass` → `/prompt-plan` → `/prompt-write` may plan Phase 0 product work.
 
 Use `docs/roadmap/mvp-roadmap.md` for detailed completed MVP history and `docs/roadmap/post-1.0-roadmap.md` for current/future post-1.0 phase state.
 

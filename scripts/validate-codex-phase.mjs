@@ -22,7 +22,7 @@ const plan = buildPlan(entries, folderName);
 console.log(
   plan.mode === 'correction'
     ? `Correction stack ${plan.folderName} (roadmap phase ${plan.phase}) prompt grammar: VALID`
-    : `Phase ${plan.phase} prompt grammar: VALID`,
+    : `${plan.roadmapFamily === 'post-1.0' ? 'Post-1.0' : 'Historical pre-1.0'} Phase ${plan.phase} prompt grammar: VALID`,
 );
 if (plan.mode === 'correction') {
   console.log(`Required unchanged version: ${plan.unchangedVersion}`);

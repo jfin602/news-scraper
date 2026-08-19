@@ -29,6 +29,8 @@ export interface PhasePlan {
   readonly mode: 'phase';
   readonly phase: number;
   readonly folderName: string;
+  readonly roadmapFamily: 'pre-1.0' | 'post-1.0';
+  readonly roadmapMajor: 0 | 1;
   readonly prompts: readonly [PhasePrompt, ...PhasePrompt[]];
   readonly implementations: readonly PhasePrompt[];
   readonly closeout: PhasePrompt;
@@ -60,6 +62,10 @@ export function buildPlan(
   entries: readonly { filename: string; text: string }[],
   folderName: string,
 ): TaskStackPlan;
+export function roadmapVersionFor(
+  plan: Readonly<{ phase: number; roadmapMajor: 0 | 1 }>,
+  promptNumber: number,
+): string;
 export function promptCommitSubject(
   plan: TaskStackPlan,
   prompt: ParsedPrompt,

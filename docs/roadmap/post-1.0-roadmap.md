@@ -36,16 +36,16 @@ Prompt numbers remain one-based. `P0` is not used.
 
 ## Pre-Phase-0 runner compatibility gate
 
-The current pre-1.0 Codex phase runner/parser only accepts positive integer phase folders and hard-codes roadmap prompt targets as `0.<phase>.<prompt>`. It therefore cannot safely execute this roadmap's Phase 0 / `1.<phase>.<prompt>` convention as currently implemented.
+P1 of this correction finalized the shared parser/runner roadmap grammar. Retained historical stacks use positive canonical `p<number>` folders and `0.<phase>.<prompt>` targets. Post-1.0 stacks use exactly `p1-<phase>`, where `<phase>` is canonical non-negative decimal with no leading zero except `0`, and targets `1.<phase>.<prompt>`. The existing human-facing header remains `TASK: Phase <phase> / P<number> — <title>`, with one-based prompt numbers only. Thus Phase 0 is represented only as `p1-0`, not `p0`.
+
+Correction folders use `c<roadmap-phase>-<lower-kebab-slug>` with the same canonical non-negative phase rule, so `c0-<slug>` and matching `TASK: Correction 0 / P<number> — <title>` are valid. Correction package versions remain fixed and are never derived from that contextual phase.
 
 Before `/prompt-write` emits the first Phase 0 task stack, complete one bounded **non-versioned tooling correction** that:
 
-- extends the shared parser/runner to support the post-1.0 roadmap version family `1.<phase>.<prompt>`;
-- supports post-1.0 Phase 0 without allowing `P0` prompt numbering;
-- defines an unambiguous task-folder/header convention for post-1.0 roadmap stacks without colliding with retained historical task artifacts;
+- preserves the P1 shared parser/plan target and resume-version derivation for both roadmap families;
 - preserves correction-stack unchanged-version semantics;
 - preserves exact commit-subject/history-resume/version-chain safety;
-- updates `BOOT.md` / `AGENTS.md` machine grammar only in the same change as the parser implementation and focused parser tests;
+- completes the remaining P2/P3 runner automation/closeout work without changing the finalized grammar;
 - leaves `package.json` at `1.0.0` throughout the tooling correction.
 
 This gate is implementation/tooling compatibility work, not Phase 0 product scope, and consumes no Phase 0 prompt/version number.

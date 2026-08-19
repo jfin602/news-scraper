@@ -118,6 +118,21 @@ const prompt = (
   text: `TASK: Phase 8 / P${number} — ${title}\n\nMODEL / REASONING / USAGE\n- Recommended configuration: \`${config}\`.\n\nVERSIONING\n- This prompt's assigned project version is \`${version}\`.\n\nGOAL\n${closeout ? 'Perform Phase 8 closeout.' : 'Implement the task.'}\n`,
 });
 
+const post1Prompt = (
+  number: number,
+  {
+    phase = 0,
+    version = `1.${phase}.${number}`,
+    ...options
+  }: PromptOptions & { phase?: number } = {},
+) => {
+  const entry = prompt(number, { ...options, version });
+  return {
+    ...entry,
+    text: entry.text.replace('TASK: Phase 8', `TASK: Phase ${phase}`),
+  };
+};
+
 const correctionPrompt = (
   number: number,
   {
@@ -1599,6 +1614,86 @@ test('resume planning rejects gaps, duplicates, and package versions inconsisten
         '0.8.1',
       ),
     /expected 0\.8\.2/,
+  );
+});
+
+test('post-1.0 resume uses the normalized roadmap family for baselines and prefixes', () => {
+  const plan = buildPlan(
+    [post1Prompt(1), post1Prompt(2), post1Prompt(3, { closeout: true })],
+    'p1-0',
+  );
+  assert.equal(plan.mode, 'phase');
+  if (plan.mode !== 'phase') throw new Error('Expected a phase plan.');
+  assert.equal(plan.roadmapFamily, 'post-1.0');
+  assert.equal(plan.roadmapMajor, 1);
+
+  const initial = detectCompletedPromptPrefix(plan, [], '1.0.0');
+  assert.equal(initial.completedCount, 0);
+  assert.equal(initial.previousVersion, '1.0.0');
+
+  const resumed = detectCompletedPromptPrefix(
+    plan,
+    [
+      { sha: 'unrelated', subject: 'documentation update' },
+      { sha: 'one', subject: '1.0.1' },
+    ],
+    '1.0.1',
+  );
+  assert.equal(resumed.completedCount, 1);
+  assert.equal(resumed.previousVersion, '1.0.1');
+  assert.equal(resumed.nextPrompt?.mode, 'phase');
+  if (resumed.nextPrompt?.mode !== 'phase')
+    throw new Error('Expected a phase prompt.');
+  assert.equal(resumed.nextPrompt?.targetVersion, '1.0.2');
+  assert.match(
+    renderDashboard({
+      plan,
+      states: new Map(),
+      current: undefined,
+      activity: '',
+      tracker: createEventTracker(),
+      startedAt: 0,
+    }),
+    /Roadmap:\s+Post-1\.0/,
+  );
+  assert.match(
+    renderSuccessHandoff(plan, '.codex-runs/p1-0/test'),
+    /POST-1\.0 PHASE 0 IMPLEMENTATION PROMPTS COMPLETE/,
+  );
+
+  assert.throws(
+    () =>
+      detectCompletedPromptPrefix(
+        plan,
+        [
+          { sha: 'one', subject: '1.0.1' },
+          { sha: 'two', subject: '1.0.2' },
+        ],
+        '1.0.0',
+      ),
+    /expected 1\.0\.2/,
+  );
+  assert.throws(
+    () =>
+      detectCompletedPromptPrefix(
+        plan,
+        [
+          { sha: 'one', subject: '1.0.1' },
+          { sha: 'two', subject: '1.0.2' },
+          { sha: 'duplicate', subject: '1.0.1' },
+        ],
+        '1.0.2',
+      ),
+    /ambiguous for P1/,
+  );
+  assert.throws(
+    () =>
+      detectCompletedPromptPrefix(
+        plan,
+        [{ sha: 'two', subject: '1.0.2' }],
+        '1.0.0',
+      ),
+    /P2 is completed while P1 is missing/,
   );
 });
 

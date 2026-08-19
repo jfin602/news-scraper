@@ -18,7 +18,7 @@ It establishes project identity, canonical terminology, authority, document rout
 - Current phase: **Post-1.0 Phase 0 — Server-rendered public feed**
 - Current baseline: **`1.0.0`**
 - Current implementation direction: **server-render the canonical root page from the existing canonical public-feed read-model semantics, with JavaScript as progressive enhancement and no competing Article eligibility/order/query authority**
-- Pre-Phase-0 gate: **before Phase 0 roadmap prompts are generated or executed, complete the post-1.0 roadmap's bounded non-versioned runner-compatibility correction; current parser/runner machine grammar remains pre-1.0 until that correction changes source, focused tests, BOOT, and AGENTS together**
+- Pre-Phase-0 gate: **before Phase 0 roadmap prompts are generated or executed, complete the post-1.0 roadmap's bounded non-versioned runner-compatibility correction; P1 has made the shared parser/runner grammar Phase-0 capable, but P2/P3 remain required before the gate is clear**
 - Production status: launched at `1.0.0`; accepted Phase 20 customer launch established the first supported production baseline and completed Phase 21 closed the MVP roadmap into the `1.0.0` release
 - Production database policy: preserve supported customer data, governed relationships, and supported migration upgradeability under `docs/decisions/production-data-and-schema-compatibility.md`; the earlier destructive pre-production rebuild policy does not apply to supported customer state
 - Production compatibility boundary: Phase 19 established/validated upgrade/restore/rollback procedures and accepted Phase 20 launch evidence established the first supported production schema/data baseline
@@ -177,7 +177,7 @@ Use `docs/roadmap/post-1.0-roadmap.md` for current phase dependencies and exit g
 
 The MVP roadmap is complete through terminal Phase 21 and the project is released at `1.0.0`. Current phase is **Post-1.0 Phase 0 — Server-rendered public feed**, baseline `1.0.0`.
 
-Before Phase 0 product prompts are generated or executed, complete the post-1.0 roadmap's non-versioned runner-compatibility gate. The current parser still implements the historical pre-1.0 positive-phase / `0.<phase>.<prompt>` machine grammar. Do not represent the post-1.0 Phase 0 stack as executable until the bounded tooling correction updates parser/runner source, focused parser tests, BOOT machine grammar, and AGENTS machine grammar in the same change. The correction leaves `package.json` at `1.0.0` and consumes no Phase 0 patch number.
+Before Phase 0 product prompts are generated or executed, complete the post-1.0 roadmap's non-versioned runner-compatibility gate. P1 has made `p1-0` / `1.0.<prompt>` executable in the shared parser/runner while retaining historical grammar, but P2/P3 must still complete before the gate is clear. The correction leaves `package.json` at `1.0.0` and consumes no Phase 0 patch number.
 
 Historical qualifications remain as summarized in Project identity: Phase 9 and Phase 14 owner acceptances did not rewrite their recorded evidence limitations, and Phase 19 later supplied Phase 14's deferred Level 8 proof.
 
@@ -426,7 +426,7 @@ Strict order:
 
 Do not silently run missing stages. If unstable requirements, contradictory docs, repository drift, or a material decision blocks progress, return `Planning needed` and stop before next stage.
 
-**Post-1.0 runner gate:** the approved post-1.0 version law is already documented, but the machine grammar below still describes the currently implemented pre-1.0 parser. Do not use `/prompt-write` to emit a post-1.0 Phase 0 roadmap stack until the non-versioned runner-compatibility correction updates parser/runner source, focused parser tests, this machine-grammar section, and `AGENTS.md` together.
+**Post-1.0 runner gate:** the machine grammar below now supports the approved post-1.0 roadmap law, including Phase 0. Do not use `/prompt-write` to emit a post-1.0 roadmap stack until the remaining P2/P3 work in the non-versioned runner-compatibility correction is GREEN.
 
 ## Codex task-stack prompt-file grammar
 
@@ -448,17 +448,17 @@ Both stack types require:
 
 ### Roadmap phase stacks
 
-- folder canonical lowercase `p<number>` with no leading zero;
+- historical pre-1.0 folder canonical lowercase `p<number>` with a positive no-leading-zero phase; its parsed target equals `0.<folder phase>.<prompt number>`;
+- post-1.0 folder canonical lowercase `p1-<phase>`, where `<phase>` is a non-negative no-leading-zero decimal; its parsed target equals `1.<folder phase>.<prompt number>`;
 - task header exactly `TASK: Phase <phase> / P<number> — <title>` and agrees with folder/filename;
 - each prompt contains exactly one literal phrase `assigned project version is` followed by one backtick-delimited semantic version;
-- parsed target equals `0.<folder phase>.<prompt number>`;
 - roadmap prompt MUST NOT contain correction unchanged-version metadata.
 
 ### Non-versioned correction stacks
 
 Correction stacks are for owner-approved bounded implementation gates/regressions/architectural corrections that need sequenced prompts and final manual closeout without consuming roadmap prompt versions.
 
-- folder canonical `c<roadmap-phase>-<lower-kebab-slug>`, e.g. `c10-single-publication`; referenced phase provides context only;
+- folder canonical `c<roadmap-phase>-<lower-kebab-slug>`, where `<roadmap-phase>` is a non-negative no-leading-zero decimal, e.g. `c0-phase-zero-fix` or `c10-single-publication`; referenced phase provides context only;
 - task header exactly `TASK: Correction <phase> / P<number> — <title>` matching folder numeric component;
 - each prompt has exactly one `- Required unchanged project version: `<version>`.` line, every prompt in the stack declares the same version, and that version must equal `package.json` throughout execution;
 - correction prompts MUST NOT contain `assigned project version is` metadata;
@@ -490,11 +490,11 @@ Runner fail-closed execution invariants: clean working tree, no `package-lock.js
 
 ## Versioning and phase-prompt numbering
 
-Project versions use `0.<roadmap phase>.<phase prompt number>` for roadmap phase stacks while pre-1.0.
+Historical roadmap stacks use `0.<roadmap phase>.<phase prompt number>`; post-1.0 roadmap stacks use `1.<roadmap phase>.<phase prompt number>`.
 
 - Prompt numbers one-based; `P0` not used.
 - Roadmap task number maps to version patch number.
-- `0.<phase>.0` is a non-terminal phase baseline established only by green `/closeout` from the prior roadmap phase or separately explicit owner-authorized `.0` transition.
+- `0.<phase>.0` is a historical pre-1.0 non-terminal phase baseline; `1.<phase>.0` is a post-1.0 phase baseline, with Phase 0 inheriting `1.0.0` from terminal MVP closeout.
 - `package.json` is sole current-version authority; project intentionally has no npm lockfile.
 - Version changes occur only through executed Codex roadmap prompt, non-terminal green `/closeout`, the explicit green terminal Phase 21 `/closeout` transition to `1.0.0`, or another separately explicit owner-authorized transition.
 - Green terminal Phase 21 `/closeout` changes only `package.json` from the final validated `0.21.x` version to `1.0.0`; it creates no successor baseline and reserves no phase number.
@@ -507,7 +507,7 @@ Project versions use `0.<roadmap phase>.<phase prompt number>` for roadmap phase
 - The completed Phase 10 singleton implementation correction is the historical first non-versioned correction stack.
 - Parallel UI work is non-versioned, not a `codex:phase` stack, and MUST NOT modify package version or consume roadmap prompt numbers.
 
-This versioning subsection records the current parser's pre-1.0 executable grammar. The approved post-1.0 law (`1.<phase>.<prompt>`, beginning with Phase 0 at baseline `1.0.0`) is governed by `docs/roadmap/post-1.0-roadmap.md` and becomes executable only after the required runner-compatibility correction updates this subsection and parser/tests together.
+The shared parser normalizes each roadmap stack's historical/post-1.0 family and major once, then uses that authority for prompt target validation and Git-proven resume baseline reconstruction. The approved post-1.0 law (`p1-<phase>` / `1.<phase>.<prompt>`, beginning with Phase 0 at baseline `1.0.0`) is executable; P2/P3 still gate Phase 0 prompt generation/execution.
 
 ## `/prompt-ass`
 
@@ -539,7 +539,7 @@ For Phase 21, `/prompt-plan` consumes the completed candidate assessment and pla
 
 Requires completed unblocked `/prompt-plan`. Revalidate current repo/docs and write one ordered `.txt` per approved prompt under `docs/tasks/<folder name>/`.
 
-Roadmap phase folders use `p<number>`. Correction folders use `c<roadmap-phase>-<lower-kebab-slug>`.
+Historical roadmap folders use `p<number>`; post-1.0 roadmap folders use `p1-<phase>`; correction folders use `c<roadmap-phase>-<lower-kebab-slug>`.
 
 Each prompt includes the finalized `MODEL / REASONING / USAGE` block and its exact recommendation label MUST exist in current `MODEL_CONFIGS`. Roadmap tasks use assigned-version metadata; correction tasks use required-unchanged-version metadata. Do not upgrade only because prompt length, importance, or validation volume feels substantial.
 

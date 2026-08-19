@@ -195,6 +195,86 @@ test('phase plan grammar fails closed on malformed parsed metadata', () => {
   );
 });
 
+test('post-1.0 phase folders normalize Phase 0+ and validate their assigned versions', () => {
+  const phase0P1 = prompt(1, { phase: 0, version: '1.0.1' });
+  const phase0P2 = prompt(2, {
+    closeout: true,
+    phase: 0,
+    version: '1.0.2',
+  });
+  const phase0 = buildPlan([phase0P2, phase0P1], 'p1-0');
+
+  assert.equal(phase0.mode, 'phase');
+  if (phase0.mode !== 'phase') throw new Error('Expected a phase plan.');
+  assert.equal(phase0.phase, 0);
+  assert.equal(phase0.roadmapFamily, 'post-1.0');
+  assert.equal(phase0.roadmapMajor, 1);
+  assert.deepEqual(
+    phase0.prompts.map(({ number, targetVersion }) => ({
+      number,
+      targetVersion,
+    })),
+    [
+      { number: 1, targetVersion: '1.0.1' },
+      { number: 2, targetVersion: '1.0.2' },
+    ],
+  );
+
+  const phase1 = buildPlan(
+    [
+      prompt(1, { phase: 1, version: '1.1.1' }),
+      prompt(2, { closeout: true, phase: 1, version: '1.1.2' }),
+    ],
+    'p1-1',
+  );
+  assert.equal(phase1.mode, 'phase');
+  if (phase1.mode !== 'phase') throw new Error('Expected a phase plan.');
+  assert.equal(phase1.roadmapFamily, 'post-1.0');
+  assert.equal(phase1.prompts[0].targetVersion, '1.1.1');
+
+  for (const version of ['0.0.1', '1.1.1', '1.0.9']) {
+    assert.throws(
+      () => buildPlan([prompt(1, { phase: 0, version }), phase0P2], 'p1-0'),
+      /does not match 1\.0\.1/,
+    );
+  }
+});
+
+test('post-1.0 folder collisions and non-canonical Phase 0 forms fail closed', () => {
+  const phase0P1 = prompt(1, { phase: 0, version: '1.0.1' });
+  const phase0P2 = prompt(2, {
+    closeout: true,
+    phase: 0,
+    version: '1.0.2',
+  });
+
+  for (const folderName of [
+    'p0',
+    'p1-00',
+    'p1-01',
+    'p1--1',
+    'p1-',
+    'P1-0',
+    'p01-0',
+  ]) {
+    assert.throws(
+      () => buildPlan([phase0P1, phase0P2], folderName),
+      /Task folder must have the form/,
+    );
+  }
+
+  assert.throws(() => parsePrompt('P0-task.txt', phase0P1.text), /one-based/);
+  assert.throws(
+    () =>
+      parsePrompt(
+        phase0P1.filename,
+        phase0P1.text.replace('Phase 0 / P1', 'Phase 0 / P0'),
+      ),
+    /TASK title must have the form/,
+  );
+  assert.throws(() => buildPlan([phase0P1, phase0P2], 'p1'), /TASK phase 0/);
+});
+
 test('valid correction stacks expose explicit fixed-version plan semantics', () => {
   const p1 = correctionPrompt(1);
   const p2 = correctionPrompt(2, { closeout: true });
@@ -239,6 +319,9 @@ test('correction folders and TASK metadata fail closed unless canonical and agre
     'c10',
     'C10-single-publication',
     'c010-single-publication',
+    'c00-single-publication',
+    'c01-single-publication',
+    'c-1-single-publication',
     'c10-Single-publication',
     'c10-single_publication',
     'c10-',
@@ -281,6 +364,22 @@ test('correction folders and TASK metadata fail closed unless canonical and agre
     () => parsePrompt(wrongNumber.filename, wrongNumber.text),
     /does not match filename P1/,
   );
+});
+
+test('correction Phase 0 is canonical contextual metadata with fixed-version semantics', () => {
+  const p1 = correctionPrompt(1, { phase: 0, version: '1.0.0' });
+  const closeout = correctionPrompt(2, {
+    closeout: true,
+    phase: 0,
+    version: '1.0.0',
+  });
+  const plan = buildPlan([p1, closeout], 'c0-phase-zero-fix');
+
+  assert.equal(plan.mode, 'correction');
+  if (plan.mode !== 'correction')
+    throw new Error('Expected a correction plan.');
+  assert.equal(plan.phase, 0);
+  assert.equal(plan.unchangedVersion, '1.0.0');
 });
 
 test('phase and correction version metadata cannot be mixed or malformed', () => {
