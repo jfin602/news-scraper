@@ -34,6 +34,18 @@ This file is the running feature idea log for ideas proposed in this chat.
 - Keep the behavior topic independent and preserve Source approval, provenance, Article identity, duplicate handling, moderation, and public-feed ordering.
 - **Required documentation work when implemented:** review the governing collection/data/public-feed/design/testing documentation and record the now-public role and presentation rules for `Article.summary`. Those changes are deferred until this feature is promoted for implementation.
 
+### +R8VN — 2026-08-19 — Source RSS/Atom admission include/exclude operators
+
+- **Status:** Proposed
+- Expand the existing Source-owned RSS/Atom item admission filter from include-only `ANY` matching into a bounded structured policy with separate Include and Exclude phrase groups.
+- Each group may use `ANY` (`OR`) or `ALL` (`AND`) matching. The final admission rule is fixed as `include_passes AND NOT exclude_matches`, with Exclude winning when both sides match.
+- Empty Include means all otherwise-valid RSS/Atom Raw items pass the include side; empty Exclude means nothing is excluded. Existing Sources with legacy include phrases must preserve their current behavior as Include + `ANY` after upgrade.
+- Preserve the existing deterministic case-insensitive literal substring matching, plain-text preparation, and bounded RSS/Atom editorial fields: title, summary/content text, and Source-provided category labels. Do not introduce regex, glob, fuzzy, semantic/AI, arbitrary-expression, or Article-page-fetch behavior.
+- Keep this filter RSS/Atom-only and pre-normalization. HTML listing endpoints continue to bypass it. Filtered Raw items continue to count only in `source_item_filtered_count`, not as Relevance `excluded`, normalization failures, Articles, or Article observations.
+- Treat this as topic-independent base-engine behavior with Source-level configuration. The admin UI should expose separate Include/Exclude phrase lists and clear `Any (OR)` / `All (AND)` selectors rather than a free-form query language.
+- Because the existing phrase persistence is part of the supported `1.0.0` production baseline, implementation must use a forward-compatible migration that preserves existing customer configuration rather than rewriting supported migration history.
+- **Required documentation work when implemented:** revise the governing Source/collection, domain/data, architecture, admin/onboarding, testing, and routing summaries that currently define the filter as include-only/ANY-match; historical Phase 14 roadmap and validation evidence must remain unchanged.
+
 ## Shipped Ideas
 
 ### +W6HF — 2026-08-13 — Source RSS/Atom item admission filter
