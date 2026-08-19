@@ -18,7 +18,7 @@ Follow `BOOT.md`.
 - Roadmap `/closeout` and a correction stack's final manual closeout are different. A correction closeout clears only that correction and preserves roadmap phase/package version.
 - Terminal MVP Phase 21 `/closeout` is complete: it performed the version-only transition from the validated `0.21.11` tree to `1.0.0`, created no Phase 22/`0.22.0` baseline, and closed the MVP roadmap.
 - The owner-approved post-1.0 roadmap now begins at Phase 0 on the existing `1.0.0` baseline.
-- Before the first post-1.0 `/prompt-write`, complete the roadmap's non-versioned runner-compatibility gate; P1 now makes the parser/runner grammar Phase-0 capable, but P2/P3 must still be GREEN before Phase 0 product prompt generation/execution.
+- The roadmap's non-versioned runner-compatibility gate is complete and GREEN; normal Phase 0 `/prompt-ass` -> `/prompt-plan` -> `/prompt-write` may proceed on baseline `1.0.0`.
 - Use `docs/codex-model-selection.md` for detailed minimum-cost-adequate model/reasoning/usage policy.
 
 ## Versioning and task-stack grammar
@@ -27,7 +27,7 @@ Follow `BOOT.md`.
 
 The machine parser is `scripts/codex-phase-core.mjs`; parser changes must update BOOT and focused parser tests. Before reporting `/prompt-write` complete, run `npm run codex:phase:validate -- <task-folder>` when local execution is available. `npm run codex:phase -- <task-folder>` executes implementation prompts and stops before the parsed final closeout prompt by default. `npm run codex:phase -- <task-folder> --closeout` explicitly invokes that final prompt after the Git-proven implementation prefix completes, but leaves its result HUMAN REVIEW REQUIRED: it is never automatically committed or accepted, and its captured final response is intentionally the final terminal output.
 
-The parser supports both retained historical and post-1.0 roadmap families. Historical stacks use positive canonical `p<number>` folders and `0.<phase>.<prompt>` targets; post-1.0 stacks use `p1-<phase>`, canonical non-negative `<phase>`, and `1.<phase>.<prompt>` targets. **Do not generate or execute a post-1.0 roadmap task stack until the documented non-versioned runner-compatibility correction is GREEN; P2/P3 remain required after P1.** The correction leaves `package.json` at `1.0.0` and consumes no Phase 0 patch number.
+The parser supports both retained historical and post-1.0 roadmap families. Historical stacks use positive canonical `p<number>` folders and `0.<phase>.<prompt>` targets; post-1.0 stacks use `p1-<phase>`, canonical non-negative `<phase>`, and `1.<phase>.<prompt>` targets. The GREEN runner-compatibility correction left `package.json` at `1.0.0`, consumed no Phase 0 patch number, and cleared post-1.0 Phase 0 prompt generation/execution.
 
 Common grammar:
 
@@ -106,7 +106,7 @@ The MVP roadmap is complete through terminal Phase 21 and the project is release
 **Current phase:** **Phase 0 — Server-rendered public feed**  
 **Current baseline:** `1.0.0`
 
-Before Phase 0 product prompts are written or executed, complete the roadmap's non-versioned runner-compatibility gate. The parser can now represent Phase 0 as `p1-0` and enforce `1.<phase>.<prompt>` targets, but P2/P3 remain before the correction is green. The tooling correction leaves version `1.0.0` unchanged and consumes no Phase 0 prompt number; after it is green, normal `/prompt-ass` → `/prompt-plan` → `/prompt-write` may plan Phase 0 product work.
+The roadmap's non-versioned runner-compatibility gate is complete and GREEN. The accepted correction represents Phase 0 as `p1-0`, enforces `1.<phase>.<prompt>` targets, leaves version `1.0.0` unchanged, and consumes no Phase 0 prompt number. Normal `/prompt-ass` → `/prompt-plan` → `/prompt-write` may now plan Phase 0 product work.
 
 Use `docs/roadmap/mvp-roadmap.md` for detailed completed MVP history and `docs/roadmap/post-1.0-roadmap.md` for current/future post-1.0 phase state.
 

@@ -2,7 +2,7 @@
 
 **Status:** Active owner-approved post-MVP roadmap; current phase is Phase 0 — Server-rendered public feed.  
 **Current baseline:** `1.0.0`.  
-**Runner gate:** The documented non-versioned Pre-Phase-0 runner compatibility correction remains required before Phase 0 roadmap prompt generation/execution.  
+**Runner gate:** GREEN and cleared by `c21-post-1-runner-compatibility`; normal Phase 0 roadmap prompt assessment, planning, and writing may proceed.
 **Primary direction:** Improve the reusable News Scraper Platform while preserving the first indie-author Publication as configuration rather than engine behavior.
 
 The MVP roadmap closed successfully into the `1.0.0` production baseline. This roadmap is now the active implementation roadmap; it does not reopen, renumber, or rewrite completed MVP phases.
@@ -36,19 +36,19 @@ Prompt numbers remain one-based. `P0` is not used.
 
 ## Pre-Phase-0 runner compatibility gate
 
-P1 of this correction finalized the shared parser/runner roadmap grammar. Retained historical stacks use positive canonical `p<number>` folders and `0.<phase>.<prompt>` targets. Post-1.0 stacks use exactly `p1-<phase>`, where `<phase>` is canonical non-negative decimal with no leading zero except `0`, and targets `1.<phase>.<prompt>`. The existing human-facing header remains `TASK: Phase <phase> / P<number> — <title>`, with one-based prompt numbers only. Thus Phase 0 is represented only as `p1-0`, not `p0`.
+The GREEN `c21-post-1-runner-compatibility` correction finalized and validated the shared parser/runner roadmap grammar. Retained historical stacks use positive canonical `p<number>` folders and `0.<phase>.<prompt>` targets. Post-1.0 stacks use exactly `p1-<phase>`, where `<phase>` is canonical non-negative decimal with no leading zero except `0`, and targets `1.<phase>.<prompt>`. The existing human-facing header remains `TASK: Phase <phase> / P<number> — <title>`, with one-based prompt numbers only. Thus Phase 0 is represented only as `p1-0`, not `p0`.
 
 Correction folders use `c<roadmap-phase>-<lower-kebab-slug>` with the same canonical non-negative phase rule, so `c0-<slug>` and matching `TASK: Correction 0 / P<number> — <title>` are valid. Correction package versions remain fixed and are never derived from that contextual phase.
 
-Before `/prompt-write` emits the first Phase 0 task stack, complete one bounded **non-versioned tooling correction** that:
+The accepted bounded **non-versioned tooling correction**:
 
 - preserves the P1 shared parser/plan target and resume-version derivation for both roadmap families;
 - preserves correction-stack unchanged-version semantics;
 - preserves exact commit-subject/history-resume/version-chain safety;
-- completes the remaining P2/P3 runner automation/closeout work without changing the finalized grammar;
+- completes P2/P3 runner automation/closeout work without changing the finalized grammar;
 - leaves `package.json` at `1.0.0` throughout the tooling correction.
 
-This gate is implementation/tooling compatibility work, not Phase 0 product scope, and consumes no Phase 0 prompt/version number.
+This completed gate was implementation/tooling compatibility work, not Phase 0 product scope, consumed no Phase 0 prompt/version number, and is recorded in `docs/validation/post-1-runner-compatibility-correction.md`. Normal Phase 0 `/prompt-ass` -> `/prompt-plan` -> `/prompt-write` may proceed.
 
 ---
 
@@ -65,7 +65,7 @@ The server-rendered page must reuse the canonical public-feed read-model semanti
 ## Depends on
 
 - accepted `1.0.0` production baseline;
-- Pre-Phase-0 runner compatibility gate before roadmap prompt generation/execution.
+- completed GREEN Pre-Phase-0 runner compatibility gate.
 
 ## Classification
 

@@ -18,7 +18,7 @@ It establishes project identity, canonical terminology, authority, document rout
 - Current phase: **Post-1.0 Phase 0 — Server-rendered public feed**
 - Current baseline: **`1.0.0`**
 - Current implementation direction: **server-render the canonical root page from the existing canonical public-feed read-model semantics, with JavaScript as progressive enhancement and no competing Article eligibility/order/query authority**
-- Pre-Phase-0 gate: **before Phase 0 roadmap prompts are generated or executed, complete the post-1.0 roadmap's bounded non-versioned runner-compatibility correction; P1 has made the shared parser/runner grammar Phase-0 capable, but P2/P3 remain required before the gate is clear**
+- Pre-Phase-0 gate: **completed and cleared by the GREEN `c21-post-1-runner-compatibility` correction recorded in `docs/validation/post-1-runner-compatibility-correction.md`; normal Phase 0 `/prompt-ass` -> `/prompt-plan` -> `/prompt-write` may proceed**
 - Production status: launched at `1.0.0`; accepted Phase 20 customer launch established the first supported production baseline and completed Phase 21 closed the MVP roadmap into the `1.0.0` release
 - Production database policy: preserve supported customer data, governed relationships, and supported migration upgradeability under `docs/decisions/production-data-and-schema-compatibility.md`; the earlier destructive pre-production rebuild policy does not apply to supported customer state
 - Production compatibility boundary: Phase 19 established/validated upgrade/restore/rollback procedures and accepted Phase 20 launch evidence established the first supported production schema/data baseline
@@ -38,7 +38,7 @@ All historical validation artifacts remain truthful, SHA/environment-specific ev
 
 The MVP roadmap is complete through terminal Phase 21 and the project is released at `1.0.0`. The owner-approved post-1.0 roadmap owns current sequencing, beginning with Phase 0 — Server-rendered public feed.
 
-Phase 0 product prompt generation/execution is currently gated only by the bounded non-versioned runner-compatibility correction documented in `docs/roadmap/post-1.0-roadmap.md`. That tooling gate consumes no Phase 0 prompt/version number and leaves `package.json` at `1.0.0`. After the gate is green, Phase 0 implementation must preserve the canonical public-feed read model, topic independence, supported production data, and the inherited testing contract. Any persisted/schema change must prove supported forward upgrade and data preservation as well as migration from zero.
+The bounded non-versioned runner-compatibility correction documented in `docs/roadmap/post-1.0-roadmap.md` is GREEN and the Phase 0 prompt-generation gate is clear. It consumed no Phase 0 prompt/version number and left `package.json` at `1.0.0`. Phase 0 implementation must preserve the canonical public-feed read model, topic independence, supported production data, and the inherited testing contract. Any persisted/schema change must prove supported forward upgrade and data preservation as well as migration from zero.
 
 ## New-session startup
 
@@ -177,7 +177,7 @@ Use `docs/roadmap/post-1.0-roadmap.md` for current phase dependencies and exit g
 
 The MVP roadmap is complete through terminal Phase 21 and the project is released at `1.0.0`. Current phase is **Post-1.0 Phase 0 — Server-rendered public feed**, baseline `1.0.0`.
 
-Before Phase 0 product prompts are generated or executed, complete the post-1.0 roadmap's non-versioned runner-compatibility gate. P1 has made `p1-0` / `1.0.<prompt>` executable in the shared parser/runner while retaining historical grammar, but P2/P3 must still complete before the gate is clear. The correction leaves `package.json` at `1.0.0` and consumes no Phase 0 patch number.
+The post-1.0 roadmap's non-versioned runner-compatibility gate is complete and GREEN. The accepted correction makes `p1-0` / `1.0.<prompt>` executable while retaining historical grammar, leaves `package.json` at `1.0.0`, and consumes no Phase 0 patch number. Normal Phase 0 prompt assessment, planning, and writing may proceed.
 
 Historical qualifications remain as summarized in Project identity: Phase 9 and Phase 14 owner acceptances did not rewrite their recorded evidence limitations, and Phase 19 later supplied Phase 14's deferred Level 8 proof.
 
@@ -426,7 +426,7 @@ Strict order:
 
 Do not silently run missing stages. If unstable requirements, contradictory docs, repository drift, or a material decision blocks progress, return `Planning needed` and stop before next stage.
 
-**Post-1.0 runner gate:** the machine grammar below now supports the approved post-1.0 roadmap law, including Phase 0. Do not use `/prompt-write` to emit a post-1.0 roadmap stack until the remaining P2/P3 work in the non-versioned runner-compatibility correction is GREEN.
+**Post-1.0 runner gate:** GREEN and cleared by `c21-post-1-runner-compatibility`; the machine grammar below supports the approved post-1.0 roadmap law, including Phase 0. Normal Phase 0 `/prompt-ass` -> `/prompt-plan` -> `/prompt-write` may proceed.
 
 ## Codex task-stack prompt-file grammar
 
@@ -507,7 +507,7 @@ Historical roadmap stacks use `0.<roadmap phase>.<phase prompt number>`; post-1.
 - The completed Phase 10 singleton implementation correction is the historical first non-versioned correction stack.
 - Parallel UI work is non-versioned, not a `codex:phase` stack, and MUST NOT modify package version or consume roadmap prompt numbers.
 
-The shared parser normalizes each roadmap stack's historical/post-1.0 family and major once, then uses that authority for prompt target validation and Git-proven resume baseline reconstruction. The approved post-1.0 law (`p1-<phase>` / `1.<phase>.<prompt>`, beginning with Phase 0 at baseline `1.0.0`) is executable; P2/P3 still gate Phase 0 prompt generation/execution.
+The shared parser normalizes each roadmap stack's historical/post-1.0 family and major once, then uses that authority for prompt target validation and Git-proven resume baseline reconstruction. The approved post-1.0 law (`p1-<phase>` / `1.<phase>.<prompt>`, beginning with Phase 0 at baseline `1.0.0`) is executable, and the accepted runner-compatibility correction has cleared Phase 0 prompt generation/execution.
 
 `npm run codex:phase -- <task-folder>` runs implementation prompts only and stops before the parsed final closeout by default. `npm run codex:phase -- <task-folder> --closeout` explicitly invokes that final prompt only after the Git-proven implementation prefix is complete. Its result remains human review required: it is neither automatically committed nor accepted, and the captured closeout agent final response is intentionally the last terminal output for handoff.
 
