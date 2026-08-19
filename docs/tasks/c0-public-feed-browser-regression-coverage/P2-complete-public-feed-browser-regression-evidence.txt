@@ -1,0 +1,192 @@
+TASK: Correction 0 / P2 — Complete public-feed browser regression evidence
+
+CORRECTION SCOPE
+The first correction implementation at `8e53bcd775c90a16a05abe027582d187e8868287` improved `test/browser/public-feed-page.test.ts` and passed its 13 scenarios, but the correction closeout remained RED because several test titles overstated what their bodies actually proved and material Phase 0 browser invariants were still absent.
+
+This prompt is a second, evidence-focused implementation pass. It must close every specifically identified browser-proof gap without reverting SSR, reintroducing a client-owned initial fetch, changing product behavior, or using broad test consolidation as a substitute for deterministic assertions.
+
+- Recommended configuration: `Sol Light`.
+- Model rationale: the first remediation compressed an explicit matrix too aggressively. This pass intentionally uses Sol's stronger code-reading/review capability even though the product architecture is already settled. Keep reasoning focused on exact behavioral proof, asynchronous ownership, and title/body truthfulness.
+- Lower-cost alternatives: intentionally rejected for this remediation after the prior RED result.
+- Escalation trigger: a missing test exposes a genuine production defect whose correct repair requires non-local SSR/client ownership redesign, new contract semantics, persistence/schema work, or another architecture decision.
+- Escalation target: stop and report for replanning; do not force a structural redesign inside this prompt.
+- Expected usage: High to Very High because deterministic browser race coverage is extensive.
+
+VERSION / RUNNER CONTRACT
+- Required unchanged project version: `1.0.1`.
+- This is non-versioned correction work. Do not change the top-level package version.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Do not consume a Phase 0 roadmap patch number.
+- Do not resolve K8VX or claim the correction/Phase 0 GREEN.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/codex-model-selection.md`, `docs/roadmap/post-1.0-roadmap.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/design/public-feed-presentation.md`, and `docs/operations/security-reliability-and-operations.md`;
+2. read P1 and this P2 plus the original Phase 0 P1/P2 prompts;
+3. inspect commit `8e53bcd775c90a16a05abe027582d187e8868287` and its complete diff from the correction baseline;
+4. inspect current `test/browser/public-feed-page.test.ts`, `test/browser/public-feed-theme.test.ts`, `test/browser/admin-page.test.ts`, `test/security/public-content-safety.test.ts`, and relevant integration tests;
+5. inspect current `src/app/web/public/public-feed.js`, `src/app/web/public-feed-page.ts`, `src/app/web/create-app.ts`, and `src/public-feed/discovery.ts` so tests exercise real current ownership and failure paths;
+6. inspect the historical pre-Phase-0 `test/browser/public-feed-page.test.ts` containing 34 scenarios and retain an explicit scenario-by-scenario disposition;
+7. confirm `package.json` is exactly `1.0.1` and no Phase 1/schema/read-model/product drift has landed;
+8. stop rather than forcing the correction if a missing behavior now requires a new product/contract/ADR decision.
+
+PRIMARY GOAL
+Close the exact evidence gaps found by the RED correction closeout. Do not optimize for test count. Every test title must state only behavior the test body deterministically exercises.
+
+DEFAULT WRITE BOUNDARY
+Primary writable file:
+- `test/browser/public-feed-page.test.ts`
+
+Read-only unless a deterministic failing regression proves a small correction is needed:
+- `src/app/web/public/public-feed.js`
+- `src/app/web/public-feed-page.ts`
+- `src/app/web/create-app.ts`
+- `src/public-feed/discovery.ts`
+- `test/browser/public-feed-theme.test.ts`
+- `test/security/public-content-safety.test.ts`
+
+The existing unrelated full-browser failure in `test/browser/admin-page.test.ts` is a required triage item below. Modify admin production/test code only under that bounded rule.
+
+REQUIRED PUBLIC-FEED EVIDENCE
+Implement deterministic tests for every item below. If a current test already proves an item, strengthen or split it so the exact relevant assertions are obvious and the title no longer overstates coverage.
+
+A. ENHANCED FIRST-PAGE STALE OWNERSHIP
+Prove independently that after SSR startup:
+- a stale successful enhanced first-page response cannot overwrite a newer owned result;
+- a stale enhanced `404` cannot clear/replace a newer owned result;
+- a stale enhanced network/rejected-fetch or generic error cannot overwrite a newer owned result;
+- a slow Apply request cannot win after Reset has established newer ownership;
+- a slow Apply/history request cannot win after newer Back/Forward/popstate ownership.
+
+Use deterministic controlled fetch/deferred resolution. Do not rely on AbortController cancellation alone; explicitly resolve/reject abort-insensitive stale requests after the newer state is visible and assert the newer URL, controls, branding, rows, and bounded status remain unchanged.
+
+B. CONTINUATION VALIDATION AND FAILURE ISOLATION
+Prove separately or in clearly diagnostic parameterized cases:
+- duplicate Article IDs in a continuation response are rejected before mutating rows, item IDs, or cursor state;
+- a repeated `nextCursor` equal to the requested cursor is rejected and does not create a loop;
+- an empty continuation page with non-null next cursor is rejected;
+- network failure preserves existing rows and the current retry cursor;
+- HTTP 400 preserves existing rows and retry cursor;
+- HTTP 404 preserves existing rows and retry cursor;
+- HTTP 503 preserves existing rows and retry cursor;
+- malformed JSON preserves existing rows and retry cursor;
+- successful JSON with mismatched discovery criteria preserves existing rows and retry cursor;
+- after each retryable failure, a later valid retry uses the SAME cursor and may append safely;
+- duplicate activation while continuation is in flight still produces only one owned continuation request.
+
+Assertions must prove both visible state and requested cursor URL. A generic "shows an error" assertion is insufficient.
+
+C. CONTINUATION DEPTH INVALIDATION / HISTORY
+Starting from a page that actually loads at least one continuation row, prove:
+- changing Source discards loaded depth and requests only the new first page with no cursor;
+- changing Category discards loaded depth and requests only the new first page with no cursor;
+- Reset discards loaded depth and restores `/` with no cursor;
+- Back/Forward restores the first page represented by the URL, not previously loaded continuation depth;
+- stale continuation success after a newer criteria/reset/history owner is ignored;
+- stale continuation FAILURE after Reset/history is ignored and cannot surface a pagination error on the newer first page.
+
+At least one history test must load continuation depth before navigating away and then verify Back/Forward returns only the first-page rows for the URL state.
+
+D. APPENDED-ROW PRESENTATION PARITY
+For a continuation item near a calendar-day timezone boundary, prove:
+- appended row date rendering uses configured Publication `presentationTimezone`;
+- viewer/browser timezone does not override configured Publication timezone;
+- UTC fallback remains correct when Publication timezone is absent;
+- exact appended `original_url` remains unchanged;
+- hostile appended headline/Source content remains inert.
+
+Do not infer appended-row parity from initial SSR-row coverage.
+
+E. JAVASCRIPT-DISABLED LEVEL 6
+Use real Chromium contexts with `javaScriptEnabled: false` and prove each behavior through actual navigation/form submission:
+- populated `/` is useful;
+- native keyword Search submits with Source and Category both left at their blank All values and returns the expected q state;
+- Source-only submission works with Category inactive;
+- Category-only submission works with Source inactive; explicitly ensure the preceding Source selection is not accidentally carried into the Category-only request;
+- Reset is a real `/` navigation independent of JavaScript;
+- clicking/following the headline exercises the exact stored publisher destination, not merely `getAttribute('href')`;
+- invalid discovery returns an intelligible `400` page and exposes usable Reset/recovery navigation;
+- absent/private-equivalent returns an intelligible `404` page and exposes recovery navigation;
+- dependency failure returns an intelligible `503` page and exposes recovery navigation;
+- a successful SSR response with a non-null cursor exposes NO Phase 1 continuation link/button/control when JavaScript is disabled.
+
+Do not combine these into one test title unless the body genuinely exercises every named behavior. Prefer a few diagnostic tests over one oversized scenario.
+
+F. BROKEN LOGO / MALFORMED PRESENTATION
+Add deterministic proof for BOTH lifecycle positions:
+- an SSR logo that is already broken before deferred client startup is hidden safely after hydration;
+- a later enhanced first-page response containing a broken logo degrades without clearing valid Publication text or corrupting feed state.
+
+Also exercise malformed enhanced Publication presentation variants rather than a single malformed shape. Include at minimum representative invalid/missing name, invalid description type, unsafe/remote logo path, invalid accent value, and invalid timezone where those fields are part of current validation. Each must fail to the bounded generic enhanced error state without leaking hostile/internal content.
+
+G. HISTORICAL 34-SCENARIO DISPOSITION
+Keep a concise in-code or implementation-report mapping of all 34 historical scenarios:
+- exactly two old client-owned startup scenarios may be `REPLACED_BY_SSR_INVARIANT`;
+- the remaining 32 must map to a current test body that materially proves their governed intent, or be justified by exact equivalent coverage in another current suite;
+- test-title text alone is not evidence.
+
+Do not blindly recreate 34 tests. Consolidation is allowed only when the consolidated body still contains the complete observable assertions and remains diagnostic on failure.
+
+KNOWN FULL-BROWSER BLOCKER TRIAGE
+P1 reported that `npm run test:browser` had one separate admin-browser failure: expected `1200`, received `600` in `test/browser/admin-page.test.ts`.
+
+Before declaring this P2 implementation coherent:
+1. reproduce the failing admin browser case on the current tree;
+2. inspect its governing admin contract, test history, fixture/harness state, and production consumer;
+3. determine whether it is:
+   - caused by Phase 0/correction drift;
+   - a stale test expectation where current governed value is unambiguously `600`;
+   - a small real browser/admin defect where governed value is unambiguously `1200`;
+   - or an unrelated ambiguous product issue.
+4. If it is a stale test expectation or one small real defect with unambiguous existing contract behavior, make the smallest bounded correction needed so `npm run test:browser` can become green. Add/retain focused proof and do not change unrelated admin behavior.
+5. If the correct behavior is ambiguous or requires a contract/product decision, STOP and report it as an independent blocker rather than guessing.
+
+This authority exists only because the full browser suite is a required downstream acceptance gate. Do not use it for unrelated admin cleanup.
+
+PRODUCTION REPAIR RULE
+If a newly deterministic public-feed test exposes a real implementation defect, P2 may fix it only when:
+- the intended behavior is already explicit;
+- the repair is local and behavior-preserving;
+- no schema/read-model/contract/Phase 1 change is required;
+- the failing test is retained as regression evidence.
+
+Otherwise stop and report for replanning.
+
+TEST QUALITY
+- No arbitrary sleeps for race ownership.
+- Use deferred/controlled fetch or request interception so stale outcomes are released in known order.
+- Assert request URLs and cursor values where ownership matters.
+- Assert rows/controls/status/history after stale outcomes, not just request counts.
+- Keep BrowserContexts closed reliably.
+- Reuse shared browser/server harnesses when practical.
+- Do not create test-only fake state logic duplicating the production state machine.
+- Do not duplicate detailed theme coverage already owned by `public-feed-theme.test.ts`.
+
+VALIDATION
+Use focused iteration first:
+`node scripts/run-tests.mjs --test-concurrency=1 test/browser/public-feed-page.test.ts`
+
+If the admin-browser blocker requires a bounded repair, also run its exact focused file/test until deterministic.
+
+Before P2 is complete, run:
+- `npm run check`
+- `npm run test:security`
+- `npm run test:browser`
+- `git diff --check`
+
+All applicable commands must be genuinely green. Do not describe a command as green if another selected browser test fails.
+
+Do not run the full database suite solely for this browser-evidence correction unless production/database boundaries unexpectedly change; such a change should normally trigger a scope stop.
+
+FINAL IMPLEMENTATION REPORT
+Report:
+- exact files changed;
+- current unchanged version `1.0.1`;
+- historical 34-scenario disposition summary;
+- exact new/strengthened tests for every RED gap above;
+- any production defect found and repaired;
+- disposition of the admin `1200`/`600` browser failure;
+- exact commands actually run and pass/fail counts;
+- any remaining blocker.
+
+Do NOT declare the correction or Phase 0 GREEN. P3 owns independent correction closeout.
