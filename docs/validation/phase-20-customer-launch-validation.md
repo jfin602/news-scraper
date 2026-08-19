@@ -36,11 +36,13 @@ Migration-from-zero and the pre-launch `0013` to `0014` upgrade/restore exercise
 | `0007_public_feed_discovery_indexes.sql` | `d38bb5edbda42f36aa0774bd5b6ae0707d81f3cd15008e9907ebf670435400c3` |
 | `0008_publication_presentation.sql` | `43a83533381bfce7600c83c22aaf86017b7f5ec8c0aa7beae684939979fbe3fa` |
 | `0009_source_administration_foundation.sql` | `488a1846e211113b3ecaafa6f7844e70ed579edbc6a8d26f7211557c80c10024` |
-| `0010_endpoint_collection_job_trigger_kind.sql` | `1583c4abf379d63aedc89260d0f38d5bb1006d118fa9d47268df8a3db7e02f01` |
+| `0010_endpoint_collection_job_trigger_kind.sql` | `1583c4af4379d63aedc89260d0f38d5bb1006d118fa9d47268df8a3db7e02f01` |
 | `0011_publication_presentation_timezone.sql` | `5d02b30c67a1ed4457afc593b58214f8ce40d051686483d7fc4372dfd2c3cf15` |
 | `0012_duplicate_persistence_foundation.sql` | `8bd5fe18c2e45f68de7c395e4a08f796c6bc3ad1200584c542469049c99f969c` |
 | `0013_article_duplicate_moderation.sql` | `4322b27b444bae5de1bcdc954b8b7c71364165819430954b6222cf8093e6c30f` |
 | `0014_html_endpoint_profile_and_run_diagnostics.sql` | `6f90bb2bcfb8fe6009849922601fbfe26eae1d9fc28d3e7505f62d2720b8c385` |
+
+**Documentation erratum:** The original Phase 20 artifact transcribed the `0010_endpoint_collection_job_trigger_kind.sql` SHA-256 with prefix `1583c4ab…`. Verification against the exact accepted Phase 20 executable commit and current unchanged migration bytes confirms the correct checksum is `1583c4af4379d63aedc89260d0f38d5bb1006d118fa9d47268df8a3db7e02f01`. This correction changes documentation only; the accepted migration bytes, schema, executable baseline, and production state are unchanged.
 
 From this acceptance forward, customer production state is durable supported state under `docs/decisions/production-data-and-schema-compatibility.md`; the earlier disposable pre-production reset rule no longer applies to the accepted production database.
 
