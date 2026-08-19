@@ -1,451 +1,120 @@
 # Post-1.0 Roadmap
 
-**Status:** Active owner-approved post-MVP roadmap; current phase is Phase 0 — Server-rendered public feed.  
-**Current baseline:** `1.0.0`.  
-**Runner gate:** GREEN and cleared by `c21-post-1-runner-compatibility`; normal Phase 0 roadmap prompt assessment, planning, and writing may proceed.
-**Primary direction:** Improve the reusable News Scraper Platform while preserving the first indie-author Publication as configuration rather than engine behavior.
+**Status:** PAUSED — owner-approved product-direction reset in progress.  
+**Current package version:** `1.0.1`.  
+**Current implementation phase:** none.  
+**Last implemented roadmap work:** former Phase 0 / P1 — server-rendered root, shipped as `1.0.1`.  
+**Next implementation version:** intentionally unassigned until a replacement roadmap is approved.  
+**Primary direction:** headless news aggregation/distribution core with an administrator control plane and supported downstream consumers; bundled `/` remains a reference/standalone frontend.
 
-The MVP roadmap closed successfully into the `1.0.0` production baseline. This roadmap is now the active implementation roadmap; it does not reopen, renumber, or rewrite completed MVP phases.
+## Current roadmap state
 
-The post-1.0 roadmap restarts phase numbering at Phase 0. Project versions map the post-1.0 phase number to the semantic-version minor component and the prompt number to the patch component:
+The MVP roadmap closed successfully into the supported `1.0.0` production baseline. Post-1.0 Phase 0 then began under the earlier frontend-centric roadmap.
 
-- Phase 0 baseline = `1.0.0`;
-- Phase 0 P1 = `1.0.1`;
-- Phase 0 P2 = `1.0.2`;
-- Phase 1 baseline = `1.1.0`;
-- Phase 1 P1 = `1.1.1`;
-- and so on.
+Phase 0 P1 implemented server-rendered `GET /` at package version `1.0.1`. Before the planned Phase 0 closeout/P2 executed, the repository owner approved a product-direction change on 2026-08-19 after the original client identified integration into an existing website and cross-source outbound-link distribution as the primary use case.
 
-Prompt numbers remain one-based. `P0` is not used.
+The Platform is now governed by:
 
-## Roadmap principles
+- `docs/contracts/project-contract.md`;
+- `docs/contracts/product-scope-and-users.md`;
+- `docs/decisions/headless-distribution-product-boundary.md`.
 
-- Each phase is one cohesive implementation boundary that can be planned, implemented, tested, reviewed, and closed independently.
-- The version pattern for roadmap work is `1.<post-1.0 phase>.<prompt number>`.
-- `1.<phase>.0` is the phase baseline. Each implementation prompt consumes the matching patch number.
-- A green phase closeout advances the next phase baseline from the final `1.<phase>.x` tree to `1.<next phase>.0`.
-- Phase 0 is the only special baseline: its `1.0.0` baseline is inherited directly from the green terminal MVP Phase 21 release transition, so no additional baseline-only version commit is needed before Phase 0 planning begins.
-- Non-versioned correction-stack work does not consume roadmap prompt numbers unless explicitly promoted into roadmap scope.
-- Every phase inherits the project, domain, architecture, security, production-data compatibility, and testing contracts routed by `BOOT.md`.
-- Post-1.0 schema or persisted-data changes must preserve supported production state from the accepted production baseline as well as migration from zero.
-- Shared Platform behavior remains topic independent. Publication-specific choices remain configuration.
-- Public-feed changes reuse the canonical public-feed eligibility/read-model boundary rather than creating parallel Article queries.
-- Existing keyset pagination remains the canonical continuation mechanism unless an explicit future contract decision supersedes it.
-- New infrastructure, indexes, caches, or abstractions require demonstrated need rather than speculative scale assumptions.
-- Each phase should use the smallest number of independently implementable and reviewable prompts that safely covers its behavior.
+The former frontend-first post-1.0 sequence is therefore **retired as an implementation plan**. It is retained below only as planning history so the repository does not pretend those ideas were never considered.
 
-## Pre-Phase-0 runner compatibility gate
+No implementation prompt stack may be generated or executed from this file until the distribution-method and SEO architecture investigation is complete and an owner-approved replacement roadmap has been documented.
 
-The GREEN `c21-post-1-runner-compatibility` correction finalized and validated the shared parser/runner roadmap grammar. Retained historical stacks use positive canonical `p<number>` folders and `0.<phase>.<prompt>` targets. Post-1.0 stacks use exactly `p1-<phase>`, where `<phase>` is canonical non-negative decimal with no leading zero except `0`, and targets `1.<phase>.<prompt>`. The existing human-facing header remains `TASK: Phase <phase> / P<number> — <title>`, with one-based prompt numbers only. Thus Phase 0 is represented only as `p1-0`, not `p0`.
+`1.0.2` is **not reserved or assigned** by the retired Phase 0 closeout. The next version must be derived from the replacement roadmap rather than inferred from the old sequence.
 
-Correction folders use `c<roadmap-phase>-<lower-kebab-slug>` with the same canonical non-negative phase rule, so `c0-<slug>` and matching `TASK: Correction 0 / P<number> — <title>` are valid. Correction package versions remain fixed and are never derived from that contextual phase.
+## Product-direction gate before implementation resumes
 
-The accepted bounded **non-versioned tooling correction**:
+Before `/prompt-ass` resumes for roadmap implementation, complete this documentation/design sequence:
 
-- preserves the P1 shared parser/plan target and resume-version derivation for both roadmap families;
-- preserves correction-stack unchanged-version semantics;
-- preserves exact commit-subject/history-resume/version-chain safety;
-- completes P2/P3 runner automation/closeout work without changing the finalized grammar;
-- leaves `package.json` at `1.0.0` throughout the tooling correction.
+1. investigate viable distribution methods for existing websites/CMS consumers;
+2. investigate SEO/backlink behavior and constraints for those methods;
+3. decide the canonical external distribution boundary and adapter strategy;
+4. decide any required security/authentication/CORS/rate-limit/cache compatibility boundary;
+5. decide whether consumer-specific distribution profiles or exclude-self/source-sharing semantics are required;
+6. update the governing contracts/ADRs through `/docs-review` → explicit approval → `/docs-apply`;
+7. write and approve a replacement post-1.0 implementation roadmap;
+8. only then resume `/prompt-ass` → `/prompt-plan` → `/prompt-write`.
 
-This completed gate was implementation/tooling compatibility work, not Phase 0 product scope, consumed no Phase 0 prompt/version number, and is recorded in `docs/validation/post-1-runner-compatibility-correction.md`. Normal Phase 0 `/prompt-ass` -> `/prompt-plan` -> `/prompt-write` may proceed.
+The investigation must not assume that RSS, server-side JSON consumption, JavaScript widgets, iframes, CMS plugins, or another method is preferred before evidence is gathered. It also must not promise SEO value merely because a link is technically rendered somewhere.
 
----
+## Preserved laws during the roadmap reset
 
-# Phase 0 — Server-rendered public feed
+The pause does not reopen the core Platform architecture.
 
-**Baseline version:** `1.0.0`
+The replacement roadmap must preserve unless separately amended through the explicit contract-change process:
 
-## Goal
+- one Publication/topic per deployed installation;
+- topic-independent shared engine behavior;
+- administrator-approved Sources as the collection trust boundary;
+- structured-feed-first collection;
+- normalization before outward consumption;
+- Source-scoped idempotent Article identity;
+- Source/endpoint/run/Article/observation provenance;
+- true-duplicate suppression without deleting Source instances;
+- Article visibility independent from duplicate role;
+- stored `original_url` as the reader destination;
+- Source failure isolation;
+- Worker-owned collection with no inline Web/API collection;
+- supported production-data/migration compatibility from the accepted `1.0.0` production baseline;
+- focused plus blast-radius regression evidence under the testing contract.
 
-Replace the JavaScript-dependent initial public-feed rendering path with server-rendered HTML so the canonical root page is immediately useful to readers, crawlers, command-line HTTP clients, and browsers with JavaScript unavailable or delayed.
+The existing `1.0.1` server-rendered reference frontend remains supported code. The pivot does not authorize deleting or weakening it merely because it is no longer the primary product identity.
 
-The server-rendered page must reuse the canonical public-feed read-model semantics rather than introducing another Article eligibility or ordering implementation.
+## Runner/tooling state
 
-## Depends on
+The previously completed `c21-post-1-runner-compatibility` correction remains valid tooling work. The runner supports the approved post-1.0 task grammar (`p1-<phase>` and `1.<phase>.<prompt>`), but grammar support does not itself authorize a roadmap phase.
 
-- accepted `1.0.0` production baseline;
-- completed GREEN Pre-Phase-0 runner compatibility gate.
+There is currently no executable post-1.0 roadmap stack authorized by this roadmap. The former unexecuted Phase 0 P2 closeout has been retired from the active task path and recorded as superseded planning history.
 
-## Classification
+Correction stacks remain available only for independently owner-approved bounded regressions/repairs that genuinely qualify as corrections and preserve their declared package version. They must not be used to smuggle distribution-product development around the roadmap pause.
 
-- Base engine capability.
-- Publication configuration supplies presentation data only.
+## Implemented post-1.0 history
 
-## Deliverables
+### Former Phase 0 — Server-rendered public feed
 
-- server rendering for canonical `GET /`;
-- configured Publication name and descriptive presentation data present in the initial HTML response;
-- first public Article page rendered directly into initial HTML;
-- real stored `original_url` headline links present in initial HTML;
-- existing Source, Category, and keyword discovery criteria represented server-side where supplied through the canonical root URL;
-- canonical public-feed eligibility and chronological ordering reused rather than duplicated;
-- explicit populated, empty, unavailable/not-found, invalid-input, and bounded dependency-error server-rendered states;
-- removal of the visible generic/unconfigured initial-content flash;
-- JavaScript converted to progressive enhancement rather than being required to construct the initial feed;
-- functional no-JavaScript public-feed experience for core reading/navigation behavior;
-- browser and direct HTTP/curl validation proving meaningful Article content exists in the returned HTML before client JavaScript executes.
+**Original baseline:** `1.0.0`  
+**Implemented:** P1 at `1.0.1`  
+**Closeout:** interrupted before P2 by the owner-approved product-direction change  
+**Current classification:** supported reference-frontend capability; no longer the active roadmap's product center
 
-## Out of scope
+P1 established:
 
-- replacing keyset pagination;
-- configurable page size;
-- stable historical archive routes;
-- sitemap generation;
-- broad SEO metadata work;
-- Article summary presentation;
-- Article thumbnail presentation;
-- unrelated visual redesign.
+- server-rendered configured Publication presentation at `GET /`;
+- first-page Article rows in initial HTML;
+- direct stored `original_url` headline links;
+- server-side first-page `q`/Source/Category discovery;
+- bounded `200`/`400`/`404`/`503` HTML outcomes;
+- JavaScript progressive enhancement rather than initial feed construction;
+- reuse of the existing canonical public-feed dependency/read semantics rather than another Article SQL authority.
 
-## Exit gate
+No schema/persisted-data redesign was introduced by that P1 work.
 
-- A direct request to `/` returns configured Publication content and current eligible Article rows in the HTML body without requiring a subsequent API request.
-- JavaScript-disabled navigation still exposes a useful first public-feed page.
-- JavaScript-enabled behavior progressively enhances the same canonical state without creating conflicting feed semantics.
-- Public eligibility, duplicate suppression, ordering, filtering, and stored `original_url` destinations remain unchanged.
-- No parallel feed database/read-model authority is introduced.
-- Loading-flash behavior caused by client-only initial rendering is eliminated.
-- Required focused, database, browser, and broader regression evidence is green against the exact final tree.
-- Production upgrade/data-preservation requirements are satisfied for any persisted changes.
+The planned Phase 0 P2 closeout would have advanced the package to `1.0.2`; it was intentionally not executed after the product pivot and no longer owns any future version.
 
----
+## Retired frontend-centric planned sequence
 
-# Phase 1 — Crawlable pagination and configurable feed page size
+The earlier roadmap planned the following work after SSR. These entries are **not active phases, do not reserve version numbers, and do not authorize implementation**. They are retained only to preserve planning context for the upcoming architecture review.
 
-**Baseline version:** `1.1.0`
+1. **Crawlable pagination and configurable public page size** — promote keyset continuation into no-JavaScript/crawlable navigation and let the operator configure bounded page size.
+2. **SEO foundation** — titles, descriptions, canonical handling, robots, sitemap, indexing policy, and sharing metadata for the standalone public site.
+3. **Public Article summaries** — expose safe Source-provided summaries through the public read model and server-rendered cards.
+4. **Historical archive discovery** — stable year/month-style browseable history for the standalone site.
+5. **Article thumbnails / Source-provided images** — governed optional image metadata and public presentation.
+6. **Scale and performance validation** — realistic corpus/workload measurement and evidence-based optimization.
 
-## Goal
+Some of these capabilities may remain useful after the distribution/SEO investigation, but they must be reclassified and resequenced according to the headless product boundary rather than carried forward automatically.
 
-Turn the existing keyset continuation capability into normal crawlable/server-rendered navigation and allow the operator to configure the number of Articles displayed per public page.
+## Versioning rule while paused
 
-This phase evolves the existing pagination system rather than replacing it with offset pagination.
+`package.json` remains the sole current-version authority and is currently `1.0.1`.
 
-## Depends on
+Documentation work, product research, ADR work, roadmap replacement, and prompt planning do not change that value. No old Phase 0 P2/`1.0.2` transition may be executed after this pause.
 
-- Phase 0.
+When a replacement roadmap is approved, it must explicitly define the next phase identifier and semantic-version target before executable task prompts are written. Do not infer that target from the retired sequence.
 
-## Classification
+## Historical roadmap authority
 
-- Base engine capability.
-- Page-size choice is singleton Publication configuration.
-
-## Deliverables
-
-- bounded Publication-configured public Article page size;
-- Cloudflare-protected administrator control for the page-size setting;
-- safe persisted default preserving current supported behavior unless deliberately changed;
-- bounded validation preventing unreasonable page sizes;
-- server-rendered continuation navigation using the existing opaque keyset cursor;
-- real HTML links to older feed results rather than JavaScript-only continuation controls;
-- preservation of active `q`, Source, and Category criteria when navigating continuation pages;
-- criteria-bound cursor validation unchanged;
-- direct navigation and refresh of a valid continuation URL;
-- progressive JavaScript enhancement may preserve a smooth load-more interaction without making JavaScript mandatory;
-- no reader-controlled `limit` parameter;
-- production-safe migration and rollback behavior for any new Publication configuration field.
-
-## Out of scope
-
-- SQL offset/page-number pagination;
-- frozen snapshot pagination across concurrently arriving Articles;
-- historical year/month archive routes;
-- Article ranking changes;
-- featured/pinned ordering;
-- unlimited page sizes.
-
-## Exit gate
-
-- An operator can configure the supported public page size through the administrator interface.
-- The public reader cannot override server-controlled bounds through arbitrary request parameters.
-- A direct server-rendered continuation request returns the correct next Article set.
-- Walking keyset pages under a static result set neither repeats nor omits Articles because of ordering ties.
-- New Articles do not introduce offset-style page drift because keyset semantics remain intact.
-- Search/filter criteria remain correctly bound to cursors.
-- No-JavaScript readers and crawlers can follow older-result links.
-- Production migration/data preservation and required regression evidence are green.
-
----
-
-# Phase 2 — SEO foundation
-
-**Baseline version:** `1.2.0`
-
-## Goal
-
-Provide a coherent technical SEO foundation for the server-rendered public product without manufacturing local Article ownership or weakening the Platform's original-publisher destination model.
-
-## Depends on
-
-- Phase 1.
-
-## Classification
-
-- Base engine capability.
-- Publication configuration owns publication-specific title/description/branding values.
-- Deployment configuration owns trusted public-origin information where required.
-
-## Deliverables
-
-- server-generated document titles using configured Publication data;
-- bounded meta descriptions;
-- canonical URL handling;
-- trusted canonical public-origin configuration that does not blindly trust arbitrary inbound `Host` headers;
-- `robots.txt`;
-- initial `sitemap.xml`;
-- explicit indexing/canonical policy for root, search, Source-filtered, Category-filtered, and cursor-continuation pages;
-- appropriate Open Graph/public sharing metadata where supported by available Publication configuration;
-- extension points for later archive URLs to participate in sitemap generation;
-- automated HTTP/document-head validation;
-- direct HTTP/curl validation of generated metadata.
-
-## Out of scope
-
-- fabricated local Article-detail pages;
-- replacing stored publisher URLs as the Article destination;
-- copying publisher Article bodies;
-- generic AI-generated SEO copy;
-- speculative schema.org markup without an agreed semantic model;
-- historical archive implementation itself.
-
-## Exit gate
-
-- Canonical public pages expose deliberate title, description, canonical, and crawl directives in their initial HTML.
-- `robots.txt` and sitemap behavior are deterministic and tested.
-- Public URL generation uses a trusted deployment origin.
-- Search/filter/cursor indexing behavior is explicitly defined rather than accidentally determined by crawler behavior.
-- External Articles remain external publisher destinations.
-- No indie-author-specific SEO rule exists in shared engine code.
-- Required HTTP, browser, security, configuration, and regression validation is green.
-
----
-
-# Phase 3 — Public Article summaries
-
-**Baseline version:** `1.3.0`
-
-## Goal
-
-Expose safe Source-provided Article summaries/descriptions through the canonical public feed when such normalized metadata is available.
-
-## Depends on
-
-- Phase 2.
-
-## Classification
-
-- Base engine capability.
-- No topic-specific behavior.
-
-## Deliverables
-
-- verification and normalization of the existing Article-summary producer/storage path;
-- extension of collection/normalization only where current approved Source adapters fail to preserve explicitly supplied summary metadata;
-- bounded safe summary representation in the canonical public-feed read model;
-- summary support in the public API;
-- server-rendered summary presentation;
-- graceful Article-card behavior when no summary exists;
-- safe handling of markup, malformed content, excessive length, and unsupported input;
-- preservation of headline prominence and direct publisher destination;
-- regression coverage for feeds both with and without summaries.
-
-## Out of scope
-
-- Article-body fetching;
-- scraping publisher destination pages merely to obtain summaries;
-- AI-generated summaries;
-- rewriting Source-provided summaries for SEO;
-- thumbnail/image work;
-- full-content republication.
-
-## Exit gate
-
-- Source-provided summaries that survive the governed normalization pipeline can appear through the canonical public read model.
-- Missing summaries remain normal and do not create synthetic filler.
-- Unsafe markup/content does not reach public rendering as executable content.
-- API and SSR surfaces use the same normalized Article summary semantics.
-- Existing Article identity, Relevance, duplicate, provenance, and external-link behavior remains intact.
-- Required collection-fixture, database, API, browser, and broader regression evidence is green.
-
----
-
-# Phase 4 — Historical archive discovery
-
-**Baseline version:** `1.4.0`
-
-## Goal
-
-Provide stable, human-readable public discovery paths for older feed history so historical Articles remain practically browsable and crawlable beyond the rolling recent-feed experience.
-
-## Depends on
-
-- Phase 3.
-
-## Classification
-
-- Base engine capability.
-- Presentation labels remain Publication configuration.
-
-## Deliverables
-
-- stable server-rendered historical archive navigation;
-- year/month-based archive boundaries or an equivalently stable calendar hierarchy;
-- deterministic archive URLs such as `/archive/YYYY/MM` where adopted by contract;
-- archive queries derived from the canonical feed-eligible Article stream;
-- preservation of effective-feed-date chronology and duplicate suppression;
-- navigation between available historical periods;
-- useful empty/nonexistent archive behavior;
-- no-JavaScript archive browsing;
-- sitemap expansion for stable archive surfaces;
-- archive metadata/canonical behavior integrated with the Phase 2 SEO foundation;
-- scale-conscious bounded archive query behavior.
-
-## Out of scope
-
-- offset pagination;
-- local Article-detail pages;
-- rewriting Article timestamps;
-- separate historical Article copies;
-- automatic historical Relevance reprocessing;
-- changing Article identity or duplicate grouping;
-- full-text search-engine infrastructure.
-
-## Exit gate
-
-- Readers and crawlers can reach older eligible Articles through stable local archive navigation.
-- Archive membership is based on canonical effective feed dates.
-- Archive queries preserve ordinary feed eligibility and duplicate suppression.
-- No separate archive Article store or eligibility model exists.
-- Archive pages render without JavaScript.
-- Sitemap/indexing behavior includes the new stable history surfaces.
-- Database and browser validation proves useful behavior across multiple historical periods and boundary dates.
-- Required broader regression coverage remains green.
-
----
-
-# Phase 5 — Article thumbnails and Source-provided images
-
-**Baseline version:** `1.5.0`
-
-## Goal
-
-Support optional Article thumbnail imagery when approved Source metadata provides a trustworthy usable image reference, while preserving security, provenance, performance, accessibility, and the metadata-only nature of the Platform.
-
-## Depends on
-
-- Phase 4.
-
-## Classification
-
-- Base engine capability.
-- Individual Publication presentation may choose whether/how supported imagery is displayed within bounded engine options.
-
-## Deliverables
-
-- explicit image-source and delivery/security contract before implementation;
-- audit of existing Article image metadata and producer paths;
-- normalized optional Article image representation;
-- support for explicit RSS/Atom or configured Source metadata where permitted;
-- no automatic Article-body crawling merely to discover images;
-- governed URL/content safety behavior;
-- deterministic missing/broken-image fallback;
-- responsive public thumbnail presentation;
-- reserved layout behavior that avoids destructive content shift;
-- appropriate image accessibility semantics;
-- API/read-model integration where public image metadata is exposed;
-- security/privacy/CSP behavior consistent with the selected image-delivery model.
-
-## Out of scope
-
-- unrestricted image scraping;
-- fetching full Article pages just to locate thumbnails;
-- image-generation AI;
-- claiming ownership of publisher imagery;
-- unrelated media galleries;
-- replacing headline links with local content pages.
-
-## Exit gate
-
-- Articles with supported image metadata may display a safe optional thumbnail.
-- Articles without usable image metadata remain complete and visually coherent.
-- Image support does not broaden Source trust or outbound-fetch boundaries silently.
-- Broken or unavailable remote media does not break the feed.
-- Provenance and original publisher destination remain intact.
-- Required security, collection, API, browser, accessibility, and broader regression evidence is green.
-
----
-
-# Phase 6 — Scale and performance validation
-
-**Baseline version:** `1.6.0`
-
-## Goal
-
-Validate the post-1.0 Platform against realistic Article history and operating workloads, then make only evidence-supported database, caching, runtime, or query optimizations.
-
-## Depends on
-
-- Phase 5.
-
-## Classification
-
-- Base engine engineering/operations work.
-
-## Deliverables
-
-- realistic large-corpus disposable database fixtures or generation tooling;
-- documented representative workload assumptions;
-- before-change measurements for important paths including root SSR, filtered public feed, cursor continuation, archive queries, administrator Article search/moderation, and sitemap generation where applicable;
-- PostgreSQL query-plan inspection for demonstrated hot paths;
-- index changes only where measurements justify them;
-- query simplification/optimization where demonstrated;
-- server-render latency and resource measurements;
-- caching or conditional-response strategy only where measured need justifies additional complexity;
-- ETag, short-lived caching, or equivalent HTTP optimization where appropriate and contract-safe;
-- validation that moderation/publication changes invalidate or bypass stale presentation correctly;
-- memory/process/resource observations for Web and Worker where relevant;
-- before/after measurements for every optimization claimed;
-- removal or rejection of proposed optimizations that do not demonstrate meaningful benefit.
-
-## Out of scope
-
-- speculative Elasticsearch/OpenSearch adoption;
-- distributed caching solely for hypothetical future scale;
-- premature service decomposition;
-- replacing PostgreSQL without evidence;
-- weakening consistency, moderation freshness, provenance, or security for benchmark numbers;
-- artificial micro-optimizations without measurable product or operational benefit.
-
-## Exit gate
-
-- Representative corpus sizes and workload assumptions are documented.
-- Important public/admin queries have observed performance evidence.
-- Every accepted optimization has comparable before/after measurements.
-- Indexes/caches/infrastructure exist because of measured need rather than assumption.
-- Performance improvements preserve feed eligibility, ordering, moderation, provenance, transaction, and production-data invariants.
-- Required regression, database, browser, runtime, security, and operational validation is green on the exact final tree.
-- Remaining known scale limits are explicitly documented rather than hidden.
-
----
-
-# Later roadmap candidates
-
-The following remain candidates rather than scheduled phases until separately promoted:
-
-- native application-managed administrator accounts and roles;
-- identity-linked audit attribution;
-- automatic/bulk historical Relevance reprocessing;
-- public aggregate RSS/Atom output;
-- email newsletters;
-- Source push/webhook adapters;
-- related-story/event clustering;
-- generic relevance ranking/boost scoring;
-- pinning/editorial featured-story ordering;
-- public accounts/personalized feeds;
-- outbound newsletter/social publishing;
-- multilingual feeds;
-- self-service deployment/tenancy;
-- application API expansion beyond the existing public feed contract.
-
-A candidate becomes scheduled roadmap work only through explicit owner approval and documentation alignment.
-
-Concurrent multi-Publication hosting inside one deployed installation remains outside the supported architecture unless a future explicit contract/ADR changes that decision.
+Use `docs/roadmap/mvp-roadmap.md` for the completed pre-1.0 Phase 0–21 implementation history and durable validation links. Historical task prompts and validation artifacts remain truthful evidence for the source trees they governed; this product pivot does not rewrite them.
