@@ -1,5 +1,7 @@
 # Article Lifecycle and Deduplication Contract
 
+> **2026-08-19 product-role note:** Existing feed eligibility is now also the baseline canonical eligibility for ordinary outward distribution. Future adapters may apply explicitly governed consumer selection only after this trust/visibility/duplicate gate; they MUST NOT resurrect hidden/archived Articles or visible non-Primary duplicate members through adapter-specific logic.
+
 ## Core rule: visibility and duplicate role are separate
 
 Article moderation/visibility and duplicate-group membership are orthogonal dimensions.
@@ -50,7 +52,7 @@ These are different questions:
 - **Article identity:** Have we already stored this Source instance?
 - **Duplicate identity:** Does this separately stored Article represent the same underlying published item as another separately stored Article?
 
-Identity resolution prevents repeated polling from inserting the same Source Article. Duplicate grouping suppresses redundant public rows while retaining each separately stored Source instance.
+Identity resolution prevents repeated polling from inserting the same Source Article. Duplicate grouping suppresses redundant ordinary outward/public rows while retaining each separately stored Source instance.
 
 ## Article identity order
 
@@ -152,11 +154,11 @@ Source-priority/configuration changes do not authorize an installation-wide hist
 
 Changing Primary does not delete Articles or change membership.
 
-If the current Primary becomes hidden, the group remains valid. Ordinary public output may contain no row from that group until a visible Primary is selected intentionally; duplicate logic does not silently override moderation visibility.
+If the current Primary becomes hidden, the group remains valid. Ordinary outward/public output may contain no row from that group until a visible Primary is selected intentionally; duplicate logic does not silently override moderation visibility.
 
-## Public-feed eligibility
+## Canonical outward/public eligibility
 
-Ordinary feed rows include Articles that are:
+Ordinary outward/public rows include Articles that are:
 
 - `visible`, and
 - either `ungrouped` or the `primary` member of a Duplicate group.
@@ -165,11 +167,11 @@ Visible `non_primary` members are duplicate-suppressed from ordinary rows but re
 
 Related coverage remains separate.
 
-Source/Category filters, literal keyword search, and keyset pagination operate only over this canonical eligible stream and MUST NOT resurrect a visible `non_primary` Article or create a parallel feed-eligibility path. The public headline destination remains stored `original_url`.
+Source/Category filters, literal keyword search, keyset pagination, and any later explicitly governed consumer selection operate only over this canonical eligible stream and MUST NOT resurrect a visible `non_primary` Article or create a parallel eligibility path. The reader/headline destination remains stored `original_url`.
 
-The singleton Publication public-exposure gate and Source trust/lifecycle gates are defined by `docs/contracts/public-feed-and-admin-contract.md`; Article visibility/duplicate role do not replace those gates.
+The singleton Publication outward/public-exposure gate and Source trust/lifecycle gates for the current feed are defined by `docs/contracts/public-feed-and-admin-contract.md`; Article visibility/duplicate role do not replace those gates. Future distribution profiles, if approved, must run after the canonical trust/visibility/duplicate gate rather than weakening it.
 
-An “also reported by” UI is not required by Phase 16.
+An “also reported by” UI is not required by the duplicate engine.
 
 ## Manual moderation
 
@@ -185,7 +187,7 @@ Once moderation UI exists, Cloudflare-authorized operators MUST be able to:
 
 Manual decisions override automatic grouping/review outcomes until intentionally revised. A manual split is authoritative separation of the affected membership/relationship: materially unchanged automatic evidence may remain inspectable but MUST NOT immediately regroup or remerge the Articles, and reversal requires intentional operator action. An explicit manual Primary outranks automatic selection and MUST NOT be silently replaced during automatic reevaluation while it remains a valid group member.
 
-Manual merge, split, and choose-Primary mutations are transactional and preserve at-most-one group membership per Article, exactly one member Primary per surviving group, every Article and observation/provenance record, and visibility as an independent state. A topology mutation that removes the manual Primary must leave the surviving group valid with exactly one member Primary. Hiding/restoring does not change membership or silently select another Primary; if the Primary is hidden, the valid group may produce no public row until a visible Primary is intentionally selected.
+Manual merge, split, and choose-Primary mutations are transactional and preserve at-most-one group membership per Article, exactly one member Primary per surviving group, every Article and observation/provenance record, and visibility as an independent state. A topology mutation that removes the manual Primary must leave the surviving group valid with exactly one member Primary. Hiding/restoring does not change membership or silently select another Primary; if the Primary is hidden, the valid group may produce no ordinary outward row until a visible Primary is intentionally selected.
 
 Provenance inspection is read-only. Moderation never edits historical Collection runs or observations, rewrites Source ownership, deletes evidence to hide/recategorize/merge/split/suppress an Article, or converts collected evidence into mutable operator-owned data. Moderation may append its own change-history record.
 
