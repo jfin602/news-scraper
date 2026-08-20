@@ -2,11 +2,11 @@
 
 ## Current product-role interpretation
 
-This contract governs the **existing outward/public surfaces** implemented through `1.0.1`: `GET /api/feed`, the bundled/reference `GET /` frontend, and the Cloudflare-protected administrator UX described below.
+This contract governs the **existing outward/public surfaces** implemented through `1.0.1`: `GET /api/feed`, the bundled/reference `GET /` frontend, and the current managed/reference Cloudflare-protected administrator UX described below.
 
 The 2026-08-19 headless product shift does not remove these surfaces or weaken their Article-selection rules. It changes their product role. Under the amended Project Contract and `docs/decisions/headless-distribution-product-boundary.md`, `/` is the canonical route **for the bundled reference/standalone frontend**, not a requirement that every customer website use News Scraper's presentation. `GET /api/feed` remains the current JSON outward/feed interface, but this contract does not yet declare it the permanent/versioned external integration API.
 
-Future distribution adapters must reuse the canonical Article eligibility/selection semantics defined here or a deliberately evolved successor contract; they must not create transport-specific Source-trust, visibility, duplicate, moderation, ordering, or `original_url` rules. The exact distribution methods, consumer authentication/CORS/rate-limit/cache behavior, profiles, backlink/SEO policy, and analytics remain unresolved pending the dedicated distribution/SEO architecture review.
+Approved future Distribution Profiles and PHP/WordPress/RSS/custom-application families are governed by `distribution-and-integration-contract.md`. They must reuse canonical eligibility and must not create transport-specific Source-trust, visibility, duplicate, moderation, ordering, or `original_url` rules. This contract does not declare current `/api/feed` to be the permanent external JSON contract; exact schema/version/path, machine auth, cache details, profile selectors, and SEO policy remain unresolved.
 
 ## Public-feed purpose
 
@@ -330,7 +330,7 @@ Administrative area SHOULD contain:
 
 Navigation is single-Publication and does not expose a topic switcher. Application commands validate actual Source/endpoint/run/Article/observation/duplicate relationships and domain invariants rather than a Publication tenancy boundary.
 
-Future distribution configuration may be added to the control plane only after the pending distribution/SEO architecture work defines its semantics; this contract does not pre-create a distribution-profile model.
+Distribution Profiles are an approved control-plane concept governed by `distribution-and-integration-contract.md`. This current-surface contract does not define their selectors, fields, persistence, or implementation and does not imply they already exist.
 
 ## Source management UI
 
@@ -406,14 +406,14 @@ Dismissed decisions persist so unchanged evidence does not repeatedly recreate t
 ## Administrative access and request integrity
 
 - Public readers do not authenticate in the current bundled/reference frontend.
-- All admin UI and admin API routes require the Cloudflare Access perimeter.
-- Supported deployments MUST prevent direct-origin access from bypassing that perimeter.
+- All current managed/reference admin UI and admin API routes require the Cloudflare Access perimeter.
+- The current managed/reference deployment MUST prevent direct-origin access from bypassing that perimeter.
 - The application does not currently implement native administrator accounts, login/logout sessions, account recovery, roles, or per-user Publication authorization.
 - State-changing admin browser actions MUST use CSRF protection or an equivalent request-integrity control.
 - Administrative commands MUST validate real resource relationships and domain invariants even without per-user permissions.
 - Administrative errors must not expose secrets, stack traces, or raw database details.
 
-This admin-authentication rule does not define authentication for future external distribution consumers. That question remains part of the pending distribution/security architecture work.
+Cloudflare Access is not a mandatory self-hosted runtime dependency. Future self-hosted admin authentication and machine distribution authentication require separate governed boundaries; machine credentials MUST NOT implicitly grant administrator authority.
 
 ## Change history
 

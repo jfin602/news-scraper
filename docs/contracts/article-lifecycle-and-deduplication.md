@@ -1,6 +1,6 @@
 # Article Lifecycle and Deduplication Contract
 
-> **2026-08-19 product-role note:** Existing feed eligibility is now also the baseline canonical eligibility for ordinary outward distribution. Future adapters may apply explicitly governed consumer selection only after this trust/visibility/duplicate gate; they MUST NOT resurrect hidden/archived Articles or visible non-Primary duplicate members through adapter-specific logic.
+> **Distribution routing:** Existing feed eligibility is the baseline canonical eligibility for ordinary outward distribution. Under `distribution-and-integration-contract.md`, Distribution Profiles run only after this trust/visibility/duplicate gate and may only narrow it; no profile or adapter may resurrect hidden/archived Articles or visible non-Primary duplicate members.
 
 ## Core rule: visibility and duplicate role are separate
 
@@ -169,13 +169,13 @@ Related coverage remains separate.
 
 Source/Category filters, literal keyword search, keyset pagination, and any later explicitly governed consumer selection operate only over this canonical eligible stream and MUST NOT resurrect a visible `non_primary` Article or create a parallel eligibility path. The reader/headline destination remains stored `original_url`.
 
-The singleton Publication outward/public-exposure gate and Source trust/lifecycle gates for the current feed are defined by `docs/contracts/public-feed-and-admin-contract.md`; Article visibility/duplicate role do not replace those gates. Future distribution profiles, if approved, must run after the canonical trust/visibility/duplicate gate rather than weakening it.
+The singleton Publication outward/public-exposure gate and Source trust/lifecycle gates for the current feed are defined by `docs/contracts/public-feed-and-admin-contract.md`; Article visibility/duplicate role do not replace those gates. Approved Distribution Profiles are governed by `docs/contracts/distribution-and-integration-contract.md` and run after the canonical trust/visibility/duplicate gate.
 
 An “also reported by” UI is not required by the duplicate engine.
 
 ## Manual moderation
 
-Once moderation UI exists, Cloudflare-authorized operators MUST be able to:
+Once moderation UI exists, authorized operators MUST be able to:
 
 - merge selected Articles into a Duplicate group;
 - split one or more members;

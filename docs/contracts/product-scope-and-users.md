@@ -36,9 +36,9 @@ An authorized operator controls the installation's collection and editorial stat
 - Article visibility/display overrides/categories;
 - Duplicate review/group corrections;
 - Source/endpoint health and Collection-run history;
-- future distribution configuration only when explicitly introduced by a later governing contract.
+- Distribution Profiles and other product-exposed distribution configuration when implemented.
 
-The administrator surface is the Platform control plane. MVP administrative UI/API routes remain protected by Cloudflare Access under the accepted admin-perimeter ADR. Native application accounts/roles remain deferred unless later promoted.
+The administrator surface is the instance-owned Platform control plane. Current managed/reference administrative routes remain protected by Cloudflare Access under the accepted admin-perimeter ADR. Future self-hosted deployments require a governed secure perimeter, but Cloudflare is not a universal runtime dependency.
 
 ### Website/CMS integrator
 
@@ -55,7 +55,7 @@ The integrator should be able to rely on stable outward semantics for:
 - explicitly supported filters/distribution selection;
 - bounded safe metadata made public by the relevant outward contract.
 
-The exact integration mechanisms are intentionally unresolved until the distribution/SEO architecture review. This contract does not preselect server-side API consumption, RSS/Atom output, JavaScript widgets, iframe delivery, CMS plugins, webhooks, or another transport.
+The approved first-class directions are a generic PHP package plus cron, a WordPress plugin, RSS/Atom interoperability output, and custom applications consuming supported normalized distribution data. PHP and WordPress use JSON as the canonical machine-transport direction and remain thin adapters. Exact schemas, paths, authentication, cache mechanics, and profile selectors remain unresolved.
 
 ### Operator/developer
 
@@ -120,7 +120,15 @@ Collection trust and distribution selection are separate concerns.
 
 A Source being approved means it may participate in governed collection and ordinary outward eligibility. It does not automatically mean every future downstream integration must receive every Article from that Source.
 
-Future consumer-specific distribution selection, such as bounded Source/category selection or exclude-self behavior, may be introduced only through a dedicated distribution contract and data model that preserves the canonical Article-selection invariants above.
+A Distribution Profile is a named administrator-controlled outward selection over already canonically eligible Articles. One Publication may have multiple profiles without becoming relational tenancy. Profile selection can only narrow eligibility and all transports consume the same profile/read-model authority. Exact selectors, fields, and persistence remain unresolved under `distribution-and-integration-contract.md`.
+
+### Deployment architecture
+
+Managed operation and eventual self-hosting are deployment modes of the same complete single-Publication product. A managed customer controls an independently bounded instance even if physical infrastructure is shared. Self-hosting means the complete Web/Admin, Worker, PostgreSQL, jobs/scheduler, configuration/secrets, and distribution-interface stack can operate without a mandatory central News Scraper service; packaging and self-hosted administrator authentication are not yet designed or implemented.
+
+### Presentation ownership
+
+News Scraper owns governed Article selection, normalized output, and `original_url` semantics. Customers may own and replace HTML, CSS, typography, layout, responsive behavior, placement, and custom UI. First-party PHP/WordPress templates are safe functional fallbacks, not mandatory presentation.
 
 ## Initial Publication configuration
 
@@ -128,26 +136,22 @@ The first deployment remains publishing-industry news relevant to independent au
 
 The original client now intends to integrate collected news into an existing website and explore lawful/appropriate cross-source outbound-link distribution. That client use case motivates the current product-direction change but MUST NOT become indie-author-specific shared-engine behavior.
 
-## Explicitly unresolved until distribution/SEO architecture review
+## Explicitly unresolved lower-level design
 
 Do not treat any of the following as decided by this scope document:
 
-- primary external distribution transport(s);
 - JSON API versioning/authentication beyond the currently supported feed endpoint;
-- outbound RSS/Atom feed design;
-- server-side embed/CMS integration design;
-- JavaScript widget design;
-- iframe use or non-use;
+- exact Distribution Profile fields, selectors, persistence, and exclude-self/source-sharing rules;
+- public/private/authenticated RSS details;
+- PHP/WordPress APIs, extension points, and cache implementation;
+- browser-widget or webhook consideration beyond the initial integration set;
 - CORS policy;
 - API keys, consumer authentication, quotas, or rate limits;
-- per-consumer distribution profiles;
-- exclude-self/source-sharing rules;
 - link `rel` attributes;
 - backlink SEO claims or guarantees;
 - canonical/sitemap ownership between News Scraper and a consuming site;
 - click/referral analytics;
-- caching/CDN strategy;
-- webhook/push distribution.
+- caching/CDN strategy and self-host packaging/authentication.
 
 These require explicit research and documentation before implementation.
 

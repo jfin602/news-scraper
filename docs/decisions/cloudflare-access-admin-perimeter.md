@@ -2,7 +2,7 @@
 
 **Status:** Accepted  
 **Date:** 2026-08-06  
-**Amended:** 2026-08-11
+**Amended:** 2026-08-11 and 2026-08-20
 
 ## Context
 
@@ -12,7 +12,9 @@ The MVP still requires a strong administrative access boundary once admin UI/API
 
 ## Decision
 
-For MVP deployments, Cloudflare Access is the external authentication/access-control perimeter for all administrative UI and administrative API routes.
+For the current managed/reference deployment, Cloudflare Access is the external authentication/access-control perimeter for all administrative UI and administrative API routes.
+
+This decision does not make Cloudflare Access a mandatory runtime dependency of the complete self-hostable stack. A future supported self-hosted deployment MUST provide a governed secure administrator perimeter, but its native, reverse-proxy, or SSO mechanism requires a later decision. All origin-bypass, request-integrity, and resource-validation requirements below continue to apply to the managed deployment.
 
 The MVP application does not implement native administrator accounts, passwords/passkeys, login/logout sessions, account recovery, roles, per-user Publication authorization, or a canonical internal administrator identity.
 
@@ -57,4 +59,4 @@ The post-Phase-9 singleton data-model correction removes obsolete Publication te
 
 ## Compliance check
 
-A change violates this ADR when an MVP admin UI/API route is reachable through an unprotected origin path, when the application introduces an unnecessary native account/session dependency into the MVP critical path, when state-changing admin browser actions lack applicable request-integrity protection, when real resource relationships/domain invariants are not validated, or when Cloudflare Access is treated as a substitute for collection/network/content security controls.
+A change violates this ADR when a managed/reference admin UI/API route is reachable through an unprotected origin path, when state-changing admin browser actions lack applicable request-integrity protection, when real resource relationships/domain invariants are not validated, when Cloudflare Access is treated as a substitute for collection/network/content security controls, or when Cloudflare is made a mandatory dependency of future self-hosted ordinary operation without a new owner-approved decision.

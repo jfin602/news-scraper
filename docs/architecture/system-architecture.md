@@ -12,6 +12,13 @@ Publication is singleton editorial configuration, not relational tenancy. Real S
 
 ## Logical components
 
+The approved distribution architecture has four layers:
+
+1. an isolated instance containing Web/Admin, Worker, PostgreSQL state, scheduler/jobs, configuration/secrets, and distribution interfaces;
+2. its instance-owned control plane for Sources/endpoints, collection filters, Categories, Relevance, moderation, duplicates, health/operations, and Distribution Profiles;
+3. named Distribution Profiles that narrow canonically eligible Articles; and
+4. thin PHP+cron, WordPress, RSS/Atom, and custom-application consumers.
+
 ```mermaid
 flowchart LR
     C1[Current JSON consumer /api/feed] --> B[Web/API Application]
@@ -40,11 +47,11 @@ flowchart LR
     B --> O
 ```
 
-The diagram shows future distribution adapters only as an architectural extension point. Their transport, authentication, CORS, caching, profile/configuration, SEO/link, and analytics semantics are not chosen until the pending distribution/SEO architecture decision.
+The diagram shows currently implemented surfaces plus the approved future adapter boundary. Exact transport schema/version/path, authentication, CORS, cache mechanics, profile selectors/persistence, SEO/link policy, and analytics remain unresolved.
 
 ## Deployment boundary
 
-One installation contains one singleton Publication configuration and its Sources/endpoints/Articles/editorial state.
+One instance contains one singleton Publication configuration and its Sources/endpoints/Articles/editorial state. Managed customer instances keep runtime configuration, secrets, persistence, jobs, human access, and machine credentials independently bounded. Several instances MAY share physical infrastructure without sharing customer application/domain state or introducing relational tenancy.
 
 The singleton Publication configuration carries installation-wide news-product settings such as name, `active_for_collection`, `public_status`, branding/presentation, Relevance, Categories, and later distribution settings only when those settings are explicitly governed and implemented.
 
@@ -61,9 +68,11 @@ The current bundled reference page is `GET /`. The current basic JSON outward/fe
 
 These routes are implemented consumers/interfaces, not the definition of the product. A future supported adapter for an existing client website must consume the same governed Article-selection semantics rather than create another eligibility/query authority.
 
-A second topic uses another configured deployment of the same codebase and therefore has separate deployment/runtime state unless a later explicit architecture decision defines shared infrastructure without changing the one-Publication-per-installation product boundary.
+A second topic uses another configured deployment of the same codebase. The managed instance must map naturally to eventual standalone deployment of the complete stack, with no mandatory central News Scraper service for ordinary operation. This architecture does not choose Docker, Compose, Kubernetes, systemd, installer tooling, or supported operating systems.
 
 Multiple distribution consumers for one Publication do not imply or authorize concurrent multi-Publication tenancy.
+
+Distribution Profiles run after canonical Article eligibility and can only narrow it. Every serializer and thin adapter consumes the same profile/read-model authority; adapters may synchronize, cache, and render but cannot own editorial or selection semantics. The existing `public-feed/` module name remains the current canonical outward/public read implementation and is not renamed speculatively.
 
 ## Process boundaries
 

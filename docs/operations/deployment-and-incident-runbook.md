@@ -2,7 +2,9 @@
 
 This provider-neutral procedure covers the repository's actual Node Web process, Node Worker process, and PostgreSQL database. Hosting process-control commands and Cloudflare/origin controls are deployment-specific; this repository does not define Docker, Kubernetes, systemd, or an automatic zero-downtime orchestrator.
 
-Phase 19 completed this pre-production operational validation. The project remains pre-production during Phase 20 until customer-launch acceptance. The `0013` to `0014` exercise proves this procedure against a repository-defined pre-launch state only. It does not make old pre-production databases supported inputs. Phase 20 acceptance identifies the first supported production SHA, package version, schema ledger, and customer data baseline.
+Phase 19 completed the pre-production operational validation. The `0013` to `0014` exercise proved this procedure against a repository-defined pre-launch state only and did not make older pre-production databases supported inputs. Phase 20 was subsequently accepted and established the first supported production SHA, package version, schema ledger, and customer data baseline.
+
+Managed and future self-hosted deployments are modes of the same complete single-Publication stack. This provider-neutral runbook remains applicable at the architectural level; it does not require Docker, Kubernetes, systemd, or any specific self-host packaging. Cloudflare-specific admin steps below describe the current managed/reference deployment. A future self-hosted deployment requires an equivalent governed secure perimeter and its own deployment record.
 
 ## Ordered deployment procedure
 
@@ -19,8 +21,8 @@ Use a change record that never contains secrets.
 9. Start Worker and require `worker.ready`. Observe scheduler, dispatcher, lease, and stale-recovery diagnostics. Startup failure or repeated scheduler/job/recovery failures is a stop/rollback signal.
 10. Through authorized Cloudflare Access, load `/admin`, Operations, Sources/endpoints, and a harmless read. Do not automate an authorized Access identity in the shared validator.
 11. Require no unexplained unhealthy endpoints, scheduling delay, queue age, capacity saturation, expired jobs, or growing failures in Operations. Compare with the pre-deploy snapshot.
-12. Run `npm run deployment:validate -- <private-reference-config.json>` and retain its observations. For Phase 20 launch validation, repeat the authorized-operator and actual origin-protection observations manually against the launched-tree candidate.
-13. Record SHA, package version, runtime/database versions, migration state, backup identifier, process observations, validator output, timestamp, and approver. This is not the Phase 20 production baseline unless Phase 20 is formally accepted.
+12. Run `npm run deployment:validate -- <private-reference-config.json>` and retain its observations. Phase 20 launch validation repeated the authorized-operator and actual origin-protection observations manually against its launched-tree candidate; later deployments must repeat evidence appropriate to their own perimeter.
+13. Record SHA, package version, runtime/database versions, migration state, backup identifier, process observations, validator output, timestamp, and approver. Phase 20 acceptance already owns the initial production-baseline record; this step records the current deployment event.
 
 ## Rollback decisions
 
@@ -43,7 +45,7 @@ Use a private credential-free configuration:
 }
 ```
 
-Run `npm run deployment:validate -- <path>`. Both distinct targets are required. Redirects are not followed. Output contains check, classification, status, and safe redirect origin only; paths, queries, bodies, cookies, and credentials are omitted. A public redirect needs review. A public-host admin redirect is an observed unauthenticated challenge, not proof of authorized access. A direct-origin redirect is inconclusive and fails; an unreachable or denied origin passes this bounded check. Phase 20 launch validation must reconfirm the real Tunnel/firewall/authenticated-origin/equivalent mechanism and observe authorized access against the launched-tree candidate.
+Run `npm run deployment:validate -- <path>`. Both distinct targets are required. Redirects are not followed. Output contains check, classification, status, and safe redirect origin only; paths, queries, bodies, cookies, and credentials are omitted. A public redirect needs review. A public-host admin redirect is an observed unauthenticated challenge, not proof of authorized access. A direct-origin redirect is inconclusive and fails; an unreachable or denied origin passes this bounded check. Phase 20 launch validation reconfirmed the real Tunnel/firewall/authenticated-origin/equivalent mechanism and observed authorized access against its launched-tree candidate; later deployment claims require equivalent current evidence.
 
 ## Incident runbooks
 
@@ -75,9 +77,9 @@ Keep admin disabled or origin-inaccessible instead of bypassing Access. Through 
 
 Find the stable Article ID in Admin and use existing visibility moderation to hide it with a reason. Do not delete Source instances, observations, duplicate membership, or audit history. Confirm removal from the ordinary feed. Restore only through the same governed authority.
 
-## Reference operations record required for Phase 20 launch
+## Reference operations record established for Phase 20 launch
 
-Reconfirm the deployment-specific values recorded during Phase 19; shared engine code intentionally defines no universal defaults:
+Phase 20 reconfirmed the deployment-specific values recorded during Phase 19. Later deployments must maintain/reconfirm their applicable record; shared engine code intentionally defines no universal defaults:
 
 - monitoring/alert owner and escalation path;
 - recovery incident commander and database/Cloudflare owners;

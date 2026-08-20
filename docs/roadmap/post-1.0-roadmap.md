@@ -1,6 +1,6 @@
 # Post-1.0 Roadmap
 
-**Status:** PAUSED — owner-approved product-direction reset in progress.  
+**Status:** PAUSED — macro distribution/deployment architecture approved; remaining design and replacement roadmap pending.
 **Current package version:** `1.0.1`.  
 **Current implementation phase:** none.  
 **Last implemented roadmap work:** former Phase 0 / P1 — server-rendered root, shipped as `1.0.1`.  
@@ -21,24 +21,37 @@ The Platform is now governed by:
 
 The former frontend-first post-1.0 sequence is therefore **retired as an implementation plan**. It is retained below only as planning history so the repository does not pretend those ideas were never considered.
 
-No implementation prompt stack may be generated or executed from this file until the distribution-method and SEO architecture investigation is complete and an owner-approved replacement roadmap has been documented.
+No implementation prompt stack may be generated or executed from this file until the remaining architecture gate is complete and an owner-approved replacement roadmap has been documented.
 
 `1.0.2` is **not reserved or assigned** by the retired Phase 0 closeout. The next version must be derived from the replacement roadmap rather than inferred from the old sequence.
 
-## Product-direction gate before implementation resumes
+## Approved macro architecture
+
+The 2026-08-20 owner-approved architecture now locks:
+
+- managed-first/self-hostable complete single-Publication instances;
+- an instance-owned customer control plane;
+- post-eligibility named Distribution Profiles;
+- generic PHP package plus cron, WordPress plugin, and RSS/Atom fallback families;
+- thin adapters sharing canonical profile/read-model semantics;
+- custom applications as first-class consumers; and
+- customer presentation freedom with safe first-party fallbacks.
+
+This approval does not mean those features are implemented and assigns no version.
+
+## Remaining gate before implementation resumes
 
 Before `/prompt-ass` resumes for roadmap implementation, complete this documentation/design sequence:
 
-1. investigate viable distribution methods for existing websites/CMS consumers;
-2. investigate SEO/backlink behavior and constraints for those methods;
-3. decide the canonical external distribution boundary and adapter strategy;
-4. decide any required security/authentication/CORS/rate-limit/cache compatibility boundary;
-5. decide whether consumer-specific distribution profiles or exclude-self/source-sharing semantics are required;
-6. update the governing contracts/ADRs through `/docs-review` → explicit approval → `/docs-apply`;
-7. write and approve a replacement post-1.0 implementation roadmap;
-8. only then resume `/prompt-ass` → `/prompt-plan` → `/prompt-write`.
-
-The investigation must not assume that RSS, server-side JSON consumption, JavaScript widgets, iframes, CMS plugins, or another method is preferred before evidence is gathered. It also must not promise SEO value merely because a link is technically rendered somewhere.
+1. define the exact Distribution Profile selector contract and persistence shape;
+2. define external JSON/API schema, versioning, and path;
+3. define machine authentication and authorization separation;
+4. define cache freshness, validation, locking, and retry behavior;
+5. decide RSS public/private/authenticated behavior;
+6. decide link/SEO policy without promising performance;
+7. decide self-hosted administrator authentication and packaging details needed for sequencing;
+8. update governing contracts/ADRs, then write and approve a replacement roadmap;
+9. only then resume `/prompt-ass` → `/prompt-plan` → `/prompt-write`.
 
 ## Preserved laws during the roadmap reset
 

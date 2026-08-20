@@ -17,15 +17,17 @@ Both currently consume the same canonical outward/public Article-selection seman
 
 The accepted `1.0.0` customer launch established the first supported production source/version/schema baseline. Post-1.0 server-rendering work then shipped at package version `1.0.1`.
 
-On 2026-08-19 the repository owner approved a product-direction shift toward the headless aggregation/distribution core after the original client identified integration into an existing website and cross-source outbound-link distribution as the primary use case.
+On 2026-08-19 the repository owner approved a product-direction shift toward the headless aggregation/distribution core. On 2026-08-20 the owner locked the managed-first/self-hostable macro architecture, Distribution Profiles, thin PHP/WordPress/RSS adapter directions, and customer presentation freedom.
 
-The previous frontend-centric post-1.0 roadmap is now paused. There is **no active implementation phase and no assigned next implementation version** until the distribution-method and SEO architecture investigation is complete and a replacement roadmap is approved. The former Phase 0 P2/`1.0.2` closeout was intentionally retired without execution.
+The previous frontend-centric post-1.0 roadmap remains paused. There is **no active implementation phase and no assigned next implementation version** until the remaining profile/API/security/cache/SEO decisions and a replacement roadmap are approved. The former Phase 0 P2/`1.0.2` closeout was intentionally retired without execution.
 
 Current product authority is:
 
 - `docs/contracts/project-contract.md`;
 - `docs/contracts/product-scope-and-users.md`;
+- `docs/contracts/distribution-and-integration-contract.md`;
 - `docs/decisions/headless-distribution-product-boundary.md`;
+- `docs/decisions/managed-first-self-hostable-distribution-architecture.md`;
 - `docs/roadmap/post-1.0-roadmap.md`.
 
 Detailed MVP history, including the qualified Phase 9 and Phase 14 owner acceptances, remains in `docs/roadmap/mvp-roadmap.md` and `docs/validation/`. Historical validation remains evidence only for the exact source tree and environment recorded.
@@ -33,21 +35,15 @@ Detailed MVP history, including the qualified Phase 9 and Phase 14 owner accepta
 ## Architecture
 
 ```text
-                    Supported outward consumers
-                  /            |              \
-      JSON/feed interface   reference UI   future adapters
-                  \            |              /
-                 canonical outward read semantics
+isolated News Scraper instance
+  Web/Admin + Worker + PostgreSQL + scheduler/jobs + config/secrets + interfaces
                               |
-Cloudflare Access-protected Admin UI/API
-                \             |
-                 -------- Web/API --------
+instance-owned control plane
+  Sources/endpoints + filters + Categories/Relevance + moderation/duplicates + health
                               |
-                          PostgreSQL
+Distribution Profiles (post-canonical-eligibility narrowing)
                               |
-                  durable jobs/scheduler
-                              |
-                           Worker
+thin adapters: PHP+cron | WordPress | RSS/Atom | custom applications
                               |
        approval + state + lock + network safety
                               |
@@ -66,7 +62,7 @@ Web/API serves normalized admin/outward read models and never collects Sources i
 
 The reader destination is stored Article `original_url`; canonicalized URLs remain identity fields. Article identity answers whether one Source instance was already stored, while duplicate grouping relates separately retained Articles across Sources. Collection trust and future consumer-specific distribution selection are separate concerns.
 
-The exact future distribution methods, authentication/CORS/rate-limit/cache strategy, feed-profile model, backlink/SEO behavior, and analytics model are deliberately unresolved until the follow-up architecture review.
+The macro distribution architecture is approved but unimplemented. Exact profile selectors/persistence, JSON schema/version/path, machine authentication, cache mechanics, RSS access, self-host packaging/authentication, CORS/rate limits, analytics, and SEO/link policy remain unresolved. Managed service means the complete self-hostable product operated for the customer; it is not a mandatory central-cloud dependency. Customers may replace first-party markup while News Scraper retains governed selection semantics.
 
 See `docs/architecture/system-architecture.md` and the contracts/ADRs for authoritative detail.
 
@@ -109,12 +105,14 @@ Start every repository-aware session with `BOOT.md`, which routes to the narrowe
 - `docs/contracts/source-and-collection-contract.md` — Source trust, network safety, adapters, pipeline, and run accounting.
 - `docs/contracts/article-lifecycle-and-deduplication.md` — visibility, duplicate review/groups, and Primary behavior.
 - `docs/contracts/public-feed-and-admin-contract.md` — current `/` reference-frontend and `/api/feed` behavior plus admin UX; its product-surface interpretation is narrowed by the headless-distribution ADR.
+- `docs/contracts/distribution-and-integration-contract.md` — Distribution Profile ordering, thin adapters, presentation ownership, cache direction, and unresolved integration details.
 - `docs/contracts/testing-and-validation-contract.md` — regression and evidence requirements.
 - `docs/architecture/system-architecture.md` — process, module, pipeline, scheduling, and transaction ownership for the implemented system.
 - `docs/operations/` — onboarding, security/reliability, backup/restore, deployment, rollback, and incidents.
 - `docs/roadmap/mvp-roadmap.md` — completed MVP phase history and exit gates through the `1.0.0` release.
 - `docs/roadmap/post-1.0-roadmap.md` — current paused roadmap state and the gate for the distribution/SEO architecture reset.
 - `docs/decisions/headless-distribution-product-boundary.md` — Accepted headless product/output boundary decision.
+- `docs/decisions/managed-first-self-hostable-distribution-architecture.md` — Accepted managed/self-hostable instance and integration architecture.
 - `docs/decisions/` — other Accepted and superseded architectural decisions.
 - `docs/design/` — presentation guidance and the isolated `ui-polish` workflow for the bundled/reference frontend.
 

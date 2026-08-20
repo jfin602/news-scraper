@@ -1,6 +1,6 @@
 # PostgreSQL backup, restore, and retention
 
-This procedure was established and validated during Phase 19 and remains the governed backup/restore/retention procedure for Phase 20 launch validation. It does not establish the first supported production baseline; Phase 20 acceptance owns that boundary.
+This procedure was established and validated during Phase 19 and was reconfirmed for the accepted Phase 20 launch. Phase 20 acceptance established the first supported production baseline; this runbook preserves that governed backup/restore/retention behavior.
 
 Deployment ordering, schema rollback decisions, and incident procedures are in [deployment-and-incident-runbook.md](deployment-and-incident-runbook.md).
 
@@ -37,7 +37,7 @@ npm run db:backup:prune -- <backup-directory> <keep-count>
 npm run db:backup:prune -- <backup-directory> <keep-count> --apply
 ```
 
-Only archive/manifest pairs matching the managed filename format and valid checksum are candidates. Foreign files are ignored. Symlinked directories or artifacts, malformed metadata, and invalid counts fail before deletion. Phase 19 recorded the reference deployment's retention count, storage/encryption controls, backup schedule, RPO, RTO, monitoring, and recovery ownership; Phase 20 launch validation must reconfirm those deployment-specific values and record any intentional change before launch acceptance.
+Only archive/manifest pairs matching the managed filename format and valid checksum are candidates. Foreign files are ignored. Symlinked directories or artifacts, malformed metadata, and invalid counts fail before deletion. Phase 19 recorded the reference deployment's retention count, storage/encryption controls, backup schedule, RPO, RTO, monitoring, and recovery ownership; accepted Phase 20 launch validation reconfirmed those deployment-specific values. Later operators record intentional changes through the governed operations process.
 
 ## Recovery validation
 

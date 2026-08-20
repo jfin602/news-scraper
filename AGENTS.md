@@ -4,7 +4,7 @@
 
 News Scraper is a reusable, topic-independent **headless news aggregation and distribution Platform**. Each installation hosts exactly one Publication/topic; another topic uses another configured deployment of the shared codebase. Publication is singleton editorial/configuration state, not a relational tenant key. The administrator surface is the control plane. Current implemented outward consumers are `GET /api/feed` plus the bundled/reference `GET /` frontend; neither requires a reader-selectable Publication.
 
-Read `BOOT.md` first and route through `docs/README.md` to the narrowest authority. `docs/contracts/project-contract.md` owns locked laws and top-level invariants; `docs/contracts/product-scope-and-users.md` owns current product scope; specialized contracts own behavior; Accepted ADRs own architectural decisions; `docs/decisions/headless-distribution-product-boundary.md` owns the current product/output boundary; `docs/contracts/testing-and-validation-contract.md` owns proof; `docs/roadmap/mvp-roadmap.md` owns completed MVP history; `docs/roadmap/post-1.0-roadmap.md` owns the current paused post-1.0 roadmap state. Historical validation records only what was observed at its exact SHA/environment and never redefines current contracts.
+Read `BOOT.md` first and route through `docs/README.md` to the narrowest authority. `docs/contracts/project-contract.md` owns locked laws and top-level invariants; `docs/contracts/product-scope-and-users.md` owns current product scope; `docs/contracts/distribution-and-integration-contract.md` owns Distribution Profile/adapter behavior; Accepted ADRs own architecture, including the headless boundary and managed-first/self-hostable decision; the testing contract owns proof; the roadmap documents own historical/current state.
 
 If work conflicts with a locked law, report the conflict. Do not silently treat code, a summary, or historical evidence as higher authority.
 
@@ -19,7 +19,7 @@ Follow `BOOT.md`.
 - Terminal MVP Phase 21 `/closeout` is complete: it performed the version-only transition from the validated `0.21.11` tree to `1.0.0`, created no Phase 22/`0.22.0` baseline, and closed the MVP roadmap.
 - Former post-1.0 Phase 0 P1 shipped the server-rendered root at `1.0.1`.
 - Before the planned Phase 0 P2 closeout executed, the owner approved the headless distribution product shift. That P2 was retired; `1.0.2` is not reserved by it.
-- The active post-1.0 roadmap is paused pending distribution-method and SEO architecture review plus an owner-approved replacement roadmap. Do not run `/prompt-ass`, `/prompt-plan`, `/prompt-write`, or old `p1-0` closeout work as roadmap implementation while that pause remains.
+- The active post-1.0 roadmap remains paused. Macro distribution/deployment architecture is approved, but remaining profile/API/security/cache/RSS/SEO/self-host details and an owner-approved replacement roadmap are required before roadmap prompts resume.
 - Use `docs/codex-model-selection.md` for detailed minimum-cost-adequate model/reasoning/usage policy.
 
 ## Versioning and task-stack grammar
@@ -74,7 +74,7 @@ Always preserve these boundaries and read the routed contract for detail:
 - The headless product shift does not authorize concurrent multi-Publication hosting. One Publication/topic per deployment remains the supported data model.
 - The administrator UI/API is the control plane. The bundled `/` frontend is a supported reference/standalone consumer; `GET /api/feed` is a current JSON outward surface. Future distribution adapters must reuse canonical outward Article-selection semantics rather than invent competing eligibility, duplicate, moderation, ordering, or destination rules.
 - Collection trust and distribution selection are distinct. Source approval authorizes governed collection/trust; it does not automatically require every future consumer to receive every eligible Article from that Source.
-- Do not choose or implement RSS output, widgets, iframe delivery, CMS plugins, API-key/CORS/rate-limit/cache behavior, distribution profiles, backlink-exchange logic, link `rel` policy, analytics, or SEO guarantees before the required distribution/SEO architecture decision and replacement roadmap.
+- Distribution Profiles plus PHP+cron, WordPress, RSS/Atom, and custom-application families are approved but unimplemented. Do not implement them while the roadmap is paused or invent unresolved selector/schema/API/auth/cache/RSS-access/packaging/SEO details.
 - Source is the approved publisher/trust boundary; endpoint is its concrete feed/API/HTML location. Approval, lifecycle, operational state, and derived health are distinct.
 - Only approved, active, enabled Sources/endpoints are collectable while singleton Publication collection is active. Bootstrap never auto-discovers/auto-approves, infers trust from fetch success, widens domains silently, or overwrites later operator state.
 - Every request and redirect hop passes approval plus DNS/address/port/SSRF checks before contact. Normalized Article links pass the separate Source/domain policy gate. Endpoint policy may narrow the Source maximum, never widen it.
@@ -84,9 +84,9 @@ Always preserve these boundaries and read the routed contract for detail:
 - Article visibility and duplicate role are independent. Collection activity, endpoint operational state, and current run health do not themselves hide retained otherwise-eligible rows.
 - Preserve Source/endpoint/run/Article/observation relationships and provenance. Source failures remain isolated; Web/API never collects Sources inline.
 - Reader/headline destinations use stored `original_url`; `canonical_identity_url` remains an identity field. `/api/feed` and `/` currently share the canonical public/outward read model rather than parallel eligibility/query paths.
-- Admin uses Cloudflare Access with direct-origin protection, request-integrity controls, and application validation of real resource relationships/domain invariants. Do not add speculative native account/session/role or Publication-tenant authorization systems.
+- The current managed/reference admin uses Cloudflare Access with direct-origin protection, request integrity, and real relationship validation. Cloudflare is not mandatory for future self-hosting; machine credentials never imply admin authority.
 
-The eleven locked laws remain authoritative in `docs/contracts/project-contract.md`; this guardrail list does not replace them.
+The thirteen locked laws remain authoritative in `docs/contracts/project-contract.md`; this guardrail list does not replace them. Laws 12–13 require a complete independently operable single-Publication stack and customer presentation freedom through safe fallbacks plus extension/normalized-data paths.
 
 ## Production compatibility
 
@@ -113,7 +113,7 @@ The MVP roadmap is complete through terminal Phase 21 and the supported producti
 
 **Current package version:** `1.0.1`  
 **Current roadmap:** `docs/roadmap/post-1.0-roadmap.md`  
-**Current implementation phase:** **none — roadmap paused for distribution/SEO architecture reset**
+**Current implementation phase:** **none — roadmap paused after macro architecture approval**
 
 Former post-1.0 Phase 0 P1 shipped the server-rendered root at `1.0.1`. Its unexecuted P2 closeout was retired when the owner approved the headless product shift. No future version is assigned until a replacement roadmap is approved.
 
@@ -123,7 +123,7 @@ Use `docs/roadmap/mvp-roadmap.md` for detailed completed MVP history and `docs/r
 
 UI work is governed by `docs/design/ui-workflow.md` on permanent branch `ui-polish`. Keep it in a separate worktree from active roadmap/correction runner work. It is non-versioned and does not advance roadmap/correction state.
 
-The integrated public UI is now the bundled/reference frontend rather than the Platform's primary product identity. Presentation-only refinement may continue only within explicitly approved UI scope and must not preempt the pending distribution/SEO architecture decisions.
+The integrated public UI is the bundled/reference frontend rather than the Platform's primary product identity. Presentation-only refinement may continue only within explicitly approved UI scope; integration presentation belongs to Law 13/the distribution contract and remaining lower-level decisions must not be preempted.
 
 Normal path: `/ui-plan` → `/ui-write`. If durable design guidance is missing, contradictory, materially ambiguous, or must change: `/ui-review` → explicit approval → `/ui-apply` → rerun `/ui-plan` → `/ui-write`. A blocked earlier plan never authorizes writing. Do not force-update shared history or merge `ui-polish` automatically; prompt completion does not imply integration.
 

@@ -12,15 +12,19 @@ It establishes project identity, canonical terminology, authority, document rout
 - Working product/repository name: News Scraper
 - Platform: reusable, topic-independent **headless news aggregation and distribution Platform**
 - Product core: approved-Source collection → normalization → persistence/provenance → Relevance/Categories → duplicate/moderation → canonical outward Article read semantics
-- Admin role: Cloudflare Access-protected control plane for singleton Publication/Source/endpoint/Relevance/Category/Article/duplicate/health/change-history state
+- Admin role: instance-owned control plane; Cloudflare Access protects the current managed/reference deployment, while future self-hosting requires a governed secure perimeter
+- Distribution architecture: canonical eligibility → named Distribution Profile → shared serializer/interface → thin PHP+cron, WordPress, RSS/Atom, or custom-application consumer
+- Deployment direction: managed-first/self-hostable-by-design complete isolated single-Publication instances; managed service is that stack operated for the customer
 - Current outward surfaces: `GET /api/feed` JSON plus bundled/reference `GET /` frontend
 - Deployment cardinality: exactly one Publication/topic per deployed installation
 - Topic reuse model: configure and deploy another installation of the same shared codebase; do not concurrently host multiple topic Publications in one installation
 - Publication data-model role: singleton editorial/configuration state, **not** a relational tenant/ownership key
 - Current product scope: **`docs/contracts/product-scope-and-users.md`**
 - Current product-boundary ADR: **`docs/decisions/headless-distribution-product-boundary.md`**
+- Current distribution contract: **`docs/contracts/distribution-and-integration-contract.md`**
+- Current deployment/distribution ADR: **`docs/decisions/managed-first-self-hostable-distribution-architecture.md`**
 - Current roadmap: **`docs/roadmap/post-1.0-roadmap.md`**
-- Current roadmap state: **PAUSED — distribution-method and SEO architecture reset**
+- Current roadmap state: **PAUSED — macro distribution architecture approved; remaining lower-level decisions and replacement roadmap pending**
 - Current implementation phase: **none**
 - Current package version: **`1.0.1`**
 - Next implementation version: **unassigned until a replacement roadmap is approved**
@@ -45,7 +49,7 @@ The MVP roadmap is complete and the supported production baseline remains the ac
 
 Before its planned P2 closeout executed, the repository owner approved a foundational product-direction change: the collection/normalization/editorial/distribution core is now the product, the admin UI/API is its control plane, and the bundled public frontend is one supported consumer rather than the universal customer presentation.
 
-The current roadmap is therefore paused. **Do not generate or execute roadmap implementation prompts while the pause remains.** The next work is the distribution-method and SEO architecture investigation, followed by `/docs-review` → explicit approval → `/docs-apply` to lock the concrete decisions and replacement roadmap. Do not infer a next version from the retired Phase 0 sequence.
+The current roadmap remains paused. **Do not generate or execute roadmap implementation prompts while the pause remains.** The managed/self-hostable instance model, Distribution Profiles, initial adapter families, and presentation boundary are now locked. Remaining profile selector/API/auth/cache/RSS/SEO/self-host packaging decisions and an owner-approved replacement roadmap are still required. Do not infer a next version from the retired Phase 0 sequence.
 
 During this pause, ordinary documentation/research work remains non-versioned. Correction stacks may be used only for separately owner-approved bounded regressions/repairs; they must not be used to smuggle product development around the roadmap gate.
 
@@ -59,10 +63,12 @@ For project-wide work refresh:
 4. `docs/contracts/project-contract.md`
 5. `docs/contracts/product-scope-and-users.md`
 6. `docs/decisions/headless-distribution-product-boundary.md`
-7. `docs/roadmap/post-1.0-roadmap.md`
-8. narrowest governing contract/ADR, including `docs/contracts/testing-and-validation-contract.md` for implementation/review work
-9. relevant implementation/tests
-10. recent commits affecting the area when recency matters
+7. `docs/decisions/managed-first-self-hostable-distribution-architecture.md`
+8. `docs/contracts/distribution-and-integration-contract.md`
+9. `docs/roadmap/post-1.0-roadmap.md`
+10. narrowest governing contract/ADR, including `docs/contracts/testing-and-validation-contract.md` for implementation/review work
+11. relevant implementation/tests
+12. recent commits affecting the area when recency matters
 
 Use `docs/contracts/mvp-scope-and-users.md`, `docs/roadmap/mvp-roadmap.md`, and `docs/validation/` when completed MVP intent/history, historical correction scope, or pre-1.0 exit-gate evidence is material.
 
@@ -72,12 +78,15 @@ Do not read every document indiscriminately. Use routing below. A full `/docs-re
 
 ## Canonical terminology
 
-Governed by `docs/contracts/domain-and-data-contract.md`, `docs/contracts/product-scope-and-users.md`, `docs/decisions/single-publication-simplified-data-model.md`, and `docs/decisions/headless-distribution-product-boundary.md`.
+Governed by `docs/contracts/domain-and-data-contract.md`, `docs/contracts/product-scope-and-users.md`, `docs/contracts/distribution-and-integration-contract.md`, and the current Accepted ADRs.
 
 - `repo` / `source code` = `jfin602/news-scraper`
 - `Platform` = reusable headless aggregation/distribution software deployed/configured separately for different topics
 - `Publication` = the singleton configured news product/editorial configuration for one installation; **not** a relational tenant/ownership key
 - `control plane` = protected administrator UI/API governing Publication, Source, endpoint, editorial, moderation, duplicate, and operational state
+- `News Scraper instance` = independently bounded complete single-Publication stack; managed instances may share physical infrastructure without sharing customer application/domain state
+- `Distribution Profile` = named administrator-controlled selection that can only narrow canonically eligible Article output
+- `integration adapter` = thin transport/sync/cache/rendering consumer that cannot own editorial, eligibility, duplicate, or profile semantics
 - `canonical outward Article read semantics` = the governed Article-selection boundary that outward consumers must reuse for trust/visibility/duplicate/destination behavior; the current implementation is the existing public-feed read model
 - `reference frontend` = the bundled first-party `GET /` public feed; supported but not the Platform's primary product identity
 - `distribution consumer` = a supported outward interface/site/adapter that consumes governed normalized Article output without owning collection or duplicating canonical Article-selection rules
@@ -179,7 +188,7 @@ Read the routed contract for full matrices and algorithms. BOOT keeps only disti
 - The administrator surface is the control plane. The bundled `GET /` frontend remains supported as a reference/standalone consumer; `GET /api/feed` remains a current JSON outward interface.
 - Future outward adapters must reuse canonical Article-selection/read semantics. They MUST NOT invent competing Source-trust, Article-visibility, duplicate-suppression, moderation, ordering, or reader-destination rules.
 - Collection trust and distribution selection are separate. Source approval authorizes governed collection/trust; it does not automatically make a Source mandatory in every future consumer output.
-- Until the pending distribution/SEO architecture review is approved, do not choose or implement RSS output, server-side integration APIs beyond current behavior, JavaScript widgets, iframe delivery, CMS plugins, consumer auth/API keys, CORS, rate limits, caching/CDN rules, distribution profiles, exclude-self/source-exchange logic, link `rel` policy, analytics, or SEO/backlink guarantees.
+- The macro distribution architecture is approved but unimplemented. While the roadmap is paused, do not implement Distribution Profiles or PHP/WordPress/RSS adapters, and do not choose unresolved selectors, schemas/paths, machine auth, CORS/rates, cache mechanics, RSS access, self-host packaging/authentication, widgets/iframes, analytics, or SEO/link guarantees outside the governing docs process.
 - Do not introduce Publication IDs/slugs/FKs/joins/uniqueness scopes/repository or authorization parameters/compatibility aliases solely for hypothetical concurrent hosting. Preserve genuine Source/endpoint/run/Article/observation relationships.
 - Source is the approved publisher/trust boundary; endpoint is its concrete feed/API/HTML location. Approval, lifecycle, operational state, and derived health are separate.
 - Collection requires singleton Publication collection-active state plus approved, active, enabled Source/endpoint state. Bootstrap never auto-discovers/auto-approves, infers approval from fetch success, silently widens domains, or overwrites operator-managed state.
@@ -568,7 +577,7 @@ After writing, perform applicable runner prompt-file grammar check before report
 
 Detailed authority is `docs/design/ui-workflow.md`. `main` is authoritative integration; presentation work uses permanent branch `ui-polish` and a separate worktree whenever roadmap/correction runner work is active. UI work is non-versioned, does not consume roadmap/correction numbers or advance their state, and is never merged automatically. Refresh/integrate current `main` non-destructively before new UI work and re-plan when relevant drift changes the boundary.
 
-The integrated Phase 13/`1.0.1` presentation is the baseline for the **bundled/reference frontend**. UI work does not define presentation for future client-site integrations and must not preempt the pending distribution/SEO architecture decisions.
+The integrated Phase 13/`1.0.1` presentation is the baseline for the **bundled/reference frontend**. UI work does not govern client-site integrations; their presentation freedom belongs to Law 13 and the distribution contract, and remaining lower-level decisions must not be preempted.
 
 Normal path:
 
@@ -693,7 +702,7 @@ Historical Phase 10 singleton-correction prompts established the smallest canoni
 - No parser-to-Article direct persistence.
 - No Web/API inline Source fetching.
 - No distribution adapter-owned reimplementation of canonical Article eligibility/duplicate/moderation/destination semantics.
-- No unresolved widget/RSS/iframe/CMS/auth/CORS/rate-limit/cache/profile/backlink/analytics/SEO behavior before the governing distribution/SEO decision.
+- No implementation of unresolved widget/iframe, exact profile/API/auth/CORS/rate-limit/cache/RSS-access/packaging/backlink/analytics/SEO behavior before its governing decision and replacement roadmap.
 - No bypass of Relevance boundary even before configurable rules exist.
 - No Relevance path that runs after identity merely to make exclusion easier; excluded candidates terminate before identity under the governing contract.
 - No automatic historical Article mutation caused merely by editing a Relevance rule.

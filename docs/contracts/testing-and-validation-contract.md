@@ -561,6 +561,20 @@ A reviewer MUST NOT approve a change solely because its requested feature appear
 
 ## Specialized validation plans
 
+### Distribution and self-hosting validation when implemented
+
+Distribution claims require focused proof at the producer boundary and the evidence level appropriate to each consumer:
+
+- prove canonical outward eligibility precedes Distribution Profile selection and that profile selection can only narrow output;
+- prove every serializer/adapter receives the same governed profile semantics and cannot resurrect ineligible rows;
+- prove profile changes propagate only through canonical profile output and presentation customization cannot redefine selection;
+- use Level 6 browser/returned-HTML evidence to show first-party PHP/WordPress output contains ordinary direct publisher links without requiring JavaScript for core feed output;
+- prove a valid last-known-good cache survives synchronization failure and invalid/partial responses cannot replace it;
+- prove machine distribution credentials cannot perform administrator operations;
+- before claiming self-host support, use deployment-appropriate evidence that ordinary collection, administration, persistence, moderation, and distribution operate without a mandatory central News Scraper service.
+
+These expectations do not renumber or reinterpret historical evidence levels and apply only when the corresponding features exist.
+
 Create `docs/testing/` plans only when a feature or phase has enough specialized validation detail to justify one.
 
 Do not create empty placeholders. Specialized plans may define concrete fixture matrices, browser viewport matrices, live-Source procedures, security attack cases, or release/reference-deployment checklists, but they remain subordinate to this contract.

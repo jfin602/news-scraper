@@ -4,7 +4,7 @@
 
 This document defines the durable visual treatment of the **bundled/reference public frontend** established in Phase 13 and preserved through the `1.0.1` server-rendering work. Higher-authority product/domain contracts, the roadmap, ADRs, and testing contract remain authoritative for behavior.
 
-The 2026-08-19 headless product shift does not remove or de-support this frontend. It changes its product role: the Platform core is collection, normalization, editorial control, persistence, deduplication, and governed distribution; this frontend is one supported consumer of that core. This document does not prescribe the presentation of a client's existing website, CMS, widget, or other future integration.
+The 2026-08-19 headless product shift does not remove or de-support this frontend. It changes its product role: the Platform core is collection, normalization, editorial control, persistence, deduplication, and governed distribution; this frontend is one supported consumer of that core. This document does not prescribe integration presentation. Customer freedom to replace PHP/WordPress fallback markup or consume normalized data directly is governed by Project Contract Law 13 and `docs/contracts/distribution-and-integration-contract.md`.
 
 Visual direction for the bundled/reference frontend: **modern editorial / publication desk**. Within this frontend, the Publication and its headlines should remain the visual focus. Avoid generic SaaS-dashboard framing, card-heavy news-portal styling, sidebars, glassmorphism, heavy shadows, decorative gradients, zebra tables, and unrelated application chrome.
 
@@ -105,7 +105,7 @@ The reference frontend targets WCAG 2.2 AA: semantic/native controls, coherent k
 
 This specification does not authorize changes to feed eligibility/order, discovery/cursor/history semantics, Publication admin UI, configurable timezone/date behavior, duplicate moderation, featured ordering, Article-body republishing, Article thumbnails/images, remote font dependencies, or topic-specific shared-engine/UI behavior.
 
-It also does not define or authorize future client-site integration presentation, widget styles, iframe behavior, CMS components, distribution transports, backlink/SEO behavior, or consumer-specific feed/profile semantics. Those belong to the pending distribution/SEO architecture work.
+It also does not govern client-site integration presentation, widget styles, iframe behavior, CMS components, distribution transports, backlink/SEO behavior, or Distribution Profile semantics. Those belong to the distribution contract and its remaining lower-level decisions.
 
 ## Validation intent
 

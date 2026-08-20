@@ -6,6 +6,8 @@ Design documentation is subordinate to the product/domain contracts, Accepted AD
 
 For public-feed behavior, `docs/contracts/public-feed-and-admin-contract.md` remains authoritative. Design documents may specify typography, spacing, responsive layout, visual hierarchy, interaction presentation, loading/empty/error presentation, accessibility presentation, and other visual treatment around that behavior.
 
+Customer/integration presentation is outside `ui-polish` reference-frontend authority. It is governed by Project Contract Law 13 and `docs/contracts/distribution-and-integration-contract.md`; customers may replace first-party fallback markup without redefining Article/profile selection.
+
 ## Files
 
 - `public-feed-presentation.md` — durable public-feed visual/presentation guidance for Phase 13 and later presentation work, including layout, typography, themes, states, responsive behavior, accessibility presentation, and design tokens.

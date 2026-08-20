@@ -5,7 +5,7 @@
 **Repository:** `jfin602/news-scraper`  
 **Initial Publication:** Indie-author publishing industry news  
 **Established:** 2026-08-06  
-**Product-direction amendment:** 2026-08-19
+**Product-direction amendments:** 2026-08-19 and 2026-08-20
 
 ## Product definition
 
@@ -15,7 +15,7 @@ The Platform core is the collection, normalization, persistence, editorial/moder
 
 The indie-author Publication is the first configuration of the Platform, not the identity of the aggregation engine. Reuse occurs by configuring and deploying another installation of the same codebase for another topic; one deployed installation does not concurrently host multiple topic Publications.
 
-The current distribution methods beyond the existing `/api/feed` and bundled `/` reference frontend are intentionally not locked by this contract. Server-side integrations, outbound feeds, widgets, authentication, caching, CORS, feed profiles, analytics, and SEO/link behavior require the later distribution/SEO architecture decision before implementation.
+The managed-first/self-hostable macro architecture and initial PHP, WordPress, RSS/Atom, and custom-application integration families are locked by Laws 12–13 and the distribution contract. Their exact profile selectors, API/schema, authentication, cache mechanics, packaging, and SEO/link policy remain unresolved and unimplemented.
 
 ## Locked project laws
 
@@ -30,6 +30,8 @@ The current distribution methods beyond the existing `/api/feed` and bundled `/`
 9. **A failing Source must not interrupt collection from other Sources.**
 10. **Near-real-time means configurable polling unless a Source explicitly supports push delivery.**
 11. **Each deployed installation hosts exactly one Publication/topic. Topic independence means the same shared codebase can be configured and deployed for different topics without topic-specific engine changes; it does not mean one installation concurrently hosts multiple Publications. The Platform's primary product boundary is the governed collection, normalization, persistence, editorial control, and distribution of normalized Article metadata. Supported outward consumers must reuse canonical distribution eligibility/selection semantics rather than introduce competing Article-selection authorities. A bundled first-party public frontend may consume that same boundary but is not the aggregation engine's primary product identity.**
+12. **News Scraper must remain deployable as a complete, independently operable single-Publication stack. The managed service is one deployment model of that same stack, not a separate cloud-dependent product architecture. The managed product is the self-hostable product operated on the customer's behalf. Customer installations must not require a central News Scraper service for ordinary collection, administration, persistence, moderation, or distribution.**
+13. **Customers must retain maximum practical control over presentation of distributed Article data. First-party rendering integrations must provide a safe, functional fallback presentation while also exposing stable extension points or normalized distribution data that allow the customer to replace or bypass the default markup and build a custom presentation without reimplementing collection, eligibility, moderation, duplicate suppression, or Distribution Profile semantics.**
 
 ## Derived invariants
 
@@ -49,6 +51,13 @@ The current distribution methods beyond the existing `/api/feed` and bundled `/`
 - Topic-specific settings are data/configuration, not topic conditionals in shared engine code.
 - Any outward adapter or integration that presents ordinary Article results MUST consume one governed Article-selection/read boundary for eligibility, ordering, moderation, duplicate suppression, and stored `original_url` destination semantics rather than reimplementing those rules independently.
 - The existing `GET /api/feed` JSON endpoint and bundled `GET /` reference frontend remain supported current consumers of the canonical public/outward read semantics. Their existence does not require future client sites to use the bundled frontend.
+- Managed and future self-hosted deployments are modes of the same complete, independently operable single-Publication stack; the approved architecture does not claim self-host packaging is implemented today.
+- Managed customer instances keep configuration, secrets, editorial/persistence state, jobs, human access, and machine credentials independently bounded even when physical infrastructure is shared; this isolation MUST NOT be modeled as relational customer/Publication tenancy.
+- The instance-owned control plane remains authoritative for collection, editorial/moderation, operational configuration, and Distribution Profiles.
+- Distribution Profile selection occurs after canonical outward eligibility and can only narrow it. All serializers and adapters consume that same profile/read-model authority.
+- PHP, WordPress, RSS/Atom, and custom integrations are thin consumers, never competing editorial or eligibility authorities.
+- Customers control integration presentation; safe first-party templates are fallbacks, not mandatory markup.
+- Ordinary collection, administration, persistence, moderation, and distribution MUST NOT depend on a mandatory central News Scraper cloud service.
 - Polling-only Sources are not described as literally real-time.
 - Network-safety validation occurs before each outbound request/redirect; Article-link validation occurs after parsing/normalization before acceptance.
 - Before production database compatibility is established, pre-production architecture favors the smallest canonical model for supported behavior. Migration files, source files, APIs, types, tests, fixtures, configuration paths, and compatibility layers that exist only to support superseded pre-production architecture MUST be removed rather than retained for historical compatibility or speculative future use. Git history, superseded ADRs, historical task prompts, and validation artifacts preserve that history.
@@ -93,6 +102,10 @@ The repository owner explicitly amended Law 11 after the original client identif
 
 The foundational architecture rationale is recorded in `docs/decisions/headless-distribution-product-boundary.md`.
 
+### 2026-08-20 managed-first/self-hostable distribution amendment
+
+The owner added Laws 12 and 13 to lock complete-stack portability and customer presentation freedom. The architectural rationale is recorded in `docs/decisions/managed-first-self-hostable-distribution-architecture.md`; behavioral distribution authority is `docs/contracts/distribution-and-integration-contract.md`. This amendment preserves Laws 1–11 and does not assert that future adapters or self-host packaging are implemented.
+
 ## Product boundaries
 
 ### The Platform is
@@ -100,6 +113,7 @@ The foundational architecture rationale is recorded in `docs/decisions/headless-
 - a controlled-Source Article-metadata aggregator and distribution core;
 - a reusable shell for different subject areas through separate configured deployments;
 - a single-Publication collection/editorial domain with an administrative control plane per deployment;
+- a managed-first, self-hostable-by-design complete stack whose customer instances remain independently bounded;
 - a system that exposes governed normalized outward Article data to supported consumers/integrations;
 - a collection system with observable endpoint health and duplicate handling;
 - optionally a standalone/reference public discovery feed through the bundled first-party frontend.
@@ -115,6 +129,7 @@ The foundational architecture rationale is recorded in `docs/decisions/headless-
 - an automated plagiarism/copyright-ownership judge;
 - a guarantee that every Source update is delivered instantly;
 - a guarantee that every possible integration or backlink pattern provides SEO value; distribution/SEO behavior must be established by the later governing design.
+- a conventional multi-tenant SaaS or a detached self-hosted frontend dependent on a mandatory central engine.
 
 ## Historical MVP Phase 0 acceptance criteria
 

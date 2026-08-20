@@ -6,6 +6,10 @@
 
 The reusable software system that hosts collection, normalization, identity resolution, deduplication, administration, and public-feed capabilities.
 
+### News Scraper instance
+
+One independently bounded deployment of the complete single-Publication stack: Web/Admin, Worker, PostgreSQL state, scheduler/jobs, configuration/secrets, and distribution interfaces. Managed instances MAY share physical infrastructure without sharing customer domain/application state or creating relational tenancy.
+
 ### Publication
 
 The one configured news product for a deployed installation. Publication owns topic-specific editorial configuration such as name, collection/public state, branding, optional presentation timezone, Categories, Relevance rules, Sources, Source priority, and public-feed settings.
@@ -64,6 +68,14 @@ An installation-wide editorial grouping owned by the singleton Publication confi
 
 An installation-wide deterministic rule used to include, exclude, or categorize candidates, optionally scoped to one Source. Each persisted rule has an immutable installation-wide `config_key`. MVP uses a deliberately bounded literal predicate vocabulary rather than a generic expression, fuzzy, regex, semantic, or ranking engine.
 
+### Distribution Profile
+
+A first-class named administrator-controlled outward selection over the singleton Publication's canonically eligible Article corpus. One Publication may own multiple Distribution Profiles without becoming a tenant or multi-Publication installation. Exact fields, selectors, and persistence are intentionally not defined yet.
+
+### Distribution consumer and integration adapter
+
+A distribution consumer receives supported normalized profile output. An integration adapter is a thin transport, synchronization, cache, or rendering layer; it is not an authority for Source trust, Article eligibility, moderation, duplicate selection, or profile interpretation.
+
 ## Relationship boundaries
 
 - The singleton Publication configuration owns installation-wide editorial settings but does not provide a tenant foreign key for other entities.
@@ -73,6 +85,7 @@ An installation-wide deterministic rule used to include, exclude, or categorize 
 - Article observations link Articles/candidate outcomes to the Source endpoint and Collection run that produced them and preserve Source consistency where stored directly.
 - Duplicate groups and Duplicate review candidates relate Articles within the one installation; an Article belongs to at most one Duplicate group, and cross-Publication checks are structurally unnecessary because the installation cannot contain another Publication domain.
 - Administrative commands validate real resource relationships and domain invariants even though MVP does not implement per-user authorization.
+- Distribution Profiles belong conceptually to the singleton Publication configuration, operate only over canonically eligible Articles, and do not add Publication/customer tenant keys.
 
 Do not introduce Publication UUIDs, slugs, foreign keys, composite uniqueness scopes, repository arguments, or compatibility aliases solely to model concurrent Publications that the supported product does not host.
 

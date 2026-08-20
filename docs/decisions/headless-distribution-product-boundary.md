@@ -67,7 +67,13 @@ Where existing documentation describes `/` as the Platform's canonical **product
 
 ## Deliberately unresolved
 
-This ADR does not select or promise:
+### Later decision — 2026-08-20
+
+`managed-first-self-hostable-distribution-architecture.md` and `../contracts/distribution-and-integration-contract.md` now resolve the macro architecture: managed-first/self-hostable single-Publication instances, instance-owned control planes, post-eligibility Distribution Profiles, thin PHP/WordPress/RSS adapter families, custom-application consumption, customer presentation ownership, machine/admin separation, and last-known-good cache direction. This is a later amendment and does not rewrite what was known on 2026-08-19.
+
+Exact profile selectors/persistence, JSON API schema/version/path, credential mechanism, RSS access, cache mechanics, self-host packaging/authentication, and SEO/link policy remain unresolved.
+
+At adoption, this ADR did not select or promise:
 
 - server-side API integration as the primary delivery method;
 - outbound RSS/Atom;

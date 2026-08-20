@@ -17,8 +17,8 @@ This file is the running feature idea log for ideas proposed in this chat.
 - **Status:** Proposed
 - Extend structured-source collection so Articles may carry an optional normalized thumbnail/image URL when the approved Source provides one.
 - Prefer image metadata already exposed by RSS/Atom or another approved structured adapter, such as Media RSS thumbnail/content fields, image enclosures, or equivalent structured fields. Do not fetch Article HTML solely to discover an image as part of the initial implementation.
-- Carry the value through the normal Raw item → Article candidate → persisted Article pipeline, validate and normalize it as untrusted Source-derived metadata, persist it as nullable Article metadata, and expose it through the public feed API.
-- Let the public UI render the remote image as a thumbnail beside an Article when available, with a clean text-only fallback when absent or unusable. The headline must continue linking to the stored original publisher URL.
+- Carry the value through the normal Raw item → Article candidate → persisted Article pipeline, validate and normalize it as untrusted Source-derived metadata, persist it as nullable Article metadata, and expose it through the canonical outward distribution/read-model boundary.
+- Let supported consumers, including integrations and the bundled reference UI, render the remote image when available with a clean text-only fallback. The headline must continue linking to stored `original_url`.
 - Initial scope stores the remote image URL only; it does not download, proxy, cache, transform, or host publisher image bytes. A controlled image proxy/cache may be considered separately if hotlink reliability, privacy, or content-delivery requirements justify it.
 - Keep extraction and normalization topic independent and preserve existing Source approval, provenance, network-safety, idempotency, and feed behavior.
 
@@ -26,7 +26,7 @@ This file is the running feature idea log for ideas proposed in this chat.
 
 - **Status:** Proposed
 - The existing collection pipeline already captures available RSS/Atom description/summary/content metadata, normalizes it into bounded plain-text `Article.summary`, and persists it with the Article. This proposal does **not** add a second description collector or duplicate persisted field.
-- Extend the public Article/read-model boundary so the stored optional Source-derived summary can be used by public presentation and SEO-oriented server-rendered output when available.
+- Extend the canonical outward distribution/read-model boundary so the stored optional Source-derived summary can be consumed by integrations and the bundled reference frontend when available.
 - Preserve the existing bounded/plain-text normalization and treat the value as untrusted Source-derived metadata. Do not render publisher-supplied HTML directly.
 - Missing summaries remain normal and must produce a clean headline-only fallback.
 - Do not fetch Article pages merely to manufacture missing summaries, and do not introduce AI-generated summaries or full Article-body republication.

@@ -6,6 +6,8 @@ It explains how the existing Source and endpoint fields are intended to be used.
 
 ## Mental model
 
+Source onboarding controls collection trust and admission. It does not configure outward Distribution Profile membership; that later, post-eligibility concern is governed by `docs/contracts/distribution-and-integration-contract.md`.
+
 A **Source** is the publisher or outlet that the operator trusts and manages.
 
 A **Source endpoint** is a specific location and method used to collect from that Source, such as an RSS/Atom feed or a configured static HTML listing page.

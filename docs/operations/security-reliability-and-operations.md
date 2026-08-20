@@ -8,6 +8,10 @@ Testing/validation for these controls is governed project-wide by `docs/contract
 
 ## Administrative security
 
+Cloudflare Access remains the accepted administrator perimeter for the current managed/reference deployment, including direct-origin protection and application request-integrity/resource-validation requirements. It is not a mandatory dependency of a future self-hosted stack. Any supported self-hosted deployment MUST have a separately governed secure administrator perimeter before exposure.
+
+Human administrator credentials and machine distribution credentials are separate security boundaries. Machine credentials MUST be least-capability for integration use and MUST NOT implicitly grant administrator authority; compromise of an adapter credential must not authorize Source, editorial, moderation, duplicate, profile, or operations mutations.
+
 MVP administrative UI/API routes use Cloudflare Access as the external authentication/access-control perimeter under `docs/decisions/cloudflare-access-admin-perimeter.md`.
 
 When administrator functionality is introduced, MVP MUST provide:
@@ -66,6 +70,8 @@ Phase 18 static HTML input remains untrusted under this same model. HTML selecto
 HTML parser errors, logs, run diagnostics, and preview responses MUST NOT retain or emit raw page bodies, script contents, secrets, or unbounded extracted content. Ordinary HTML endpoint fetches continue through the same approval, whitelist, DNS/address/port, redirect, rebinding, timeout, and response/decompression protections as other endpoint types; Phase 18 creates no separate security model.
 
 ## Failure isolation
+
+When PHP/WordPress adapters are implemented, their periodic synchronization SHOULD render from a validated local last-known-good cache. A failed, invalid, or partial response MUST NOT replace valid cached data, and stale valid data SHOULD remain renderable. Exact cache representation, TTL, locking, and retry policy remain unresolved.
 
 Before durable jobs exist, each manually invoked endpoint Collection run in the Worker is an independent execution unit and one endpoint failure must not invalidate another run.
 
