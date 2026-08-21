@@ -19,7 +19,7 @@ Follow `BOOT.md`.
 - Terminal MVP Phase 21 `/closeout` is complete: it performed the version-only transition from the validated `0.21.11` tree to `1.0.0`, created no Phase 22/`0.22.0` baseline, and closed the MVP roadmap.
 - Former post-1.0 Phase 0 P1 shipped the server-rendered root at `1.0.1`.
 - Before the planned Phase 0 P2 closeout executed, the owner approved the headless distribution product shift. That P2 was retired; `1.0.2` is not reserved by it.
-- The active post-1.0 roadmap remains paused. Macro distribution/deployment architecture is approved, but remaining profile/API/security/cache/RSS/SEO/self-host details and an owner-approved replacement roadmap are required before roadmap prompts resume.
+- The active post-1.0 roadmap remains paused. The 2.0 distribution/deployment architecture and governing contracts are complete; an owner-approved replacement roadmap is required before roadmap prompts resume.
 - Use `docs/codex-model-selection.md` for detailed minimum-cost-adequate model/reasoning/usage policy.
 
 ## Versioning and task-stack grammar
@@ -74,7 +74,7 @@ Always preserve these boundaries and read the routed contract for detail:
 - The headless product shift does not authorize concurrent multi-Publication hosting. One Publication/topic per deployment remains the supported data model.
 - The administrator UI/API is the control plane. The bundled `/` frontend is a supported reference/standalone consumer; `GET /api/feed` is a current JSON outward surface. Future distribution adapters must reuse canonical outward Article-selection semantics rather than invent competing eligibility, duplicate, moderation, ordering, or destination rules.
 - Collection trust and distribution selection are distinct. Source approval authorizes governed collection/trust; it does not automatically require every future consumer to receive every eligible Article from that Source.
-- Distribution Profiles plus PHP+cron, WordPress, RSS/Atom, and custom-application families are approved but unimplemented. Do not implement them while the roadmap is paused or invent unresolved selector/schema/API/auth/cache/RSS-access/packaging/SEO details.
+- The 2.0 Profile → authenticated v1 API → generic PHP complete-snapshot/LKG → customer SSR path and Compose evaluation boundary are approved but unimplemented. WordPress, RSS/Atom, and native self-host admin authentication are post-2.0. Do not implement or expand them while the roadmap is paused.
 - Source is the approved publisher/trust boundary; endpoint is its concrete feed/API/HTML location. Approval, lifecycle, operational state, and derived health are distinct.
 - Only approved, active, enabled Sources/endpoints are collectable while singleton Publication collection is active. Bootstrap never auto-discovers/auto-approves, infers trust from fetch success, widens domains silently, or overwrites later operator state.
 - Every request and redirect hop passes approval plus DNS/address/port/SSRF checks before contact. Normalized Article links pass the separate Source/domain policy gate. Endpoint policy may narrow the Source maximum, never widen it.
@@ -123,7 +123,7 @@ Use `docs/roadmap/mvp-roadmap.md` for detailed completed MVP history and `docs/r
 
 UI work is governed by `docs/design/ui-workflow.md` on permanent branch `ui-polish`. Keep it in a separate worktree from active roadmap/correction runner work. It is non-versioned and does not advance roadmap/correction state.
 
-The integrated public UI is the bundled/reference frontend rather than the Platform's primary product identity. Presentation-only refinement may continue only within explicitly approved UI scope; integration presentation belongs to Law 13/the distribution contract and remaining lower-level decisions must not be preempted.
+The integrated public UI is the bundled/reference frontend rather than the Platform's primary product identity. Presentation-only refinement may continue only within explicitly approved UI scope; integration presentation belongs to Law 13 and the completed distribution contract.
 
 Normal path: `/ui-plan` → `/ui-write`. If durable design guidance is missing, contradictory, materially ambiguous, or must change: `/ui-review` → explicit approval → `/ui-apply` → rerun `/ui-plan` → `/ui-write`. A blocked earlier plan never authorizes writing. Do not force-update shared history or merge `ui-polish` automatically; prompt completion does not imply integration.
 

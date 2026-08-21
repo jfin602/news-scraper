@@ -1,10 +1,10 @@
 # Deployment, upgrade, rollback, and incident runbook
 
-This provider-neutral procedure covers the repository's actual Node Web process, Node Worker process, and PostgreSQL database. Hosting process-control commands and Cloudflare/origin controls are deployment-specific; this repository does not define Docker, Kubernetes, systemd, or an automatic zero-downtime orchestrator.
+This provider-neutral procedure covers the implemented Node Web process, Node Worker process, and PostgreSQL database. The approved 2.0 Compose evaluation route is described below; hosting controls remain deployment-specific, and Kubernetes/systemd/zero-downtime orchestration are not defined here.
 
 Phase 19 completed the pre-production operational validation. The `0013` to `0014` exercise proved this procedure against a repository-defined pre-launch state only and did not make older pre-production databases supported inputs. Phase 20 was subsequently accepted and established the first supported production SHA, package version, schema ledger, and customer data baseline.
 
-Managed and future self-hosted deployments are modes of the same complete single-Publication stack. This provider-neutral runbook remains applicable at the architectural level; it does not require Docker, Kubernetes, systemd, or any specific self-host packaging. Cloudflare-specific admin steps below describe the current managed/reference deployment. A future self-hosted deployment requires an equivalent governed secure perimeter and its own deployment record.
+Managed and self-host evaluation deployments are modes of the same complete single-Publication stack. This runbook remains applicable beyond the approved Compose route. Cloudflare-specific steps describe current managed deployments; native self-host admin auth remains post-2.0, so other exposure requires an operator-provided governed perimeter and deployment record.
 
 ## Ordered deployment procedure
 
@@ -23,6 +23,12 @@ Use a change record that never contains secrets.
 11. Require no unexplained unhealthy endpoints, scheduling delay, queue age, capacity saturation, expired jobs, or growing failures in Operations. Compare with the pre-deploy snapshot.
 12. Run `npm run deployment:validate -- <private-reference-config.json>` and retain its observations. Phase 20 launch validation repeated the authorized-operator and actual origin-protection observations manually against its launched-tree candidate; later deployments must repeat evidence appropriate to their own perimeter.
 13. Record SHA, package version, runtime/database versions, migration state, backup identifier, process observations, validator output, timestamp, and approver. Phase 20 acceptance already owns the initial production-baseline record; this step records the current deployment event.
+
+## 2.0 Compose evaluation and distribution checks
+
+The approved 2.0 lightweight route targets a standard Linux VPS with Docker Compose containing Web/Admin plus distribution API, Worker, scheduler/jobs, PostgreSQL with persistent storage, health checks, startup/migration tooling, and externalized configuration/secrets. PostgreSQL is included by default; an experienced operator may supply external PostgreSQL through the ordinary connection contract. Use versioned release artifacts, never arbitrary `main` state. This route is for controlled deployment/evaluation or an operator-protected perimeter and does not replace the established production upgrade, backup, restore, or rollback procedure above.
+
+When these components exist, deployment validation additionally checks distribution API health, unusable/valid machine authentication without leaking credentials, active and disabled Profile behavior, complete PHP synchronization, last-known-good preservation, no live News Scraper call during visitor rendering, and direct stored publisher destinations on an external customer-style page. A final 2.0 release claim requires the managed external integration and failure observations governed by the testing contract.
 
 ## Rollback decisions
 

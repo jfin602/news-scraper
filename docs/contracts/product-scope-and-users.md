@@ -55,7 +55,7 @@ The integrator should be able to rely on stable outward semantics for:
 - explicitly supported filters/distribution selection;
 - bounded safe metadata made public by the relevant outward contract.
 
-The approved first-class directions are a generic PHP package plus cron, a WordPress plugin, RSS/Atom interoperability output, and custom applications consuming supported normalized distribution data. PHP and WordPress use JSON as the canonical machine-transport direction and remain thin adapters. Exact schemas, paths, authentication, cache mechanics, and profile selectors remain unresolved.
+The required 2.0 integration is the authenticated versioned distribution API plus scheduled generic PHP synchronization, validated last-known-good local data, and server-rendered customer output. Custom server applications may consume the same API. WordPress and RSS/Atom are planned post-2.0 adapters; browser widgets are outside 2.0.
 
 ### Operator/developer
 
@@ -120,11 +120,11 @@ Collection trust and distribution selection are separate concerns.
 
 A Source being approved means it may participate in governed collection and ordinary outward eligibility. It does not automatically mean every future downstream integration must receive every Article from that Source.
 
-A Distribution Profile is a named administrator-controlled outward selection over already canonically eligible Articles. One Publication may have multiple profiles without becoming relational tenancy. Profile selection can only narrow eligibility and all transports consume the same profile/read-model authority. Exact selectors, fields, and persistence remain unresolved under `distribution-and-integration-contract.md`.
+A Distribution Profile is a named administrator-controlled outward selection over already canonically eligible Articles. One Publication may have multiple profiles without becoming relational tenancy. Profile selection can only narrow eligibility; its lifecycle, Source associations, and bounded filters are governed by `distribution-and-integration-contract.md`. The permanent wire/auth contract is `distribution-api-contract.md`.
 
 ### Deployment architecture
 
-Managed operation and eventual self-hosting are deployment modes of the same complete single-Publication product. A managed customer controls an independently bounded instance even if physical infrastructure is shared. Self-hosting means the complete Web/Admin, Worker, PostgreSQL, jobs/scheduler, configuration/secrets, and distribution-interface stack can operate without a mandatory central News Scraper service; packaging and self-hosted administrator authentication are not yet designed or implemented.
+Managed integration is the primary 2.0 operating path. 2.0 also establishes a lightweight Linux VPS/Docker Compose deployment/evaluation route for the complete single-Publication stack, with PostgreSQL included by default and ordinary external-PostgreSQL configuration supported. Native/default self-host administrator authentication and autonomous public self-host production readiness are post-2.0; controlled Compose use requires an operator-provided perimeter where applicable.
 
 ### Presentation ownership
 
@@ -136,24 +136,13 @@ The first deployment remains publishing-industry news relevant to independent au
 
 The original client now intends to integrate collected news into an existing website and explore lawful/appropriate cross-source outbound-link distribution. That client use case motivates the current product-direction change but MUST NOT become indie-author-specific shared-engine behavior.
 
-## Explicitly unresolved lower-level design
+## 2.0 scope boundary
 
-Do not treat any of the following as decided by this scope document:
+`2.0.0` proves the managed Profile → authenticated v1 API → generic PHP complete-snapshot sync → atomic last-known-good cache → customer-style server-rendered integration path. It includes operational distribution telemetry and a Linux VPS/Docker Compose evaluation package.
 
-- JSON API versioning/authentication beyond the currently supported feed endpoint;
-- exact Distribution Profile fields, selectors, persistence, and exclude-self/source-sharing rules;
-- public/private/authenticated RSS details;
-- PHP/WordPress APIs, extension points, and cache implementation;
-- browser-widget or webhook consideration beyond the initial integration set;
-- CORS policy;
-- API keys, consumer authentication, quotas, or rate limits;
-- link `rel` attributes;
-- backlink SEO claims or guarantees;
-- canonical/sitemap ownership between News Scraper and a consuming site;
-- click/referral analytics;
-- caching/CDN strategy and self-host packaging/authentication.
+WordPress, RSS/Atom, native/default self-host administrator authentication, production-grade autonomous public self-hosting, SSO/multi-admin identity, visitor/click/referral/backlink analytics, advanced SEO tooling, browser widgets, Kubernetes/multi-node deployment, delta synchronization, and additional adapter families are post-2.0. News Scraper guarantees neither SEO nor backlink performance.
 
-These require explicit research and documentation before implementation.
+The architecture is established but unimplemented. The remaining project-level gate is an owner-approved replacement 2.0 implementation roadmap; no next implementation version is assigned.
 
 ## Quality targets
 

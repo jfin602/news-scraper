@@ -234,6 +234,23 @@ An implementation-roadmap phase closeout validation artifact MUST identify those
 
 Historical passing evidence remains historical after later source changes until the applicable matrix is rerun. Later source corrections do not retroactively change what earlier validation artifacts observed.
 
+## 2.0 distribution validation
+
+Implementation proof MUST cover, at the evidence level appropriate to each claim:
+
+- Profile lifecycle, immutable keys, bounded filters, Source associations, relationship validation, canonical eligibility/public-status independence, and transactional persistence using Levels 2–4;
+- supported production forward migration preserving governed 1.x data plus introduced Profiles, associations, and credential-verifier state at Level 4; migration from zero is also required but is not upgrade proof;
+- cryptographic credential generation, non-plaintext verifier persistence, authentication, expiration, rotation overlap, revocation, `distribution:read`, and absence of admin authority;
+- exact v1 envelope/item/null/empty schema, response classes, HTTPS/configuration boundary, conditional requests, and per-credential rate limiting including `Retry-After`;
+- opaque keyset cursor criteria and `snapshotRevision` binding, including deterministic `snapshot_changed` behavior without mixed pages;
+- PHP complete traversal and validation, per-Profile overlap prevention, bounded retry, rejection of invalid/partial/mixed candidates, atomic activation, preserved recoverable state, and normalized local access;
+- stale-without-default-cutoff behavior, configured stale cutoff, never-synced fallback, authoritative Profile-disable suppression and successful-sync re-enable behavior;
+- browser/server integration proof that visitor rendering uses local state with no live News Scraper request and emits direct stored publisher links;
+- the complete Linux VPS/Docker Compose evaluation topology, health, startup/migration, persistent PostgreSQL, secrets/configuration, and external-PostgreSQL option at Level 8; and
+- final `2.0.0` Level 7/8 managed external customer-style proof from real approved Source collection through Profile selection, authenticated pagination, validated PHP snapshot, atomic activation, and server-rendered output, including upstream failure, invalid candidate, revision change, and authoritative disable cases.
+
+Operational telemetry proof MUST show useful bounded diagnostic facts without bearer tokens, Authorization headers, secrets, visitor tracking, or sensitive payloads. Required prerequisites, environments, and real integrations fail honestly when absent; documentation of this gate is not evidence that it has run.
+
 ## Test naming and ownership
 
 Test names SHOULD describe observable behavior and durable outcomes.

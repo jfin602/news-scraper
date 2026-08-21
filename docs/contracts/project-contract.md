@@ -15,7 +15,7 @@ The Platform core is the collection, normalization, persistence, editorial/moder
 
 The indie-author Publication is the first configuration of the Platform, not the identity of the aggregation engine. Reuse occurs by configuring and deploying another installation of the same codebase for another topic; one deployed installation does not concurrently host multiple topic Publications.
 
-The managed-first/self-hostable macro architecture and initial PHP, WordPress, RSS/Atom, and custom-application integration families are locked by Laws 12–13 and the distribution contract. Their exact profile selectors, API/schema, authentication, cache mechanics, packaging, and SEO/link policy remain unresolved and unimplemented.
+The approved 2.0 contracts now define Distribution Profile selectors/lifecycle, the permanent v1 machine API, machine authentication, generic PHP synchronization/cache behavior, link/SEO limits, telemetry, and the Linux VPS/Docker Compose evaluation route. They remain unimplemented. WordPress, RSS/Atom, native self-host admin authentication, and autonomous public self-host production readiness are post-2.0.
 
 ## Locked project laws
 
@@ -128,7 +128,7 @@ The owner added Laws 12 and 13 to lock complete-stack portability and customer p
 - a social network/commenting Platform;
 - an automated plagiarism/copyright-ownership judge;
 - a guarantee that every Source update is delivered instantly;
-- a guarantee that every possible integration or backlink pattern provides SEO value; distribution/SEO behavior must be established by the later governing design.
+- a guarantee that any integration or backlink pattern provides SEO value; the distribution contract permits only the bounded technical claim of crawlable server-rendered direct publisher links.
 - a conventional multi-tenant SaaS or a detached self-hosted frontend dependent on a mandatory central engine.
 
 ## Historical MVP Phase 0 acceptance criteria

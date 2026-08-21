@@ -4,9 +4,9 @@
 
 This contract governs the **existing outward/public surfaces** implemented through `1.0.1`: `GET /api/feed`, the bundled/reference `GET /` frontend, and the current managed/reference Cloudflare-protected administrator UX described below.
 
-The 2026-08-19 headless product shift does not remove these surfaces or weaken their Article-selection rules. It changes their product role. Under the amended Project Contract and `docs/decisions/headless-distribution-product-boundary.md`, `/` is the canonical route **for the bundled reference/standalone frontend**, not a requirement that every customer website use News Scraper's presentation. `GET /api/feed` remains the current JSON outward/feed interface, but this contract does not yet declare it the permanent/versioned external integration API.
+The 2026-08-19 headless product shift does not remove these surfaces or weaken their Article-selection rules. It changes their product role. Under the amended Project Contract and `docs/decisions/headless-distribution-product-boundary.md`, `/` is canonical **for the bundled reference/standalone frontend**, not every customer website. `GET /api/feed` remains the supported reference/legacy JSON feed and is not the permanent integration API.
 
-Approved future Distribution Profiles and PHP/WordPress/RSS/custom-application families are governed by `distribution-and-integration-contract.md`. They must reuse canonical eligibility and must not create transport-specific Source-trust, visibility, duplicate, moderation, ordering, or `original_url` rules. This contract does not declare current `/api/feed` to be the permanent external JSON contract; exact schema/version/path, machine auth, cache details, profile selectors, and SEO policy remain unresolved.
+Distribution Profiles and PHP/custom integrations are governed by `distribution-and-integration-contract.md`; the permanent `GET /api/v1/distribution/{profile_key}` interface is governed by `distribution-api-contract.md`. They reuse canonical eligibility but are independent of Publication `public_status`. WordPress and RSS/Atom are post-2.0. None may redefine Source trust, visibility, duplicate, moderation, ordering, or `original_url` semantics.
 
 ## Public-feed purpose
 
@@ -330,7 +330,7 @@ Administrative area SHOULD contain:
 
 Navigation is single-Publication and does not expose a topic switcher. Application commands validate actual Source/endpoint/run/Article/observation/duplicate relationships and domain invariants rather than a Publication tenancy boundary.
 
-Distribution Profiles are an approved control-plane concept governed by `distribution-and-integration-contract.md`. This current-surface contract does not define their selectors, fields, persistence, or implementation and does not imply they already exist.
+Distribution Profiles are a governed, not-yet-implemented control-plane resource defined by `distribution-and-integration-contract.md`. They operate independently of the reference frontend's `public_status`.
 
 ## Source management UI
 
@@ -413,7 +413,7 @@ Dismissed decisions persist so unchanged evidence does not repeatedly recreate t
 - Administrative commands MUST validate real resource relationships and domain invariants even without per-user permissions.
 - Administrative errors must not expose secrets, stack traces, or raw database details.
 
-Cloudflare Access is not a mandatory self-hosted runtime dependency. Future self-hosted admin authentication and machine distribution authentication require separate governed boundaries; machine credentials MUST NOT implicitly grant administrator authority.
+Cloudflare Access is not a mandatory self-hosted runtime dependency. Native/default self-host admin authentication is post-2.0; machine distribution authentication is governed separately by `distribution-api-contract.md` and MUST NOT grant administrator authority.
 
 ## Change history
 

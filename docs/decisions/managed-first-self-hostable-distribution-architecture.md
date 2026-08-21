@@ -33,7 +33,7 @@ The News Scraper instance owns the authoritative control plane. Sources, endpoin
 
 A Distribution Profile is a first-class named outward view of one Publication's governed corpus. Selection occurs only after canonical outward eligibility and can only narrow it. A profile cannot resurrect unapproved Source content, hidden or archived Articles, visible non-Primary duplicate members, or any content rejected by the canonical moderation/eligibility boundary. Multiple profiles do not imply multiple Publications.
 
-Every serializer and adapter consumes the same canonical profile/read-model authority. JSON is the canonical first-party machine-transport direction for PHP and WordPress, while its exact schema, version, path, and envelope remain unresolved. RSS/Atom derives from the same profile semantics and is not an independent query engine.
+Every serializer and adapter consumes the same canonical profile/read-model authority. At adoption, JSON was the machine-transport direction while schema/version/path remained unresolved; the later-resolution section records the completed v1 decision. RSS/Atom derives from the same profile semantics and is not an independent query engine.
 
 ### Thin adapters and presentation ownership
 
@@ -45,11 +45,15 @@ News Scraper owns governed selection, normalized distribution data, and stored `
 
 Human administrator authentication and machine distribution authentication are separate security boundaries. Machine credentials MUST NOT implicitly grant administrator capabilities.
 
-Server-side PHP and WordPress adapters SHOULD synchronize periodically and render from a local last-known-good cache. A failed, invalid, or partial synchronization MUST NOT replace valid cached data, and stale valid data SHOULD remain renderable. Exact TTL, storage, locking, retry, and credential mechanisms remain unresolved.
+At adoption, server-side PHP/WordPress periodic synchronization and LKG direction were selected while exact mechanics remained unresolved. The later contracts now make generic PHP required for 2.0 and govern complete snapshots, locking, retries, atomic activation, stale behavior, and credentials; WordPress is post-2.0.
 
 First-party PHP and WordPress integrations SHOULD produce server-generated customer-page HTML with ordinary direct publisher anchors, without browser JavaScript for core feed links. Iframes are not a first-class SEO integration method, browser-side widgets are outside the initial integration set, and RSS/Atom alone does not make links part of customer-page HTML. News Scraper makes no guaranteed SEO or backlink-performance claim.
 
-Cloudflare Access remains accepted for the current managed/reference deployment. It is not a mandatory dependency of a self-hosted stack; future self-hosting requires a governed secure administrator perimeter whose native, reverse-proxy, or SSO design remains unresolved.
+Cloudflare Access remains accepted for managed deployments. It is not mandatory for a self-hosted stack. The later 2.0 decision defers native/default self-host admin authentication and limits Compose use to controlled evaluation or an operator-protected perimeter.
+
+## Later 2.0 resolution — 2026-08-20
+
+The completed 2.0 contracts retain this ADR's history and refine it as follows: 2.0 requires the authenticated v1 Profile API and generic PHP complete-snapshot/LKG integration; establishes a standard-Linux VPS Docker Compose evaluation route; and keeps managed integration primary. WordPress, RSS/Atom, native/default self-host admin authentication, and autonomous public self-host production readiness are post-2.0. Exact behavior is owned by `../contracts/distribution-and-integration-contract.md` and `../contracts/distribution-api-contract.md`.
 
 ## Consequences
 
@@ -63,7 +67,7 @@ Cloudflare Access remains accepted for the current managed/reference deployment.
 
 ### Costs
 
-- Profile persistence/selectors, API versioning, machine authentication, cache mechanics, RSS access, SEO policy, and self-host packaging still require governed design.
+- At adoption, Profile/API/auth/cache/RSS/SEO/packaging details still required governed design; the later-resolution contracts completed that work.
 - Multiple deployable instances require disciplined operational isolation even when infrastructure is shared.
 - First-party adapters require compatibility and reliability proof across different hosting environments.
 
@@ -83,4 +87,3 @@ This is a documentation-only architectural decision. It authorizes no schema, AP
 ## Compliance checks
 
 A future implementation must prove that profile selection follows canonical eligibility, all transports share that authority, adapters cannot restore ineligible rows, machine credentials lack admin capability, cache replacement is atomic/validated, presentation customization cannot redefine selection, and a claimed self-hosted deployment operates the complete ordinary stack without a mandatory central News Scraper service.
-

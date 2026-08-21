@@ -13,7 +13,7 @@ It establishes project identity, canonical terminology, authority, document rout
 - Platform: reusable, topic-independent **headless news aggregation and distribution Platform**
 - Product core: approved-Source collection → normalization → persistence/provenance → Relevance/Categories → duplicate/moderation → canonical outward Article read semantics
 - Admin role: instance-owned control plane; Cloudflare Access protects the current managed/reference deployment, while future self-hosting requires a governed secure perimeter
-- Distribution architecture: canonical eligibility → named Distribution Profile → shared serializer/interface → thin PHP+cron, WordPress, RSS/Atom, or custom-application consumer
+- Distribution architecture: canonical eligibility → Distribution Profile → authenticated v1 API → scheduled generic PHP complete-snapshot sync → validated local LKG → customer server-rendered output; WordPress/RSS are post-2.0
 - Deployment direction: managed-first/self-hostable-by-design complete isolated single-Publication instances; managed service is that stack operated for the customer
 - Current outward surfaces: `GET /api/feed` JSON plus bundled/reference `GET /` frontend
 - Deployment cardinality: exactly one Publication/topic per deployed installation
@@ -22,9 +22,10 @@ It establishes project identity, canonical terminology, authority, document rout
 - Current product scope: **`docs/contracts/product-scope-and-users.md`**
 - Current product-boundary ADR: **`docs/decisions/headless-distribution-product-boundary.md`**
 - Current distribution contract: **`docs/contracts/distribution-and-integration-contract.md`**
+- Current distribution API contract: **`docs/contracts/distribution-api-contract.md`**
 - Current deployment/distribution ADR: **`docs/decisions/managed-first-self-hostable-distribution-architecture.md`**
 - Current roadmap: **`docs/roadmap/post-1.0-roadmap.md`**
-- Current roadmap state: **PAUSED — macro distribution architecture approved; remaining lower-level decisions and replacement roadmap pending**
+- Current roadmap state: **PAUSED — 2.0 architecture/contracts established; replacement roadmap pending owner approval**
 - Current implementation phase: **none**
 - Current package version: **`1.0.1`**
 - Next implementation version: **unassigned until a replacement roadmap is approved**
@@ -49,7 +50,7 @@ The MVP roadmap is complete and the supported production baseline remains the ac
 
 Before its planned P2 closeout executed, the repository owner approved a foundational product-direction change: the collection/normalization/editorial/distribution core is now the product, the admin UI/API is its control plane, and the bundled public frontend is one supported consumer rather than the universal customer presentation.
 
-The current roadmap remains paused. **Do not generate or execute roadmap implementation prompts while the pause remains.** The managed/self-hostable instance model, Distribution Profiles, initial adapter families, and presentation boundary are now locked. Remaining profile selector/API/auth/cache/RSS/SEO/self-host packaging decisions and an owner-approved replacement roadmap are still required. Do not infer a next version from the retired Phase 0 sequence.
+The current roadmap remains paused. **Do not generate or execute roadmap implementation prompts while the pause remains.** The 2.0 Profile, v1 API/auth, generic PHP/LKG, link/SEO, telemetry, compatibility, and Compose evaluation contracts are established. The remaining gate is an owner-approved replacement 2.0 implementation roadmap. Do not infer a next version from the retired Phase 0 sequence.
 
 During this pause, ordinary documentation/research work remains non-versioned. Correction stacks may be used only for separately owner-approved bounded regressions/repairs; they must not be used to smuggle product development around the roadmap gate.
 
@@ -144,38 +145,39 @@ Report authoritative conflicts rather than choosing silently.
 
 ## Document routing
 
-| Area | Read first |
-| --- | --- |
-| Locked laws / authority / product boundaries | `docs/contracts/project-contract.md` |
-| Current post-1.0 product scope / users / unresolved distribution questions | `docs/contracts/product-scope-and-users.md` |
-| Historical `1.0.0` MVP users / capabilities / exclusions | `docs/contracts/mvp-scope-and-users.md` |
-| Headless aggregation/distribution product boundary / reference frontend role / Source trust vs distribution selection | `docs/decisions/headless-distribution-product-boundary.md` |
-| Terminology / singleton model / entities / identity / provenance / Category/Relevance schema | `docs/contracts/domain-and-data-contract.md` |
-| Testing / regression / evidence / DB/fixture/browser/live validation | `docs/contracts/testing-and-validation-contract.md` |
-| Process/module architecture / deployment / Worker / scheduling / transactions / outward-consumer boundary | `docs/architecture/system-architecture.md` |
-| Approval / bootstrap / collection / safety / Source RSS/Atom item admission / normalization / Relevance / operator configuration / identity / run accounting | `docs/contracts/source-and-collection-contract.md` |
-| Operator Source/endpoint onboarding / field meanings / domain policy / RSS admission phrases / Check now | `docs/operations/source-onboarding.md` |
-| Article visibility / duplicate role / review/groups / Primary | `docs/contracts/article-lifecycle-and-deduplication.md` |
-| Existing `/api/feed` + bundled `/` reference frontend / search / themes / admin UX / change history | `docs/contracts/public-feed-and-admin-contract.md` |
-| UI design / bundled-reference presentation workflow / parallel UI branch | `docs/design/README.md`, then `docs/design/ui-workflow.md` |
-| Admin perimeter / SSRF / content safety / isolation / observability / recovery | `docs/operations/security-reliability-and-operations.md` |
-| PostgreSQL backup / restore / managed backup retention | `docs/operations/database-backup-and-restore.md` |
-| Deployment / schema upgrade / rollback / incidents / current reference operations | `docs/operations/deployment-and-incident-runbook.md` |
-| Current post-1.0 roadmap pause / architecture gate | `docs/roadmap/post-1.0-roadmap.md` |
-| Completed MVP phase / correction history | `docs/roadmap/mvp-roadmap.md` |
-| Superseded unexecuted former Phase 0 P2 closeout | `docs/history/superseded-post-1.0-phase-0-closeout.md` |
-| Singleton Publication data-model decision | `docs/decisions/single-publication-simplified-data-model.md` |
-| Production data/schema compatibility / supported upgrade boundary | `docs/decisions/production-data-and-schema-compatibility.md` |
-| Historical superseded data-model decision | `docs/decisions/topic-independent-publication-model.md` |
-| Whitelist/structured-feed decision | `docs/decisions/whitelist-and-structured-feed-first.md` |
-| Original-link/normalization decision | `docs/decisions/original-link-and-normalized-metadata.md` |
-| Cloudflare Access admin perimeter | `docs/decisions/cloudflare-access-admin-perimeter.md` |
-| Codex model/reasoning selection and prompt efficiency | `docs/codex-model-selection.md` |
-| Documentation index | `docs/README.md` |
-| Specialized validation plans | `docs/testing/` when present |
-| Active roadmap/correction implementation prompts | `docs/tasks/` when present |
-| Targeted UI prompts | `docs/design/tasks/` when present |
-| Durable validation artifacts | `docs/validation/` when present |
+| Area                                                                                                                                                         | Read first                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
+| Locked laws / authority / product boundaries                                                                                                                 | `docs/contracts/project-contract.md`                         |
+| Current post-1.0 product scope / users / 2.0 boundary                                                                                                        | `docs/contracts/product-scope-and-users.md`                  |
+| Historical `1.0.0` MVP users / capabilities / exclusions                                                                                                     | `docs/contracts/mvp-scope-and-users.md`                      |
+| Headless aggregation/distribution product boundary / reference frontend role / Source trust vs distribution selection                                        | `docs/decisions/headless-distribution-product-boundary.md`   |
+| Terminology / singleton model / entities / identity / provenance / Category/Relevance schema                                                                 | `docs/contracts/domain-and-data-contract.md`                 |
+| Testing / regression / evidence / DB/fixture/browser/live validation                                                                                         | `docs/contracts/testing-and-validation-contract.md`          |
+| Process/module architecture / deployment / Worker / scheduling / transactions / outward-consumer boundary                                                    | `docs/architecture/system-architecture.md`                   |
+| Approval / bootstrap / collection / safety / Source RSS/Atom item admission / normalization / Relevance / operator configuration / identity / run accounting | `docs/contracts/source-and-collection-contract.md`           |
+| Operator Source/endpoint onboarding / field meanings / domain policy / RSS admission phrases / Check now                                                     | `docs/operations/source-onboarding.md`                       |
+| Article visibility / duplicate role / review/groups / Primary                                                                                                | `docs/contracts/article-lifecycle-and-deduplication.md`      |
+| Existing `/api/feed` + bundled `/` reference frontend / search / themes / admin UX / change history                                                          | `docs/contracts/public-feed-and-admin-contract.md`           |
+| Permanent v1 Profile API / schema / cursors / machine credentials / response classes / CORS                                                                  | `docs/contracts/distribution-api-contract.md`                |
+| UI design / bundled-reference presentation workflow / parallel UI branch                                                                                     | `docs/design/README.md`, then `docs/design/ui-workflow.md`   |
+| Admin perimeter / SSRF / content safety / isolation / observability / recovery                                                                               | `docs/operations/security-reliability-and-operations.md`     |
+| PostgreSQL backup / restore / managed backup retention                                                                                                       | `docs/operations/database-backup-and-restore.md`             |
+| Deployment / schema upgrade / rollback / incidents / current reference operations                                                                            | `docs/operations/deployment-and-incident-runbook.md`         |
+| Current post-1.0 roadmap pause / architecture gate                                                                                                           | `docs/roadmap/post-1.0-roadmap.md`                           |
+| Completed MVP phase / correction history                                                                                                                     | `docs/roadmap/mvp-roadmap.md`                                |
+| Superseded unexecuted former Phase 0 P2 closeout                                                                                                             | `docs/history/superseded-post-1.0-phase-0-closeout.md`       |
+| Singleton Publication data-model decision                                                                                                                    | `docs/decisions/single-publication-simplified-data-model.md` |
+| Production data/schema compatibility / supported upgrade boundary                                                                                            | `docs/decisions/production-data-and-schema-compatibility.md` |
+| Historical superseded data-model decision                                                                                                                    | `docs/decisions/topic-independent-publication-model.md`      |
+| Whitelist/structured-feed decision                                                                                                                           | `docs/decisions/whitelist-and-structured-feed-first.md`      |
+| Original-link/normalization decision                                                                                                                         | `docs/decisions/original-link-and-normalized-metadata.md`    |
+| Cloudflare Access admin perimeter                                                                                                                            | `docs/decisions/cloudflare-access-admin-perimeter.md`        |
+| Codex model/reasoning selection and prompt efficiency                                                                                                        | `docs/codex-model-selection.md`                              |
+| Documentation index                                                                                                                                          | `docs/README.md`                                             |
+| Specialized validation plans                                                                                                                                 | `docs/testing/` when present                                 |
+| Active roadmap/correction implementation prompts                                                                                                             | `docs/tasks/` when present                                   |
+| Targeted UI prompts                                                                                                                                          | `docs/design/tasks/` when present                            |
+| Durable validation artifacts                                                                                                                                 | `docs/validation/` when present                              |
 
 If a path does not exist, search for its current equivalent before assuming intentional deletion.
 
@@ -188,7 +190,7 @@ Read the routed contract for full matrices and algorithms. BOOT keeps only disti
 - The administrator surface is the control plane. The bundled `GET /` frontend remains supported as a reference/standalone consumer; `GET /api/feed` remains a current JSON outward interface.
 - Future outward adapters must reuse canonical Article-selection/read semantics. They MUST NOT invent competing Source-trust, Article-visibility, duplicate-suppression, moderation, ordering, or reader-destination rules.
 - Collection trust and distribution selection are separate. Source approval authorizes governed collection/trust; it does not automatically make a Source mandatory in every future consumer output.
-- The macro distribution architecture is approved but unimplemented. While the roadmap is paused, do not implement Distribution Profiles or PHP/WordPress/RSS adapters, and do not choose unresolved selectors, schemas/paths, machine auth, CORS/rates, cache mechanics, RSS access, self-host packaging/authentication, widgets/iframes, analytics, or SEO/link guarantees outside the governing docs process.
+- The 2.0 distribution architecture is approved but unimplemented. While the roadmap is paused, do not implement Profiles, v1 API/auth, PHP/LKG, Compose packaging, or post-2.0 adapters outside an owner-approved replacement roadmap; do not expand the bounded contracts speculatively.
 - Do not introduce Publication IDs/slugs/FKs/joins/uniqueness scopes/repository or authorization parameters/compatibility aliases solely for hypothetical concurrent hosting. Preserve genuine Source/endpoint/run/Article/observation relationships.
 - Source is the approved publisher/trust boundary; endpoint is its concrete feed/API/HTML location. Approval, lifecycle, operational state, and derived health are separate.
 - Collection requires singleton Publication collection-active state plus approved, active, enabled Source/endpoint state. Bootstrap never auto-discovers/auto-approves, infers approval from fetch success, silently widens domains, or overwrites operator-managed state.
@@ -441,7 +443,7 @@ Strict order:
 
 Do not silently run missing stages. If unstable requirements, contradictory docs, repository drift, or a material decision blocks progress, return `Planning needed` and stop before next stage.
 
-**Current roadmap gate:** PAUSED. Do not use the prompt workflow for roadmap implementation until the distribution-method/SEO architecture review is completed, approved, applied, and a replacement roadmap explicitly assigns the next phase/version. The runner's post-1.0 grammar remains available tooling; it is not authorization to resurrect former Phase 0 or infer `1.0.2`.
+**Current roadmap gate:** PAUSED. The 2.0 architecture review is completed, approved, and applied. Do not use the prompt workflow for roadmap implementation until an owner-approved replacement roadmap explicitly assigns the next phase/version. Runner grammar is not authorization to resurrect former Phase 0 or infer `1.0.2`.
 
 ## Codex task-stack prompt-file grammar
 
@@ -577,7 +579,7 @@ After writing, perform applicable runner prompt-file grammar check before report
 
 Detailed authority is `docs/design/ui-workflow.md`. `main` is authoritative integration; presentation work uses permanent branch `ui-polish` and a separate worktree whenever roadmap/correction runner work is active. UI work is non-versioned, does not consume roadmap/correction numbers or advance their state, and is never merged automatically. Refresh/integrate current `main` non-destructively before new UI work and re-plan when relevant drift changes the boundary.
 
-The integrated Phase 13/`1.0.1` presentation is the baseline for the **bundled/reference frontend**. UI work does not govern client-site integrations; their presentation freedom belongs to Law 13 and the distribution contract, and remaining lower-level decisions must not be preempted.
+The integrated Phase 13/`1.0.1` presentation is the baseline for the **bundled/reference frontend**. UI work does not govern client-site integrations; their presentation freedom and link boundary belong to Law 13 and the completed distribution contract.
 
 Normal path:
 
@@ -702,7 +704,7 @@ Historical Phase 10 singleton-correction prompts established the smallest canoni
 - No parser-to-Article direct persistence.
 - No Web/API inline Source fetching.
 - No distribution adapter-owned reimplementation of canonical Article eligibility/duplicate/moderation/destination semantics.
-- No implementation of unresolved widget/iframe, exact profile/API/auth/CORS/rate-limit/cache/RSS-access/packaging/backlink/analytics/SEO behavior before its governing decision and replacement roadmap.
+- No implementation outside the completed Profile/API/auth/PHP/cache/packaging/link/telemetry contracts or of post-2.0 widget/iframe/RSS/WordPress/native-auth/analytics features without their governing decision and roadmap authorization.
 - No bypass of Relevance boundary even before configurable rules exist.
 - No Relevance path that runs after identity merely to make exclusion easier; excluded candidates terminate before identity under the governing contract.
 - No automatic historical Article mutation caused merely by editing a Relevance rule.

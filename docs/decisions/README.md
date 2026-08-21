@@ -11,14 +11,14 @@ This directory records foundational choices that shape multiple modules or const
 
 ## Records
 
-- [`headless-distribution-product-boundary.md`](./headless-distribution-product-boundary.md) — **Accepted**; current post-1.0 product-boundary authority defining the headless aggregation/distribution core, administrator control plane, bundled reference frontend, and separation of Source trust from future distribution selection.
-- [`managed-first-self-hostable-distribution-architecture.md`](./managed-first-self-hostable-distribution-architecture.md) — **Accepted**; managed-first/self-hostable instance architecture, Distribution Profile boundary, thin integration families, and customer presentation ownership.
+- [`headless-distribution-product-boundary.md`](./headless-distribution-product-boundary.md) — **Accepted**; headless product-boundary history, reference-frontend role, and Source-trust/distribution-selection separation; later 2.0 details route to the distribution contracts.
+- [`managed-first-self-hostable-distribution-architecture.md`](./managed-first-self-hostable-distribution-architecture.md) — **Accepted**; managed-first/self-hostable instance architecture and customer presentation ownership, with a later-resolution note for the PHP/v1 and Compose 2.0 boundary.
 - [`single-publication-simplified-data-model.md`](./single-publication-simplified-data-model.md) — **Accepted**; current one-Publication deployment/data-model authority. Its data-model decision remains unchanged; product-surface wording is narrowed by the headless-distribution ADR where applicable.
 - [`production-data-and-schema-compatibility.md`](./production-data-and-schema-compatibility.md) — **Accepted**; production-baseline, supported-data preservation, and post-launch schema-upgrade authority.
 - [`topic-independent-publication-model.md`](./topic-independent-publication-model.md) — **Superseded**; historical decision that first established topic-independent single-Publication deployments while retaining relational Publication scoping.
 - [`whitelist-and-structured-feed-first.md`](./whitelist-and-structured-feed-first.md) — **Accepted**.
 - [`original-link-and-normalized-metadata.md`](./original-link-and-normalized-metadata.md) — **Accepted**.
-- [`cloudflare-access-admin-perimeter.md`](./cloudflare-access-admin-perimeter.md) — **Accepted**.
+- [`cloudflare-access-admin-perimeter.md`](./cloudflare-access-admin-perimeter.md) — **Accepted**; current managed 2.0 admin perimeter while native self-host admin authentication remains deferred.
 
 New ADRs use descriptive filenames rather than sequence numbers. Git history and the date/status inside each record provide chronology.
 

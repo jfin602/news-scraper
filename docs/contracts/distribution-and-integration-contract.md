@@ -1,67 +1,77 @@
 # Distribution and Integration Contract
 
-**Status:** Current approved architecture; implementation details pending  
+**Status:** Current approved 2.0 architecture; not yet implemented
 **Adopted:** 2026-08-20
+**Completed:** 2026-08-20
 
-## Authority and terminology
+## Authority and required path
 
-A **Distribution Profile** is a first-class named, administrator-controlled outward selection over the singleton Publication's governed Article corpus. A **distribution consumer** receives supported normalized output. An **integration adapter** is a thin transport, synchronization, caching, or rendering layer for such a consumer.
-
-The News Scraper instance and its control plane own Distribution Profiles and their interpretation. Multiple profiles belong to the one singleton Publication and do not create Publications, customers, or relational tenancy.
-
-## Required ordering and transport independence
-
-All distribution follows one direction:
+A **Distribution Profile** is a first-class installation-owned, administrator-controlled selection over the singleton Publication's canonically eligible Articles. Profiles and Sources are peer top-level resources; multiple Profiles do not create Publications, customers, or tenancy.
 
 ```text
-canonical outward eligibility
-→ Distribution Profile selection
-→ supported serializer/interface
-→ thin adapter or custom consumer
-→ customer presentation
+approved Sources → collection / normalization / persistence → canonical outward eligibility
+→ Distribution Profile → authenticated GET /api/v1/distribution/{profile_key}
+→ scheduled generic PHP synchronization → validated local last-known-good snapshot
+→ server-rendered customer website → direct stored publisher originalUrl links
 ```
 
-Canonical eligibility first enforces Source trust/lifecycle, Article visibility, moderation, and ungrouped-or-Primary duplicate eligibility under the Article lifecycle contract. A profile MAY only narrow that result. It MUST NOT resurrect untrusted, hidden, archived, non-Primary, or otherwise ineligible Articles.
+Wire, authentication, cursor, and compatibility details are governed by `distribution-api-contract.md`.
 
-Every JSON, RSS/Atom, PHP, WordPress, and custom-application path MUST consume the same canonical Distribution Profile/read-model authority. A serializer or adapter MUST NOT implement independent Article SQL, selector interpretation, eligibility, Relevance, Category, moderation, duplicate, ordering, or destination semantics.
+## Eligibility and lifecycle
 
-## Integration families
+Canonical distribution eligibility is independent of Publication `public_status`. It requires an approved, active Source; a visible Article; an ungrouped Article or the Primary member of a Duplicate group; the stored `original_url` destination; and canonical chronological ordering. `public_status` controls only bundled `GET /` and `GET /api/feed`.
 
-- **Generic PHP package plus cron:** periodically synchronizes supported normalized profile output, maintains a local last-known-good cache, and offers safe fallback server-side rendering plus customer extension points.
-- **WordPress plugin:** provides the same thin synchronization/cache/rendering role within WordPress without becoming an editorial authority.
-- **RSS/Atom interoperability output:** serializes the same governed profile result for compatible consumers; it is not a separate feed-selection engine and does not itself guarantee links rendered into customer-page HTML.
-- **Custom applications:** are first-class consumers of the supported normalized distribution interface and may replace first-party presentation entirely.
+A Profile has at least immutable `config_key`, mutable `display_name`, lifecycle `draft`/`active`/`disabled`, and a bounded result/history limit defaulting to 100 items. A central hard maximum MAY be enforced, but consumers cannot request unbounded history. An active Profile requires at least one usable approved Source association; drafts MAY be incomplete. Once activated, a Profile SHOULD be disabled rather than deleted so its key remains stable. Draft-only deletion MAY be supported.
 
-JSON is the canonical first-party machine-transport direction for PHP and WordPress. The exact schema, envelope, version, and path are not defined here.
+An authenticated `profile_disabled` response is authoritative: adapters may retain cached bytes for recovery, but mark the local Profile disabled and MUST NOT render its cached Articles. Rendering resumes only after a later successful synchronization.
 
-## Adapter responsibilities and prohibitions
+## Source associations and filters
 
-Adapters MAY own connection settings, machine credentials, scheduled synchronization, local cache, stale-on-error behavior, rendering, CSS/classes, fallback templates, and documented presentation extension points.
+A first-class Profile↔Source association is required before that Source contributes Articles. Source configuration, collection, identity, and provenance are not duplicated into Profiles. Each association MAY contain `include_any_phrases[]`, `exclude_any_phrases[]`, and `category_config_keys[]`.
 
-Adapters MUST NOT own Source trust or admission, Relevance or Category semantics, Article or duplicate moderation, canonical eligibility, Primary selection, or Distribution Profile interpretation.
+Empty lists impose no restriction for that dimension. Values within each list use OR; the three dimensions compose with AND; exclusion wins. Category matching uses effective outward moderated Category membership. Phrase matching is deterministic case-insensitive literal substring matching over safe normalized outward headline, author, and summary text; missing nullable text does not match.
 
-Human administrator authentication and machine distribution authentication are separate boundaries. Machine credentials MUST be limited to their intended integration capabilities and MUST NOT implicitly perform administrator operations.
+Profile filtering occurs after canonical eligibility and only narrows it. It never changes trust, collection, identity, provenance, moderation, duplicate state, Relevance, Category membership, or canonical eligibility. Regex, fuzzy or semantic/AI matching, arbitrary expressions, ranking, and adapter-side selector interpretation are prohibited. The result is the canonically ordered union from all associated Sources.
 
-## Presentation ownership
+There is no special “exclude self” semantic. Omit a Source association to exclude it; ownership MUST NOT be inferred from domains, names, or aliases.
 
-News Scraper owns Article eligibility, Source trust, Relevance, moderation, duplicate suppression, profile selection, normalized distribution data, and exact stored `original_url` destination semantics.
+## Generic PHP integration and last-known-good state
 
-The consuming customer owns HTML structure, CSS, typography, layout, cards/lists/tables, supported visible metadata choices, responsive presentation, placement, and custom application/UI. First-party PHP and WordPress templates MUST provide a safe functional fallback and stable customization or normalized-data escape hatches. They MUST NOT be mandatory presentation.
+The generic PHP integration is required for 2.0 and has a synchronization/cache client, normalized local Profile-data access, and an optional safe fallback server-rendered renderer. It synchronizes complete bounded Profile snapshots:
 
-## Reliability boundary
+```text
+start candidate → fetch every cursor page → validate schema/profile/API version/snapshotRevision
+→ validate complete candidate → atomically activate → preserve prior recoverable state where practical
+```
 
-Server-side PHP and WordPress adapters SHOULD synchronize periodically rather than call News Scraper during every public request. Rendering SHOULD use a validated local last-known-good cache. Failed, invalid, or partial synchronization MUST NOT replace a valid cache; stale valid output SHOULD remain renderable when the latest synchronization fails.
+Partial, invalid, or mixed-revision candidates MUST NOT become visible. Synchronization locks per Profile, prevents overlap, uses bounded retries, respects `Retry-After`, and supports conditional initial requests. Default cadence is 15 minutes and is customer-configurable. `snapshot_changed` discards the candidate, preserves active state, and restarts within bounded retry rules.
 
-Exact TTL, storage representation, locking, retry/backoff, and atomic replacement mechanism remain implementation decisions requiring focused proof.
+Each Profile has independent candidate and active state. Cache metadata SHOULD include Profile key, API version, `snapshotRevision`/ETag, upstream `generatedAt`, last successful local sync, and health/freshness facts. Credentials MUST NOT be stored in cache payloads.
 
-## Link and SEO objective
+Freshness and usability are distinct. Stale valid output remains renderable by default with no hard cutoff. Customers MAY configure a maximum stale age; once exceeded, or before any valid snapshot exists, render the configured safe empty/unavailable fallback. Public rendering reads local active state only and MUST NOT make a synchronous News Scraper API request.
 
-First-party PHP and WordPress integrations SHOULD return server-generated customer-page HTML containing ordinary direct anchors to stored publisher `original_url` values without requiring browser JavaScript for core feed links. Iframes and browser widgets are not initial first-class integration methods. The Platform MUST NOT promise SEO or backlink performance.
+Network errors, timeouts, `401`, `429`, `5xx`, malformed/partial candidates, and exhausted `snapshot_changed` retries preserve active state under the stale policy. Only authenticated `409 profile_disabled` suppresses otherwise usable cached public output.
 
-Link `rel`, canonical tags, robots, sitemaps, analytics/tracking, reciprocal-link safeguards, and other SEO policy remain unresolved.
+## Adapter, presentation, and link boundaries
 
-## Intentionally unresolved design
+Adapters MAY own connection settings, credentials, synchronization, local storage/locking, rendering, CSS/classes, fallback templates, and presentation extension points. They MUST NOT own Source trust/admission, Relevance or Category semantics, moderation, eligibility, Primary selection, Profile interpretation, ordering, or destination semantics.
 
-This contract does not define profile fields, selectors, persistence, URL/key format, exclude-self behavior, exact JSON/API schema or versioning, credential format/storage/rotation, public/private or authenticated RSS, cache mechanics, PHP APIs, WordPress blocks/shortcodes/hooks, CORS, quotas/rate limits, native self-hosted admin authentication, self-host packaging/OS support, analytics, redirect wrappers, or SEO algorithms/guarantees.
+Fallback output SHOULD be normal server-rendered HTML. Core anchors use exact stored `originalUrl`, require no JavaScript, and do not use News Scraper tracking redirects. Ordinary editorial external links are unqualified by default; externality alone does not add `nofollow`. Customers own sponsored/UGC/nofollow treatment, canonical tags, sitemap, robots directives, page titles, surrounding copy, site architecture, and SEO strategy.
 
-Implementation remains blocked until the remaining decisions are governed and an owner-approved replacement roadmap assigns work and versions.
+News Scraper MUST NOT guarantee SEO improvement, backlink value, or PageRank transfer; automate reciprocal links; condition inclusion on backlinks; impose backlink quotas; or keyword-stuff anchors. The supported claim is limited to crawlable server-rendered direct publisher links.
+
+## Later adapters and telemetry
+
+WordPress and RSS/Atom are post-2.0. A later WordPress adapter builds on the WordPress-independent generic PHP core and owns only CMS concerns. Later RSS/Atom is an optional bare-bones public fallback per Profile, explicitly enabled and disabled by default, using the same read model. It is not a selector engine; secret-bearing feed URLs are prohibited and authenticated consumers use JSON.
+
+2.0 telemetry is operational, not visitor analytics. Bounded API facts SHOULD include Profile key, API version, status, duration, item/page information, non-secret credential identity, auth/rate/missing/disabled/failure categories, and client version. PHP health SHOULD include attempts/success, duration, items/pages, freshness/stale age, unchanged result, failure category, and adapter version. Tokens, Authorization headers, secrets, and sensitive payloads MUST NOT be logged. Click, referral, visitor, page-view, reader-identity, backlink-performance, and tracking-redirect analytics are excluded. Telemetry remains locally operable.
+
+## 2.0 boundary
+
+The required 2.0 consumer is the v1 API plus generic PHP scheduled sync, last-known-good cache, and customer-style server-rendered output. Browser widgets, WordPress, RSS/Atom, native self-host admin authentication, autonomous public self-host production readiness, SSO/multi-admin identity, visitor analytics, advanced SEO tooling, Kubernetes/multi-node deployment, delta synchronization, and additional adapters are post-2.0.
+
+`2.0.0` requires administrator-configurable Profiles with immutable keys, lifecycle, explicit Source associations and bounded filters; one canonical distribution read model; bearer credential generation/rotation/revocation and `distribution:read`; rate/abuse protection; stable v1 schema and snapshot/cursor consistency; generic PHP complete-snapshot traversal, per-Profile locking, atomic LKG activation, optional stale cutoff and fallback SSR; operational telemetry; supported production forward migration plus backup/restore proof; and the Linux VPS/Docker Compose evaluation package.
+
+Release proof requires a real managed external customer-style integration from approved Source collection through canonical/Profile selection, authenticated pagination, complete validated PHP activation, local server rendering with no visitor-path API request, and direct stored publisher links. It must also show that upstream failure, invalid/partial candidates, and revision changes do not replace active LKG, while authoritative Profile disable suppresses cached public rendering.
+
+Implementation remains paused until an owner-approved replacement roadmap assigns work and versions.

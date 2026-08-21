@@ -8,7 +8,7 @@ Testing/validation for these controls is governed project-wide by `docs/contract
 
 ## Administrative security
 
-Cloudflare Access remains the accepted administrator perimeter for the current managed/reference deployment, including direct-origin protection and application request-integrity/resource-validation requirements. It is not a mandatory dependency of a future self-hosted stack. Any supported self-hosted deployment MUST have a separately governed secure administrator perimeter before exposure.
+Cloudflare Access remains the accepted administrator perimeter for current managed deployments through 2.0, including direct-origin protection and request-integrity/resource validation. Native/default self-host administrator authentication is post-2.0. The Compose evaluation route may run in controlled environments or behind an operator-provided secure perimeter; 2.0 does not claim autonomous public self-host production readiness.
 
 Human administrator credentials and machine distribution credentials are separate security boundaries. Machine credentials MUST be least-capability for integration use and MUST NOT implicitly grant administrator authority; compromise of an adapter credential must not authorize Source, editorial, moderation, duplicate, profile, or operations mutations.
 
@@ -71,7 +71,7 @@ HTML parser errors, logs, run diagnostics, and preview responses MUST NOT retain
 
 ## Failure isolation
 
-When PHP/WordPress adapters are implemented, their periodic synchronization SHOULD render from a validated local last-known-good cache. A failed, invalid, or partial response MUST NOT replace valid cached data, and stale valid data SHOULD remain renderable. Exact cache representation, TTL, locking, and retry policy remain unresolved.
+The generic PHP adapter synchronizes complete Profile snapshots into independent per-Profile candidate state and atomically activates only a fully validated revision. Failed, invalid, partial, or mixed-revision candidates preserve active last-known-good state. Stale valid output remains usable by default without a hard cutoff; configured expiry uses a safe fallback and never a visitor-path live API call. Authenticated `409 profile_disabled` is authoritative and suppresses cached rendering until a later successful synchronization.
 
 Before durable jobs exist, each manually invoked endpoint Collection run in the Worker is an independent execution unit and one endpoint failure must not invalidate another run.
 
@@ -98,6 +98,8 @@ Approval/trust, lifecycle, operational state, and health are emitted/reported se
 An archived or paused endpoint is not labeled unhealthy merely because it is intentionally not running.
 
 ## Observability
+
+2.0 distribution telemetry records bounded Profile key, API version, response status/duration, item/page information, non-secret credential identity, authentication/rate/missing/disabled/failure categories, and supplied adapter version. PHP health exposes last attempt/success, duration, items/pages, freshness and stale age, unchanged result, last failure category, and adapter version. This is operational diagnostics, not click, referral, visitor, page-view, reader-identity, or backlink analytics. Telemetry remains locally operable; managed aggregation cannot become a runtime dependency.
 
 MVP MUST emit enough structured information, as the relevant stages are introduced, to answer:
 
@@ -132,6 +134,7 @@ Logs MUST NOT contain:
 - unbounded response bodies;
 - sensitive environment values;
 - credential-bearing database connection strings.
+- bearer credential plaintext, Authorization headers, or sensitive distribution payloads.
 
 Query strings are redacted when they may contain credentials/private tokens.
 

@@ -105,7 +105,7 @@ The reference frontend targets WCAG 2.2 AA: semantic/native controls, coherent k
 
 This specification does not authorize changes to feed eligibility/order, discovery/cursor/history semantics, Publication admin UI, configurable timezone/date behavior, duplicate moderation, featured ordering, Article-body republishing, Article thumbnails/images, remote font dependencies, or topic-specific shared-engine/UI behavior.
 
-It also does not govern client-site integration presentation, widget styles, iframe behavior, CMS components, distribution transports, backlink/SEO behavior, or Distribution Profile semantics. Those belong to the distribution contract and its remaining lower-level decisions.
+It also does not govern client-site integration presentation, widgets/iframes, CMS components, distribution transports, backlink/SEO behavior, or Distribution Profile semantics. Those belong to the completed distribution contracts and their 2.0/post-2.0 boundaries.
 
 ## Validation intent
 

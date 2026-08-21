@@ -17,13 +17,17 @@ The approved distribution architecture has four layers:
 1. an isolated instance containing Web/Admin, Worker, PostgreSQL state, scheduler/jobs, configuration/secrets, and distribution interfaces;
 2. its instance-owned control plane for Sources/endpoints, collection filters, Categories, Relevance, moderation, duplicates, health/operations, and Distribution Profiles;
 3. named Distribution Profiles that narrow canonically eligible Articles; and
-4. thin PHP+cron, WordPress, RSS/Atom, and custom-application consumers.
+4. the required generic PHP+cron consumer and custom server applications; WordPress and RSS/Atom follow post-2.0.
 
 ```mermaid
 flowchart LR
     C1[Current JSON consumer /api/feed] --> B[Web/API Application]
     C2[Bundled reference frontend /] --> B
-    CF[Future supported distribution adapters] --> B
+    PHP[Scheduled PHP sync] --> API[Authenticated v1 Distribution API]
+    API --> P[Distribution Profile read model]
+    P --> B
+    PHP --> LKG[Validated local LKG snapshot]
+    SITE[Customer server-rendered site] --> LKG
     A[Cloudflare Access-protected Admin UI/API] --> B
     B --> D[(PostgreSQL)]
     B --> Q[Durable Job Queue / Scheduler]
@@ -47,7 +51,7 @@ flowchart LR
     B --> O
 ```
 
-The diagram shows currently implemented surfaces plus the approved future adapter boundary. Exact transport schema/version/path, authentication, CORS, cache mechanics, profile selectors/persistence, SEO/link policy, and analytics remain unresolved.
+The diagram combines current reference surfaces with the approved, unimplemented 2.0 path. The API, Profile, machine-authentication, and cache contracts are governed by the distribution contracts; no Web/API route performs Source collection inline.
 
 ## Deployment boundary
 
@@ -66,9 +70,9 @@ Publication is not a tenant key:
 
 The current bundled reference page is `GET /`. The current basic JSON outward/feed API is `GET /api/feed`. The `1.0.1` root response is server-rendered while preserving the same canonical public/outward read-model semantics used by the API.
 
-These routes are implemented consumers/interfaces, not the definition of the product. A future supported adapter for an existing client website must consume the same governed Article-selection semantics rather than create another eligibility/query authority.
+These routes are implemented reference/legacy consumers, not the permanent integration API. The v1 Profile interface consumes the same governed Article-selection semantics without inheriting their `public_status` exposure gate.
 
-A second topic uses another configured deployment of the same codebase. The managed instance must map naturally to eventual standalone deployment of the complete stack, with no mandatory central News Scraper service for ordinary operation. This architecture does not choose Docker, Compose, Kubernetes, systemd, installer tooling, or supported operating systems.
+A second topic uses another configured deployment of the same codebase. 2.0 provides a lightweight standard-Linux VPS Docker Compose evaluation/deployment route for Web/Admin plus distribution API, Worker, scheduler/jobs, PostgreSQL with persistent storage, health checks, startup/migration tooling, and externalized configuration/secrets. PostgreSQL is included by default while an ordinary connection contract permits external PostgreSQL. Kubernetes/multi-node operation is post-2.0, and autonomous public self-host production readiness is not claimed.
 
 Multiple distribution consumers for one Publication do not imply or authorize concurrent multi-Publication tenancy.
 
@@ -129,7 +133,7 @@ The existing `public-feed/` name reflects the implemented `1.0.x` surfaces. The 
 
 The exact implementation may keep or rename an existing module only when that choice produces the smallest coherent canonical design. It MUST NOT retain plural/selector-oriented APIs solely as a compatibility bridge. Legacy-only source modules, wrappers, types, tests, fixtures, configuration paths, and other artifacts from superseded pre-production architecture MUST be deleted when the canonical implementation no longer has an independent use for them.
 
-Native application authentication/account modules are deferred beyond MVP unless a later decision promotes them. Future consumer authentication is a separate unresolved distribution concern and must not be inferred from this statement.
+Native/default self-host administrator authentication remains post-2.0. Dedicated local bearer credentials with `distribution:read` protect the v1 machine API and never grant administrator authority; their lifecycle is governed by `distribution-api-contract.md`.
 
 The layout above is a target ownership map, not a requirement to create empty directories or placeholder modules before substantive code exists.
 

@@ -19,7 +19,7 @@ The accepted `1.0.0` customer launch established the first supported production 
 
 On 2026-08-19 the repository owner approved a product-direction shift toward the headless aggregation/distribution core. On 2026-08-20 the owner locked the managed-first/self-hostable macro architecture, Distribution Profiles, thin PHP/WordPress/RSS adapter directions, and customer presentation freedom.
 
-The previous frontend-centric post-1.0 roadmap remains paused. There is **no active implementation phase and no assigned next implementation version** until the remaining profile/API/security/cache/SEO decisions and a replacement roadmap are approved. The former Phase 0 P2/`1.0.2` closeout was intentionally retired without execution.
+The previous frontend-centric post-1.0 roadmap remains paused. The 2.0 architecture/contracts are complete, but there is **no active implementation phase and no assigned next implementation version** until an owner-approved replacement roadmap exists. Former Phase 0 P2/`1.0.2` was retired unexecuted.
 
 Current product authority is:
 
@@ -62,7 +62,7 @@ Web/API serves normalized admin/outward read models and never collects Sources i
 
 The reader destination is stored Article `original_url`; canonicalized URLs remain identity fields. Article identity answers whether one Source instance was already stored, while duplicate grouping relates separately retained Articles across Sources. Collection trust and future consumer-specific distribution selection are separate concerns.
 
-The macro distribution architecture is approved but unimplemented. Exact profile selectors/persistence, JSON schema/version/path, machine authentication, cache mechanics, RSS access, self-host packaging/authentication, CORS/rate limits, analytics, and SEO/link policy remain unresolved. Managed service means the complete self-hostable product operated for the customer; it is not a mandatory central-cloud dependency. Customers may replace first-party markup while News Scraper retains governed selection semantics.
+The 2.0 distribution architecture is approved but unimplemented: canonical eligibility feeds administrator-owned Profiles, the authenticated v1 API, scheduled generic PHP complete-snapshot synchronization, local last-known-good data, and customer server-rendered output. WordPress, RSS/Atom, and native self-host admin authentication are post-2.0. Managed integration remains primary; a Linux VPS/Docker Compose evaluation route is governed without creating a mandatory central-cloud dependency.
 
 See `docs/architecture/system-architecture.md` and the contracts/ADRs for authoritative detail.
 
@@ -105,7 +105,8 @@ Start every repository-aware session with `BOOT.md`, which routes to the narrowe
 - `docs/contracts/source-and-collection-contract.md` — Source trust, network safety, adapters, pipeline, and run accounting.
 - `docs/contracts/article-lifecycle-and-deduplication.md` — visibility, duplicate review/groups, and Primary behavior.
 - `docs/contracts/public-feed-and-admin-contract.md` — current `/` reference-frontend and `/api/feed` behavior plus admin UX; its product-surface interpretation is narrowed by the headless-distribution ADR.
-- `docs/contracts/distribution-and-integration-contract.md` — Distribution Profile ordering, thin adapters, presentation ownership, cache direction, and unresolved integration details.
+- `docs/contracts/distribution-and-integration-contract.md` — Distribution Profiles, PHP/LKG behavior, adapter/presentation/link boundaries, later adapters, and telemetry.
+- `docs/contracts/distribution-api-contract.md` — permanent v1 Profile API, schema, snapshot/cursor behavior, machine credentials, errors, limits, and CORS stance.
 - `docs/contracts/testing-and-validation-contract.md` — regression and evidence requirements.
 - `docs/architecture/system-architecture.md` — process, module, pipeline, scheduling, and transaction ownership for the implemented system.
 - `docs/operations/` — onboarding, security/reliability, backup/restore, deployment, rollback, and incidents.

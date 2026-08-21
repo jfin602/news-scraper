@@ -169,7 +169,7 @@ Related coverage remains separate.
 
 Source/Category filters, literal keyword search, keyset pagination, and any later explicitly governed consumer selection operate only over this canonical eligible stream and MUST NOT resurrect a visible `non_primary` Article or create a parallel eligibility path. The reader/headline destination remains stored `original_url`.
 
-The singleton Publication outward/public-exposure gate and Source trust/lifecycle gates for the current feed are defined by `docs/contracts/public-feed-and-admin-contract.md`; Article visibility/duplicate role do not replace those gates. Approved Distribution Profiles are governed by `docs/contracts/distribution-and-integration-contract.md` and run after the canonical trust/visibility/duplicate gate.
+The singleton Publication `public_status` gate applies to the current reference surfaces under `public-feed-and-admin-contract.md`; it is not part of canonical Distribution Profile eligibility. Profiles run after the approved-Source, Article-visibility, and ungrouped-or-Primary duplicate gate and may only narrow it. Duplicate algorithms are unchanged.
 
 An “also reported by” UI is not required by the duplicate engine.
 

@@ -1,6 +1,6 @@
 # Post-1.0 Roadmap
 
-**Status:** PAUSED — macro distribution/deployment architecture approved; remaining design and replacement roadmap pending.
+**Status:** PAUSED — 2.0 architecture/contracts complete; replacement roadmap pending owner approval.
 **Current package version:** `1.0.1`.  
 **Current implementation phase:** none.  
 **Last implemented roadmap work:** former Phase 0 / P1 — server-rendered root, shipped as `1.0.1`.  
@@ -21,7 +21,7 @@ The Platform is now governed by:
 
 The former frontend-first post-1.0 sequence is therefore **retired as an implementation plan**. It is retained below only as planning history so the repository does not pretend those ideas were never considered.
 
-No implementation prompt stack may be generated or executed from this file until the remaining architecture gate is complete and an owner-approved replacement roadmap has been documented.
+The architecture/design-question gate is complete and promoted into governing contracts. No implementation prompt stack may be generated or executed until an owner-approved replacement 2.0 roadmap has been documented.
 
 `1.0.2` is **not reserved or assigned** by the retired Phase 0 closeout. The next version must be derived from the replacement roadmap rather than inferred from the old sequence.
 
@@ -41,17 +41,13 @@ This approval does not mean those features are implemented and assigns no versio
 
 ## Remaining gate before implementation resumes
 
-Before `/prompt-ass` resumes for roadmap implementation, complete this documentation/design sequence:
+The lower-level architecture decisions and governing-contract promotion are complete. The only remaining project-level gate is:
 
-1. define the exact Distribution Profile selector contract and persistence shape;
-2. define external JSON/API schema, versioning, and path;
-3. define machine authentication and authorization separation;
-4. define cache freshness, validation, locking, and retry behavior;
-5. decide RSS public/private/authenticated behavior;
-6. decide link/SEO policy without promising performance;
-7. decide self-hosted administrator authentication and packaging details needed for sequencing;
-8. update governing contracts/ADRs, then write and approve a replacement roadmap;
-9. only then resume `/prompt-ass` → `/prompt-plan` → `/prompt-write`.
+1. write the replacement 2.0 implementation roadmap;
+2. obtain owner approval, including its first phase and version assignment;
+3. resume `/prompt-ass` → `/prompt-plan` → `/prompt-write`.
+
+This document does not create that roadmap or assign a version.
 
 ## Preserved laws during the roadmap reset
 
@@ -118,7 +114,7 @@ The earlier roadmap planned the following work after SSR. These entries are **no
 5. **Article thumbnails / Source-provided images** — governed optional image metadata and public presentation.
 6. **Scale and performance validation** — realistic corpus/workload measurement and evidence-based optimization.
 
-Some of these capabilities may remain useful after the distribution/SEO investigation, but they must be reclassified and resequenced according to the headless product boundary rather than carried forward automatically.
+Some may remain useful, but the completed architecture requires them to be reclassified and resequenced in the replacement roadmap rather than carried forward automatically.
 
 ## Versioning rule while paused
 

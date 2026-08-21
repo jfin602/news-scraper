@@ -1,6 +1,6 @@
 # ADR: Cloudflare Access Admin Perimeter
 
-**Status:** Accepted  
+**Status:** Accepted
 **Date:** 2026-08-06  
 **Amended:** 2026-08-11 and 2026-08-20
 
@@ -12,9 +12,9 @@ The MVP still requires a strong administrative access boundary once admin UI/API
 
 ## Decision
 
-For the current managed/reference deployment, Cloudflare Access is the external authentication/access-control perimeter for all administrative UI and administrative API routes.
+For current managed deployments, including the primary 2.0 managed integration path, Cloudflare Access is the supported external authentication/access-control perimeter for all administrative UI and administrative API routes.
 
-This decision does not make Cloudflare Access a mandatory runtime dependency of the complete self-hostable stack. A future supported self-hosted deployment MUST provide a governed secure administrator perimeter, but its native, reverse-proxy, or SSO mechanism requires a later decision. All origin-bypass, request-integrity, and resource-validation requirements below continue to apply to the managed deployment.
+This decision does not make Cloudflare Access a mandatory runtime dependency of the complete self-hostable stack. Native/default self-host administrator authentication remains intentionally post-2.0. The 2.0 Compose route is limited to controlled evaluation/deployment or an operator-provided secure perimeter; it does not claim autonomous public production readiness. All origin-bypass, request-integrity, and resource-validation requirements below continue to apply to managed deployments.
 
 The MVP application does not implement native administrator accounts, passwords/passkeys, login/logout sessions, account recovery, roles, per-user Publication authorization, or a canonical internal administrator identity.
 
@@ -29,12 +29,14 @@ The application MAY store bounded configuration/moderation change history with a
 ## Consequences
 
 ### Positive
+
 - The critical path stays focused on collection, normalization, persistence, and the public feed.
 - Admin access remains protected when the control plane is introduced.
 - Native identity/account complexity can be designed later from actual product needs.
 - Collection-engine and resource-integrity boundaries do not depend on one authentication implementation.
 
 ### Costs
+
 - MVP admin access depends on deployment configuration outside the application.
 - Direct-origin protection becomes a required operational invariant.
 - MVP application change history cannot guarantee per-user attribution.
@@ -43,12 +45,15 @@ The application MAY store bounded configuration/moderation change history with a
 ## Rejected alternatives
 
 ### Build native administrator authentication before collection
+
 Rejected because it delays the first useful product demonstration and is not required by the locked aggregation laws.
 
 ### Expose admin routes without an application or edge perimeter
+
 Rejected because administrative mutations require a real access-control boundary.
 
 ### Treat Cloudflare Access as sufficient for all application security
+
 Rejected because request integrity, resource validation, secret handling, content safety, and collection-network safety remain application/deployment responsibilities.
 
 ## Migration effects

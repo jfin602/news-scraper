@@ -70,7 +70,7 @@ An installation-wide deterministic rule used to include, exclude, or categorize 
 
 ### Distribution Profile
 
-A first-class named administrator-controlled outward selection over the singleton Publication's canonically eligible Article corpus. One Publication may own multiple Distribution Profiles without becoming a tenant or multi-Publication installation. Exact fields, selectors, and persistence are intentionally not defined yet.
+A first-class installation-owned administrator-controlled outward selection over the singleton Publication's canonically eligible Article corpus. It has immutable `config_key`, mutable `display_name`, `draft`/`active`/`disabled` lifecycle, and a bounded result/history limit. A first-class Profile↔Source association selects participating approved Sources and may hold the bounded filters governed by `distribution-and-integration-contract.md`. Multiple Profiles do not create tenancy.
 
 ### Distribution consumer and integration adapter
 
@@ -86,6 +86,7 @@ A distribution consumer receives supported normalized profile output. An integra
 - Duplicate groups and Duplicate review candidates relate Articles within the one installation; an Article belongs to at most one Duplicate group, and cross-Publication checks are structurally unnecessary because the installation cannot contain another Publication domain.
 - Administrative commands validate real resource relationships and domain invariants even though MVP does not implement per-user authorization.
 - Distribution Profiles belong conceptually to the singleton Publication configuration, operate only over canonically eligible Articles, and do not add Publication/customer tenant keys.
+- Distribution Profile operation is independent of Publication `public_status`, which controls only the bundled reference surfaces.
 
 Do not introduce Publication UUIDs, slugs, foreign keys, composite uniqueness scopes, repository arguments, or compatibility aliases solely to model concurrent Publications that the supported product does not host.
 
@@ -403,6 +404,14 @@ Administrator mutation exposes only this bounded model. A Source scope, when set
 
 Generic `boost`/ranking behavior is deferred until a ranking/scoring contract exists.
 
+### Distribution Profiles and Source associations
+
+Logical persistence preserves Profile immutable `config_key`, display name, lifecycle, bounded result/history setting, and activation history sufficient to protect stable integration identity. Profile↔Source associations reference real Sources and store only the bounded `include_any_phrases[]`, `exclude_any_phrases[]`, and `category_config_keys[]` selection configuration. Category keys reference real Categories. An active Profile has at least one usable approved Source association; draft Profiles may be incomplete. Profile persistence does not duplicate Source configuration, Articles, identity, or provenance.
+
+### Machine distribution credentials
+
+Logical credential records store a non-secret lookup identity, secure verifier/digest, label, lifecycle/audit timestamps, optional expiration, revocation state, and `distribution:read` capability. Plaintext credentials are never persisted. Credentials belong to the isolated instance and do not require Profile permission rows in 2.0. Their persistence remains distinct from human administrator identity and authority.
+
 ### `duplicate_review_candidates`
 
 - canonically ordered compared Article identifiers, preventing `(A, B)` and `(B, A)` from becoming distinct logical candidates;
@@ -438,6 +447,8 @@ Persistence MUST enforce or transactionally guarantee:
 - unique immutable Source-endpoint `config_key` within a Source;
 - unique immutable Category `config_key` across the installation;
 - unique immutable Relevance-rule `config_key` across the installation;
+- unique immutable Distribution Profile `config_key` across the installation;
+- valid Profile↔Source and Profile-filter Category relationships;
 - no duplicate Article/Category membership for one Article and Category;
 - no duplicate non-archived normalized endpoint URL within the same Source;
 - no duplicate Article for the same reliable immutable external identifier within the same Source;

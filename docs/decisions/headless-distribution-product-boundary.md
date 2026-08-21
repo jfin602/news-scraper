@@ -65,13 +65,13 @@ Until a later distribution contract deliberately changes a current outward inter
 
 Where existing documentation describes `/` as the Platform's canonical **product** or mandatory customer-visible surface, this ADR and the amended Project Contract narrow that wording: `/` is canonical only for the bundled reference frontend, not for every consuming client website.
 
-## Deliberately unresolved
+## Deliberately unresolved at adoption
 
 ### Later decision — 2026-08-20
 
 `managed-first-self-hostable-distribution-architecture.md` and `../contracts/distribution-and-integration-contract.md` now resolve the macro architecture: managed-first/self-hostable single-Publication instances, instance-owned control planes, post-eligibility Distribution Profiles, thin PHP/WordPress/RSS adapter families, custom-application consumption, customer presentation ownership, machine/admin separation, and last-known-good cache direction. This is a later amendment and does not rewrite what was known on 2026-08-19.
 
-Exact profile selectors/persistence, JSON API schema/version/path, credential mechanism, RSS access, cache mechanics, self-host packaging/authentication, and SEO/link policy remain unresolved.
+The later completed 2.0 architecture is now governed by `../contracts/distribution-and-integration-contract.md` and `../contracts/distribution-api-contract.md`. They resolve Profile selectors/persistence behavior, the v1 API, machine credentials, PHP/cache semantics, RSS status, Compose evaluation packaging, and link/SEO policy. This later resolution does not rewrite what was unknown on 2026-08-19.
 
 At adoption, this ADR did not select or promise:
 
@@ -91,7 +91,7 @@ At adoption, this ADR did not select or promise:
 - cache/CDN behavior;
 - push/webhook distribution.
 
-These questions require the explicitly planned distribution-method and SEO investigation before implementation work resumes.
+Those questions required the later investigation. It is now complete; implementation still awaits an owner-approved replacement roadmap.
 
 ## Consequences
 
@@ -156,4 +156,4 @@ A future change violates this ADR when it:
 - bypasses normalized Article/provenance boundaries;
 - silently replaces stored `original_url` as the reader destination;
 - hard-codes indie-author/client-specific exchange logic in the shared engine; or
-- implements an unresolved distribution/SEO mechanism before the required governing decision is made.
+- implements distribution behavior outside the completed governing contracts or before the replacement roadmap authorizes it.
