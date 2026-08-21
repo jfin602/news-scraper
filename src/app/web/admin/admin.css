@@ -744,6 +744,40 @@ select {
   color: var(--success);
 }
 
+.credentials-panel {
+  display: grid;
+  gap: 1rem;
+}
+
+.one-time-secret {
+  background: var(--danger-surface);
+  border: 1px solid var(--danger);
+  border-radius: 0.45rem;
+  padding: 1rem;
+}
+
+.one-time-secret h3 {
+  margin-top: 0;
+}
+
+.credential-token {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: block;
+  margin: 0.75rem 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  padding: 0.75rem;
+  user-select: all;
+}
+
+.credential-record-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
 .endpoint-section {
   display: grid;
   gap: 1rem;

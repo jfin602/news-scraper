@@ -13,6 +13,7 @@ const adminClient = readFileSync(
 const adminModuleAssets = Object.fromEntries(
   [
     'catalog.js',
+    'credentials.js',
     'core.js',
     'editorial.js',
     'moderation.js',
@@ -77,6 +78,10 @@ const adminPage = `<!doctype html>
           <button type="button" class="workspace-tab" role="tab" aria-selected="false" aria-controls="profiles-workspace" data-workspace="profiles">
             <span>Profiles</span>
             <span class="workspace-tab-description">Distribution filters and lifecycle</span>
+          </button>
+          <button type="button" class="workspace-tab" role="tab" aria-selected="false" aria-controls="credentials-workspace" data-workspace="credentials">
+            <span>Credentials</span>
+            <span class="workspace-tab-description">Machine distribution access</span>
           </button>
           <button type="button" class="workspace-tab" role="tab" aria-selected="false" aria-controls="articles-workspace" data-workspace="articles">
             <span>Articles</span>
@@ -613,6 +618,50 @@ const adminPage = `<!doctype html>
               <section class="panel editor-panel"><div class="panel-heading"><div><p class="section-kicker">Bounded literal rules</p><h2 data-rule-editor-heading>Select a Relevance rule</h2></div></div><p class="section-help" data-rule-editor-help>Rules are applied prospectively during collection.</p><form data-rule-form hidden><fieldset><legend>Rule configuration</legend><div class="form-grid"><label>Configuration key<input name="configKey" required autocomplete="off"><span class="field-help">Immutable after creation.</span></label><label>Predicate<select name="predicateType"><option value="title_contains">Title contains</option><option value="summary_contains">Summary contains</option><option value="source_category_equals">Source category equals</option></select></label><label>Action<select name="action"><option value="include">Include</option><option value="exclude">Exclude</option><option value="categorize">Categorize</option></select></label><label>Priority<input name="priority" type="number" step="1" value="0" required></label><label class="wide-field">Literal pattern<input name="pattern" required autocomplete="off"></label><label class="wide-field">Reason / label<input name="reason" required autocomplete="off"></label></div></fieldset><fieldset><legend>Scope and Category target</legend><label>Scope<select name="scope"><option value="installation">Installation-wide</option><option value="source">One Source</option></select></label><label data-rule-source-field hidden>Source<select name="sourceConfigKey" data-rule-source-select></select></label><label data-rule-category-field hidden>Category target<select name="categoryConfigKey" data-rule-category-select></select></label></fieldset><div class="form-message" role="alert" tabindex="-1" data-rule-form-error hidden></div><div class="form-actions"><button type="submit" class="button primary" data-rule-submit>Save Relevance rule</button><button type="button" class="button secondary" data-rule-cancel>Cancel</button><button type="button" class="button secondary" data-rule-enabled hidden></button><button type="button" class="button danger" data-rule-delete hidden>Remove rule</button></div></form><aside class="precedence-guidance"><h3>How rules apply</h3><p>All applicable enabled literal rules are evaluated deterministically. Include/exclude precedence uses priority, Source scope, action, then immutable key tie rules. Matching categorize rules all add their Categories. If none assigns a Category, the endpoint default wins over the Source default. Edits apply prospectively and do not rescan historical Articles.</p></aside></section>
             </section>
           </div>
+        </section>
+
+        <section class="workspace-panel" id="credentials-workspace" data-workspace-panel="credentials" aria-labelledby="credentials-heading" hidden>
+          <section class="panel credentials-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="section-kicker">Machine distribution access</p>
+                <h2 id="credentials-heading" tabindex="-1">Distribution Credentials</h2>
+              </div>
+              <button type="button" class="button secondary" data-refresh-credentials>Refresh Credentials</button>
+            </div>
+            <p class="section-help">Credentials grant only <code>distribution:read</code>. They never grant administrator access.</p>
+            <div class="workspace-state" data-credentials-state="idle" role="status" aria-live="polite">Open Credentials to load the current credential records.</div>
+            <div class="form-message" role="alert" tabindex="-1" data-credentials-error hidden></div>
+            <section class="one-time-secret" data-credential-secret hidden aria-labelledby="credential-secret-heading">
+              <h3 id="credential-secret-heading" tabindex="-1">Copy this token now</h3>
+              <p>This plaintext token cannot be shown again. Copy it to the intended consumer's secret configuration, then clear it from this page.</p>
+              <output class="credential-token" data-credential-token></output>
+              <div class="form-actions">
+                <button type="button" class="button primary" data-copy-credential-token>Copy token</button>
+                <button type="button" class="button secondary" data-dismiss-credential-token>Dismiss and clear</button>
+              </div>
+              <p class="field-help" role="status" aria-live="polite" data-credential-copy-result></p>
+            </section>
+            <form data-credential-create-form>
+              <fieldset>
+                <legend>Create credential</legend>
+                <div class="form-grid">
+                  <label>Label
+                    <input name="label" autocomplete="off" required>
+                  </label>
+                  <label>Expiration (optional)
+                    <input name="expiresAt" type="datetime-local">
+                    <span class="field-help">Leave blank for no expiry. Use a future date and time.</span>
+                  </label>
+                </div>
+              </fieldset>
+              <div class="form-actions"><button type="submit" class="button primary">Create credential</button></div>
+            </form>
+            <section aria-labelledby="credentials-list-heading">
+              <h3 id="credentials-list-heading">Credential records</h3>
+              <div class="bounded-list" data-credentials-list></div>
+            </section>
+          </section>
         </section>
 
         <section class="workspace-panel" id="articles-workspace" data-workspace-panel="articles" aria-labelledby="articles-heading" hidden>

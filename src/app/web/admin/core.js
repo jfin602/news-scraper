@@ -115,6 +115,10 @@ export function messageForError(error) {
     internal_error: 'The administration service is temporarily unavailable.',
     service_unavailable:
       'The operational snapshot is temporarily unavailable. Refresh Operations to try again.',
+    credential_not_found:
+      'That credential no longer exists. Refresh Credentials to reload current state.',
+    credential_already_rotated:
+      'That credential was already rotated. Refresh Credentials to see its current successor.',
   };
   if (error.code === 'endpoint_not_collectable') {
     return `Check now was not queued because the endpoint is ineligible: ${humanize(error.reason ?? 'unknown state')}.`;

@@ -5,6 +5,7 @@ import { createSourcesWorkspace } from './sources.js';
 import { createEditorialWorkspace } from './editorial.js';
 import { createModerationWorkspace } from './moderation.js';
 import { createProfilesWorkspace } from './profiles.js';
+import { createCredentialsWorkspace } from './credentials.js';
 import { required } from './core.js';
 
 const sources = createSourcesWorkspace();
@@ -17,6 +18,7 @@ const workspaces = {
   sources,
   editorial: createEditorialWorkspace(),
   profiles: createProfilesWorkspace(),
+  credentials: createCredentialsWorkspace(),
   articles: createModerationWorkspace(),
 };
 let activeWorkspace = 'sources';
@@ -24,6 +26,7 @@ const tabs = Array.from(document.querySelectorAll('[data-workspace]'));
 const panels = Array.from(document.querySelectorAll('[data-workspace-panel]'));
 async function selectWorkspace(workspace) {
   if (!(workspace in workspaces)) return;
+  if (activeWorkspace !== workspace) workspaces[activeWorkspace].deactivate?.();
   activeWorkspace = workspace;
   for (const tab of tabs)
     tab.setAttribute(
