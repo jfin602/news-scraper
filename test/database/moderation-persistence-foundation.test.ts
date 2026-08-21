@@ -9,10 +9,7 @@ import { withDisposableDatabase } from '../support/database/disposable-database.
 test('Phase 17 moderation persistence migrates from zero and enforces bounded authority', async () => {
   await withDisposableDatabase(async ({ databaseUrl }) => {
     const applied = await migrateDatabase({ connectionString: databaseUrl });
-    assert.equal(
-      applied.at(-1),
-      '0014_html_endpoint_profile_and_run_diagnostics.sql',
-    );
+    assert.equal(applied.at(-1), '0015_distribution_profiles.sql');
     const client = new Client({ connectionString: databaseUrl });
     try {
       await client.connect();
@@ -23,7 +20,7 @@ test('Phase 17 moderation persistence migrates from zero and enforces bounded au
       );
       assert.equal(
         migrationRows.rows.at(-1)?.filename,
-        '0014_html_endpoint_profile_and_run_diagnostics.sql',
+        '0015_distribution_profiles.sql',
       );
 
       await client.query(

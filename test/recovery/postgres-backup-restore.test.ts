@@ -11,6 +11,11 @@ import {
 } from '../../src/database/backup.ts';
 import { createDatabase } from '../../src/database/database.ts';
 import { migrateDatabase } from '../../src/database/migrations.ts';
+import {
+  createDistributionProfile,
+  findDistributionProfileByConfigKey,
+  replaceDistributionProfileSourceAssociation,
+} from '../../src/distribution/profiles/repository.ts';
 import { reconcileExpiredEndpointCollectionJob } from '../../src/jobs/execute-endpoint-collection-job.ts';
 import {
   claimNextEndpointCollectionJob,
@@ -95,6 +100,30 @@ test('real PostgreSQL backup restores governed state and existing recovery seman
     primary_origin: 'manual',
     audit_action: 'article_title_changed',
   });
+  assert.deepEqual(
+    await findDistributionProfileByConfigKey(database, seeded.profileConfigKey),
+    {
+      id: seeded.profileId,
+      configKey: 'recovery_profile',
+      displayName: 'Recovery Profile',
+      lifecycle: 'active',
+      resultLimit: 321,
+      createdAt: seeded.profileCreatedAt,
+      updatedAt: seeded.profileUpdatedAt,
+      sources: [
+        {
+          sourceId: seeded.sourceId,
+          sourceConfigKey: 'recovery_source',
+          sourceDisplayName: 'Recovery Source',
+          sourceApprovalState: 'approved',
+          sourceLifecycleState: 'active',
+          includeAnyPhrases: ['Recovery include'],
+          excludeAnyPhrases: ['Recovery exclude'],
+          categoryConfigKeys: ['recovery_category'],
+        },
+      ],
+    },
+  );
   assert.equal(
     (await findEndpointCollectionJobById(database, seeded.queuedJobId))?.status,
     'queued',
@@ -176,6 +205,24 @@ async function seedRepresentativeState(databaseUrl: string) {
       `INSERT INTO categories (id,config_key,display_name) VALUES ($1,'recovery_category','Recovery Category')`,
       [categoryId],
     );
+    const profile = await createDistributionProfile(database, {
+      configKey: 'recovery_profile',
+      displayName: 'Recovery Profile',
+      lifecycle: 'active',
+      resultLimit: 321,
+    });
+    await database.transaction(async (transaction) => {
+      await replaceDistributionProfileSourceAssociation(
+        transaction,
+        profile.configKey,
+        'recovery_source',
+        {
+          includeAnyPhrases: ['Recovery include'],
+          excludeAnyPhrases: ['Recovery exclude'],
+          categoryConfigKeys: ['recovery_category'],
+        },
+      );
+    });
     await database.query(
       `INSERT INTO relevance_rules (id,config_key,action,predicate_type,pattern,priority,source_id,category_id,reason) VALUES ($1,'recovery_rule','categorize','title_contains','recovery',10,$2,$3,'Recovery category')`,
       [randomUUID(), sourceId, categoryId],
@@ -255,6 +302,11 @@ async function seedRepresentativeState(databaseUrl: string) {
     );
     return {
       articleId,
+      sourceId,
+      profileId: profile.id,
+      profileConfigKey: profile.configKey,
+      profileCreatedAt: profile.createdAt,
+      profileUpdatedAt: profile.updatedAt,
       runId: interruptedRunId,
       queuedJobId: queued.job.id,
       expiredJobId: expired.job.id,

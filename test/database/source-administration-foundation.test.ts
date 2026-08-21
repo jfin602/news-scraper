@@ -43,6 +43,7 @@ test('migrates Source administration foundation from zero with canonical constra
       '0012_duplicate_persistence_foundation.sql',
       '0013_article_duplicate_moderation.sql',
       '0014_html_endpoint_profile_and_run_diagnostics.sql',
+      '0015_distribution_profiles.sql',
     ]);
     const database = createDatabase({ connectionString: databaseUrl });
     try {

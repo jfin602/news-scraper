@@ -287,6 +287,7 @@ test('installs only the justified public-feed discovery indexes from zero', asyn
       '0012_duplicate_persistence_foundation.sql',
       '0013_article_duplicate_moderation.sql',
       '0014_html_endpoint_profile_and_run_diagnostics.sql',
+      '0015_distribution_profiles.sql',
     ]);
     assert.deepEqual(
       await migrateDatabase({ connectionString: databaseUrl }),
@@ -390,6 +391,47 @@ test('installs only the justified public-feed discovery indexes from zero', asyn
            )`,
       );
       assert.deepEqual(fullTextOrTrigramIndexes.rows, []);
+    } finally {
+      await database.close();
+    }
+  });
+});
+
+test('current migrations install the Distribution Profile relational boundary', async () => {
+  await withDisposableDatabase(async ({ databaseUrl }) => {
+    await migrateDatabase({ connectionString: databaseUrl });
+    const database = createDatabase({ connectionString: databaseUrl });
+    try {
+      const tables = await database.query<{ readonly table_name: string }>(
+        `SELECT table_name
+           FROM information_schema.tables
+          WHERE table_schema = 'public'
+            AND table_name = ANY($1::text[])
+          ORDER BY table_name`,
+        [
+          [
+            'distribution_profiles',
+            'distribution_profile_sources',
+            'distribution_profile_source_phrases',
+            'distribution_profile_source_categories',
+          ],
+        ],
+      );
+      assert.deepEqual(
+        tables.rows.map((row) => row.table_name),
+        [
+          'distribution_profile_source_categories',
+          'distribution_profile_source_phrases',
+          'distribution_profile_sources',
+          'distribution_profiles',
+        ],
+      );
+      await assert.rejects(
+        database.query(
+          `INSERT INTO distribution_profiles (id, config_key, display_name, lifecycle, result_limit)
+           VALUES ('00000000-0000-0000-0000-000000000001', 'invalid-key', 'Name', 'draft', 100)`,
+        ),
+      );
     } finally {
       await database.close();
     }
