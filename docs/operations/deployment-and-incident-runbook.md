@@ -1,10 +1,10 @@
 # Deployment, upgrade, rollback, and incident runbook
 
-This provider-neutral procedure covers the implemented Node Web process, Node Worker process, and PostgreSQL database. The approved 2.0 Compose evaluation route is described below; hosting controls remain deployment-specific, and Kubernetes/systemd/zero-downtime orchestration are not defined here.
+This provider-neutral procedure covers the implemented Node Web process, Node Worker process, and PostgreSQL database. Hosting process-control commands and Cloudflare/origin controls are deployment-specific. Linux VPS/Docker Compose self-host packaging, Kubernetes, systemd packaging, and automatic zero-downtime orchestration are post-2.0 work rather than current release requirements.
 
 Phase 19 completed the pre-production operational validation. The `0013` to `0014` exercise proved this procedure against a repository-defined pre-launch state only and did not make older pre-production databases supported inputs. Phase 20 was subsequently accepted and established the first supported production SHA, package version, schema ledger, and customer data baseline.
 
-Managed and self-host evaluation deployments are modes of the same complete single-Publication stack. This runbook remains applicable beyond the approved Compose route. Cloudflare-specific steps describe current managed deployments; native self-host admin auth remains post-2.0, so other exposure requires an operator-provided governed perimeter and deployment record.
+Managed operation is the required 2.0 release path. Self-hostability remains an architectural direction for the same complete single-Publication stack, but productized self-host packaging and native self-host admin authentication are post-2.0. Cloudflare-specific steps below describe current managed deployments.
 
 ## Ordered deployment procedure
 
@@ -24,11 +24,23 @@ Use a change record that never contains secrets.
 12. Run `npm run deployment:validate -- <private-reference-config.json>` and retain its observations. Phase 20 launch validation repeated the authorized-operator and actual origin-protection observations manually against its launched-tree candidate; later deployments must repeat evidence appropriate to their own perimeter.
 13. Record SHA, package version, runtime/database versions, migration state, backup identifier, process observations, validator output, timestamp, and approver. Phase 20 acceptance already owns the initial production-baseline record; this step records the current deployment event.
 
-## 2.0 Compose evaluation and distribution checks
+## 2.0 managed distribution checks
 
-The approved 2.0 lightweight route targets a standard Linux VPS with Docker Compose containing Web/Admin plus distribution API, Worker, scheduler/jobs, PostgreSQL with persistent storage, health checks, startup/migration tooling, and externalized configuration/secrets. PostgreSQL is included by default; an experienced operator may supply external PostgreSQL through the ordinary connection contract. Use versioned release artifacts, never arbitrary `main` state. This route is for controlled deployment/evaluation or an operator-protected perimeter and does not replace the established production upgrade, backup, restore, or rollback procedure above.
+As the active roadmap introduces Distribution Profiles, machine credentials, the v1 API, and the generic PHP integration, managed deployment validation expands without creating a separate deployment topology.
 
-When these components exist, deployment validation additionally checks distribution API health, unusable/valid machine authentication without leaking credentials, active and disabled Profile behavior, complete PHP synchronization, last-known-good preservation, no live News Scraper call during visitor rendering, and direct stored publisher destinations on an external customer-style page. A final 2.0 release claim requires the managed external integration and failure observations governed by the testing contract.
+The final 2.0 managed integration must observe, as applicable:
+
+- distribution API liveness/readiness through the existing managed Web/API deployment;
+- unusable/valid/revoked machine authentication without credential leakage;
+- active, missing, and disabled Profile behavior;
+- complete PHP synchronization across required pages/revisions;
+- atomic last-known-good preservation under upstream/sync failure;
+- no live News Scraper call during ordinary visitor rendering;
+- direct stored publisher destinations on the external customer-style page;
+- supported production forward migration/data preservation for 2.0 schema additions;
+- compatibility with the established backup/restore/rollback procedure.
+
+The final release claim is governed by the testing contract and active roadmap. It does **not** require Linux VPS/Docker Compose packaging or a self-host deployment observation.
 
 ## Rollback decisions
 
