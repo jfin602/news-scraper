@@ -24,8 +24,17 @@ export interface DatabaseSession extends QueryExecutor {
 export interface Database extends QueryExecutor {
   ping(): Promise<void>;
   transaction<T>(work: (transaction: QueryExecutor) => Promise<T>): Promise<T>;
+  readOnlyRepeatableReadTransaction?<T>(
+    work: (transaction: QueryExecutor) => Promise<T>,
+  ): Promise<T>;
   withSession<T>(work: (session: DatabaseSession) => Promise<T>): Promise<T>;
   close(): Promise<void>;
+}
+
+export interface RepeatableReadDatabase extends Database {
+  readOnlyRepeatableReadTransaction<T>(
+    work: (transaction: QueryExecutor) => Promise<T>,
+  ): Promise<T>;
 }
 
 export class DatabaseRuntimeError extends Error {
@@ -127,6 +136,56 @@ class PooledDatabase implements Database {
         throw error;
       }
       throw error;
+    } finally {
+      try {
+        client.release(discard);
+      } finally {
+        client.off('error', handleClientError);
+      }
+    }
+  }
+
+  async readOnlyRepeatableReadTransaction<T>(
+    work: (transaction: QueryExecutor) => Promise<T>,
+  ): Promise<T> {
+    this.#assertUsable('read-only repeatable-read transaction');
+
+    let client: PoolClient;
+    try {
+      client = await this.#pool.connect();
+    } catch {
+      throw new DatabaseRuntimeError(
+        'read-only repeatable-read transaction',
+        UNAVAILABLE_REASON,
+      );
+    }
+
+    let discard = false;
+    const handleClientError = () => {
+      discard = true;
+    };
+    client.on('error', handleClientError);
+    try {
+      await client.query(
+        'BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY',
+      );
+      try {
+        const result = await work({
+          query: <Row extends QueryResultRow = QueryResultRow>(
+            text: string,
+            values?: readonly unknown[],
+          ) => client.query<Row>(text, values === undefined ? [] : [...values]),
+        });
+        await client.query('COMMIT');
+        return result;
+      } catch (error) {
+        try {
+          await client.query('ROLLBACK');
+        } catch {
+          // The original callback/query failure remains the most useful cause.
+        }
+        throw error;
+      }
     } finally {
       try {
         client.release(discard);

@@ -43,6 +43,15 @@ export interface CanonicalOutwardArticleRequest {
   readonly limit: number;
 }
 
+/** Post-eligibility selectors owned by one Distribution Profile Source association. */
+export interface CanonicalOutwardProfileSourceRequest {
+  readonly sourceConfigKey: string;
+  readonly includeAnyPhrases: readonly string[];
+  readonly excludeAnyPhrases: readonly string[];
+  readonly categoryConfigKeys: readonly string[];
+  readonly limit: number;
+}
+
 export type CanonicalOutwardArticleRepositoryErrorReason =
   'invalid_row' | 'read_failed';
 
@@ -129,6 +138,42 @@ const CANONICAL_OUTWARD_ARTICLES_QUERY = `
   FROM continued_items
   ORDER BY effective_feed_date DESC, first_seen_at DESC, article_id ASC`;
 
+const PROFILE_SOURCE_OUTWARD_ARTICLES_QUERY = `
+  WITH eligible_items AS (
+    SELECT article.id AS article_id,
+      COALESCE(article.display_title_override, article.display_title) AS headline,
+      article.original_url,
+      CASE WHEN article.published_at_status = 'parsed' THEN article.published_at ELSE article.first_seen_at END AS effective_feed_date,
+      article.first_seen_at,
+      CASE WHEN article.published_at_status = 'parsed' THEN 'published_at' ELSE 'first_seen_at' END AS feed_date_source,
+      article.published_at, article.author, article.summary, article.image_url,
+      source.config_key AS source_config_key, source.display_name AS source_display_name,
+      effective_categories.categories
+    FROM articles AS article
+    JOIN sources AS source ON source.id = article.source_id
+    LEFT JOIN article_category_overrides AS category_override ON category_override.article_id = article.id
+    CROSS JOIN LATERAL (
+      SELECT COALESCE(jsonb_agg(jsonb_build_object('configKey', category.config_key, 'displayName', category.display_name) ORDER BY lower(category.display_name), category.config_key), '[]'::jsonb) AS categories
+      FROM categories AS category
+      LEFT JOIN article_categories AS automatic_membership ON automatic_membership.category_id = category.id AND automatic_membership.article_id = article.id
+      LEFT JOIN article_category_override_memberships AS manual_membership ON manual_membership.category_id = category.id AND manual_membership.article_id = article.id
+      WHERE CASE WHEN category_override.article_id IS NOT NULL THEN manual_membership.article_id IS NOT NULL ELSE automatic_membership.article_id IS NOT NULL END
+    ) AS effective_categories
+    WHERE source.approval_state = 'approved' AND source.lifecycle_state = 'active'
+      AND article.visibility_state = 'visible'
+      AND NOT EXISTS (SELECT 1 FROM duplicate_group_memberships AS membership JOIN duplicate_groups AS duplicate_group ON duplicate_group.id = membership.group_id WHERE membership.article_id = article.id AND duplicate_group.primary_article_id <> article.id)
+      AND source.config_key = $1::text
+      AND (cardinality($4::text[]) = 0 OR EXISTS (SELECT 1 FROM jsonb_array_elements(effective_categories.categories) AS category WHERE category->>'configKey' = ANY($4::text[])))
+      AND (cardinality($2::text[]) = 0 OR EXISTS (SELECT 1 FROM unnest($2::text[]) AS phrase WHERE strpos(lower(COALESCE(article.display_title_override, article.display_title)), lower(phrase)) > 0 OR (article.author IS NOT NULL AND strpos(lower(article.author), lower(phrase)) > 0) OR (article.summary IS NOT NULL AND strpos(lower(article.summary), lower(phrase)) > 0)))
+      AND (cardinality($3::text[]) = 0 OR NOT EXISTS (SELECT 1 FROM unnest($3::text[]) AS phrase WHERE strpos(lower(COALESCE(article.display_title_override, article.display_title)), lower(phrase)) > 0 OR (article.author IS NOT NULL AND strpos(lower(article.author), lower(phrase)) > 0) OR (article.summary IS NOT NULL AND strpos(lower(article.summary), lower(phrase)) > 0)))
+  )
+  SELECT *,
+    to_char(effective_feed_date AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_effective_feed_date,
+    to_char(first_seen_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') AS cursor_first_seen_at
+  FROM eligible_items
+  ORDER BY effective_feed_date DESC, first_seen_at DESC, article_id ASC
+  LIMIT $5::integer`;
+
 export async function readCanonicalOutwardArticles(
   executor: QueryExecutor,
   request: CanonicalOutwardArticleRequest,
@@ -145,6 +190,36 @@ export async function readCanonicalOutwardArticles(
       request.continuationPosition?.articleId ?? null,
       request.limit,
     ]);
+    if (!Array.isArray(result.rows) || result.rows.length > request.limit)
+      throw new Error();
+    return Object.freeze(result.rows.map(mapRow));
+  } catch (error) {
+    if (error instanceof CanonicalOutwardArticleRepositoryError) throw error;
+    throw new CanonicalOutwardArticleRepositoryError('read_failed');
+  }
+}
+
+/**
+ * Applies a Profile association only to the shared canonical eligibility
+ * projection. Values are parameters, never SQL syntax.
+ */
+export async function readCanonicalOutwardArticlesForProfileSource(
+  executor: QueryExecutor,
+  request: CanonicalOutwardProfileSourceRequest,
+): Promise<readonly CanonicalOutwardArticle[]> {
+  try {
+    if (!Number.isSafeInteger(request.limit) || request.limit < 1)
+      throw new Error();
+    const result = await executor.query<Row>(
+      PROFILE_SOURCE_OUTWARD_ARTICLES_QUERY,
+      [
+        request.sourceConfigKey,
+        request.includeAnyPhrases,
+        request.excludeAnyPhrases,
+        request.categoryConfigKeys,
+        request.limit,
+      ],
+    );
     if (!Array.isArray(result.rows) || result.rows.length > request.limit)
       throw new Error();
     return Object.freeze(result.rows.map(mapRow));
