@@ -1,0 +1,429 @@
+TASK: Phase 4 / P3 — Phase 4 closeout
+
+- Recommended configuration: `Sol Light`.
+- Model-family basis: repository policy deliberately uses Sol's stronger independent code-reading/review capability for roadmap closeout while keeping reasoning effort low unless a concrete finding requires escalation.
+- Reasoning basis: the final tree crosses a permanent versioned wire contract, authentication/rate handling, proxy/HTTPS trust, canonical Profile pagination/revisions, structured telemetry, and real runtime composition; three independent review passes are required without automatically paying for deeper reasoning.
+- Complexity / quality floor: `Critical`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: none under the current closeout policy.
+- Escalation trigger: any pass finds unresolved auth/proxy trust ambiguity, secret leakage, incorrect v1 compatibility behavior, mixed-revision traversal risk, limiter-lifetime/bypass risk, externally insecure production credential handling, or a structural issue that cannot be confidently repaired within bounded Phase 4 behavior.
+- Escalation target: `Terra High`/`Terra Ultra` for explicit deep state/security/refactor reasoning or a higher-effort Sol configuration for ambiguous contract/architecture reconciliation, chosen from the observed cause.
+- Estimate confidence: `High`.
+- Efficiency rationale: independently audit the complete P1-P2 integration, make only bounded unambiguous Phase 4 repairs, and run one non-overlapping final evidence matrix rather than adding another feature prompt.
+
+The assigned project version is `1.4.3`.
+
+## Goal
+
+Perform the independent final Phase 4 closeout against the exact integrated P1-P2 tree, make only bounded unambiguous repairs/tests already inside Phase 4 scope, execute the complete applicable evidence matrix, and write the durable Phase 4 validation artifact.
+
+This is not a feature prompt. Do not build PHP/LKG, WordPress, browser widgets, new Profile selectors, persistent/distributed quota infrastructure, native administrator auth, or any Phase 5+ behavior.
+
+The final result remains **HUMAN REVIEW REQUIRED**. Do not perform conversational `/closeout` or advance to `1.5.0`.
+
+## Prerequisite
+
+P1-P2 must be committed as the reachable Phase 4 implementation prefix with package version `1.4.2` and exact runner-recognizable roadmap commit subjects.
+
+If Git history/package version does not prove that prefix, stop and report the mismatch before reviewing behavior.
+
+## Read first
+
+Read:
+
+1. current `BOOT.md` and `AGENTS.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/product-scope-and-users.md`;
+4. `docs/contracts/distribution-api-contract.md`;
+5. `docs/contracts/distribution-and-integration-contract.md`;
+6. `docs/contracts/testing-and-validation-contract.md`;
+7. `docs/contracts/public-feed-and-admin-contract.md`;
+8. `docs/operations/security-reliability-and-operations.md`;
+9. `docs/operations/deployment-and-incident-runbook.md`;
+10. `docs/decisions/cloudflare-access-admin-perimeter.md` and `production-data-and-schema-compatibility.md`;
+11. `docs/architecture/system-architecture.md`;
+12. Phase 4 and Phase 5 roadmap entries in `docs/roadmap/post-1.0-roadmap.md`;
+13. Phase 2 and Phase 3 durable validation artifacts and their Phase 4 handoff tables;
+14. every Phase 4 prompt under `docs/tasks/p1-4/`;
+15. the complete Phase 4 diff from the exact pre-P1 base through current HEAD;
+16. every important changed producer/consumer plus relevant existing `/`, `/api/feed`, admin, auth, database, Web-config, and security tests.
+
+Establish the exact Phase 4 base commit from Git/task history. Do not guess a SHA from conversation text.
+
+## Pass 1 — Contract and evidence review
+
+Review the integrated implementation against every Phase 4 roadmap exit condition and the permanent v1 machine-interface contract.
+
+### Permanent route and request grammar
+
+Verify:
+
+- only `GET /api/v1/distribution/{profile_key}` plus optional single `cursor` is the permanent v1 distribution route;
+- no Source/Category/q/limit/offset/sort/Publication selector reconstruction exists;
+- malformed, repeated, ambiguous, unsupported, and out-of-bound request input is rejected boundedly;
+- bearer credentials are consumed only from Authorization through the Phase 3 guard and never from query/path/body/cookies;
+- no legacy/reference `/` or `/api/feed` behavior was repurposed into the machine API.
+
+### Thin producer composition
+
+Trace the real call chain and require:
+
+`HTTP route -> Phase 3 request guard -> Phase 2 Profile page service -> explicit v1 serializer`
+
+Verify the HTTP/runtime layers do not reimplement:
+
+- credential token parsing, verifier derivation/comparison, authentication lookup, expiry/revocation/capability interpretation, quota counters, or Profile-specific credential authorization;
+- Profile child-table SQL, canonical Article eligibility, Profile filters, effective Categories, ordering, result bounds, cursor payload semantics, continuation position, snapshot-revision generation, or `snapshot_changed` detection.
+
+A consumer-friendly adapter is allowed; a second business-rule authority is not.
+
+### v1 success schema and compatibility
+
+Verify every `200` response has stable exact presence for:
+
+- `apiVersion`, `generatedAt`, `snapshotRevision`;
+- `profile.configKey`, `profile.displayName`;
+- `publication.name`;
+- `items`, nullable `nextCursor`;
+- every required Article field including nullable `publishedAt`, `author`, `summary`, `imageUrl` and explicit `categories[]`.
+
+Verify:
+
+- chosen `apiVersion` literal is consistent and test-locked;
+- all Date values serialize as intended absolute ISO timestamps;
+- missing nullable metadata is JSON `null`, not omitted;
+- empty arrays remain `[]`;
+- exact stored `originalUrl` is preserved;
+- internal lifecycle/IDs/SQL/canonical identity/duplicate/Relevance/moderation/provenance/auth data are not leaked;
+- implementation does not spread broad repository objects into public JSON.
+
+### Response classes and lifecycle semantics
+
+Verify exact bounded mapping for:
+
+- `200` valid active result including empty output;
+- `304` unchanged authenticated initial conditional request;
+- `400` malformed request/invalid cursor;
+- `401` generic invalid/revoked/expired/unusable credential;
+- `404` nonexistent/non-readable draft Profile without private lifecycle disclosure;
+- `409 profile_disabled`;
+- `409 snapshot_changed`;
+- `429` with positive integral `Retry-After` from Phase 3;
+- `503` bounded dependency/service failure.
+
+Require no Profile-specific `403` or credential↔Profile matrix.
+
+### Snapshot, cursor, ETag, and conditional behavior
+
+Verify:
+
+- ETag derives from the existing Phase 2 `snapshotRevision`, not a competing HTTP hash;
+- matching `If-None-Match` can produce bodyless `304` only for an authenticated initial request;
+- cursor continuation never becomes `304` merely because a conditional header matches;
+- malformed conditional headers fail/are ignored according to one bounded tested HTTP policy without leaking state;
+- stale continuation still becomes `409 snapshot_changed`;
+- multi-page traversal cannot mix revisions;
+- cursor internals remain opaque to consumers.
+
+### Authentication, limiter lifetime, and network trust
+
+Verify:
+
+- one long-lived Phase 3 machine request guard exists per Web process/runtime composition and is not recreated per request;
+- authenticated buckets are keyed by non-secret credential identity;
+- invalid-auth protection uses only a bounded HTTP-owned network identity;
+- untrusted clients cannot spoof that identity through forwarding headers;
+- trusted proxy support, if present, is explicit and bounded;
+- bearer plaintext is never a limiter key;
+- one credential does not consume another credential's authenticated quota;
+- invalid auth does not debit a guessed valid credential bucket;
+- process-local rate limiting is represented honestly and not claimed as cross-process/global enforcement.
+
+### HTTPS production boundary
+
+Verify production credential handling is fail-closed around external HTTPS:
+
+- local development/test HTTP remains possible for deterministic tests;
+- production does not accept externally insecure bearer traffic through an implicit/untrusted proxy assumption;
+- trusted TLS termination/proto information cannot be spoofed by an untrusted direct peer;
+- configuration is typed/bounded and does not echo private values;
+- Node is not unnecessarily forced to become the public TLS terminator if a trusted upstream terminator is configured;
+- deployment configuration does not make Cloudflare a mandatory application dependency.
+
+If the final implementation relies only on operator promises while trusting arbitrary forwarded headers in code, treat that as a blocker.
+
+### CORS and cache/security headers
+
+Verify:
+
+- no permissive browser CORS support was introduced;
+- authenticated responses are not accidentally marked for public/shared caching;
+- ETag/revalidation remains usable for the intended server-side client;
+- existing safe Web headers remain intact;
+- errors and successes use appropriate JSON content types where bodies exist;
+- no response reflects credential/header details.
+
+### Telemetry
+
+Verify one bounded operational event exists for machine requests and can answer the required diagnostics without becoming analytics.
+
+It may include Profile key, API version, status/outcome, duration, item/page facts, non-secret credential identity, auth/rate/missing/disabled/snapshot/dependency category, and bounded client version where implemented.
+
+It MUST NOT include raw Authorization, bearer token fragments, verifier bytes, sensitive payloads, SQL/connection details, raw cursor payloads, arbitrary unbounded headers, click/referral/page-view/visitor identity, or backlink analytics.
+
+Telemetry failure must not leak secrets or corrupt a successful response.
+
+### Existing behavior
+
+Verify Phase 4 preserves:
+
+- `/` and `/api/feed` eligibility/public-status/discovery/ordering/destination behavior;
+- admin enablement, Cloudflare perimeter assumptions, mutation integrity, and machine/admin separation;
+- Phase 1 Profile administration;
+- Phase 2 canonical read semantics;
+- Phase 3 credential administration/authentication;
+- collection/Worker behavior;
+- idempotency, provenance, duplicate suppression, exact original publisher destinations, and topic independence.
+
+No schema/migration change is expected. If one exists, stop and reconcile why before claiming closeout green.
+
+## Phase 5 producer handoff audit
+
+Record this table in the final validation artifact with the actual final exports/tests:
+
+| Downstream-required capability | Owning implementation/export | Focused proof |
+| --- | --- | --- |
+| stable Profile-addressed v1 URL | Phase 4 HTTP router | HTTP integration tests |
+| bearer-only machine authentication | Phase 3 guard + Phase 4 composition | security + DB HTTP tests |
+| exact v1 envelope/item/null/empty schema | Phase 4 serializer | HTTP component/DB tests |
+| active Profile page read | Phase 2 page service | Phase 2 DB evidence + Phase 4 DB HTTP test |
+| opaque cursor traversal | Phase 2 page service exposed by Phase 4 | multi-page HTTP proof |
+| stable snapshot revision | Phase 2 revision authority | Phase 2 proof + HTTP serialization |
+| stale traversal `409 snapshot_changed` | Phase 2 typed outcome -> Phase 4 mapper | DB HTTP mutation proof |
+| disabled `409 profile_disabled` | Phase 2 lifecycle -> Phase 4 mapper | HTTP/DB proof |
+| initial ETag/`304` | Phase 4 conditional adapter over revision | HTTP tests |
+| rate `429`/`Retry-After` | Phase 3 guard -> Phase 4 mapper | security/HTTP tests |
+| generic `401`/`400`/`404`/`503` | Phase 4 transport mapper | HTTP tests |
+| production HTTPS/configuration boundary | Phase 4 Web config/request context | config/security tests |
+| bounded distribution telemetry | Phase 4 route/runtime sink | integration/security tests |
+
+Phase 5 must be able to build a PHP client without knowing database schema, token/verifier internals, Profile selectors, Article SQL, cursor payload structure, limiter implementation, or trusted-proxy internals.
+
+## Pass 2 — Error and edge-case adversarial review
+
+Independently derive realistic failures/attacks from the final implementation. Do not merely enumerate existing test names.
+
+At minimum inspect:
+
+### HTTP grammar and compatibility
+
+- encoded/path-decoding edge cases in Profile key;
+- unknown/repeated cursor parameters;
+- malformed percent-encoding;
+- oversized query/path/header values;
+- request with arbitrary selector parameters;
+- missing/combined/multiple Authorization header representation;
+- wrong methods and unexpected body/cookies;
+- invalid cursor for another Profile;
+- malformed/tampered/current-revision-invalid-position cursor;
+- exact page boundary, empty output, nullable metadata, unusual safe text;
+- accidental omission of nullable or empty fields;
+- generatedAt invalid clock/date;
+- internal object spreading leaking IDs/state.
+
+### Conditional requests
+
+- matching/nonmatching `If-None-Match`;
+- weak/list/wildcard or malformed forms according to final supported HTTP policy;
+- conditional request with missing/draft/disabled Profile;
+- conditional request with invalid/revoked credential;
+- conditional request after rate limit;
+- conditional header on a cursor request;
+- snapshot mutation between requests;
+- ETag formatting/quoting mistakes;
+- accidental `304` with a JSON body.
+
+### Auth/rate/trust attacks
+
+- spoofed `X-Forwarded-For`, `Forwarded`, proxy-specific IP headers, or proto headers from an untrusted direct peer;
+- malformed IPv4/IPv6/mapped-address values;
+- trusted-proxy chain ambiguity/multiple hops;
+- no immediate peer address or unusable request network state;
+- invalid-auth flood from one versus many network keys;
+- route accidentally reconstructing limiter/guard per request;
+- process config reconstructed per request;
+- one credential starving another;
+- revoked/expired token distinctions leaking through status/body/timing structure beyond the Phase 3 bounded model;
+- valid bearer reaching Profile read before auth/rate decision;
+- Profile existence/lifecycle oracle exposed before authentication.
+
+### HTTPS/deployment edge cases
+
+- production with missing trust/TLS configuration;
+- untrusted client supplying `X-Forwarded-Proto: https`;
+- trusted terminator supplying expected secure context;
+- local test/development HTTP behavior;
+- direct origin bypass assumptions accidentally becoming part of machine authentication;
+- startup errors echoing environment/header values;
+- provider-specific config becoming mandatory contrary to self-hostability direction.
+
+### Telemetry leakage/failure
+
+- token/header fragments in events on `401`/`429`/`503`;
+- verifier/internal credential object spread;
+- cursor payload or Article body logged;
+- SQL/connection error propagated into telemetry;
+- unbounded User-Agent/client-version/header values;
+- telemetry sink throws or blocks response path;
+- request duration clock failure;
+- duplicate/missing events on early failures;
+- visitor/click analytics accidentally added.
+
+### Preserved-surface regressions
+
+- `/api/feed` status/schema changed by shared middleware;
+- root SSR/reference UI altered by route registration/security config;
+- admin routes begin accepting machine bearer identity;
+- admin disabled state changes machine API semantics incorrectly;
+- global Express proxy setting changes unrelated admin/public client-IP/security behavior unexpectedly;
+- CORS/cache headers bleed onto unrelated surfaces.
+
+For each plausible issue classify it as:
+
+1. already protected by source structure + executed evidence;
+2. bounded Phase 4 defect/test gap repairable inside closeout;
+3. meaningful behavior-preserving refactor requiring the Terra High handoff below; or
+4. contract/architecture/new-scope problem requiring stop/escalation/replanning.
+
+A bounded repair is permitted only when behavior is already unambiguous under governing contracts and all invalidated evidence can be rerun.
+
+## Pass 3 — Code-quality and structural review
+
+Inspect the complete final Phase 4 diff plus important surrounding producers/consumers for:
+
+- controller duplicating Phase 2 lifecycle/filter/cursor/revision logic;
+- controller/runtime duplicating Phase 3 token/auth/rate logic;
+- request parsing spread across several competing helpers;
+- proxy trust or HTTPS decisions scattered through route handlers;
+- broad global Express middleware added when a narrow distribution boundary would suffice;
+- magic status/error/header strings duplicated without one obvious v1 owner;
+- speculative generic API/versioning framework when only v1 exists;
+- generic auth capability/role system beyond fixed `distribution:read`;
+- compatibility wrappers kept only to avoid updating the new route;
+- unnecessary dependencies;
+- dead code/commented alternatives;
+- test-only branches in production source;
+- telemetry mixed with business rules or capable of throwing across the response boundary;
+- brittle tests asserting private implementation rather than wire behavior;
+- missing focused proof for important producer/consumer handoff capabilities;
+- documentation/configuration drift for an actually introduced non-secret production setting.
+
+Prefer one explicit transport owner plus one explicit runtime/request-context owner. Do not refactor Phase 2/3 merely for aesthetic consistency when their existing producer boundaries are coherent.
+
+## Terra High refactor handoff
+
+If any pass identifies a **meaningful behavior-preserving structural refactor** required before Phase 4 can be accepted, stop before implementing that refactor and output exactly one self-contained Terra High remediation prompt.
+
+The remediation prompt must:
+
+- recommend exactly `Terra High` as its starting configuration;
+- state the observed quality problem and concrete evidence;
+- define the smallest behavior-preserving refactor boundary and important producers/consumers;
+- preserve all current v1 wire, security, data-integrity, idempotency, provenance, failure-isolation, reference-feed, and admin behavior;
+- forbid unrelated cleanup, new product behavior, contract/ADR changes, roadmap expansion, and speculative abstractions;
+- preserve package version `1.4.3` and consume no roadmap/correction prompt number;
+- require focused tests plus every broader regression invalidated by the refactor;
+- require a concise implementation report but MUST NOT declare Phase 4 GREEN or finalize the validation artifact;
+- instruct Terra High to stop if the work actually requires product/contract/ADR change, distributed security architecture, or another materially different decision.
+
+After that remediation is applied and its implementation-level validation is green, rerun this P3 closeout from the beginning. Only the rerun may establish the final accepted source tree and durable Phase 4 evidence.
+
+Small local cleanup, an obvious missing negative test, one bounded status/header mapping defect, or another clearly unambiguous local repair may remain inside closeout when all invalidated evidence is rerun.
+
+## Final validation matrix
+
+Use focused commands while investigating findings. After all final source changes are complete, run the smallest non-overlapping complete final-tree matrix:
+
+```text
+npm run check
+npm run test:security
+npm run test:db
+npm run test:browser
+npm run codex:phase:validate -- p1-4
+```
+
+Also run:
+
+```text
+git diff --check <exact-phase-4-base>...HEAD
+git diff --check
+```
+
+or the equivalent commands that actually validate the committed Phase 4 range plus any allowed uncommitted closeout artifact/version change.
+
+Rationale:
+
+- `npm run check` covers formatting/lint/typecheck plus ordinary unit/integration/collection regressions;
+- `test:security` covers bearer/proxy/HTTPS/redaction boundaries;
+- full `test:db` provides Level 4 proof for the real persisted credential + Profile API composition and preserves database regressions;
+- `test:browser` proves the shared Web-process changes did not regress the existing bundled/admin browser surfaces;
+- recovery is not required absent schema/persistence changes;
+- live-Source and deployment validation are not required because Phase 4 changes no collection adapter and final Level 7/8 managed external integration remains Phase 7 scope.
+
+If final implementation actually changes a boundary that invalidates this rationale, run the additionally required suite and record why. Do not rerun contained commands merely to inflate evidence.
+
+## Durable validation artifact
+
+Create/update only the current Phase 4 closeout evidence at:
+
+`docs/validation/phase-4-versioned-v1-distribution-api.md`
+
+Record:
+
+- exact Phase 4 base and final source identity;
+- P1/P2 commit identities and package versions;
+- final package version `1.4.3`;
+- environment/tool versions actually observed;
+- every final command/procedure and exact pass/fail counts where available;
+- evidence levels and explicit limitations;
+- Pass 1 findings and producer-consumer ownership;
+- Pass 2 independently derived edge cases and their disposition;
+- Pass 3 structural findings and disposition;
+- whether any bounded closeout repair/test was made;
+- whether a Terra High refactor handoff occurred before the final rerun;
+- secret/proxy/HTTPS/telemetry safety conclusions;
+- the final Phase 5 handoff table using actual implementation exports/tests;
+- any unresolved blocker requiring escalation/replanning.
+
+Historical Phase 2/3 artifacts remain unchanged.
+
+## Version and repository rules
+
+- Set only top-level `package.json` to `1.4.3` for this closeout candidate before final validation.
+- Do not create/rewrite migrations; any unexplained Phase 4 schema change is a stop condition.
+- Do not create lockfiles.
+- Do not edit governing contracts/ADRs/roadmap/tasks merely to make the implementation pass.
+- A narrow correction to operator-facing config documentation already changed by P2 may be included only if necessary to make the actual final proxy/HTTPS setting accurate.
+- Do not perform conversational `/closeout` and do not set `1.5.0`.
+- Do not manually commit; final closeout output remains HUMAN REVIEW REQUIRED for the owner to inspect/commit before conversational `/closeout`.
+
+## Acceptance
+
+Phase 4 is GREEN only when:
+
+1. the permanent v1 Profile-addressed machine route exists with exact stable required schema;
+2. the HTTP layer remains thin over Phase 2 Profile paging/revision and Phase 3 authentication/rate authority;
+3. all governed `200/304/400/401/404/409/429/503` cases are deterministic, bounded, and secret-free;
+4. ETag/conditional initial reads reuse `snapshotRevision` and cursor traversal cannot mix revisions;
+5. no Profile-specific `403`/credential permission matrix exists;
+6. trusted client-network identity and production HTTPS termination cannot be spoofed through untrusted forwarded headers;
+7. the machine guard is process-owned/long-lived and rate limiting remains bounded and honestly process-local;
+8. telemetry is operationally useful and contains no bearer/header/verifier/payload secrets or visitor analytics;
+9. real PostgreSQL HTTP evidence proves persisted auth + canonical Profile output + traversal/revision/lifecycle behavior;
+10. existing `/`, `/api/feed`, admin, browser, database, and security regressions are green;
+11. Phase 5 can consume the stable API without reconstructing producer internals;
+12. no unresolved adversarial or structural finding remains;
+13. the durable validation artifact accurately records the exact tested tree and limitations;
+14. package version is exactly `1.4.3`.
+
+Finish with a concise final report headed `Phase 4 GREEN — HUMAN REVIEW REQUIRED` only if every acceptance item is satisfied. Include the exact accepted source identity/tree state, validation results, closeout repairs/refactor handoff status, durable artifact path, and the instruction that conversational `/closeout` remains a separate owner step.
