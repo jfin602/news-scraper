@@ -15,7 +15,7 @@ The Platform core is the collection, normalization, persistence, editorial/moder
 
 The indie-author Publication is the first configuration of the Platform, not the identity of the aggregation engine. Reuse occurs by configuring and deploying another installation of the same codebase for another topic; one deployed installation does not concurrently host multiple topic Publications.
 
-The approved 2.0 contracts now define Distribution Profile selectors/lifecycle, the permanent v1 machine API, machine authentication, generic PHP synchronization/cache behavior, link/SEO limits, telemetry, and the Linux VPS/Docker Compose evaluation route. They remain unimplemented. WordPress, RSS/Atom, native self-host admin authentication, and autonomous public self-host production readiness are post-2.0.
+The approved 2.0 contracts define Distribution Profile selectors/lifecycle, the permanent v1 machine API, machine authentication, generic PHP synchronization/cache behavior, link/SEO limits, telemetry, and managed integration proof. They are implemented through the active seven-phase 2.0 roadmap. WordPress, RSS/Atom, Linux VPS/Docker Compose self-host packaging, native self-host admin authentication, and autonomous public self-host production readiness are post-2.0.
 
 ## Locked project laws
 
@@ -51,7 +51,7 @@ The approved 2.0 contracts now define Distribution Profile selectors/lifecycle, 
 - Topic-specific settings are data/configuration, not topic conditionals in shared engine code.
 - Any outward adapter or integration that presents ordinary Article results MUST consume one governed Article-selection/read boundary for eligibility, ordering, moderation, duplicate suppression, and stored `original_url` destination semantics rather than reimplementing those rules independently.
 - The existing `GET /api/feed` JSON endpoint and bundled `GET /` reference frontend remain supported current consumers of the canonical public/outward read semantics. Their existence does not require future client sites to use the bundled frontend.
-- Managed and future self-hosted deployments are modes of the same complete, independently operable single-Publication stack; the approved architecture does not claim self-host packaging is implemented today.
+- Managed and future self-hosted deployments are modes of the same complete, independently operable single-Publication stack; the approved architecture does not claim self-host packaging is implemented today or required for `2.0.0`.
 - Managed customer instances keep configuration, secrets, editorial/persistence state, jobs, human access, and machine credentials independently bounded even when physical infrastructure is shared; this isolation MUST NOT be modeled as relational customer/Publication tenancy.
 - The instance-owned control plane remains authoritative for collection, editorial/moderation, operational configuration, and Distribution Profiles.
 - Distribution Profile selection occurs after canonical outward eligibility and can only narrow it. All serializers and adapters consume that same profile/read-model authority.
@@ -104,7 +104,7 @@ The foundational architecture rationale is recorded in `docs/decisions/headless-
 
 ### 2026-08-20 managed-first/self-hostable distribution amendment
 
-The owner added Laws 12 and 13 to lock complete-stack portability and customer presentation freedom. The architectural rationale is recorded in `docs/decisions/managed-first-self-hostable-distribution-architecture.md`; behavioral distribution authority is `docs/contracts/distribution-and-integration-contract.md`. This amendment preserves Laws 1–11 and does not assert that future adapters or self-host packaging are implemented.
+The owner added Laws 12 and 13 to lock complete-stack portability and customer presentation freedom. The architectural rationale is recorded in `docs/decisions/managed-first-self-hostable-distribution-architecture.md`; behavioral distribution authority is `docs/contracts/distribution-and-integration-contract.md`. This amendment preserves Laws 1–11 and does not assert that future adapters or self-host packaging are implemented or that packaging must block 2.0.
 
 ## Product boundaries
 
