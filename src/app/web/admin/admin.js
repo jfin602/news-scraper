@@ -4,6 +4,7 @@ import { createOperationsWorkspace } from './operations.js';
 import { createSourcesWorkspace } from './sources.js';
 import { createEditorialWorkspace } from './editorial.js';
 import { createModerationWorkspace } from './moderation.js';
+import { createProfilesWorkspace } from './profiles.js';
 import { required } from './core.js';
 
 const sources = createSourcesWorkspace();
@@ -15,6 +16,7 @@ const workspaces = {
   }),
   sources,
   editorial: createEditorialWorkspace(),
+  profiles: createProfilesWorkspace(),
   articles: createModerationWorkspace(),
 };
 let activeWorkspace = 'sources';

@@ -400,6 +400,12 @@ select:disabled {
   grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr);
 }
 
+.profiles-workspace-layout {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr);
+}
+
 .admin-workspace {
   display: grid;
   gap: 1.25rem;
@@ -418,6 +424,32 @@ select:disabled {
   align-self: start;
   position: sticky;
   top: 1rem;
+}
+
+.profiles-navigation {
+  align-self: start;
+  position: sticky;
+  top: 1rem;
+}
+
+.profile-filter-grid,
+.nested-fieldset {
+  margin-top: 0.85rem;
+}
+
+.profile-association-card {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.profile-association-card h3,
+.profile-association-card p {
+  margin: 0;
+}
+
+.profile-association-filters {
+  color: var(--muted);
+  font-size: 0.86rem;
 }
 
 .panel-heading,
@@ -922,15 +954,19 @@ select {
   }
 
   .workspace-navigation,
-  .source-navigation {
+  .source-navigation,
+  .profiles-navigation {
     position: static;
   }
 
   .workspace-tabs {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 
   .source-workspace-layout {
+    grid-template-columns: 1fr;
+  }
+  .profiles-workspace-layout {
     grid-template-columns: 1fr;
   }
   .editorial-workspace-layout {

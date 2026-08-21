@@ -66,6 +66,16 @@ export function messageForError(error) {
       'The selected endpoint no longer exists under this Source. Refresh the page.',
     category_not_found:
       'The selected default Category no longer exists. Refresh the available choices.',
+    profile_not_found:
+      'The selected Profile no longer exists. Refresh Profiles to reload current state.',
+    profile_config_key_conflict:
+      'That Profile configuration key is already in use.',
+    profile_association_not_found:
+      'That Source association no longer exists. Refresh Profiles to reload current state.',
+    profile_invalid_lifecycle_transition:
+      'That Profile lifecycle action is no longer valid. Refresh Profiles to reload current state.',
+    profile_requires_usable_source:
+      'An active Profile must retain at least one associated Source that is approved and active.',
     category_config_key_conflict:
       'That Category configuration key is already in use.',
     category_in_use: 'This Category is still in use and cannot be removed.',
@@ -109,13 +119,11 @@ export function messageForError(error) {
   if (error.code === 'endpoint_not_collectable') {
     return `Check now was not queued because the endpoint is ineligible: ${humanize(error.reason ?? 'unknown state')}.`;
   }
+  if (messages[error.code]) return messages[error.code];
   if (error.status === 409) {
     return 'The stored moderation state changed before this action completed. Refresh the selected evidence and try again.';
   }
-  return (
-    messages[error.code] ??
-    `The administrative request failed with status ${error.status}.`
-  );
+  return `The administrative request failed with status ${error.status}.`;
 }
 
 export function stateLine(resource) {

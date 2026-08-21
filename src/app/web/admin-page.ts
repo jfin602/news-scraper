@@ -17,6 +17,7 @@ const adminModuleAssets = Object.fromEntries(
     'editorial.js',
     'moderation.js',
     'operations.js',
+    'profiles.js',
     'publication.js',
     'sources.js',
   ].map((name) => [
@@ -72,6 +73,10 @@ const adminPage = `<!doctype html>
           <button type="button" class="workspace-tab" role="tab" aria-selected="false" aria-controls="editorial-workspace" data-workspace="editorial">
             <span>Editorial</span>
             <span class="workspace-tab-description">Categories and Relevance</span>
+          </button>
+          <button type="button" class="workspace-tab" role="tab" aria-selected="false" aria-controls="profiles-workspace" data-workspace="profiles">
+            <span>Profiles</span>
+            <span class="workspace-tab-description">Distribution filters and lifecycle</span>
           </button>
           <button type="button" class="workspace-tab" role="tab" aria-selected="false" aria-controls="articles-workspace" data-workspace="articles">
             <span>Articles</span>
@@ -474,6 +479,122 @@ const adminPage = `<!doctype html>
           </div>
           <div class="runs-list" data-runs-list></div>
         </section>
+            </section>
+          </div>
+        </section>
+
+        <section class="workspace-panel" id="profiles-workspace" data-workspace-panel="profiles" aria-labelledby="profiles-heading" hidden>
+          <div class="profiles-workspace-layout">
+            <nav class="panel profiles-navigation" aria-labelledby="profiles-heading">
+              <div class="panel-heading">
+                <div>
+                  <p class="section-kicker">Distribution configuration</p>
+                  <h2 id="profiles-heading">Profiles</h2>
+                </div>
+                <div class="panel-actions">
+                  <button type="button" class="button secondary compact" data-refresh-profiles>Refresh Profiles</button>
+                  <button type="button" class="button secondary compact" data-new-profile>New Profile</button>
+                </div>
+              </div>
+              <div class="list-state" data-profile-list-state="idle" role="status" aria-live="polite">Open Profiles to load configured Profiles.</div>
+              <ul class="selection-list" data-profile-list></ul>
+            </nav>
+
+            <section class="admin-workspace" aria-label="Selected Distribution Profile workspace">
+              <section class="panel editor-panel" data-profile-editor>
+                <div class="panel-heading">
+                  <div>
+                    <p class="section-kicker">Distribution Profile</p>
+                    <h2 data-profile-editor-heading>Select a Profile</h2>
+                  </div>
+                  <div class="state-summary" data-profile-state-summary hidden></div>
+                </div>
+                <p class="section-help" data-profile-editor-help>Choose a Profile to configure its distribution filters and lifecycle.</p>
+                <form data-profile-create-form hidden>
+                  <fieldset>
+                    <legend>Create draft Profile</legend>
+                    <div class="form-grid">
+                      <label>Configuration key
+                        <input name="configKey" autocomplete="off" required>
+                        <span class="field-help">Immutable after creation.</span>
+                      </label>
+                      <label>Display name
+                        <input name="displayName" autocomplete="off" required>
+                      </label>
+                      <label>Result limit
+                        <input name="resultLimit" type="number" min="1" step="1" required value="100">
+                      </label>
+                    </div>
+                  </fieldset>
+                  <div class="form-message" role="alert" tabindex="-1" data-profile-create-error hidden></div>
+                  <div class="form-actions">
+                    <button type="submit" class="button primary">Create draft Profile</button>
+                    <button type="button" class="button secondary" data-profile-create-cancel>Cancel</button>
+                  </div>
+                </form>
+
+                <form data-profile-configuration-form hidden>
+                  <fieldset>
+                    <legend>Profile configuration</legend>
+                    <div class="form-grid">
+                      <label>Configuration key
+                        <input name="configKey" autocomplete="off" disabled>
+                        <span class="field-help">Immutable Profile identity.</span>
+                      </label>
+                      <label>Display name
+                        <input name="displayName" autocomplete="off" required>
+                      </label>
+                      <label>Result limit
+                        <input name="resultLimit" type="number" min="1" step="1" required>
+                      </label>
+                    </div>
+                  </fieldset>
+                  <div class="form-message" role="alert" tabindex="-1" data-profile-configuration-error hidden></div>
+                  <div class="form-actions">
+                    <button type="submit" class="button primary">Save Profile configuration</button>
+                  </div>
+                </form>
+                <div class="state-actions" data-profile-lifecycle-actions hidden></div>
+              </section>
+
+              <section class="panel" data-profile-associations hidden>
+                <div class="panel-heading">
+                  <div>
+                    <p class="section-kicker">Profile membership</p>
+                    <h2>Source associations</h2>
+                  </div>
+                </div>
+                <p class="section-help">Filters narrow this Profile's distribution output only. They do not change Source RSS/Atom collection admission.</p>
+                <div class="form-message" role="alert" tabindex="-1" data-profile-association-error hidden></div>
+                <div class="bounded-list" data-profile-association-list></div>
+                <form data-profile-association-form>
+                  <fieldset>
+                    <legend data-profile-association-heading>Add Source association</legend>
+                    <label>Source
+                      <select name="sourceConfigKey" data-profile-source-select required></select>
+                    </label>
+                    <div class="form-grid profile-filter-grid">
+                      <label class="wide-field">Include phrases
+                        <textarea name="includeAnyPhrases" rows="3"></textarea>
+                        <span class="field-help">One phrase per line. Any configured include phrase may match; leave empty for no include restriction.</span>
+                      </label>
+                      <label class="wide-field">Exclude phrases
+                        <textarea name="excludeAnyPhrases" rows="3"></textarea>
+                        <span class="field-help">One phrase per line. An exclude match wins; leave empty for no exclude restriction.</span>
+                      </label>
+                    </div>
+                    <fieldset class="nested-fieldset">
+                      <legend>Category restrictions</legend>
+                      <p class="field-help">Choose configured Categories to restrict this association. Leave all clear for no Category restriction.</p>
+                      <div class="category-option-list" data-profile-category-options></div>
+                    </fieldset>
+                  </fieldset>
+                  <div class="form-actions">
+                    <button type="submit" class="button primary" data-profile-association-submit>Add Source association</button>
+                    <button type="button" class="button secondary" data-profile-association-cancel hidden>Cancel association edit</button>
+                  </div>
+                </form>
+              </section>
             </section>
           </div>
         </section>
