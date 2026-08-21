@@ -1,0 +1,181 @@
+TASK: Phase 2 / P1 — Canonical outward Article authority
+
+- Recommended configuration: `Terra Medium`.
+- Model-family basis: shared eligibility ownership moves beneath existing production consumers and requires careful cross-file judgment without architectural ambiguity.
+- Reasoning basis: explicit rules, but preserving public-feed discovery behavior while extracting canonical outward semantics requires moderate deliberate reasoning.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna High`.
+- Escalation trigger: source inspection shows canonical eligibility cannot be extracted as one shared repository/read-model authority without a broader multi-layer redesign.
+- Escalation target: `Terra High`.
+- Estimate confidence: `High`.
+- Efficiency rationale: Terra Medium is the minimum adequate configuration for a shared producer refactor that must preserve subtly different existing consumer behavior.
+
+The assigned project version is `1.2.1`.
+
+## Goal
+
+Create the single canonical outward Article eligibility/projection authority that the existing reference public feed and the new Distribution Profile read model can both consume.
+
+This task must evolve the current implementation rather than creating a competing Article-selection path. The canonical layer must be independent of Publication `public_status`; `GET /` and `GET /api/feed` keep their existing `public_status` gate in the reference/public consumer path.
+
+## Read first
+
+Before changing source, read:
+
+1. `BOOT.md`;
+2. `AGENTS.md`;
+3. `docs/contracts/project-contract.md`;
+4. `docs/contracts/product-scope-and-users.md`;
+5. `docs/contracts/distribution-and-integration-contract.md`;
+6. `docs/contracts/domain-and-data-contract.md`;
+7. `docs/contracts/article-lifecycle-and-deduplication.md`;
+8. `docs/contracts/public-feed-and-admin-contract.md`;
+9. `docs/contracts/testing-and-validation-contract.md`;
+10. `docs/architecture/system-architecture.md`;
+11. the Phase 2 roadmap entry in `docs/roadmap/post-1.0-roadmap.md`;
+12. `src/public-feed/repository.ts` and `src/public-feed/discovery.ts`;
+13. current public-feed database/HTTP tests, especially the repository, discovery, and HTTP suites.
+
+If these sources materially conflict, stop and report `Planning needed` rather than silently choosing one interpretation.
+
+## Required implementation behavior
+
+Introduce the smallest coherent shared distribution-level repository/read-model boundary that owns canonical outward Article eligibility and normalized outward Article projection.
+
+The canonical authority must own these rules exactly once:
+
+- Source approval state must be `approved`;
+- Source lifecycle state must be `active`;
+- Source operational state is not an outward-eligibility gate;
+- endpoint state/health and Collection-run success/failure are not outward-eligibility gates for retained Articles;
+- Article visibility must be `visible`;
+- an Article is eligible only when it is ungrouped or the Primary member of a Duplicate group;
+- visible non-Primary members remain stored but are suppressed from ordinary outward results;
+- stored `original_url` remains the reader destination without canonical-identity substitution or rewriting;
+- effective headline is `display_title_override` when present, otherwise persisted `display_title`;
+- effective feed date is trusted parsed `published_at` when present, otherwise `first_seen_at`;
+- feed-date source is exposed as `published_at` or `first_seen_at`;
+- deterministic canonical ordering remains effective feed date DESC, then `first_seen_at` DESC, then Article ID ASC;
+- effective Category membership must honor the current moderation override model: active manual override memberships replace automatic memberships, including the intentionally empty-override case;
+- effective Categories must expose stable `configKey` and `displayName` values in deterministic order;
+- canonical Article projection must expose the normalized fields later required by the v1 distribution contract: Article ID, effective headline, exact stored original URL, effective feed date/source, nullable persisted `publishedAt`, nullable `author`, nullable `summary`, nullable `imageUrl`, Source `configKey`/`displayName`, and effective Categories;
+- retain exact PostgreSQL microsecond-precision continuation/order keys for effective feed date and `first_seen_at` internally. Do not reduce ordering keys to JavaScript millisecond precision.
+
+The shared boundary may expose narrower helpers needed by the existing public feed, but it must not introduce a generic query/expression framework or speculative transport/API abstractions.
+
+## Existing public-feed behavior that must remain unchanged
+
+Refactor `src/public-feed/repository.ts` to consume the shared canonical authority without changing the current external reference-feed contract.
+
+Preserve:
+
+- `public_status = public` as the exposure gate for `/` and `/api/feed` only;
+- existing `q`, Source, and Category discovery semantics;
+- current public server-defined page size;
+- current public discovery cursor codec and criteria binding;
+- current Source/Category discovery-choice behavior and bounds;
+- current generic `400`, `404`, and `503` behavior through existing callers;
+- current small public item shape: do not start exposing author, summary, image URL, source config key, Categories, or internal cursor keys merely because the shared canonical projection now contains them;
+- current public keyword-search semantics, including matching effective headline plus the currently permitted Source-derived display-title/normalized-title fields, author, and summary;
+- current public Category filtering over effective moderated Category state;
+- current no-auth reference-feed behavior;
+- current `/` and `/api/feed` routing and presentation behavior.
+
+Important: Distribution Profile phrase matching in the next prompt will use only effective headline, author, and summary. Do not weaken or silently rewrite the existing public keyword-search contract in order to make the two filters share identical text fields.
+
+## Boundary and ownership constraints
+
+Prefer the smallest stable ownership shape under `src/distribution/` that represents canonical outward Article semantics. The exact final filename is implementation-owned, but avoid speculative directory scaffolding.
+
+The canonical producer must be reusable by the next prompt without requiring that consumer to restate Source trust, Article visibility, Duplicate suppression, Category override, date, ordering, or destination SQL.
+
+Do not move public-only discovery-choice logic, public request parsing, public cursor criteria fingerprinting, root rendering, or HTTP response shaping into the canonical Article authority.
+
+Do not query or interpret Distribution Profile persistence in this task.
+
+## Focused proof and downstream handoff
+
+Create focused real-PostgreSQL tests for the new canonical authority. Reuse or adapt existing public-feed fixtures where appropriate, but tests should prove the new producer directly rather than only indirectly through `/api/feed`.
+
+At minimum prove:
+
+- approved+active Source inclusion and unapproved/archived suppression;
+- paused/disabled Source operational states do not suppress retained otherwise-eligible Articles;
+- hidden/archived Article suppression;
+- ungrouped/Primary inclusion and non-Primary suppression;
+- hidden Primary does not cause a visible non-Primary member to be resurrected;
+- exact stored `original_url` is retained even when `canonical_identity_url` differs;
+- effective title override behavior;
+- automatic Category state, manual override replacement, intentionally empty override, and restoration after clearing override;
+- parsed publication date versus first-seen fallback;
+- deterministic tie ordering;
+- PostgreSQL microsecond precision across continuation/order keys;
+- nullable author/summary/image URL mapping;
+- Source config key/display name mapping;
+- effective Category config key/display name mapping;
+- malformed persistence rows remain bounded as repository/read-model failures rather than leaking raw database details where this boundary performs validation.
+
+The downstream handoff must be auditable as:
+
+`canonical eligibility + normalized outward projection + exact order position -> shared distribution producer/export -> focused PostgreSQL proof`
+
+Before finishing, verify that a later Profile consumer can use the producer without inventing its own SQL for Source trust, Article visibility, Duplicate suppression, effective Categories, effective dates, canonical ordering, or `original_url` semantics.
+
+## Validation
+
+Use narrow focused commands while iterating. At minimum, run the new canonical database tests plus the existing public-feed repository/discovery/HTTP database tests against disposable PostgreSQL.
+
+Before finalizing this prompt's implementation, run the smallest non-overlapping final matrix that proves the changed blast radius:
+
+```text
+npm run check
+npm run test:db:focused -- <new canonical DB test> test/database/public-feed-repository.test.ts test/database/public-feed-discovery-repository.test.ts test/database/public-feed-http.test.ts
+git diff --check
+npm run codex:phase:validate -- p1-2
+```
+
+Replace `<new canonical DB test>` with the actual committed test path. If implementation changes make an additional existing database suite directly relevant, include it rather than relying on assumption.
+
+Do not claim browser, live-Source, recovery, migration, or deployment proof unless those commands/procedures are actually run.
+
+## Version and repository rules
+
+- Update only the top-level `package.json` version to `1.2.1`; do not create a lockfile.
+- Do not add or rewrite migrations.
+- Do not modify historical task prompts or validation artifacts.
+- Preserve topic independence and one-Publication-per-installation architecture.
+- Keep all code changes within this task's read-model/refactor boundary plus tests and the required package-version update.
+- No documentation contract/ADR changes are authorized by this implementation prompt.
+
+## Non-goals
+
+Do not implement:
+
+- Distribution Profile selection;
+- Profile lifecycle read outcomes;
+- distribution snapshot revision;
+- distribution continuation cursor;
+- `/api/v1/distribution/...`;
+- machine credentials/authentication;
+- rate limiting or ETag/conditional HTTP behavior;
+- PHP/LKG integration;
+- RSS/Atom or WordPress distribution;
+- new Source collection/Relevance/Duplicate behavior;
+- Publication tenancy;
+- new schema or persistent revision state;
+- public-feed UI redesign.
+
+## Acceptance
+
+This prompt is complete when:
+
+1. one shared canonical outward Article authority owns the governed trust/visibility/Duplicate/Category/date/order/destination semantics;
+2. the existing public feed consumes that authority while preserving its current `public_status`, discovery, cursor, output-shape, route, and error behavior;
+3. the producer exposes the full normalized Article fields and exact microsecond internal order state required by later Distribution Profile work;
+4. focused real-PostgreSQL proof directly covers the producer and important public-feed regressions;
+5. no Profile/API/auth/PHP/schema scope has been pulled forward;
+6. package version is exactly `1.2.1`;
+7. all actually executed validation commands are reported with honest results and limitations.
+
+Finish with a concise implementation report listing changed files, producer/export shape, focused tests added/updated, commands actually run and their results, package version, and any remaining risk or reason the next prompt should not proceed.

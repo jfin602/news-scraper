@@ -1,0 +1,282 @@
+TASK: Phase 2 / P2 — Distribution Profile bounded snapshot
+
+- Recommended configuration: `Terra Medium`.
+- Model-family basis: this task crosses the Phase 1 Profile aggregate and canonical Article repository while owning a coherent PostgreSQL read-snapshot boundary and globally bounded Profile selection.
+- Reasoning basis: explicit contract, but filter-before-limit correctness, multi-Source union ordering, and repeatable-read ownership require moderate deliberate reasoning.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Luna High`.
+- Escalation trigger: correct Profile snapshots require writer locks, a new concurrency protocol, persistence changes, or a new transaction abstraction rather than one bounded read-only snapshot.
+- Escalation target: `Terra High`.
+- Estimate confidence: `High`.
+- Efficiency rationale: Terra Medium is the minimum adequate configuration once source inspection showed real cross-repository read-consistency ownership.
+
+The assigned project version is `1.2.2`.
+
+## Goal
+
+Build the transport-independent Distribution Profile read model over the canonical outward Article authority from P1 and the complete Profile aggregate established in Phase 1.
+
+This task owns one coherent, bounded, post-eligibility Profile snapshot. It must not create HTTP/API behavior, revision/cursor semantics, or competing Article/Profile persistence queries.
+
+## Prerequisite
+
+P1 must already be implemented and committed with package version `1.2.1` and must expose a canonical outward Article producer that owns Source trust, Article visibility, Duplicate suppression, effective Categories, effective feed date/order, and exact `original_url` semantics.
+
+If that handoff is incomplete and this task would need to restate those semantics, stop and report that P1 requires repair rather than inventing a second eligibility implementation.
+
+## Read first
+
+Before changing source, read:
+
+1. `BOOT.md`;
+2. `AGENTS.md`;
+3. `docs/contracts/project-contract.md`;
+4. `docs/contracts/product-scope-and-users.md`;
+5. `docs/contracts/distribution-and-integration-contract.md`;
+6. `docs/contracts/distribution-api-contract.md` for downstream field/lifecycle handoff only;
+7. `docs/contracts/domain-and-data-contract.md`;
+8. `docs/contracts/article-lifecycle-and-deduplication.md`;
+9. `docs/contracts/testing-and-validation-contract.md`;
+10. `docs/architecture/system-architecture.md`;
+11. the Phase 2 roadmap entry in `docs/roadmap/post-1.0-roadmap.md`;
+12. `src/distribution/profiles/configuration.ts`;
+13. `src/distribution/profiles/repository.ts`;
+14. `src/admin/distribution-profile-administration.ts` only to understand lifecycle/usability ownership, not to reuse admin behavior as distribution behavior;
+15. P1's canonical outward producer and focused tests;
+16. Phase 1 Profile administration/repository tests and validation artifact for the producer handoff.
+
+If these sources materially conflict, stop and report `Planning needed`.
+
+## Required service boundary
+
+Create the smallest transport-independent distribution read service/repository boundary that accepts a Profile `config_key` and returns a typed Profile read outcome.
+
+The boundary must distinguish at least:
+
+- Profile not found;
+- Profile exists in `draft` lifecycle;
+- Profile exists in `disabled` lifecycle;
+- Profile exists and is `active`, producing a bounded coherent snapshot;
+- bounded read/persistence failure.
+
+Do not assign HTTP status codes here. Phase 4 will map these producer-owned outcomes to the permanent API contract.
+
+Only an `active` Profile produces distributable Article results. Draft and disabled Profiles must remain distinguishable so the later HTTP layer does not query Profile persistence or invent lifecycle interpretation.
+
+## Consume the Phase 1 Profile aggregate
+
+Use the existing Phase 1 repository aggregate as the authority for:
+
+- Profile immutable `configKey`;
+- Profile mutable `displayName`;
+- Profile lifecycle;
+- `resultLimit`;
+- ordered Profile Source associations;
+- each associated Source's stable identity/display name and current approval/lifecycle state;
+- `includeAnyPhrases`;
+- `excludeAnyPhrases`;
+- `categoryConfigKeys`.
+
+Do not query `distribution_profile_sources`, `distribution_profile_source_phrases`, or `distribution_profile_source_categories` independently from the new distribution read service merely to reconstruct state already owned by the Phase 1 aggregate.
+
+Do not reuse the admin service as the outward read authority; consume the repository/domain aggregate at the appropriate lower boundary.
+
+## Coherent PostgreSQL snapshot
+
+The Profile aggregate, singleton Publication name, and canonical Article selection must be read from one coherent PostgreSQL snapshot.
+
+Use the smallest existing database mechanism that provides this, expected to be one read-only `REPEATABLE READ` transaction established before the first domain read. Do not rely on ordinary separate `READ COMMITTED` queries that may combine Profile configuration from one database state with Article selection from another.
+
+Do not acquire write locks, advisory locks, or participate in Phase 1's Profile↔Source mutation lock protocol merely for a read. The goal is snapshot consistency, not serialization with writers.
+
+If the current database abstraction cannot establish a read-only repeatable-read transaction without invasive redesign, stop and report the observed blocker rather than adding speculative infrastructure.
+
+## Canonical Profile filtering
+
+Apply Profile Source membership and filters only after canonical Article eligibility.
+
+A Source contributes Articles only when it has a Profile association and its Articles remain canonically outward-eligible under P1. The Profile cannot resurrect an Article from an unapproved/archived Source, a hidden/archived Article, or a visible non-Primary Duplicate member.
+
+For each associated Source:
+
+### Include phrases
+
+- empty list means no include restriction;
+- populated list uses OR: at least one phrase must match;
+- matching is deterministic case-insensitive literal substring matching;
+- search only effective outward headline, author, and summary;
+- do not search normalized title, hidden Source-derived title variants, Source display name, URL, Category display name, or other fields;
+- nullable author/summary simply do not match.
+
+### Exclude phrases
+
+- empty list means no exclude restriction;
+- populated list uses OR: any phrase match excludes the Article;
+- matching uses the same deterministic case-insensitive literal headline/author/summary fields;
+- exclusion wins even when an include phrase also matches.
+
+### Category selectors
+
+- empty list means no Category restriction;
+- populated list uses OR: at least one configured Category must be present in the Article's effective moderated Categories from P1;
+- do not inspect historical observation/category reasons;
+- an active intentionally empty Article Category override therefore matches no configured Profile Category.
+
+### Dimension composition
+
+For a Source association, include, exclude, and Category dimensions combine with AND, with exclusion taking precedence.
+
+Across associated Sources, qualifying Articles form one union and then use the canonical global ordering from P1.
+
+## Result/history bound and query strategy
+
+The final active Profile snapshot contains at most `profile.resultLimit` Articles.
+
+Filtering must happen before the Profile limit. Do not read a prematurely truncated unfiltered canonical window and then filter it in application code.
+
+Prefer a fixed parameterized bounded query strategy. A safe shape is:
+
+1. read the complete Profile aggregate inside the read-only repeatable-read transaction;
+2. for each associated Source, execute a fixed canonical selection over P1's shared eligibility projection using that Source's Profile filters;
+3. bound each Source candidate set to at most `profile.resultLimit` after that Source's filters;
+4. merge the already canonically ordered per-Source candidate sets;
+5. globally order by the shared canonical tuple;
+6. retain only the first `profile.resultLimit` Articles.
+
+This per-Source bound is complete because an Article below position `resultLimit` within one Source cannot appear in the first `resultLimit` rows of the union.
+
+A single equally bounded fixed SQL query is acceptable if it is simpler and still consumes/reuses the canonical eligibility authority rather than restating it.
+
+Do not:
+
+- build SQL syntax from phrase text or config values;
+- introduce regex/glob/fuzzy/semantic/expression behavior;
+- scan an unbounded corpus in application memory;
+- let Profile filtering mutate Article, Relevance, Category, Duplicate, or Source state.
+
+## Active snapshot read model
+
+The active snapshot must expose consumer-safe state needed by the later v1 API:
+
+- Profile `configKey`;
+- Profile `displayName`;
+- Publication `name` only;
+- complete bounded ordered Article set;
+- for each Article: `articleId`, effective `headline`, exact stored `originalUrl`, `effectiveFeedDate`, `feedDateSource`, nullable persisted `publishedAt`, nullable `author`, nullable `summary`, nullable `imageUrl`, Source `{ configKey, displayName }`, and effective `categories[]` as `{ configKey, displayName }`.
+
+Collections must be represented deterministically, including an empty Category collection when appropriate. Nullable Article metadata must remain genuinely nullable rather than replaced with invented defaults.
+
+The active snapshot must also retain internal state P3 needs to derive a revision and continuation positions without rereading persistence or exposing those internals to the later transport. At minimum retain exact microsecond canonical order positions per item and the already-read semantic Profile/Source/filter state needed to detect meaningful snapshot change.
+
+Do not add `apiVersion`, `generatedAt`, HTTP ETag values, or encoded cursors in this task.
+
+## Independence rules
+
+Explicitly preserve and prove:
+
+- Publication `public_status` does not affect Distribution Profile snapshot availability or contents;
+- Publication `active_for_collection` does not affect retained otherwise-eligible Articles;
+- Source operational state `enabled`/`paused`/`disabled` does not affect retained otherwise-eligible Articles;
+- endpoint operational/lifecycle/health state and Collection-run failures do not affect retained otherwise-eligible Articles;
+- Source approval/lifecycle remain canonical trust gates through P1;
+- Profile selection can only narrow canonical eligibility.
+
+## Focused real-PostgreSQL proof
+
+Add focused database tests for the new Profile snapshot boundary. At minimum cover:
+
+- missing Profile;
+- draft Profile;
+- disabled Profile;
+- active Profile with no matching Articles;
+- active Profile with multiple associated Sources;
+- global union ordering across Sources;
+- unapproved/archived associated Source suppression through canonical eligibility;
+- paused/disabled Source operational-state inclusion;
+- include OR semantics;
+- exclude OR semantics and exclusion precedence over include;
+- Category OR semantics;
+- include/exclude/Category AND composition;
+- case-insensitive literal matching;
+- literal `%`, `_`, backslashes, brackets, and regex-looking punctuation remain literal;
+- matching effective headline, author, and summary;
+- not matching through normalized title or other hidden/public-search-only fields;
+- null author/summary behavior;
+- automatic Categories, active manual Category override, intentionally empty override, and cleared override restoration;
+- exact `original_url` versus canonical identity URL;
+- all nullable v1 Article fields;
+- deterministic Source and Category output identities;
+- `resultLimit` applied after Profile filtering;
+- tied canonical ordering and exact PostgreSQL microsecond ordering keys;
+- Publication `public_status` independence;
+- Source operational-state independence;
+- one deterministic controlled concurrent-mutation test showing the Profile aggregate/publication/article reads come from one coherent repeatable-read snapshot rather than a mixed state.
+
+The concurrency test should prove the read invariant without depending on timing sleeps. Use explicit checkpoints/deferred coordination similar to existing deterministic database concurrency tests when appropriate.
+
+## Producer handoff
+
+Before finishing, demonstrate the complete downstream handoff:
+
+`Profile aggregate + canonical outward Article authority -> coherent bounded Profile snapshot -> focused PostgreSQL proof`
+
+P3 must not need to query Profile child tables, interpret effective Categories, reapply Source trust/Article visibility/Duplicate rules, rediscover Profile filters, or rebuild canonical ordering.
+
+## Validation
+
+Use focused database tests during iteration.
+
+Before finalizing, run:
+
+```text
+npm run check
+npm run test:db:focused -- <P1 canonical DB test> <new Profile snapshot DB test> test/database/public-feed-repository.test.ts test/database/public-feed-discovery-repository.test.ts test/database/public-feed-http.test.ts
+git diff --check
+npm run codex:phase:validate -- p1-2
+```
+
+Replace placeholders with actual committed test paths. Include an additional existing Profile repository/administration database test if the implementation changes that producer boundary.
+
+Do not claim browser, live-Source, recovery, migration, or deployment proof unless actually executed.
+
+## Version and repository rules
+
+- Update only the top-level `package.json` version to `1.2.2`; do not create a lockfile.
+- No migration is expected or authorized by this plan. If a schema change appears necessary, stop and report rather than consuming scope silently.
+- Do not rewrite Phase 1 Profile mutation/lifecycle transaction logic.
+- Do not modify historical task prompts or validation artifacts.
+- No contract/ADR documentation change is authorized.
+
+## Non-goals
+
+Do not implement:
+
+- distribution `snapshotRevision`;
+- distribution cursor encoding/decoding;
+- page slicing/continuation service;
+- HTTP/API routes or status mapping;
+- machine credentials/authentication;
+- ETag/conditional requests or rate limiting;
+- PHP/LKG;
+- RSS/Atom/WordPress distribution;
+- new schema/persistent snapshot rows;
+- write-side Profile concurrency changes;
+- collection/Relevance/Duplicate changes;
+- Publication tenancy.
+
+## Acceptance
+
+This prompt is complete when:
+
+1. one transport-independent service reads Profile semantics through the Phase 1 aggregate and canonical Article semantics through P1;
+2. the full read occurs from one coherent read-only repeatable PostgreSQL snapshot;
+3. Profile include/exclude/Category selectors have the exact governed semantics and filter before limiting;
+4. the result is globally ordered and bounded by `resultLimit`;
+5. the active snapshot exposes every Phase 4 item/profile/publication field plus internal semantic/order material needed by P3;
+6. draft/disabled/missing/active outcomes are typed without HTTP interpretation;
+7. focused PostgreSQL tests prove filter, ordering, bounds, public-status independence, and coherent snapshot behavior;
+8. package version is exactly `1.2.2`;
+9. no revision/cursor/API/auth/PHP/schema scope has been pulled forward.
+
+Finish with a concise implementation report listing changed files, snapshot/service boundary, transaction isolation used, query/filter strategy, focused tests, commands actually run/results, package version, and any remaining downstream risk.

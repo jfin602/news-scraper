@@ -1,0 +1,307 @@
+TASK: Phase 2 / P4 — Phase 2 closeout
+
+- Recommended configuration: `Sol Light`.
+- Model-family basis: repository policy deliberately uses Sol's stronger base review capability for independent roadmap closeout even when implementation prompts use cheaper families.
+- Reasoning basis: low reasoning is the normal closeout baseline; escalate only if review uncovers unresolved transaction/revision correctness or material architectural ambiguity.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: none under the current closeout policy.
+- Escalation trigger: any pass exposes unresolved canonical-authority drift, read-snapshot/revision correctness uncertainty, difficult cross-module root cause, or another issue that cannot be confidently classified and repaired within bounded closeout scope.
+- Escalation target: `Terra High`/`Terra Ultra` for explicit deep state/transaction reasoning or a higher-effort Sol configuration for ambiguous cross-system/contract reconciliation, chosen according to the observed cause.
+- Estimate confidence: `High`.
+- Efficiency rationale: Sol Light is the repository-mandated independent-review floor; deeper reasoning is purchased only if an actual closeout finding requires it.
+
+The assigned project version is `1.2.4`.
+
+## Goal
+
+Perform the independent final Phase 2 closeout review against the exact integrated P1-P3 tree, make only bounded unambiguous repairs/tests that are already inside Phase 2 scope, execute the complete Phase 2 validation matrix, and write the durable Phase 2 validation artifact.
+
+This is not a feature prompt. Do not broaden Phase 2, pre-implement Phase 3/4, or reinterpret governing contracts merely to make the current implementation pass.
+
+The final result remains **HUMAN REVIEW REQUIRED**. Do not perform conversational roadmap `/closeout` or advance to `1.3.0`.
+
+## Prerequisite
+
+P1-P3 must be committed as the reachable Phase 2 implementation prefix with package version `1.2.3` and must have exact runner-recognizable commit subjects for the task stack.
+
+If the Git-proven prefix or package version is inconsistent, stop and report the mismatch before reviewing implementation behavior.
+
+## Read first
+
+Read:
+
+1. `BOOT.md`;
+2. `AGENTS.md`;
+3. `docs/contracts/project-contract.md`;
+4. `docs/contracts/product-scope-and-users.md`;
+5. `docs/contracts/distribution-and-integration-contract.md`;
+6. `docs/contracts/distribution-api-contract.md` for producer handoff requirements only;
+7. `docs/contracts/domain-and-data-contract.md`;
+8. `docs/contracts/article-lifecycle-and-deduplication.md`;
+9. `docs/contracts/public-feed-and-admin-contract.md`;
+10. `docs/contracts/testing-and-validation-contract.md`;
+11. `docs/architecture/system-architecture.md`;
+12. `docs/decisions/production-data-and-schema-compatibility.md` only if executable work introduced persistence/schema changes despite the plan;
+13. the active Phase 2 roadmap entry and Phase 3/4 handoff boundaries in `docs/roadmap/post-1.0-roadmap.md`;
+14. every Phase 2 task prompt under `docs/tasks/p1-2/`;
+15. the complete Phase 2 implementation diff from the Phase 2 base through current HEAD;
+16. all important changed producers and consumers, not only the files in the diff;
+17. focused tests added/changed in P1-P3 plus existing public-feed, Profile, browser, and database regressions implicated by shared behavior.
+
+Establish the exact Phase 2 base commit from Git/task history before calculating the accepted diff range. Do not guess it from conversation text.
+
+## Pass 1 — Contract and evidence review
+
+Review the integrated implementation against every Phase 2 roadmap exit condition and governing invariant.
+
+At minimum verify from source and executed evidence that:
+
+### Canonical outward authority
+
+- there is one governed Article eligibility/order/destination authority used by both the reference public feed and Distribution Profile selection;
+- Source approval/lifecycle, Article visibility, ungrouped-or-Primary Duplicate suppression, effective Categories, effective headline/date, canonical ordering, and exact stored `original_url` are not independently reimplemented by competing consumers;
+- Source operational state, endpoint state/health, Collection-run state, and Publication collection state remain orthogonal to retained outward eligibility where governed;
+- internal order state preserves PostgreSQL microsecond precision across keyset boundaries.
+
+### Existing `/` and `/api/feed`
+
+- both still require Publication `public_status = public`;
+- both retain existing discovery/filter/cursor/public-page behavior and output shape;
+- public keyword search retains its governed fields and does not silently become Profile phrase matching;
+- public discovery pagination remains its existing non-frozen reference contract rather than inheriting distribution snapshot semantics;
+- generic public error/not-found behavior and direct publisher destinations remain preserved.
+
+### Distribution Profile snapshot
+
+- Profile state is consumed through the Phase 1 aggregate rather than reconstructed from child-table SQL in a competing read path;
+- missing/draft/disabled/active states remain typed producer outcomes;
+- only active Profiles produce distributable results;
+- Profile selection runs after canonical eligibility and only narrows it;
+- include/exclude/Category semantics are exactly OR within list, AND across dimensions, exclusion wins;
+- phrase matching is deterministic case-insensitive literal substring matching over effective headline/author/summary only;
+- effective moderated Category state is used;
+- Profile filtering occurs before the result/history bound;
+- multi-Source results use canonical global ordering;
+- active reads are coherent across Profile aggregate, Publication name, and Article selection through the implemented read-snapshot mechanism;
+- Publication `public_status` and Source operational state do not change Profile output merely by themselves.
+
+### Guaranteed producer fields
+
+- the transport-independent result supplies all fields Phase 4 needs without exposing persistence internals: Profile key/name, Publication name, Article ID/headline/original URL/effective date/date source/null publishedAt/author/summary/imageUrl, Source key/name, and effective Category key/name collection;
+- nullable fields remain nullable and Categories remain an explicit empty collection when empty;
+- exact stored publisher destination is preserved.
+
+### Revision and continuation
+
+- revision is deterministic and content/semantic-state-derived, not `updated_at`, transaction ID, random value, or persistent snapshot row;
+- revision material includes every state whose change must invalidate the bounded snapshot and excludes explicitly irrelevant state;
+- cursor codec is separate from the legacy public discovery cursor and is versioned/bounded/opaque/Profile-bound/revision-bound/position-bound;
+- continuation uses the canonical microsecond-safe order tuple and no offset pagination;
+- unchanged traversal has no omissions/repetitions;
+- relevant mutations produce typed `snapshot_changed` before mixed data can be returned;
+- malformed/tampered/profile-mismatched/current-revision-invalid-position cursors fail boundedly;
+- no HTTP/API/auth semantics have leaked into the transport-independent producer.
+
+### Downstream consumer readiness
+
+Audit this exact handoff:
+
+`downstream-required capability -> owning implementation/export -> focused proof`
+
+Require a concrete owner/proof for:
+
+- Profile lookup/lifecycle;
+- Profile/publication metadata;
+- guaranteed v1 Article fields;
+- effective Categories;
+- Profile filters;
+- result/history bound;
+- canonical order + microsecond continuation position;
+- `snapshotRevision`;
+- cursor encode/decode;
+- keyset continuation;
+- `snapshot_changed`;
+- draft/disabled/missing distinction.
+
+Phase 4 must not need to invent Article SQL, Profile child-table SQL, eligibility, filter interpretation, Category interpretation, order, revision, or cursor semantics. If it would, Phase 2 is not complete.
+
+## Pass 2 — Error and edge-case adversarial review
+
+Independently derive realistic failure hypotheses from the final implementation rather than merely confirming that tests exist.
+
+At minimum inspect applicable cases involving:
+
+- missing singleton Publication configuration;
+- missing, draft, disabled, active, empty, and maximum-limit Profiles;
+- malformed persistence rows and dependency failures;
+- zero/many associated Sources;
+- unapproved/archived versus paused/disabled Sources;
+- Profile filters with empty lists, overlapping include/exclude phrases, duplicate-looking punctuation, `%`, `_`, backslashes, brackets, Unicode/case behavior within the governed implementation, and nullable text;
+- Category automatic/manual/empty-override transitions;
+- hidden/archived Articles;
+- Duplicate groups with hidden Primary, changed Primary, and visible non-Primary members;
+- exact ties and PostgreSQL microsecond timestamp ties;
+- page-size boundaries and exact exhaustion;
+- malformed, oversized, non-canonical, wrong-version, wrong-Profile, tampered, and stale cursors;
+- a cursor whose revision matches but whose position is not valid in that snapshot;
+- relevant mutation between pages;
+- irrelevant mutation between pages;
+- new Article entering the bounded result window;
+- Article update changing order or guaranteed outward metadata;
+- Profile association/filter/result-limit/display-name changes;
+- Source display-name/approval/lifecycle changes;
+- Publication name versus `public_status` changes;
+- read-snapshot interleavings during Profile reads;
+- rollback/failure behavior when a multi-query read fails;
+- public-feed behavior after shared canonical producer changes;
+- bounded error translation without raw SQL/connection/internal-state leakage.
+
+For each plausible failure, determine whether it is:
+
+1. already protected by source structure + focused/broader automated evidence;
+2. a bounded defect/test gap that can be repaired inside Phase 2 closeout;
+3. a meaningful behavior-preserving refactor requiring the Terra High handoff below; or
+4. a contract/architecture/new-scope issue requiring stop/escalation/replanning.
+
+A closeout may fix a concrete bounded bug or add missing focused regression coverage only when behavior is unambiguous, already governed by Phase 2, and all invalidated broader evidence can be rerun.
+
+## Pass 3 — Code-quality and structural review
+
+Independently inspect the final Phase 2 diff plus important producers/consumers for structural quality.
+
+Specifically look for:
+
+- duplicated canonical eligibility SQL/rules between public and Profile paths;
+- duplicated effective Category interpretation;
+- direct Profile child-table queries that bypass the Phase 1 aggregate without a justified lower-level ownership reason;
+- Profile filter semantics leaking into collection, Relevance, Duplicate, admin UI, or HTTP code;
+- HTTP/auth/ETag/rate-limit/PHP concerns pulled into the Phase 2 producer;
+- revision based on incidental timestamps or unstable object serialization;
+- cursor semantics duplicated across layers or mixed with the legacy public cursor contract;
+- loss of microsecond precision through JavaScript Date conversions;
+- unbounded reads or application-memory scans where a fixed bounded query should own selection;
+- unnecessary write locks/advisory locks for read consistency;
+- speculative generic query/revision/cursor abstractions;
+- leaky persistence IDs/internal fields in consumer-safe results;
+- dead/compatibility-only code left after extraction;
+- brittle tests that prove implementation details rather than governed outcomes;
+- avoidable query explosion or pathological behavior within the maximum 64 filters / 1,000 result bound;
+- missing producer handoff tests that would force Phase 4 to reverse-engineer semantics.
+
+Small local cleanup or obvious dead-code removal may be repaired inside closeout when behavior is unchanged and tests can be rerun.
+
+### Mandatory Terra High refactor handoff
+
+If any review pass finds a **meaningful behavior-preserving refactor** is required, do not perform that refactor in this Sol Light closeout.
+
+Stop and output exactly one self-contained transient **Terra High refactor remediation prompt** that:
+
+- recommends exactly `Terra High`;
+- states the observed structural problem and concrete source/test evidence;
+- defines the smallest behavior-preserving refactor boundary and important producers/consumers;
+- preserves all governing security, data-integrity, provenance, idempotency, eligibility, Profile, public-feed, cursor/revision, and error semantics implicated by the change;
+- forbids unrelated cleanup, new product behavior, contract/ADR changes, roadmap expansion, schema changes unless the observed refactor truly cannot avoid one, and speculative abstractions;
+- preserves package version `1.2.4` and consumes no roadmap/correction prompt number;
+- requires focused tests plus every broader regression invalidated by the refactor;
+- requires a concise implementation report but must not declare Phase 2 GREEN or finalize the durable closeout artifact;
+- instructs Terra High to stop if source inspection reveals product/contract/ADR change, new roadmap scope, difficult concurrency/transaction redesign beyond the bounded refactor, or another materially different architecture decision.
+
+After that remediation is applied, rerun this P4 closeout from the beginning. Only the rerun may establish the accepted Phase 2 tree and durable artifact.
+
+## Required validation matrix
+
+On the final source tree being claimed as Phase 2 GREEN, execute:
+
+```text
+npm run check
+npm run test:db
+npm run test:browser
+npm run codex:phase:validate -- p1-2
+git diff --check <phase-base>...HEAD
+git diff --check
+```
+
+Resolve `<phase-base>` to the exact Git commit immediately before P1; do not use a guessed SHA.
+
+Requirements:
+
+- `npm run check` must pass formatting, lint, typecheck, and ordinary unit/integration/collection suites with zero failed/cancelled/skipped/todo tests relevant to the claim;
+- `npm run test:db` must pass the full real-disposable-PostgreSQL suite and is the authoritative Level 4 evidence for read-snapshot/query/mutation behavior;
+- `npm run test:browser` must pass because Phase 2 refactors the shared outward read authority consumed by the bundled reference frontend;
+- task-stack validation must prove exactly P1-P4, assigned versions `1.2.1`-`1.2.4`, supported model labels, and one final P4 closeout;
+- diff checks must inspect both the committed Phase 2 range and any uncommitted closeout changes.
+
+Do not run or claim these solely to inflate evidence when the final tree did not affect their scope:
+
+- `npm run test:security`;
+- `npm run test:recovery`;
+- `npm run test:live-sources`;
+- deployment/reference-environment validation.
+
+However, if the actual P1-P3 implementation unexpectedly changed security, migrations/persistence/recovery, live collection, or deployment behavior, add the corresponding required evidence rather than following this planned omission blindly.
+
+No migration is expected. If a migration/schema change exists in the final Phase 2 diff, treat that as a material plan deviation: inspect production-compatibility requirements and require migration-from-zero plus supported production-forward preservation evidence before GREEN.
+
+## Durable validation artifact
+
+Create a new Phase 2 validation artifact under `docs/validation/` with a clear phase-specific filename.
+
+The artifact must record:
+
+- status `Phase 2 GREEN — HUMAN REVIEW REQUIRED` only if every gate passes;
+- Phase 2 base SHA;
+- each P1-P4 implementation/closeout identity as applicable;
+- exact final tree identity being accepted, including any uncommitted closeout diff identity if the repository workflow still uses that pattern;
+- package version `1.2.4`;
+- Node/npm/PostgreSQL/Playwright versions actually observed where available and relevant;
+- every validation command actually run and exact pass/fail counts when reported by tools;
+- evidence level distinctions;
+- Pass 1 contract/evidence findings;
+- Pass 2 adversarial findings and disposition;
+- Pass 3 structural findings and disposition;
+- every bounded defect/test repair made during closeout and the evidence rerun afterward;
+- whether a Terra High refactor handoff occurred before the successful rerun;
+- explicit Phase 4 producer-handoff matrix/status;
+- explicit statement that no API/auth/PHP/post-2.0 capability was implemented;
+- explicit qualification that no live-Source/deployment evidence is claimed unless actually observed;
+- any unresolved limitation. Do not declare GREEN with an unresolved blocker.
+
+Historical validation artifacts must not be rewritten.
+
+## Version and repository rules
+
+- Update only the top-level `package.json` version from `1.2.3` to `1.2.4` as the P4 assigned version; do not create a lockfile.
+- Do not advance to `1.3.0`; conversational `/closeout` owns that later transition after human acceptance.
+- Do not edit contracts/ADRs/roadmap/current routing merely to reflect successful implementation; the normal post-closeout docs workflow follows human acceptance.
+- Do not modify historical task prompts or historical validation evidence.
+- A closeout-created Phase 2 validation artifact is authorized.
+
+## Non-goals
+
+Do not implement:
+
+- Phase 3 machine credentials/security;
+- Phase 4 HTTP `/api/v1/distribution/{profile_key}`;
+- HTTP ETag/304/rate limiting/error serialization;
+- PHP/LKG;
+- WordPress/RSS/Atom/self-host packaging;
+- new Distribution Profile selectors;
+- new schema/persistent revisions unless an unexpected existing implementation already introduced them and they must be reviewed as a plan deviation;
+- unrelated refactors or product features.
+
+## Final decision and report
+
+Declare `Phase 2 GREEN — HUMAN REVIEW REQUIRED` only when:
+
+1. all three independent review passes are complete;
+2. all bounded findings are repaired or explicitly proven safe;
+3. no meaningful refactor/architecture blocker remains;
+4. the required final validation matrix passes on the exact final tree;
+5. the durable validation artifact accurately records evidence and limitations;
+6. package version is exactly `1.2.4`;
+7. Phase 4 can consume the producer without inventing Phase 2-owned semantics.
+
+Otherwise report the blocking finding and required next action without pretending the phase is complete.
+
+The final terminal output should be concise and easy to copy for human review: status, exact accepted tree/diff identity, package version, key three-pass findings, validation commands/results, Phase 4 handoff status, whether any closeout repair/refactor handoff occurred, artifact path, and next human workflow step. Do not perform `/closeout` automatically.

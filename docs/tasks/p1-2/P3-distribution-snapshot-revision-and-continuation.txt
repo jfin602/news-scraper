@@ -1,0 +1,304 @@
+TASK: Phase 2 / P3 — Distribution snapshot revision and continuation
+
+- Recommended configuration: `Luna High`.
+- Model-family basis: once P2 supplies the complete bounded coherent Profile snapshot, revision and continuation are deterministic bounded transformations with existing repository cursor/fingerprint patterns available.
+- Reasoning basis: high effort is justified by exact cursor validation, microsecond key precision, revision material, tied ordering, and relevant-versus-irrelevant mutation behavior.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna Medium`.
+- Escalation trigger: P2 cannot expose enough stable semantic/order material and this task is forced back into PostgreSQL transaction/concurrency ownership.
+- Escalation target: `Terra Medium`.
+- Estimate confidence: `High`.
+- Efficiency rationale: the Profile result is hard-bounded to 1,000 items, so no stronger family is needed unless the producer handoff proves incomplete.
+
+The assigned project version is `1.2.3`.
+
+## Goal
+
+Turn P2's complete coherent bounded Distribution Profile snapshot into the Phase 4-ready transport-independent paging boundary by adding:
+
+- deterministic content-derived `snapshotRevision`;
+- opaque versioned Profile/revision-bound continuation cursors;
+- bounded page slicing over the already-governed snapshot;
+- typed snapshot-change detection;
+- a complete producer contract that later HTTP code can consume without Article/Profile SQL or business-rule interpretation.
+
+This task must not add HTTP routes, authentication, rate limiting, PHP, or persistent snapshot state.
+
+## Prerequisite
+
+P2 must already be implemented and committed with package version `1.2.2` and must expose:
+
+- typed missing/draft/disabled/active Profile outcomes;
+- a complete coherent active Profile snapshot bounded by `resultLimit`;
+- every v1-required Profile/Publication/Article field;
+- exact PostgreSQL microsecond canonical order positions;
+- semantic Profile/Source/filter state sufficient to determine whether the governed snapshot changed.
+
+If P3 would need to query Profile child tables, re-run canonical eligibility SQL, reinterpret Categories, or own transaction consistency itself, stop and report that P2 requires repair.
+
+## Read first
+
+Before changing source, read:
+
+1. `BOOT.md`;
+2. `AGENTS.md`;
+3. `docs/contracts/project-contract.md`;
+4. `docs/contracts/distribution-and-integration-contract.md`;
+5. `docs/contracts/distribution-api-contract.md`;
+6. `docs/contracts/testing-and-validation-contract.md`;
+7. `docs/contracts/public-feed-and-admin-contract.md` for the deliberate contrast with the legacy cursor;
+8. the Phase 2 and Phase 4 roadmap entries in `docs/roadmap/post-1.0-roadmap.md`;
+9. `src/public-feed/discovery.ts` as a local cursor validation/encoding pattern, not as the distribution cursor contract;
+10. `src/deduplication/evidence.ts` as a local deterministic versioned fingerprint pattern;
+11. P1/P2 implementation and focused tests.
+
+If contract/source state materially conflicts, stop and report `Planning needed`.
+
+## No persistent revision state
+
+Do not add a migration, revision table, snapshot table, cursor table, transaction-ID dependency, or long-lived database snapshot.
+
+P2 already produces the complete authoritative Profile result and Profile `resultLimit` is hard-bounded to at most 1,000 Articles. Derive revision and pagination deterministically from that bounded result.
+
+Do not use `distribution_profiles.updated_at` or another incidental persistence timestamp as revision authority. Association/filter mutations live in child tables and do not reliably update the Profile row timestamp, and unrelated persistence timestamps may change without changing outward semantics.
+
+## Deterministic snapshot revision
+
+Implement a versioned canonical representation of all state that is semantically relevant to the complete bounded Distribution Profile snapshot and derive a stable cryptographic digest, expected to use Node's built-in SHA-256.
+
+The representation must be deterministic across processes and repeated reads of unchanged governed state. Use an explicit version/domain separator so the representation can evolve deliberately rather than relying on raw `JSON.stringify` of arbitrary object property order.
+
+At minimum include semantic state capable of changing the outward bounded distribution:
+
+- Profile `configKey`;
+- Profile `displayName`;
+- Profile lifecycle state;
+- Profile `resultLimit`;
+- associated Source semantic state already supplied by P2, including stable Source key/display identity, approval/lifecycle, and the ordered include/exclude/Category selector configuration;
+- Publication `name`;
+- ordered Article membership;
+- for every Article, every guaranteed v1 outward value: Article ID, effective headline, exact `originalUrl`, effective feed date/source, nullable `publishedAt`, nullable `author`, nullable `summary`, nullable `imageUrl`, Source config key/display name, effective Categories;
+- exact internal microsecond order keys used for continuation.
+
+Use deterministic field/list ordering. Category and selector arrays should already be canonicalized by upstream producers; do not introduce order instability during hashing.
+
+Do not include state that is not part of Distribution Profile semantics, including:
+
+- Publication `public_status`;
+- Publication `active_for_collection` when it does not change retained eligible results;
+- Source operational state;
+- endpoint state/health;
+- Collection-run state;
+- admin audit history;
+- persistence timestamps that do not affect outward semantics;
+- database IDs not needed for the stable outward/profile identity.
+
+If an upstream producer exposes incidental state mixed with semantic state, select the governed semantic fields explicitly rather than hashing the whole object blindly.
+
+## Distribution cursor codec
+
+Create a separate distribution cursor codec. Do not reuse the public discovery cursor type/criteria fingerprint as the permanent distribution cursor.
+
+The cursor must be:
+
+- opaque to callers;
+- versioned;
+- bounded in encoded size;
+- base64url or an equally deterministic URL-safe encoding;
+- exact-shape validated;
+- rejected when malformed, non-canonical, wrong-version, wrong Profile, or otherwise invalid;
+- bound to the immutable Profile `configKey`;
+- bound to the `snapshotRevision` under which it was issued;
+- bound to the exact keyset position after the last returned Article using microsecond effective feed date, microsecond `first_seen_at`, and Article ID.
+
+The internal position order is:
+
+1. effective feed date DESC;
+2. `first_seen_at` DESC;
+3. Article ID ASC.
+
+Preserve PostgreSQL microsecond timestamp strings in cursor positions. Do not round-trip them through JavaScript `Date` when doing so would lose ordering precision.
+
+The codec should expose bounded typed input errors suitable for a later HTTP adapter without leaking decoded implementation details or secret/state values.
+
+## Paged distribution read service
+
+Evolve or wrap the P2 transport-independent service so a caller can request:
+
+- one Profile by immutable `configKey`;
+- optional distribution continuation cursor.
+
+Use a server-defined page size. Prefer `100` as the current project baseline unless the existing implementation after P2 provides a clearer equally bounded constant. Do not add a caller-controlled `limit`.
+
+For an active Profile:
+
+1. obtain P2's complete coherent bounded snapshot;
+2. derive current `snapshotRevision`;
+3. if there is no cursor, return the first page;
+4. if there is a cursor, decode and validate Profile/revision/position bindings;
+5. when the cursor's revision differs from the current revision, return a typed `snapshot_changed` outcome and no mixed page data;
+6. otherwise continue strictly after the cursor position under the canonical order;
+7. generate `nextCursor` from the final returned row only when more rows remain within the bounded snapshot;
+8. return the same snapshot revision on every page of one unchanged snapshot.
+
+Do not use offset pagination.
+
+A cursor position that claims the current revision but cannot correspond to a valid continuation position in the current snapshot must fail as bounded invalid input rather than silently skipping to an approximate position. The caller should never be able to fabricate an arbitrary valid-looking position that changes traversal semantics.
+
+## Typed producer outcomes
+
+The final Phase 2 service boundary must provide enough typed outcomes for Phase 4 to remain a thin HTTP adapter. It should distinguish at least:
+
+- Profile not found;
+- Profile draft/non-distributable;
+- Profile disabled;
+- active page result;
+- invalid cursor/input;
+- `snapshot_changed`;
+- bounded read/dependency failure.
+
+Do not map these to HTTP status codes here.
+
+An active page result must expose at least:
+
+- `snapshotRevision`;
+- Profile config key/display name;
+- Publication name;
+- page `items` using only the governed consumer-safe Article fields;
+- nullable/optional `nextCursor` in the transport-independent result;
+- no internal order/revision material beyond what the later transport actually needs.
+
+P2's complete internal snapshot may remain an implementation detail behind this page service.
+
+Do not introduce `apiVersion`, `generatedAt`, ETag headers, `304`, bearer auth, or rate-limit state here. Those remain Phase 4/Phase 3 concerns.
+
+## Relevant and irrelevant mutation behavior
+
+Focused tests must prove that a continuation from an earlier page returns typed `snapshot_changed` when governed bounded output/revision material changes. Representative relevant changes include:
+
+- Profile display name;
+- Profile result limit;
+- Profile Source membership;
+- include/exclude/Category selector configuration;
+- Source approval/lifecycle state affecting canonical eligibility;
+- Source display identity exposed outward;
+- Article effective headline;
+- Article author/summary/image URL/published timestamp when part of the bounded output;
+- effective Category override/membership;
+- Article visibility;
+- Duplicate Primary selection;
+- Publication name;
+- a new or updated Article changing bounded membership/order.
+
+Also prove continuation remains valid when irrelevant state changes without changing the bounded Profile snapshot, such as:
+
+- Publication `public_status`;
+- Source operational state;
+- endpoint operational/lifecycle/health state;
+- Collection-run state;
+- unrelated Article mutations outside the Profile's bounded output that do not alter membership/order or any hashed semantic state.
+
+Tests should assert semantics, not exact hash text unless a stable fingerprint fixture is deliberately useful to protect representation compatibility.
+
+## Cursor and page tests
+
+At minimum prove:
+
+- empty active snapshot;
+- one-page snapshot;
+- multi-page snapshot;
+- exact page-size boundary;
+- final `nextCursor = null`/equivalent exhausted state;
+- no omissions or repetitions under static snapshot;
+- tie-heavy ordering;
+- microsecond order precision at page boundaries;
+- malformed/oversized/non-base64url/non-canonical cursor rejection;
+- unsupported cursor version rejection;
+- Profile-key mismatch rejection;
+- position tampering rejection;
+- stale revision -> typed `snapshot_changed`;
+- unchanged revision -> normal continuation;
+- current-revision but nonexistent/invalid position -> invalid input;
+- draft/disabled/missing Profile outcomes remain producer-owned and do not expose page data;
+- nullable v1 item fields and empty Categories remain stable across page slicing.
+
+Use unit tests for pure cursor/revision canonicalization and real PostgreSQL tests for end-to-end producer behavior and mutation-driven revision changes.
+
+## Phase 4 downstream handoff gate
+
+Before finishing, make this capability map true and prove it at the lowest appropriate evidence level:
+
+- Profile lookup/lifecycle -> Phase 2 page service -> PostgreSQL proof;
+- Profile/publication metadata -> P2/P3 producer -> PostgreSQL proof;
+- guaranteed v1 Article fields -> P1/P2 producer -> PostgreSQL proof;
+- effective Categories -> P1 producer -> PostgreSQL proof;
+- Profile selectors -> P2 -> PostgreSQL proof;
+- bounded result/history -> P2 -> PostgreSQL proof;
+- canonical ordering/microsecond position -> P1/P2 -> PostgreSQL proof;
+- deterministic `snapshotRevision` -> P3 -> unit + PostgreSQL proof;
+- opaque Profile/revision-bound cursor -> P3 codec -> unit proof;
+- keyset continuation -> P3 page service -> PostgreSQL proof;
+- `snapshot_changed` -> P3 page service -> PostgreSQL mutation proof;
+- draft/disabled/missing distinction -> P2/P3 result contract -> PostgreSQL proof.
+
+A future Phase 4 HTTP route must not need Article SQL, Profile child-table SQL, Profile selector interpretation, Category interpretation, canonical ordering logic, revision calculation, or cursor construction.
+
+If that handoff is not true, repair the producer within this task's bounded scope before declaring completion.
+
+## Validation
+
+Use narrow unit and database tests during iteration.
+
+Before finalizing, run:
+
+```text
+npm run check
+npm run test:db:focused -- <P1 canonical DB test> <P2 Profile snapshot DB test> <new P3 distribution paging DB test>
+git diff --check
+npm run codex:phase:validate -- p1-2
+```
+
+Replace placeholders with actual committed test paths. `npm run check` must include the new unit cursor/revision tests.
+
+Do not claim browser, live-Source, recovery, migration, or deployment proof unless actually executed.
+
+## Version and repository rules
+
+- Update only the top-level `package.json` version to `1.2.3`; do not create a lockfile.
+- Do not add migrations or persistent revision/cursor state.
+- Do not modify historical task prompts or validation artifacts.
+- No contract/ADR documentation change is authorized.
+- Keep pure cursor/revision code free of HTTP/Express/auth dependencies.
+
+## Non-goals
+
+Do not implement:
+
+- `/api/v1/distribution/{profile_key}`;
+- bearer authentication or credentials;
+- HTTP `304`, ETag, Cache-Control, status/error serialization, or rate limiting;
+- `apiVersion` or request-time `generatedAt` transport envelope fields;
+- PHP/LKG;
+- WordPress/RSS/Atom distribution;
+- new schema/persistent snapshots;
+- delta synchronization;
+- Source collection/Relevance/Duplicate behavior;
+- Publication tenancy.
+
+## Acceptance
+
+This prompt is complete when:
+
+1. unchanged complete Profile snapshots produce one deterministic stable revision;
+2. any governed semantic change to the bounded snapshot changes the revision, while explicitly irrelevant state does not;
+3. distribution cursors are separate from legacy public cursors and are versioned, bounded, opaque, Profile/revision/position-bound, and microsecond-safe;
+4. static page traversal has no omissions/repetitions and uses no offset pagination;
+5. changed revision produces typed `snapshot_changed` rather than mixed pages;
+6. malformed/tampered/mismatched cursors fail boundedly;
+7. the final transport-independent service supplies every Phase 4 producer-owned capability in the handoff matrix;
+8. no HTTP/auth/PHP/schema scope has been pulled forward;
+9. package version is exactly `1.2.3`;
+10. all executed validation is reported honestly.
+
+Finish with a concise implementation report listing changed files, revision representation/version, cursor shape at a conceptual level without dumping opaque tokens unnecessarily, page-service outcomes, tests added/updated, validation commands/results, Phase 4 handoff assessment, package version, and remaining risk.
