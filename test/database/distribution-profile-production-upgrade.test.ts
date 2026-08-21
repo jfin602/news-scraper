@@ -15,6 +15,7 @@ import {
   findDistributionProfileByConfigKey,
   replaceDistributionProfileSourceAssociation,
 } from '../../src/distribution/profiles/repository.ts';
+import { issueDistributionCredential } from '../../src/distribution/credentials/repository.ts';
 import { enqueueEndpointCollectionJob } from '../../src/jobs/endpoint-collection-job-repository.ts';
 import { withDisposableDatabase } from '../support/database/disposable-database.ts';
 
@@ -23,7 +24,7 @@ const ACCEPTED_FILENAMES = Array.from(
   (_, index) => `${String(index + 1).padStart(4, '0')}_`,
 );
 
-test('the accepted 0001–0014 production baseline upgrades additively to Distribution Profiles', async () => {
+test('the accepted production state upgrades additively through Profiles to Distribution credentials', async () => {
   await withDisposableDatabase(async ({ databaseUrl }) => {
     const directory = await mkdtemp(
       path.join(tmpdir(), 'news-scraper-baseline-'),
@@ -60,11 +61,24 @@ test('the accepted 0001–0014 production baseline upgrades additively to Distri
         accepted.map((migration) => migration.filename),
       );
       const seeded = await seedAcceptedBaseline(databaseUrl);
+      const profileMigration = current.find(
+        (migration) => migration.filename === '0015_distribution_profiles.sql',
+      );
+      assert.ok(profileMigration !== undefined);
+      await writeFile(
+        path.join(directory, profileMigration.filename),
+        profileMigration.sql,
+        'utf8',
+      );
+      assert.deepEqual(
+        await migrateDatabase({ connectionString: databaseUrl }, directory),
+        ['0015_distribution_profiles.sql'],
+      );
       const before = await governedSnapshot(databaseUrl, seeded.articleId);
 
       assert.deepEqual(
         await migrateDatabase({ connectionString: databaseUrl }),
-        ['0015_distribution_profiles.sql'],
+        ['0016_distribution_credentials.sql'],
       );
       const after = await governedSnapshot(databaseUrl, seeded.articleId);
       assert.deepEqual(after, before);
@@ -124,6 +138,11 @@ test('the accepted 0001–0014 production baseline upgrades additively to Distri
           ledger.rows.map((row) => row.filename),
           current.map((migration) => migration.filename),
         );
+        const issued = await issueDistributionCredential(database, {
+          label: 'Upgrade credential',
+          expiresAt: '2027-01-02T03:04:05.006Z',
+        });
+        assert.equal(issued.credential.label, 'Upgrade credential');
       } finally {
         await database.close();
       }

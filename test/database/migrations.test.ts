@@ -288,6 +288,7 @@ test('installs only the justified public-feed discovery indexes from zero', asyn
       '0013_article_duplicate_moderation.sql',
       '0014_html_endpoint_profile_and_run_diagnostics.sql',
       '0015_distribution_profiles.sql',
+      '0016_distribution_credentials.sql',
     ]);
     assert.deepEqual(
       await migrateDatabase({ connectionString: databaseUrl }),
@@ -430,6 +431,32 @@ test('current migrations install the Distribution Profile relational boundary', 
         database.query(
           `INSERT INTO distribution_profiles (id, config_key, display_name, lifecycle, result_limit)
            VALUES ('00000000-0000-0000-0000-000000000001', 'invalid-key', 'Name', 'draft', 100)`,
+        ),
+      );
+    } finally {
+      await database.close();
+    }
+  });
+});
+
+test('current migrations install the isolated Distribution credential boundary', async () => {
+  await withDisposableDatabase(async ({ databaseUrl }) => {
+    await migrateDatabase({ connectionString: databaseUrl });
+    const database = createDatabase({ connectionString: databaseUrl });
+    try {
+      const tables = await database.query<{ readonly table_name: string }>(
+        `SELECT table_name
+           FROM information_schema.tables
+          WHERE table_schema = 'public'
+            AND table_name = 'distribution_credentials'`,
+      );
+      assert.deepEqual(tables.rows, [
+        { table_name: 'distribution_credentials' },
+      ]);
+      await assert.rejects(
+        database.query(
+          `INSERT INTO distribution_credentials (id, lookup_id, verifier, label, capability)
+           VALUES ('00000000-0000-0000-0000-000000000001', 'invalid', decode(repeat('00', 32), 'hex'), 'Name', 'distribution:read')`,
         ),
       );
     } finally {

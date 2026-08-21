@@ -16,6 +16,10 @@ import {
   findDistributionProfileByConfigKey,
   replaceDistributionProfileSourceAssociation,
 } from '../../src/distribution/profiles/repository.ts';
+import {
+  findDistributionCredentialForAuthentication,
+  issueDistributionCredential,
+} from '../../src/distribution/credentials/repository.ts';
 import { reconcileExpiredEndpointCollectionJob } from '../../src/jobs/execute-endpoint-collection-job.ts';
 import {
   claimNextEndpointCollectionJob,
@@ -124,6 +128,17 @@ test('real PostgreSQL backup restores governed state and existing recovery seman
       ],
     },
   );
+  const restoredCredential = await findDistributionCredentialForAuthentication(
+    database,
+    seeded.credentialLookupId,
+  );
+  assert.ok(restoredCredential !== undefined);
+  assert.deepEqual(restoredCredential.verifier, seeded.credentialVerifier);
+  assert.equal(
+    restoredCredential.expiresAt?.toISOString(),
+    '2027-01-02T03:04:05.006Z',
+  );
+  assert.equal(restoredCredential.revokedAt, null);
   assert.equal(
     (await findEndpointCollectionJobById(database, seeded.queuedJobId))?.status,
     'queued',
@@ -211,6 +226,16 @@ async function seedRepresentativeState(databaseUrl: string) {
       lifecycle: 'active',
       resultLimit: 321,
     });
+    const credential = await issueDistributionCredential(database, {
+      label: 'Recovery credential',
+      expiresAt: '2027-01-02T03:04:05.006Z',
+    });
+    const credentialAuthentication =
+      await findDistributionCredentialForAuthentication(
+        database,
+        credential.credential.lookupId,
+      );
+    assert.ok(credentialAuthentication !== undefined);
     await database.transaction(async (transaction) => {
       await replaceDistributionProfileSourceAssociation(
         transaction,
@@ -307,6 +332,8 @@ async function seedRepresentativeState(databaseUrl: string) {
       profileConfigKey: profile.configKey,
       profileCreatedAt: profile.createdAt,
       profileUpdatedAt: profile.updatedAt,
+      credentialLookupId: credential.credential.lookupId,
+      credentialVerifier: Buffer.from(credentialAuthentication.verifier),
       runId: interruptedRunId,
       queuedJobId: queued.job.id,
       expiredJobId: expired.job.id,
