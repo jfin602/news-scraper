@@ -317,7 +317,18 @@ Model resolution happens before prompt generation and uses only currently suppor
 
 Explicit valid model argument takes precedence over automatic model recommendation. The model argument does not alter the context/snapshot rules above.
 
-Emit one implementation-ready Codex docs prompt scoped to the approved findings and optimized for the resolved configuration. Do not implement product work, expand beyond the approved documentation scope, or change product/runtime/version behavior.
+After resolving context and model configuration, `/docs-prompt` MUST write or replace the single tracked handoff file `.codex/docs-prompt.txt` on `main` and commit that file. The handoff file is transient by path but durable in Git history: each invocation replaces the slot rather than creating a growing docs-prompt task archive. It is not a `docs/tasks/` phase/correction prompt and must never be consumed by `codex:phase` grammar.
+
+The generated `.codex/docs-prompt.txt` MUST include a repository-freshness preflight before any documentation edits:
+
+- verify that the checkout contains the commit that introduced the current `.codex/docs-prompt.txt`;
+- fetch `origin/main`;
+- stop and report that the repository must be updated if the checkout is behind `origin/main` or otherwise does not contain the current prompt-file commit;
+- do not modify documentation from a stale checkout.
+
+The chat response is a handoff summary, not a copy/paste execution path. Do not print the full executable prompt as the primary handoff. Report the tracked path, resolved target/recommended configuration, prompt commit SHA, and instruction to pull/update `main` before running `.codex/docs-prompt.txt`.
+
+The prompt file itself remains after execution and is overwritten by the next `/docs-prompt`; do not auto-delete it. Emit no product implementation work, expand beyond the approved documentation scope, or change product/runtime/version behavior.
 
 # Implementation prompt workflow
 
