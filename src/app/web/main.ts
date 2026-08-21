@@ -2,6 +2,7 @@ import { parseDatabaseConfig } from '../../database/config.ts';
 import { createDatabase } from '../../database/database.ts';
 import { createDatabaseDependency } from '../../database/readiness.ts';
 import { createEditorialAdministrationService } from '../../admin/editorial-administration.ts';
+import { createDistributionProfileAdministrationService } from '../../admin/distribution-profile-administration.ts';
 import { createArticleAdministrationService } from '../../admin/article-administration.ts';
 import { createDuplicateAdministrationService } from '../../admin/duplicate-administration.ts';
 import { createEndpointAdministrationService } from '../../admin/endpoint-administration.ts';
@@ -11,6 +12,7 @@ import { createOperationalSnapshotService } from '../../observability/operationa
 import { readPublicFeed } from '../../public-feed/repository.ts';
 import { createWebApp } from './create-app.ts';
 import { registerEditorialAdministrationRoutes } from './editorial-administration-router.ts';
+import { registerDistributionProfileAdministrationRoutes } from './distribution-profile-administration-router.ts';
 import { registerEndpointAdministrationRoutes } from './endpoint-administration-router.ts';
 import { registerPublicationAdministrationRoutes } from './publication-administration-router.ts';
 import { startWebServer } from './server.ts';
@@ -39,6 +41,10 @@ async function main(): Promise<void> {
     const registerEditorialRoutes = registerEditorialAdministrationRoutes(
       createEditorialAdministrationService(applicationDatabase),
     );
+    const registerDistributionProfileRoutes =
+      registerDistributionProfileAdministrationRoutes(
+        createDistributionProfileAdministrationService(applicationDatabase),
+      );
     const registerModerationRoutes = registerModerationAdministrationRoutes(
       applicationDatabase,
       createArticleAdministrationService(applicationDatabase),
@@ -62,6 +68,7 @@ async function main(): Promise<void> {
             registerEndpointRoutes(router);
             registerPublicationRoutes(router);
             registerEditorialRoutes(router);
+            registerDistributionProfileRoutes(router);
             registerModerationRoutes(router);
             registerOperationalRoutes(router);
           },
