@@ -299,15 +299,25 @@ Read-only. Default scope is tracked `.md`/`.txt` excluding task and validation a
 
 Apply only approved documentation findings after re-reading current targets. Do not alter source, migrations, tests, dependencies, runtime config, or package version unless separately explicitly authorized.
 
-## `/docs-prompt`
+## `/docs-prompt [<model configuration>]`
 
 Docs-only prompt-generation alternative after an approved `/docs-review`.
 
-Default path: reuse the approved review findings and document context already present in the current conversation; do not request or require a docs snapshot merely to generate the prompt. Before prompt generation, re-read only the specific current target documents needed to guard against review→prompt drift; do not rerun the full docs review.
+Default context path: reuse the approved review findings and document context already present in the current conversation; do not request or require a docs snapshot merely to generate the prompt. Before prompt generation, re-read only the specific current target documents needed to guard against review→prompt drift; do not rerun the full docs review.
 
-Fallback path: when the approved review context is unavailable or insufficient (for example, a fresh conversation), or when the owner explicitly requests it, use `npm run docs:snapshot` and a supplied docs snapshot to restore the required docs context.
+Fallback context path: when the approved review context is unavailable or insufficient (for example, a fresh conversation), or when the owner explicitly requests it, use `npm run docs:snapshot` and a supplied docs snapshot to restore the required docs context.
 
-Emit one implementation-ready Codex docs prompt scoped to the approved findings. Do not implement product work, expand beyond the approved documentation scope, or change product/runtime/version behavior.
+Model resolution happens before prompt generation and uses only currently supported executable configuration labels governed by `docs/codex-model-selection.md` and the runner's current `MODEL_CONFIGS`:
+
+- If a model configuration argument is supplied, match it case-insensitively and normalize it to the canonical supported label. For example, `/docs-prompt terra medium` means `/docs-prompt` with owner-selected target configuration `Terra Medium` and the generated prompt must be optimized for Terra Medium.
+- A valid explicit model argument is an owner-selected target, not a model recommendation request. Do not silently replace it with another model. Identify it in the generated prompt as `Target configuration: <canonical label>` with selection basis owner-specified.
+- If the explicit target is clearly below the correctness floor for the approved docs work, report the conflict instead of silently escalating or pretending the target is adequate.
+- If the supplied argument does not resolve to a currently supported executable configuration label, fail closed rather than guessing.
+- If no model configuration is supplied, run the existing repository model-selection/rating policy from `docs/codex-model-selection.md`, choose the minimum-cost adequate supported configuration for the approved docs task, identify it as `Recommended configuration: <canonical label>`, and optimize the generated prompt for that configuration.
+
+Explicit valid model argument takes precedence over automatic model recommendation. The model argument does not alter the context/snapshot rules above.
+
+Emit one implementation-ready Codex docs prompt scoped to the approved findings and optimized for the resolved configuration. Do not implement product work, expand beyond the approved documentation scope, or change product/runtime/version behavior.
 
 # Implementation prompt workflow
 
