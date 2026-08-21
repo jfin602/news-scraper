@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 
-import express, { type Express } from 'express';
+import express, { type Express, type Router } from 'express';
 
 import {
   PublicDiscoveryInputError,
@@ -52,6 +52,7 @@ export interface WebDependencies {
 export interface WebOptions {
   readonly adminEnabled?: boolean;
   readonly registerAdminApiRoutes?: AdminApiRouteRegistrar;
+  readonly distributionApiRouter?: Router;
 }
 
 export function createWebApp(
@@ -85,6 +86,10 @@ export function createWebApp(
   if (options.adminEnabled === true) {
     app.use('/admin', createAdminPageRouter());
     app.use('/admin/api', createAdminApiRouter(options.registerAdminApiRoutes));
+  }
+
+  if (options.distributionApiRouter !== undefined) {
+    app.use('/api/v1/distribution', options.distributionApiRouter);
   }
 
   app.get('/api/feed', async (request, response) => {

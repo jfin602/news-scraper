@@ -13,7 +13,12 @@ export interface WebConfig extends RuntimeConfig {
   readonly host: string;
   readonly port: number;
   readonly adminEnabled: boolean;
+  readonly trustedProxy: TrustedProxyMode;
+  readonly distributionTransport: DistributionTransport;
 }
+
+export type TrustedProxyMode = 'none' | 'loopback';
+export type DistributionTransport = 'local_http' | 'trusted_proxy_https';
 
 export function parseWebConfig(
   environment: Readonly<Record<string, string | undefined>>,
@@ -23,6 +28,13 @@ export function parseWebConfig(
   const portText = environment.NEWS_SCRAPER_WEB_PORT;
   const adminEnabled = parseAdminEnabled(
     environment.NEWS_SCRAPER_ADMIN_ENABLED,
+  );
+  const trustedProxy = parseTrustedProxy(
+    environment.NEWS_SCRAPER_WEB_TRUSTED_PROXY,
+  );
+  const distributionTransport = parseDistributionTransport(
+    environment.NEWS_SCRAPER_DISTRIBUTION_TRANSPORT,
+    common.nodeEnv,
   );
 
   if (
@@ -43,7 +55,24 @@ export function parseWebConfig(
     );
   }
 
-  return Object.freeze({ ...common, host, port, adminEnabled });
+  if (
+    distributionTransport === 'trusted_proxy_https' &&
+    trustedProxy !== 'loopback'
+  ) {
+    throw new RuntimeConfigError(
+      'NEWS_SCRAPER_WEB_TRUSTED_PROXY',
+      'must be loopback when trusted proxy HTTPS transport is enabled',
+    );
+  }
+
+  return Object.freeze({
+    ...common,
+    host,
+    port,
+    adminEnabled,
+    trustedProxy,
+    distributionTransport,
+  });
 }
 
 function parseAdminEnabled(value: string | undefined): boolean {
@@ -52,5 +81,35 @@ function parseAdminEnabled(value: string | undefined): boolean {
   throw new RuntimeConfigError(
     'NEWS_SCRAPER_ADMIN_ENABLED',
     'must be true or false',
+  );
+}
+
+function parseTrustedProxy(value: string | undefined): TrustedProxyMode {
+  if (value === undefined || value === 'none') return 'none';
+  if (value === 'loopback') return 'loopback';
+  throw new RuntimeConfigError(
+    'NEWS_SCRAPER_WEB_TRUSTED_PROXY',
+    'must be none or loopback',
+  );
+}
+
+function parseDistributionTransport(
+  value: string | undefined,
+  nodeEnv: RuntimeConfig['nodeEnv'],
+): DistributionTransport {
+  if (value === undefined) {
+    if (nodeEnv === 'production') {
+      throw new RuntimeConfigError(
+        'NEWS_SCRAPER_DISTRIBUTION_TRANSPORT',
+        'must be trusted_proxy_https in production',
+      );
+    }
+    return 'local_http';
+  }
+  if (value === 'trusted_proxy_https') return value;
+  if (value === 'local_http' && nodeEnv !== 'production') return value;
+  throw new RuntimeConfigError(
+    'NEWS_SCRAPER_DISTRIBUTION_TRANSPORT',
+    'must be local_http outside production or trusted_proxy_https',
   );
 }

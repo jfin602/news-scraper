@@ -22,6 +22,7 @@ import { registerSourceAdministrationRoutes } from './source-administration-rout
 import { registerModerationAdministrationRoutes } from './moderation-administration-router.ts';
 import { registerOperationalSnapshotRoutes } from './operational-snapshot-router.ts';
 import { parseWebConfig } from './web-config.ts';
+import { createDistributionApiRuntime } from './distribution-api-runtime.ts';
 
 async function main(): Promise<void> {
   let database: ReturnType<typeof createDatabase> | undefined;
@@ -31,6 +32,11 @@ async function main(): Promise<void> {
     const applicationDatabase = createDatabase(databaseConfig);
     database = applicationDatabase;
     const dependency = createDatabaseDependency(applicationDatabase);
+    const distributionApi = createDistributionApiRuntime(
+      applicationDatabase,
+      config,
+      { telemetry: writeEvent },
+    );
     const registerSourceRoutes = registerSourceAdministrationRoutes(
       createSourceAdministrationService(applicationDatabase),
     );
@@ -69,6 +75,7 @@ async function main(): Promise<void> {
         },
         {
           adminEnabled: config.adminEnabled,
+          distributionApiRouter: distributionApi.router,
           registerAdminApiRoutes: (router) => {
             registerSourceRoutes(router);
             registerEndpointRoutes(router);
@@ -113,7 +120,7 @@ async function main(): Promise<void> {
   }
 }
 
-function writeEvent(event: Readonly<Record<string, string | number>>): void {
+function writeEvent(event: object): void {
   process.stdout.write(`${JSON.stringify(event)}\n`);
 }
 

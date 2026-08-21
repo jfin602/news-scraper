@@ -11,6 +11,8 @@ describe('parseWebConfig', () => {
       host: '127.0.0.1',
       port: 3000,
       adminEnabled: false,
+      trustedProxy: 'none',
+      distributionTransport: 'local_http',
     });
   });
 
@@ -25,6 +27,8 @@ describe('parseWebConfig', () => {
         host: 'localhost',
         port: 8123,
         adminEnabled: false,
+        trustedProxy: 'none',
+        distributionTransport: 'local_http',
       },
     );
     assert.equal(parseWebConfig({ NEWS_SCRAPER_WEB_PORT: '0' }).port, 0);
@@ -40,6 +44,52 @@ describe('parseWebConfig', () => {
       false,
     );
   });
+
+  it('requires one bounded trusted local proxy for production TLS termination', () => {
+    assert.deepEqual(
+      parseWebConfig({
+        NODE_ENV: 'production',
+        NEWS_SCRAPER_WEB_TRUSTED_PROXY: 'loopback',
+        NEWS_SCRAPER_DISTRIBUTION_TRANSPORT: 'trusted_proxy_https',
+      }),
+      {
+        nodeEnv: 'production',
+        host: '127.0.0.1',
+        port: 3000,
+        adminEnabled: false,
+        trustedProxy: 'loopback',
+        distributionTransport: 'trusted_proxy_https',
+      },
+    );
+    assertSafeError(
+      () => parseWebConfig({ NODE_ENV: 'production' }),
+      'NEWS_SCRAPER_DISTRIBUTION_TRANSPORT',
+    );
+    assertSafeError(
+      () =>
+        parseWebConfig({
+          NODE_ENV: 'production',
+          NEWS_SCRAPER_DISTRIBUTION_TRANSPORT: 'local_http',
+        }),
+      'NEWS_SCRAPER_DISTRIBUTION_TRANSPORT',
+    );
+    assertSafeError(
+      () =>
+        parseWebConfig({
+          NEWS_SCRAPER_DISTRIBUTION_TRANSPORT: 'trusted_proxy_https',
+        }),
+      'NEWS_SCRAPER_WEB_TRUSTED_PROXY',
+    );
+  });
+
+  for (const value of ['external', '127.0.0.1', ' loopback']) {
+    it(`rejects unsupported proxy trust ${JSON.stringify(value)} safely`, () => {
+      assertSafeError(
+        () => parseWebConfig({ NEWS_SCRAPER_WEB_TRUSTED_PROXY: value }),
+        'NEWS_SCRAPER_WEB_TRUSTED_PROXY',
+      );
+    });
+  }
 
   for (const value of ['', 'TRUE', '1', 'yes', ' private-value ']) {
     it(`rejects malformed admin enablement ${JSON.stringify(value)} safely`, () => {
