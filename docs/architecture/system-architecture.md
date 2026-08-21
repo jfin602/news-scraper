@@ -51,13 +51,13 @@ flowchart LR
     B --> O
 ```
 
-The diagram combines current reference surfaces with the approved, unimplemented 2.0 path. The API, Profile, machine-authentication, and cache contracts are governed by the distribution contracts; no Web/API route performs Source collection inline.
+The diagram combines current reference surfaces with the approved 2.0 path. The API, Profile, machine-authentication, and cache contracts are governed by the distribution contracts; no Web/API route performs Source collection inline.
 
 ## Deployment boundary
 
 One instance contains one singleton Publication configuration and its Sources/endpoints/Articles/editorial state. Managed customer instances keep runtime configuration, secrets, persistence, jobs, human access, and machine credentials independently bounded. Several instances MAY share physical infrastructure without sharing customer application/domain state or introducing relational tenancy.
 
-The singleton Publication configuration carries installation-wide news-product settings such as name, `active_for_collection`, `public_status`, branding/presentation, Relevance, Categories, and later distribution settings only when those settings are explicitly governed and implemented.
+The singleton Publication configuration carries installation-wide news-product settings such as name, `active_for_collection`, `public_status`, branding/presentation, Relevance, Categories, and distribution settings only when those settings are explicitly governed and implemented.
 
 Publication is not a tenant key:
 
@@ -72,7 +72,7 @@ The current bundled reference page is `GET /`. The current basic JSON outward/fe
 
 These routes are implemented reference/legacy consumers, not the permanent integration API. The v1 Profile interface consumes the same governed Article-selection semantics without inheriting their `public_status` exposure gate.
 
-A second topic uses another configured deployment of the same codebase. 2.0 provides a lightweight standard-Linux VPS Docker Compose evaluation/deployment route for Web/Admin plus distribution API, Worker, scheduler/jobs, PostgreSQL with persistent storage, health checks, startup/migration tooling, and externalized configuration/secrets. PostgreSQL is included by default while an ordinary connection contract permits external PostgreSQL. Kubernetes/multi-node operation is post-2.0, and autonomous public self-host production readiness is not claimed.
+A second topic uses another configured deployment of the same codebase. The complete stack remains self-hostable by design and MUST NOT acquire a mandatory central News Scraper dependency, but packaging that stack as a lightweight Linux VPS/Docker Compose installation is post-2.0 work. The required 2.0 operating/release path is the managed isolated instance plus the external Profile/API/PHP integration. Native/default self-host admin authentication, Kubernetes/multi-node support, and autonomous public self-host production support are also post-2.0.
 
 Multiple distribution consumers for one Publication do not imply or authorize concurrent multi-Publication tenancy.
 
@@ -82,7 +82,7 @@ Distribution Profiles run after canonical Article eligibility and can only narro
 
 The initial deployment may use one repository/database, but it MUST support at least two independently runnable process roles:
 
-- **Web/API process:** serves the installation's admin interfaces plus supported outward interfaces/consumers, validates commands/requests, reads normalized data, and may request/enqueue jobs. It does not perform Source collection inline. The bundled reference root and `GET /api/feed` share the same public/outward read boundary; future distribution adapters MUST likewise avoid introducing their own Article eligibility/order/query authority.
+- **Web/API process:** serves the installation's admin interfaces plus supported outward interfaces/consumers, validates commands/requests, reads normalized data, and may request/enqueue jobs. It does not perform Source collection inline. The bundled reference root and `GET /api/feed` share the same public/outward read boundary; distribution interfaces MUST likewise avoid introducing their own Article eligibility/order/query authority.
 - **Worker process:** performs scheduled/manual collection execution, eligibility/network-safety checks, parsing, normalization, validation, Relevance, identity resolution, duplicate evaluation where implemented, and persistence.
 
 A slow/crashed Source request in the Worker must not block normal outward/admin requests.
@@ -129,7 +129,7 @@ src/
   shared/
 ```
 
-The existing `public-feed/` name reflects the implemented `1.0.x` surfaces. The product pivot does not authorize a rename merely for terminology. If the later distribution architecture needs a broader module boundary, that rename/refactor must be justified by the actual adapter design and must preserve one canonical Article-selection authority.
+The existing `public-feed/` name reflects the implemented `1.0.x` surfaces. The product pivot does not authorize a rename merely for terminology. If the distribution implementation needs a broader module boundary, that rename/refactor must be justified by the actual producer/consumer design and must preserve one canonical Article-selection authority.
 
 The exact implementation may keep or rename an existing module only when that choice produces the smallest coherent canonical design. It MUST NOT retain plural/selector-oriented APIs solely as a compatibility bridge. Legacy-only source modules, wrappers, types, tests, fixtures, configuration paths, and other artifacts from superseded pre-production architecture MUST be deleted when the canonical implementation no longer has an independent use for them.
 
@@ -140,16 +140,15 @@ The layout above is a target ownership map, not a requirement to create empty di
 Rules:
 
 - Source-specific retrieval/parsing lives behind fetcher/parser adapter interfaces established with the first RSS/Atom implementation.
-- The optional Source RSS/Atom item admission filter is Source-owned include-only configuration evaluated over existing parsed RSS/Atom Raw-item text before Article-candidate normalization; it is distinct from downstream Relevance.
+- The optional Source RSS/Atom item admission filter is Source-owned include-only configuration evaluated over existing parsed RSS/Atom Raw-item text before Article-candidate normalization; it is distinct from downstream Relevance and from Distribution Profile filtering.
 - A configurable static-HTML parser sits behind that same boundary. Endpoint type selects RSS/Atom or HTML parsing; both produce the same Raw-item contract, HTML bypasses the RSS/Atom-only admission filter, and all stages from normalization onward are shared.
 - Source-admin sample preview is a pure bounded parser/profile-validation path over operator-supplied HTML. It has no network, Collection run, endpoint lock, scheduler/health, or Article persistence edge and is not another collector.
 - Current public/outward code consumes normalized Article read models only. The server-rendered root page and `GET /api/feed` MUST share the same canonical public/outward application/read-model boundary; rendering and JSON shaping may differ, but eligibility, filtering, ordering, cursor semantics, and Article selection MUST NOT fork into competing query paths.
-- A future distribution adapter MUST consume that same governed selection boundary or a deliberately evolved successor boundary. It MUST NOT invent adapter-owned SQL/query composition for Source trust, Article visibility, duplicate suppression, moderation, ordering, or `original_url` destination semantics.
-- Collection trust and distribution selection are distinct. A future bounded distribution profile may filter already-governed outward-eligible Articles, but Source approval itself is not consumer membership.
+- The 2.0 distribution read model MUST consume the same governed canonical eligibility authority and then apply Profile selection. It MUST NOT invent adapter/API-owned SQL for Source trust, Article visibility, duplicate suppression, moderation, ordering, or `original_url` destination semantics.
+- Collection trust and distribution selection are distinct. Distribution Profiles filter already-governed outward-eligible Articles; Source approval itself is not consumer membership.
 - Admin controllers do not perform collection inline; manual check-now requests the same governed endpoint execution/job path rather than a second collector.
 - Deduplication logic does not depend on topic-specific keywords.
 - Relevance/Categories enter through singleton Publication configuration interfaces and may use Source scope where defined.
-- Before configurable Relevance rules exist, the same Relevance boundary runs with an empty rule set and returns deterministic default `include`.
 - Article observations preserve endpoint/run provenance independently from Article cardinality.
 - Publication identifiers/slugs are not passed through domain/application layers merely as an installation scope token.
 
@@ -200,7 +199,6 @@ This is the canonical current pipeline. Every redirect returns through the pre-r
 Evolution constraints that still matter:
 
 - no stage invents outcomes owned by a later stage;
-- the empty-rule/default-include Relevance boundary is never bypassed;
 - manual and durable execution share one endpoint unit;
 - duplicate processing does not redefine Source-scoped Article identity;
 - RSS/Atom and static-HTML adapters share every downstream stage after their explicit admission difference;
@@ -221,16 +219,13 @@ Manual endpoint checks remain an operator path through the same Worker-owned eli
 - bounded jitter avoids synchronized spikes;
 - manual `check now` uses the same approval, lifecycle, operational, locking, network-safety, timeout, concurrency, and rate-limit rules and requests the same endpoint execution unit;
 - no scheduler/job design chooses among multiple topic Publications in one installation;
-- push/webhook adapters are not MVP collection work; any future push ingress must reuse the normalized downstream pipeline.
+- push/webhook adapters require a later explicit contract and must reuse the normalized downstream pipeline.
 
 ## Persistence and transactions
 
 - Git-tracked migrations and migration infrastructure are authoritative for the supported database schema.
 - Runtime processes do not make ad hoc schema changes; Web/API and Worker startup do not automatically apply migrations.
-- Before production upgrade compatibility is established, supported databases are created fresh from the repository's current migration chain and bootstrap/configuration workflow.
-- Foundational pre-production schema corrections MUST remove, squash, replace, or consolidate superseded migration steps when doing so yields the smaller canonical migration-from-zero model. The active migration tree is not retained as a historical record of disposable schemas; Git history and documentation serve that purpose.
-- Existing development/pre-production databases created by superseded source trees are destroyed/recreated and bootstrapped rather than migrated through compatibility transformations.
-- Migration-from-zero MUST deterministically create the complete canonical singleton schema.
+- Migration-from-zero MUST deterministically create the complete canonical singleton schema for new/disposable installations.
 - Publication tenancy/scoping is absent; Source/endpoint/run/Article/observation relationships and critical uniqueness remain explicit.
 - The endpoint lock is shared across Worker processes and requires real persistence/concurrency evidence when implemented through PostgreSQL or another shared coordination store.
 - Collection-run persistence begins with the first real fetch phase and does not wait for Article persistence.
@@ -241,22 +236,21 @@ Manual endpoint checks remain an operator path through the same Worker-owned eli
 - Collection-run finalization occurs after the bounded candidate batch finishes and canonical processing-outcome counters are known.
 - Duplicate-group changes preserve exactly one Primary Article.
 - Duplicate-review decisions persist independently from groups.
-- Once Article persistence exists, Collection-run accounting uses the canonical post-identity outcome taxonomy from the domain contract.
 - Database constraints are preferred over application-only assumptions for critical identity/uniqueness rules.
 
 Phase 19 established and validated production backup/restore, deployment/rollback, and schema-upgrade procedures. Accepted Phase 20 established the first supported production schema/data baseline. From that baseline forward, `docs/decisions/production-data-and-schema-compatibility.md` governs upgrades: supported production state is preserved, supported migration history remains upgrade-capable, and clean migration-from-zero continues for new/disposable installations but is not sufficient evidence for production upgrade safety.
 
 ## Administrative perimeter
 
-MVP administrative UI/API routes are protected by Cloudflare Access according to `docs/decisions/cloudflare-access-admin-perimeter.md`.
+Managed administrative UI/API routes are protected by Cloudflare Access according to `docs/decisions/cloudflare-access-admin-perimeter.md`.
 
-- Supported deployments prevent direct-origin bypass of the Access perimeter.
-- Application-managed accounts/sessions/roles are not part of MVP architecture.
+- Supported managed deployments prevent direct-origin bypass of the Access perimeter.
+- Native application accounts/sessions/roles are post-2.0 unless a later decision promotes them.
 - State-changing admin browser actions still require applicable CSRF/equivalent request-integrity protection.
 - Admin commands validate real resource relationships and domain invariants regardless of external access control.
 - Admin navigation/commands operate on the installation's singleton Publication configuration and resources rather than exposing a multi-Publication topic selector.
 
-Future external-consumer authentication/authorization is not defined by the admin perimeter ADR. It requires a separate distribution-security decision if the selected integration method needs it.
+Machine distribution authentication is a separate boundary governed by `docs/contracts/distribution-api-contract.md`; `distribution:read` credentials never grant administrator authority.
 
 ## Initial technical baseline
 
@@ -267,25 +261,27 @@ Unless superseded by an Accepted ADR or later governing roadmap/contract require
 - PostgreSQL as system of record;
 - one Publication/topic per deployed installation;
 - singleton Publication configuration without relational tenancy;
-- `GET /api/feed` as the current public JSON/discovery endpoint using the canonical public/outward read-model semantics;
-- root `/` as the bundled reference/standalone frontend, with the successful initial response server-rendered from those same semantics and lightweight JavaScript used only as progressive enhancement;
+- `GET /api/feed` as the legacy/reference JSON/discovery endpoint using canonical outward semantics;
+- root `/` as the bundled reference/standalone frontend, server-rendered from those same semantics with JavaScript only as progressive enhancement;
+- authenticated `GET /api/v1/distribution/{profile_key}` as the permanent 2.0 machine interface once implemented;
 - manual Worker collection preserved as an operator path through the canonical endpoint execution unit;
 - durable scheduler/job mechanism suitable for retries and separate Workers;
-- container-friendly environment/secrets configuration.
+- environment/secrets configuration compatible with managed operation and later self-host packaging.
 
-The architecture contract matters more than a specific library choice. Future distribution transports are intentionally not selected by this baseline.
+The architecture contract matters more than a specific library choice.
 
 ## Scale path
 
-MVP does not require microservices, but the architecture must not prevent:
+2.0 does not require microservices, but the architecture must not prevent:
 
 - multiple Worker processes for the same installation;
 - bounded global/per-host/per-Source concurrency;
-- canonical outward-read caching where later justified;
+- canonical outward-read caching where justified;
 - moving collection execution away from the web host;
 - adding supported outward distribution adapters that reuse canonical Article-selection semantics;
 - deploying additional topic instances from the same codebase without duplicating or topic-forking engine logic;
-- evolving durable jobs/object storage where justified.
+- evolving durable jobs/object storage where justified;
+- later packaging the complete stack for self-host deployment without a mandatory central service.
 
 Scaling infrastructure across deployments in the future MUST preserve the product boundary that one installation contains one Publication/topic unless a new explicit contract/ADR changes that decision.
 
