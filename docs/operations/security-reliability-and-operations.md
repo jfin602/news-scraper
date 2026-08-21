@@ -35,6 +35,8 @@ The singleton Publication is an installation/editorial configuration boundary, n
 
 The v1 distribution API uses dedicated high-entropy bearer credentials governed by `docs/contracts/distribution-api-contract.md`.
 
+Phase 3 supplies the tested credential lifecycle, authenticator, and request-guard foundation. Its limiter is intentionally bounded and process-local; trusted HTTP client-network identity extraction and proxy interpretation belong to the HTTP boundary and are not solved by that limiter. Phase 4 owns mapping rate decisions into the v1 `429` response and `Retry-After`, together with the governed HTTP error surface.
+
 - plaintext credentials are shown only at creation and never persisted;
 - persisted state uses a non-secret lookup identity plus secure verifier/digest;
 - tokens are accepted only through the `Authorization` header, never query strings;

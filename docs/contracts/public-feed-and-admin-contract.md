@@ -325,6 +325,7 @@ Administrative area SHOULD contain:
 - Duplicate review;
 - Categories and Relevance rules;
 - Distribution Profiles;
+- Distribution Credentials;
 - Collection runs;
 - change/audit history;
 - Settings.
@@ -332,6 +333,8 @@ Administrative area SHOULD contain:
 Navigation is single-Publication and does not expose a topic switcher. Application commands validate actual Source/endpoint/run/Article/observation/duplicate relationships and domain invariants rather than a Publication tenancy boundary.
 
 Distribution Profiles are a governed control-plane resource defined by `distribution-and-integration-contract.md`, independent of the reference frontend's `public_status`. Authorized operators can create a draft Profile, inspect/reload persisted Profiles, edit mutable configuration, add/update/remove Source associations and bounded filters, activate only when the usable-Source invariant is met, disable an active Profile, and reactivate a valid disabled Profile. These routes remain under the managed Cloudflare Access, request-integrity, and resource-validation boundary; they are neither machine distribution authentication nor the permanent v1 API.
+
+Distribution Credentials are an adjacent governed control-plane resource. Inside the existing Cloudflare Access-protected admin perimeter, with the same request-integrity and bounded command/resource validation, authorized administrators can create, list, rotate, and revoke credentials. List and revoke responses expose safe metadata only, never plaintext, verifier, or digest material. Successful create/rotate commands may return a newly issued plaintext token once; no reveal or recovery endpoint exists for an old plaintext token. Browser handling is transient: a newly issued token is not persisted in the URL, browser storage, cookies, or reloadable state and is cleared, replaced, or dismissed by the one-time-secret workflow. Rotation does not silently revoke the predecessor. Machine bearer authentication does not satisfy administrator access or mutation-integrity requirements.
 
 ## Source management UI
 

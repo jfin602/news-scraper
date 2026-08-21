@@ -37,6 +37,7 @@ An authorized operator controls the installation's collection and editorial stat
 - Duplicate review/group corrections;
 - Source/endpoint health and Collection-run history;
 - implemented Distribution Profile configuration: persisted Profiles with immutable keys, mutable display names, lifecycle, bounded result/history limits, Source associations, bounded association filters, protected administration, and transactional change history.
+- implemented Distribution Credential administration: protected create/list/rotate/revoke controls with labels and lifecycle metadata, one-time plaintext issue/rotation behavior, and strict separation from human administrator authority.
 
 The administrator surface is the instance-owned Platform control plane. Current managed/reference administrative routes remain protected by Cloudflare Access under the accepted admin-perimeter ADR. Future self-hosted deployments require a governed secure perimeter, but Cloudflare is not a universal runtime dependency.
 
@@ -122,6 +123,8 @@ A Source being approved means it may participate in governed collection and ordi
 
 A Distribution Profile is a named administrator-controlled outward selection over already canonically eligible Articles. One Publication may have multiple profiles without becoming relational tenancy. Profile selection can only narrow eligibility; its lifecycle, Source associations, and bounded filters are governed by `distribution-and-integration-contract.md`. The permanent wire/auth contract is `distribution-api-contract.md`.
 
+Phase 3 implemented the reusable machine credential/authentication/security foundation required by the permanent machine API. It is separate from human administrator authority and does not yet expose the v1 HTTP interface.
+
 ### Deployment architecture
 
 Managed integration is the required 2.0 operating path. News Scraper remains self-hostable by design under the Project Contract and managed/self-hostable ADR, but packaging that complete stack into a lightweight Linux VPS/Docker Compose installation is post-2.0 work. Native/default self-host administrator authentication and autonomous public self-host production readiness are likewise post-2.0.
@@ -144,7 +147,7 @@ The original client now intends to integrate collected news into an existing web
 
 WordPress, RSS/Atom, Linux VPS/Docker Compose self-host packaging, native/default self-host administrator authentication, production-grade autonomous public self-hosting, SSO/multi-admin identity, visitor/click/referral/backlink analytics, advanced SEO tooling, browser widgets, Kubernetes/multi-node deployment, delta synchronization, and additional adapter families are post-2.0. News Scraper guarantees neither SEO nor backlink performance.
 
-The seven-phase 2.0 implementation roadmap is active under `docs/roadmap/post-1.0-roadmap.md`; Phase 1 implemented the Distribution Profile foundation, and Phase 2 implemented the canonical distribution/Profile read model. The permanent distribution HTTP API, machine credentials, PHP, and external distribution consumers remain later work; consult `BOOT.md` and the active roadmap for current phase/version routing.
+The seven-phase 2.0 implementation roadmap is active under `docs/roadmap/post-1.0-roadmap.md`; Phases 1–3 foundations are implemented: Distribution Profiles, the canonical distribution/Profile read model, and machine credential/authentication/security. The permanent distribution HTTP API is current Phase 4 work; PHP and external distribution consumers remain later work. Consult `BOOT.md` and the active roadmap for current phase/version routing.
 
 ## Quality targets
 

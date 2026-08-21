@@ -1,10 +1,10 @@
 # Post-1.0 / 2.0 Roadmap
 
 **Status:** ACTIVE — owner-approved 2.0 implementation roadmap.  
-**Current package baseline:** `1.3.0`.
-**Current implementation phase:** Phase 3 — Machine credentials and distribution security.
-**Current task folder:** `p1-3`.
-**Current Phase 3 prompt versions:** `1.3.<prompt>`.
+**Current package baseline:** `1.4.0`.
+**Current implementation phase:** Phase 4 — Versioned v1 distribution API.
+**Current task folder:** `p1-4`.
+**Current Phase 4 prompt versions:** `1.4.<prompt>`.
 **Terminal release target:** `2.0.0`.  
 **Primary direction:** prove the managed headless distribution product through Distribution Profiles, the authenticated v1 API, generic PHP synchronization/LKG, and a real external customer-site integration.
 
@@ -197,6 +197,8 @@ Credential generation, verifier storage, authentication, expiry, rotation overla
 ### Next baseline
 
 Green Phase 3 `/closeout` transitions only `package.json` to `1.4.0`.
+
+**Closeout:** completed successfully; `/closeout` transitioned only top-level `package.json` to `1.4.0`, which is the Phase 4 baseline.
 
 ## Phase 4 — Versioned v1 distribution API
 

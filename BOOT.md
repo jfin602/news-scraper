@@ -20,10 +20,10 @@ It establishes project identity, authority, routing, workflow gates, task gramma
 - Distribution/Profile/PHP contract: `docs/contracts/distribution-and-integration-contract.md`
 - Current roadmap: `docs/roadmap/post-1.0-roadmap.md`
 - Current roadmap state: **ACTIVE**
-- Current implementation phase: **Phase 3 — Machine credentials and distribution security**
-- Current package baseline: **`1.3.0`**
-- Current Phase 3 task folder: **`p1-3`** when written
-- Next roadmap prompt version: **`1.3.1`**
+- Current implementation phase: **Phase 4 — Versioned v1 distribution API**
+- Current package baseline: **`1.4.0`**
+- Current Phase 4 task folder: **`p1-4`** when written
+- Next roadmap prompt version: **`1.4.1`**
 - Terminal release target: **`2.0.0`**
 - Accepted production baseline: customer-launch `1.0.0`; supported customer data is durable
 - Former post-1.0 Phase 0 P1: server-rendered reference root shipped at `1.0.1`
@@ -182,7 +182,7 @@ The roadmap is **ACTIVE**.
 
 The complete detailed phase scope/exit gates live in `docs/roadmap/post-1.0-roadmap.md` and must be re-read before phase planning.
 
-Current phase is Phase 3. Its implementation may create machine bearer-credential generation and lifecycle, secure persisted verifiers/digests, `distribution:read`, expiry/revocation/overlapping rotation, a reusable machine-authentication boundary, rate-limit/invalid-auth abuse foundations, protected administrator credential controls, and production-safe credential persistence/migrations. Machine credentials never authorize administrator actions. Phase 3 does **not** build the distribution HTTP route.
+Phase 3 completed the machine bearer-credential lifecycle, secure verifier persistence, `distribution:read` authentication boundary, request guard/rate and invalid-auth abuse foundation, protected administrator credential controls, strict machine/admin separation, and production-safe credential persistence. Phase 4 composes that implemented boundary with the Phase 2 canonical/Profile read model to implement the v1 HTTP route. Controllers and serializers must remain thin: they must not recreate credential SQL, token/verifier derivation, lifecycle, authorization, or quota semantics, nor Article/Profile SQL, filters, ordering, cursors, or revisions. `GET /` and `GET /api/feed` remain the current implemented outward HTTP surfaces until Phase 4 ships.
 
 ## Production compatibility
 
@@ -345,9 +345,9 @@ The roadmap is now active, so this workflow is authorized for the current phase.
 Current invocation target:
 
 ```text
-/prompt-ass Phase 3
+/prompt-ass Phase 4
 → /prompt-plan
-→ /prompt-write p1-3
+→ /prompt-write p1-4
 ```
 
 If requirements/docs/repository state materially conflict, return `Planning needed` rather than silently changing the roadmap.
@@ -360,7 +360,7 @@ Return target behavior, constraints, roadmap phase, stack type, prompt count/ord
 
 Explicitly assess producer→consumer boundaries. Split transactional/state-machine work from separately consumed read/API work when consumers, tests, or failure risks differ materially. Testing is part of task decomposition.
 
-For current Phase 3, plan only machine credential/security foundations and their downstream handoff to the Phase 4 HTTP API. Do not build the distribution HTTP route.
+For current Phase 4, plan only the governed v1 HTTP interface by composing the implemented Phase 2 read model and Phase 3 machine-authentication/request-guard boundary. Do not recreate either producer's SQL, cursor/revision, token/verifier, lifecycle, authorization, or quota semantics, and do not pull PHP/LKG or later work forward.
 
 ## `/prompt-plan`
 
@@ -378,14 +378,14 @@ Reassess model/effort using the minimum-cost-adequate rule and produce the small
 
 Requires an unblocked `/prompt-plan`. Revalidate current repo/docs and write ordered prompts under `docs/tasks/<folder name>/`.
 
-Current Phase 3 folder is `p1-3`.
+Current Phase 4 folder is `p1-4`.
 
 Each roadmap prompt includes exact runner metadata, finalized model/reasoning/usage block, focused iterative validation, smallest non-overlapping final validation, downstream handoff gates where relevant, package-version rules, acceptance, and non-goals.
 
 When local execution is available run:
 
 ```text
-npm run codex:phase:validate -- p1-3
+npm run codex:phase:validate -- p1-4
 ```
 
 before reporting the stack ready.
@@ -410,7 +410,7 @@ The shared parser is `scripts/codex-phase-core.mjs`.
 - exactly one phrase `assigned project version is` followed by `1.<phase>.<prompt number>`;
 - no correction unchanged-version metadata.
 
-The runner detects completed implementation prompts from exact reachable commit subjects and requires package version to match the Git-proven completed prefix. With no completed Phase 3 prompt, `p1-3` expects baseline `1.3.0`.
+The runner detects completed implementation prompts from exact reachable commit subjects and requires package version to match the Git-proven completed prefix. With no completed Phase 4 prompt, `p1-4` expects baseline `1.4.0`.
 
 ## Corrections
 
@@ -488,7 +488,7 @@ This terminal rule is the 2.0 analogue of the already-completed historical Phase
 # Versioning
 
 - `package.json` is the sole current-version authority.
-- Current version is `1.3.0`.
+- Current version is `1.4.0`.
 - Phase prompt versions are `1.<phase>.<prompt>`.
 - Non-terminal baseline transitions are `1.<next phase>.0`.
 - Final release only is `2.0.0`.
@@ -544,10 +544,10 @@ The bundled/reference frontend UI work does not govern customer-site integration
 
 ## Current next action
 
-The roadmap is active and Phase 3 is authorized. The next normal implementation-planning command is:
+The roadmap is active and Phase 4 is authorized. The next normal implementation-planning command is:
 
 ```text
-/prompt-ass Phase 3
+/prompt-ass Phase 4
 ```
 
-which should decompose machine credential and distribution-security foundations into the smallest safe `p1-3` prompt stack before `/prompt-plan` and `/prompt-write p1-3`. The Phase 4 HTTP route remains out of scope.
+which should decompose the governed v1 HTTP interface into the smallest safe `p1-4` prompt stack before `/prompt-plan` and `/prompt-write p1-4`. It must compose the implemented Phase 2 and Phase 3 producer boundaries; PHP/LKG remains out of scope.

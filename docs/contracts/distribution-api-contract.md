@@ -1,6 +1,6 @@
 # Distribution API Contract
 
-**Status:** Current normative 2.0 machine-interface contract; not yet implemented
+**Status:** Current normative 2.0 machine-interface contract; Phase 3 credential/authentication/security foundations are implemented, while the v1 HTTP interface remains pending current Phase 4 work
 **Adopted:** 2026-08-20
 
 ## Interface and compatibility

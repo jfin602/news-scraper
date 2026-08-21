@@ -121,8 +121,9 @@ src/
     safety/
   articles/
   deduplication/
-  distribution/      # canonical outward Article, Profile snapshot/page, cursor, and revision authority
+  distribution/      # canonical outward Article, Profile snapshot/page, cursor, revision, and machine-authentication authority
     profiles/        # Profile configuration/persistence and Source-validity coordination
+    credentials/     # token/verifier, persistence/authentication, request guard/rate limiting, and credential policy
   public-feed/       # reference-specific public_status/discovery semantics for /api/feed and /
   admin/
   jobs/              # durable endpoint collection jobs/retry/recovery execution
@@ -132,6 +133,8 @@ src/
 ```
 
 `src/distribution/profiles/` owns Profile configuration/persistence and transactional coordination of Profile/Source usability-reducing mutations; lifecycle/application validation remains the administration/application authority. It does not duplicate Source collection, Articles, identity, or provenance. Later consumers must not query Profile child tables or invent lifecycle/relationship semantics independently. The implemented canonical read model is the required path from canonical outward Article authority to both the public-feed/reference consumer and the Distribution Profile snapshot/page consumer. Later API/controllers must remain thin and must not recreate Article eligibility SQL, Profile filters, Category semantics, ordering, continuation semantics, or snapshot-revision semantics.
+
+`src/distribution/credentials/` owns token generation/parsing and verifier derivation, credential persistence/authentication lookup, machine authentication, request guarding with bounded process-local rate limiting, and credential configuration/policy. Phase 4 Web/API code consumes this implemented boundary and must not recreate credential/token SQL, verifier derivation, lifecycle interpretation, machine authorization semantics, or authenticated-quota/invalid-auth limiter state. The v1 HTTP distribution route remains Phase 4 work; it likewise consumes the implemented Phase 2 Profile page/snapshot/cursor/revision producer rather than recreating Article/Profile query semantics.
 
 The exact implementation may keep or rename an existing module only when that choice produces the smallest coherent canonical design. It MUST NOT retain plural/selector-oriented APIs solely as a compatibility bridge. Legacy-only source modules, wrappers, types, tests, fixtures, configuration paths, and other artifacts from superseded pre-production architecture MUST be deleted when the canonical implementation no longer has an independent use for them.
 
