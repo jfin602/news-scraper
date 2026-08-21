@@ -12,7 +12,7 @@ If work conflicts with a locked law, report the conflict. Do not silently treat 
 
 Follow `BOOT.md`.
 
-- `/docs-review` is read-only. Documentation changes require approved findings plus `/docs-apply`, or `/docs-prompt` to generate a docs-only Codex prompt. `/docs-prompt` normally reuses the approved review context from the current conversation; use `npm run docs:snapshot` plus a supplied snapshot only as fallback when that context is unavailable or insufficient, or when explicitly requested.
+- `/docs-review` is read-only. Documentation changes require approved findings plus `/docs-apply`, or `/docs-prompt [<model configuration>]` to generate a docs-only Codex prompt. `/docs-prompt` normally reuses the approved review context from the current conversation; use `npm run docs:snapshot` plus a supplied snapshot only as fallback when that context is unavailable or insufficient, or when explicitly requested. A valid optional model configuration is an owner-selected target and the prompt is optimized for it; when omitted, use `docs/codex-model-selection.md` to recommend the minimum-cost adequate supported configuration and optimize the prompt for that recommendation. Explicit model arguments are case-insensitive, normalize to canonical executable labels, take precedence over automatic recommendation, and fail closed if unsupported.
 - `/docs-apply` changes only approved documentation scope. Preserve unrelated wording.
 - Normal non-terminal handoff is `/closeout` → `/docs-review` → `/docs-apply` → `/prompt-ass` → `/prompt-plan` → `/prompt-write <folder name>`.
 - Roadmap `/closeout` and a correction stack's final manual closeout are different. A correction closeout clears only that correction and preserves roadmap phase/package version.
