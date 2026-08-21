@@ -1,0 +1,310 @@
+TASK: Phase 4 / P1 — Versioned v1 distribution HTTP contract
+
+- Recommended configuration: `Terra Medium`.
+- Model-family basis: this is a bounded cross-file HTTP compatibility task that composes already-proven Phase 2 read semantics and Phase 3 request-guard outcomes without changing persistence or security internals.
+- Reasoning basis: medium reasoning is sufficient for exact status/schema mapping, strict query handling, conditional requests, stable null/empty serialization, and keeping the controller thin over explicit typed producers.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna High`; rejected because this prompt establishes the permanent v1 wire compatibility surface and must reconcile several lifecycle/error/conditional-request outcomes without leaking producer internals.
+- Escalation trigger: source inspection shows Phase 2 or Phase 3 lacks a required producer capability, or the governing contracts materially conflict about externally visible v1 behavior.
+- Escalation target: `Terra High` for explicit deeper HTTP/security integration reasoning, or stop with `Planning needed` if the conflict requires contract/roadmap change.
+- Estimate confidence: `High`.
+- Efficiency rationale: implement one transport adapter with injected dependencies and focused component tests; do not touch credential SQL, Article/Profile SQL, migrations, proxy trust, or runtime deployment wiring.
+
+The assigned project version is `1.4.1`.
+
+## Goal
+
+Implement the permanent versioned distribution HTTP contract as a thin Express/Web adapter over the existing Phase 2 `DistributionProfilePageService` and Phase 3 `MachineRequestGuard`-shaped boundary.
+
+Required routes:
+
+```text
+GET /api/v1/distribution/{profile_key}
+GET /api/v1/distribution/{profile_key}?cursor=...
+```
+
+P1 owns request parsing, authentication/rate outcome mapping, Profile-page outcome mapping, exact successful JSON serialization, conditional initial requests, safe response headers, bounded errors, and structured transport telemetry events through an injected sink.
+
+P1 does **not** perform production runtime wiring, trusted proxy/client-network extraction, startup HTTPS policy, PostgreSQL construction, or deployment configuration. P2 will compose the real Web process around this adapter.
+
+## Prerequisite and read first
+
+Before editing, require package version `1.4.0` (or `1.4.1` for a safe rerun) and no reachable completed Phase 4 implementation prompt.
+
+Read:
+
+1. current `BOOT.md` and `AGENTS.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/distribution-api-contract.md`;
+4. `docs/contracts/distribution-and-integration-contract.md`;
+5. `docs/contracts/testing-and-validation-contract.md`;
+6. `docs/operations/security-reliability-and-operations.md`;
+7. Phase 4 and Phase 5 roadmap entries;
+8. `docs/validation/phase-2-canonical-distribution-read-model.md` and its Phase 4 handoff table;
+9. `docs/validation/phase-3-machine-credentials-and-distribution-security.md` and its Phase 4 handoff table;
+10. `src/distribution/profile-page.ts`, `profile-snapshot.ts`, `cursor.ts`, and `snapshot-revision.ts`;
+11. `src/distribution/credentials/machine-request-guard.ts` and `machine-authentication.ts`;
+12. `src/app/web/create-app.ts`, `server.ts`, and current HTTP integration-test patterns.
+
+If Phase 2 would require the HTTP layer to query Profile/Article tables, interpret filters, generate revisions/cursors, or reconstruct ordering, stop with `Planning needed`.
+
+If Phase 3 would require the HTTP layer to parse bearer tokens, query credential rows, compare verifiers, interpret expiry/revocation, or implement quota counters, stop with `Planning needed`.
+
+## Producer-to-consumer contract
+
+Preserve these existing owners exactly:
+
+| Downstream capability | Existing owner P1 must consume |
+| --- | --- |
+| Profile key validation/lifecycle read | `DistributionProfilePageService.read` typed outcomes |
+| v1 Article/Profile/Publication data | active `DistributionProfilePageOutcome` |
+| cursor validation and continuation | Phase 2 page service |
+| snapshot revision and `snapshot_changed` | Phase 2 page service |
+| bearer validation/authentication | Phase 3 machine request guard |
+| authenticated credential identity | Phase 3 redacted principal |
+| rate decision and positive retry interval | Phase 3 request guard |
+
+Do not duplicate any producer-owned semantic merely to make HTTP code convenient.
+
+## Route ownership and composition
+
+Create one narrow distribution API router/registrar under the Web/API boundary rather than embedding this route into the public-feed controller.
+
+The route should accept injected dependencies equivalent to:
+
+- a `DistributionProfilePageService`-compatible reader;
+- a Phase 3 request guard compatible with `guard({ authorizationHeader, invalidAuthNetworkKey })`;
+- an HTTP-owned client-network-key resolver supplied by P2/runtime composition;
+- an injectable clock for deterministic `generatedAt`/duration tests;
+- an injected bounded telemetry sink or callback.
+
+Exact type/module names are implementation-owned. Keep the surface narrow and obvious.
+
+The router must not construct a new limiter or authenticator per request. P2 will supply long-lived process-owned dependencies.
+
+## Request grammar
+
+The only supported request dimensions are:
+
+- immutable `{profile_key}` path identity;
+- optional single `cursor` query value.
+
+Reject with bounded `400 invalid_request` behavior before calling the page service when the raw query is malformed, contains an unknown parameter, repeats `cursor`, supplies an ambiguous/non-string cursor form, or otherwise violates the exact v1 grammar.
+
+Do not add Source, Category, keyword, limit, offset, sort, Publication, credential, or arbitrary selector parameters.
+
+Bearer credentials are accepted only from the request `Authorization` header through the Phase 3 guard. Never read them from query, path, cookies, body, or another convenience header.
+
+Pass only the HTTP-owned bounded invalid-auth network key to the guard. P1 must not decide which proxy/header is trustworthy.
+
+## Authentication and rate mapping
+
+Run the Phase 3 guard before reading Profile output.
+
+Map outcomes without exposing credential-state detail:
+
+- `unauthenticated` -> HTTP `401` with one stable bounded machine-readable unauthenticated error;
+- `rate_limited` -> HTTP `429`, one stable bounded machine-readable rate-limit error, and decimal `Retry-After` using the producer's positive integer `retryAfterSeconds`;
+- `authenticated` -> continue with only the redacted principal.
+
+Unexpected guard/network-resolver dependency failure must become bounded `503 service_unavailable`, never a credential-state diagnostic.
+
+Do not emit `403`. Do not introduce credential-to-Profile authorization.
+
+## Profile-page outcome mapping
+
+After authentication succeeds, call the Phase 2 page service exactly once for the requested Profile/cursor and map its typed outcome:
+
+- `active` -> `200` or eligible initial `304` as defined below;
+- `invalid_input` -> `400 invalid_request`;
+- `not_found` -> `404 not_found`;
+- `draft` -> the same non-readable `404 not_found` outward behavior; v1 reads active Profiles only and must not invent another public lifecycle response class;
+- `disabled` -> `409 profile_disabled`;
+- `snapshot_changed` -> `409 snapshot_changed`;
+- `read_failed` or unexpected dependency failure -> `503 service_unavailable`.
+
+Do not expose internal lifecycle records or Profile/database identifiers in error bodies.
+
+## Successful v1 envelope
+
+A `200` response must serialize exactly the required stable schema from the governing contract:
+
+```text
+apiVersion
+generatedAt
+snapshotRevision
+profile { configKey, displayName }
+publication { name }
+items[]
+nextCursor
+```
+
+Each item must contain:
+
+```text
+articleId
+headline
+originalUrl
+effectiveFeedDate
+feedDateSource
+publishedAt
+author
+summary
+imageUrl
+source { configKey, displayName }
+categories[] { configKey, displayName }
+```
+
+Requirements:
+
+- lock one canonical `apiVersion` literal consistent with the `/api/v1` compatibility major and cover it by tests;
+- `generatedAt` is an absolute ISO timestamp generated at the HTTP boundary through an injectable clock;
+- serialize Date values as canonical absolute ISO strings;
+- nullable fields are always present as JSON `null` when absent;
+- collections are present as `[]` when empty;
+- `nextCursor` is present and `null` when exhausted;
+- `originalUrl` is passed through exactly from the Phase 2 producer;
+- assemble response objects explicitly; never spread internal producer/persistence records into public JSON;
+- do not expose cursor internals, canonical identity URL, lifecycle/internal IDs, Relevance/moderation/duplicate internals, Collection runs, observations, credential data, verifier/token material, or incidental timestamps.
+
+Once P1 chooses exact successful/error JSON shapes, focused tests must lock them as v1 compatibility behavior. Do not create extra undocumented fields for convenience.
+
+## ETag and conditional initial requests
+
+Use the Phase 2 `snapshotRevision` as the single ETag identity; do not hash/derive a second Article representation in HTTP code.
+
+Requirements:
+
+- emit a valid quoted ETag derived only from the returned `snapshotRevision` on successful initial/page responses where applicable;
+- support `If-None-Match` for the **initial request only**;
+- if the authenticated initial request resolves to an active Profile whose current revision conditionally matches, return `304` with no JSON body;
+- continuation requests carrying `cursor` must not use `304` to replace traversal, even when `If-None-Match` is supplied;
+- authentication/rate limiting still runs before conditional success;
+- malformed or irrelevant conditional headers must not expose internals or bypass normal response semantics;
+- preserve `snapshot_changed` behavior from the page service rather than turning stale cursor traversal into `304`.
+
+Implement correct bounded HTTP matching semantics without introducing a generic caching framework. Keep authenticated responses out of public/shared-cache semantics; choose conservative cache headers compatible with explicit client revalidation and test them.
+
+## CORS and content/security headers
+
+The machine API is server-to-server first.
+
+- Do not add permissive `Access-Control-Allow-Origin: *` or credentialed browser CORS behavior.
+- Preserve existing Web security headers such as `X-Content-Type-Options`.
+- JSON errors and success responses must have appropriate JSON content type.
+- Never reflect Authorization/token/header content into responses.
+
+P1 does not own production HTTPS/proxy enforcement; P2 owns that runtime boundary.
+
+## Telemetry event contract
+
+Emit one bounded distribution-request telemetry event through an injected sink after an outcome is determined. Define an explicit redacted event shape sufficient for P2 to write structured logs.
+
+The event should support, where known:
+
+- stable event name/API version;
+- bounded Profile key;
+- HTTP status/outcome category;
+- request duration;
+- returned item count/page/continuation presence where applicable;
+- non-secret authenticated credential identity only after successful authentication;
+- authentication/rate/missing/disabled/snapshot/dependency classifications;
+- bounded supplied client/adapter version field only if the HTTP layer chooses an existing safe request header for it.
+
+It must never contain bearer plaintext, Authorization headers, verifier bytes, cursor payload internals, sensitive response payloads, visitor identity, or unbounded arbitrary headers.
+
+Telemetry-sink failure must not corrupt an otherwise valid machine response; handle it boundedly according to existing logging conventions and test that no secret enters diagnostic objects.
+
+## Focused proof
+
+Add focused Level 2/3 tests, preferably a dedicated integration suite around the new router with injected guard/page-service dependencies and controlled local HTTP server.
+
+Cover at minimum:
+
+- exact first-page `200` envelope and Article field shape;
+- nullable fields present as `null` and categories/empty items as `[]`;
+- Date serialization, exact `originalUrl`, `nextCursor`, and one canonical `apiVersion`;
+- one cursor forwarded exactly once;
+- unknown/repeated/malformed query input rejected before page read;
+- `401` generic auth failure with no state distinction;
+- `429` plus exact positive `Retry-After`;
+- authenticated active/empty Profile success;
+- draft and missing both map to non-readable `404`;
+- disabled -> `409 profile_disabled`;
+- stale cursor -> `409 snapshot_changed`;
+- invalid input -> `400`;
+- dependency/read failure -> `503` without SQL/error leakage;
+- no `403` Profile-permission behavior;
+- ETag derived from revision;
+- matching initial `If-None-Match` -> bodyless `304`;
+- conditional header on continuation does not replace pagination;
+- no permissive browser CORS header;
+- telemetry event contains only bounded/redacted facts;
+- no token/Authorization/verifier/internal persistence fields in any success, error, or telemetry payload.
+
+Reuse Phase 2/3 producer fixtures only through their public types/interfaces. Do not duplicate their test matrices in P1.
+
+## Preserved behavior and non-goals
+
+Preserve without semantic change:
+
+- `/` and `/api/feed`, including `public_status` behavior;
+- protected admin routes;
+- Distribution Profile persistence/admin semantics;
+- Phase 2 canonical/Profile read-model SQL, filters, Categories, ordering, cursor, revision, result/history bounds;
+- Phase 3 token/verifier/lifecycle/authentication/rate-limit behavior;
+- collection, idempotency, provenance, duplicate suppression, stored `original_url`, and topic independence.
+
+Do not implement:
+
+- production Web/runtime construction of real machine auth/page services;
+- trusted `X-Forwarded-*`/proxy/client-IP policy;
+- production HTTPS enforcement/configuration;
+- persistent/distributed rate limiting;
+- Profile-specific credential permission matrices;
+- PHP/LKG/client code;
+- browser widget/CORS support;
+- WordPress/RSS/Atom adapters;
+- schema migrations;
+- new Article/Profile fields or selection semantics;
+- changes to governing contracts/ADRs/roadmap/task history.
+
+## Validation
+
+During iteration run the narrow new unit/integration test files directly through the existing test runner.
+
+On the final P1 tree run the smallest non-overlapping matrix covering this transport-only blast radius:
+
+```text
+npm run check
+npm run codex:phase:validate -- p1-4
+git diff --check
+```
+
+Do not run full database, recovery, browser, live-Source, or deployment suites solely for P1 because this prompt must not change those boundaries.
+
+## Version and repository rules
+
+- Set only top-level `package.json` to `1.4.1` before final validation.
+- Do not add, reorder, squash, or rewrite migrations.
+- Do not create lockfiles.
+- Do not edit contracts, ADRs, roadmap entries, historical validation artifacts, `.codex/docs-prompt.txt`, or existing task prompts.
+- Do not manually commit; the phase runner owns the implementation commit boundary.
+
+## Acceptance
+
+P1 is complete only when:
+
+1. one thin v1 HTTP adapter consumes typed Phase 2/3 producers without duplicating their logic;
+2. exact success/null/empty/error schema and required status classes are locked by focused tests;
+3. only `{profile_key}` plus optional single `cursor` are accepted;
+4. authentication/rate decisions are mapped to generic `401`/`429` and `Retry-After` without a `403` permission model;
+5. Profile lifecycle/page outcomes map deterministically, including non-readable draft, disabled, and snapshot-changed cases;
+6. ETag/initial `304` use `snapshotRevision` and continuation never mixes conditional caching with traversal semantics;
+7. telemetry is explicit, bounded, and secret-free;
+8. CORS remains server-to-server first;
+9. existing deterministic regressions remain green;
+10. package version is exactly `1.4.1`.
+
+Finish with a concise report listing changed files, the new HTTP adapter/export, chosen stable wire/error/ETag conventions, focused/final commands actually run with results, package version, and any finding that should block P2.
