@@ -24,7 +24,7 @@ This contract governs:
 - defect regression coverage;
 - implementation-roadmap phase and correction-stack completion evidence.
 
-It does not choose a test framework before Phase 1 implementation evaluates the smallest suitable TypeScript-compatible tooling. Tool choice does not weaken the behavior or evidence requirements below.
+The repository's test framework/tooling was established during the historical MVP foundation phases. Tool choice does not weaken the behavior or evidence requirements below.
 
 ## Core regression law
 
@@ -198,7 +198,7 @@ Permitted claim:
 
 Covers the deployed Web/API, Worker, PostgreSQL, scheduler/jobs when present, public feed, Cloudflare Access/admin perimeter when present, backup/recovery, and approved live Sources as applicable.
 
-This is the strongest integrated MVP evidence level.
+This is the strongest integrated deployment evidence level.
 
 Permitted claim:
 
@@ -234,9 +234,9 @@ An implementation-roadmap phase closeout validation artifact MUST identify those
 
 Historical passing evidence remains historical after later source changes until the applicable matrix is rerun. Later source corrections do not retroactively change what earlier validation artifacts observed.
 
-## 2.0 distribution validation
+## Active 2.0 distribution validation
 
-Implementation proof MUST cover, at the evidence level appropriate to each claim:
+The active seven-phase roadmap in `docs/roadmap/post-1.0-roadmap.md` owns phase sequencing. Implementation proof MUST cover, at the evidence level appropriate to each claim:
 
 - Profile lifecycle, immutable keys, bounded filters, Source associations, relationship validation, canonical eligibility/public-status independence, and transactional persistence using Levels 2–4;
 - supported production forward migration preserving governed 1.x data plus introduced Profiles, associations, and credential-verifier state at Level 4; migration from zero is also required but is not upgrade proof;
@@ -245,9 +245,10 @@ Implementation proof MUST cover, at the evidence level appropriate to each claim
 - opaque keyset cursor criteria and `snapshotRevision` binding, including deterministic `snapshot_changed` behavior without mixed pages;
 - PHP complete traversal and validation, per-Profile overlap prevention, bounded retry, rejection of invalid/partial/mixed candidates, atomic activation, preserved recoverable state, and normalized local access;
 - stale-without-default-cutoff behavior, configured stale cutoff, never-synced fallback, authoritative Profile-disable suppression and successful-sync re-enable behavior;
-- browser/server integration proof that visitor rendering uses local state with no live News Scraper request and emits direct stored publisher links;
-- the complete Linux VPS/Docker Compose evaluation topology, health, startup/migration, persistent PostgreSQL, secrets/configuration, and external-PostgreSQL option at Level 8; and
+- browser/server integration proof that visitor rendering uses local state with no live News Scraper request and emits direct stored publisher links; and
 - final `2.0.0` Level 7/8 managed external customer-style proof from real approved Source collection through Profile selection, authenticated pagination, validated PHP snapshot, atomic activation, and server-rendered output, including upstream failure, invalid candidate, revision change, and authoritative disable cases.
+
+Linux VPS/Docker Compose self-host packaging is **not** part of the `2.0.0` release gate. Self-host deployment proof is required later before making a self-host support claim, under the same evidence-honesty rules.
 
 Operational telemetry proof MUST show useful bounded diagnostic facts without bearer tokens, Authorization headers, secrets, visitor tracking, or sensitive payloads. Required prerequisites, environments, and real integrations fail honestly when absent; documentation of this gate is not evidence that it has run.
 
@@ -299,8 +300,6 @@ If a named/filtered test command is invoked and zero tests match, it MUST fail r
 
 An explicitly invoked database, browser, collection-fixture, security, or other specialized suite MUST fail clearly when its required prerequisite is unavailable. It MUST NOT silently skip and report a passing result.
 
-The exact test runner/framework is selected during Phase 1. Prefer the smallest toolchain that satisfies TypeScript, coverage, isolation, and browser/integration needs; do not add a large framework solely to wrap behavior already supported adequately by the chosen runner.
-
 ## Validation execution efficiency
 
 Validation obligations are **coverage-set based, not invocation-count based**. Repeating the same successful evidence against the same unchanged source tree does not strengthen a completion claim merely because it was invoked through multiple overlapping command aliases.
@@ -326,8 +325,6 @@ Concurrency limits are implementation/runtime tuning rather than durable fixed n
 
 ## Local execution and final-tree validation
 
-Phase 1 establishes the repeatable local validation workflow used for implementation review and implementation-phase closeout.
-
 News Scraper intentionally does not use npm package locks. `package.json` is the dependency manifest, and repository npm configuration disables `package-lock.json` generation. Clean dependency installation uses `npm install`, not `npm ci`. Because declared dependency ranges may resolve to different compatible versions over time, validation MUST NOT describe installation as byte-for-byte dependency reproducibility; evidence applies to the exact source tree and recorded Node/npm environment actually exercised.
 
 Final-tree validation MUST, as applicable:
@@ -347,9 +344,9 @@ Routine implementation review may use observed terminal output in the review ses
 
 ### Production-upgrade validation
 
-Before Phase 20 production-baseline acceptance, the pre-production rebuild-from-zero rule remains authoritative and unsupported historical pre-production databases do not require preservation fixtures.
+Before the historical Phase 20 production-baseline acceptance, the pre-production rebuild-from-zero rule was authoritative and unsupported historical pre-production databases did not require preservation fixtures.
 
-Phase 19 MUST establish and validate the schema-upgrade/rollback/restore procedure that will govern the customer launch. Acceptance of Phase 20 identifies the first supported production schema/data baseline.
+Historical Phase 19 established and validated the schema-upgrade/rollback/restore procedure; accepted Phase 20 identifies the first supported production schema/data baseline.
 
 From that baseline forward, whenever a change modifies schema, persisted representation, migration history, or data-access behavior in a way that could affect supported stored state:
 
@@ -362,7 +359,11 @@ From that baseline forward, whenever a change modifies schema, persisted represe
 
 Detailed compatibility policy is governed by `docs/decisions/production-data-and-schema-compatibility.md`.
 
-At minimum:
+### Historical MVP/post-1.0 validation matrix
+
+The phase numbers in this subsection refer to the **completed historical MVP/post-1.0 roadmap**, not the active seven-phase 2.0 roadmap. They remain regression/evidence context for the behavior those phases introduced; active 2.0 phase ownership is defined by `docs/roadmap/post-1.0-roadmap.md` and the active 2.0 validation section above.
+
+At minimum, the historical roadmap established:
 
 - Phase 1: startup/config/static/test-runner/local-validation foundation;
 - Phase 2: disposable PostgreSQL, migration-from-zero, cleanup verification;
@@ -370,29 +371,30 @@ At minimum:
 - Phase 4: deterministic eligibility/domain/scheme/port/DNS/address/redirect/rebinding negatives through injected boundaries, plus real-disposable-PostgreSQL evidence for cross-process endpoint-lock contention and release;
 - Phase 5: deterministic HTTP/RSS/Atom/Collection-run fixture coverage;
 - Phase 6: normalization fixture matrix;
-- Phase 7: deterministic proof that every safe candidate passes the empty-rule/default-include Relevance boundary before identity, plus real-disposable-PostgreSQL coverage for Source-scoped strong-external-ID and canonical-URL identity/fallback/promotion/conflict behavior, idempotent create/update/unchanged semantics, concurrent/racing uniqueness, endpoint/run observation provenance and ownership consistency, first-seen/last-seen behavior, Article/observation transaction rollback, unrelated-candidate isolation, and exact Collection-run processing-outcome accounting;
+- Phase 7: Source-scoped Article identity/idempotency, observation provenance, transaction/race behavior, and Collection-run accounting;
 - Phase 8: feed eligibility/order/read-model/API coverage;
-- Phase 9: Level 6 browser validation for the public tech-demo workflow at representative desktop/mobile viewports plus Level 7 approved live-Source validation demonstrating at least two real approved RSS/Atom Sources through the Worker; ordinary deterministic regression remains independent of live publishers;
-- **Phase 10 entry singleton implementation correction:** fresh migration-from-zero to the canonical singleton schema using the smallest current migration baseline; absence of Publication tenancy columns/scopes/slug-selection plumbing; absence of legacy-only migrations, upgrade fixtures/tests, compatibility wrappers, and obsolete selector/config paths; singleton Publication enforcement; installation-wide Source uniqueness; preserved Source/endpoint/run/Article/observation referential integrity; Source-scoped Article identity/idempotency including race/conflict coverage; preserved Collection-run accounting and network-safety/whitelist behavior; canonical `/api/feed` and `/` semantics; and Level 6 browser evidence for direct navigation/refresh, loading/empty/unavailable/error, external-link, desktop, and mobile behavior. No populated legacy-database upgrade/preservation test is required because earlier pre-production database contents are not a supported compatibility surface. The correction closeout MUST create a durable validation artifact under `docs/validation/` tied to the exact accepted corrected source tree before ordinary Phase 10 implementation begins;
-- Phase 10: scheduler/retry/overlap/recovery coverage;
-- Phase 11: deterministic literal-predicate matching and missing-field behavior; the complete include/exclude priority → Source-scope → exclude-over-include → immutable-rule-`config_key` tie-break matrix; deterministic all-matching categorize behavior and reason ordering; endpoint-default → Source-default fallback only when no categorize rule matches; stable Category/Relevance-rule `config_key` uniqueness and Article/Category membership integrity; persisted winning Relevance/category reasons; exact `excluded` observation/run accounting before identity; prospective edit behavior proving a newly excluded observation does not retroactively hide/delete/recategorize an earlier Article; and real disposable-PostgreSQL migration/schema/foreign-key/uniqueness/reason-membership evidence for the persistence introduced by the phase;
-- Phase 12: focused input/API coverage for absent, valid, repeated, malformed, unsupported, and out-of-bound `q`/`source`/`category`/`cursor` forms; Source filtering by immutable public `config_key`; Category filtering by immutable public `config_key` and current `article_categories` membership rather than historical observation reasons; combined `q + source + category` AND behavior; unchanged singleton/Source/Article feed eligibility; deterministic case-insensitive literal search including missing optional searchable metadata; unchanged effective-date → `first_seen_at` → stable-Article-ID chronological ordering; opaque/versioned cursor validation and cursor/query mismatch rejection; tie-heavy keyset pagination proving no duplicates or omissions across a static result set; preservation of the unfiltered first-page `/api/feed` contract; bounded public Source/Category discovery metadata without internal IDs/private Source leakage; real disposable-PostgreSQL proof for filter/category joins, keyset query behavior, and any Phase 12 query indexes/migration-from-zero; and Level 6 browser proof for direct URL/refreshed discovery state, search/filter changes, pagination reset, Reset, load-more, back/forward restoration, empty filtered results, and bounded discovery errors;
-- Phase 13: final responsive/accessibility/light-dark/branding/external-navigation browser regressions;
-- Phase 14: Source-admin application-side perimeter/request-integrity/resource-relationship/API/database/browser regressions; deterministic unit/integration/collection-fixture coverage for absent-filter collect-all behavior, bounded trimmed non-empty include-phrase validation, case-insensitive literal any-match behavior across RSS/Atom title/summary-content/Source-category text, missing fields, and rejection of exclude/toggle/regex/glob/fuzzy/semantic/general-expression semantics; pipeline proof that filtering occurs after parse and before normalization/Relevance/identity; exact `source_item_filtered_count` and raw/normalized/failure accounting including all-items-filtered runs; no Relevance `excluded` outcome or Article observation for mismatches; prospective configuration edits without historical Article/observation/run mutation; and preservation of approval/network-safety/jobs/idempotency/provenance/public-feed behavior. Level 8 Cloudflare Access/direct-origin reference-deployment observation is not a Phase 14 closeout requirement and is deferred to Phase 19;
-- Phase 15: focused and regression coverage for Publication, Category, and Relevance administration. Publication evidence covers name/configuration validation; `active_for_collection`; `public_status`; existing description/logo/accent editing and bounds; optional valid-IANA `presentation_timezone`; invalid-timezone rejection; absent-timezone UTC fallback; configured timezone calendar-date changes across a boundary; unchanged persisted timestamps and canonical feed ordering; and bootstrap no-overwrite behavior where relevant. Category evidence covers create/read/update, immutable `config_key`, mutable label, relationship validation, guarded removal while referenced, safe removal only when genuinely unreferenced if supported, Source/endpoint default references, and Article/Category plus retained-provenance integrity. Relevance evidence covers create/read/update, immutable `config_key`, enable/disable, Source-scope and Category-target validation, action/target compatibility, the exact literal predicate vocabulary, preserved precedence/categorize/default semantics, prospective edits with no automatic bulk historical reprocessing, and destructive-removal protection for retained provenance. Use Level 2 unit coverage for deterministic validation, Level 3 API/component/integration coverage for commands, request integrity, error shaping, and relationships, Level 4 real disposable PostgreSQL evidence for constraints/transactions/references/removal protection, and Level 6 browser coverage for Publication settings load/edit/save/error, collection/public controls, branding, timezone configured/UTC-fallback behavior, Category create/edit/guarded removal, Relevance create/edit/enable/disable/errors, Source scope and categorize target selection, deterministic precedence explanation, and keyboard/focus/responsive/error states. Local browser evidence does not claim Cloudflare Access deployment protection; Level 8 Cloudflare/direct-origin proof remains deferred to and blocking in Phase 19;
-- Phase 16: Level 2 deterministic unit evidence covers strong-vs-weak signal classification; exact canonical-identity URL evidence; normalized-title equality/fuzzy similarity remaining review-only; generic/recurring-title, related-coverage, and other false-positive safeguards; canonical unordered Article-pair ordering; bounded deterministic signal/reason/confidence generation; every deterministic Primary-selection tie-break; safe fallthrough when trustworthy original-publisher metadata is absent rather than inferred; unchanged dismissed evidence remaining suppressed; and materially changed evidence remaining distinguishable. Level 3 component/integration evidence proves duplicate evaluation occurs only after Source-scoped Article identity/persistence; same-Source repeats remain identity/idempotency rather than grouping; weak evidence creates/updates review state without public suppression; strong evidence groups idempotently; the canonical feed read model/API suppresses visible non-Primary members while retaining ungrouped/Primary rows; Source/Category filters, literal search, cursors/load-more, and chronological ordering cannot resurrect non-Primary rows or create another eligibility path; all Article/observation provenance remains available; and duplicate effects compose with, rather than replace, canonical `created`/`updated`/`unchanged` processing outcomes. Level 4 disposable-PostgreSQL evidence proves migration from zero; canonical unordered review-pair uniqueness; review-state/dismissal persistence and unchanged-dismissal idempotency; at-most-one group membership per Article; Primary membership in its own group; exactly one Primary per group; racing candidate creation/grouping; repeated same-group evidence idempotency; atomic strong-evidence merging of existing groups where supported; rollback safety; preservation of every Article/observation with no provenance-destroying cascade/delete; and exact orthogonal `duplicate_review_created`/`duplicate_grouped` Collection-run effect accounting where produced. Mocks do not substitute for these guarantees. Run relevant existing Article-identity, collection, Source, Category/Relevance, public-feed discovery, and browser/public-presentation regressions for the blast radius. Phase 16 does not require Phase 17 review UI/browser evidence, Level 7 live-Source evidence, or Level 8 deployment evidence;
-- Phase 17: Level 2 deterministic coverage for bounded moderation inputs, display-override/effective-value and manual Category-override/effective-membership precedence, state transitions, and invalid duplicate/manual-decision combinations. Level 3 API/component/integration coverage proves bounded stored-Article search/filter returns suppressed, hidden, archived, and non-Primary instances rather than only public rows; read-only provenance inspection; request integrity; bounded validation/error shaping; hide/restore; display and Category override set/clear; duplicate queue/dismiss/merge/split/choose-Primary commands; bounded change-history reads; and failure/rollback behavior. Level 4 real disposable-PostgreSQL evidence proves moderation persistence/rollback; active display overrides surviving later Source updates and clearing to the latest Source value; active manual Category overrides surviving later automatic processing and clearing to the latest automatic set; manual split authority against materially unchanged evidence; manual Primary authority through automatic reevaluation; merge/split topology uniqueness and exactly-one-Primary invariants; retained Article/observation provenance; visibility orthogonality; and transactional/concurrent coherence between successful material mutations and required history records. Mocks do not substitute for these persisted guarantees. Applicable canonical public-feed/discovery regressions prove hide/restore, non-Primary and hidden-Primary behavior, manual Primary representation, effective display values with unchanged `original_url`, effective manual Category filtering, latest-state restoration on clear, and no search/filter/cursor resurrection of ineligible rows. Level 6 real-browser evidence covers Article search/filter/list/detail; visibility/duplicate-role distinctions; provenance; hide/restore; display and Category override set/clear; duplicate review side-by-side evidence and dismiss/merge/split/choose-Primary; change history; validation/error states; and appropriate keyboard/focus/responsive behavior. Local browser evidence does not prove Cloudflare Access. Phase 17 requires neither ordinary Level 7 live-public-Source evidence nor Level 8 Cloudflare/direct-origin observation solely for moderation; Phase 19 retains the Level 8 responsibility;
-- Phase 18: Level 2 deterministic evidence covers `html_listing` endpoint/profile compatibility; bounded CSS selector/profile validation; required versus optional extraction; deterministic extraction; relative URL preservation into Raw items; absence of synthetic `externalId`; mixed valid/invalid item handling; zero-match/all-invalid parser failure; selector/document/item/field bounds; inert scripts; and proof that Source RSS/Atom admission phrases are not applied to HTML items. Level 3 component/integration evidence proves endpoint-type parser dispatch; HTML parser → shared Raw item → normalization → Article-link policy → Relevance → Source-scoped identity/persistence/observation → duplicate integration through the same downstream service interfaces as RSS/Atom; safe sample-preview API no-network/no-persistence behavior; request integrity and bounded error shaping; isolated parser failure; and absence of a secondary Article/persistence path. Level 4 real disposable-PostgreSQL evidence proves migration from zero for Phase 18 endpoint/profile/run-diagnostic persistence; type/profile compatibility constraints; persisted profile revision behavior; Collection-run parser diagnostics; rollback and retained Source/endpoint/run/Article provenance; and ordinary scheduler/job/manual-check behavior involving HTML endpoints. Level 5 deterministic static HTML/HTTP fixtures cover valid listings, optional fields, multiple items, relative links with redirected terminal endpoint base, conditional `304`, supported/unsupported media types, malformed/drifting markup, zero matches, mixed valid/invalid rows, item/document/field bounds, parser failure isolation, inert scripts, and proof that no subresource, Article-page, pagination, or browser fetch occurs while existing redirect/network-safety behavior remains intact. Level 6 browser evidence covers selecting/editing an HTML endpoint/profile, validation feedback, bounded safe sample preview, parser diagnostics, check-now integration, relevant keyboard/focus/responsive/error behavior, and existing Source-administration regressions. Run applicable existing RSS/Atom collection, Source administration, Article identity/idempotency, Relevance, duplicate, scheduler/job, public-feed, database, and browser regressions for the actual blast radius. Ordinary deterministic Phase 18 validation remains independent of public publishers; Level 7 live-Source and Phase 19 Level 8 deployment evidence are not Phase 18 closeout requirements unless separately promoted by a governing requirement;
-- Phase 19: security, restore, deployment, schema-upgrade/rollback, and reference-operations validation. Phase 19 MUST prove the upgrade/restore procedure intended to establish the production baseline and include Level 8 observation that unauthenticated admin access is challenged or denied by Cloudflare Access, an authorized operator can reach the admin surface, direct-origin bypass fails, and the actual deployed origin-protection mechanism is identified;
-- Phase 20: launch validation against the final deployment and approved Sources, with durable evidence identifying the launched source tree/version/schema state that becomes the first supported production baseline;
-- Phase 21: behavior-preserving whole-codebase simplification and maintainability hardening. Level 1 evidence MUST prove intended removals/consolidations/dependency changes and absence of forbidden topic/compatibility drift; shared-helper, ownership-boundary, orchestration, transaction/resource-lifecycle, or other structural changes require focused tests plus all important producer/consumer regressions they can affect; database-access/persistence refactors require the applicable full Level 4 database matrix; collection-pipeline refactors require relevant Level 5 fixture coverage; public/admin structural refactors require Level 6 browser coverage; security/recovery boundaries require their applicable specialized suites; any Phase 21 schema/persisted-representation change MUST prove both migration from zero and supported upgrade/data preservation from the accepted Phase 20 production baseline under `docs/decisions/production-data-and-schema-compatibility.md`; every claimed runtime/database/Worker/Web/startup/resource optimization MUST record comparable before/after measurements and may not use line/file/module-count reduction as performance evidence; and final closeout MUST rerun the complete applicable deterministic/specialized matrix plus Level 8 reference-deployment validation against the exact refactored tree. The durable Phase 21 artifact MUST record what complexity was removed, what intentionally remains, measured results/limitations, production-upgrade evidence where applicable, and the final integrated evidence set.
-- **Post-1.0 Phase 0 — Server-rendered public feed:** Level 3 HTTP/component/integration evidence MUST prove that direct `GET /` returns escaped configured Publication presentation and the canonical first Article page in the HTML body without executing JavaScript or issuing a second feed request; exact stored `original_url` anchors, effective dates, Source names, and server-rendered `q`/`source`/`category` first-page criteria MUST match the canonical public-feed read model. Focused HTTP coverage MUST include populated and empty `200` states, bounded invalid-input `400`, generic absent/non-public `404`, bounded dependency/read `503`, malformed/repeated/unsupported discovery forms, and output-context escaping/content-safety/CSP behavior. The root SSR path MUST be proven to reuse the canonical feed service/read-model boundary rather than introducing an SSR-only Article query or eligibility/order implementation. Existing Level 4 real-PostgreSQL public-feed/discovery/duplicate/moderation regressions remain required where the changed server path or shared read boundary can affect database-backed eligibility, filtering, ordering, or suppression; a schema/persisted change, if introduced despite not being inherent to this phase, additionally requires migration-from-zero plus supported Phase 20-baseline upgrade/data-preservation evidence. Level 6 browser evidence MUST cover JavaScript-enabled and JavaScript-disabled direct navigation/refresh, populated/empty/invalid/unavailable/dependency states, first-page `q`/Source/Category discovery and Reset without JavaScript, exact publisher navigation, desktop/mobile responsive behavior, keyboard/focus/accessibility, light/dark/system theme behavior where applicable, Back/Forward and enhanced discovery behavior, local continuation/load-more failure behavior, and proof that JavaScript enhancement preserves rather than clears/reconstructs correct server-rendered initial content. Raw HTML/source assertions prove crawlable initial content but do not replace the browser evidence for layout/navigation/interaction. Phase 0 does not require no-JavaScript cursor continuation; crawlable server-rendered continuation navigation is Phase 1 scope. Final closeout MUST run the smallest non-overlapping set covering focused HTTP/integration, applicable database, browser, static/security, and broader public/admin regressions on the exact final tree and record the evidence in the durable Phase 0 validation artifact.
+- Phase 9: public browser tech-demo and approved live-Source evidence, with the historical limitation recorded in its validation artifact;
+- Phase 10: scheduler/retry/overlap/recovery coverage after the singleton correction;
+- Phase 11: deterministic Relevance/Category semantics and persistence evidence;
+- Phase 12: public search/filter/keyset discovery and browser evidence;
+- Phase 13: responsive/accessibility/branding/external-navigation browser regressions;
+- Phase 14: Source administration, Source RSS/Atom admission filtering, request-integrity, DB/fixture/browser regressions;
+- Phase 15: Publication/Category/Relevance administration with unit/API/database/browser proof;
+- Phase 16: duplicate detection/review/group persistence and public suppression semantics;
+- Phase 17: Article/duplicate moderation, overrides, history, persistence, and browser evidence;
+- Phase 18: static-HTML endpoint/profile parsing, shared pipeline, DB/fixture/browser evidence;
+- Phase 19: security, restore, deployment, schema-upgrade/rollback, and Cloudflare/direct-origin reference-operations validation;
+- Phase 20: customer launch validation establishing the first supported production baseline;
+- Phase 21: behavior-preserving whole-codebase simplification with the complete applicable final regression/deployment matrix;
+- Post-1.0 Phase 0: server-rendered root/reference feed with HTTP, database, browser, security, and regression proof appropriate to the affected public surface.
+
+Historical task prompts and durable validation artifacts retain the exact detailed phase-specific matrices and observed limitations. This summary does not weaken existing regression obligations: when current work touches behavior introduced historically, the relevant existing tests/evidence class remains part of the blast-radius matrix.
 
 Live public-network Source validation is not part of the ordinary deterministic local regression matrix.
 
 ## PostgreSQL test isolation
 
-From Phase 2 onward, persistence claims use real PostgreSQL where practical.
+Persistence claims use real PostgreSQL where practical. Historical MVP Phase 2 established the disposable-database foundation.
 
 The reserved administrative test environment variable is:
 
@@ -424,9 +426,9 @@ A dedicated fresh-database slow path remains REQUIRED when fresh database state 
 - test-admin capability/cleanup behavior;
 - any case where preserving the migrated schema between tests would materially change the behavior being proved.
 
-Migration work that transforms already-populated **supported** state MUST additionally exercise representative fixtures through the real migration path. Before Phase 20 production-baseline acceptance, the completed pre-production singleton correction has no such supported old-data input and its contract remains fresh rebuild from zero. From the accepted Phase 20 baseline forward, supported production-upgrade fixtures/evidence are required whenever a migration transforms supported persisted state under the production compatibility ADR. Tests/fixtures whose only purpose is to migrate or preserve superseded disposable pre-production schemas remain unnecessary.
+Migration work that transforms already-populated **supported** state MUST additionally exercise representative fixtures through the real migration path. Before Phase 20 production-baseline acceptance, the completed pre-production singleton correction had no such supported old-data input and its contract remained fresh rebuild from zero. From the accepted Phase 20 baseline forward, supported production-upgrade fixtures/evidence are required whenever a migration transforms supported persisted state under the production compatibility ADR. Tests/fixtures whose only purpose is to migrate or preserve superseded disposable pre-production schemas remain unnecessary.
 
-Parallel database test files/scopes MUST NOT share mutable schemas/databases unless concurrency between those actors is the behavior under test. Independently parallelized files/scopes each own a separate disposable database. Concurrency MUST be bounded so aggregate PostgreSQL pool/connection pressure does not make the suite unreliable. Phase 4 endpoint-lock validation is an intentional shared-database concurrency case: independent clients/process-equivalent actors MUST contend for the same endpoint lock against the same disposable PostgreSQL database, prove that only one owner succeeds at a time, prove unrelated endpoint locks can proceed independently, and prove release/reacquisition on relevant success/failure paths.
+Parallel database test files/scopes MUST NOT share mutable schemas/databases unless concurrency between those actors is the behavior under test. Independently parallelized files/scopes each own a separate disposable database. Concurrency MUST be bounded so aggregate PostgreSQL pool/connection pressure does not make the suite unreliable. Historical Phase 4 endpoint-lock validation is an intentional shared-database concurrency case: independent clients/process-equivalent actors MUST contend for the same endpoint lock against the same disposable PostgreSQL database, prove that only one owner succeeds at a time, prove unrelated endpoint locks can proceed independently, and prove release/reacquisition on relevant success/failure paths.
 
 An explicit `test:db` or focused database-test invocation without a safe usable test-admin prerequisite MUST fail clearly. Database tests MUST NOT silently downgrade to mocked or skipped persistence while reporting success.
 
@@ -436,7 +438,7 @@ Tests MUST NOT use the ordinary development database as their cleanup strategy.
 
 Ordinary deterministic test/regression suites MUST NOT depend on live public publishers or uncontrolled public DNS.
 
-Use controlled fixtures, injected fetch/resolution boundaries, or controlled local servers to test network behavior. Phase 4 address-safety tests SHOULD inject deterministic DNS answers rather than weakening production policy or depending on the machine's current resolver/network environment.
+Use controlled fixtures, injected fetch/resolution boundaries, or controlled local servers to test network behavior. Historical Phase 4 address-safety tests inject deterministic DNS answers rather than weakening production policy or depending on the machine's current resolver/network environment.
 
 The testing harness MUST NOT require a production SSRF, whitelist, approved-domain, redirect, or Article-domain bypass merely to make local fixtures convenient. Production safety policy remains intact in test composition.
 
@@ -445,7 +447,7 @@ Network-safety tests MUST cover both allowed and denied paths, including where a
 - HTTP/HTTPS scheme restrictions and unsupported schemes;
 - approved-domain boundaries and endpoint narrowing;
 - hostname normalization;
-- effective default ports and rejection of non-default HTTP/HTTPS ports under the MVP policy;
+- effective default ports and rejection of non-default HTTP/HTTPS ports under the governed policy;
 - successful public-unicast DNS resolution;
 - zero-answer/resolution failures;
 - mixed DNS answers where any unsafe address causes rejection;
@@ -456,7 +458,7 @@ Network-safety tests MUST cover both allowed and denied paths, including where a
 - stable machine-readable eligibility/network-safety rejection reasons;
 - Article-link domain validation separately from fetch validation once that later stage exists.
 
-Phase 4 tests stop at an injected/controlled outbound-fetch boundary and MUST NOT require real publisher HTTP requests or real redirect following. Phase 5 deterministic transport fixtures exercise actual HTTP/redirect behavior while reusing the Phase 4 gate.
+Historical Phase 4 tests stop at an injected/controlled outbound-fetch boundary; historical Phase 5 deterministic transport fixtures exercise actual HTTP/redirect behavior while reusing that gate.
 
 Live-Source validation may contact only explicitly approved Source/endpoints and MUST be isolated from ordinary deterministic regression validation.
 
@@ -492,7 +494,7 @@ For independently executed test files/processes, deterministic discovery/selecti
 
 Happy-path coverage is insufficient for contract-critical behavior.
 
-As the relevant phases arrive, tests MUST cover realistic failures such as:
+As relevant behavior exists, tests MUST cover realistic failures such as:
 
 - invalid configuration;
 - unavailable dependencies;
@@ -507,8 +509,10 @@ As the relevant phases arrive, tests MUST cover realistic failures such as:
 - overlapping-run prevention;
 - PostgreSQL interruption/recovery;
 - failed admin mutation/request-integrity checks;
-- backup/restore and interrupted-run reconciliation before production launch;
-- supported production schema-upgrade/rollback failure paths after the production baseline exists.
+- backup/restore and interrupted-run reconciliation;
+- supported production schema-upgrade/rollback failure paths;
+- distribution authentication/rate-limit failures when implemented;
+- partial/mixed Profile snapshots and LKG preservation when implemented.
 
 Failure tests MUST verify preserved invariants and recovery state, not only that an exception was thrown.
 
@@ -527,9 +531,7 @@ When UI behavior exists, applicable validation includes:
 - light/dark modes when implemented;
 - admin request-integrity and protected mutation flows when implemented.
 
-For Phase 14 Source administration specifically, Level 6 evidence MUST cover Source/endpoint list/detail/create/update and lifecycle/operational actions, validation errors, manual check-now through the canonical job path, recent run/health visibility, and Source RSS/Atom admission-phrase viewing/editing with clear collect-all versus any-match semantics. Browser evidence complements rather than replaces real database and deterministic collection-fixture proof. Phase 14 browser evidence does not claim deployed Cloudflare Access/origin protection. Those claims require Level 8 reference-deployment evidence and are explicitly deferred to Phase 19; local browser substitution remains insufficient.
-
-For Phase 12 discovery specifically, Level 6 evidence MUST cover direct navigation/refresh with URL-reflected `q`/`source`/`category`, user changes to those criteria, pagination reset after criteria changes, Reset to the unfiltered first page, load-more continuation, browser back/forward restoration, empty filtered/search results, and bounded error handling for invalid discovery state. Browser tests MUST also show that headline navigation continues to use the stored publisher `original_url` and that discovery does not create a second page-side eligibility/order path.
+Historical Source-administration and public-discovery browser matrices remain protected by their existing tests and validation artifacts. New 2.0 Profile admin UI and customer PHP/server-rendered behavior require Level 6 evidence when those surfaces are introduced.
 
 Source/DOM string assertions alone MUST NOT be used as complete proof for behavior that depends on browser layout, navigation, focus, JavaScript, or responsive interaction.
 
@@ -582,13 +584,14 @@ A reviewer MUST NOT approve a change solely because its requested feature appear
 
 Distribution claims require focused proof at the producer boundary and the evidence level appropriate to each consumer:
 
-- prove canonical outward eligibility precedes Distribution Profile selection and that profile selection can only narrow output;
-- prove every serializer/adapter receives the same governed profile semantics and cannot resurrect ineligible rows;
-- prove profile changes propagate only through canonical profile output and presentation customization cannot redefine selection;
-- use Level 6 browser/returned-HTML evidence to show first-party PHP/WordPress output contains ordinary direct publisher links without requiring JavaScript for core feed output;
+- prove canonical outward eligibility precedes Distribution Profile selection and that Profile selection can only narrow output;
+- prove every serializer/adapter receives the same governed Profile semantics and cannot resurrect ineligible rows;
+- prove Profile changes propagate only through canonical Profile output and presentation customization cannot redefine selection;
+- use Level 6 browser/returned-HTML evidence to show first-party PHP output contains ordinary direct publisher links without requiring JavaScript for core feed output;
 - prove a valid last-known-good cache survives synchronization failure and invalid/partial responses cannot replace it;
-- prove machine distribution credentials cannot perform administrator operations;
-- before claiming self-host support, use deployment-appropriate evidence that ordinary collection, administration, persistence, moderation, and distribution operate without a mandatory central News Scraper service.
+- prove machine distribution credentials cannot perform administrator operations.
+
+Self-host support is post-2.0. Before later claiming it, use deployment-appropriate evidence that ordinary collection, administration, persistence, moderation, and distribution operate without a mandatory central News Scraper service. That later proof is not a prerequisite for the managed `2.0.0` release.
 
 These expectations do not renumber or reinterpret historical evidence levels and apply only when the corresponding features exist.
 
