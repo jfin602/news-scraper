@@ -8,7 +8,7 @@
 
 The 2026-08-19 headless-product decision established News Scraper as a governed aggregation and distribution core, but deliberately left deployment shape, consumer profiles, adapter families, presentation ownership, machine access, and caching direction unresolved. Those macro boundaries must be stable before a replacement post-1.0 roadmap can be written.
 
-This decision preserves one Publication/topic per installation and the supported production-data boundary. It does not claim that self-host packaging, Distribution Profiles, or the new adapters are implemented.
+At adoption, this decision preserved one Publication/topic per installation and the supported production-data boundary. It did not claim that self-host packaging, Distribution Profiles, or the new adapters were implemented.
 
 ## Decision
 

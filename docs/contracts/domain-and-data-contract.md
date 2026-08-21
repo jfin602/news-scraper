@@ -70,7 +70,7 @@ An installation-wide deterministic rule used to include, exclude, or categorize 
 
 ### Distribution Profile
 
-A first-class installation-owned administrator-controlled outward selection over the singleton Publication's canonically eligible Article corpus. It has immutable `config_key`, mutable `display_name`, `draft`/`active`/`disabled` lifecycle, and a bounded result/history limit. A first-class Profile↔Source association selects participating approved Sources and may hold the bounded filters governed by `distribution-and-integration-contract.md`. Multiple Profiles do not create tenancy.
+A first-class installation-owned administrator-controlled outward selection over the singleton Publication's canonically eligible Article corpus. It has immutable `config_key`, mutable `display_name`, `draft`/`active`/`disabled` lifecycle, and a bounded result/history limit. A first-class Profile↔Source association selects participating Sources and may hold the bounded filters governed by `distribution-and-integration-contract.md`. Multiple Profiles do not create tenancy.
 
 ### Distribution consumer and integration adapter
 
@@ -434,7 +434,7 @@ Each Article belongs to at most one group. Exactly one member is Primary, and th
 
 ### `audit_events`
 
-MVP persists append-only application change history for successful material Phase 17 moderation mutations. Records use bounded action, target, timestamp, reason, and bounded prior/new state where appropriate. Where atomic explanation is required, the record is written transactionally with the mutation and MUST NOT claim success when validation or the governed mutation rolls back. Ordinary Phase 17 administration cannot edit these records, and reads are bounded/paginated. MVP does not require a native administrator identifier or canonical per-user attribution; retention/pruning policy remains Phase 19 work.
+The append-only `audit_events` mechanism records successful material Phase 17 moderation mutations and Distribution Profile administration changes: Profile creation, mutable configuration, Source-association creation/change/removal, and lifecycle changes. Records use bounded action, target, timestamp, reason, and bounded prior/new state where appropriate. Where atomic explanation is required, the record is written transactionally with the mutation and MUST NOT claim success when validation or the governed mutation rolls back. Ordinary administration cannot edit these records, and reads are bounded/paginated. The mechanism does not require a native administrator identifier or canonical per-user attribution; retention/pruning policy remains governed operations work.
 
 Native administrator accounts/identity, roles, per-user authorization, account recovery, and identity-linked audit attribution are outside MVP and require a later contract/ADR if promoted.
 

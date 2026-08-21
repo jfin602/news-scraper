@@ -36,7 +36,7 @@ An authorized operator controls the installation's collection and editorial stat
 - Article visibility/display overrides/categories;
 - Duplicate review/group corrections;
 - Source/endpoint health and Collection-run history;
-- Distribution Profiles and other product-exposed distribution configuration when implemented.
+- implemented Distribution Profile configuration: persisted Profiles with immutable keys, mutable display names, lifecycle, bounded result/history limits, Source associations, bounded association filters, protected administration, and transactional change history.
 
 The administrator surface is the instance-owned Platform control plane. Current managed/reference administrative routes remain protected by Cloudflare Access under the accepted admin-perimeter ADR. Future self-hosted deployments require a governed secure perimeter, but Cloudflare is not a universal runtime dependency.
 
@@ -144,7 +144,7 @@ The original client now intends to integrate collected news into an existing web
 
 WordPress, RSS/Atom, Linux VPS/Docker Compose self-host packaging, native/default self-host administrator authentication, production-grade autonomous public self-hosting, SSO/multi-admin identity, visitor/click/referral/backlink analytics, advanced SEO tooling, browser widgets, Kubernetes/multi-node deployment, delta synchronization, and additional adapter families are post-2.0. News Scraper guarantees neither SEO nor backlink performance.
 
-The seven-phase 2.0 implementation roadmap is active under `docs/roadmap/post-1.0-roadmap.md`; current implementation begins with the Distribution Profile foundation at the `1.1.0` development baseline.
+The seven-phase 2.0 implementation roadmap is active under `docs/roadmap/post-1.0-roadmap.md`; Phase 1 implemented the Distribution Profile foundation, and current implementation is Phase 2 at the `1.2.0` development baseline. The permanent distribution HTTP API, machine credentials, PHP, and external distribution consumers remain future phases.
 
 ## Quality targets
 

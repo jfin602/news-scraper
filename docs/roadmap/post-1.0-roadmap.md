@@ -1,10 +1,10 @@
 # Post-1.0 / 2.0 Roadmap
 
 **Status:** ACTIVE — owner-approved 2.0 implementation roadmap.  
-**Current package baseline:** `1.1.0`.  
-**Current implementation phase:** Phase 1 — Distribution Profile foundation.  
+**Current package baseline:** `1.2.0`.
+**Current implementation phase:** Phase 2 — Canonical distribution read model.
 **Current task folder family:** `p1-<phase>`.  
-**Current Phase 1 prompt versions:** `1.1.<prompt>`.  
+**Current Phase 2 prompt versions:** `1.2.<prompt>`.
 **Terminal release target:** `2.0.0`.  
 **Primary direction:** prove the managed headless distribution product through Distribution Profiles, the authenticated v1 API, generic PHP synchronization/LKG, and a real external customer-site integration.
 
@@ -83,7 +83,7 @@ approved Sources
 
 Every phase must preserve topic independence, one Publication per installation, approved-Source trust, idempotency/provenance, duplicate suppression, stored `original_url`, and the existing supported `/` plus `/api/feed` reference behavior.
 
-## Phase 1 — Distribution Profile foundation
+## Phase 1 — Distribution Profile foundation (completed)
 
 **Baseline:** `1.1.0`  
 **Prompt versions:** `1.1.x`  
@@ -120,6 +120,8 @@ The complete persisted/application Profile boundary required by Phase 2 is prove
 ### Next baseline
 
 Green Phase 1 `/closeout` transitions only `package.json` to `1.2.0`.
+
+**Closeout:** completed; the current baseline is `1.2.0`.
 
 ## Phase 2 — Canonical distribution read model
 

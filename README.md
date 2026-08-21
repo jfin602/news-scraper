@@ -19,7 +19,7 @@ The accepted `1.0.0` customer launch established the first supported production 
 
 On 2026-08-19 the repository owner approved a product-direction shift toward the headless aggregation/distribution core. On 2026-08-20 the owner locked the managed-first/self-hostable macro architecture, Distribution Profiles, machine distribution API, generic PHP/LKG integration direction, and customer presentation freedom.
 
-The replacement 2.0 implementation roadmap is now active. The current development baseline is `1.1.0`, and Phase 1 builds the Distribution Profile foundation. Development remains in the `1.x.x` series through seven roadmap phases; after the final Phase 7 managed-integration release gate is green, terminal closeout promotes the final validated `1.7.x` candidate directly to `2.0.0`.
+The replacement 2.0 implementation roadmap is now active. Phase 1 implemented the Distribution Profile foundation; the current `1.2.0` baseline begins Phase 2, the canonical distribution read model. Development remains in the `1.x.x` series through seven roadmap phases; after the final Phase 7 managed-integration release gate is green, terminal closeout promotes the final validated `1.7.x` candidate directly to `2.0.0`.
 
 Linux VPS/Docker Compose self-host packaging, native self-host admin authentication, WordPress, and RSS/Atom remain post-2.0 work. Self-hostability remains an architectural requirement, but packaging no longer blocks the managed 2.0 product validation.
 

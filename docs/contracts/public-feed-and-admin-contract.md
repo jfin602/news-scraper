@@ -324,13 +324,14 @@ Administrative area SHOULD contain:
 - Articles;
 - Duplicate review;
 - Categories and Relevance rules;
+- Distribution Profiles;
 - Collection runs;
 - change/audit history;
 - Settings.
 
 Navigation is single-Publication and does not expose a topic switcher. Application commands validate actual Source/endpoint/run/Article/observation/duplicate relationships and domain invariants rather than a Publication tenancy boundary.
 
-Distribution Profiles are a governed, not-yet-implemented control-plane resource defined by `distribution-and-integration-contract.md`. They operate independently of the reference frontend's `public_status`.
+Distribution Profiles are a governed control-plane resource defined by `distribution-and-integration-contract.md`, independent of the reference frontend's `public_status`. Authorized operators can create a draft Profile, inspect/reload persisted Profiles, edit mutable configuration, add/update/remove Source associations and bounded filters, activate only when the usable-Source invariant is met, disable an active Profile, and reactivate a valid disabled Profile. These routes remain under the managed Cloudflare Access, request-integrity, and resource-validation boundary; they are neither machine distribution authentication nor the permanent v1 API.
 
 ## Source management UI
 
@@ -417,6 +418,6 @@ Cloudflare Access is not a mandatory self-hosted runtime dependency. Native/defa
 
 ## Change history
 
-Successful material moderation changes produce append-only application change/audit records sufficient to explain the action, including bounded action, target, time, reason, and bounded prior/new state where appropriate. A required record is written transactionally with its mutation and cannot claim success after validation failure or rollback. Ordinary administration cannot edit history; reads are bounded/paginated and retention/pruning follows the governed operations policy.
+Successful material moderation and Distribution Profile administration changes produce append-only application change/audit records sufficient to explain the action, including bounded action, target, time, reason, and bounded prior/new state where appropriate. Profile records cover creation, mutable configuration, Source-association creation/change/removal, and lifecycle changes. A required record is written transactionally with its mutation and cannot claim success after validation failure or rollback. Ordinary administration cannot edit history; reads are bounded/paginated and retention/pruning follows the governed operations policy.
 
 Current change records do not require a stable native administrator identifier or guaranteed per-user attribution. Cloudflare identity/access logs are operational evidence rather than the application's canonical domain identity.

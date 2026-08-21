@@ -121,6 +121,8 @@ src/
     safety/
   articles/
   deduplication/
+  distribution/
+    profiles/          # Profile configuration/persistence and Source-validity coordination
   public-feed/       # current canonical outward/public Article read semantics
   admin/
   jobs/              # durable endpoint collection jobs/retry/recovery execution
@@ -129,7 +131,7 @@ src/
   shared/
 ```
 
-The existing `public-feed/` name reflects the implemented `1.0.x` surfaces. The product pivot does not authorize a rename merely for terminology. If the distribution implementation needs a broader module boundary, that rename/refactor must be justified by the actual producer/consumer design and must preserve one canonical Article-selection authority.
+The existing `public-feed/` name reflects the implemented `1.0.x` surfaces. `src/distribution/profiles/` owns Profile configuration/persistence and transactional coordination of Profile/Source usability-reducing mutations; lifecycle/application validation remains the administration/application authority. It does not duplicate Source collection, Articles, identity, or provenance. Later consumers must not query Profile child tables or invent lifecycle/relationship semantics independently. Phase 2 next owns the canonical distribution Article read-model boundary; its final file layout is intentionally not prescribed here.
 
 The exact implementation may keep or rename an existing module only when that choice produces the smallest coherent canonical design. It MUST NOT retain plural/selector-oriented APIs solely as a compatibility bridge. Legacy-only source modules, wrappers, types, tests, fixtures, configuration paths, and other artifacts from superseded pre-production architecture MUST be deleted when the canonical implementation no longer has an independent use for them.
 
@@ -145,6 +147,7 @@ Rules:
 - Source-admin sample preview is a pure bounded parser/profile-validation path over operator-supplied HTML. It has no network, Collection run, endpoint lock, scheduler/health, or Article persistence edge and is not another collector.
 - Current public/outward code consumes normalized Article read models only. The server-rendered root page and `GET /api/feed` MUST share the same canonical public/outward application/read-model boundary; rendering and JSON shaping may differ, but eligibility, filtering, ordering, cursor semantics, and Article selection MUST NOT fork into competing query paths.
 - The 2.0 distribution read model MUST consume the same governed canonical eligibility authority and then apply Profile selection. It MUST NOT invent adapter/API-owned SQL for Source trust, Article visibility, duplicate suppression, moderation, ordering, or `original_url` destination semantics.
+- Profile activation/reactivation, association removal, Source unapproval, and Source archival share transactional ownership for the active-Profile usable-Source invariant. Their concurrency coordination must use a consistent lock order; Source operational state remains a collection control, not a Profile-usability condition.
 - Collection trust and distribution selection are distinct. Distribution Profiles filter already-governed outward-eligible Articles; Source approval itself is not consumer membership.
 - Admin controllers do not perform collection inline; manual check-now requests the same governed endpoint execution/job path rather than a second collector.
 - Deduplication logic does not depend on topic-specific keywords.

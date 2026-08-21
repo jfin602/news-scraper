@@ -18,19 +18,19 @@ Follow `BOOT.md`.
 - Roadmap `/closeout` and a correction stack's final manual closeout are different. A correction closeout clears only that correction and preserves roadmap phase/package version.
 - Terminal MVP Phase 21 `/closeout` already transitioned the final validated `0.21.x` tree to `1.0.0`.
 - Former post-1.0 Phase 0 P1 shipped the server-rendered root at `1.0.1`; its unexecuted P2/`1.0.2` closeout is permanently retired.
-- The owner-approved replacement 2.0 roadmap is active. Phase 1 starts from `1.1.0`; normal roadmap prompt planning may resume.
+- The owner-approved replacement 2.0 roadmap is active. Phase 1 closed to the Phase 2 `1.2.0` baseline; normal roadmap prompt planning may resume.
 - Use `docs/codex-model-selection.md` for detailed minimum-cost-adequate model/reasoning/usage policy.
 
 ## Versioning and task-stack grammar
 
-`package.json` is the sole current-version authority and is currently `1.1.0`. Documentation, correction, and UI work is non-versioned unless an explicit owner-authorized roadmap activation/release transition says otherwise.
+`package.json` is the sole current-version authority and is currently `1.2.0`. Documentation, correction, and UI work is non-versioned unless an explicit owner-authorized roadmap activation/release transition says otherwise.
 
 The active seven-phase roadmap uses the existing post-1.0 runner grammar:
 
 - Phase N folder: `p1-N`;
 - prompt target: `1.N.<prompt number>`;
-- current Phase 1 folder: `p1-1`;
-- current next prompt version: `1.1.1`;
+- current Phase 2 folder: `p1-2`;
+- current next prompt version: `1.2.1`;
 - non-terminal green `/closeout` moves only to the documented next `1.<phase>.0` baseline;
 - terminal Phase 7 `/closeout` moves the final validated `1.7.x` candidate directly to `2.0.0`, creates no `1.8.0`, and does not create a `2.0.x` development series.
 
@@ -57,9 +57,9 @@ Targeted UI prompts under `docs/design/tasks/` are not a `codex:phase` grammar. 
 
 ## Active 2.0 roadmap
 
-**Current phase:** Phase 1 — Distribution Profile foundation  
-**Current baseline:** `1.1.0`  
-**Current task folder:** `docs/tasks/p1-1/` when written  
+**Current phase:** Phase 2 — Canonical distribution read model
+**Current baseline:** `1.2.0`
+**Current task folder:** `docs/tasks/p1-2/` when written
 **Terminal target:** `2.0.0`
 
 The roadmap sequence is:
@@ -85,7 +85,7 @@ Always preserve these boundaries and read the routed contract for detail:
 - One Publication/topic per deployment remains the supported data model.
 - The administrator UI/API is the control plane. The bundled `/` frontend is a supported reference/standalone consumer; `GET /api/feed` is a current legacy/reference JSON surface.
 - Collection trust and distribution selection are distinct. Source approval authorizes governed collection; Profile membership determines which already-eligible Source Articles can enter one distribution output.
-- Phase 1 may implement only the Profile persistence/control-plane foundation assigned by the roadmap. It must not pull machine auth/API/PHP or post-2.0 capabilities forward merely for convenience.
+- Phase 2 may implement only the transport-independent canonical distribution Article eligibility/Profile read-model boundary, effective outward Category semantics, bounded history/results, keyset continuation positions, and deterministic snapshot revisions. It must not expose the v1 API, implement machine credentials or PHP/LKG, or pull post-2.0 capabilities forward.
 - Future distribution consumers must reuse canonical outward Article-selection semantics rather than invent eligibility, duplicate, moderation, ordering, Category, or destination rules.
 - Source is the approved publisher/trust boundary; endpoint is its concrete feed/API/HTML location. Approval, lifecycle, operational state, and derived health are distinct.
 - Only approved, active, enabled Sources/endpoints are collectable while singleton Publication collection is active. Bootstrap never auto-approves or silently widens trust.
@@ -108,7 +108,7 @@ The accepted Phase 20 launch artifact defines the first supported production sou
 
 Do not apply the earlier pre-production destructive-reset rule to customer state or rewrite supported migration history merely to simplify the final schema. For persistence changes, trace baseline → forward migration → data/relationship preservation → backup/rollback/restore → consumers/tests under `docs/decisions/production-data-and-schema-compatibility.md`.
 
-Phase 1 Profile persistence therefore requires both migration-from-zero and supported production-forward migration evidence.
+Phase 1 Profile persistence required both migration-from-zero and supported production-forward migration evidence.
 
 ## Validation honesty
 
@@ -126,10 +126,10 @@ Historical validation qualifications remain historical and must not be rewritten
 
 The MVP roadmap is complete through terminal Phase 21 and the supported production baseline remains `1.0.0`.
 
-**Current package version:** `1.1.0`  
+**Current package version:** `1.2.0`
 **Current roadmap:** `docs/roadmap/post-1.0-roadmap.md`  
-**Current implementation phase:** **Phase 1 — Distribution Profile foundation**  
-**Next prompt version:** `1.1.1`  
+**Current implementation phase:** **Phase 2 — Canonical distribution read model**
+**Next prompt version:** `1.2.1`
 **Terminal release target:** `2.0.0`
 
 The old `p1-0` stack is retired. Use the active roadmap for current phase/version authority.

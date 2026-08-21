@@ -20,10 +20,10 @@ It establishes project identity, authority, routing, workflow gates, task gramma
 - Distribution/Profile/PHP contract: `docs/contracts/distribution-and-integration-contract.md`
 - Current roadmap: `docs/roadmap/post-1.0-roadmap.md`
 - Current roadmap state: **ACTIVE**
-- Current implementation phase: **Phase 1 — Distribution Profile foundation**
-- Current package baseline: **`1.1.0`**
-- Current Phase 1 task folder: **`p1-1`** when written
-- Next roadmap prompt version: **`1.1.1`**
+- Current implementation phase: **Phase 2 — Canonical distribution read model**
+- Current package baseline: **`1.2.0`**
+- Current Phase 2 task folder: **`p1-2`** when written
+- Next roadmap prompt version: **`1.2.1`**
 - Terminal release target: **`2.0.0`**
 - Accepted production baseline: customer-launch `1.0.0`; supported customer data is durable
 - Former post-1.0 Phase 0 P1: server-rendered reference root shipped at `1.0.1`
@@ -114,31 +114,31 @@ Keep these distinctions explicit: Source vs endpoint; approval vs lifecycle/oper
 
 ## Document routing
 
-| Area | Read first |
-| --- | --- |
-| Locked laws / authority | `docs/contracts/project-contract.md` |
-| Current product scope / 2.0 boundary | `docs/contracts/product-scope-and-users.md` |
-| Distribution Profiles / filters / PHP/LKG / presentation/link policy | `docs/contracts/distribution-and-integration-contract.md` |
-| Permanent v1 API / schema / cursors / machine credentials / errors / CORS | `docs/contracts/distribution-api-contract.md` |
-| Terminology / entities / persistence | `docs/contracts/domain-and-data-contract.md` |
-| Collection / safety / normalization / Relevance / identity | `docs/contracts/source-and-collection-contract.md` |
-| Article visibility / duplicates / Primary | `docs/contracts/article-lifecycle-and-deduplication.md` |
-| Existing `/api/feed`, `/`, current admin UX | `docs/contracts/public-feed-and-admin-contract.md` |
-| Testing / evidence / DB/browser/live/deployment proof | `docs/contracts/testing-and-validation-contract.md` |
-| Process/module architecture | `docs/architecture/system-architecture.md` |
-| Security / reliability / observability | `docs/operations/security-reliability-and-operations.md` |
-| Backup / restore | `docs/operations/database-backup-and-restore.md` |
-| Deployment / rollback / incidents | `docs/operations/deployment-and-incident-runbook.md` |
-| Active 2.0 phases / versions | `docs/roadmap/post-1.0-roadmap.md` |
-| Completed MVP history | `docs/roadmap/mvp-roadmap.md` |
-| Historical 2.0 planning record | `docs/roadmap/2.0-planning-questions.md` |
-| Product-boundary ADR | `docs/decisions/headless-distribution-product-boundary.md` |
-| Managed/self-hostable architecture ADR | `docs/decisions/managed-first-self-hostable-distribution-architecture.md` |
-| Production data/schema compatibility | `docs/decisions/production-data-and-schema-compatibility.md` |
-| Admin perimeter | `docs/decisions/cloudflare-access-admin-perimeter.md` |
-| UI workflow | `docs/design/README.md`, then `docs/design/ui-workflow.md` |
-| Codex model selection | `docs/codex-model-selection.md` |
-| Documentation index | `docs/README.md` |
+| Area                                                                      | Read first                                                                |
+| ------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| Locked laws / authority                                                   | `docs/contracts/project-contract.md`                                      |
+| Current product scope / 2.0 boundary                                      | `docs/contracts/product-scope-and-users.md`                               |
+| Distribution Profiles / filters / PHP/LKG / presentation/link policy      | `docs/contracts/distribution-and-integration-contract.md`                 |
+| Permanent v1 API / schema / cursors / machine credentials / errors / CORS | `docs/contracts/distribution-api-contract.md`                             |
+| Terminology / entities / persistence                                      | `docs/contracts/domain-and-data-contract.md`                              |
+| Collection / safety / normalization / Relevance / identity                | `docs/contracts/source-and-collection-contract.md`                        |
+| Article visibility / duplicates / Primary                                 | `docs/contracts/article-lifecycle-and-deduplication.md`                   |
+| Existing `/api/feed`, `/`, current admin UX                               | `docs/contracts/public-feed-and-admin-contract.md`                        |
+| Testing / evidence / DB/browser/live/deployment proof                     | `docs/contracts/testing-and-validation-contract.md`                       |
+| Process/module architecture                                               | `docs/architecture/system-architecture.md`                                |
+| Security / reliability / observability                                    | `docs/operations/security-reliability-and-operations.md`                  |
+| Backup / restore                                                          | `docs/operations/database-backup-and-restore.md`                          |
+| Deployment / rollback / incidents                                         | `docs/operations/deployment-and-incident-runbook.md`                      |
+| Active 2.0 phases / versions                                              | `docs/roadmap/post-1.0-roadmap.md`                                        |
+| Completed MVP history                                                     | `docs/roadmap/mvp-roadmap.md`                                             |
+| Historical 2.0 planning record                                            | `docs/roadmap/2.0-planning-questions.md`                                  |
+| Product-boundary ADR                                                      | `docs/decisions/headless-distribution-product-boundary.md`                |
+| Managed/self-hostable architecture ADR                                    | `docs/decisions/managed-first-self-hostable-distribution-architecture.md` |
+| Production data/schema compatibility                                      | `docs/decisions/production-data-and-schema-compatibility.md`              |
+| Admin perimeter                                                           | `docs/decisions/cloudflare-access-admin-perimeter.md`                     |
+| UI workflow                                                               | `docs/design/README.md`, then `docs/design/ui-workflow.md`                |
+| Codex model selection                                                     | `docs/codex-model-selection.md`                                           |
+| Documentation index                                                       | `docs/README.md`                                                          |
 
 If a path does not exist, search for its current equivalent before assuming intentional deletion.
 
@@ -169,20 +169,20 @@ If a path does not exist, search for its current equivalent before assuming inte
 
 The roadmap is **ACTIVE**.
 
-| Phase | Baseline | Prompt versions | Goal |
-| --- | --- | --- | --- |
-| 1 | `1.1.0` | `1.1.x` | Distribution Profile persistence + admin control plane |
-| 2 | `1.2.0` | `1.2.x` | Canonical distribution read model |
-| 3 | `1.3.0` | `1.3.x` | Machine credentials + distribution security |
-| 4 | `1.4.0` | `1.4.x` | Versioned v1 distribution API |
-| 5 | `1.5.0` | `1.5.x` | Generic PHP synchronization + LKG core |
-| 6 | `1.6.0` | `1.6.x` | PHP local data API + customer SSR integration |
-| 7 | `1.7.0` | `1.7.x` | Managed integration + 2.0 release qualification |
-| Release | final `1.7.x` | — | terminal version-only transition to `2.0.0` |
+| Phase   | Baseline      | Prompt versions | Goal                                                   |
+| ------- | ------------- | --------------- | ------------------------------------------------------ |
+| 1       | `1.1.0`       | `1.1.x`         | Distribution Profile persistence + admin control plane |
+| 2       | `1.2.0`       | `1.2.x`         | Canonical distribution read model                      |
+| 3       | `1.3.0`       | `1.3.x`         | Machine credentials + distribution security            |
+| 4       | `1.4.0`       | `1.4.x`         | Versioned v1 distribution API                          |
+| 5       | `1.5.0`       | `1.5.x`         | Generic PHP synchronization + LKG core                 |
+| 6       | `1.6.0`       | `1.6.x`         | PHP local data API + customer SSR integration          |
+| 7       | `1.7.0`       | `1.7.x`         | Managed integration + 2.0 release qualification        |
+| Release | final `1.7.x` | —               | terminal version-only transition to `2.0.0`            |
 
 The complete detailed phase scope/exit gates live in `docs/roadmap/post-1.0-roadmap.md` and must be re-read before phase planning.
 
-Current phase is Phase 1. Its implementation may create Profile persistence, Source associations/filters, lifecycle validation, protected admin controls, and required migration/history/tests. It does **not** include the canonical distribution read model, machine auth/API, PHP, or post-2.0 packaging.
+Current phase is Phase 2. Its implementation may create the transport-independent canonical distribution Article eligibility/Profile read-model boundary, effective outward Category semantics, bounded results/history, keyset continuation positions, and deterministic snapshot revisions. It does **not** expose the v1 API, implement machine authentication or PHP/LKG, or add post-2.0 capabilities.
 
 ## Production compatibility
 
@@ -196,7 +196,7 @@ Whenever schema/persisted representation changes:
 - backup/restore/rollback planning remains compatible;
 - supported migration history is not rewritten merely for cosmetic cleanup.
 
-Phase 1 Profile persistence therefore requires Level 4 production-forward migration proof in addition to zero-to-latest migration.
+Phase 1 Profile persistence required Level 4 production-forward migration proof in addition to zero-to-latest migration.
 
 ## Validation honesty
 
@@ -218,49 +218,63 @@ Commands are conversational shorthand, not shell commands.
 ## Context
 
 ### `/boot`
+
 Refresh BOOT, root summaries, Project Contract, current product scope/ADRs, active roadmap, and the narrow governing docs for the requested work.
 
 ### `/refresh <area>`
+
 Re-read relevant source/docs/tests/recent commits.
 
 ### `/state`
+
 Summarize implementation state, current phase, completed work, constraints, and next logical work.
 
 ### `/route <topic>`
+
 Identify governing contracts/ADRs/source/tests/tasks.
 
 ## Analysis
 
 ### `/audit <area>`
+
 Compare contracts, ADRs, source, tests, recent changes, and observable behavior; report disagreements/risks.
 
 ### `/contract-check <area>`
+
 Check implementation/tests against governing contracts/laws.
 
 ### `/doc-check <area>`
+
 Narrow documentation consistency check; does not replace full `/docs-review`.
 
 ### `/source-trace <source or behavior>`
+
 Trace Publication configuration → Source → endpoint → state → job/run → safety → fetch → parse/admission → normalization/link policy → Relevance → identity/observation → duplicate → health/consumers/tests.
 
 ### `/article-trace <field or concept>`
+
 Trace Raw item → candidate → Relevance/Category → Article identity/persistence → observations → overrides → duplicate role → canonical outward semantics → consumers/tests.
 
 ### `/blast-radius <change>`
+
 Identify affected contracts, ADRs, schema/migrations, jobs/services/routes/read models/UI/tests/docs.
 
 ### `/regression <behavior>`
+
 Trace suspected regression to likely change, affected invariants, missing test protection, and required evidence.
 
 # Documentation workflow
 
 ## `/docs-review`
+
 Read-only. Default scope is tracked `.md`/`.txt` excluding task and validation artifacts unless narrowed. Report contradictions, drift, stale statements, duplicated authority, missing references, and recommended changes. Never modify files.
 
 ## `/docs-apply`
+
 Apply only approved documentation findings after re-reading current targets. Do not alter source, migrations, tests, dependencies, runtime config, or package version unless separately explicitly authorized.
 
 ## `/docs-prompt`
+
 Docs-only prompt-generation alternative after an approved `/docs-review`. Normally uses `npm run docs:snapshot` and the supplied docs snapshot. It emits one implementation-ready Codex docs prompt and does not implement product work.
 
 # Implementation prompt workflow
@@ -278,9 +292,9 @@ The roadmap is now active, so this workflow is authorized for the current phase.
 Current invocation target:
 
 ```text
-/prompt-ass Phase 1
+/prompt-ass Phase 2
 → /prompt-plan
-→ /prompt-write p1-1
+→ /prompt-write p1-2
 ```
 
 If requirements/docs/repository state materially conflict, return `Planning needed` rather than silently changing the roadmap.
@@ -293,7 +307,7 @@ Return target behavior, constraints, roadmap phase, stack type, prompt count/ord
 
 Explicitly assess producer→consumer boundaries. Split transactional/state-machine work from separately consumed read/API work when consumers, tests, or failure risks differ materially. Testing is part of task decomposition.
 
-For current Phase 1, plan only the Profile persistence/control-plane foundation and its downstream handoff to Phase 2.
+For current Phase 2, plan only the canonical distribution read-model foundation and its downstream handoff to the machine-authentication and API phases.
 
 ## `/prompt-plan`
 
@@ -311,14 +325,14 @@ Reassess model/effort using the minimum-cost-adequate rule and produce the small
 
 Requires an unblocked `/prompt-plan`. Revalidate current repo/docs and write ordered prompts under `docs/tasks/<folder name>/`.
 
-Current Phase 1 folder is `p1-1`.
+Current Phase 2 folder is `p1-2`.
 
 Each roadmap prompt includes exact runner metadata, finalized model/reasoning/usage block, focused iterative validation, smallest non-overlapping final validation, downstream handoff gates where relevant, package-version rules, acceptance, and non-goals.
 
 When local execution is available run:
 
 ```text
-npm run codex:phase:validate -- p1-1
+npm run codex:phase:validate -- p1-2
 ```
 
 before reporting the stack ready.
@@ -343,7 +357,7 @@ The shared parser is `scripts/codex-phase-core.mjs`.
 - exactly one phrase `assigned project version is` followed by `1.<phase>.<prompt number>`;
 - no correction unchanged-version metadata.
 
-The runner detects completed implementation prompts from exact reachable commit subjects and requires package version to match the Git-proven completed prefix. With no completed Phase 1 prompt, `p1-1` expects baseline `1.1.0`.
+The runner detects completed implementation prompts from exact reachable commit subjects and requires package version to match the Git-proven completed prefix. With no completed Phase 2 prompt, `p1-2` expects baseline `1.2.0`.
 
 ## Corrections
 
@@ -421,7 +435,7 @@ This terminal rule is the 2.0 analogue of the already-completed historical Phase
 # Versioning
 
 - `package.json` is the sole current-version authority.
-- Current version is `1.1.0`.
+- Current version is `1.2.0`.
 - Phase prompt versions are `1.<phase>.<prompt>`.
 - Non-terminal baseline transitions are `1.<next phase>.0`.
 - Final release only is `2.0.0`.
@@ -477,10 +491,10 @@ The bundled/reference frontend UI work does not govern customer-site integration
 
 ## Current next action
 
-The roadmap is active and Phase 1 is authorized. The next normal implementation-planning command is:
+The roadmap is active and Phase 2 is authorized. The next normal implementation-planning command is:
 
 ```text
-/prompt-ass Phase 1
+/prompt-ass Phase 2
 ```
 
-which should decompose the Distribution Profile foundation into the smallest safe `p1-1` prompt stack before `/prompt-plan` and `/prompt-write p1-1`.
+which should decompose the canonical distribution read model into the smallest safe `p1-2` prompt stack before `/prompt-plan` and `/prompt-write p1-2`.

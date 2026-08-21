@@ -21,7 +21,9 @@ Wire, authentication, cursor, and compatibility details are governed by `distrib
 
 Canonical distribution eligibility is independent of Publication `public_status`. It requires an approved, active Source; a visible Article; an ungrouped Article or the Primary member of a Duplicate group; the stored `original_url` destination; and canonical chronological ordering. `public_status` controls only bundled `GET /` and `GET /api/feed`.
 
-A Profile has at least immutable `config_key`, mutable `display_name`, lifecycle `draft`/`active`/`disabled`, and a bounded result/history limit defaulting to 100 items. A central hard maximum MAY be enforced, but consumers cannot request unbounded history. An active Profile requires at least one usable approved Source association; drafts MAY be incomplete. Once activated, a Profile SHOULD be disabled rather than deleted so its key remains stable. Draft-only deletion MAY be supported.
+A Profile has at least immutable `config_key`, mutable `display_name`, lifecycle `draft`/`active`/`disabled`, and a bounded result/history limit defaulting to 100 items. A central hard maximum MAY be enforced, but consumers cannot request unbounded history. An active Profile requires at least one associated Source that is `approved` and `active`; drafts MAY be incomplete. Source operational state is orthogonal: it controls collection execution, not Profile usability or canonical distribution eligibility. Once activated, a Profile SHOULD be disabled rather than deleted so its key remains stable. Draft-only deletion MAY be supported.
+
+Profile activation/reactivation, association removal, Source unapproval, and Source archival MUST be coordinated transactionally so none can commit an active Profile with zero usable associated Sources. Concurrent Profile/Source state changes must preserve that invariant without bypassing it or deadlocking through inconsistent lock ordering.
 
 An authenticated `profile_disabled` response is authoritative: adapters may retain cached bytes for recovery, but mark the local Profile disabled and MUST NOT render its cached Articles. Rendering resumes only after a later successful synchronization.
 

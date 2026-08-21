@@ -19,14 +19,14 @@ Use a change record that never contains secrets.
 7. Apply migrations only with `npm run db:migrate`. Run status again and require `{"state":"current"}`. Record ordered filenames and ledger state; never edit migration files or the ledger.
 8. Start Web first and require `web.listening`. Verify `/health/live`, `/health/ready`, `/`, and `/api/feed`; an empty public feed is valid and a private/absent Publication uses bounded unavailable behavior.
 9. Start Worker and require `worker.ready`. Observe scheduler, dispatcher, lease, and stale-recovery diagnostics. Startup failure or repeated scheduler/job/recovery failures is a stop/rollback signal.
-10. Through authorized Cloudflare Access, load `/admin`, Operations, Sources/endpoints, and a harmless read. Do not automate an authorized Access identity in the shared validator.
+10. Through authorized Cloudflare Access, load `/admin`, Operations, Sources/endpoints, Distribution Profiles, and a harmless read. Do not automate an authorized Access identity in the shared validator.
 11. Require no unexplained unhealthy endpoints, scheduling delay, queue age, capacity saturation, expired jobs, or growing failures in Operations. Compare with the pre-deploy snapshot.
 12. Run `npm run deployment:validate -- <private-reference-config.json>` and retain its observations. Phase 20 launch validation repeated the authorized-operator and actual origin-protection observations manually against its launched-tree candidate; later deployments must repeat evidence appropriate to their own perimeter.
 13. Record SHA, package version, runtime/database versions, migration state, backup identifier, process observations, validator output, timestamp, and approver. Phase 20 acceptance already owns the initial production-baseline record; this step records the current deployment event.
 
 ## 2.0 managed distribution checks
 
-As the active roadmap introduces Distribution Profiles, machine credentials, the v1 API, and the generic PHP integration, managed deployment validation expands without creating a separate deployment topology.
+The Distribution Profile foundation is implemented. As later roadmap phases introduce machine credentials, canonical distribution read delivery, the v1 API, and the generic PHP integration, managed deployment validation expands without creating a separate deployment topology.
 
 The final 2.0 managed integration must observe, as applicable:
 
