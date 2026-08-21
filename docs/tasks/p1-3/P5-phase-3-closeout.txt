@@ -1,0 +1,396 @@
+TASK: Phase 3 / P5 — Phase 3 closeout
+
+- Recommended configuration: `Sol Light`.
+- Model-family basis: repository policy deliberately uses Sol's stronger independent code-reading/review capability for roadmap closeout while keeping reasoning effort low unless a concrete finding requires escalation.
+- Reasoning basis: the integrated phase crosses cryptography, persisted verifier state, lifecycle, authentication, abuse limiting, admin HTTP, and one-time-secret browser behavior; three independent review passes provide the required hardening without pre-paying for deeper reasoning.
+- Complexity / quality floor: `Critical`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: none under the current closeout policy.
+- Escalation trigger: any pass finds unresolved verifier/secret leakage, timing/auth-state oracle risk, limiter-bypass/resource-exhaustion uncertainty, production-migration/data-integrity uncertainty, machine/admin authority ambiguity, or another issue that cannot be confidently classified as a bounded closeout repair.
+- Escalation target: `Terra High`/`Terra Ultra` for explicit security/state/concurrency reasoning or a higher-effort Sol configuration for ambiguous cross-system/contract reconciliation, chosen from the observed cause.
+- Estimate confidence: `High`.
+- Efficiency rationale: Sol Light is the repository-mandated independent-review floor; deeper capability is purchased only if the final implementation exposes a concrete hard problem.
+
+The assigned project version is `1.3.5`.
+
+## Goal
+
+Perform the independent final Phase 3 closeout against the exact integrated P1-P4 tree, make only bounded unambiguous repairs/tests already inside Phase 3 scope, execute the complete applicable evidence matrix, and write the durable Phase 3 validation artifact.
+
+This is not a feature prompt. Do not build the Phase 4 distribution route or reinterpret contracts to make the implementation pass.
+
+The final result remains **HUMAN REVIEW REQUIRED**. Do not perform conversational `/closeout` or advance to `1.4.0`.
+
+## Prerequisite
+
+P1-P4 must be committed as the reachable Phase 3 implementation prefix with package version `1.3.4` and exact runner-recognizable roadmap commit subjects.
+
+If Git history/package version does not prove that prefix, stop and report the mismatch before reviewing behavior.
+
+## Read first
+
+Read:
+
+1. current `BOOT.md` and `AGENTS.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/product-scope-and-users.md`;
+4. `docs/contracts/distribution-api-contract.md`;
+5. `docs/contracts/distribution-and-integration-contract.md`;
+6. `docs/contracts/domain-and-data-contract.md`;
+7. `docs/contracts/public-feed-and-admin-contract.md`;
+8. `docs/contracts/testing-and-validation-contract.md`;
+9. `docs/operations/security-reliability-and-operations.md`;
+10. `docs/decisions/production-data-and-schema-compatibility.md`;
+11. `docs/architecture/system-architecture.md`;
+12. Phase 3 and Phase 4 roadmap entries in `docs/roadmap/post-1.0-roadmap.md`;
+13. every Phase 3 prompt under `docs/tasks/p1-3/`;
+14. the complete Phase 3 diff from the exact pre-P1 base through current HEAD;
+15. every important changed producer and consumer, not only files named in prompts;
+16. all focused tests added/changed by P1-P4 plus existing admin/security/database/recovery/browser regressions implicated by the phase.
+
+Establish the exact Phase 3 base commit from Git/task history. Do not guess a SHA from conversation text.
+
+## Pass 1 — Contract and evidence review
+
+Review the integrated implementation against every Phase 3 roadmap exit condition and governing machine-security contract.
+
+### Credential generation and persisted state
+
+Verify from source and evidence that:
+
+- bearer secrets are generated with strong cryptographic randomness and at least the planned entropy floor;
+- the token format is canonical, bounded, versioned/forward-versionable, and supports indexed non-secret lookup without scanning verifier rows;
+- plaintext bearer tokens are returned only at issue/rotation time and are never persisted;
+- PostgreSQL stores only non-secret lookup identity, secure verifier/digest, fixed `distribution:read` capability, label, lifecycle/audit timestamps, optional expiry, revocation state, and bounded non-secret rotation lineage where implemented;
+- ordinary repository/admin read models cannot expose verifier bytes;
+- audit records, error objects, logs, test snapshots, and browser persistence do not contain bearer plaintext or verifier bytes;
+- multiple credentials may coexist in one instance without creating tenancy or a credential↔Profile authorization matrix.
+
+### Production schema compatibility
+
+Verify:
+
+- migration `0016` (or the actual planned additive Phase 3 migration) follows the existing supported chain without rewriting `0001`–`0015`;
+- migration from zero succeeds;
+- a real supported production-forward upgrade preserves pre-existing governed customer state;
+- credential verifier/lifecycle state created on the new schema round-trips and survives native backup/restore;
+- migration/recovery tests do not use plaintext persistence as their proof mechanism;
+- rollback/restore assumptions remain compatible with the production-data ADR.
+
+### Lifecycle and rotation
+
+Verify:
+
+- issue/list/revoke/rotate semantics have one owning service/repository path;
+- revocation retains the record and blocks later machine authentication;
+- expiration is optional and evaluated predictably at the exact boundary;
+- rotation creates a distinct new credential and leaves the predecessor usable until explicit revocation/expiry;
+- no operation silently recovers or copies predecessor plaintext;
+- repeated revocation is deterministic/bounded and cannot corrupt lifecycle state;
+- rotation/revocation audit state contains only redacted metadata.
+
+### Machine authentication
+
+Verify:
+
+- machine credentials are accepted only as caller-supplied Authorization Bearer values through the canonical auth boundary;
+- token query-string/body/cookie credential acceptance has not been introduced;
+- P2 reuses P1 parsing, verifier derivation, and indexed auth lookup rather than duplicating them;
+- unknown lookup IDs still execute fixed verifier-comparison work against a dummy verifier rather than trivially skipping comparison;
+- stored/candidate verifier comparison uses appropriate fixed-length timing-safe comparison;
+- malformed, unknown, wrong-secret, revoked, expired, capability-invalid, and unusable/corrupt credentials collapse to one outward unauthenticated result without credential-state leakage;
+- successful principals contain only redacted non-secret identity plus `distribution:read`;
+- no Profile key is required to authenticate and no Profile-specific permission/403 model exists.
+
+Do not require flaky wall-clock timing equality. Require structural boundedness and absence of obvious existence/state shortcuts.
+
+### Rate/abuse foundation
+
+Verify:
+
+- authenticated rate limiting is keyed by non-secret credential identity;
+- invalid-auth abuse limiting is separately keyed by bounded caller-provided network identity;
+- future HTTP/proxy code, not this security core, owns trusted client-network extraction;
+- limiter state is memory/cardinality bounded and cleans/evicts stale attacker-controlled keys safely;
+- bearer plaintext is never a limiter key;
+- exact limit/time boundaries produce deterministic positive `retryAfterSeconds`;
+- failed authentication does not consume a guessed valid credential's authenticated quota;
+- successful authentication does not consume invalid-auth failure quota;
+- current process-local semantics are represented honestly and are not documented/tested as cross-process distributed enforcement.
+
+### Human admin controls
+
+Verify:
+
+- create/list/revoke/rotate admin operations are protected by the existing admin surface and mutation-integrity middleware;
+- the admin API is a thin consumer of P1 lifecycle and does not reconstruct verifier/lifecycle logic;
+- list/revoke responses contain only safe metadata;
+- create/rotate expose only the newly generated plaintext token as explicit transient response data;
+- no route exists to reveal an old token;
+- machine bearer credentials are never interpreted as human administrator authority;
+- current Cloudflare Access perimeter assumptions remain unchanged and local tests do not falsely claim to validate Cloudflare itself.
+
+### Browser workspace
+
+Verify:
+
+- the credential workspace consumes only P3 protected routes;
+- one-time token display is transient and cleared on dismissal/navigation/replacement/reload as implemented;
+- plaintext is absent from URL/localStorage/sessionStorage/cookies/long-lived global state/console/error text;
+- rotate UX clearly states predecessor overlap until explicit revoke/expiry;
+- revoke retains historical metadata;
+- verifier/digest fields are never rendered;
+- accessibility, narrow-viewport usability, and existing admin workspace behavior remain intact.
+
+### Phase 4 producer readiness
+
+Audit this exact handoff:
+
+`downstream-required capability -> owning implementation/export -> focused proof`
+
+Require a concrete owner/proof for:
+
+- strict Authorization Bearer parsing;
+- token version/shape validation;
+- indexed non-secret lookup;
+- verifier candidate derivation + timing-safe comparison;
+- dummy verifier path for unknown identity;
+- revocation/expiration/capability authorization decision;
+- redacted authenticated machine principal;
+- generic unauthenticated outcome;
+- per-credential limit decision;
+- invalid-auth network abuse decision;
+- positive `retryAfterSeconds` on rate-limited outcomes;
+- strict absence of admin authority;
+- instance scope/no Profile permission matrix.
+
+Phase 4 must be able to compose the Phase 2 Profile page producer with the Phase 3 security guard without inventing credential SQL, token parsing, lifecycle interpretation, verifier checks, quota counters, or authorization semantics.
+
+## Pass 2 — Error and edge-case adversarial review
+
+Independently derive realistic attacks/failures from the final implementation. Do not merely confirm test names.
+
+At minimum inspect applicable cases involving:
+
+### Token/verifier attacks
+
+- absent header;
+- multiple/combined Authorization header values as represented by Express/Node;
+- wrong scheme;
+- case/whitespace edge cases according to the chosen strict grammar;
+- empty token;
+- wrong version/prefix;
+- too many/few token components;
+- malformed base64url/UUID/lookup encoding;
+- control characters;
+- embedded delimiters;
+- huge header/token inputs;
+- unknown lookup identity;
+- valid lookup with random wrong secret;
+- truncated/extended secret;
+- verifier length corruption;
+- persisted malformed capability/verifier state;
+- accidental string comparison instead of fixed-byte safe comparison;
+- different work path for unknown identity that creates an obvious lookup-existence oracle;
+- token or verifier values entering thrown errors/logs.
+
+### Lifecycle/race/state combinations
+
+- revocation immediately before/after authentication lookup;
+- expiry exactly at `now`;
+- clock injection/timezone conversion errors;
+- rotate then authenticate old/new;
+- rotate then revoke predecessor;
+- revoke then repeated revoke;
+- attempts to rotate a missing/revoked/expired predecessor according to the final documented service semantics;
+- concurrent-ish repeated admin rotate submissions producing multiple successors;
+- transaction/audit failure after mutation begins;
+- duplicate/colliding lookup identity retry behavior;
+- dependency failure during issue/rotate without leaking transient secret into persistence/audit;
+- database restart/service reconstruction using verifier-only state.
+
+Where current architecture is single-process and operations are short transactions, do not invent unsupported distributed guarantees; still ensure failure/transaction boundaries are coherent.
+
+### Rate/abuse attacks
+
+- exact quota boundary;
+- window/refill rollover;
+- very large/invalid policy values;
+- empty/oversized network keys;
+- flood of unique invalid-auth keys;
+- stale-key cleanup and hard-cap behavior;
+- eviction strategy enabling trivial unlimited bypass;
+- one credential starving another;
+- invalid attempt with a guessed valid lookup identity debiting that valid credential;
+- blocked invalid network path continuing to hit PostgreSQL unnecessarily;
+- retryAfter zero/negative/NaN/overflow;
+- wall-clock changes if implementation incorrectly depends on non-monotonic assumptions;
+- limiter object recreated per request, accidentally disabling enforcement.
+
+### Admin/browser secret leakage
+
+- one-time token included in ordinary list state after create/rotate;
+- token copied into audit event JSON;
+- token in browser URL/history;
+- token retained after dismiss or workspace navigation;
+- token redisplayed after hard reload;
+- previous token remaining when a rotation returns a new token;
+- token in thrown fetch error/console diagnostics;
+- verifier field accidentally serialized because a repository object is spread into JSON;
+- machine bearer token bypassing admin mutation integrity;
+- admin disabled but credential routes accidentally mounted;
+- CSP weakened to support the new UI.
+
+For each plausible issue classify it as:
+
+1. already protected by source structure + executed evidence;
+2. bounded Phase 3 bug/test gap that can be repaired inside closeout;
+3. meaningful behavior-preserving refactor requiring the Terra High handoff below; or
+4. contract/architecture/new-scope problem requiring stop/escalation/replanning.
+
+A bounded closeout repair is permitted only when behavior is already unambiguous under Phase 3 contracts and all invalidated evidence can be rerun.
+
+## Pass 3 — Code-quality and structural review
+
+Inspect the complete final Phase 3 diff plus important surrounding producers/consumers for:
+
+- duplicated token parsing/verifier derivation across P1/P2/P3;
+- controllers or UI knowing verifier/table topology;
+- credential lifecycle business rules duplicated in admin/router/browser layers;
+- generic capability/role frameworks beyond `distribution:read`;
+- credential↔Profile authorization scaffolding despite the contract;
+- bearer auth accidentally coupled into existing human admin middleware;
+- Phase 4 HTTP status/route/CORS/Profile response logic pulled into Phase 3;
+- mutable/global secret-containing state with excessive lifetime;
+- plaintext or digest represented in broad reusable DTOs;
+- raw PostgreSQL errors or credential-state reasons escaping external boundaries;
+- limiter state with unbounded maps, global singleton coupling that cannot be tested/reset, or unnecessary persistence;
+- proxy/client-IP interpretation embedded below the future HTTP trust boundary;
+- unnecessary crypto/auth dependencies when Node built-ins suffice;
+- write amplification such as updating credential rows on every authentication without a governed requirement;
+- speculative deletion/recovery/account features;
+- dead/compatibility-only code left after implementation;
+- brittle tests asserting implementation strings instead of security outcomes;
+- missing producer-handoff tests that would force Phase 4 to reverse-engineer semantics.
+
+Small local cleanup or obvious dead-code removal may be done inside closeout when behavior is unchanged and affected tests are rerun.
+
+### Mandatory Terra High refactor handoff
+
+If any review pass finds a **meaningful behavior-preserving refactor** is required, do not perform that refactor in this Sol Light closeout.
+
+Stop and output exactly one self-contained transient **Terra High refactor remediation prompt** that:
+
+- recommends exactly `Terra High`;
+- states the observed structural problem and concrete source/test evidence;
+- defines the smallest behavior-preserving refactor boundary and important producers/consumers;
+- preserves credential secrecy, verifier integrity, migration/data preservation, lifecycle/rotation/revocation, generic authentication failures, limiter behavior, machine/admin separation, existing admin/public behavior, and all other implicated locked laws;
+- forbids unrelated cleanup, product changes, contract/ADR changes, roadmap expansion, Phase 4 route work, Profile authorization, and speculative abstractions;
+- preserves package version `1.3.5` and consumes no roadmap/correction prompt number;
+- requires focused tests plus every broader regression invalidated by the refactor;
+- requires an implementation report but MUST NOT declare Phase 3 GREEN or finalize the durable closeout artifact;
+- instructs Terra High to stop if the work actually requires a new contract/ADR, new roadmap scope, difficult distributed/concurrency architecture, or another materially different decision.
+
+After remediation is applied, rerun this P5 closeout from the beginning. Only the rerun may establish the accepted Phase 3 tree and validation artifact.
+
+## Required final validation matrix
+
+On the exact final source tree being claimed as Phase 3 GREEN, execute:
+
+```text
+npm run check
+npm run test:security
+npm run test:db
+npm run test:recovery
+npm run test:browser
+npm run codex:phase:validate -- p1-3
+git diff --check <phase-base>...HEAD
+git diff --check
+```
+
+Resolve `<phase-base>` to the exact commit immediately before P1.
+
+Requirements:
+
+- `npm run check` covers formatting/lint/typecheck/ordinary unit+integration+collection suites;
+- `npm run test:security` is mandatory authoritative focused regression evidence for bearer secret/auth/admin-separation behavior;
+- `npm run test:db` is mandatory Level 4 evidence for migration, verifier persistence, lifecycle, auth lookup, and production-upgrade behavior;
+- `npm run test:recovery` is mandatory because Phase 3 introduces durable verifier/lifecycle state that must survive native backup/restore;
+- `npm run test:browser` is mandatory because P4 adds a security-sensitive one-time-secret admin workflow;
+- phase validation must prove exactly P1-P5, versions `1.3.1` through `1.3.5`, supported model labels, and one final P5 closeout;
+- diff checks must cover committed phase work and any uncommitted closeout repair/artifact changes.
+
+Do not run/claim live-Source or deployment validation merely to inflate evidence; Phase 3 does not change Source collection or expose the distribution HTTP route. If actual implementation unexpectedly changes deployment/runtime configuration in a way requiring deployment proof, add it and document the plan deviation.
+
+## Durable validation artifact
+
+Create:
+
+`docs/validation/phase-3-machine-credentials-and-distribution-security.md`
+
+or an equivalently clear Phase 3-specific filename if that path already exists for a legitimate reason.
+
+Record:
+
+- status `Phase 3 GREEN — HUMAN REVIEW REQUIRED` only if every gate passes;
+- exact Phase 3 base SHA;
+- P1-P5 implementation/closeout identities as applicable;
+- exact final accepted tree/diff identity, including any uncommitted closeout diff identity if repository workflow still uses that pattern;
+- package version `1.3.5`;
+- Node/npm/PostgreSQL/Playwright versions actually observed where relevant;
+- exact validation commands and reported pass/fail counts;
+- evidence-level distinctions;
+- Pass 1 contract/evidence findings;
+- Pass 2 adversarial hypotheses/findings/disposition;
+- Pass 3 structural findings/disposition;
+- every bounded closeout repair/test addition and evidence rerun afterward;
+- whether a Terra High refactor handoff occurred before successful rerun;
+- migration-from-zero, supported production-forward, and backup/restore status;
+- explicit secret-safety statement covering plaintext/verifier persistence/audit/log/browser surfaces;
+- explicit machine/admin separation status;
+- explicit Phase 4 producer-handoff matrix/status;
+- explicit statement that no distribution HTTP route/Profile permission matrix/PHP/post-2.0 capability was implemented;
+- explicit limitations: no live-Source/deployment/API-route proof unless actually observed;
+- any unresolved limitation. Do not declare GREEN with an unresolved blocker.
+
+Do not rewrite historical validation artifacts.
+
+## Version and repository rules
+
+- Update only top-level `package.json` from `1.3.4` to `1.3.5` as this P5 version before final validation.
+- Do not advance to `1.4.0`; conversational `/closeout` owns that version-only transition after human acceptance.
+- Do not edit contracts/ADRs/roadmap/current routing merely to reflect successful implementation; normal post-closeout docs review follows acceptance.
+- Do not modify historical task prompts or validation evidence.
+- The new Phase 3 validation artifact is authorized.
+
+## Non-goals
+
+Do not implement:
+
+- `GET /api/v1/distribution/{profile_key}` or cursor route;
+- HTTP `401`/`429`/`Retry-After` serialization beyond testing the producer outcome contract;
+- Profile lookup/authorization or credential↔Profile permissions;
+- ETag/304/distribution telemetry route behavior;
+- PHP/LKG;
+- WordPress/RSS/Atom/self-host packaging;
+- native human admin authentication;
+- credential deletion/plaintext recovery;
+- billing quotas;
+- unrelated refactors/features.
+
+## Final decision and report
+
+Declare `Phase 3 GREEN — HUMAN REVIEW REQUIRED` only when:
+
+1. all three independent review passes are complete;
+2. every bounded finding is repaired or explicitly proven safe;
+3. no meaningful refactor/security/architecture blocker remains;
+4. the complete required validation matrix passes on the exact final tree;
+5. the durable validation artifact accurately records evidence and limitations;
+6. package version is exactly `1.3.5`;
+7. Phase 4 can consume one tested machine-security interface without inventing Phase 3-owned semantics;
+8. no plaintext/verifier leakage or machine/admin authority violation remains.
+
+Otherwise report the blocking finding and required next action without pretending the phase is complete.
+
+The final terminal output should be concise and easy to copy for human review: status, exact accepted tree/diff identity, package version, key three-pass findings, validation commands/results, secret-safety and migration status, Phase 4 handoff status, whether any closeout repair/refactor handoff occurred, artifact path, and next human workflow step. Do not perform `/closeout` automatically.
