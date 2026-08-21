@@ -1,0 +1,351 @@
+TASK: Phase 1 / P5 — Distribution Profile foundation closeout
+
+PHASE CLOSEOUT SCOPE
+This is the sole final closeout prompt for Phase 1 — Distribution Profile foundation. P1–P4 should have established production-safe Profile persistence, transactional lifecycle/application authority, protected admin HTTP controls, and the Profiles admin workspace.
+
+This prompt is an independent final review and evidence gate. It may repair only a genuinely bounded unambiguous Phase 1 defect/test gap under the rule below. It must not become a fifth feature implementation task, a broad refactor phase, or an excuse to pull Phase 2 distribution-read behavior forward.
+
+A GREEN P5 does not perform the roadmap `/closeout` transition to `1.2.0`. After human review accepts this closeout and its durable validation artifact, the normal conversational `/closeout` owns the package-version-only transition to the Phase 2 baseline.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Model-family basis: repository policy intentionally uses Sol Light for final roadmap closeout so the integrated tree receives stronger independent code-reading/review capability without automatically paying for deep implementation reasoning.
+- Reasoning basis: Light is the default closeout effort because P1–P4 should already have resolved implementation semantics. This prompt must perform three distinct review passes and escalate rather than forcing ambiguous architecture/concurrency/security redesign through a low-effort closeout.
+- Complexity / quality floor: `Critical`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: Terra-family closeout; rejected because `docs/codex-model-selection.md` deliberately reserves Sol Light as the normal independent roadmap closeout baseline.
+- Escalation trigger: material architectural ambiguity, difficult concurrency/transaction ownership uncertainty, security-boundary uncertainty, or a meaningful behavior-preserving structural refactor discovered during review.
+- Escalation target: deeper explicit issues use the minimum adequate Terra High/Terra Ultra or higher-effort Sol according to repository policy; meaningful behavior-preserving structural refactors use the mandatory Terra High remediation handoff below.
+- Estimate confidence: `High`.
+- Efficiency rationale: inspect the integrated diff and existing tests first, add only bounded missing regression proof/repairs, then execute one non-overlapping final validation matrix and record exact evidence.
+
+VERSIONING
+This prompt's assigned project version is `1.1.5`.
+- Before editing, require top-level `package.json` to be either the expected preceding version `1.1.4` or already `1.1.5` for a safe rerun.
+- Set only the top-level `package.json` version to `1.1.5` before final validation.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Do not transition to `1.2.0`; that belongs only to the later human-reviewed conversational `/closeout`.
+- Do not perform a manual implementation-prompt Git commit; runner invocation of this closeout remains HUMAN REVIEW REQUIRED and does not imply acceptance.
+
+MANUAL / HUMAN REVIEW BOUNDARY
+Treat this closeout as HUMAN REVIEW REQUIRED even when invoked with `npm run codex:phase -- p1-1 --closeout`.
+
+A final response saying GREEN is advisory until the repository owner reviews and accepts it.
+
+This closeout may write only:
+- top-level `package.json` version `1.1.5`;
+- one or more genuinely small, unambiguous Phase 1 defect/test repairs when allowed by the bounded repair rule and when affected evidence is rerun;
+- the durable Phase 1 validation artifact after the exact final tree is genuinely green.
+
+Do not update BOOT roadmap phase state, the roadmap's current phase, contracts, ADRs, or package baseline to `1.2.0` in this prompt.
+
+MANDATORY HANDOFF
+Before any substantive write:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/codex-model-selection.md`, `docs/contracts/project-contract.md`, `docs/contracts/domain-and-data-contract.md`, `docs/contracts/distribution-and-integration-contract.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/decisions/production-data-and-schema-compatibility.md`, `docs/roadmap/post-1.0-roadmap.md`, and relevant admin/security/backup documentation routed by BOOT;
+2. read P1, P2, P3, P4, and this P5 prompt in `docs/tasks/p1-1/`;
+3. identify the exact Phase 1 implementation-stack base immediately before P1 implementation and the exact reachable P1–P4 commits using runner commit-subject/history rules rather than assuming a stale planning SHA;
+4. inspect the complete Phase 1 implementation diff and current final P1–P4 source/tests, not only implementation reports;
+5. inspect `migrations/0015_distribution_profiles.sql`, Profile configuration/repository/application/router/UI modules, Source/Editorial integration points, audit-event integration, and all new/modified focused tests;
+6. inspect current `package.json`, require version `1.1.4` or safe-rerun `1.1.5`, and confirm no lockfile was introduced;
+7. confirm migrations `0001` through `0014` remain byte-identical to the accepted supported production history and that the Phase 20 production baseline evidence is still the governing upgrade input;
+8. confirm no Phase 2 canonical distribution read model, machine API/auth, PHP/LKG, or post-2.0 feature was mixed into Phase 1;
+9. stop and report sequence/scope drift if the implemented tree no longer corresponds to the approved Phase 1 stack or if a governing contract changed materially.
+
+GREEN PHASE GOAL
+Phase 1 is GREEN only if the exact accepted `1.1.5` tree proves the roadmap exit gate:
+
+- an authorized administrator can create a draft Profile;
+- configure mutable name/result limit;
+- configure explicit Source associations with bounded include/exclude/Category filters;
+- activate only when valid;
+- disable and reactivate safely;
+- reload exact persisted state;
+- PostgreSQL preserves immutable Profile keys and relationship integrity;
+- active Profiles cannot be left with zero usable approved+active Sources, including under concurrent Profile/Source mutations;
+- Category deletion respects retained Profile references;
+- material Profile mutations have transactional append-only audit history;
+- zero-to-current migration is green;
+- real supported production-forward migration from accepted `0001`–`0014` preserves governed prior state;
+- backup/restore preserves Profile state;
+- protected admin HTTP/UI remain bounded and safe;
+- the complete persisted/application Profile boundary required by Phase 2 exists and is proven without Phase 2 needing to invent producer-owned SQL/state/topology semantics.
+
+PASS 1 — CONTRACT / EVIDENCE REVIEW
+Review the implementation against every governing Phase 1 requirement and explicitly record each disposition.
+
+A. PRODUCT / DOMAIN BOUNDARY
+Verify:
+- Profiles are installation-owned peer resources to Sources, not Publications/customers/tenants;
+- no Publication UUID/slug/FK/scope was introduced for Profiles;
+- Profile filtering remains configuration only in Phase 1 and does not alter Source trust, collection, Article identity, provenance, Relevance, Categories, moderation, duplicate state, or existing outward behavior;
+- no indie-author/client-specific behavior entered shared engine/UI code;
+- Source configuration/collection remains singular rather than duplicated into Profile state.
+
+B. PERSISTENCE / MIGRATION
+Verify:
+- exactly one justified additive Profile migration follows `0014`;
+- supported migrations `0001`–`0014` were not rewritten/squashed/reordered;
+- Profile config key is unique and database-enforced immutable;
+- display/lifecycle/result/filter bounds are deterministic and consistent between application normalization and PostgreSQL where applicable;
+- Profile↔Source and Profile↔Category relationships use real peer FKs and safe delete behavior;
+- ordered phrases/Category filters reload deterministically;
+- P1 repository exposes one complete Profile aggregate by immutable config key containing every field Phase 2 needs to interpret Profile configuration without child-table SQL.
+
+C. LIFECYCLE / RELATIONSHIP AUTHORITY
+Verify:
+- creation always yields draft;
+- supported transition matrix is draft→active, active→disabled, disabled→active;
+- activation requires at least one associated Source with approval=`approved` and lifecycle=`active`;
+- Source operational state is not Profile usability;
+- active association removal cannot remove the final usable Source;
+- Source unapproval/archive cannot leave any active Profile without another usable Source;
+- draft/disabled Profiles may be incomplete;
+- all multi-resource changes are transactional;
+- Category deletion uses retained FK integrity and existing `category_in_use` semantics;
+- Profile deletion was not introduced.
+
+D. CONCURRENCY
+Inspect the actual lock order and race tests. Prove:
+- one global Profile→Source row-lock ordering is consistently observed wherever both resources participate;
+- Source-side invalidation checks re-read state under locks rather than trusting stale pre-lock state;
+- activation/removal and Source unapproval/archive races terminate without deadlock in real PostgreSQL evidence;
+- committed state never contains an active Profile with zero approved+active associated Sources.
+
+E. AUDIT HISTORY
+Verify:
+- Profile audit records reuse governed append-only audit storage rather than a parallel history subsystem;
+- target type/actions are bounded and stable;
+- material Profile commands commit audit + mutation atomically;
+- failed/rolled-back commands produce no success audit row;
+- prior/new JSON remains bounded and does not dump arbitrary secrets/unbounded state.
+
+F. ADMIN HTTP
+Verify:
+- only the approved `/admin/api/distribution-profiles` control-plane routes exist;
+- no Profile business logic or SQL exists in Express routes;
+- existing admin enablement/request-integrity/JSON/no-store/security middleware applies;
+- known application failures map to bounded 400/404/409 classes;
+- unknown errors do not leak SQL/stack/secrets;
+- no `/api/v1/distribution/...` route or machine auth was introduced.
+
+G. ADMIN WORKSPACE
+Verify through source and browser evidence:
+- Profiles workspace is reachable without breaking existing workspaces;
+- create/configure/association/filter/lifecycle flows use only P3 plus shared Source/Category catalog;
+- server responses replace local state authoritatively;
+- server conflicts remain visible without corrupting workspace state;
+- refresh/hard reload reconstructs exact configured state;
+- accessible names/keyboard/narrow-viewport behavior is meaningful;
+- no Article selection preview/query logic was smuggled into JavaScript.
+
+H. PRODUCTION / RECOVERY EVIDENCE
+Verify actual executed tests prove:
+- migration from zero;
+- a database genuinely starting from accepted migration files `0001`–`0014`, then applying `0015`, preserves representative governed prior state;
+- native backup/restore preserves introduced Profile configuration;
+- required specialized suites fail rather than silently skip when prerequisites are absent.
+
+I. DOWNSTREAM PHASE 2 HANDOFF
+Map explicitly:
+
+`Phase 2 needs Profile key/name/lifecycle/result limit -> Profile repository aggregate -> focused DB proof`
+
+`Phase 2 needs Source memberships -> Profile repository aggregate -> focused DB proof`
+
+`Phase 2 needs include/exclude/category selectors -> Profile repository aggregate -> ordered round-trip proof`
+
+`Phase 2 needs Source stable identity/current approval+lifecycle -> Profile repository aggregate -> mapping proof`
+
+`Phase 2 must not own lifecycle/activation semantics -> P2 administration authority -> lifecycle/invariant proof`
+
+If Phase 2 would need to query Profile child tables directly, reconstruct filter ordering, infer lifecycle validity, invent relationship validation, or add missing persistence semantics before it can build Article selection, Phase 1 is RED.
+
+PASS 2 — ERROR / EDGE-CASE ADVERSARIAL REVIEW
+Independently derive failure hypotheses from the current implementation. Do not satisfy this pass merely by checking that named tests exist.
+
+At minimum challenge:
+- empty/blank/control-character/overlong phrase values;
+- duplicate phrases differing only by case;
+- same phrase in include and exclude being incorrectly rejected even though exclusion-wins semantics permit it;
+- too many phrase/Category entries;
+- duplicate Category keys;
+- invalid result limits and unsafe integer coercion;
+- direct database Profile key mutation bypassing application immutability;
+- partial association child replacement after a late FK/constraint failure;
+- missing/archived/unapproved Source combinations during activation;
+- disabled operational Source incorrectly blocking activation;
+- final usable association removal after another Source becomes unusable concurrently;
+- Source unapproval/archive racing activation;
+- Source archive racing final association removal;
+- inconsistent lock ordering causing deadlock;
+- Source state resolved before locks and not re-read afterward;
+- Category deletion leaving dangling configuration or returning the wrong error;
+- audit event written before a transaction that later rolls back;
+- audit state exceeding bounds or leaking unrelated data;
+- Profile admin route accepting mutation without the existing request-integrity header;
+- malformed/unknown JSON fields silently ignored by application commands;
+- raw SQL/constraint/stack information leaking through known or unknown admin failures;
+- browser client treating local Source usability as authoritative after concurrent server state changed;
+- browser error causing selected Profile state/filters to disappear;
+- browser association editor sending mutable Source identity or database UUID;
+- hard reload losing phrase/Category order;
+- existing Source/Publication/Editorial/Moderation workspaces regressing after Profiles tab integration;
+- existing `/` or `/api/feed` semantics changing accidentally because Profile configuration was wired into shared outward code too early;
+- Profile code creating Publication/customer tenancy or topic-specific assumptions;
+- optional Profile deletion appearing without governed lifecycle/destructive semantics.
+
+For each plausible concern classify it as one of:
+- protected by source + meaningful executed evidence;
+- one small bounded closeout repair/test strengthening;
+- Terra High structural-refactor handoff required;
+- deeper escalation/replanning/contract work required.
+
+Do not declare GREEN with an unresolved active-Profile-integrity, migration, request-integrity, or producer-handoff concern.
+
+PASS 3 — CODE QUALITY / STRUCTURAL REVIEW
+Independently inspect the complete P1–P4 diff plus important touched producers/consumers for:
+- duplicated Profile SQL outside the repository;
+- duplicated Profile lifecycle/usability logic in router/browser layers;
+- Source collection/admission logic coupled to Profiles;
+- Category/Relevance logic incorrectly repurposed as Profile selection;
+- generic abstraction introduced solely for hypothetical multi-tenancy;
+- JSON blobs replacing clear relational state without justification;
+- unnecessarily clever lock helpers or hidden inconsistent lock acquisition;
+- a repository aggregate that is too weak and forces Phase 2 to know table topology;
+- over-broad exported mutation primitives that let later consumers bypass the application service;
+- Profile-specific audit subsystem despite existing `audit_events`;
+- brittle/duplicated admin API or catalog clients;
+- client framework/state-management dependency introduced unnecessarily;
+- dead compatibility code, speculative adapters, or unused Phase 2/API/PHP stubs;
+- tests that assert implementation details while missing important behavior;
+- migration/recovery tests that are nominal but do not actually start from the accepted production baseline;
+- comments/docs/tasks that claim evidence not executed;
+- formatting/type/lint debt introduced by the phase.
+
+A closeout is not satisfied merely because commands are green. Generate and disposition concrete structural hypotheses from the actual source.
+
+BOUNDED CLOSEOUT REPAIR RULE
+This P5 may fix a concrete small Phase 1 defect or strengthen focused coverage when:
+- behavior is already unambiguous under current contracts;
+- the repair is local and does not move responsibility across architectural layers;
+- it does not add new product capability;
+- it does not require a new migration model, transaction architecture, security architecture, or Phase 2 behavior;
+- every affected specialized/broader suite is rerun.
+
+Examples allowed:
+- one missing filter boundary check;
+- one incorrect bounded error mapping;
+- one missing transaction rollback/audit call;
+- one local stale browser-state guard;
+- one missing negative test for an already-governed invariant.
+
+If the issue requires meaningful movement/consolidation of responsibilities, changing a transaction boundary structurally, replacing an abstraction, or broad multi-file cleanup, use the Terra High handoff rather than implementing it here.
+
+TERRA HIGH REFACTOR HANDOFF
+If any pass finds a meaningful behavior-preserving structural refactor is required, STOP before implementing that refactor and output exactly one self-contained transient remediation prompt.
+
+That remediation prompt MUST:
+- recommend exactly `Terra High` as its starting configuration;
+- state the observed structural quality problem and concrete source/test evidence;
+- define the smallest behavior-preserving refactor boundary and the important producers/consumers to trace;
+- preserve all Phase 1 contracts/invariants, including topic independence, production data, migration history, Profile immutability, active usable-Source integrity, transaction/audit atomicity, Source/Category relationships, admin security/request-integrity, existing public/admin behavior, idempotency/provenance, and Phase 2 producer handoff;
+- forbid unrelated cleanup, new behavior, contract/ADR changes, roadmap expansion, Phase 2 selection/API/PHP work, and speculative abstractions;
+- preserve package version `1.1.5` and consume no roadmap/correction prompt number;
+- require focused tests for the refactor plus every broader evidence level invalidated by it;
+- require a concise implementation report but MUST NOT declare Phase 1 GREEN or finalize the validation artifact;
+- tell Terra High to stop and report rather than force the work if the source reveals a product/contract/ADR change, new roadmap scope, or concurrency/architecture redesign beyond its safe boundary.
+
+After Terra High remediation is applied and its implementation-level validation is green, rerun this P5 from the beginning. Only that rerun may create/finalize the Phase 1 GREEN artifact.
+
+DEEPER ESCALATION RULE
+If review discovers material contract ambiguity, genuinely difficult concurrency/transaction redesign, or security-boundary uncertainty rather than a behavior-preserving refactor, do not disguise it as a Terra High cleanup. Stop and report the exact blocker for normal planning/correction workflow, selecting a stronger model only under `docs/codex-model-selection.md` if the next task is clearly defined.
+
+FINAL PHASE VALIDATION
+Only after PASS 1, PASS 2, and PASS 3 are satisfied and any bounded repair has been fully revalidated, execute the smallest non-overlapping final matrix against the exact final tree:
+
+1. `npm install`
+2. `npm run check`
+3. `npm run test:db`
+4. `npm run test:security`
+5. `npm run test:recovery`
+6. `npm run test:browser`
+7. `npm run codex:phase:validate -- p1-1`
+8. `git diff --check <phase-implementation-base>...HEAD`
+
+Determine `<phase-implementation-base>` from the exact runner/Git history immediately before P1 implementation, not from a stale planning SHA or prompt-writing commit guess.
+
+Do not redundantly run unit/integration/collection suites separately after `npm run check`.
+
+Required evidence expectations:
+- deterministic/unit/integration/collection: no skipped/cancelled/todo tests accepted for required coverage;
+- database: real disposable PostgreSQL and no prerequisite skip;
+- security: real selected security tests, not zero-match;
+- recovery: native backup/restore prerequisites available and test genuinely executed;
+- browser: real Chromium and no required test skipped;
+- no Level 7 live-Source or Level 8 deployed/customer integration proof is required for Phase 1 because no live distribution consumer exists yet.
+
+If an explicitly required specialized suite cannot run, Phase 1 is RED/blocked. Do not substitute source inspection for the missing evidence.
+
+DURABLE PHASE ARTIFACT
+After the final tree and command matrix are genuinely green, create:
+
+`docs/validation/phase-1-distribution-profile-foundation.md`
+
+Record at minimum:
+- status: Phase 1 GREEN or qualified blocker if not green;
+- exact Phase 1 implementation base;
+- exact P1–P4 commit identities;
+- exact final executable source commit/tree identity used for validation, or if the closeout itself contains an uncommitted bounded repair/artifact write, the exact reproducible tree identity/diff state required by repository validation conventions and a clear note that human acceptance/commit is still required;
+- package version `1.1.5`;
+- Node/npm/PostgreSQL/Chromium/native backup tool versions actually observed where applicable;
+- migration `0015` identity/checksum and explicit confirmation that `0001`–`0014` remained unchanged;
+- zero-to-current migration result;
+- accepted-production-baseline `0001`–`0014` forward-upgrade/data-preservation result;
+- Profile repository aggregate/handoff evidence;
+- lifecycle/Source usability/Category retention/audit transaction evidence;
+- concurrency/lock-order tests and observed outcomes;
+- admin HTTP/request-integrity/security evidence;
+- browser workspace/reload/accessibility/responsive evidence;
+- backup/restore Profile-state evidence;
+- exact final commands, counts/results, skipped/cancelled/todo status;
+- PASS 1 findings/dispositions;
+- PASS 2 failure hypotheses and dispositions;
+- PASS 3 structural findings/dispositions;
+- any bounded P5 repair and evidence rerun;
+- whether a Terra High refactor handoff occurred before the successful rerun;
+- explicit statement that no live-Source/deployment/distribution-API proof was claimed;
+- explicit statement that the next step after human acceptance is conversational `/closeout` to `1.2.0`, not additional Phase 1 feature work.
+
+Do not rewrite historical validation artifacts to make them claim Phase 1 evidence.
+
+FINAL ACCEPTANCE CHECKS
+Before declaring GREEN verify all of the following:
+- package version exactly `1.1.5`;
+- no `package-lock.json` or `npm-shrinkwrap.json` exists;
+- task stack validator recognizes P1–P5 with exactly one final closeout;
+- no supported migration `0001`–`0014` changed;
+- Profile persistence/control-plane requirements are complete;
+- Phase 2 can consume a complete Profile aggregate without inventing persistence/state semantics;
+- no canonical distribution Article-selection/read model was implemented early;
+- no machine credentials/API/PHP/WordPress/RSS/self-host packaging/analytics/widgets were added;
+- existing `/` and `/api/feed` behavior remains green;
+- existing admin workspaces remain green;
+- real database/recovery/browser/security evidence exists where required;
+- PASS 2 and PASS 3 have no unresolved material findings;
+- any refactor handoff has been completed and this P5 rerun from the beginning before GREEN.
+
+FINAL RESPONSE
+If GREEN, report concisely:
+- `PHASE 1 GREEN — HUMAN REVIEW REQUIRED`;
+- exact accepted tree/commit state used for evidence;
+- package version `1.1.5`;
+- exact commands/results;
+- durable artifact path;
+- production-forward migration result;
+- concurrency/invariant result;
+- Phase 2 producer-handoff result;
+- PASS 2/PASS 3 disposition summary;
+- whether any bounded repair or Terra High handoff occurred;
+- next step: human review, then conversational `/closeout` to `1.2.0`.
+
+If RED/BLOCKED, report the smallest concrete blocker, evidence observed, and required next workflow. Do not create or present a misleading GREEN artifact.
