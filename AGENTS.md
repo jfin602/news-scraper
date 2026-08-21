@@ -12,7 +12,7 @@ If work conflicts with a locked law, report the conflict. Do not silently treat 
 
 Follow `BOOT.md`.
 
-- `/docs-review` is read-only. Documentation changes require approved findings plus `/docs-apply`, or the snapshot-based `/docs-prompt` path.
+- `/docs-review` is read-only. Documentation changes require approved findings plus `/docs-apply`, or `/docs-prompt` to generate a docs-only Codex prompt. `/docs-prompt` normally reuses the approved review context from the current conversation; use `npm run docs:snapshot` plus a supplied snapshot only as fallback when that context is unavailable or insufficient, or when explicitly requested.
 - `/docs-apply` changes only approved documentation scope. Preserve unrelated wording.
 - Normal non-terminal handoff is `/closeout` → `/docs-review` → `/docs-apply` → `/prompt-ass` → `/prompt-plan` → `/prompt-write <folder name>`.
 - Roadmap `/closeout` and a correction stack's final manual closeout are different. A correction closeout clears only that correction and preserves roadmap phase/package version.
