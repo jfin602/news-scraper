@@ -336,6 +336,26 @@ export async function lockSourceForDistributionProfile(
 }
 
 /**
+ * Lists the stable Source identities associated with one already-locked
+ * Profile. It deliberately does not lock or interpret the Source rows.
+ */
+export async function listDistributionProfileSourceIds(
+  executor: QueryExecutor,
+  profileId: string,
+): Promise<readonly string[]> {
+  const result = await executor.query<{ readonly source_id: unknown }>(
+    `SELECT source_id
+       FROM distribution_profile_sources
+      WHERE profile_id = $1
+      ORDER BY source_id ASC`,
+    [profileId],
+  );
+  return Object.freeze(
+    result.rows.map((row) => requiredUuid(row.source_id, 'source id')),
+  );
+}
+
+/**
  * Locks all Sources associated with one already-locked Profile. Source rows
  * are always acquired by stable database ID after the Profile row.
  */

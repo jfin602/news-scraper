@@ -30,6 +30,7 @@ import {
   type LockedDistributionProfileSourceAssociation,
   type PersistedDistributionProfile,
 } from '../distribution/profiles/repository.ts';
+import { acquireDistributionProfileSourceValidityLock } from '../distribution/profiles/source-validity-lock.ts';
 
 export const SOURCE_ADMINISTRATION_LIST_LIMIT = 500;
 
@@ -253,6 +254,7 @@ export function createSourceAdministrationService(
       return updateSourceStateWithProfileGuard(
         database,
         key,
+        approvalState === 'unapproved',
         async (transaction, id, current, profiles, profileSources) => {
           if (
             current.approvalState === 'approved' &&
@@ -304,6 +306,7 @@ export function createSourceAdministrationService(
       return updateSourceStateWithProfileGuard(
         database,
         key,
+        lifecycleState === 'archived',
         async (transaction, id, current, profiles, profileSources) => {
           if (
             current.lifecycleState === 'active' &&
@@ -336,6 +339,7 @@ interface LockedSourceState {
 async function updateSourceStateWithProfileGuard(
   database: Database,
   sourceConfigKey: string,
+  requiresValidityGuard: boolean,
   update: (
     transaction: QueryExecutor,
     sourceId: string,
@@ -347,6 +351,9 @@ async function updateSourceStateWithProfileGuard(
   return database.transaction(async (transaction) => {
     // Resolve without a write lock. Active Profile rows must be acquired first.
     const sourceId = await findSourceId(transaction, sourceConfigKey);
+    if (requiresValidityGuard) {
+      await acquireDistributionProfileSourceValidityLock(transaction, sourceId);
+    }
     const profiles = await lockActiveDistributionProfilesReferencingSource(
       transaction,
       sourceId,

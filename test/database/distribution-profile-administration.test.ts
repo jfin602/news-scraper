@@ -12,6 +12,11 @@ import {
 } from '../../src/admin/source-administration.ts';
 import { createCategory } from '../../src/collection/relevance/repository.ts';
 import { createDatabase } from '../../src/database/database.ts';
+import type {
+  Database,
+  DatabaseSession,
+  QueryExecutor,
+} from '../../src/database/database.ts';
 import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 
 const scope = createDatabaseTestScope('migrated');
@@ -245,53 +250,308 @@ test('Source approval and lifecycle guards preserve active Profile usability whi
   });
 });
 
-test('concurrent Profile activation or membership removal and Source invalidation terminate without an invalid active Profile', async () => {
-  await scope.use(async ({ databaseUrl }) => {
-    const firstDatabase = createDatabase({ connectionString: databaseUrl });
-    const secondDatabase = createDatabase({ connectionString: databaseUrl });
-    try {
-      await seedSource(firstDatabase, 'alpha');
-      await seedSource(firstDatabase, 'beta');
-      const profiles =
-        createDistributionProfileAdministrationService(firstDatabase);
-      const otherProfiles =
-        createDistributionProfileAdministrationService(secondDatabase);
-      const sources = createSourceAdministrationService(secondDatabase);
-      await profiles.createProfile({
-        configKey: 'racing_draft',
-        displayName: 'Racing draft',
+test(
+  'Source unapproval serializes a draft Profile activation at the Source-validity boundary',
+  { timeout: 10_000 },
+  async () => {
+    await scope.use(async ({ databaseUrl }) => {
+      const sourceDatabase = createDatabase({ connectionString: databaseUrl });
+      const activationDatabase = createDatabase({
+        connectionString: databaseUrl,
       });
-      await profiles.replaceSourceAssociation('racing_draft', 'alpha', {});
-      const activationRace = await Promise.allSettled([
-        profiles.setProfileLifecycle('racing_draft', {
-          lifecycleState: 'active',
-        }),
-        sources.setSourceApproval('alpha', { approvalState: 'unapproved' }),
-      ]);
-      assert.equal(activationRace.length, 2);
-      await assertNoInvalidActiveProfile(firstDatabase);
+      const sourceValidityGuardAcquired = deferred();
+      const emptyActiveProfileDiscovery = deferred();
+      const releaseInvalidation = deferred();
+      const activationLockAttempted = deferred();
+      const activationLockPassed = deferred();
+      const guardedSourceDatabase = new CheckpointDatabase(sourceDatabase, {
+        afterQuery: async (text) => {
+          if (isSourceValidityLock(text)) sourceValidityGuardAcquired.resolve();
+          if (isActiveProfileDiscovery(text)) {
+            emptyActiveProfileDiscovery.resolve();
+            await releaseInvalidation.promise;
+          }
+        },
+      });
+      const guardedActivationDatabase = new CheckpointDatabase(
+        activationDatabase,
+        {
+          beforeQuery: (text) => {
+            if (isSourceValidityLock(text)) activationLockAttempted.resolve();
+          },
+          afterQuery: (text) => {
+            if (isSourceValidityLock(text)) activationLockPassed.resolve();
+          },
+        },
+      );
+      try {
+        await seedSource(sourceDatabase, 'alpha');
+        const profiles =
+          createDistributionProfileAdministrationService(activationDatabase);
+        const guardedProfiles = createDistributionProfileAdministrationService(
+          guardedActivationDatabase,
+        );
+        const sources = createSourceAdministrationService(
+          guardedSourceDatabase,
+        );
+        await profiles.createProfile({
+          configKey: 'racing_draft',
+          displayName: 'Racing draft',
+        });
+        await profiles.replaceSourceAssociation('racing_draft', 'alpha', {});
 
-      await sources.setSourceApproval('alpha', { approvalState: 'approved' });
-      await profiles.createProfile({
-        configKey: 'racing_active',
-        displayName: 'Racing active',
+        const unapproval = sources.setSourceApproval('alpha', {
+          approvalState: 'unapproved',
+        });
+        await within(
+          sourceValidityGuardAcquired.promise,
+          'Source validity guard',
+        );
+        await within(
+          emptyActiveProfileDiscovery.promise,
+          'empty active Profile discovery',
+        );
+
+        const activation = guardedProfiles.setProfileLifecycle('racing_draft', {
+          lifecycleState: 'active',
+        });
+        await within(
+          activationLockAttempted.promise,
+          'activation lock attempt',
+        );
+        assert.equal(activationLockPassed.resolved, false);
+
+        releaseInvalidation.resolve();
+        assert.equal((await unapproval).approvalState, 'unapproved');
+        await within(activationLockPassed.promise, 'activation lock release');
+        await assertProfileError(activation, 'profile_requires_usable_source');
+        assert.equal(
+          (await profiles.getProfile('racing_draft')).lifecycleState,
+          'draft',
+        );
+        await assertNoInvalidActiveProfile(sourceDatabase);
+        await assertProfileAuditActions(sourceDatabase, [
+          'distribution_profile_created',
+          'distribution_profile_source_association_created',
+        ]);
+      } finally {
+        await Promise.all([sourceDatabase.close(), activationDatabase.close()]);
+      }
+    });
+  },
+);
+
+test(
+  'active association removal and other Source archival terminate without a reversed lock cycle',
+  { timeout: 10_000 },
+  async () => {
+    await scope.use(async ({ databaseUrl }) => {
+      const removalDatabase = createDatabase({ connectionString: databaseUrl });
+      const archivalDatabase = createDatabase({
+        connectionString: databaseUrl,
       });
-      await profiles.replaceSourceAssociation('racing_active', 'alpha', {});
-      await profiles.replaceSourceAssociation('racing_active', 'beta', {});
-      await profiles.setProfileLifecycle('racing_active', {
-        lifecycleState: 'active',
+      const removalSourcesLocked = deferred();
+      const releaseRemoval = deferred();
+      const archivalGuardAcquired = deferred();
+      const archivalProfileLockAttempted = deferred();
+      const guardedRemovalDatabase = new CheckpointDatabase(removalDatabase, {
+        afterQuery: async (text) => {
+          if (isProfileSourceLock(text)) {
+            removalSourcesLocked.resolve();
+            await releaseRemoval.promise;
+          }
+        },
       });
-      const membershipRace = await Promise.allSettled([
-        otherProfiles.removeSourceAssociation('racing_active', 'alpha'),
-        sources.setSourceLifecycle('beta', { lifecycleState: 'archived' }),
-      ]);
-      assert.equal(membershipRace.length, 2);
-      await assertNoInvalidActiveProfile(firstDatabase);
-    } finally {
-      await Promise.all([firstDatabase.close(), secondDatabase.close()]);
-    }
-  });
-});
+      const guardedArchivalDatabase = new CheckpointDatabase(archivalDatabase, {
+        afterQuery: (text) => {
+          if (isSourceValidityLock(text)) archivalGuardAcquired.resolve();
+        },
+        beforeQuery: (text) => {
+          if (isActiveProfileDiscovery(text))
+            archivalProfileLockAttempted.resolve();
+        },
+      });
+      try {
+        await seedSource(removalDatabase, 'alpha');
+        await seedSource(removalDatabase, 'beta');
+        const profiles =
+          createDistributionProfileAdministrationService(removalDatabase);
+        const guardedProfiles = createDistributionProfileAdministrationService(
+          guardedRemovalDatabase,
+        );
+        const sources = createSourceAdministrationService(
+          guardedArchivalDatabase,
+        );
+        await profiles.createProfile({
+          configKey: 'racing_active',
+          displayName: 'Racing active',
+        });
+        await profiles.replaceSourceAssociation('racing_active', 'alpha', {});
+        await profiles.replaceSourceAssociation('racing_active', 'beta', {});
+        await profiles.setProfileLifecycle('racing_active', {
+          lifecycleState: 'active',
+        });
+
+        const removal = guardedProfiles.removeSourceAssociation(
+          'racing_active',
+          'alpha',
+        );
+        await within(
+          removalSourcesLocked.promise,
+          'association-removal Source locks',
+        );
+        const archival = sources.setSourceLifecycle('beta', {
+          lifecycleState: 'archived',
+        });
+        await within(
+          archivalGuardAcquired.promise,
+          'archival Source validity guard',
+        );
+        await within(
+          archivalProfileLockAttempted.promise,
+          'archival active Profile lock attempt',
+        );
+
+        releaseRemoval.resolve();
+        assert.equal((await removal).sources.length, 1);
+        await assertSourceError(archival, 'source_required_by_active_profile');
+        const profile = await profiles.getProfile('racing_active');
+        assert.equal(profile.lifecycleState, 'active');
+        assert.deepEqual(
+          profile.sources.map((source) => source.configKey),
+          ['beta'],
+        );
+        await assertNoInvalidActiveProfile(removalDatabase);
+        await assertProfileAuditActions(removalDatabase, [
+          'distribution_profile_created',
+          'distribution_profile_source_association_created',
+          'distribution_profile_source_association_created',
+          'distribution_profile_activated',
+          'distribution_profile_source_association_removed',
+        ]);
+      } finally {
+        await Promise.all([removalDatabase.close(), archivalDatabase.close()]);
+      }
+    });
+  },
+);
+
+test(
+  'overlapping Profile activations acquire shared Source-validity guards without deadlock',
+  { timeout: 10_000 },
+  async () => {
+    await scope.use(async ({ databaseUrl }) => {
+      const firstDatabase = createDatabase({ connectionString: databaseUrl });
+      const secondDatabase = createDatabase({ connectionString: databaseUrl });
+      const firstGuardAcquired = deferred();
+      const releaseFirstActivation = deferred();
+      let firstGuard = true;
+      const guardedFirstDatabase = new CheckpointDatabase(firstDatabase, {
+        afterQuery: async (text) => {
+          if (firstGuard && isSourceValidityLock(text)) {
+            firstGuard = false;
+            firstGuardAcquired.resolve();
+            await releaseFirstActivation.promise;
+          }
+        },
+      });
+      try {
+        await seedSource(firstDatabase, 'alpha');
+        await seedSource(firstDatabase, 'beta');
+        const setup =
+          createDistributionProfileAdministrationService(firstDatabase);
+        const firstProfiles =
+          createDistributionProfileAdministrationService(guardedFirstDatabase);
+        const secondProfiles =
+          createDistributionProfileAdministrationService(secondDatabase);
+        for (const configKey of ['first', 'second']) {
+          await setup.createProfile({ configKey, displayName: configKey });
+          await setup.replaceSourceAssociation(configKey, 'alpha', {});
+          await setup.replaceSourceAssociation(configKey, 'beta', {});
+        }
+
+        const firstActivation = firstProfiles.setProfileLifecycle('first', {
+          lifecycleState: 'active',
+        });
+        await within(
+          firstGuardAcquired.promise,
+          'first activation Source guard',
+        );
+        const secondActivation = secondProfiles.setProfileLifecycle('second', {
+          lifecycleState: 'active',
+        });
+        releaseFirstActivation.resolve();
+        await Promise.all([firstActivation, secondActivation]);
+        assert.equal(
+          (await setup.getProfile('first')).lifecycleState,
+          'active',
+        );
+        assert.equal(
+          (await setup.getProfile('second')).lifecycleState,
+          'active',
+        );
+        await assertNoInvalidActiveProfile(firstDatabase);
+      } finally {
+        await Promise.all([firstDatabase.close(), secondDatabase.close()]);
+      }
+    });
+  },
+);
+
+test(
+  'two Source invalidations touching one active Profile allow at most one final-Source loss',
+  { timeout: 10_000 },
+  async () => {
+    await scope.use(async ({ databaseUrl }) => {
+      const setupDatabase = createDatabase({ connectionString: databaseUrl });
+      const firstDatabase = createDatabase({ connectionString: databaseUrl });
+      const secondDatabase = createDatabase({ connectionString: databaseUrl });
+      try {
+        await seedSource(setupDatabase, 'alpha');
+        await seedSource(setupDatabase, 'beta');
+        const profiles =
+          createDistributionProfileAdministrationService(setupDatabase);
+        await profiles.createProfile({
+          configKey: 'active_profile',
+          displayName: 'Active Profile',
+        });
+        await profiles.replaceSourceAssociation('active_profile', 'alpha', {});
+        await profiles.replaceSourceAssociation('active_profile', 'beta', {});
+        await profiles.setProfileLifecycle('active_profile', {
+          lifecycleState: 'active',
+        });
+        const firstSources = createSourceAdministrationService(firstDatabase);
+        const secondSources = createSourceAdministrationService(secondDatabase);
+
+        const results = await Promise.allSettled([
+          firstSources.setSourceApproval('alpha', {
+            approvalState: 'unapproved',
+          }),
+          secondSources.setSourceLifecycle('beta', {
+            lifecycleState: 'archived',
+          }),
+        ]);
+        assert.equal(
+          results.filter((result) => result.status === 'fulfilled').length,
+          1,
+        );
+        const rejected = results.find(
+          (result): result is PromiseRejectedResult =>
+            result.status === 'rejected',
+        );
+        assert.ok(rejected?.reason instanceof SourceAdministrationError);
+        assert.equal(rejected.reason.code, 'source_required_by_active_profile');
+        await assertNoInvalidActiveProfile(setupDatabase);
+      } finally {
+        await Promise.all([
+          setupDatabase.close(),
+          firstDatabase.close(),
+          secondDatabase.close(),
+        ]);
+      }
+    });
+  },
+);
 
 async function seedSource(
   database: ReturnType<typeof createDatabase>,
@@ -330,6 +590,135 @@ async function assertNoInvalidActiveProfile(
         )`,
   );
   assert.equal(result.rows[0]?.count, 0);
+}
+
+async function assertProfileAuditActions(
+  database: ReturnType<typeof createDatabase>,
+  actions: readonly string[],
+): Promise<void> {
+  const result = await database.query<{ readonly action: string }>(
+    `SELECT action FROM audit_events WHERE target_type = 'distribution_profile'
+     ORDER BY occurred_at ASC, id ASC`,
+  );
+  assert.deepEqual(
+    result.rows.map((row) => row.action),
+    actions,
+  );
+}
+
+interface Deferred {
+  readonly promise: Promise<void>;
+  readonly resolved: boolean;
+  resolve(): void;
+}
+
+function deferred(): Deferred {
+  let resolvePromise!: () => void;
+  let resolved = false;
+  const promise = new Promise<void>((resolve) => {
+    resolvePromise = resolve;
+  });
+  return {
+    promise,
+    get resolved() {
+      return resolved;
+    },
+    resolve() {
+      if (!resolved) {
+        resolved = true;
+        resolvePromise();
+      }
+    },
+  };
+}
+
+async function within<T>(promise: Promise<T>, operation: string): Promise<T> {
+  let timeout: NodeJS.Timeout | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timeout = setTimeout(() => {
+          reject(new Error(`Timed out waiting for ${operation}.`));
+        }, 5_000);
+      }),
+    ]);
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
+  }
+}
+
+function isSourceValidityLock(text: string): boolean {
+  return text.includes('pg_advisory_xact_lock');
+}
+
+function isActiveProfileDiscovery(text: string): boolean {
+  return (
+    text.includes('FROM distribution_profiles profile') &&
+    text.includes('association.source_id = $1') &&
+    text.includes("profile.lifecycle = 'active'") &&
+    text.includes('FOR UPDATE OF profile')
+  );
+}
+
+function isProfileSourceLock(text: string): boolean {
+  return (
+    text.includes('FROM distribution_profile_sources ps') &&
+    text.includes('WHERE ps.profile_id = $1') &&
+    text.includes('FOR UPDATE OF s')
+  );
+}
+
+interface QueryCheckpoint {
+  readonly beforeQuery?: (text: string) => void | Promise<void>;
+  readonly afterQuery?: (text: string) => void | Promise<void>;
+}
+
+class CheckpointDatabase implements Database {
+  readonly #database: Database;
+  readonly #checkpoint: QueryCheckpoint;
+
+  constructor(database: Database, checkpoint: QueryCheckpoint) {
+    this.#database = database;
+    this.#checkpoint = checkpoint;
+  }
+
+  query<Row extends import('pg').QueryResultRow = import('pg').QueryResultRow>(
+    text: string,
+    values?: readonly unknown[],
+  ) {
+    return this.#database.query<Row>(text, values);
+  }
+
+  ping(): Promise<void> {
+    return this.#database.ping();
+  }
+
+  transaction<T>(work: (transaction: QueryExecutor) => Promise<T>): Promise<T> {
+    return this.#database.transaction((transaction) =>
+      work({
+        query: async <
+          Row extends import('pg').QueryResultRow = import('pg').QueryResultRow,
+        >(
+          text: string,
+          values?: readonly unknown[],
+        ) => {
+          await this.#checkpoint.beforeQuery?.(text);
+          const result = await transaction.query<Row>(text, values);
+          await this.#checkpoint.afterQuery?.(text);
+          return result;
+        },
+      }),
+    );
+  }
+
+  withSession<T>(work: (session: DatabaseSession) => Promise<T>): Promise<T> {
+    return this.#database.withSession(work);
+  }
+
+  close(): Promise<void> {
+    return this.#database.close();
+  }
 }
 
 async function assertProfileError(

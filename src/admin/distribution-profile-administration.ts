@@ -14,6 +14,7 @@ import {
   createDistributionProfile,
   findDistributionProfileByConfigKey,
   listDistributionProfiles,
+  listDistributionProfileSourceIds,
   lockDistributionProfileByConfigKey,
   lockDistributionProfileSources,
   lockSourceForDistributionProfile,
@@ -24,6 +25,7 @@ import {
   type PersistedDistributionProfile,
   type PersistedDistributionProfileSource,
 } from '../distribution/profiles/repository.ts';
+import { acquireDistributionProfileSourceValidityLocks } from '../distribution/profiles/source-validity-lock.ts';
 import { validateAdminInputRecord } from './input-validation.ts';
 import { ConfigurationValidationError } from '../publication/configuration.ts';
 import {
@@ -259,15 +261,25 @@ export function createDistributionProfileAdministrationService(
       const requested = lifecycleCommand(input);
       return profileTransaction(database, async (transaction) => {
         const lockedProfile = await lockProfile(transaction, key);
-        const sources = await lockDistributionProfileSources(
-          transaction,
-          lockedProfile.id,
-        );
         const action = lifecycleAction(lockedProfile.lifecycle, requested);
-        if (requested === 'active' && !sources.some(isUsableSource)) {
-          throw new DistributionProfileAdministrationError(
-            'profile_requires_usable_source',
+        if (requested === 'active') {
+          const sourceIds = await listDistributionProfileSourceIds(
+            transaction,
+            lockedProfile.id,
           );
+          await acquireDistributionProfileSourceValidityLocks(
+            transaction,
+            sourceIds,
+          );
+          const sources = await lockDistributionProfileSources(
+            transaction,
+            lockedProfile.id,
+          );
+          if (!sources.some(isUsableSource)) {
+            throw new DistributionProfileAdministrationError(
+              'profile_requires_usable_source',
+            );
+          }
         }
         const profile = await setDistributionProfileLifecycle(
           transaction,
