@@ -127,7 +127,7 @@ Keep these distinctions explicit: Source vs endpoint; approval vs lifecycle/oper
 | Testing / evidence / DB/browser/live/deployment proof                     | `docs/contracts/testing-and-validation-contract.md`                       |
 | Process/module architecture                                               | `docs/architecture/system-architecture.md`                                |
 | Security / reliability / observability                                    | `docs/operations/security-reliability-and-operations.md`                  |
-| Backup / restore                                                          | `docs/operations/database-backup-and-restore.md`                          |
+| Backup / restore                                                          | `docs/operations/database-backup-and-restore.md`                           |
 | Deployment / rollback / incidents                                         | `docs/operations/deployment-and-incident-runbook.md`                      |
 | Active 2.0 phases / versions                                              | `docs/roadmap/post-1.0-roadmap.md`                                        |
 | Completed MVP history                                                     | `docs/roadmap/mvp-roadmap.md`                                             |
@@ -136,7 +136,7 @@ Keep these distinctions explicit: Source vs endpoint; approval vs lifecycle/oper
 | Managed/self-hostable architecture ADR                                    | `docs/decisions/managed-first-self-hostable-distribution-architecture.md` |
 | Production data/schema compatibility                                      | `docs/decisions/production-data-and-schema-compatibility.md`              |
 | Admin perimeter                                                           | `docs/decisions/cloudflare-access-admin-perimeter.md`                     |
-| UI workflow                                                               | `docs/design/README.md`, then `docs/design/ui-workflow.md`                |
+| UI workflow                                                               | `docs/design/README.md`, then `docs/design/ui-workflow.md`                 |
 | Codex model selection                                                     | `docs/codex-model-selection.md`                                           |
 | Documentation index                                                       | `docs/README.md`                                                          |
 
@@ -275,7 +275,13 @@ Apply only approved documentation findings after re-reading current targets. Do 
 
 ## `/docs-prompt`
 
-Docs-only prompt-generation alternative after an approved `/docs-review`. Normally uses `npm run docs:snapshot` and the supplied docs snapshot. It emits one implementation-ready Codex docs prompt and does not implement product work.
+Docs-only prompt-generation alternative after an approved `/docs-review`.
+
+Default path: reuse the approved review findings and document context already present in the current conversation; do not request or require a docs snapshot merely to generate the prompt. Before prompt generation, re-read only the specific current target documents needed to guard against review→prompt drift; do not rerun the full docs review.
+
+Fallback path: when the approved review context is unavailable or insufficient (for example, a fresh conversation), or when the owner explicitly requests it, use `npm run docs:snapshot` and a supplied docs snapshot to restore the required docs context.
+
+Emit one implementation-ready Codex docs prompt scoped to the approved findings. Do not implement product work, expand beyond the approved documentation scope, or change product/runtime/version behavior.
 
 # Implementation prompt workflow
 
