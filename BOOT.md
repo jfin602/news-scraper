@@ -127,7 +127,7 @@ Keep these distinctions explicit: Source vs endpoint; approval vs lifecycle/oper
 | Testing / evidence / DB/browser/live/deployment proof                     | `docs/contracts/testing-and-validation-contract.md`                       |
 | Process/module architecture                                               | `docs/architecture/system-architecture.md`                                |
 | Security / reliability / observability                                    | `docs/operations/security-reliability-and-operations.md`                  |
-| Backup / restore                                                          | `docs/operations/database-backup-and-restore.md`                           |
+| Backup / restore                                                          | `docs/operations/database-backup-and-restore.md`                          |
 | Deployment / rollback / incidents                                         | `docs/operations/deployment-and-incident-runbook.md`                      |
 | Active 2.0 phases / versions                                              | `docs/roadmap/post-1.0-roadmap.md`                                        |
 | Completed MVP history                                                     | `docs/roadmap/mvp-roadmap.md`                                             |
@@ -136,7 +136,7 @@ Keep these distinctions explicit: Source vs endpoint; approval vs lifecycle/oper
 | Managed/self-hostable architecture ADR                                    | `docs/decisions/managed-first-self-hostable-distribution-architecture.md` |
 | Production data/schema compatibility                                      | `docs/decisions/production-data-and-schema-compatibility.md`              |
 | Admin perimeter                                                           | `docs/decisions/cloudflare-access-admin-perimeter.md`                     |
-| UI workflow                                                               | `docs/design/README.md`, then `docs/design/ui-workflow.md`                 |
+| UI workflow                                                               | `docs/design/README.md`, then `docs/design/ui-workflow.md`                |
 | Codex model selection                                                     | `docs/codex-model-selection.md`                                           |
 | Documentation index                                                       | `docs/README.md`                                                          |
 
@@ -214,6 +214,32 @@ Historical Phase 9 and Phase 14 evidence limitations remain historical; later ev
 # Conversation commands
 
 Commands are conversational shorthand, not shell commands.
+
+## Command chaining
+
+Use `+` as the canonical conversational chaining operator when multiple commands should run sequentially in one request.
+
+```text
+/command-a + /command-b + /command-c
+```
+
+means execute the commands strictly left to right: complete `/command-a`, then run `/command-b` using the resulting current state, then run `/command-c`.
+
+- `+` means sequential execution only. It never means merge, parallelize, or combine command semantics.
+- Arguments belong to the command immediately before the next `+`.
+- Each command must satisfy its own prerequisites, authority rules, and validation requirements before the next command starts.
+- A failure, blocker, required approval, or other workflow gate stops the chain at that point; later commands do not run until the gate is satisfied.
+- Chaining never bypasses explicit approval gates. For example, `/docs-review + /docs-apply` stops after `/docs-review` until the owner explicitly approves the findings.
+- Natural-language `then` may still be understood, but `+` is the documented invocation shorthand.
+- `→` remains documentation/workflow notation for showing order and handoffs; it is not the canonical conversational chaining operator.
+
+Example:
+
+```text
+/boot + /closeout phase 2
+```
+
+means finish `/boot` first, then perform `/closeout phase 2` against the refreshed state.
 
 ## Context
 
