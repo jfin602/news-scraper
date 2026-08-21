@@ -1,6 +1,6 @@
 # Distribution and Integration Contract
 
-**Status:** Current approved 2.0 architecture; not yet implemented
+**Status:** Current approved 2.0 architecture; implementation roadmap active
 **Adopted:** 2026-08-20
 **Completed:** 2026-08-20
 
@@ -68,10 +68,12 @@ WordPress and RSS/Atom are post-2.0. A later WordPress adapter builds on the Wor
 
 ## 2.0 boundary
 
-The required 2.0 consumer is the v1 API plus generic PHP scheduled sync, last-known-good cache, and customer-style server-rendered output. Browser widgets, WordPress, RSS/Atom, native self-host admin authentication, autonomous public self-host production readiness, SSO/multi-admin identity, visitor analytics, advanced SEO tooling, Kubernetes/multi-node deployment, delta synchronization, and additional adapters are post-2.0.
+The required 2.0 consumer is the v1 API plus generic PHP scheduled sync, last-known-good cache, and customer-style server-rendered output. Browser widgets, WordPress, RSS/Atom, Linux VPS/Docker Compose self-host packaging, native self-host admin authentication, autonomous public self-host production readiness, SSO/multi-admin identity, visitor analytics, advanced SEO tooling, Kubernetes/multi-node deployment, delta synchronization, and additional adapters are post-2.0.
 
-`2.0.0` requires administrator-configurable Profiles with immutable keys, lifecycle, explicit Source associations and bounded filters; one canonical distribution read model; bearer credential generation/rotation/revocation and `distribution:read`; rate/abuse protection; stable v1 schema and snapshot/cursor consistency; generic PHP complete-snapshot traversal, per-Profile locking, atomic LKG activation, optional stale cutoff and fallback SSR; operational telemetry; supported production forward migration plus backup/restore proof; and the Linux VPS/Docker Compose evaluation package.
+`2.0.0` requires administrator-configurable Profiles with immutable keys, lifecycle, explicit Source associations and bounded filters; one canonical distribution read model; bearer credential generation/rotation/revocation and `distribution:read`; rate/abuse protection; stable v1 schema and snapshot/cursor consistency; generic PHP complete-snapshot traversal, per-Profile locking, atomic LKG activation, optional stale cutoff and fallback SSR; operational telemetry; and supported production forward migration plus backup/restore compatibility.
 
 Release proof requires a real managed external customer-style integration from approved Source collection through canonical/Profile selection, authenticated pagination, complete validated PHP activation, local server rendering with no visitor-path API request, and direct stored publisher links. It must also show that upstream failure, invalid/partial candidates, and revision changes do not replace active LKG, while authoritative Profile disable suppresses cached public rendering.
 
-Implementation remains paused until an owner-approved replacement roadmap assigns work and versions.
+Self-hostability remains a locked architectural direction under Project Contract Law 12 and the managed/self-hostable ADR. Deferring the installable VPS/Compose package beyond 2.0 changes release sequencing only; it does not authorize a mandatory central service or weaken independent-instance architecture.
+
+The active implementation sequence and version lifecycle are governed by `docs/roadmap/post-1.0-roadmap.md`.
