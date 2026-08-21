@@ -1,4 +1,8 @@
 import type { QueryExecutor } from '../database/database.ts';
+import {
+  CanonicalOutwardArticleRepositoryError,
+  readCanonicalOutwardArticles,
+} from '../distribution/canonical-outward-articles.ts';
 import { normalizePublicationPresentation } from '../publication/configuration.ts';
 import {
   encodePublicDiscoveryCursor,
@@ -6,8 +10,6 @@ import {
   type PublicDiscoveryRequest,
 } from './discovery.ts';
 
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const CONFIG_KEY_PATTERN = /^[a-z0-9]+(_[a-z0-9]+)*$/u;
 
 export const PUBLIC_FEED_PAGE_SIZE = 100;
@@ -79,25 +81,9 @@ interface PublicPublicationRow {
   readonly publication_presentation_timezone: unknown;
 }
 
-interface PublicFeedItemRow {
-  readonly article_id: unknown;
-  readonly effective_feed_date: unknown;
-  readonly cursor_effective_feed_date: unknown;
-  readonly cursor_first_seen_at: unknown;
-  readonly feed_date_source: unknown;
-  readonly headline: unknown;
-  readonly source_name: unknown;
-  readonly original_url: unknown;
-}
-
 interface PublicDiscoveryChoiceRow {
   readonly config_key: unknown;
   readonly display_name: unknown;
-}
-
-interface MappedPublicFeedItemRow {
-  readonly item: PublicFeedItem;
-  readonly cursorPosition: PublicDiscoveryCursorPosition;
 }
 
 const PUBLIC_PUBLICATION_QUERY = `
@@ -134,7 +120,7 @@ const PUBLIC_CATEGORY_FILTER_QUERY = `
   CROSS JOIN categories
   WHERE categories.config_key = $1::text`;
 
-const PUBLIC_FEED_ITEMS_QUERY = `
+/* const PUBLIC_FEED_ITEMS_QUERY = `
   WITH public_publication AS (
     SELECT 1
     FROM publication_settings
@@ -249,7 +235,7 @@ const PUBLIC_FEED_ITEMS_QUERY = `
   ORDER BY
     effective_feed_date DESC,
     first_seen_at DESC,
-    article_id ASC`;
+    article_id ASC`; */
 
 const PUBLIC_SOURCE_CHOICES_QUERY = `
   WITH public_publication AS (
@@ -482,18 +468,42 @@ async function readPublicFeedItems(
   readonly items: readonly PublicFeedItem[];
   readonly nextCursor: string | null;
 }> {
-  const result = await executor.query<PublicFeedItemRow>(
-    PUBLIC_FEED_ITEMS_QUERY,
-    publicFeedItemQueryValues(request),
-  );
-  if (
-    !Array.isArray(result.rows) ||
-    result.rows.length > PUBLIC_FEED_PAGE_SIZE + 1
-  ) {
-    throw new PublicFeedRepositoryError('invalid_row');
+  let canonicalItems;
+  try {
+    canonicalItems = await readCanonicalOutwardArticles(executor, {
+      ...(request.sourceConfigKey === undefined
+        ? {}
+        : { sourceConfigKey: request.sourceConfigKey }),
+      ...(request.categoryConfigKey === undefined
+        ? {}
+        : { categoryConfigKey: request.categoryConfigKey }),
+      ...(request.keywordQuery === undefined
+        ? {}
+        : { publicKeywordQuery: request.keywordQuery }),
+      ...(request.cursorPosition === undefined
+        ? {}
+        : { continuationPosition: request.cursorPosition }),
+      limit: PUBLIC_FEED_PAGE_SIZE + 1,
+    });
+  } catch (error) {
+    if (error instanceof CanonicalOutwardArticleRepositoryError) {
+      throw new PublicFeedRepositoryError(error.reason);
+    }
+    throw error;
   }
-
-  const mappedRows = result.rows.map(mapPublicFeedItemRow);
+  const mappedRows = canonicalItems.map((item) =>
+    Object.freeze({
+      item: Object.freeze({
+        articleId: item.articleId,
+        effectiveFeedDate: item.effectiveFeedDate,
+        feedDateSource: item.feedDateSource,
+        headline: item.headline,
+        sourceName: item.source.displayName,
+        originalUrl: item.originalUrl,
+      }),
+      cursorPosition: item.orderPosition,
+    }),
+  );
   const hasNextPage = mappedRows.length > PUBLIC_FEED_PAGE_SIZE;
   const returnedRows = hasNextPage
     ? mappedRows.slice(0, PUBLIC_FEED_PAGE_SIZE)
@@ -507,20 +517,6 @@ async function readPublicFeedItems(
     items: Object.freeze(returnedRows.map((row) => row.item)),
     nextCursor,
   });
-}
-
-function publicFeedItemQueryValues(
-  request: PublicDiscoveryRequest,
-): readonly unknown[] {
-  return [
-    request.sourceConfigKey ?? null,
-    request.categoryConfigKey ?? null,
-    request.keywordQuery ?? null,
-    request.cursorPosition?.effectiveFeedDate ?? null,
-    request.cursorPosition?.firstSeenAt ?? null,
-    request.cursorPosition?.articleId ?? null,
-    PUBLIC_FEED_PAGE_SIZE + 1,
-  ];
 }
 
 async function readPublicDiscoveryChoices(
@@ -560,32 +556,6 @@ async function readPublicDiscoveryChoices(
   return Object.freeze(choices);
 }
 
-function mapPublicFeedItemRow(row: PublicFeedItemRow): MappedPublicFeedItemRow {
-  try {
-    if (row === null || typeof row !== 'object') throw new Error();
-    const articleId = requiredUuid(row.article_id);
-    const cursorPosition = requiredCursorPosition({
-      effectiveFeedDate: row.cursor_effective_feed_date,
-      firstSeenAt: row.cursor_first_seen_at,
-      articleId,
-    });
-    return Object.freeze({
-      item: Object.freeze({
-        articleId,
-        effectiveFeedDate: requiredTimestamp(row.effective_feed_date),
-        feedDateSource: requiredFeedDateSource(row.feed_date_source),
-        headline: requiredTrimmedString(row.headline),
-        sourceName: requiredTrimmedString(row.source_name),
-        originalUrl: requiredTrimmedString(row.original_url),
-      }),
-      cursorPosition,
-    });
-  } catch (error) {
-    if (error instanceof PublicFeedRepositoryError) throw error;
-    throw new PublicFeedRepositoryError('invalid_row');
-  }
-}
-
 function mapPublicDiscoveryChoice(
   row: PublicDiscoveryChoiceRow,
 ): PublicDiscoveryChoice {
@@ -601,30 +571,6 @@ function mapPublicDiscoveryChoice(
   }
 }
 
-function requiredCursorPosition(input: {
-  readonly effectiveFeedDate: unknown;
-  readonly firstSeenAt: unknown;
-  readonly articleId: string;
-}): PublicDiscoveryCursorPosition {
-  if (
-    typeof input.effectiveFeedDate !== 'string' ||
-    typeof input.firstSeenAt !== 'string'
-  ) {
-    throw new PublicFeedRepositoryError('invalid_row');
-  }
-  const position = {
-    effectiveFeedDate: input.effectiveFeedDate,
-    firstSeenAt: input.firstSeenAt,
-    articleId: input.articleId,
-  };
-  try {
-    encodePublicDiscoveryCursor({}, position);
-  } catch {
-    throw new PublicFeedRepositoryError('invalid_row');
-  }
-  return Object.freeze(position);
-}
-
 function encodeNextCursor(
   request: PublicDiscoveryRequest,
   position: PublicDiscoveryCursorPosition | undefined,
@@ -637,11 +583,6 @@ function encodeNextCursor(
   } catch {
     throw new PublicFeedRepositoryError('invalid_row');
   }
-}
-
-function requiredUuid(value: unknown): string {
-  if (typeof value !== 'string' || !UUID_PATTERN.test(value)) throw new Error();
-  return value;
 }
 
 function requiredConfigKey(value: unknown): string {
@@ -665,16 +606,4 @@ function requiredTrimmedString(value: unknown): string {
     throw new Error();
   }
   return value;
-}
-
-function requiredTimestamp(value: unknown): Date {
-  if (!(value instanceof Date) || Number.isNaN(value.getTime())) {
-    throw new Error();
-  }
-  return new Date(value.getTime());
-}
-
-function requiredFeedDateSource(value: unknown): PublicFeedDateSource {
-  if (value === 'published_at' || value === 'first_seen_at') return value;
-  throw new Error();
 }
