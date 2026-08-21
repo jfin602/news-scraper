@@ -1,0 +1,231 @@
+TASK: Phase 1 / P3 — Protected Distribution Profile administration API
+
+PHASE SCOPE
+This is Phase 1 P3. P1 owns Profile persistence; P2 owns Profile lifecycle, cross-resource validation, transaction boundaries, concurrency protection, and audit semantics. This prompt exposes that already-complete application authority through the existing protected administrator HTTP perimeter.
+
+Keep the HTTP layer thin. Do not add Profile SQL, lifecycle logic, Source usability rules, Category validation, audit logic, or concurrency handling to Express routes.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra Medium`.
+- Model-family basis: the task is bounded and explicit but touches a security-sensitive admin perimeter, nested resource routing, bounded error translation, production composition, and preserved request-integrity behavior; the owner explicitly raised the planned Luna configuration to the equivalent Terra tier.
+- Reasoning basis: Medium is sufficient because P2 must already own all business rules and transaction semantics, while this prompt should remain a conventional adapter over established middleware and route-registration patterns.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna Medium`; technically adequate by source inspection, but intentionally not used because the repository owner requested all planned Luna prompts in this stack be bumped to the equivalent Terra model.
+- Escalation trigger: source inspection reveals Profile HTTP must make new security-boundary decisions, duplicate application logic because P2 is incomplete, or alter the existing Cloudflare/request-integrity architecture rather than simply register routes behind it.
+- Escalation target: `Terra High`.
+- Estimate confidence: `High`.
+- Efficiency rationale: follow the existing Source/Editorial route registrar and centralized admin security middleware; add one router plus production composition and focused HTTP tests without introducing a new API framework or security layer.
+
+VERSIONING
+This prompt's assigned project version is `1.1.3`.
+- Before editing, require top-level `package.json` to be either the expected preceding version `1.1.2` or already `1.1.3` for a safe rerun.
+- Set only the top-level `package.json` version to `1.1.3` before final validation.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Do not perform a manual Git commit; the phase runner owns the implementation-prompt commit boundary and exact roadmap commit subject.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/contracts/distribution-and-integration-contract.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/roadmap/post-1.0-roadmap.md`, and the accepted admin-perimeter/security operations documentation routed by BOOT;
+2. inspect P2's final `src/admin/distribution-profile-administration.ts` and focused database tests, especially the exact service signatures and error codes actually implemented;
+3. inspect `src/app/web/admin-router.ts`, `src/app/web/admin-api-security.ts`, `src/app/web/source-administration-router.ts`, `src/app/web/editorial-administration-router.ts`, `src/app/web/create-app.ts`, and `src/app/web/main.ts`;
+4. inspect `test/integration/admin-http.test.ts`, existing Source/Editorial admin HTTP tests, and any security tests that prove disabled-admin, JSON-body, request-integrity, CSP/header, and bounded-error behavior;
+5. confirm all required Profile mutations can be expressed by calling P2 only, with no route-owned SQL or business-rule reconstruction;
+6. stop and report planning drift if P2 is incomplete, if current admin protection has materially changed, or if implementing these routes would require the permanent machine-distribution API/security boundary early.
+
+GOAL
+Expose one stable protected administrator HTTP surface for Distribution Profiles:
+
+`admin request -> existing admin perimeter/request integrity -> thin Profile route -> P2 service -> bounded JSON response`
+
+The route layer owns HTTP parsing/status/serialization only.
+
+ROUTE SURFACE
+Add:
+
+`src/app/web/distribution-profile-administration-router.ts`
+
+Register exactly this Phase 1 control-plane surface, adapting parameter helper names only as needed:
+
+`GET /admin/api/distribution-profiles`
+
+`POST /admin/api/distribution-profiles`
+
+`GET /admin/api/distribution-profiles/:profileKey`
+
+`PUT /admin/api/distribution-profiles/:profileKey/configuration`
+
+`PUT /admin/api/distribution-profiles/:profileKey/lifecycle`
+
+`PUT /admin/api/distribution-profiles/:profileKey/sources/:sourceKey`
+
+`DELETE /admin/api/distribution-profiles/:profileKey/sources/:sourceKey`
+
+Do not add `DELETE /admin/api/distribution-profiles/:profileKey`.
+
+Do not add any `/api/v1/distribution/...` route in this prompt.
+
+HTTP METHOD / RESPONSE SEMANTICS
+Use established admin conventions:
+- list/get reads: `200`;
+- Profile creation: `201`;
+- successful configuration/lifecycle/association mutation: `200` with the resulting complete Profile read model;
+- association removal: prefer `200` with the resulting complete Profile read model so P4 can immediately render authoritative state; do not invent a separate partial representation solely for DELETE.
+
+Use JSON envelopes consistently, such as:
+- `{ profiles: [...] }`;
+- `{ profile: ... }`.
+
+Do not expose internal UUIDs if P2's admin read model intentionally omits them.
+
+ERROR TRANSLATION
+Translate the P2 bounded error vocabulary consistently. At minimum:
+- `invalid_request` -> `400`;
+- `category_not_found` -> `400`;
+- `profile_not_found` -> `404`;
+- `source_not_found` -> `404`;
+- `profile_association_not_found` -> `404`;
+- `profile_config_key_conflict` -> `409`;
+- `profile_invalid_lifecycle_transition` -> `409`;
+- `profile_requires_usable_source` -> `409`.
+
+If P2 finalized slightly different stable error-code names, use those exact names and preserve the same semantic status classes.
+
+Do not translate unknown programming/database errors into a misleading `400`. Let the established bounded dependency/error middleware or route convention handle unexpected failures without leaking SQL, stack traces, connection details, constraint names, or secrets.
+
+ADMIN PERIMETER
+Reuse the current centralized admin route/middleware stack. Do not build another CSRF/session/auth middleware for Profiles.
+
+Prove:
+- when admin is disabled, the Profile page/API surface is not registered/exposed and returns the same generic unavailable behavior as other admin routes;
+- safe GET reads follow existing admin route behavior;
+- POST/PUT/DELETE mutations require the existing `X-News-Scraper-Admin-Request` integrity header/value;
+- mutation JSON content type/body size/invalid JSON behavior remains centralized and unchanged;
+- Profile routes inherit current no-store/security headers;
+- no Cloudflare identity or native login/session logic is introduced in the application;
+- machine distribution authentication remains completely separate and unimplemented.
+
+REQUEST PARSING
+Pass `request.body` and path keys directly to the P2 service after only the minimal path extraction used by existing route modules. P2 remains responsible for exact body shape/field validation.
+
+Do not duplicate P2's config-key normalization or filter validation in the router.
+
+Do not accept query-string mutation semantics or Source/Category selectors that bypass the P2 command shapes.
+
+PRODUCTION COMPOSITION
+Wire the P2 service into the Web process using the same dependency composition style as existing admin services:
+- instantiate with the application database in `src/app/web/main.ts` or the current production composition owner;
+- register the new router through the existing admin route registrar mechanism;
+- preserve Web/API rule that Source collection never runs inline.
+
+Avoid growing `create-app.ts` with Profile-specific business logic. If the current composition uses an array/list of admin route registrars, extend it narrowly.
+
+DOWNSTREAM HANDOFF / CONSUMER READINESS
+Before P3 is complete, map and prove:
+
+`GET Profiles -> route -> P2 listProfiles -> bounded JSON HTTP proof`
+
+`POST Profile -> existing request-integrity middleware -> P2 createProfile -> 201 proof`
+
+`PUT configuration -> route -> P2 replaceProfileConfiguration -> result Profile proof`
+
+`PUT lifecycle -> route -> P2 state machine -> success/conflict HTTP proof`
+
+`PUT association -> route -> P2 association command -> real application error translation proof`
+
+`DELETE association -> route -> P2 removal command -> success/not-found/usable-source conflict proof`
+
+`admin disabled -> no Profile route registration -> existing perimeter proof`
+
+`P4 browser workspace -> stable /admin/api/distribution-profiles surface -> no business logic required client-side`
+
+If P4 would need a hidden route, raw database ID, special Source/Category query, lifecycle interpretation not represented by the service response/errors, or another API to accomplish the Phase 1 control plane, P3 is incomplete.
+
+PRESERVED BEHAVIOR
+Preserve:
+- all P1/P2 persistence/application semantics;
+- existing Source/Endpoint/Publication/Editorial/Moderation/Operations admin APIs;
+- existing request-integrity and JSON parsing rules;
+- Cloudflare Access/direct-origin protection architecture;
+- public `/` and `/api/feed` behavior;
+- collection Worker ownership;
+- no machine auth in admin routes;
+- one Publication/topic per deployment and topic-independent shared code.
+
+NON-GOALS
+Do not implement:
+- browser Profiles workspace;
+- Profile deletion;
+- Article/Profile read-model filtering;
+- canonical distribution eligibility;
+- public/machine Profile reads;
+- `/api/v1/distribution/{profile_key}`;
+- bearer credentials, auth, CORS design, rate limiting, `snapshotRevision`, or cursors;
+- PHP/LKG or later adapters;
+- new admin login/session/role system;
+- source collection from Web/API handlers.
+
+FOCUSED TEST REQUIREMENTS
+Add a dedicated HTTP integration test, preferably:
+
+`test/integration/distribution-profile-administration-http.test.ts`
+
+Use a stub/fake P2 service where appropriate to prove the route adapter independently of PostgreSQL. Database/application semantics were P2's responsibility.
+
+Cover at minimum:
+- list Profiles `200` envelope;
+- create `201` and body forwarding;
+- get Profile `200`;
+- configuration/lifecycle/association mutation success;
+- association DELETE success;
+- every bounded error class and status mapping;
+- malformed/missing path/body behavior through the service/error boundary;
+- no raw error details in bounded known failures;
+- exact service call count/arguments so routes do not perform hidden interpretation.
+
+Extend existing admin perimeter integration/security tests only where necessary to prove:
+- Profile routes are absent when admin is disabled;
+- mutations without/wrong request-integrity header never call the Profile service;
+- GET reads do not require the mutation header;
+- content-type/invalid JSON behavior remains centralized.
+
+Do not duplicate the entire global admin security suite in the Profile-specific file.
+
+FOCUSED ITERATIVE VALIDATION
+During implementation run the smallest useful commands, for example:
+
+`node scripts/run-tests.mjs --test-concurrency=4 test/integration/distribution-profile-administration-http.test.ts test/integration/admin-http.test.ts`
+
+Run directly affected TypeScript compile/lint checks as needed.
+
+FINAL VALIDATION
+After implementation is complete and top-level `package.json` is `1.1.3`, run:
+
+`npm run check`
+
+`npm run test:security`
+
+Do not redundantly rerun all integration tests separately because `npm run check` already includes them.
+
+ACCEPTANCE
+P3 is complete only when:
+- every required Phase 1 Profile admin command is exposed under `/admin/api/distribution-profiles`;
+- all mutations remain behind the existing request-integrity boundary;
+- the router contains no Profile SQL or state-machine/business-rule logic;
+- P2 error codes map to deterministic bounded HTTP states;
+- admin-disabled behavior remains fail-closed;
+- unexpected failures do not leak SQL/stack/secrets;
+- production Web composition registers the service/router without collecting Sources inline;
+- no permanent distribution API or machine-auth behavior was pulled forward;
+- P4 can implement the complete required UI using only these routes plus existing Source/Category catalog reads.
+
+IMPLEMENTATION REPORT
+Report:
+- files changed;
+- final route table and response/error mappings;
+- production composition changes;
+- proof that request-integrity/security behavior remains centralized;
+- focused and final commands actually run with results;
+- any residual risk or deviation.
+
+Do not claim browser behavior, Profile Article selection, machine API, live distribution, or deployment behavior was verified.
