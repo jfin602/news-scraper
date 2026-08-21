@@ -2,61 +2,43 @@
 
 This is the session initialization contract for repository-aware work in `jfin602/news-scraper`. Read it first in a new ChatGPT/Codex session.
 
-It establishes project identity, canonical terminology, authority, document routing, workflow gates, shorthand commands, and repository safety rails. It is a router/interpreter, not a substitute for specialized contracts, ADRs, implementation docs, tests, or observed validation evidence.
+It establishes project identity, authority, routing, workflow gates, task grammar, version transitions, and repository safety rails. It is a router/interpreter, not a substitute for the narrow governing contracts, ADRs, implementation, tests, or observed validation evidence.
 
 ## Project identity
 
 - Repository: `jfin602/news-scraper`
 - Default branch: `main`
-- Parallel UI branch: `ui-polish` for non-versioned presentation work; use a separate worktree when UI work runs concurrently with roadmap/correction implementation
-- Working product/repository name: News Scraper
-- Platform: reusable, topic-independent **headless news aggregation and distribution Platform**
-- Product core: approved-Source collection → normalization → persistence/provenance → Relevance/Categories → duplicate/moderation → canonical outward Article read semantics
-- Admin role: instance-owned control plane; Cloudflare Access protects the current managed/reference deployment, while future self-hosting requires a governed secure perimeter
-- Distribution architecture: canonical eligibility → Distribution Profile → authenticated v1 API → scheduled generic PHP complete-snapshot sync → validated local LKG → customer server-rendered output; WordPress/RSS are post-2.0
-- Deployment direction: managed-first/self-hostable-by-design complete isolated single-Publication instances; managed service is that stack operated for the customer
-- Current outward surfaces: `GET /api/feed` JSON plus bundled/reference `GET /` frontend
+- Parallel UI branch: `ui-polish`
+- Product: reusable, topic-independent **headless news aggregation and distribution Platform**
 - Deployment cardinality: exactly one Publication/topic per deployed installation
-- Topic reuse model: configure and deploy another installation of the same shared codebase; do not concurrently host multiple topic Publications in one installation
-- Publication data-model role: singleton editorial/configuration state, **not** a relational tenant/ownership key
-- Current product scope: **`docs/contracts/product-scope-and-users.md`**
-- Current product-boundary ADR: **`docs/decisions/headless-distribution-product-boundary.md`**
-- Current distribution contract: **`docs/contracts/distribution-and-integration-contract.md`**
-- Current distribution API contract: **`docs/contracts/distribution-api-contract.md`**
-- Current deployment/distribution ADR: **`docs/decisions/managed-first-self-hostable-distribution-architecture.md`**
-- Current roadmap: **`docs/roadmap/post-1.0-roadmap.md`**
-- Current roadmap state: **PAUSED — 2.0 architecture/contracts established; replacement roadmap pending owner approval**
-- Current implementation phase: **none**
-- Current package version: **`1.0.1`**
-- Next implementation version: **unassigned until a replacement roadmap is approved**
-- Last post-1.0 implementation: former Phase 0 P1 server-rendered the bundled root/reference frontend at `1.0.1`
-- Former Phase 0 P2/`1.0.2` closeout: **retired unexecuted after the 2026-08-19 product pivot; `1.0.2` is not reserved by it**
-- Production status: accepted `1.0.0` customer launch established the first supported production source/version/schema/data baseline; current application package is `1.0.1`
-- Production database policy: preserve supported customer data, governed relationships, and supported migration upgradeability under `docs/decisions/production-data-and-schema-compatibility.md`; the earlier destructive pre-production rebuild policy does not apply to supported customer state
-- Production compatibility boundary: Phase 19 established/validated upgrade/restore/rollback procedures and accepted Phase 20 launch evidence established the first supported production schema/data baseline
-- Initial Publication: publishing-industry news relevant to indie authors
-- Core constraint: Publication/client-specific behavior is configuration; shared engine/distribution logic remains topic independent
+- Publication: singleton editorial/configuration state, not a relational tenant key
+- Product core: approved Sources → collection → normalization → persistence/provenance → Relevance/Categories → duplicate/moderation → canonical outward Article semantics → governed distribution
+- Control plane: protected administrator UI/API
+- Current implemented outward surfaces: `GET /api/feed` and bundled/reference `GET /`
+- Required 2.0 path: canonical eligibility → Distribution Profile → authenticated v1 API → scheduled generic PHP complete-snapshot sync → validated local LKG → customer server-rendered output
+- Permanent machine interface contract: `docs/contracts/distribution-api-contract.md`
+- Distribution/Profile/PHP contract: `docs/contracts/distribution-and-integration-contract.md`
+- Current roadmap: `docs/roadmap/post-1.0-roadmap.md`
+- Current roadmap state: **ACTIVE**
+- Current implementation phase: **Phase 1 — Distribution Profile foundation**
+- Current package baseline: **`1.1.0`**
+- Current Phase 1 task folder: **`p1-1`** when written
+- Next roadmap prompt version: **`1.1.1`**
+- Terminal release target: **`2.0.0`**
+- Accepted production baseline: customer-launch `1.0.0`; supported customer data is durable
+- Former post-1.0 Phase 0 P1: server-rendered reference root shipped at `1.0.1`
+- Former Phase 0 P2/`1.0.2`: retired unexecuted and never reserved
+- Initial Publication: publishing-industry news relevant to indie authors; topic behavior remains configuration
 
-MVP Phases 0–21 and the Phase 10 singleton correction are complete; detailed history and validation links belong to `docs/roadmap/mvp-roadmap.md` and `docs/validation/`. Two historical qualifications remain prominent because summaries must not turn owner acceptance into unobserved proof:
+The owner-approved 2.0 roadmap keeps all implementation development in the `1.x.x` series and performs one terminal release transition from the final validated `1.7.x` candidate to `2.0.0`.
 
-- Phase 9 was accepted by the repository owner on August 11, 2026 although its artifact records that the required two-Source Level 7 observation was incomplete after one Source timed out in that environment.
-- Phase 14 was accepted by the repository owner on August 14, 2026 while its artifact retained the original BLOCKED/RED Level 8 deployment-observation limitation. Phase 19 later supplied that proof without rewriting the historical artifact.
+Linux VPS/Docker Compose self-host packaging, autonomous self-host production support, native self-host administrator authentication, WordPress, RSS/Atom, browser widgets, click/referral analytics, advanced SEO tooling, delta sync, and additional adapters are **post-2.0** unless a later owner-approved decision promotes them.
 
-All historical validation artifacts remain truthful, SHA/environment-specific evidence and do not redefine current contracts.
-
-## Delivery priority
-
-The MVP roadmap is complete and the supported production baseline remains the accepted `1.0.0` launch state. Former post-1.0 Phase 0 P1 shipped the server-rendered root/reference frontend at package `1.0.1`.
-
-Before its planned P2 closeout executed, the repository owner approved a foundational product-direction change: the collection/normalization/editorial/distribution core is now the product, the admin UI/API is its control plane, and the bundled public frontend is one supported consumer rather than the universal customer presentation.
-
-The current roadmap remains paused. **Do not generate or execute roadmap implementation prompts while the pause remains.** The 2.0 Profile, v1 API/auth, generic PHP/LKG, link/SEO, telemetry, compatibility, and Compose evaluation contracts are established. The remaining gate is an owner-approved replacement 2.0 implementation roadmap. Do not infer a next version from the retired Phase 0 sequence.
-
-During this pause, ordinary documentation/research work remains non-versioned. Correction stacks may be used only for separately owner-approved bounded regressions/repairs; they must not be used to smuggle product development around the roadmap gate.
+Self-hostability remains a locked architectural direction under Project Contract Law 12. Deferring packaging changes sequencing only; it does not permit a mandatory central News Scraper runtime dependency.
 
 ## New-session startup
 
-For project-wide work refresh:
+For substantial project-wide repository-aware work read, in order:
 
 1. `BOOT.md`
 2. `README.md`
@@ -66,182 +48,168 @@ For project-wide work refresh:
 6. `docs/decisions/headless-distribution-product-boundary.md`
 7. `docs/decisions/managed-first-self-hostable-distribution-architecture.md`
 8. `docs/contracts/distribution-and-integration-contract.md`
-9. `docs/roadmap/post-1.0-roadmap.md`
-10. narrowest governing contract/ADR, including `docs/contracts/testing-and-validation-contract.md` for implementation/review work
-11. relevant implementation/tests
-12. recent commits affecting the area when recency matters
+9. `docs/contracts/distribution-api-contract.md` when machine/API behavior is relevant
+10. `docs/roadmap/post-1.0-roadmap.md`
+11. narrowest governing contract/ADR plus `docs/contracts/testing-and-validation-contract.md` for implementation/review work
+12. relevant implementation/tests and recent changes when repository state matters
 
-Use `docs/contracts/mvp-scope-and-users.md`, `docs/roadmap/mvp-roadmap.md`, and `docs/validation/` when completed MVP intent/history, historical correction scope, or pre-1.0 exit-gate evidence is material.
+Use `docs/contracts/mvp-scope-and-users.md`, `docs/roadmap/mvp-roadmap.md`, and `docs/validation/` only when historical MVP intent/evidence matters.
 
-For UI-workstream tasks, additionally read `docs/design/README.md` and `docs/design/ui-workflow.md` before planning, design review/application, or writing a UI prompt. `docs/design/public-feed-presentation.md` governs the bundled/reference frontend only; it does not define presentation for a consuming client website.
+For UI work also read `docs/design/README.md` and `docs/design/ui-workflow.md`. `docs/design/public-feed-presentation.md` governs only the bundled/reference frontend.
 
-Do not read every document indiscriminately. Use routing below. A full `/docs-review` is the intentional exception.
-
-## Canonical terminology
-
-Governed by `docs/contracts/domain-and-data-contract.md`, `docs/contracts/product-scope-and-users.md`, `docs/contracts/distribution-and-integration-contract.md`, and the current Accepted ADRs.
-
-- `repo` / `source code` = `jfin602/news-scraper`
-- `Platform` = reusable headless aggregation/distribution software deployed/configured separately for different topics
-- `Publication` = the singleton configured news product/editorial configuration for one installation; **not** a relational tenant/ownership key
-- `control plane` = protected administrator UI/API governing Publication, Source, endpoint, editorial, moderation, duplicate, and operational state
-- `News Scraper instance` = independently bounded complete single-Publication stack; managed instances may share physical infrastructure without sharing customer application/domain state
-- `Distribution Profile` = named administrator-controlled selection that can only narrow canonically eligible Article output
-- `integration adapter` = thin transport/sync/cache/rendering consumer that cannot own editorial, eligibility, duplicate, or profile semantics
-- `canonical outward Article read semantics` = the governed Article-selection boundary that outward consumers must reuse for trust/visibility/duplicate/destination behavior; the current implementation is the existing public-feed read model
-- `reference frontend` = the bundled first-party `GET /` public feed; supported but not the Platform's primary product identity
-- `distribution consumer` = a supported outward interface/site/adapter that consumes governed normalized Article output without owning collection or duplicating canonical Article-selection rules
-- `legacy Publication selector` = obsolete pre-production implementation plumbing such as Publication IDs/slugs/FKs/scopes that the canonical model does not use
-- `production baseline` = the accepted Phase 20 launched `1.0.0` source/version/schema state after which customer production data is durable supported state and normal upgrades must preserve it
-- `Source` = configured publisher/outlet; approval state determines whether it is trusted for collection
-- `Source endpoint` = configured feed/API/HTML location owned by a Source
-- `Collection run` = one attempt to collect one endpoint; persisted provenance begins with the first real fetch phase
-- `Raw item` = minimally interpreted parser output
-- `Source RSS/Atom item admission filter` = optional Source-owned include-phrase gate over parsed RSS/Atom Raw-item editorial text, before Article-candidate normalization and distinct from Relevance
-- `Article candidate` = normalized but not yet accepted; provenance is Source + endpoint + Collection run
-- `Article` = persisted normalized Source instance; identity is Source-scoped
-- `Article observation` = endpoint/run provenance for an Article/candidate outcome, preserving Source consistency
-- `Duplicate review candidate` = persisted possible true-duplicate decision/review record
-- `Duplicate group` = separately stored Articles representing the same underlying published item
-- `Primary article` = one member selected to represent a Duplicate group in ordinary outward/public output
-- `Related coverage` = distinct reporting about same subject/event; not a true duplicate
-- `Category` = installation-wide editorial grouping from singleton Publication configuration, identified by immutable installation-wide `config_key` once persisted
-- `Relevance rule` = deterministic installation-wide include/exclude/categorize rule, optionally Source-scoped, identified by immutable installation-wide `config_key` once persisted
-- `contract` = behavior implementation must preserve
-- `ADR` = decision record in `docs/decisions/`
-- `task` = active roadmap/correction implementation prompt under `docs/tasks/`
-- `UI task` = non-roadmap, non-versioned targeted presentation prompt under `docs/design/tasks/`
-- `validation artifact` = durable record under `docs/validation/` of evidence actually observed against a specific source tree/environment; it does not redefine contracts
-- `refresh` = re-read current repository sources before answering
-- `lock` = treat a decision as authoritative and identify documents that must reflect it
-
-Do not blur removal of relational Publication tenancy with removal of the singleton Publication editorial/configuration concept. Also keep Source vs endpoint, approval/trust vs distribution selection, approval vs lifecycle/operational state, operational state vs health, Relevance vs Article identity, Category assignment vs inclusion, Article identity vs duplicate identity, Article visibility vs duplicate role, external admin access control vs application resource validation, and source inspection vs executed validation evidence distinct.
+Do not read every document indiscriminately unless performing a full `/docs-review`.
 
 ## Authority and conflicts
 
 Canonical authority is `docs/contracts/project-contract.md`:
 
 1. locked laws;
-2. explicit project-contract invariants;
+2. explicit Project Contract invariants;
 3. domain and lifecycle contracts;
 4. architecture, interface, security/operations contracts, and Accepted ADRs;
-5. roadmap/implementation notes;
+5. current roadmap and implementation notes;
 6. root summaries/routing (`AGENTS.md`, `README.md`, `BOOT.md`);
 7. implementation;
-8. historical task prompts;
-9. comments/commit messages/stale notes.
+8. historical prompts;
+9. comments, commit messages, and stale notes.
 
-`docs/contracts/testing-and-validation-contract.md` governs how implementation behavior is proven and when implementation/correction work may be considered complete. It does not redefine product/domain behavior or outrank the governing behavioral contract being tested.
+`docs/contracts/testing-and-validation-contract.md` governs proof. It does not redefine product behavior or outrank the behavioral contract being tested.
 
-Design documents under `docs/design/` are presentation/workflow guidance subordinate to the applicable product/domain contracts, ADRs, roadmap, and testing contract. They may refine presentation, but they do not silently redefine supported behavior or roadmap exit gates.
+Historical validation proves only what was observed against the recorded tree/environment. Existing implementation does not outrank current contracts.
 
-Observed validation evidence proves behavior only for the source tree/environment/procedure actually tested; it does not outrank or redefine a governing contract. Earlier Phase 3–9 artifacts may accurately describe Publication-scoped schema/routes at their accepted SHAs even though the canonical current architecture does not use those shapes.
-
-Current user instruction controls task scope. A proposed locked-law change is a contract-change request, not permission for lower-authority work to override it silently.
-
-Where the existing `public-feed-and-admin-contract.md` or the accepted single-Publication ADR describes `/` as the Platform's universal customer-facing product surface, the amended Law 11 plus `headless-distribution-product-boundary.md` govern the current product interpretation: `/` is the bundled/reference frontend and `/api/feed` is a current JSON outward interface.
+Current user instruction controls task scope. A requested locked-law change is a contract-change request, not permission to silently override higher authority.
 
 Report authoritative conflicts rather than choosing silently.
 
+## Canonical terminology
+
+- `Platform` — reusable headless aggregation/distribution software configured and deployed separately for topics
+- `Publication` — the one configured news/editorial product for an installation; not a tenant key
+- `control plane` — protected administrator UI/API
+- `News Scraper instance` — independently bounded single-Publication Web/Admin + Worker + PostgreSQL + scheduler/jobs + config/secrets + interfaces
+- `Distribution Profile` — named administrator-controlled post-eligibility selection that can only narrow canonically eligible Articles
+- `distribution consumer` — supported API/site/adapter consuming governed normalized output
+- `integration adapter` — thin transport/sync/cache/rendering layer, never an editorial/query authority
+- `canonical outward Article semantics` — shared trust/visibility/duplicate/order/destination authority used by outward consumers
+- `reference frontend` — bundled `GET /` consumer; supported but not the primary product identity
+- `Source` — configured publisher/outlet; approval determines collection trust
+- `Source endpoint` — concrete feed/API/HTML location owned by a Source
+- `Collection run` — one attempt to collect one endpoint
+- `Raw item` — minimally interpreted parser output
+- `Article candidate` — normalized but not yet accepted
+- `Article` — persisted normalized Source instance; identity is Source-scoped
+- `Article observation` — endpoint/run provenance for an Article/candidate outcome
+- `Duplicate group` — separately retained Articles representing one underlying published item
+- `Primary article` — one group member representing that group in ordinary outward output
+- `Related coverage` — distinct reporting, not a duplicate
+- `Category` — installation-wide editorial grouping with immutable `config_key`
+- `Relevance rule` — deterministic installation-wide include/exclude/categorize rule, optionally Source-scoped
+- `Source RSS/Atom item admission filter` — Source-owned pre-normalization collection gate, distinct from Relevance and Profile filtering
+- `contract` — behavior implementation must preserve
+- `ADR` — decision record under `docs/decisions/`
+- `task` — roadmap/correction implementation prompt under `docs/tasks/`
+- `validation artifact` — durable record of evidence actually observed
+
+Keep these distinctions explicit: Source vs endpoint; approval vs lifecycle/operational state vs health; collection admission vs Relevance vs Distribution Profile filtering; Article identity vs duplicate identity; Article visibility vs duplicate role; reference `public_status` vs canonical distribution eligibility; human admin access vs machine distribution authentication; source inspection vs executed evidence.
+
 ## Document routing
 
-| Area                                                                                                                                                         | Read first                                                   |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ |
-| Locked laws / authority / product boundaries                                                                                                                 | `docs/contracts/project-contract.md`                         |
-| Current post-1.0 product scope / users / 2.0 boundary                                                                                                        | `docs/contracts/product-scope-and-users.md`                  |
-| Historical `1.0.0` MVP users / capabilities / exclusions                                                                                                     | `docs/contracts/mvp-scope-and-users.md`                      |
-| Headless aggregation/distribution product boundary / reference frontend role / Source trust vs distribution selection                                        | `docs/decisions/headless-distribution-product-boundary.md`   |
-| Terminology / singleton model / entities / identity / provenance / Category/Relevance schema                                                                 | `docs/contracts/domain-and-data-contract.md`                 |
-| Testing / regression / evidence / DB/fixture/browser/live validation                                                                                         | `docs/contracts/testing-and-validation-contract.md`          |
-| Process/module architecture / deployment / Worker / scheduling / transactions / outward-consumer boundary                                                    | `docs/architecture/system-architecture.md`                   |
-| Approval / bootstrap / collection / safety / Source RSS/Atom item admission / normalization / Relevance / operator configuration / identity / run accounting | `docs/contracts/source-and-collection-contract.md`           |
-| Operator Source/endpoint onboarding / field meanings / domain policy / RSS admission phrases / Check now                                                     | `docs/operations/source-onboarding.md`                       |
-| Article visibility / duplicate role / review/groups / Primary                                                                                                | `docs/contracts/article-lifecycle-and-deduplication.md`      |
-| Existing `/api/feed` + bundled `/` reference frontend / search / themes / admin UX / change history                                                          | `docs/contracts/public-feed-and-admin-contract.md`           |
-| Permanent v1 Profile API / schema / cursors / machine credentials / response classes / CORS                                                                  | `docs/contracts/distribution-api-contract.md`                |
-| UI design / bundled-reference presentation workflow / parallel UI branch                                                                                     | `docs/design/README.md`, then `docs/design/ui-workflow.md`   |
-| Admin perimeter / SSRF / content safety / isolation / observability / recovery                                                                               | `docs/operations/security-reliability-and-operations.md`     |
-| PostgreSQL backup / restore / managed backup retention                                                                                                       | `docs/operations/database-backup-and-restore.md`             |
-| Deployment / schema upgrade / rollback / incidents / current reference operations                                                                            | `docs/operations/deployment-and-incident-runbook.md`         |
-| Current post-1.0 roadmap pause / architecture gate                                                                                                           | `docs/roadmap/post-1.0-roadmap.md`                           |
-| Completed MVP phase / correction history                                                                                                                     | `docs/roadmap/mvp-roadmap.md`                                |
-| Superseded unexecuted former Phase 0 P2 closeout                                                                                                             | `docs/history/superseded-post-1.0-phase-0-closeout.md`       |
-| Singleton Publication data-model decision                                                                                                                    | `docs/decisions/single-publication-simplified-data-model.md` |
-| Production data/schema compatibility / supported upgrade boundary                                                                                            | `docs/decisions/production-data-and-schema-compatibility.md` |
-| Historical superseded data-model decision                                                                                                                    | `docs/decisions/topic-independent-publication-model.md`      |
-| Whitelist/structured-feed decision                                                                                                                           | `docs/decisions/whitelist-and-structured-feed-first.md`      |
-| Original-link/normalization decision                                                                                                                         | `docs/decisions/original-link-and-normalized-metadata.md`    |
-| Cloudflare Access admin perimeter                                                                                                                            | `docs/decisions/cloudflare-access-admin-perimeter.md`        |
-| Codex model/reasoning selection and prompt efficiency                                                                                                        | `docs/codex-model-selection.md`                              |
-| Documentation index                                                                                                                                          | `docs/README.md`                                             |
-| Specialized validation plans                                                                                                                                 | `docs/testing/` when present                                 |
-| Active roadmap/correction implementation prompts                                                                                                             | `docs/tasks/` when present                                   |
-| Targeted UI prompts                                                                                                                                          | `docs/design/tasks/` when present                            |
-| Durable validation artifacts                                                                                                                                 | `docs/validation/` when present                              |
+| Area | Read first |
+| --- | --- |
+| Locked laws / authority | `docs/contracts/project-contract.md` |
+| Current product scope / 2.0 boundary | `docs/contracts/product-scope-and-users.md` |
+| Distribution Profiles / filters / PHP/LKG / presentation/link policy | `docs/contracts/distribution-and-integration-contract.md` |
+| Permanent v1 API / schema / cursors / machine credentials / errors / CORS | `docs/contracts/distribution-api-contract.md` |
+| Terminology / entities / persistence | `docs/contracts/domain-and-data-contract.md` |
+| Collection / safety / normalization / Relevance / identity | `docs/contracts/source-and-collection-contract.md` |
+| Article visibility / duplicates / Primary | `docs/contracts/article-lifecycle-and-deduplication.md` |
+| Existing `/api/feed`, `/`, current admin UX | `docs/contracts/public-feed-and-admin-contract.md` |
+| Testing / evidence / DB/browser/live/deployment proof | `docs/contracts/testing-and-validation-contract.md` |
+| Process/module architecture | `docs/architecture/system-architecture.md` |
+| Security / reliability / observability | `docs/operations/security-reliability-and-operations.md` |
+| Backup / restore | `docs/operations/database-backup-and-restore.md` |
+| Deployment / rollback / incidents | `docs/operations/deployment-and-incident-runbook.md` |
+| Active 2.0 phases / versions | `docs/roadmap/post-1.0-roadmap.md` |
+| Completed MVP history | `docs/roadmap/mvp-roadmap.md` |
+| Historical 2.0 planning record | `docs/roadmap/2.0-planning-questions.md` |
+| Product-boundary ADR | `docs/decisions/headless-distribution-product-boundary.md` |
+| Managed/self-hostable architecture ADR | `docs/decisions/managed-first-self-hostable-distribution-architecture.md` |
+| Production data/schema compatibility | `docs/decisions/production-data-and-schema-compatibility.md` |
+| Admin perimeter | `docs/decisions/cloudflare-access-admin-perimeter.md` |
+| UI workflow | `docs/design/README.md`, then `docs/design/ui-workflow.md` |
+| Codex model selection | `docs/codex-model-selection.md` |
+| Documentation index | `docs/README.md` |
 
 If a path does not exist, search for its current equivalent before assuming intentional deletion.
 
 ## High-risk project invariants
 
-Read the routed contract for full matrices and algorithms. BOOT keeps only distinctions whose omission commonly causes architectural or evidentiary errors:
+- Shared aggregation/distribution logic remains topic independent.
+- One deployed installation hosts exactly one Publication/topic; multiple Profiles do not imply tenancy.
+- The administrator surface is the control plane. `/` and `/api/feed` remain supported reference/legacy consumers.
+- Collection trust and distribution selection are separate. Source approval does not automatically make a Source part of every Profile.
+- Canonical distribution eligibility is independent of reference `public_status`; Profile selection occurs after canonical eligibility and can only narrow it.
+- Every outward consumer uses the same governed Article eligibility/order/duplicate/destination authority. Adapters/controllers must not invent competing SQL or interpretation.
+- Source configuration/collection is singular; Profiles do not duplicate Source collection, Article identity, or provenance.
+- Source and endpoint approval/lifecycle/operational/health concepts remain distinct.
+- Every fetch/redirect passes approval plus DNS/address/port/SSRF validation before contact. Article-link policy is a separate post-normalization gate.
+- Parsers produce Raw items and never persist Articles.
+- Normalization precedes link policy, Relevance/Categories, identity, duplicate processing, and outward use.
+- Article identity is Source-scoped and transactionally idempotent.
+- True-duplicate grouping retains every Source Article/provenance and has exactly one Primary.
+- Article visibility is orthogonal to duplicate role.
+- Web/API never collects Sources inline; Source failures remain isolated.
+- Stored `original_url` remains the reader/headline destination.
+- Machine `distribution:read` credentials never grant administrator authority.
+- Current managed administrator access remains protected by Cloudflare Access plus direct-origin/request-integrity/resource-validation controls.
+- Supported production customer data is durable from the accepted `1.0.0` baseline. Clean migration from zero does not prove production upgrade safety.
+- WordPress/RSS/self-host packaging/native self-host auth and other post-2.0 capabilities must not be pulled into the current roadmap without explicit owner approval.
 
-- Shared engine/distribution logic is topic independent. One deployed installation hosts one singleton Publication/topic; another topic uses another configured deployment. Publication owns editorial configuration but is not a relational tenant key.
-- The headless product pivot does not authorize concurrent multi-Publication hosting. Multiple distribution consumers for one Publication do not require tenant IDs/FKs/scopes.
-- The administrator surface is the control plane. The bundled `GET /` frontend remains supported as a reference/standalone consumer; `GET /api/feed` remains a current JSON outward interface.
-- Future outward adapters must reuse canonical Article-selection/read semantics. They MUST NOT invent competing Source-trust, Article-visibility, duplicate-suppression, moderation, ordering, or reader-destination rules.
-- Collection trust and distribution selection are separate. Source approval authorizes governed collection/trust; it does not automatically make a Source mandatory in every future consumer output.
-- The 2.0 distribution architecture is approved but unimplemented. While the roadmap is paused, do not implement Profiles, v1 API/auth, PHP/LKG, Compose packaging, or post-2.0 adapters outside an owner-approved replacement roadmap; do not expand the bounded contracts speculatively.
-- Do not introduce Publication IDs/slugs/FKs/joins/uniqueness scopes/repository or authorization parameters/compatibility aliases solely for hypothetical concurrent hosting. Preserve genuine Source/endpoint/run/Article/observation relationships.
-- Source is the approved publisher/trust boundary; endpoint is its concrete feed/API/HTML location. Approval, lifecycle, operational state, and derived health are separate.
-- Collection requires singleton Publication collection-active state plus approved, active, enabled Source/endpoint state. Bootstrap never auto-discovers/auto-approves, infers approval from fetch success, silently widens domains, or overwrites operator-managed state.
-- Every request and redirect hop passes approval plus DNS/address/port/SSRF validation before contact. Normalized Article links pass a separate post-normalization Source/domain policy gate. Endpoint policy may narrow the Source maximum, never widen it.
-- Parsers emit Raw items and never persist Articles. The optional Source-owned RSS/Atom admission filter is a literal include-only pre-normalization gate distinct from Relevance; a mismatch is neither a Relevance `excluded` outcome nor an Article observation. HTML bypasses this RSS/Atom-only stage.
-- Normalization precedes Article-link policy, Relevance/Categories, identity, duplicates, and outward use. Relevance exclusion terminates before identity; rule edits are prospective by default.
-- Article identity is Source-scoped and transactionally idempotent. True-duplicate identity relates separately retained Articles; all Source instances/provenance remain stored and each Duplicate group has exactly one Primary.
-- Article visibility is independent from duplicate role. Collection activity, endpoint operational state, and current run health do not themselves hide retained otherwise-eligible rows.
-- Reader/headline destinations use stored `original_url`; `canonical_identity_url` remains an identity-comparison field. Current `GET /api/feed` and `GET /` share the canonical public/outward read model rather than parallel eligibility/query paths.
-- Web/API never collects Sources inline. Source runs/jobs fail independently, and collection failures do not make retained outward data unavailable solely because current collection is failing.
-- Admin uses Cloudflare Access with direct-origin protection, request-integrity controls, and application validation of real resource relationships/domain invariants. Native application accounts/roles and Publication-tenant authorization remain deferred.
-- Accepted Phase 20 established durable supported customer state. Clean migration from zero remains required for new/disposable installations, but post-baseline persisted/schema changes must preserve supported data/relationships and prove the supported forward upgrade under the production-compatibility ADR.
-- Every implementation change requires focused plus relevant broader regression coverage. Evidence must actually be observed at the capable level and applies only to the exact final tree/environment tested; source inspection, mocks, fixtures, browser, database, live-Source, and deployment evidence are not interchangeable.
-- Required suites do not pass through missing prerequisites, skips, flakiness, or zero selected tests. Use narrow focused iteration and the smallest non-overlapping final command set that covers the applicable testing contract.
-- Roadmap closeout and correction closeout remain distinct; historical validation remains truthful and SHA/environment-specific.
+## Active 2.0 roadmap
 
-## Roadmap state
+The roadmap is **ACTIVE**.
 
-Use `docs/roadmap/post-1.0-roadmap.md` for the current pause/gate. Use `docs/roadmap/mvp-roadmap.md` for completed MVP history.
+| Phase | Baseline | Prompt versions | Goal |
+| --- | --- | --- | --- |
+| 1 | `1.1.0` | `1.1.x` | Distribution Profile persistence + admin control plane |
+| 2 | `1.2.0` | `1.2.x` | Canonical distribution read model |
+| 3 | `1.3.0` | `1.3.x` | Machine credentials + distribution security |
+| 4 | `1.4.0` | `1.4.x` | Versioned v1 distribution API |
+| 5 | `1.5.0` | `1.5.x` | Generic PHP synchronization + LKG core |
+| 6 | `1.6.0` | `1.6.x` | PHP local data API + customer SSR integration |
+| 7 | `1.7.0` | `1.7.x` | Managed integration + 2.0 release qualification |
+| Release | final `1.7.x` | — | terminal version-only transition to `2.0.0` |
 
-The MVP roadmap is complete through terminal Phase 21 and accepted production compatibility begins at the `1.0.0` launch baseline. Former post-1.0 Phase 0 P1 shipped at `1.0.1`.
+The complete detailed phase scope/exit gates live in `docs/roadmap/post-1.0-roadmap.md` and must be re-read before phase planning.
 
-Current roadmap state is **PAUSED**. There is no active implementation phase and no assigned next version. The former `p1-0` P2 closeout was retired unexecuted and MUST NOT be recreated/executed merely because the runner grammar supports it.
+Current phase is Phase 1. Its implementation may create Profile persistence, Source associations/filters, lifecycle validation, protected admin controls, and required migration/history/tests. It does **not** include the canonical distribution read model, machine auth/API, PHP, or post-2.0 packaging.
 
-The previously completed non-versioned runner-compatibility correction remains valid tooling work; it proves the parser can support post-1.0 roadmap grammar when a replacement roadmap later authorizes it. Grammar capability is not roadmap authorization.
+## Production compatibility
 
-Historical qualifications remain as summarized in Project identity: Phase 9 and Phase 14 owner acceptances did not rewrite their recorded evidence limitations, and Phase 19 later supplied Phase 14's deferred Level 8 proof.
+The accepted Phase 20 customer launch defines the first supported production source/version/schema/data baseline at `1.0.0`. Post-launch customer state is durable.
 
-## Working preferences
+Whenever schema/persisted representation changes:
 
-- Inspect current source/docs before implementation prompts.
-- Prefer file-scoped, regression-safe prompts.
-- State allowed files when knowable.
-- Include non-goals and preserved behavior.
-- Require focused + broader regression tests and identify evidence levels needed for acceptance.
-- For a prompt with a direct downstream consumer, map every downstream-required capability to the owning implementation/export and focused proof before declaring the producer complete.
-- When one proposed prompt combines a complex transactional/state-machine responsibility with a separately consumable read/service/API responsibility, explicitly assess splitting it before escalating model strength; prefer decomposition when downstream consumers, test strategies, or failure risks differ materially.
-- Distinguish iterative validation from final-tree validation: use the narrowest relevant focused command during development, then the smallest non-overlapping command set that covers the full applicable final matrix.
-- Do not require subordinate checks/suites alongside an aggregate command that already executes them on the same unchanged final tree unless diagnosing a failure or an intervening change invalidated earlier evidence.
-- Do not claim runtime/browser/database/live-Source behavior unless observed at the corresponding evidence level.
-- Prefer smallest correct incremental change and simplest supported architecture over speculative future-proofing.
-- For pre-production canonicalization, prefer deletion over wrappers/aliases: remove legacy-only migrations, code, types, APIs, tests, fixtures, and configuration paths instead of preserving superseded behavior in the active tree.
-- After the Phase 20 production baseline, never apply the pre-production destructive-reset rule to supported customer data; trace supported baseline → migrations/persisted representation → data/relationship preservation → backup/rollback/restore → application consumers/tests before approving post-launch persistence refactors.
-- For future outward/distribution work, trace canonical Article selection → adapter/interface → consumer/site behavior → trust/auth/security → cache/freshness → SEO/link semantics → observability/tests. Do not let the adapter invent producer-owned Article rules.
-- For existing reference-frontend work, trace singleton Publication settings → canonical read model → `/api/feed` → `/` page/client → unavailable/error behavior → external links → browser tests.
-- Before UI changes read `docs/design/README.md` and `docs/design/ui-workflow.md`, trace governing public/design behavior → current `ui-polish` presentation source → shared frontend consumers → relevant browser/tests, and keep backend/domain behavior unchanged unless the task is routed out of the UI workstream.
-- Do not run UI implementation in the same worktree used by an active phase/correction runner.
-- Before approving a change, trace testing blast radius and confirm relevant regression suites were actually executed against the reviewed final tree.
-- For implementation-roadmap phase or gating correction closeout, require observed local terminal evidence and the required durable validation artifact tied to the exact accepted source tree.
-- Make a concrete choice when asked for `recommended`.
-- Never invent repository state, tests, browser results, Source behavior, or history.
+- migration from zero still passes for new/disposable installations;
+- supported production state is upgraded through the real migration chain;
+- governed data/relationships/provenance/editorial/moderation/duplicate state are preserved;
+- backup/restore/rollback planning remains compatible;
+- supported migration history is not rewritten merely for cosmetic cleanup.
+
+Phase 1 Profile persistence therefore requires Level 4 production-forward migration proof in addition to zero-to-latest migration.
+
+## Validation honesty
+
+- Every implementation prompt owns focused tests and appropriate broader regression coverage.
+- Producer boundaries must prove every capability later consumers require; consumers must not invent producer-owned SQL/query/cursor/state/transaction/validation/topology semantics.
+- Use the narrowest useful focused command during iteration and the smallest non-overlapping final command set covering the applicable evidence.
+- Evidence applies only to the exact tree/environment actually tested.
+- Source inspection is not runtime/browser/database/live proof.
+- Mocks do not prove PostgreSQL constraints, transactions, migrations, locks, or races.
+- Required specialized suites fail clearly when prerequisites are unavailable; skips/zero-match/flakiness do not satisfy an exit gate.
+- Phase/correction closeout requires a durable validation artifact tied to the accepted source tree.
+
+Historical Phase 9 and Phase 14 evidence limitations remain historical; later evidence never rewrites what was observed earlier.
 
 # Conversation commands
 
@@ -250,188 +218,52 @@ Commands are conversational shorthand, not shell commands.
 ## Context
 
 ### `/boot`
-
-Refresh BOOT, root summaries, project contract, current product scope/ADR, roadmap, and narrow governing docs.
+Refresh BOOT, root summaries, Project Contract, current product scope/ADRs, active roadmap, and the narrow governing docs for the requested work.
 
 ### `/refresh <area>`
-
 Re-read relevant source/docs/tests/recent commits.
 
 ### `/state`
-
-Summarize implementation state, active phase, completed work, constraints, next logical work.
+Summarize implementation state, current phase, completed work, constraints, and next logical work.
 
 ### `/route <topic>`
-
 Identify governing contracts/ADRs/source/tests/tasks.
 
 ## Analysis
 
 ### `/audit <area>`
-
-Compare contracts, ADRs, source, tests, recent changes, observable behavior; report disagreements/risks.
+Compare contracts, ADRs, source, tests, recent changes, and observable behavior; report disagreements/risks.
 
 ### `/contract-check <area>`
-
 Check implementation/tests against governing contracts/laws.
 
 ### `/doc-check <area>`
-
 Narrow documentation consistency check; does not replace full `/docs-review`.
 
 ### `/source-trace <source or behavior>`
-
-Trace singleton configuration → Source → endpoint → approval/lifecycle/operational state → scheduling/job/manual execution → lock/run → safety → fetch → parse/normalize → link validation → Relevance → Source-scoped identity/observation → duplicate → run/health → consumers/tests.
+Trace Publication configuration → Source → endpoint → state → job/run → safety → fetch → parse/admission → normalization/link policy → Relevance → identity/observation → duplicate → health/consumers/tests.
 
 ### `/article-trace <field or concept>`
-
-Trace Raw item → candidate → Relevance/Category assignment → Source-scoped Article identity/persistence → observations → overrides → duplicate role → canonical outward/public read semantics → consumers/tests.
-
-### `/dedupe-trace <case>`
-
-Trace Article identity separately from true-duplicate evidence, review state, groups, Primary, safeguards, moderation, outward suppression/tests.
+Trace Raw item → candidate → Relevance/Category → Article identity/persistence → observations → overrides → duplicate role → canonical outward semantics → consumers/tests.
 
 ### `/blast-radius <change>`
-
 Identify affected contracts, ADRs, schema/migrations, jobs/services/routes/read models/UI/tests/docs.
 
 ### `/regression <behavior>`
-
-Trace suspected regression to likely change, affected invariants, missing test protection, and evidence level required to prove a fix.
-
-# Phase handoff workflow
-
-After a non-terminal implementation roadmap phase has been formally closed by its closeout task and durable validation record, use:
-
-```text
-phase implementation / closeout task
-→ /closeout
-→ /docs-review
-→ /docs-apply
-→ /prompt-ass
-→ /prompt-plan
-→ /prompt-write <folder name>
-```
-
-This workflow is currently dormant because no implementation roadmap phase is active. Do not invoke `/closeout` as though former post-1.0 Phase 0 remained active; its planned P2 closeout was retired before execution.
-
-A green non-terminal `/closeout` establishes the next implementation phase by committing the documented next-phase baseline version. Because `/closeout` is intentionally version-only in that case, roadmap/root phase summaries may still identify the just-completed phase until the immediately following `/docs-review` → `/docs-apply` alignment. This short state is expected and is not itself repository drift.
-
-For Phase 21, the final documented pre-1.0 roadmap phase, `/closeout` was terminal but had one explicit release-transition exception to the normal terminal no-write rule: after the bounded closeout check was green, it updated only top-level `package.json` from the final validated `0.21.x` version to `1.0.0`, created no successor-phase baseline, reserved no new phase number, and reported the `1.0.0` launch state plus `Roadmap status: COMPLETE`.
-
-A correction stack has its own final manual closeout prompt, but that prompt is **not** `/closeout`. Correction closeout validates and clears only the named correction/gate while preserving the declared unchanged package version; it does not advance the roadmap phase or create a new baseline.
-
-## `/closeout`
-
-`/closeout` is a bounded phase-handoff or terminal-roadmap state transition, not an audit or troubleshooting workflow. It requires an actually active/complete owner-approved roadmap phase. While the current roadmap pause has no active phase, `/closeout` must report that no phase transition is authorized rather than infer one from historical tasks.
-
-### Fast path
-
-1. Read this `/closeout` section and roadmap entries needed to identify the completed phase and either its intended next phase or its explicit terminal status.
-2. Read the completed phase's durable validation artifact and extract the accepted/validated implementation source SHA and exit-gate conclusion.
-3. Read `package.json` as sole project-version authority and completed phase task filenames/version sequence. Do not require/search npm lockfile metadata.
-4. Perform one accepted-SHA-to-current-`main` compare to classify post-validation drift. Documentation-only changes and explicitly owner-approved non-executable workflow/tooling-policy changes are non-blocking when they do not modify runtime behavior, tests, migrations, committed configuration, `package.json` dependency/script/engine metadata, or other executable product behavior. Relevant executable drift is blocking.
-5. If green and a documented successor phase exists, perform only the next-phase baseline version transition below. If the completed phase is a documented terminal release transition, follow its explicit terminal rule.
-6. For non-terminal handoff, verify transition diff, then re-read the active roadmap and print the complete entry for the phase being entered. For terminal closeout, report the explicitly documented final launch state without inventing a successor.
-
-Required structural checks:
-
-- completed phase artifact states its exit gate is satisfied and either the intended next phase is identifiable or the roadmap explicitly marks the completed phase terminal with no approved successor;
-- artifact identifies accepted/validated implementation source SHA;
-- single post-validation compare shows no unvalidated executable/dependency/test/migration/runtime/config drift;
-- root/roadmap phase state is coherent enough for handoff/terminal completion even if docs alignment awaits `/docs-apply`;
-- `package.json` contains expected completed-phase version;
-- task/version sequence is coherent with no obvious blocking stale artifacts.
-
-The repository intentionally does not use `package-lock.json`; its absence is expected and never itself a blocker.
-
-### Time and scope guardrails
-
-- Do not rerun full validation, tests, runtime, database, browser, or live-Source checks during `/closeout`.
-- Do not perform broad contract/document/source review; `/docs-review` owns that.
-- Do not walk every post-validation commit when one range comparison can classify drift.
-- If relevant unvalidated drift exists, report `Closeout check blocked` and stop without root-cause investigation.
-- If no active roadmap phase/successor version is documented, report the roadmap-state blocker and stop without inventing a transition.
-- If required state cannot be established quickly because a safe primitive is unavailable, report blocker rather than expanding into open-ended investigation.
-- A version transition gets one predetermined safe write strategy. Do not cycle alternate write mechanisms or hand-build Git objects to overcome connector limitations.
-- Do not run `npm install` merely to change version.
-
-### Non-terminal green-path version transition
-
-Invocation of `/closeout` constitutes explicit repository-owner authorization for a version-only transition only when the structural check is green and the **current approved roadmap** identifies an exact successor baseline.
-
-Capture pre-transition `main` SHA. Update exactly the top-level `package.json` version to the documented successor baseline. Preserve every other package value. Commit version-only transition directly to `main` unless branch/PR requested. Immediately compare pre/post SHAs; complete range MUST change only `package.json` and exactly the expected version value. Otherwise report `Closeout transition invalid` and stop.
-
-### Historical Phase 21 terminal 1.0.0 release transition
-
-Phase 21's already-completed terminal transition changed only top-level `package.json` from the final validated `0.21.x` candidate to `1.0.0`. Do not replay that transition, create `0.22.0`, or use it to infer a post-1.0 successor.
-
-### Required final output
-
-For a successful non-terminal `/closeout`, respond in order:
-
-1. `Closeout check: GREEN`;
-2. resulting baseline transition commit SHA/final SHA;
-3. next P1 version derived from the current approved roadmap;
-4. complete roadmap entry for the phase being entered, freshly re-read rather than summarized from memory.
-
-For a successful terminal closeout, report the final state required by that phase's current approved roadmap without inventing a successor.
+Trace suspected regression to likely change, affected invariants, missing test protection, and required evidence.
 
 # Documentation workflow
 
 ## `/docs-review`
-
-Always a **read-only first pass**.
-
-Default full scope: every tracked `.md` and `.txt` except:
-
-- `docs/tasks/`
-- `docs/design/tasks/`
-- `docs/validation/`
-
-Conversation may narrow scope explicitly.
-
-Return interpreted scope, reviewed/excluded docs, contradictions, source/docs drift when applicable, stale statements, duplicated/misplaced authority, missing cross-references, routing issues, recommended changes by file, and application order.
-
-Never modify files during `/docs-review`.
+Read-only. Default scope is tracked `.md`/`.txt` excluding task and validation artifacts unless narrowed. Report contradictions, drift, stale statements, duplicated authority, missing references, and recommended changes. Never modify files.
 
 ## `/docs-apply`
-
-Apply only approved findings/change groups from current conversation.
-
-Before editing, re-read targets and confirm drift has not invalidated findings.
-
-Invoking `/docs-apply` explicitly authorizes approved **documentation-only** edits directly on `main` unless the user requests a branch/PR or explicitly requires isolation from an active runner/workstream. It does not authorize source changes, unrelated cleanup, history rewriting, or unapproved docs edits.
-
-After applying, report changed files, addressed/unapplied findings, newly discovered conflicts, and remaining validation.
+Apply only approved documentation findings after re-reading current targets. Do not alter source, migrations, tests, dependencies, runtime config, or package version unless separately explicitly authorized.
 
 ## `/docs-prompt`
+Docs-only prompt-generation alternative after an approved `/docs-review`. Normally uses `npm run docs:snapshot` and the supplied docs snapshot. It emits one implementation-ready Codex docs prompt and does not implement product work.
 
-`/docs-prompt` is a **docs-only, read-only** alternative application path after explicit approval of a `/docs-review` change group from the current conversation. The two approved paths are:
-
-```text
-/docs-review
-→ explicit approval
-→ /docs-apply (direct repository-editing path)
-
-/docs-review
-→ explicit approval
-→ npm run docs:snapshot
-→ provide/upload news-scraper-docs-context.zip
-→ /docs-prompt
-→ one implementation-ready Codex prompt
-→ Codex applies locally
-```
-
-It requires the generated `news-scraper-docs-context.zip`, created with `npm run docs:snapshot` and provided/uploaded for prompt generation; arbitrary full-repository ZIPs are not a substitute. The supplied ZIP is the repository snapshot used to generate the prompt. Read its `BOOT.md` first and obey its authority and routing rules. The expected snapshot contains tracked root-level repository files and the complete tracked `docs/` tree. If the ZIP is absent, malformed, or lacks this required documentation context, stop rather than guessing.
-
-`/docs-prompt` does not modify the ZIP, GitHub, or repository files. It does not change `package.json` version or advance roadmap, correction, or UI state. It does not invoke or substitute for `/prompt-ass`, `/prompt-plan`, `/prompt-write`, `/ui-plan`, or `/ui-write`.
-
-Its sole implementation artifact is **exactly one implementation-ready Codex prompt**, limited to the approved documentation change. Root documentation such as `BOOT.md`, `README.md`, and `AGENTS.md` may be in scope when approved. Source code, migrations, tests, runtime configuration, dependencies, package version, and unrelated cleanup are forbidden unless separately authorized outside `/docs-prompt`.
-
-The generated prompt must require Codex to re-read the actual local target files before editing, stop and report when repository drift materially invalidates the approved change, make the smallest coherent documentation diff, and perform relevant documentation consistency and diff validation. It must not split one approved documentation change into the normal implementation task-stack pipeline.
-
-# Prompt workflow
+# Implementation prompt workflow
 
 Strict order:
 
@@ -441,294 +273,214 @@ Strict order:
 → /prompt-write <folder name>
 ```
 
-Do not silently run missing stages. If unstable requirements, contradictory docs, repository drift, or a material decision blocks progress, return `Planning needed` and stop before next stage.
+The roadmap is now active, so this workflow is authorized for the current phase. Do not skip stages.
 
-**Current roadmap gate:** PAUSED. The 2.0 architecture review is completed, approved, and applied. Do not use the prompt workflow for roadmap implementation until an owner-approved replacement roadmap explicitly assigns the next phase/version. Runner grammar is not authorization to resurrect former Phase 0 or infer `1.0.2`.
+Current invocation target:
 
-## Codex task-stack prompt-file grammar
+```text
+/prompt-ass Phase 1
+→ /prompt-plan
+→ /prompt-write p1-1
+```
 
-The phase runner and parse-only validator share the same executable parser in `scripts/codex-phase-core.mjs`. Runner supports two explicit stack modes: versioned roadmap phase stacks and non-versioned correction stacks. Parser changes MUST update this section and focused parser tests in the same change.
-
-Use `npm run codex:phase:validate -- <task-folder>` to validate either stack type without launching Codex, changing package version, modifying working tree, or committing.
-
-### Common grammar
-
-Both stack types require:
-
-- every `.txt` file in task folder is a prompt;
-- filenames are canonical `P<number>-<lower-kebab-slug>.txt`, one-based/no-leading-zero, unique, contiguous from P1;
-- every prompt contains exactly one literal `- Recommended configuration:` line with one backtick-delimited current `MODEL_CONFIGS` label and final period;
-- exactly one prompt is closeout and it is final/highest-numbered;
-- closeout classification requires both filename slug to contain a `closeout` segment and parsed `TASK:` title to contain word `closeout`; disagreement fails parsing;
-- implementation prompt filename/TASK title must not signal closeout; body prose may mention closeout freely;
-- closeout is parsed into plan but never executed by `codex:phase`; automation stops after implementation prompts.
-
-### Roadmap phase stacks
-
-- historical pre-1.0 folder canonical lowercase `p<number>` with a positive no-leading-zero phase; its parsed target equals `0.<folder phase>.<prompt number>`;
-- post-1.0 folder canonical lowercase `p1-<phase>`, where `<phase>` is a non-negative no-leading-zero decimal; its parsed target equals `1.<folder phase>.<prompt number>`;
-- task header exactly `TASK: Phase <phase> / P<number> — <title>` and agrees with folder/filename;
-- each prompt contains exactly one literal phrase `assigned project version is` followed by one backtick-delimited semantic version;
-- roadmap prompt MUST NOT contain correction unchanged-version metadata.
-
-### Non-versioned correction stacks
-
-Correction stacks are for owner-approved bounded implementation gates/regressions/architectural corrections that need sequenced prompts and final manual closeout without consuming roadmap prompt versions.
-
-- folder canonical `c<roadmap-phase>-<lower-kebab-slug>`, where `<roadmap-phase>` is a non-negative no-leading-zero decimal, e.g. `c0-phase-zero-fix` or `c10-single-publication`; referenced phase provides context only;
-- task header exactly `TASK: Correction <phase> / P<number> — <title>` matching folder numeric component;
-- each prompt has exactly one `- Required unchanged project version: `<version>`.` line, every prompt in the stack declares the same version, and that version must equal `package.json` throughout execution;
-- correction prompts MUST NOT contain `assigned-version` metadata;
-- correction P-numbers are local ordering and do not consume/reserve roadmap patch numbers;
-- correction commit subjects identify the correction stack/prompt, e.g. `c10-single-publication/P1: <task title>`;
-- correction closeout validates/clears only correction, does not invoke/substitute for `/closeout`, and does not advance package version.
-
-During the roadmap pause, corrections require separate owner approval and must remain true corrections. Product capability, new distribution adapters, new SEO behavior, or replacement-roadmap work must not be disguised as a correction stack.
-
-Parser does not infer stack mode/model/version/order/closeout from free-form narrative prose. Machine-significant metadata must use explicit forms above.
-
-Before `/prompt-write` reports either stack ready:
-
-1. re-read current parser/runner if changed since planning;
-2. verify folder against applicable machine grammar;
-3. when repository execution available, run `npm run codex:phase:validate -- <task-folder>` and require green;
-4. connector-only work performs equivalent parser-level source check and explicitly says it was source-validated rather than executed;
-5. do not recommend automation while parser/validator inconsistency remains.
-
-Runner fail-closed execution invariants: clean working tree, no `package-lock.json`, coherent `git diff --check`, actual implementation changes, clean single-successor prompt commit boundary. On a new invocation, the runner detects already completed implementation prompts from exact runner-owned commit subjects reachable from `HEAD`; unrelated committed history may appear before, between, or after those commits. Completion must be an unambiguous contiguous prefix from P1, and `package.json` must match that proven prefix (or the correction stack's unchanged version), otherwise execution stops before Codex starts. A new `.codex-runs` record marks history-detected prompts as `previously_completed` with their commit SHAs; old run metadata is not a completion source. The working tree must still be clean. Phase stacks also enforce the expected version chain from the resume point. Correction stacks enforce one unchanged package version before/after every prompt and commit.
-
-## Prompt model/reasoning and usage selection
-
-`docs/codex-model-selection.md` is the detailed authority for model family, reasoning effort, usage estimation, quality floors, downgrade/escalation decisions, and prompt-token discipline. BOOT retains these workflow requirements:
-
-- select the minimum-cost current `MODEL_CONFIGS` label that plausibly meets the task's correctness floor; family and effort are independent choices;
-- justify escalation with concrete task complexity, not phase number, importance, prompt length, or validation volume;
-- every implementation/closeout prompt includes a finalized `MODEL / REASONING / USAGE` block with recommendation label, family/effort basis, complexity/quality floor, estimated implementation usage, lower-cost alternative, escalation trigger/target, efficiency rationale, and confidence;
-- `/prompt-ass` makes the provisional recommendation, `/prompt-plan` re-evaluates it after decomposition and records `Downgraded`, `Unchanged`, or `Escalated`, and `/prompt-write` preserves the approved result;
-- use compact repository references and precise constraints rather than pasting contracts into prompts; prompt-token estimates are separate from implementation-usage estimates.
-
-## Versioning and phase-prompt numbering
-
-Historical roadmap stacks use `0.<roadmap phase>.<phase prompt number>`; post-1.0 roadmap stacks use `1.<roadmap phase>.<phase prompt number>`.
-
-- Prompt numbers one-based; `P0` not used.
-- Roadmap task number maps to version patch number within the roadmap that actually authorizes it.
-- `0.<phase>.0` is a historical pre-1.0 non-terminal phase baseline; post-1.0 roadmaps may use `1.<phase>.0` baselines when explicitly approved.
-- `package.json` is sole current-version authority; it is currently `1.0.1`; project intentionally has no npm lockfile.
-- Current roadmap state assigns no next version. Former Phase 0 P2 does not reserve `1.0.2`.
-- Version changes occur only through executed Codex roadmap prompt, non-terminal green `/closeout`, the completed terminal Phase 21 `/closeout` transition to `1.0.0`, or another separately explicit owner-authorized transition.
-- Non-versioned correction stacks MUST NOT change `package.json`; P-numbers are local sequencing only.
-- Roadmap prompt reruns retain their actually assigned version; correction reruns retain unchanged version.
-- Roadmap prompts verify expected preceding/same-rerun version, update `package.json`, avoid lockfile, and validate versioned tree.
-- Correction prompts state one required unchanged version, verify it, forbid changing it, avoid lockfile, and validate unchanged-version invariant.
-- Roadmap closeout prompts that own version changes commit before final source-SHA validation; later non-terminal `/closeout` performs the separately documented successor-baseline transition.
-- Correction closeout never transitions package version and is not automatically followed by `/closeout`.
-- The completed Phase 10 singleton implementation correction is the historical first non-versioned correction stack.
-- Parallel UI work is non-versioned, not a `codex:phase` stack, and MUST NOT modify package version or consume roadmap prompt numbers.
-
-The shared parser normalizes each roadmap stack's historical/post-1.0 family and major once, then uses that authority for prompt target validation and Git-proven resume baseline reconstruction. The accepted runner-compatibility correction keeps post-1.0 grammar executable for a future approved replacement roadmap; it does not authorize a currently paused phase.
-
-`npm run codex:phase -- <task-folder>` runs implementation prompts only and stops before the parsed final closeout by default. `npm run codex:phase -- <task-folder> --closeout` explicitly invokes that final prompt only after the Git-proven implementation prefix is complete. Its result remains human review required: it is neither automatically committed nor accepted, and the captured closeout agent final response is intentionally the last terminal output for handoff.
+If requirements/docs/repository state materially conflict, return `Planning needed` rather than silently changing the roadmap.
 
 ## `/prompt-ass`
 
-Determine safe task boundaries from established behavior/contracts/roadmap. No writes.
+Determine safe task boundaries from the active roadmap and governing contracts. No writes.
 
-If the current roadmap remains paused or does not assign the requested implementation phase/version, return `Planning needed` and identify the missing product/roadmap decision instead of planning executable product work.
+Return target behavior, constraints, roadmap phase, stack type, prompt count/order, goal/summary/dependencies/boundary rationale/deferred behavior, closeout task, and provisional model/usage recommendations.
 
-Return target behavior, constraints, roadmap phase, stack type (`phase` or `correction`), prompt count/order, goal/summary/dependencies/boundary rationale/deferred behavior, closeout task when needed, and per-prompt provisional task classification, model-family basis, reasoning basis, model/effort recommendation, complexity/usage/lower-cost alternative/escalation trigger/target/confidence/rationale. For correction stacks, identify correction slug and package version that must remain unchanged from `package.json`.
+Explicitly assess producer→consumer boundaries. Split transactional/state-machine work from separately consumed read/API work when consumers, tests, or failure risks differ materially. Testing is part of task decomposition.
 
-Identify direct downstream consumers between planned prompts. When one proposed prompt combines a complex transactional/state-machine responsibility with a separately consumable read/service/API responsibility, explicitly determine whether those responsibilities should be split. Prefer separation when they have materially different consumers, test strategies, failure risks, or independently reviewable completion boundaries; do not substitute a stronger model for an oversized or incoherent task boundary.
-
-Testing is part of task-boundary assessment: each prompt should own focused tests and appropriate broader regression impact without becoming monolithic. For any prompt that produces a boundary a later prompt will directly consume, include consumer-readiness testing in the producer boundary. Identify which commands are intended for fast iterative feedback versus final-tree evidence and avoid planning redundant aggregate/subordinate final execution.
-
-For historical Phase 21 work, `/prompt-ass` used the broad final-tree research and candidate-discovery process documented in Git history. Do not treat those historical phase-specific instructions as the current roadmap.
+For current Phase 1, plan only the Profile persistence/control-plane foundation and its downstream handoff to Phase 2.
 
 ## `/prompt-plan`
 
-Requires completed `/prompt-ass` in current conversation. Perform source-level planning for every assessed prompt: contracts/ADRs, implementation, schemas/migrations, process roles, helpers/consumers/tests/recent changes, likely file scope, preserved behavior, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs implications, acceptance criteria, non-goals.
+Requires completed `/prompt-ass`. Inspect contracts/ADRs, implementation, migrations, helpers/consumers/tests, recent changes, likely file scope, preserved behavior, risks, focused/broader tests, evidence levels, docs effects, acceptance, and non-goals.
 
-For every direct producer → consumer dependency between planned prompts, inspect the downstream prompt/consumer expectations and record a handoff matrix in the form `downstream-required capability → owning implementation/export → focused proof`. The plan must establish that the later consumer can stay within its intended boundary without inventing producer-owned SQL/query composition, pagination/cursor semantics, domain transitions, topology/state inference, transaction behavior, validation policy, or equivalent upstream semantics. If that cannot be established without a material boundary revision, return `Planning needed` rather than deferring the missing design to the consumer.
+For every producer→consumer dependency record:
 
-Use observed source evidence to make the final model gate: reassess family, reasoning, complexity, usage, lower-cost alternative, escalation trigger/target, and rationale under the minimum-adequate usage-conservation rule, and record a `Downgraded`, `Unchanged`, or `Escalated` delta from `/prompt-ass`. Preserve the correctness floor, but do not retain an expensive provisional rating merely because it is safer in the abstract. Reconfirm stack type and correction unchanged-version invariant. Material boundary revisions produce `Planning needed`. No writes.
+`downstream-required capability → owning implementation/export → focused proof`
 
-For validation planning, inspect current executable package scripts/runner behavior and produce the smallest non-overlapping final command set that covers the required evidence levels. Focused development commands may be narrower and repeated during iteration; they do not replace the final matrix.
+If the consumer would need to invent producer-owned semantics, return `Planning needed`.
+
+Reassess model/effort using the minimum-cost-adequate rule and produce the smallest non-overlapping final validation command set.
 
 ## `/prompt-write <folder name>`
 
-Requires completed unblocked `/prompt-plan`. Revalidate current repo/docs and write one ordered `.txt` per approved prompt under `docs/tasks/<folder name>/`.
+Requires an unblocked `/prompt-plan`. Revalidate current repo/docs and write ordered prompts under `docs/tasks/<folder name>/`.
 
-Historical roadmap folders use `p<number>`; post-1.0 roadmap folders use `p1-<phase>`; correction folders use `c<roadmap-phase>-<lower-kebab-slug>`.
+Current Phase 1 folder is `p1-1`.
 
-Each prompt includes the finalized `MODEL / REASONING / USAGE` block and its exact recommendation label MUST exist in current `MODEL_CONFIGS`. Roadmap tasks use assigned-version metadata; correction tasks use required-unchanged-version metadata. Do not upgrade only because prompt length, importance, or validation volume feels substantial.
+Each roadmap prompt includes exact runner metadata, finalized model/reasoning/usage block, focused iterative validation, smallest non-overlapping final validation, downstream handoff gates where relevant, package-version rules, acceptance, and non-goals.
 
-When a prompt has a direct downstream consumer, the generated producer prompt MUST contain an explicit downstream handoff contract or equivalent acceptance gate derived from `/prompt-plan`. Before reporting the producer task complete, Codex must reread the relevant downstream consumer requirements, inventory every assumed capability, identify the concrete owning implementation/export and focused proof for each, and stop/report incomplete producer scope or planning drift if the consumer would otherwise have to invent producer-owned semantics.
+When local execution is available run:
 
-Each prompt MUST distinguish focused iterative validation from final-tree validation. The final validation block MUST use the smallest non-overlapping command set established by `/prompt-plan`; do not list a subordinate check/suite alongside an aggregate command that already executes it on the same final tree unless the prompt states the concrete reason that repeated execution is required.
+```text
+npm run codex:phase:validate -- p1-1
+```
 
-After writing, perform applicable runner prompt-file grammar check before reporting ready. If revalidation reveals materially changed boundary, stack type, unchanged-version invariant, quality floor, validation containment, roadmap authorization, or assigned version, return `Planning needed` rather than silently changing approved plan. Do not overwrite existing tasks without explicit authorization.
+before reporting the stack ready.
 
-## Supporting prompt commands
+# Codex phase-runner grammar
 
-- `/prompt <task>` — one prompt in conversation only.
-- `/stack <goal>` — legacy shorthand for `/prompt-ass`.
-- `/split <task>` — narrow assessment shorthand.
-- `/revalidate <task or stack>` — compare existing tasks to current repo/contracts/model-usage/validation-efficiency policy and report grammar/version/config adequacy/efficiency.
+The shared parser is `scripts/codex-phase-core.mjs`.
+
+## Common
+
+- every `.txt` in a task folder is a prompt;
+- filenames: `P<number>-<lower-kebab-slug>.txt`;
+- numbering one-based, contiguous from P1;
+- exactly one final closeout prompt;
+- closeout filename and `TASK:` title both signal `closeout`;
+- every prompt has exactly one valid `- Recommended configuration: `<MODEL_CONFIGS label>`.` line.
+
+## Post-1.0 roadmap phases
+
+- folder: `p1-<phase>`;
+- header: `TASK: Phase <phase> / P<number> — <title>`;
+- exactly one phrase `assigned project version is` followed by `1.<phase>.<prompt number>`;
+- no correction unchanged-version metadata.
+
+The runner detects completed implementation prompts from exact reachable commit subjects and requires package version to match the Git-proven completed prefix. With no completed Phase 1 prompt, `p1-1` expects baseline `1.1.0`.
+
+## Corrections
+
+- folder: `c<phase>-<lower-kebab-slug>`;
+- header: `TASK: Correction <phase> / P<number> — <title>`;
+- exactly one unchanged-version metadata line matching `package.json`;
+- no assigned-version phrase;
+- correction closeout does not advance roadmap version.
+
+Corrections are only for genuine bounded regressions/repairs and must not smuggle roadmap product capability.
+
+# Phase handoff and `/closeout`
+
+After a non-terminal phase has passed its final closeout prompt and durable validation gate:
+
+```text
+phase implementation
+→ final phase closeout prompt
+→ human review
+→ /closeout
+→ /docs-review
+→ /docs-apply
+→ /prompt-ass next phase
+→ /prompt-plan
+→ /prompt-write p1-<next phase>
+```
+
+## Non-terminal `/closeout`
+
+`/closeout` is a bounded version/state transition, not a fresh audit.
+
+Fast path:
+
+1. read BOOT plus the completed/next roadmap entries;
+2. read the completed phase durable validation artifact and accepted source SHA;
+3. read `package.json` and task/version sequence;
+4. compare accepted SHA to current `main` for relevant unvalidated executable drift;
+5. if green, update only top-level `package.json` to the exact successor baseline in the roadmap;
+6. compare transition and require package-version-only change;
+7. report GREEN, transition SHA, next P1 version, and freshly read next phase entry.
+
+Successor baselines are:
+
+- Phase 1 → `1.2.0`
+- Phase 2 → `1.3.0`
+- Phase 3 → `1.4.0`
+- Phase 4 → `1.5.0`
+- Phase 5 → `1.6.0`
+- Phase 6 → `1.7.0`
+
+Do not rerun full validation during `/closeout`; use the recorded accepted evidence and one drift comparison. Relevant executable drift blocks transition.
+
+## Terminal Phase 7 `/closeout`
+
+Phase 7 is terminal for this roadmap.
+
+After its final closeout prompt is reviewed and its durable validation artifact proves the complete managed external-site 2.0 gate against the exact accepted final `1.7.x` tree, `/closeout` performs exactly one version-only release transition:
+
+```text
+final validated 1.7.x
+→ top-level package.json version only
+→ 2.0.0
+```
+
+It MUST:
+
+- create no `1.8.0` baseline;
+- create no `2.0.1` development candidate;
+- change no source, migration, test, dependency, config, or docs in the version transition itself;
+- verify the complete transition diff is package-version-only;
+- report `Roadmap status: COMPLETE` and final `2.0.0` state.
+
+This terminal rule is the 2.0 analogue of the already-completed historical Phase 21 transition to `1.0.0`.
+
+# Versioning
+
+- `package.json` is the sole current-version authority.
+- Current version is `1.1.0`.
+- Phase prompt versions are `1.<phase>.<prompt>`.
+- Non-terminal baseline transitions are `1.<next phase>.0`.
+- Final release only is `2.0.0`.
+- There are no planned `2.0.x` development builds before the release.
+- `1.0.2` remains retired/unassigned historical space and is not reused.
+- UI/docs/correction work is non-versioned unless explicitly authorized otherwise.
 
 # Parallel UI workflow
 
-Detailed authority is `docs/design/ui-workflow.md`. `main` is authoritative integration; presentation work uses permanent branch `ui-polish` and a separate worktree whenever roadmap/correction runner work is active. UI work is non-versioned, does not consume roadmap/correction numbers or advance their state, and is never merged automatically. Refresh/integrate current `main` non-destructively before new UI work and re-plan when relevant drift changes the boundary.
-
-The integrated Phase 13/`1.0.1` presentation is the baseline for the **bundled/reference frontend**. UI work does not govern client-site integrations; their presentation freedom and link boundary belong to Law 13 and the completed distribution contract.
+UI presentation work uses permanent branch `ui-polish` and a separate worktree when roadmap/correction work is active. It is non-versioned and never advances roadmap state.
 
 Normal path:
 
 ```text
-/ui-plan <task>
-→ /ui-write <lower-kebab-slug>
-→ execute/review/validate on ui-polish
-→ integrate only when accepted
+/ui-plan
+→ /ui-write
 ```
 
-If durable guidance is missing, contradictory, materially ambiguous, or must change:
+If durable design guidance must change:
 
 ```text
-/ui-plan <task>
-→ Planning needed: UI design guidance required
-→ /ui-review <area>
+/ui-review
 → explicit approval
 → /ui-apply
-→ /ui-plan <task>
-→ /ui-write <lower-kebab-slug>
+→ rerun /ui-plan
+→ /ui-write
 ```
 
-A blocked plan never authorizes writing; `/ui-plan` must be rerun after `/ui-apply`.
+The bundled/reference frontend UI work does not govern customer-site integration presentation.
 
-- `/ui-review` is a read-only, scoped review of relevant design guidance, higher authorities, and observable implementation.
-- `/ui-apply` applies only approved durable design-guidance changes under `docs/design/` excluding `tasks/`, on `ui-polish`; it does not implement UI/source, write prompts, change version/roadmap state, or merge.
-- `/ui-plan` is the read-only source-level task plan and decides whether guidance is sufficient. It identifies scope, preserved contracts, responsive/accessibility needs, validation/evidence, acceptance/non-goals, slug, and model/usage recommendation.
-- `/ui-write` requires an unblocked plan and writes exactly one non-versioned prompt under `docs/design/tasks/<slug>.txt`. The prompt identifies `Workstream: UI`, execution on `ui-polish`, allowed/forbidden scope, preserved version/roadmap state, and focused/broader/browser validation. It never implements, invokes `codex:phase`, changes durable guidance, or implies integration.
+# Working preferences
 
-# Review and validation commands
+- Inspect current source/docs before planning.
+- Prefer the smallest coherent, independently reviewable task boundaries.
+- State preserved behavior and non-goals.
+- Trace shared producers and all important consumers before changing shared behavior.
+- Treat database constraints/transactions, idempotency, provenance, security, failure behavior, and backward compatibility as first-class review concerns.
+- Do not substitute stronger models for oversized task boundaries.
+- Keep adapters thin; do not let later consumers invent producer-owned SQL/query/state/cursor semantics.
+- Use focused iteration and non-overlapping final validation.
+- Do not claim tests/runtime/browser/database/live behavior unless actually observed.
+- Never invent repository state, Source behavior, or validation results.
 
-- `/review <commit, PR, task, implementation>`
-- `/prove <behavior>`
-- `/test-matrix <feature>`
-- `/collector-check <source or collector>`
-- `/dedupe-check <rule or case>`
+# Decision and review commands
 
-Honor current contracts, state separation, security, provenance, idempotency, failure isolation, canonical outward/public eligibility, and testing contract. Reviews distinguish inspection from executed evidence.
+- `/review <commit, PR, task, implementation>` — review against contracts/architecture/tests, not only happy path
+- `/prove <behavior>` — identify/execute appropriate evidence when tools/environment allow
+- `/test-matrix <feature>` — map behavior to focused/regression/evidence levels
+- `/lock <decision>` — treat decision as authoritative and identify docs that must reflect it; no write unless instructed
+- `/recommend` — choose best option using current contracts/roadmap/value/risk
+- `/status` — return Completed / Current / Blocked / Next
+- `/next` — recommend one logical next task
 
-# Decision commands
+## Current next action
 
-### `/lock <decision>`
+The roadmap is active and Phase 1 is authorized. The next normal implementation-planning command is:
 
-Treat decision as authoritative direction and identify affected contracts/ADRs/root/task docs. Do not modify files unless instructed. Locked-law amendments use project-contract process.
+```text
+/prompt-ass Phase 1
+```
 
-### `/recommend`
-
-Choose best option using contracts, architecture, roadmap, user value, security/reliability, implementation risk.
-
-### `/status`
-
-Return only: Completed / Current / Blocked / Next.
-
-### `/next`
-
-Recommend the single most logical next task.
-
-# Command modifiers
-
-`--deep`, `--quick`, `--docs-only`, `--code-only`, `--no-write`, `--prompt-only`, `--file-scoped`, `--regression-safe`, `--latest`, `--browser`, `--db`, `--tests`, `--contracts`, `--sources`, `--dedupe`, `--security`, `--reassess`.
-
-# Codex prompt requirements
-
-Finished implementation prompts normally include Task, Context, Current/Required behavior, roadmap phase, stack type, finalized `MODEL / REASONING / USAGE` block, governing contracts/ADRs/laws, inspected source, allowed/forbidden files, constraints, preserved behavior, applicable security/provenance/idempotency/failure-isolation implications, risks, focused tests, broader regression tests, required evidence levels, runtime/browser/database/fixture/live-Source validation, docs updates, acceptance criteria, and non-goals.
-
-For a prompt that produces a boundary explicitly consumed by a later planned prompt, include a downstream handoff contract or equivalent completion gate. The producer prompt must make the handoff auditable as `downstream-required capability → owning implementation/export → focused proof`, require the implementation to reread the downstream consumer requirements before declaring completion, and fail closed when that consumer would otherwise need to invent producer-owned query/SQL, pagination/cursor, domain/state, transaction, validation, topology, or equivalent semantics.
-
-Machine-significant fields are stricter than prose. Every roadmap/correction task uses canonical folder/filename numbering, one canonical `TASK:` header, one exact recommended-configuration line, and filename-plus-`TASK:` closeout convention. Roadmap prompts additionally use exactly one `assigned project version is ...` phrase. Correction prompts instead use exactly one required-unchanged-version line and MUST NOT use assigned-version metadata. Targeted UI prompts under `docs/design/tasks/` are outside this parser grammar and follow `docs/design/ui-workflow.md` instead.
-
-Every implementation prompt inherits testing contract. Tests are not optional cleanup; prerequisites cannot silently skip green; claims cannot exceed evidence. Prompts distinguish focused iterative validation from final-tree validation and use the smallest non-overlapping final command set that covers all applicable evidence.
-
-Collection prompts preserve singleton Publication global collection-active state, Source/endpoint approval/lifecycle/operational boundaries, truthful Collection runs, pre-request network safety, run isolation, retry limits, Source-domain policy, optional Source RSS/Atom item admission before normalization, and deterministic collection tests without safety bypasses. They do not add Publication selectors/tenant scopes or conflate Source admission mismatches with Relevance exclusions/Article observations.
-
-Persistence/identity prompts preserve Source-scoped Article identity, canonical Relevance ordering, transactional idempotency, Article observations, real-PostgreSQL constraints/concurrency/migration behavior where applicable, and rollback. Publication tenancy is not introduced as future-proofing. After the Phase 20 production baseline, persistence/schema prompts additionally preserve supported customer data and prove the applicable real upgrade path under `docs/decisions/production-data-and-schema-compatibility.md`; clean migration-from-zero alone is not sufficient production-upgrade evidence.
-
-Publication/Relevance prompts preserve topic independence, singleton Publication configuration, immutable installation-wide Category/rule configuration keys, the bounded literal predicate vocabulary, installation-wide plus Source-scoped deterministic precedence, additive categorization/default fallback, pre-identity `excluded` accounting, prospective-by-default edits, and the existing deterministic/real-PostgreSQL validation matrix. They do not create Publication tenant FKs/scopes or generic ranking/expression engines.
-
-Duplicate prompts preserve every Article/observation, exactly one Primary/group, review-state persistence, false-positive safeguards, manual reversibility, and regression corpus coverage; duplicate state is installation-wide.
-
-Existing public/reference-frontend prompts preserve singleton public exposure, Source approval/lifecycle trust, Article visibility + ungrouped-or-Primary eligibility, deterministic published-at/first-seen semantics, bounded safe output, and stored `original_url`. Current routing is `GET /` and `GET /api/feed`; no Publication selector/scoping argument. The root's successful initial HTML remains server-rendered from the canonical public/outward read-model semantics and client JavaScript remains progressive enhancement rather than another Article authority.
-
-Future distribution prompts additionally require an approved distribution/SEO contract and replacement roadmap. They must preserve canonical outward Article-selection semantics, keep collection trust separate from consumer selection, avoid topic/client-specific shared-engine conditionals, and prove the selected transport's security/cache/compatibility/SEO assumptions at the appropriate evidence levels.
-
-UI prompts preserve the same reference-frontend/domain behavior while changing approved presentation. Shared frontend/runtime files may be changed only when explicitly planned; material backend/domain changes are routed out of the UI workstream. UI prompts never change project version or roadmap state.
-
-Admin prompts preserve Cloudflare Access/origin protection, request integrity, real resource-relationship/domain-invariant validation, singleton Publication configuration, Source-owned include-only RSS/Atom admission semantics where applicable, and prohibition on unnecessary native identity/account work, multi-Publication selectors, or Publication tenant authorization.
-
-Historical Phase 10 singleton-correction prompts established the smallest canonical migration-from-zero schema, deleted/squashed/replaced superseded pre-production migrations, removed Publication tenancy/selectors and legacy-only compatibility source/API/type/test/fixture/config paths throughout the active tree, and required database/regression/browser proof before correction closeout. Do not reintroduce that superseded compatibility surface.
-
-# Repository modification rules
-
-- Do not modify/commit unless authorized by current request/command.
-- `/closeout` performs a bounded version transition only for a currently active owner-approved roadmap phase with an explicit successor/terminal rule. Current roadmap pause authorizes no `/closeout` transition.
-- A correction stack's final manual closeout validates/clears correction while preserving unchanged package version/active roadmap state.
-- `/docs-review` never writes.
-- `/docs-apply` writes only approved docs; invocation authorizes documentation-only changes on `main` unless branch/PR/isolation is requested.
-- `/docs-prompt` never writes repository files; from an approved docs review and supplied docs snapshot, it emits only one docs-only Codex implementation prompt.
-- `/prompt-ass` and `/prompt-plan` never write.
-- `/prompt-write` writes only approved task files in an established, currently authorized phase/correction folder.
-- While the roadmap is paused, do not write or execute roadmap product prompts until the required distribution/SEO decision and replacement roadmap are approved.
-- Do not recreate or execute the retired former `p1-0` P2 closeout; its former `1.0.2` assignment is superseded.
-- `/ui-review` never writes.
-- `/ui-apply` writes only approved substantive design guidance under `docs/design/` excluding `docs/design/tasks/`, on the `ui-polish` workstream; it does not implement source, write prompts, change version/roadmap state, or merge branches.
-- `/ui-plan` never writes.
-- `/ui-write` writes only the approved single UI prompt under `docs/design/tasks/` on the `ui-polish` workstream.
-- UI implementation is non-versioned: it MUST NOT change `package.json` version, consume roadmap prompt numbers, advance roadmap/correction state, or create a phase/correction closeout.
-- Do not run UI implementation in the same working tree used by an active phase/correction runner; keep concurrent work isolated on `ui-polish`/its worktree.
-- Do not merge `ui-polish` into `main` automatically; integration requires review and explicit authorization.
-- Documentation/prompt/review activity, including `/docs-prompt`, does not change package version or roadmap/correction/UI state except for an explicitly authorized version transition; correction execution and UI work are non-versioned.
-- No task writes while `Planning needed` remains unresolved.
-- No speculative compatibility bridges or permanent dual schemas.
-- Before production compatibility was established, legacy-only migration/code/API/type/test/fixture/configuration artifacts were deleted rather than preserved for superseded pre-production behavior. Do not extend that destructive rule to supported production state.
-- After the accepted Phase 20 production baseline, preserve supported customer data and supported migration upgradeability under `docs/decisions/production-data-and-schema-compatibility.md`.
-- No topic/client conditionals in shared engine/distribution code.
-- No concurrent multi-topic/multi-Publication hosting behavior inside one installation unless later explicit locked contract/ADR authorizes it.
-- Do not introduce relational Publication tenancy, IDs, slugs, FKs, uniqueness scopes, selector parameters, or authorization scopes solely because concurrent hosting might be useful someday.
-- Multiple outward consumers for one Publication are not a reason to reintroduce tenancy.
-- Do not remove singleton Publication editorial/configuration behavior or genuine Source/endpoint/run/Article/observation integrity while removing tenancy plumbing.
-- No public/Worker/bootstrap runtime Publication selector whose purpose is choosing among topics in one installation.
-- No Source/endpoint approval/state bypass or silent whitelist expansion.
-- Source approval/trust must not be conflated with future consumer-specific distribution selection.
-- No parser-to-Article direct persistence.
-- No Web/API inline Source fetching.
-- No distribution adapter-owned reimplementation of canonical Article eligibility/duplicate/moderation/destination semantics.
-- No implementation outside the completed Profile/API/auth/PHP/cache/packaging/link/telemetry contracts or of post-2.0 widget/iframe/RSS/WordPress/native-auth/analytics features without their governing decision and roadmap authorization.
-- No bypass of Relevance boundary even before configurable rules exist.
-- No Relevance path that runs after identity merely to make exclusion easier; excluded candidates terminate before identity under the governing contract.
-- No automatic historical Article mutation caused merely by editing a Relevance rule.
-- No deletion of Article/observation provenance because duplicate suppression exists.
-- No weakening identity/duplicate/security/testing boundaries to make tests pass.
-- No silent-green required suite caused by missing prerequisites, skipped coverage, or zero matches.
-- No native administrator account/session/role subsystem unless explicitly promoted.
-- Search all references before renames.
-- Do not report tests/runtime/browser/database/live-Source behavior as verified unless observed at appropriate evidence level.
-- Do not create PRs, merge, force-update history, or perform non-document history changes unless explicitly instructed.
-- Preserve smallest viable diff for scoped fixes.
-
-# Pre-production compatibility rule
-
-Prefer one canonical design. Do not add old/new aliases, duplicate synchronized fields, fallback paths, dormant tenant columns, or speculative migration compatibility. Before production database compatibility was established, databases created by older source trees were disposable and the active migration/runtime/test/config tree was reduced to the smallest canonical design. Historical implementation detail remains available in Git history, superseded ADRs, historical task prompts, and validation artifacts instead of active compatibility machinery.
-
-This rule governs only the historical pre-production lifecycle. It MUST NOT be extended to accepted customer production state after the Phase 20 production baseline.
-
-# Production compatibility rule
-
-Phase 19 established and validated the upgrade/backup/restore/rollback procedures required for production. Acceptance of Phase 20 customer launch established the first supported production source/version/schema baseline at `1.0.0`. From that point forward, normal upgrades/refactors preserve supported customer data and governed relationships, supported production migration history remains upgrade-capable, and clean migration-from-zero is required for new/disposable installations but does not substitute for production-upgrade proof. Detailed authority is `docs/decisions/production-data-and-schema-compatibility.md`.
-
-Completed Phase 21 and post-1.0 `1.0.1` server-rendering work operate under this production compatibility rule. The headless product pivot changes product direction, not the durability of supported customer state. Future distribution work may evolve source structure only after an approved replacement roadmap, and it may not destroy supported customer data or rewrite supported migration history merely to simplify development.
-
-# Boot maintenance
-
-Update BOOT when phase/roadmap state, product boundary, core paths, terminology, commands, authority, locked laws, modification conventions, task-stack grammar, UI-workstream workflow/branch rules, versioning/prompt-numbering conventions, branch, repository identity, critical delivery ordering, foundational security/deployment/data-model decisions, production-compatibility boundaries, or project-wide testing/validation policy changes.
+which should decompose the Distribution Profile foundation into the smallest safe `p1-1` prompt stack before `/prompt-plan` and `/prompt-write p1-1`.
