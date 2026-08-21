@@ -124,7 +124,9 @@ A Distribution Profile is a named administrator-controlled outward selection ove
 
 ### Deployment architecture
 
-Managed integration is the primary 2.0 operating path. 2.0 also establishes a lightweight Linux VPS/Docker Compose deployment/evaluation route for the complete single-Publication stack, with PostgreSQL included by default and ordinary external-PostgreSQL configuration supported. Native/default self-host administrator authentication and autonomous public self-host production readiness are post-2.0; controlled Compose use requires an operator-provided perimeter where applicable.
+Managed integration is the required 2.0 operating path. News Scraper remains self-hostable by design under the Project Contract and managed/self-hostable ADR, but packaging that complete stack into a lightweight Linux VPS/Docker Compose installation is post-2.0 work. Native/default self-host administrator authentication and autonomous public self-host production readiness are likewise post-2.0.
+
+Deferring packaging does not permit a mandatory central News Scraper dependency or weaken instance isolation. It only removes self-host productization from the 2.0 release gate so the managed Profile/API/PHP integration can be validated first.
 
 ### Presentation ownership
 
@@ -138,11 +140,11 @@ The original client now intends to integrate collected news into an existing web
 
 ## 2.0 scope boundary
 
-`2.0.0` proves the managed Profile → authenticated v1 API → generic PHP complete-snapshot sync → atomic last-known-good cache → customer-style server-rendered integration path. It includes operational distribution telemetry and a Linux VPS/Docker Compose evaluation package.
+`2.0.0` proves the managed Profile → authenticated v1 API → generic PHP complete-snapshot sync → atomic last-known-good cache → customer-style server-rendered integration path. It includes the operational distribution telemetry, production migration/backup compatibility, and real managed failure/reliability proof needed to support that path.
 
-WordPress, RSS/Atom, native/default self-host administrator authentication, production-grade autonomous public self-hosting, SSO/multi-admin identity, visitor/click/referral/backlink analytics, advanced SEO tooling, browser widgets, Kubernetes/multi-node deployment, delta synchronization, and additional adapter families are post-2.0. News Scraper guarantees neither SEO nor backlink performance.
+WordPress, RSS/Atom, Linux VPS/Docker Compose self-host packaging, native/default self-host administrator authentication, production-grade autonomous public self-hosting, SSO/multi-admin identity, visitor/click/referral/backlink analytics, advanced SEO tooling, browser widgets, Kubernetes/multi-node deployment, delta synchronization, and additional adapter families are post-2.0. News Scraper guarantees neither SEO nor backlink performance.
 
-The architecture is established but unimplemented. The remaining project-level gate is an owner-approved replacement 2.0 implementation roadmap; no next implementation version is assigned.
+The seven-phase 2.0 implementation roadmap is active under `docs/roadmap/post-1.0-roadmap.md`; current implementation begins with the Distribution Profile foundation at the `1.1.0` development baseline.
 
 ## Quality targets
 
