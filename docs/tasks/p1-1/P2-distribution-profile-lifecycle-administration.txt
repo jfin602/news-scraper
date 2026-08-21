@@ -1,0 +1,379 @@
+TASK: Phase 1 / P2 — Distribution Profile lifecycle and administration service
+
+PHASE SCOPE
+This is Phase 1 P2. P1 owns the additive Profile schema, configuration vocabulary, repository aggregate, production-forward migration proof, and recovery persistence. This prompt builds the transactional application/control-plane service on top of that producer and integrates the minimum cross-resource protections required to keep active Profiles valid when existing Source or Category administration changes peer resources.
+
+Do not add Profile HTTP routes or browser UI here. The only existing HTTP change allowed is a minimal Source administration error mapping if required so the new Source/Profile invariant is not exposed incorrectly before P3.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: this task is an explicit but high-integrity transactional state machine spanning Profile lifecycle, Source associations, Category references, append-only audit history, existing Source administration, and concurrent cross-resource mutations.
+- Reasoning basis: High is warranted by lock ordering, rollback behavior, active-Profile invariants, real PostgreSQL race coverage, and the requirement that P3/P4 consume one complete application authority rather than rediscovering validation or transaction semantics.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because stale-state races between Profile activation/association edits and Source trust/lifecycle changes can violate the active Profile invariant unless the transaction and lock design is handled carefully.
+- Escalation trigger: source inspection shows a broader cross-process concurrency architecture, incompatible existing lock order, or contract ambiguity that cannot be resolved within deterministic Profile→Source row locking.
+- Escalation target: `Terra Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: keep all Profile lifecycle/business rules in one application service, reuse the P1 repository, existing Source administration and `audit_events`, and add only the cross-resource guards actually required by active Profile validity.
+
+VERSIONING
+This prompt's assigned project version is `1.1.2`.
+- Before editing, require top-level `package.json` to be either the expected preceding version `1.1.1` or already `1.1.2` for a safe rerun.
+- Set only the top-level `package.json` version to `1.1.2` before final validation.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Do not perform a manual Git commit; the phase runner owns the implementation-prompt commit boundary and exact roadmap commit subject.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/contracts/project-contract.md`, `docs/contracts/domain-and-data-contract.md`, `docs/contracts/distribution-and-integration-contract.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/roadmap/post-1.0-roadmap.md`, and `docs/contracts/testing-and-validation-contract.md`;
+2. inspect P1's final `src/distribution/profiles/configuration.ts`, `src/distribution/profiles/repository.ts`, `migrations/0015_distribution_profiles.sql`, and all P1 focused tests rather than assuming the planned signatures landed exactly;
+3. inspect `src/admin/source-administration.ts`, `src/admin/editorial-administration.ts`, `src/app/web/source-administration-router.ts`, `src/articles/moderation-repository.ts` audit helpers, `migrations/0013_article_duplicate_moderation.sql`, and current database transaction/locking conventions;
+4. inspect existing Source/Category administration database/API tests, especially `test/database/source-administration-api.test.ts`, Category deletion tests, and P1 Profile persistence tests;
+5. trace every existing mutation that can change Source approval/lifecycle or delete a Category, and identify exactly how it must interact with Profile relationships;
+6. stop and report planning drift if P1 failed to expose the complete Profile repository/locking capabilities this service needs, if maintaining active Profile validity would require P2 to invent Profile child-table SQL, or if current authority changed the lifecycle contract.
+
+GOAL
+Create one application-owned Profile administration authority that safely implements:
+
+`create draft -> configure -> validate -> activate -> disable -> reactivate`
+
+with transactional Source-association/filter management and append-only audit history.
+
+P3 and P4 must be able to call this service without owning Profile SQL, lifecycle interpretation, activation rules, cross-resource relationship checks, audit semantics, or transaction boundaries.
+
+APPLICATION SERVICE
+Add:
+
+`src/admin/distribution-profile-administration.ts`
+
+Expose a narrow interface conceptually equivalent to:
+
+`listProfiles(): Promise<readonly AdminDistributionProfileReadModel[]>`
+
+`getProfile(profileConfigKey): Promise<AdminDistributionProfileReadModel>`
+
+`createProfile(input): Promise<AdminDistributionProfileReadModel>`
+
+`replaceProfileConfiguration(profileConfigKey, input): Promise<AdminDistributionProfileReadModel>`
+
+`replaceSourceAssociation(profileConfigKey, sourceConfigKey, input): Promise<AdminDistributionProfileReadModel>`
+
+`removeSourceAssociation(profileConfigKey, sourceConfigKey): Promise<AdminDistributionProfileReadModel>`
+
+`setProfileLifecycle(profileConfigKey, input): Promise<AdminDistributionProfileReadModel>`
+
+Adapt names to repository conventions if useful, but preserve one coherent service boundary.
+
+ADMIN READ MODEL
+The returned Profile read model must contain at least:
+- `configKey`;
+- `displayName`;
+- `lifecycleState`;
+- `resultLimit`;
+- Source associations with each Source `configKey`, `displayName`, current approval/lifecycle state, include phrases, exclude phrases, and Category config keys.
+
+Do not expose internal database UUIDs merely because they exist. The admin service may use them internally.
+
+CREATE SEMANTICS
+Profile creation accepts only:
+- immutable `configKey`;
+- `displayName`;
+- optional `resultLimit` using P1's governed default/bounds.
+
+Creation always produces lifecycle `draft`.
+
+Do not allow the caller to create directly as `active` or `disabled`.
+
+Creation must reject unknown/extra fields and translate config-key conflicts to a bounded application error.
+
+PROFILE CONFIGURATION SEMANTICS
+Mutable Profile configuration includes only:
+- `displayName`;
+- `resultLimit`.
+
+The immutable key must never be accepted in an update payload.
+
+Editing these fields does not change lifecycle or Source associations.
+
+SOURCE ASSOCIATION SEMANTICS
+Association identity is the real Source selected by immutable Source `config_key`; do not accept Source UUIDs from external application callers.
+
+Association create/replace accepts exactly:
+- `includeAnyPhrases`;
+- `excludeAnyPhrases`;
+- `categoryConfigKeys`.
+
+Use P1 configuration normalization and bounds. Resolve all Category keys to real current Categories before committing any association change.
+
+Draft Profiles may associate with real Sources regardless of current approval/lifecycle state. The association itself is distribution configuration, not Source trust authorization.
+
+Removing a non-existent association returns a deterministic bounded not-found application error; do not silently pretend a mutation occurred.
+
+PROFILE LIFECYCLE
+Supported states and transitions are exactly:
+
+`create -> draft`
+
+`draft -> active`
+
+`active -> disabled`
+
+`disabled -> active`
+
+Reject:
+- `active -> draft`;
+- `disabled -> draft`;
+- `draft -> disabled`;
+- unsupported values;
+- no-op state requests unless current repository/admin conventions explicitly permit them and tests prove deterministic behavior. Prefer rejecting invalid/no-op lifecycle commands rather than inventing audit noise.
+
+Do not implement Profile deletion. Draft deletion is optional in the governing contract and intentionally deferred.
+
+USABLE SOURCE DEFINITION
+For Phase 1 lifecycle validation, an associated Source is usable when and only when:
+
+`approval_state = 'approved' AND lifecycle_state = 'active'`
+
+Source operational state (`enabled`, `paused`, `disabled`) is not part of Profile usability. Operational state controls collection operation and must not independently suppress already-persisted canonically eligible Articles.
+
+ACTIVE PROFILE INVARIANT
+An active Distribution Profile must always have at least one usable associated Source.
+
+Therefore:
+1. `draft -> active` must fail unless at least one associated Source is currently approved + active;
+2. while a Profile is active, association replacement may change filters freely but must not alter Source identity;
+3. removing an association from an active Profile must fail if that association is the last usable Source;
+4. an active Profile may retain additional associated Sources that are currently unapproved or archived as long as another associated Source remains usable;
+5. changing display name/result limit does not require additional Source checks beyond preserving the existing invariant;
+6. disabled Profiles may remain configured with zero usable Sources and later reactivate only after they again satisfy activation requirements;
+7. filter values do not count toward activation validity and a valid active Profile may currently match zero Articles.
+
+EXISTING SOURCE ADMINISTRATION INTEGRATION
+Current Source commands can independently change approval or lifecycle. Integrate the minimum Profile-aware guard into `src/admin/source-administration.ts` so these mutations cannot silently invalidate an active Profile.
+
+Before committing either:
+- `approved -> unapproved`; or
+- `active -> archived`;
+
+reject the Source mutation when it would leave any active Profile associated to that Source with no other usable associated Source.
+
+Use a bounded Source administration error such as:
+
+`source_required_by_active_profile`
+
+Map that error to HTTP `409` in the existing Source router if required.
+
+Do not block:
+- Source operational-state changes;
+- Source mutable display/site/domain/priority/default-Category/admission-filter edits merely because the Source is associated to a Profile;
+- Source unapproval/archive when every affected active Profile has another usable association;
+- changes affecting only draft/disabled Profiles.
+
+Do not make Source collection logic depend on Profiles.
+
+CATEGORY RETENTION
+Profile Category filters reference real `categories` rows through P1's restrictive FK.
+
+Do not create a second Category-deletion protection system. The existing editorial administration already maps Category FK conflicts to `category_in_use`.
+
+Add focused proof that deleting a Category referenced by a Profile association returns the existing `category_in_use` behavior and leaves the Category/Profile filter intact.
+
+TRANSACTION AND LOCK ORDER
+The active Profile invariant must be safe under concurrent administrator requests. A simple check-before-write is insufficient.
+
+Use one deterministic cross-resource lock order:
+
+`Distribution Profile row(s), ordered by stable database ID -> Source row(s), ordered by stable database ID`
+
+Profile-side mutations that affect lifecycle or usable membership should:
+1. lock the target Profile;
+2. lock affected Source rows deterministically;
+3. re-read relevant Source/association state while locks are held;
+4. validate the invariant;
+5. mutate and audit in the same transaction.
+
+Source unapproval/archive should avoid taking a Source-first lock that can deadlock against Profile mutation. The intended pattern is:
+1. resolve the Source identity without taking a conflicting write lock;
+2. identify and lock every active Profile referencing it in deterministic Profile-ID order;
+3. lock the target Source under the established Profile→Source order;
+4. re-read the relevant associations/Source states under locks;
+5. reject if the proposed Source mutation would invalidate any locked active Profile;
+6. otherwise mutate and commit.
+
+If source inspection proves a slightly different implementation is needed, preserve the same global ordering and invariant. Do not introduce a process-global mutex, advisory global lock, queue, or speculative distributed-lock subsystem.
+
+AUDIT HISTORY
+Reuse the existing `audit_events` table. Do not create Profile-specific history tables.
+
+Do not directly reuse an Article-only helper that hard-codes `target_type = 'article'`. Add the smallest generic/profile-owned writer needed to persist:
+
+`target_type = 'distribution_profile'`
+
+Material successful actions should include stable bounded action names for at least:
+- Profile created;
+- Profile configuration changed;
+- Source association created/changed;
+- Source association removed;
+- Profile activated;
+- Profile disabled;
+- Profile reactivated.
+
+The audit write must occur in the same transaction as the mutation. A validation failure, relationship failure, FK failure, or rollback must create no successful audit row.
+
+Use bounded prior/new state. Do not dump arbitrary unbounded complete aggregates into JSON merely because the table permits JSONB. Compact Profile state and compact association/filter state are sufficient.
+
+No stable native administrator identity is required.
+
+APPLICATION ERRORS
+Create one bounded Profile administration error type. Use stable codes consistently for P3/P4. At minimum cover:
+- `invalid_request`;
+- `profile_not_found`;
+- `profile_config_key_conflict`;
+- `source_not_found`;
+- `category_not_found`;
+- `profile_association_not_found`;
+- `profile_invalid_lifecycle_transition`;
+- `profile_requires_usable_source`.
+
+Do not expose raw SQLSTATE, constraint names, stack traces, or database details through this application error surface.
+
+DOWNSTREAM HANDOFF / CONSUMER READINESS
+Before P2 is complete, map and prove:
+
+`Profile create/read/update input -> DistributionProfileAdministrationService -> focused service/database proof`
+
+`draft/active/disabled transitions -> service-owned state machine -> transition matrix proof`
+
+`active requires >=1 approved+active Source -> service validation under locks -> real PostgreSQL proof`
+
+`active association removal -> service transaction/lock validation -> rollback proof`
+
+`Source unapproval/archive -> SourceAdministrationService + Profile relationship guard -> preserved active invariant proof`
+
+`concurrent activation vs Source unapproval/archive -> deterministic Profile→Source lock order -> race/deadlock proof`
+
+`Category filter relationship -> restrictive FK + existing editorial error translation -> category_in_use proof`
+
+`material Profile mutation -> audit_events target_type distribution_profile -> commit/rollback atomicity proof`
+
+`P3 HTTP commands -> Profile administration service -> no SQL/lifecycle logic required in route`
+
+If P3 would need to query Profile tables, infer lifecycle transitions, validate usable Sources, resolve Category relationships, implement audit semantics, or invent concurrency protection, P2 is incomplete.
+
+PRESERVED BEHAVIOR
+Preserve:
+- P1 Profile persistence semantics and production migration history;
+- Source approval/lifecycle/operational distinctions;
+- Source collection and admission filtering;
+- endpoint collection/network safety/jobs/health;
+- Category/Relevance behavior except existing Category deletion now naturally recognizes Profile FK usage;
+- Article/moderation/duplicate/public-feed behavior;
+- `/` and `/api/feed` semantics;
+- existing admin request-integrity/perimeter behavior;
+- one Publication/topic per deployment;
+- topic independence.
+
+NON-GOALS
+Do not implement:
+- Profile HTTP API routes except minimal existing Source error mapping needed by the new Source conflict;
+- Profile browser UI;
+- Profile deletion;
+- Article matching/selection;
+- canonical distribution eligibility/read model;
+- snapshot/cursor behavior;
+- machine credentials or `/api/v1/distribution/...`;
+- PHP/LKG or later adapters;
+- Source copies inside Profiles;
+- Profile-specific endpoint ownership;
+- Source operational-state gating for Profile usability;
+- `exclude self`, ownership inference, regex/fuzzy/semantic/ranking filters;
+- new tenancy/customer/Publication IDs.
+
+FOCUSED TEST REQUIREMENTS
+Create a real-PostgreSQL focused service test, preferably:
+
+`test/database/distribution-profile-administration.test.ts`
+
+Prove at minimum:
+- create always yields draft and immutable key;
+- invalid/extra create/update fields reject atomically;
+- mutable display/result configuration persists without lifecycle changes;
+- Source association create/replace/remove round-trips all filter dimensions;
+- missing Source/Category references reject without partial association state;
+- valid transition matrix and invalid transition matrix;
+- draft activation fails with zero associations;
+- draft activation fails with only unapproved/archived Sources;
+- draft activation succeeds with approved+active Source regardless of Source operational state;
+- active Profile may retain unusable extra associations;
+- active final usable Source association cannot be removed;
+- disabled Profile may have zero usable associations and cannot reactivate until valid;
+- successful material commands create exactly the expected Profile audit events;
+- failed commands create no audit events.
+
+Extend Source administration database/API tests to prove:
+- unapproving/archiving a Source is rejected with `source_required_by_active_profile` when it is the final usable Source of an active Profile;
+- the same operation succeeds when another usable association exists;
+- draft/disabled Profile associations do not block the Source mutation;
+- Source operational-state changes remain allowed;
+- HTTP mapping for the new Source conflict is bounded `409`.
+
+Extend the most appropriate Category administration database test to prove a Profile Category filter causes the existing `category_in_use` result and no record is deleted.
+
+CONCURRENCY TEST REQUIREMENTS
+Use real disposable PostgreSQL. Exercise at least:
+1. `draft -> active` racing the final usable Source `approved -> unapproved`;
+2. a final-usable-association removal or equivalent active Profile membership mutation racing Source archival.
+
+Acceptance is not that one particular request always wins. Acceptance is:
+- both operations terminate within a bounded test timeout;
+- no deadlock is observed;
+- the committed state never contains an `active` Profile with zero approved+active Source associations;
+- failed transaction state/audit rows roll back cleanly.
+
+Do not claim mocks prove this.
+
+FOCUSED ITERATIVE VALIDATION
+During implementation run the narrowest relevant database files, for example:
+
+`npm run test:db:focused -- test/database/distribution-profile-administration.test.ts test/database/source-administration-api.test.ts`
+
+Add the exact Category administration test file if the Profile FK assertion lives elsewhere.
+
+Also run directly affected unit tests if P1 normalizers/repository exports change.
+
+FINAL VALIDATION
+After implementation is complete and top-level `package.json` is `1.1.2`, run:
+
+`npm run check`
+
+`npm run test:db`
+
+Do not separately rerun unit/integration/collection suites already covered by `npm run check`.
+
+ACCEPTANCE
+P2 is complete only when:
+- one Profile application service owns create/read/update/association/lifecycle behavior;
+- lifecycle transitions match the governed state machine;
+- active Profiles cannot be created or left with zero approved+active Source associations;
+- Source unapproval/archive preserves that invariant under the same transaction/locking authority;
+- operational Source state remains orthogonal;
+- Category retention uses the existing FK/error convention;
+- all multi-resource changes are transactional;
+- race tests prove the invariant under real PostgreSQL concurrency without deadlock;
+- Profile audit history is append-only and mutation-atomic;
+- P3 can consume only the service and does not need Profile SQL or business-rule reconstruction;
+- existing broader behavior remains green.
+
+IMPLEMENTATION REPORT
+Report:
+- files changed;
+- final service interface/error vocabulary;
+- lifecycle and usable-Source semantics;
+- exact lock order and concurrency design;
+- Source/Category integration changes;
+- audit actions/state strategy;
+- focused and final commands actually run with results;
+- any remaining risk or scope deviation.
+
+Do not claim HTTP Profile routes, browser UI, Article selection, machine API, or live distribution behavior was verified.
