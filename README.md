@@ -17,15 +17,18 @@ Both currently consume the same canonical outward/public Article-selection seman
 
 The accepted `1.0.0` customer launch established the first supported production source/version/schema baseline. Post-1.0 server-rendering work then shipped at package version `1.0.1`.
 
-On 2026-08-19 the repository owner approved a product-direction shift toward the headless aggregation/distribution core. On 2026-08-20 the owner locked the managed-first/self-hostable macro architecture, Distribution Profiles, thin PHP/WordPress/RSS adapter directions, and customer presentation freedom.
+On 2026-08-19 the repository owner approved a product-direction shift toward the headless aggregation/distribution core. On 2026-08-20 the owner locked the managed-first/self-hostable macro architecture, Distribution Profiles, machine distribution API, generic PHP/LKG integration direction, and customer presentation freedom.
 
-The previous frontend-centric post-1.0 roadmap remains paused. The 2.0 architecture/contracts are complete, but there is **no active implementation phase and no assigned next implementation version** until an owner-approved replacement roadmap exists. Former Phase 0 P2/`1.0.2` was retired unexecuted.
+The replacement 2.0 implementation roadmap is now active. The current development baseline is `1.1.0`, and Phase 1 builds the Distribution Profile foundation. Development remains in the `1.x.x` series through seven roadmap phases; after the final Phase 7 managed-integration release gate is green, terminal closeout promotes the final validated `1.7.x` candidate directly to `2.0.0`.
+
+Linux VPS/Docker Compose self-host packaging, native self-host admin authentication, WordPress, and RSS/Atom remain post-2.0 work. Self-hostability remains an architectural requirement, but packaging no longer blocks the managed 2.0 product validation.
 
 Current product authority is:
 
 - `docs/contracts/project-contract.md`;
 - `docs/contracts/product-scope-and-users.md`;
 - `docs/contracts/distribution-and-integration-contract.md`;
+- `docs/contracts/distribution-api-contract.md`;
 - `docs/decisions/headless-distribution-product-boundary.md`;
 - `docs/decisions/managed-first-self-hostable-distribution-architecture.md`;
 - `docs/roadmap/post-1.0-roadmap.md`.
@@ -43,7 +46,11 @@ instance-owned control plane
                               |
 Distribution Profiles (post-canonical-eligibility narrowing)
                               |
-thin adapters: PHP+cron | WordPress | RSS/Atom | custom applications
+authenticated v1 distribution API
+                              |
+generic PHP scheduled sync → validated local LKG
+                              |
+customer server-rendered website
                               |
        approval + state + lock + network safety
                               |
@@ -60,9 +67,9 @@ thin adapters: PHP+cron | WordPress | RSS/Atom | custom applications
 
 Web/API serves normalized admin/outward read models and never collects Sources inline. Worker collection validates approval, lifecycle/operational state, and every request/redirect before contact. RSS/Atom and bounded static-HTML adapters produce the same Raw-item contract; the optional Source RSS/Atom admission filter applies only to RSS/Atom before normalization. All accepted candidates share normalization, Article-link policy, Relevance/Category, Source-scoped identity, persistence, observation, duplicate, and run-accounting boundaries.
 
-The reader destination is stored Article `original_url`; canonicalized URLs remain identity fields. Article identity answers whether one Source instance was already stored, while duplicate grouping relates separately retained Articles across Sources. Collection trust and future consumer-specific distribution selection are separate concerns.
+The reader destination is stored Article `original_url`; canonicalized URLs remain identity fields. Article identity answers whether one Source instance was already stored, while duplicate grouping relates separately retained Articles across Sources. Collection trust and consumer-specific distribution selection are separate concerns.
 
-The 2.0 distribution architecture is approved but unimplemented: canonical eligibility feeds administrator-owned Profiles, the authenticated v1 API, scheduled generic PHP complete-snapshot synchronization, local last-known-good data, and customer server-rendered output. WordPress, RSS/Atom, and native self-host admin authentication are post-2.0. Managed integration remains primary; a Linux VPS/Docker Compose evaluation route is governed without creating a mandatory central-cloud dependency.
+The active 2.0 path is canonical eligibility → administrator-owned Profile → authenticated v1 API → scheduled generic PHP complete-snapshot synchronization → local last-known-good data → customer server-rendered output. WordPress, RSS/Atom, self-host packaging, and native self-host admin authentication are post-2.0.
 
 See `docs/architecture/system-architecture.md` and the contracts/ADRs for authoritative detail.
 
@@ -111,7 +118,8 @@ Start every repository-aware session with `BOOT.md`, which routes to the narrowe
 - `docs/architecture/system-architecture.md` — process, module, pipeline, scheduling, and transaction ownership for the implemented system.
 - `docs/operations/` — onboarding, security/reliability, backup/restore, deployment, rollback, and incidents.
 - `docs/roadmap/mvp-roadmap.md` — completed MVP phase history and exit gates through the `1.0.0` release.
-- `docs/roadmap/post-1.0-roadmap.md` — current paused roadmap state and the gate for the distribution/SEO architecture reset.
+- `docs/roadmap/post-1.0-roadmap.md` — active seven-phase 2.0 implementation roadmap and version lifecycle.
+- `docs/roadmap/2.0-planning-questions.md` — completed non-normative planning record that led to the governing 2.0 contracts.
 - `docs/decisions/headless-distribution-product-boundary.md` — Accepted headless product/output boundary decision.
 - `docs/decisions/managed-first-self-hostable-distribution-architecture.md` — Accepted managed/self-hostable instance and integration architecture.
 - `docs/decisions/` — other Accepted and superseded architectural decisions.
