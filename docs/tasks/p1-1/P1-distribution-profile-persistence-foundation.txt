@@ -1,0 +1,300 @@
+TASK: Phase 1 / P1 — Distribution Profile persistence foundation
+
+PHASE SCOPE
+This is Phase 1 P1 for the active post-1.0 / 2.0 roadmap. The accepted development baseline is `1.1.0`. Establish the permanent persisted Distribution Profile configuration boundary that later Phase 1 administration and Phase 2 distribution-read work can consume without knowing SQL/table topology.
+
+This prompt owns schema, validation vocabulary, repository persistence/readback, production-forward migration proof, and backup/restore coverage. It does not own Profile lifecycle commands, admin HTTP/UI, Article selection, canonical distribution eligibility, or the permanent distribution API.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: this task is explicit but crosses production schema evolution, relational integrity, repository aggregate design, supported-customer migration safety, and downstream producer completeness; Terra is the minimum balanced tier for the required state/data reasoning.
+- Reasoning basis: High is warranted by additive post-production migration constraints, immutable identity, ordered child persistence, foreign-key retention semantics, zero-to-current plus accepted-baseline upgrade proof, and the requirement that Phase 2 must not reconstruct Profile persistence independently.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because production-forward migration preservation plus complete aggregate ownership and recovery evidence create enough integrity risk to justify deeper reasoning.
+- Escalation trigger: source inspection reveals that the planned additive migration cannot preserve the accepted `0001`–`0014` production baseline, requires rewriting supported migration history, or requires a materially different tenancy/domain model.
+- Escalation target: `Sol Medium`.
+- Estimate confidence: `High`.
+- Efficiency rationale: add one narrow Profile persistence module and one additive migration; reuse established UUID/config-key/category/source conventions and existing database/recovery harnesses rather than introducing ORM, generic configuration storage, JSON expression engines, or tenancy abstractions.
+
+VERSIONING
+This prompt's assigned project version is `1.1.1`.
+- Before editing, require top-level `package.json` to be either the expected preceding baseline `1.1.0` or already `1.1.1` for a safe rerun.
+- Set only the top-level `package.json` version to `1.1.1` as part of this prompt before final validation.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Do not perform a manual Git commit; the phase runner owns the implementation-prompt commit boundary and exact roadmap commit subject.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/contracts/project-contract.md`, `docs/contracts/domain-and-data-contract.md`, `docs/contracts/distribution-and-integration-contract.md`, `docs/roadmap/post-1.0-roadmap.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/decisions/production-data-and-schema-compatibility.md`, `docs/architecture/system-architecture.md`, and `docs/operations/database-backup-and-restore.md`;
+2. inspect the full current migration chain, especially `migrations/0001_initial_schema.sql`, `migrations/0005_categories_and_relevance.sql`, `migrations/0013_article_duplicate_moderation.sql`, and current final migration `migrations/0014_html_endpoint_profile_and_run_diagnostics.sql`;
+3. inspect `src/database/migrations.ts`, `src/database/database.ts`, `src/sources/configuration.ts`, `src/sources/repository.ts`, `src/collection/relevance/repository.ts`, and existing immutable-config-key trigger patterns;
+4. inspect `test/database/migrations.test.ts`, the database test support, representative persistence tests, `test/recovery/postgres-backup-restore.test.ts`, and `docs/validation/phase-20-customer-launch-validation.md` to identify the exact accepted production schema baseline and preserved state families;
+5. confirm `main` has not already implemented Distribution Profile persistence differently and the supported production migration ledger is still `0001` through `0014` before this prompt;
+6. stop and report planning drift rather than rewriting earlier supported migrations, introducing Publication/customer tenancy, or inventing a different Profile contract if current authority materially changed.
+
+GOAL
+Create one topic-independent, installation-owned Profile persistence boundary:
+
+`validated Profile configuration -> additive relational persistence -> complete Profile aggregate by immutable config_key -> later application/read consumers`
+
+A later consumer must be able to load a Profile and every Source association/filter it owns without selecting child tables directly or reconstructing Profile persistence rules.
+
+PERSISTED MODEL
+Add one additive production migration named exactly:
+
+`migrations/0015_distribution_profiles.sql`
+
+Do not modify migrations `0001` through `0014`.
+
+Implement the following logical schema with ordinary relational tables rather than a generic JSON configuration blob:
+
+1. `distribution_profiles`
+- UUID primary key;
+- immutable installation-wide `config_key`;
+- bounded mutable `display_name`;
+- lifecycle constrained to `draft`, `active`, or `disabled`;
+- bounded integer result/history limit;
+- created/updated timestamps.
+
+2. `distribution_profile_sources`
+- first-class Profile↔Source association;
+- one row per Profile/Source pair;
+- real FKs to `distribution_profiles` and `sources`;
+- no duplicated Source display/site/approval/configuration columns;
+- no Publication/customer/tenant key.
+
+3. `distribution_profile_source_phrases`
+- association-owned phrase rows;
+- distinguish `include` and `exclude` kinds with a bounded enum/check;
+- deterministic zero-based or one-based position owned by the association;
+- ordered uniqueness appropriate to the chosen representation;
+- real FK to the association.
+
+4. `distribution_profile_source_categories`
+- association-owned Category references;
+- real FK to `categories`;
+- deterministic persisted position so round-trip ordering is stable;
+- one Category at most once per association.
+
+Use restrictive relationship behavior where retained configuration should block destructive removal. Do not cascade-delete Sources or Categories from Profile operations. Child Profile-owned rows may cascade from their Profile/association owner where that does not destroy peer domain resources.
+
+PROFILE FIELD BOUNDS
+Use the existing config-key convention:
+- `config_key`: 1–100 characters and the established lowercase underscore-delimited shape;
+- enforce immutability in PostgreSQL with a Profile-specific trigger/function or a safely shared trigger design that does not alter existing semantics.
+
+Use these Phase 1 implementation bounds:
+- `display_name`: trimmed 1–200 characters;
+- result/history limit: integer 1–1000;
+- default result/history limit: exactly 100;
+- include phrase count: 0–64;
+- exclude phrase count: 0–64;
+- each phrase: trimmed 1–512 characters and no Unicode control characters;
+- Category key count: 0–64;
+- duplicate phrases inside the same list are invalid case-insensitively;
+- duplicate Category config keys are invalid;
+- the same literal phrase MAY appear in both include and exclude lists because later filtering semantics explicitly say exclusion wins;
+- empty arrays mean no restriction for that dimension.
+
+These are deterministic configuration bounds only. Do not implement matching against Articles here.
+
+CONFIGURATION MODULE
+Add the narrow topic-independent configuration module under:
+
+`src/distribution/profiles/configuration.ts`
+
+It should own exported types/constants/normalizers needed by the repository and later administration layer, including at minimum:
+- Profile lifecycle type/values;
+- default and maximum result limit constants;
+- Profile create/configuration normalization primitives;
+- association filter normalization;
+- deterministic duplicate detection and trimming/bounds;
+- standard immutable config-key normalization by reuse of the existing source/config-key authority rather than a conflicting second shape.
+
+Do not make this module depend on Express, the admin UI, Article SQL, public feed logic, Source collection admission filtering, or Phase 2 read-model semantics.
+
+REPOSITORY BOUNDARY
+Add:
+
+`src/distribution/profiles/repository.ts`
+
+Expose the smallest complete persistence boundary required by P2 and Phase 2. Naming may adapt to established repository conventions, but there MUST be one obvious public read such as:
+
+`findDistributionProfileByConfigKey(executor, configKey)`
+
+returning one complete aggregate containing:
+- Profile UUID;
+- immutable `configKey`;
+- mutable `displayName`;
+- lifecycle;
+- result limit;
+- created/updated timestamps;
+- every Source association in deterministic order;
+- associated Source stable UUID/config key/display name;
+- associated Source approval state and lifecycle state needed by later activation/read validation;
+- ordered `includeAnyPhrases`;
+- ordered `excludeAnyPhrases`;
+- ordered `categoryConfigKeys`.
+
+Also expose narrowly scoped repository mutation primitives sufficient for P2 to create a draft, update mutable Profile state, replace/remove Source associations/filters, lock Profiles/Sources, and persist lifecycle transitions transactionally without embedding business rules here. Keep application validation in P2.
+
+Repository functions must:
+- use parameterized SQL;
+- map database rows defensively;
+- return immutable/read-only aggregate values following current repository style;
+- keep Profile table topology private from HTTP/UI/Phase 2;
+- not implement Article matching or canonical outward eligibility.
+
+PERSISTENCE SEMANTICS
+Prove at database level:
+- Profile `config_key` is unique and immutable;
+- multiple Profiles can exist without implying multiple Publications;
+- multiple Profiles may reference the same Source;
+- one Profile cannot associate the same Source twice;
+- a Source association cannot reference a missing Source;
+- a Category filter cannot reference a missing Category;
+- deleting a Category referenced by a Profile remains prevented by FK integrity;
+- Source and Category records are never duplicated into Profile-owned rows;
+- exact phrase/category ordering survives create/read/reload;
+- replacing association filters cannot leave partial child state if a statement/constraint fails inside a transaction;
+- no Article, observation, duplicate, Relevance, Source collection, endpoint, or Publication row is mutated by Profile repository operations.
+
+PRODUCTION-FORWARD MIGRATION PROOF
+The accepted Phase 20 customer launch established the supported production schema/data baseline. A clean database built from today's complete migrations is necessary but not sufficient.
+
+Add a dedicated real-PostgreSQL test, preferably:
+
+`test/database/distribution-profile-production-upgrade.test.ts`
+
+The test must construct a database using the actual repository migration files `0001` through `0014` only, seed representative governed supported state, and then apply the real current migration chain containing `0015`.
+
+Representative preserved state must cover enough real relationships to prove the schema addition is non-destructive, including at least:
+- singleton Publication configuration and presentation state;
+- Source + approved domains + endpoint/runtime state;
+- Category/Relevance configuration;
+- Article + observation/provenance;
+- moderation/display or Category override state;
+- duplicate group/Primary state;
+- audit state;
+- durable job/run state where the existing fixture/support makes this practical.
+
+After forward migration:
+- all seeded values/relationships must remain semantically equal;
+- migration ledger must retain accepted history plus `0015`;
+- existing accepted migrations' checksums/bytes are unchanged;
+- a Distribution Profile and its association/filter configuration can then be persisted/reloaded successfully.
+
+Do not call a database freshly migrated through `0015` a production-forward proof. The test must actually start from the supported `0001`–`0014` state.
+
+MIGRATION-FROM-ZERO PROOF
+Update `test/database/migrations.test.ts` to expect `0015_distribution_profiles.sql` after `0014` and add schema assertions for the new Profile structures/constraints that are useful to protect accidental drift.
+
+Do not overfit this test to every index/constraint string when direct behavior tests provide stronger proof; assert the important immutable/relationship/bounds behavior in the focused Profile persistence test.
+
+BACKUP / RESTORE
+Extend `test/recovery/postgres-backup-restore.test.ts` representative governed state to include:
+- at least one Distribution Profile;
+- one Source association;
+- non-empty include/exclude/category filter state;
+- lifecycle/result-limit values.
+
+After native backup/restore, assert the Profile aggregate survives exactly alongside the already-governed Publication, Source, endpoint, Category/Relevance, Article/provenance, moderation, duplicate, audit, and job state. Do not weaken or replace the existing recovery assertions.
+
+DOWNSTREAM HANDOFF / CONSUMER READINESS
+Before P1 is complete, map and prove these producer contracts:
+
+`validated Profile fields/filter bounds -> distribution profile configuration module -> unit proof`
+
+`Profile identity/lifecycle/result limit -> distribution_profiles persistence -> real PostgreSQL proof`
+
+`Profile↔Source membership -> repository aggregate -> multi-Source/multi-Profile PostgreSQL proof`
+
+`include/exclude/category association filters -> repository aggregate with deterministic ordering -> exact round-trip PostgreSQL proof`
+
+`associated Source identity + approval/lifecycle -> repository aggregate -> PostgreSQL mapping proof`
+
+`supported production baseline 0001–0014 -> additive 0015 -> preserved governed state -> production-forward PostgreSQL proof`
+
+`Profile persistence -> native backup/restore -> recovery proof`
+
+`Phase 2 Profile config load -> repository aggregate by immutable config_key -> focused aggregate test`
+
+If P2 or Phase 2 would need to issue their own Profile child-table SQL, invent filter persistence ordering, infer Source lifecycle fields from unrelated reads, or reconstruct the Profile aggregate outside this repository, P1 is incomplete. Fix the producer boundary here.
+
+PRESERVED BEHAVIOR
+Preserve all existing behavior outside the new Profile persistence boundary, especially:
+- one Publication/topic per installation;
+- approved-Source trust and collection behavior;
+- Source RSS/Atom admission filtering;
+- endpoint profiles, network safety, scheduling, jobs, collection runs, and health;
+- Article normalization, Source-scoped identity, idempotency, observations, and provenance;
+- Relevance and Category behavior;
+- moderation and duplicate state;
+- exact stored `original_url` destination semantics;
+- existing `/`, `/api/feed`, and admin behavior;
+- supported migrations `0001`–`0014` unchanged.
+
+NON-GOALS
+Do not implement:
+- Profile lifecycle application commands or activation validation;
+- admin Profile routes or UI;
+- Profile deletion;
+- Article/Profile phrase or Category matching;
+- canonical distribution eligibility;
+- Profile result queries;
+- pagination/cursors or `snapshotRevision`;
+- `/api/v1/distribution/...`;
+- bearer/machine credentials;
+- rate limiting;
+- PHP/LKG, WordPress, RSS/Atom distribution, widgets, analytics, or self-host packaging;
+- special `exclude self` logic or ownership inference;
+- regex, fuzzy, semantic/AI, ranking, arbitrary expression, or executable filter behavior;
+- Publication/customer/tenant IDs or FKs.
+
+FOCUSED ITERATIVE VALIDATION
+During implementation use the narrowest useful commands, for example:
+
+`node scripts/run-tests.mjs --test-concurrency=4 test/unit/distribution-profile-configuration.test.ts`
+
+`npm run test:db:focused -- test/database/distribution-profile-persistence.test.ts test/database/distribution-profile-production-upgrade.test.ts test/database/migrations.test.ts`
+
+`npm run test:recovery`
+
+If the chosen focused filenames differ slightly, run the exact new focused files plus directly affected existing tests. A missing database/recovery prerequisite is a failed evidence gate, not a successful skip.
+
+FINAL VALIDATION
+After implementation is complete and top-level `package.json` is `1.1.1`, run the smallest non-overlapping final command set:
+
+`npm run check`
+
+`npm run test:db`
+
+`npm run test:recovery`
+
+Do not redundantly rerun unit/integration/collection suites separately after `npm run check`.
+
+ACCEPTANCE
+P1 is complete only when:
+- `0015_distribution_profiles.sql` is additive and migrations `0001`–`0014` are unchanged;
+- Profile key/name/lifecycle/result/filter bounds are enforced deterministically;
+- Profile key immutability and relational integrity are enforced by PostgreSQL where appropriate;
+- the repository returns the complete Profile aggregate required by P2 and Phase 2;
+- Source/Category peer resources are referenced, never duplicated;
+- ordered association filters survive exact persistence/reload;
+- zero-to-current migration passes;
+- a real accepted-baseline `0001`–`0014` forward upgrade preserves governed supported state;
+- native backup/restore preserves Profile state;
+- existing broader regressions remain green;
+- no later-phase distribution behavior was pulled forward.
+
+IMPLEMENTATION REPORT
+At completion report concisely:
+- files changed;
+- migration/schema design and why it preserves the supported production baseline;
+- exported Profile configuration/repository interfaces and downstream handoff;
+- focused and final commands actually run with pass/fail counts;
+- exact evidence achieved for zero migration, production-forward migration, and recovery;
+- any residual risk or deviation from this prompt.
+
+Do not claim browser, live-Source, deployment, or Phase 2 Article-selection behavior was verified unless it was actually observed.
