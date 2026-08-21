@@ -64,6 +64,8 @@ docs/
 
 Git does not track empty directories, so `testing/`, `tasks/`, `design/tasks/`, and `validation/` may not exist until substantive files are created there. Do not create placeholder testing plans or empty validation artifacts.
 
+The tracked docs-maintenance handoff lives outside `docs/` at repository-root `.codex/docs-prompt.txt`. `/docs-prompt` creates or replaces that single file and commits it on `main`; it is a transient handoff slot with durable Git history, not a roadmap/correction task and not input to `codex:phase`. The generated prompt must require its consumer to fetch/check `origin/main` and stop before editing if the local checkout is stale or does not contain the current prompt-file commit.
+
 ## Document routing
 
 - `contracts/project-contract.md` — locked Platform laws, authority hierarchy, one-Publication-per-deployment boundary, headless product/output law, original-publisher destination law, and derived production-data invariant.
@@ -98,6 +100,7 @@ Git does not track empty directories, so `testing/`, `tasks/`, `design/tasks/`, 
 - `decisions/README.md` — ADR status/index.
 - `history/superseded-post-1.0-phase-0-closeout.md` — tombstone for the retired unexecuted Phase 0 P2/`1.0.2` closeout; the original prompt remains available in Git history.
 - `codex-model-selection.md` — detailed minimum-cost-adequate model-family/reasoning policy for `/prompt-ass`, `/prompt-plan`, `/prompt-write`, `/revalidate`, usage estimates, prompt-token discipline, and the current runner matrix. `BOOT.md` remains authoritative for executable task grammar.
+- repository-root `.codex/docs-prompt.txt` — tracked transient docs-maintenance execution handoff written by `/docs-prompt`; consumers must update/check `main` before running it, and it is outside roadmap/correction task grammar.
 
 Use root `BOOT.md` as the session router; it points to the narrowest authoritative document for a task.
 
