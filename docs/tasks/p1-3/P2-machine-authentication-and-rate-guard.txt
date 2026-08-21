@@ -1,0 +1,284 @@
+TASK: Phase 3 / P2 — Machine authentication and rate guard
+
+- Recommended configuration: `Terra High`.
+- Model-family basis: the task is a bounded but security-critical producer covering bearer parsing, verifier comparison, revoked/expired handling, abuse resistance, and a Phase 4 reusable authorization result.
+- Reasoning basis: high reasoning is warranted by generic-failure requirements, timing/state-leak risk, limiter ordering, bounded attacker-controlled state, and the need to keep HTTP response policy out of the producer.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because authentication correctness and abuse-boundary mistakes can become externally exploitable once Phase 4 mounts the producer.
+- Escalation trigger: source inspection shows the required bounded behavior depends on ambiguous reverse-proxy trust, distributed/shared limiter state, or a materially different machine-auth architecture not settled by current contracts.
+- Escalation target: `Sol Medium`.
+- Estimate confidence: `High`.
+- Efficiency rationale: compose the P1 token/verifier/repository authority with small deterministic authentication and in-process limiter primitives; do not introduce Passport, sessions, Redis, a distributed quota service, or the Phase 4 route.
+
+The assigned project version is `1.3.2`.
+
+## Goal
+
+Build the single reusable machine-authentication and request-abuse decision boundary that Phase 4 can call without reimplementing bearer parsing, credential lifecycle interpretation, verifier comparison, or rate-limit mechanics.
+
+Required chain:
+
+`Authorization header + caller-supplied invalid-auth network key -> bounded guard -> authenticated distribution principal | generic unauthenticated | rate_limited`
+
+This prompt does not expose `/api/v1/distribution/...` and does not serialize `401`, `429`, or `Retry-After` HTTP responses. Phase 4 will map the typed outcomes.
+
+## Prerequisite and read first
+
+P1 must be committed and package version must be `1.3.1` (or `1.3.2` for a safe rerun).
+
+Before editing, read:
+
+1. `BOOT.md`, `AGENTS.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/distribution-api-contract.md`;
+4. `docs/contracts/distribution-and-integration-contract.md`;
+5. `docs/contracts/testing-and-validation-contract.md`;
+6. `docs/operations/security-reliability-and-operations.md`;
+7. Phase 3 and Phase 4 roadmap entries;
+8. P1's final credential token/verifier/repository exports and focused tests;
+9. `src/app/web/create-app.ts`, `src/app/web/server.ts`, `src/app/web/web-config.ts`, and current admin security middleware only to understand process/request boundaries;
+10. current `test/security/`, integration test patterns, and database credential tests.
+
+If P1 does not expose a complete auth lookup/token/verifier boundary, stop and report `Planning needed` rather than querying its tables directly or duplicating its token logic.
+
+## Bearer authentication contract
+
+Implement one canonical machine authentication function/service under the distribution credential/security boundary.
+
+It must accept only an Authorization-header value supplied by its caller. It MUST NOT inspect query-string parameters or accept tokens from cookies/body/path values.
+
+Parsing requirements:
+
+- only the `Bearer` scheme is accepted;
+- require exactly one non-empty bearer credential with no trailing credential components;
+- reject malformed, wrong-scheme, oversized, non-canonical, wrong token-version, and otherwise invalid token shapes boundedly;
+- do not echo supplied tokens in errors;
+- do not log Authorization values or token fragments.
+
+Use the P1 parser/verifier/repository exports. Do not introduce another token syntax, digest function, or credential SQL path.
+
+## Verification and lifecycle behavior
+
+For a syntactically valid token:
+
+1. parse the non-secret lookup identity and secret using P1;
+2. perform one indexed lookup through P1's authentication repository boundary;
+3. derive the candidate verifier using the P1 authority;
+4. perform a fixed-length timing-safe comparison against either the persisted verifier or a fixed dummy verifier when the lookup identity is unknown;
+5. only after verifier comparison evaluate persisted capability/revocation/expiry for authorization success.
+
+The goal is constant/bounded authentication structure, not a mathematically identical wall-clock duration across PostgreSQL cache/network conditions. Unknown lookup IDs must not skip verifier work in a way that creates an obvious credential-existence oracle.
+
+All of these states must collapse to the same public authentication outcome with no reason exposed to Phase 4's external error serializer:
+
+- malformed/unsupported bearer token;
+- unknown lookup identity;
+- wrong secret;
+- revoked credential;
+- expired credential;
+- missing/invalid `distribution:read` capability;
+- malformed persisted credential state that cannot safely authorize.
+
+Internally, narrowly scoped non-secret telemetry categories MAY distinguish failure classes if existing observability conventions support that without leaking secrets. Do not expose those distinctions through the returned external-auth reason.
+
+A successful principal should expose only what downstream code needs, such as:
+
+- stable internal/non-secret credential identity;
+- non-secret lookup identity if operationally useful;
+- label if useful for telemetry;
+- fixed `distribution:read` capability.
+
+It must never expose verifier bytes or plaintext token material.
+
+Credential authentication is instance-scoped. Do not accept a Profile key or create a credential↔Profile authorization check.
+
+## Rate-limit and invalid-auth abuse foundation
+
+Add a deterministic bounded request-guard/limiter foundation that Phase 4 can compose around the authentication result.
+
+Two independently keyed protections are required:
+
+1. authenticated requests: primary limit keyed by the authenticated credential's non-secret identity;
+2. failed/invalid authentication: separate abuse limit keyed by a bounded network identity supplied by the future HTTP caller.
+
+The future caller owns extraction of the network identity from trusted request/proxy context. This prompt MUST NOT invent `X-Forwarded-For` trust policy or parse arbitrary forwarding headers.
+
+A small process-local limiter is acceptable for the current single Web/API process architecture. It is a Phase 3 foundation, not a claim of cross-process/global quota enforcement. If current runtime architecture already contains a better shared limiter primitive, reuse it.
+
+The limiter must:
+
+- use injected/testable monotonic or controlled clock semantics;
+- have explicit bounded policy inputs/central defaults rather than magic values scattered through callers;
+- return an allowed/rate-limited decision plus integer `retryAfterSeconds` sufficient for Phase 4's `Retry-After` mapping;
+- avoid an unbounded attacker-controlled key map through expiry/cleanup and a hard cardinality bound or equivalent bounded strategy;
+- avoid retaining bearer secrets as keys;
+- keep authenticated-credential and invalid-network buckets logically separate;
+- handle exact window/refill boundaries deterministically;
+- fail closed or boundedly when policy/input state is invalid.
+
+Do not implement billing quotas or persistent quota counters.
+
+## Combined Phase 4-facing guard
+
+Expose one obvious producer interface that Phase 4 can call with:
+
+- Authorization header value (or absence);
+- bounded caller-provided invalid-auth network key;
+- configured/constructed limiter policy/dependencies.
+
+It should return a typed result equivalent to:
+
+- `authenticated` with redacted machine principal;
+- `unauthenticated` with no credential-state reason;
+- `rate_limited` with `retryAfterSeconds` and only the non-secret classification needed for internal telemetry.
+
+The exact type names are implementation-owned.
+
+Ordering must protect both resources and semantics:
+
+- if an invalid-auth network key is already blocked, the guard may reject before database verification;
+- otherwise authenticate through the bounded path;
+- failed authentication consumes/updates only the invalid-auth bucket;
+- successful authentication is evaluated against the per-credential limiter;
+- an invalid-auth attempt must never consume another valid credential's quota merely because an attacker guessed its lookup identity.
+
+Do not return HTTP status codes or Express responses from the transport-independent core. A very thin adapter/helper may be added under `src/app/web/` only if necessary to normalize a raw Authorization header into the core call, but no distribution route is authorized.
+
+## Security proof
+
+Add focused security/unit tests covering at minimum:
+
+- absent Authorization;
+- wrong scheme/casing/shape according to the chosen strict parser;
+- empty, malformed, oversized, wrong-version, truncated bearer values;
+- unknown lookup identity;
+- valid lookup + wrong secret;
+- valid active non-expired credential succeeds;
+- revoked credential fails generically;
+- expired credential fails generically at the exact boundary;
+- future expiry succeeds before the boundary;
+- capability mismatch/corrupt persisted capability cannot authorize;
+- unknown lookup executes fixed verifier-comparison work through the dummy verifier path;
+- returned principal contains no token/verifier;
+- returned unauthenticated result does not reveal unknown/wrong/revoked/expired distinctions;
+- no Profile key is needed for authentication;
+- generated machine principal has no administrator role/capability.
+
+Do not attempt flaky microbenchmark timing assertions. Test structural constant/bounded behavior with injected/spied verifier/lookup seams where appropriate.
+
+## Limiter proof
+
+Add deterministic unit/security tests proving:
+
+- authenticated requests are isolated by credential identity;
+- invalid-auth attempts are isolated by supplied network key;
+- reaching a limit returns stable positive `retryAfterSeconds`;
+- allowance resumes after the governed time boundary;
+- failed auth does not debit an authenticated credential bucket;
+- successful auth does not count as an invalid-auth failure;
+- attacker-controlled invalid keys cannot grow retained limiter state without bound;
+- cleanup/eviction does not permit a trivially permanent bypass of the configured bound;
+- malformed/empty network keys are rejected or normalized according to one explicit bounded rule;
+- token plaintext is never used as a limiter key.
+
+If limiter implementation uses mutable in-process state, cover its repeated-call and cleanup behavior thoroughly. No real PostgreSQL proof is needed for pure limiter mechanics.
+
+## Database/integration proof
+
+Use real disposable PostgreSQL for the credential lifecycle/authentication interaction. At minimum prove:
+
+- a P1-issued credential authenticates from its persisted verifier;
+- process/service restart represented by reconstructing the auth service from the database still authenticates without plaintext persistence;
+- revocation immediately prevents later authentication;
+- overlapping rotation allows old and new credentials until old is revoked;
+- expiration is enforced from persisted state;
+- unknown lookup and wrong-secret paths remain generic;
+- ordinary list/read state remains redacted.
+
+Do not re-test every P1 migration constraint in this prompt; preserve P1 evidence and focus on the consumer behavior.
+
+## Machine/admin separation
+
+Phase 3 machine auth must remain completely separate from human administrator authority.
+
+Prove structurally and with focused integration coverage that:
+
+- the machine principal contains only `distribution:read`;
+- no admin router/middleware consumes it as administrator identity;
+- presenting a machine bearer token cannot bypass the existing admin mutation-integrity requirement;
+- disabling the admin surface remains independent from machine credential existence;
+- this prompt does not add native administrator login/session behavior.
+
+Remember that Cloudflare Access is the managed human perimeter outside the local Express test harness. Do not falsely claim a local test proves Cloudflare itself.
+
+## Downstream handoff
+
+Before P2 is complete, prove:
+
+`Authorization bearer parsing -> canonical auth parser -> bounded token input -> security proof`
+
+`lookup + supplied secret -> P1 auth lookup/verifier -> generic credential decision -> PostgreSQL/security proof`
+
+`revoked/expired/capability-invalid -> same unauthenticated result -> negative proof`
+
+`authenticated principal -> per-credential limiter -> allowed/rate_limited + retryAfterSeconds -> deterministic limiter proof`
+
+`failed authentication + caller network key -> invalid-auth limiter -> bounded abuse decision -> deterministic limiter proof`
+
+`Phase 4 request -> one P2 guard export -> authenticated | unauthenticated | rate_limited -> consumer-ready integration proof`
+
+Phase 4 must not need to parse tokens, query credential rows, compare digests, determine expiry/revocation, implement per-credential counters, or invent invalid-auth limiter semantics.
+
+## Preserved behavior and non-goals
+
+Preserve P1 credential lifecycle, all Phase 1/2 behavior, current admin perimeter, `/`, `/api/feed`, collection, provenance, duplicates, Profile semantics, and topic independence.
+
+Do not implement:
+
+- `/api/v1/distribution/{profile_key}`;
+- Profile lookup/authorization in machine auth;
+- HTTP `401`, `429`, `Retry-After`, CORS, HTTPS redirect, ETag, or distribution response serialization;
+- admin credential routes/UI;
+- credential deletion/plaintext recovery;
+- distributed Redis/database rate counters;
+- billing quotas;
+- native human admin auth;
+- PHP/LKG or post-2.0 adapters.
+
+## Validation
+
+During iteration use focused unit/security/database tests. On the final P2 tree run the smallest non-overlapping matrix that covers the changed blast radius, expected to include:
+
+```text
+npm run check
+npm run test:security
+npm run test:db:focused -- <P1/P2 credential authentication database tests>
+npm run codex:phase:validate -- p1-3
+git diff --check
+```
+
+Run full `npm run test:db` if P2 changes persisted representation/repository behavior instead of merely consuming P1. Do not rerun recovery/browser suites unless their covered behavior was actually changed.
+
+## Version and repository rules
+
+- Set only top-level `package.json` to `1.3.2` before final validation.
+- Do not add/rewrite migrations unless current P1 implementation is demonstrably incomplete; if a new schema change is actually required, stop and report planning drift instead of silently expanding P2.
+- Do not create lockfiles or manually commit.
+- Do not edit contracts/ADRs/roadmap/historical validation/tasks.
+
+## Acceptance
+
+P2 is complete only when:
+
+1. one reusable machine-auth guard owns bearer parsing, verifier/lifecycle interpretation, and typed authorization outcomes;
+2. unknown/wrong/revoked/expired/unusable credentials fail through the same outward authentication result;
+3. verifier comparison has a structurally bounded dummy path for unknown lookup identities;
+4. authenticated per-credential and invalid-auth network abuse limiters are deterministic and memory-bounded;
+5. the guard returns `retryAfterSeconds` without owning Phase 4 HTTP serialization;
+6. machine principals cannot grant administrator authority and no Profile permission matrix exists;
+7. Phase 4 can consume the guard without reconstructing Phase 3 security logic;
+8. focused security + PostgreSQL evidence and applicable regressions are green;
+9. package version is exactly `1.3.2`.
+
+Finish with a concise report listing changed files, auth/limiter exports, generic-failure and timing-structure approach, focused/final commands actually run with results, package version, and any residual security risk that should block P3.
