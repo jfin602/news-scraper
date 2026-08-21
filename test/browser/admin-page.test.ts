@@ -541,6 +541,10 @@ describe('Source administration page browser behavior', () => {
             .inheritsSourceDomainPolicy,
           false,
         );
+        await page
+          .locator('[data-admin-status]')
+          .filter({ hasText: 'Endpoint created.' })
+          .waitFor();
 
         await form
           .locator('[name="endpointUrl"]')
