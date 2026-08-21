@@ -7,6 +7,7 @@ import {
   SourceAdministrationError,
   type SourceAdministrationService,
 } from '../../src/admin/source-administration.ts';
+import { createDistributionProfileAdministrationService } from '../../src/admin/distribution-profile-administration.ts';
 import { createWebApp } from '../../src/app/web/create-app.ts';
 import {
   ADMIN_REQUEST_HEADER,
@@ -260,6 +261,35 @@ describe('Source administration database service', () => {
 });
 
 describe('Source administration HTTP API', () => {
+  it('returns bounded 409 when unapproval would strand an active Distribution Profile', async () => {
+    await withSourceAdministration(async ({ database, service }) => {
+      await service.createSource(sourceCreateInput());
+      const profiles = createDistributionProfileAdministrationService(database);
+      await profiles.createProfile({
+        configKey: 'distribution',
+        displayName: 'Distribution',
+      });
+      await profiles.replaceSourceAssociation('distribution', 'journal', {});
+      await profiles.setProfileLifecycle('distribution', {
+        lifecycleState: 'active',
+      });
+      await withAdminServer(true, service, async (baseUrl) => {
+        const response = await fetch(
+          `${baseUrl}/admin/api/sources/journal/approval`,
+          {
+            method: 'PUT',
+            headers: adminJsonHeaders(),
+            body: JSON.stringify({ approvalState: 'unapproved' }),
+          },
+        );
+        assert.equal(response.status, 409);
+        assert.deepEqual(await response.json(), {
+          error: 'source_required_by_active_profile',
+        });
+      });
+    });
+  });
+
   it('mounts real Source commands behind admin enablement and P3 mutation integrity', async () => {
     await withSourceAdministration(async ({ database, service }) => {
       await createCategory(database, {

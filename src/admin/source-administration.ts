@@ -24,6 +24,12 @@ import {
   type OperationalState,
 } from '../sources/configuration.ts';
 import { insertSource } from '../sources/repository.ts';
+import {
+  lockActiveDistributionProfilesReferencingSource,
+  lockDistributionProfileSourcesForProfiles,
+  type LockedDistributionProfileSourceAssociation,
+  type PersistedDistributionProfile,
+} from '../distribution/profiles/repository.ts';
 
 export const SOURCE_ADMINISTRATION_LIST_LIMIT = 500;
 
@@ -33,6 +39,7 @@ export type SourceAdministrationErrorCode =
   | 'source_archived'
   | 'source_config_key_conflict'
   | 'source_domain_policy_conflict'
+  | 'source_required_by_active_profile'
   | 'source_not_found';
 
 export class SourceAdministrationError extends Error {
@@ -243,14 +250,27 @@ export function createSourceAdministrationService(
       const approvalState = normalizeAdminValue(() =>
         normalizeApprovalState(command.approvalState),
       );
-      return updateLockedSourceState(database, key, async (transaction, id) => {
-        await transaction.query(
-          `UPDATE sources
+      return updateSourceStateWithProfileGuard(
+        database,
+        key,
+        async (transaction, id, current, profiles, profileSources) => {
+          if (
+            current.approvalState === 'approved' &&
+            approvalState === 'unapproved'
+          ) {
+            requireActiveProfilesRemainUsable(id, profiles, profileSources, {
+              approvalState,
+              lifecycleState: current.lifecycleState,
+            });
+          }
+          await transaction.query(
+            `UPDATE sources
            SET approval_state = $2, updated_at = now()
            WHERE id = $1`,
-          [id, approvalState],
-        );
-      });
+            [id, approvalState],
+          );
+        },
+      );
     },
 
     async setSourceOperationalState(sourceConfigKey: unknown, input: unknown) {
@@ -281,17 +301,99 @@ export function createSourceAdministrationService(
       const lifecycleState = normalizeAdminValue(() =>
         normalizeLifecycleState(command.lifecycleState),
       );
-      return updateLockedSourceState(database, key, async (transaction, id) => {
-        await transaction.query(
-          `UPDATE sources
+      return updateSourceStateWithProfileGuard(
+        database,
+        key,
+        async (transaction, id, current, profiles, profileSources) => {
+          if (
+            current.lifecycleState === 'active' &&
+            lifecycleState === 'archived'
+          ) {
+            requireActiveProfilesRemainUsable(id, profiles, profileSources, {
+              approvalState: current.approvalState,
+              lifecycleState,
+            });
+          }
+          await transaction.query(
+            `UPDATE sources
            SET lifecycle_state = $2, operational_state = 'disabled',
                updated_at = now()
            WHERE id = $1`,
-          [id, lifecycleState],
-        );
-      });
+            [id, lifecycleState],
+          );
+        },
+      );
     },
   });
+}
+
+interface LockedSourceState {
+  readonly id: string;
+  readonly approvalState: ApprovalState;
+  readonly lifecycleState: LifecycleState;
+}
+
+async function updateSourceStateWithProfileGuard(
+  database: Database,
+  sourceConfigKey: string,
+  update: (
+    transaction: QueryExecutor,
+    sourceId: string,
+    current: LockedSourceState,
+    profiles: readonly Omit<PersistedDistributionProfile, 'sources'>[],
+    profileSources: readonly LockedDistributionProfileSourceAssociation[],
+  ) => Promise<void>,
+): Promise<AdminSourceReadModel> {
+  return database.transaction(async (transaction) => {
+    // Resolve without a write lock. Active Profile rows must be acquired first.
+    const sourceId = await findSourceId(transaction, sourceConfigKey);
+    const profiles = await lockActiveDistributionProfilesReferencingSource(
+      transaction,
+      sourceId,
+    );
+    const profileSources = await lockDistributionProfileSourcesForProfiles(
+      transaction,
+      profiles.map((profile) => profile.id),
+    );
+    const currentSource = profileSources.find(
+      (source) => source.sourceId === sourceId,
+    );
+    const current =
+      currentSource === undefined
+        ? await lockSourceState(transaction, sourceId)
+        : Object.freeze({
+            id: currentSource.sourceId,
+            approvalState: currentSource.sourceApprovalState,
+            lifecycleState: currentSource.sourceLifecycleState,
+          });
+    await update(transaction, current.id, current, profiles, profileSources);
+    return requireSourceReadModel(transaction, sourceConfigKey);
+  });
+}
+
+function requireActiveProfilesRemainUsable(
+  targetSourceId: string,
+  profiles: readonly Omit<PersistedDistributionProfile, 'sources'>[],
+  sources: readonly LockedDistributionProfileSourceAssociation[],
+  proposed: Readonly<{
+    approvalState: ApprovalState;
+    lifecycleState: LifecycleState;
+  }>,
+): void {
+  for (const profile of profiles) {
+    const remainsUsable = sources.some(
+      (source) =>
+        source.profileId === profile.id &&
+        (source.sourceId === targetSourceId
+          ? proposed.approvalState === 'approved' &&
+            proposed.lifecycleState === 'active'
+          : source.sourceApprovalState === 'approved' &&
+            source.sourceLifecycleState === 'active'),
+    );
+    if (!remainsUsable) {
+      throw new SourceAdministrationError('source_required_by_active_profile');
+    }
+  }
 }
 
 async function updateLockedSourceState(
@@ -321,6 +423,43 @@ async function lockSource(
     throw new SourceAdministrationError('source_not_found');
   }
   return requiredString(row.id);
+}
+
+async function findSourceId(
+  executor: QueryExecutor,
+  sourceConfigKey: string,
+): Promise<string> {
+  const result = await executor.query<SourceIdRow>(
+    `SELECT id FROM sources WHERE config_key = $1`,
+    [sourceConfigKey],
+  );
+  const row = result.rows[0];
+  if (row === undefined)
+    throw new SourceAdministrationError('source_not_found');
+  return requiredString(row.id);
+}
+
+async function lockSourceState(
+  executor: QueryExecutor,
+  sourceId: string,
+): Promise<LockedSourceState> {
+  const result = await executor.query<{
+    readonly id: unknown;
+    readonly approval_state: unknown;
+    readonly lifecycle_state: unknown;
+  }>(
+    `SELECT id, approval_state, lifecycle_state
+       FROM sources WHERE id = $1 FOR UPDATE`,
+    [sourceId],
+  );
+  const row = result.rows[0];
+  if (row === undefined)
+    throw new SourceAdministrationError('source_not_found');
+  return Object.freeze({
+    id: requiredString(row.id),
+    approvalState: normalizeApprovalState(row.approval_state),
+    lifecycleState: normalizeLifecycleState(row.lifecycle_state),
+  });
 }
 
 async function lockSourceEndpoints(

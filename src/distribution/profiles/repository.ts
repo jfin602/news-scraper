@@ -51,6 +51,10 @@ export interface LockedDistributionProfileSource {
   readonly sourceLifecycleState: LifecycleState;
 }
 
+export interface LockedDistributionProfileSourceAssociation extends LockedDistributionProfileSource {
+  readonly profileId: string;
+}
+
 interface ProfileRow {
   readonly id: unknown;
   readonly config_key: unknown;
@@ -166,6 +170,28 @@ export async function findDistributionProfileByConfigKey(
       ),
     ),
   });
+}
+
+export async function listDistributionProfiles(
+  executor: QueryExecutor,
+): Promise<readonly PersistedDistributionProfile[]> {
+  const result = await executor.query<{ readonly config_key: unknown }>(
+    `SELECT config_key FROM distribution_profiles ORDER BY config_key ASC`,
+  );
+  return Object.freeze(
+    await Promise.all(
+      result.rows.map(async (row) => {
+        const profile = await findDistributionProfileByConfigKey(
+          executor,
+          normalizeConfigKey(row.config_key),
+        );
+        if (profile === undefined) {
+          throw new ConfigurationPersistenceError('profile list changed');
+        }
+        return profile;
+      }),
+    ),
+  );
 }
 
 export async function updateDistributionProfile(
@@ -309,12 +335,104 @@ export async function lockSourceForDistributionProfile(
   }
 }
 
+/**
+ * Locks all Sources associated with one already-locked Profile. Source rows
+ * are always acquired by stable database ID after the Profile row.
+ */
+export async function lockDistributionProfileSources(
+  executor: QueryExecutor,
+  profileId: string,
+): Promise<readonly LockedDistributionProfileSource[]> {
+  const result = await executor.query<SourceRow>(
+    `SELECT s.id AS source_id, s.config_key AS source_config_key,
+            s.display_name AS source_display_name,
+            s.approval_state AS source_approval_state,
+            s.lifecycle_state AS source_lifecycle_state
+       FROM distribution_profile_sources ps
+       JOIN sources s ON s.id = ps.source_id
+      WHERE ps.profile_id = $1
+      ORDER BY s.id ASC
+      FOR UPDATE OF s`,
+    [profileId],
+  );
+  return Object.freeze(result.rows.map(mapLockedSource));
+}
+
+/**
+ * Locks every active Profile that currently references a Source. Callers must
+ * acquire the returned Profile rows before acquiring any Source row.
+ */
+export async function lockActiveDistributionProfilesReferencingSource(
+  executor: QueryExecutor,
+  sourceId: string,
+): Promise<readonly Omit<PersistedDistributionProfile, 'sources'>[]> {
+  const result = await executor.query<ProfileRow>(
+    `SELECT ${PROFILE_COLUMNS}
+       FROM distribution_profiles profile
+       JOIN distribution_profile_sources association
+         ON association.profile_id = profile.id
+      WHERE association.source_id = $1 AND profile.lifecycle = 'active'
+      ORDER BY profile.id ASC
+      FOR UPDATE OF profile`,
+    [sourceId],
+  );
+  return Object.freeze(result.rows.map(mapProfileRow));
+}
+
+/**
+ * Locks the Sources belonging to a previously locked set of Profiles. This
+ * is the Source-administration half of the Profile -> Source lock order.
+ */
+export async function lockDistributionProfileSourcesForProfiles(
+  executor: QueryExecutor,
+  profileIds: readonly string[],
+): Promise<readonly LockedDistributionProfileSourceAssociation[]> {
+  if (profileIds.length === 0) return Object.freeze([]);
+  const result = await executor.query<
+    SourceRow & { readonly profile_id: unknown }
+  >(
+    `SELECT ps.profile_id, s.id AS source_id, s.config_key AS source_config_key,
+            s.display_name AS source_display_name,
+            s.approval_state AS source_approval_state,
+            s.lifecycle_state AS source_lifecycle_state
+       FROM distribution_profile_sources ps
+       JOIN sources s ON s.id = ps.source_id
+      WHERE ps.profile_id = ANY($1::uuid[])
+      ORDER BY s.id ASC, ps.profile_id ASC
+      FOR UPDATE OF s`,
+    [profileIds],
+  );
+  return Object.freeze(
+    result.rows.map((row) =>
+      Object.freeze({
+        profileId: requiredUuid(row.profile_id, 'profile id'),
+        ...mapLockedSource(row),
+      }),
+    ),
+  );
+}
+
 async function replaceAssociationFilters(
   executor: QueryExecutor,
   profileId: string,
   sourceId: string,
   filters: Readonly<DistributionProfileSourceFilters>,
 ): Promise<void> {
+  const categoryIds = await Promise.all(
+    filters.categoryConfigKeys.map(async (categoryConfigKey) => {
+      const category = await executor.query<{ readonly id: unknown }>(
+        `SELECT id FROM categories WHERE config_key = $1`,
+        [categoryConfigKey],
+      );
+      const categoryRow = category.rows[0];
+      if (categoryRow === undefined) {
+        throw new ConfigurationPersistenceError(
+          'profile source category not found',
+        );
+      }
+      return requiredUuid(categoryRow.id, 'category id');
+    }),
+  );
   await executor.query(
     `DELETE FROM distribution_profile_source_phrases
       WHERE profile_id = $1 AND source_id = $2`,
@@ -338,30 +456,27 @@ async function replaceAssociationFilters(
       );
     }
   }
-  for (const [
-    position,
-    categoryConfigKey,
-  ] of filters.categoryConfigKeys.entries()) {
-    const category = await executor.query<{ readonly id: unknown }>(
-      `SELECT id FROM categories WHERE config_key = $1`,
-      [categoryConfigKey],
-    );
-    const categoryRow = category.rows[0];
-    if (categoryRow === undefined) {
-      throw new ConfigurationPersistenceError(
-        'profile source category not found',
-      );
-    }
+  for (const [position, categoryId] of categoryIds.entries()) {
     await executor.query(
       `INSERT INTO distribution_profile_source_categories
          (profile_id, source_id, category_id, position)
        VALUES ($1, $2, $3, $4)`,
-      [
-        profileId,
-        sourceId,
-        requiredUuid(categoryRow.id, 'category id'),
-        position,
-      ],
+      [profileId, sourceId, categoryId, position],
+    );
+  }
+}
+
+function mapLockedSource(row: SourceRow): LockedDistributionProfileSource {
+  try {
+    return Object.freeze({
+      sourceId: requiredUuid(row.source_id, 'source id'),
+      sourceConfigKey: normalizeConfigKey(row.source_config_key),
+      sourceApprovalState: normalizeApprovalState(row.source_approval_state),
+      sourceLifecycleState: normalizeLifecycleState(row.source_lifecycle_state),
+    });
+  } catch {
+    throw new ConfigurationPersistenceError(
+      'database returned invalid profile source',
     );
   }
 }

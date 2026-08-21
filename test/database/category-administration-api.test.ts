@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { after, test } from 'node:test';
 
 import { createEditorialAdministrationService } from '../../src/admin/editorial-administration.ts';
+import { createDistributionProfileAdministrationService } from '../../src/admin/distribution-profile-administration.ts';
 import { createWebApp } from '../../src/app/web/create-app.ts';
 import {
   ADMIN_REQUEST_HEADER,
@@ -271,6 +272,29 @@ test('Category removal is guarded by every retained relationship and rolls back'
     await database.query(
       'DELETE FROM article_observation_category_reasons WHERE article_observation_id = $1',
       [retained.observationId],
+    );
+
+    const profiles = createDistributionProfileAdministrationService(database);
+    await profiles.createProfile({
+      configKey: 'category_guard_profile',
+      displayName: 'Category guard profile',
+    });
+    await profiles.replaceSourceAssociation(
+      'category_guard_profile',
+      'publisher',
+      {
+        categoryConfigKeys: ['guarded_category'],
+      },
+    );
+    await assertCategoryInUse(baseUrl);
+    assert.deepEqual(
+      (await profiles.getProfile('category_guard_profile')).sources[0]
+        ?.categoryConfigKeys,
+      ['guarded_category'],
+    );
+    await profiles.removeSourceAssociation(
+      'category_guard_profile',
+      'publisher',
     );
 
     const deleted = await fetch(

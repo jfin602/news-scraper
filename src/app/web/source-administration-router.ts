@@ -88,7 +88,8 @@ function sendSourceAdministrationError(
       ? 404
       : error.code === 'source_config_key_conflict' ||
           error.code === 'source_domain_policy_conflict' ||
-          error.code === 'source_archived'
+          error.code === 'source_archived' ||
+          error.code === 'source_required_by_active_profile'
         ? 409
         : 400;
   response.status(status).json({ error: error.code });
