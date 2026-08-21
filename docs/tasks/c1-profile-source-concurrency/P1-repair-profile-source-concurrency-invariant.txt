@@ -1,0 +1,372 @@
+TASK: Correction 1 / P1 — Repair Profile/Source concurrency invariant
+
+CORRECTION SCOPE
+This is the sole implementation prompt in correction `c1-profile-source-concurrency`. Phase 1 P1–P4 are already implemented at package `1.1.4`, but the Phase 1 P5 closeout found a real PostgreSQL race in the active-Profile usable-Source invariant. This correction repairs only that concurrency defect and its proof.
+
+Do not add roadmap capability. Do not advance Phase 1. Do not alter Profile lifecycle semantics, Source trust semantics, admin HTTP/UI behavior, collection behavior, schema, migrations, or Phase 2 read-model behavior.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: the task is a bounded but high-integrity cross-file transaction correction spanning Profile lifecycle, Source administration, repository locking helpers, and real PostgreSQL race proof.
+- Reasoning basis: High is warranted because correctness depends on a precise advisory-lock/row-lock protocol, stale-read prevention, deadlock avoidance, rollback semantics, and deterministic interleaving tests; source-level planning has already resolved the architecture enough that Ultra is not the default starting point.
+- Complexity / quality floor: `Critical`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Luna High`; rejected because the correction coordinates two application authorities and multiple PostgreSQL lock classes where a subtle ordering mistake can preserve or replace the observed race.
+- Escalation trigger: implementation inspection reveals an additional lock cycle, relationship-phantom case, transaction-ownership problem, or inability to preserve the invariant with the planned per-Source transaction advisory boundary plus existing deterministic row locks.
+- Escalation target: `Terra Ultra`.
+- Estimate confidence: `High`.
+- Efficiency rationale: add one narrow Profile-owned Source-validity transaction-lock primitive, reuse existing row-lock/application authority, replace weak race proof with deterministic Level-4 evidence, and avoid schema/API/UI changes.
+
+VERSIONING
+- Required unchanged project version: `1.1.4`.
+- This correction MUST NOT change `package.json` version.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- This prompt consumes no Phase 1 patch number and does not perform roadmap `/closeout`.
+- Do not perform a manual implementation commit; the correction runner owns the implementation-prompt commit boundary.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/codex-model-selection.md`, `docs/contracts/project-contract.md`, `docs/contracts/distribution-and-integration-contract.md`, `docs/contracts/testing-and-validation-contract.md`, and the Phase 1 roadmap entry in `docs/roadmap/post-1.0-roadmap.md`;
+2. read `docs/tasks/p1-1/P2-distribution-profile-lifecycle-administration.txt` and `docs/tasks/p1-1/P5-distribution-profile-foundation-closeout.txt` to understand the intended invariant and the exact closeout failure that triggered this correction;
+3. inspect current `src/admin/distribution-profile-administration.ts`, `src/admin/source-administration.ts`, `src/distribution/profiles/repository.ts`, `src/database/database.ts`, `src/articles/identity-lock.ts`, and `src/collection/locks/endpoint-run-lock.ts`;
+4. inspect `test/database/distribution-profile-administration.test.ts`, `test/unit/article-identity-lock.test.ts`, the database test-scope helpers under `test/support/database/`, and any Source-administration database tests touched by Phase 1;
+5. trace every current mutation that can reduce active-Profile usable-Source validity: Profile activation/reactivation, active Source-association removal, Source approved→unapproved, and Source active→archived;
+6. confirm current HEAD still contains the completed Phase 1 P1–P4 implementation and top-level package remains exactly `1.1.4`;
+7. stop and report planning drift if a governing contract changed, schema changes are actually required, or the current implementation no longer matches the transaction topology described below.
+
+OBSERVED DEFECT
+Current Source invalidation resolves a Source ID without a write lock, discovers and locks only Profiles that are already `active` and currently reference that Source, then locks relevant Source rows and validates before mutation.
+
+That leaves this race:
+1. Source invalidation discovers no active Profile while a referencing Profile is still draft/disabled;
+2. Profile activation locks that Profile and Source, validates the Source as usable, and commits `active`;
+3. Source invalidation later obtains the Source lock but retains its stale empty Profile set;
+4. Source invalidation commits unapproved/archived state;
+5. committed state contains an active Profile with zero approved+active associated Sources.
+
+The existing `Promise.allSettled()` race test is not deterministic proof because scheduler order may never exercise the stale-discovery interleaving.
+
+GOVERNED INVARIANT
+Preserve the existing Phase 1 semantics exactly:
+- a usable Profile Source is `approval_state = 'approved' AND lifecycle_state = 'active'`;
+- Source operational state is not part of Profile usability;
+- draft/disabled Profiles may be incomplete;
+- activation/reactivation requires at least one usable associated Source;
+- an active Profile must never be committed with zero usable associated Sources;
+- Source unapproval/archive must fail when it would remove the final usable Source from any active Profile;
+- active Source-association removal must fail when it would remove the final usable Source;
+- failed mutations and their success audit rows roll back atomically.
+
+CORRECTION ARCHITECTURE
+Use a narrowly scoped per-Source PostgreSQL transaction advisory lock as a predicate/synchronization boundary for "this Source may participate in Profile activation validity".
+
+The repository already uses namespaced PostgreSQL advisory locks for correctness-sensitive identities. Follow that pattern instead of adding a process mutex, global lock, queue, schema table, or distributed lock service.
+
+Add a Profile-owned lock module, expected near:
+
+`src/distribution/profiles/source-validity-lock.ts`
+
+Names may adapt to current conventions, but ownership and semantics must remain narrow.
+
+The module should expose conceptually:
+- deterministic Source-UUID -> signed 64-bit advisory key derivation under a dedicated versioned namespace;
+- acquisition of one Source validity transaction lock;
+- acquisition of multiple Source validity transaction locks after validating, deduplicating, and sorting stable Source UUIDs deterministically.
+
+Use:
+
+`SELECT pg_advisory_xact_lock($1::bigint)`
+
+Transaction locks must release automatically on commit/rollback. Do not use session advisory locks or try-lock/retry behavior for this invariant.
+
+Lock-key derivation should follow the existing SHA-256 -> signed bigint convention used by other repository lock namespaces, while using a distinct Profile Source-validity namespace so unrelated lock domains do not intentionally share keys.
+
+SOURCE INVALIDATION PROTOCOL
+For Source mutations capable of decreasing Profile usability (`approval -> unapproved` and/or target approval `unapproved`; `lifecycle -> archived` and/or target lifecycle `archived` as appropriate to current command semantics):
+
+1. resolve the stable Source UUID without taking a conflicting Source row write lock;
+2. acquire that Source's Profile-validity transaction advisory lock BEFORE discovering active Profiles;
+3. discover and lock every currently active Profile referencing the Source in deterministic Profile-ID order;
+4. lock the Sources belonging to those locked Profiles using the existing stable Source-ID row-lock order;
+5. if the target Source was not included in those rows, lock/re-read it explicitly;
+6. validate the proposed Source state against the locked current Profile/association/Source state;
+7. reject with existing `source_required_by_active_profile` when required;
+8. otherwise mutate and commit.
+
+The critical requirement is that Source invalidation cannot perform active-Profile discovery before it owns the Source validity advisory guard.
+
+Do not reverse the established Profile→Source ROW lock order. The advisory guard is an additional predicate synchronization boundary, not permission to acquire Source rows first.
+
+Non-invalidating Source changes such as operational-state changes and ordinary mutable configuration must preserve existing behavior and need no new Profile-validity synchronization. Approval/lifecycle transitions that only improve usability should not be broadened unnecessarily; a harmless advisory acquisition for a no-op target may be tolerated only if it keeps the implementation materially simpler and tests prove no behavior change.
+
+PROFILE ACTIVATION / REACTIVATION PROTOCOL
+Only lifecycle transitions whose requested target is `active` need the new predicate synchronization.
+
+Inside the existing Profile transaction:
+1. lock the target Profile row using the current application authority;
+2. establish that the requested transition is activation/reactivation under the existing lifecycle state machine;
+3. obtain the stable Source UUIDs currently associated with that already-locked Profile WITHOUT taking Source row locks;
+4. acquire Profile-validity advisory locks for those Source UUIDs in deterministic Source-ID order;
+5. lock/re-read the actual associated Source rows using the existing stable Source-ID row-lock helper;
+6. validate that at least one Source is currently approved+active;
+7. perform lifecycle mutation and audit in the same transaction.
+
+Because Profile association create/replace/remove operations already serialize through the Profile row, the association set read under that Profile row lock must remain stable for this activation transaction.
+
+Add one narrow repository read if needed, conceptually:
+
+`listDistributionProfileSourceIds(executor, profileId)`
+
+It should:
+- return stable Source UUIDs only;
+- order deterministically by Source ID;
+- not interpret Source usability;
+- not lock Source rows;
+- keep `distribution_profile_sources` topology inside the repository rather than moving SQL into admin services.
+
+CRITICAL LOCK-GRAPH RESTRICTION
+Do NOT hide the new advisory lock inside the generic `lockDistributionProfileSources()` helper or apply it indiscriminately to active association-removal paths.
+
+Reason: Source invalidation must acquire `Source-validity advisory -> active Profile row`; activation is safe with `inactive Profile row -> Source-validity advisory` because the Source invalidation discovery predicate does not lock inactive Profiles. If active association removal also acquired `active Profile row -> Source-validity advisory`, it could form a real deadlock cycle with Source invalidation.
+
+Keep association removal on its current Profile-row/Source-row serialization unless source inspection proves a specific additional guard is required. Do not broaden the advisory protocol speculatively.
+
+ASSOCIATION ADDITION / FILTER REPLACEMENT
+Do not add advisory locking merely because a Profile association is created or its filters change.
+
+Adding an association cannot invalidate an already-valid active Profile. A draft/disabled Profile still must cross the guarded activation/reactivation boundary before becoming active. Filter-only changes do not affect Source usability.
+
+If source inspection identifies a concrete association mutation that can invalidate the invariant despite these facts, stop and report the exact counterexample rather than silently widening lock ownership.
+
+OVERLAPPING CONCURRENCY EXPECTATIONS
+The final protocol must remain deadlock-safe for at least:
+- two activations with overlapping Source sets;
+- two Source invalidations against different Sources used by the same active Profile;
+- Source invalidation racing activation/reactivation of an inactive Profile referencing that Source;
+- Source invalidation racing active association removal on the same/another Profile Source;
+- Source invalidation while unrelated draft/disabled association edits occur.
+
+Multiple advisory locks must be acquired in one globally deterministic Source-ID order so overlapping activation sets cannot deadlock each other.
+
+Do not add automatic deadlock retries that hide a broken lock graph.
+
+PRODUCTION FILE BOUNDARY
+Expected production changes are limited to the smallest coherent set, likely:
+- new `src/distribution/profiles/source-validity-lock.ts`;
+- `src/distribution/profiles/repository.ts` for Source-ID association read if needed;
+- `src/admin/distribution-profile-administration.ts` for activation/reactivation synchronization;
+- `src/admin/source-administration.ts` for invalidation synchronization.
+
+Do not edit migration files. Do not add `0016`. Do not change database isolation globally. Do not modify routers/browser modules merely because the service implementation changes internally.
+
+TEST-ONLY INTERLEAVING CONTROL
+Replace or supplement the weak uncontrolled race coverage with deterministic real-PostgreSQL proof.
+
+Use a small TEST-ONLY Database/QueryExecutor wrapper or equivalent barrier mechanism that can signal/pause at selected SQL checkpoints while still executing all actual transactions and locks against the disposable PostgreSQL database.
+
+Do not add production hooks, callbacks, debug flags, sleeps, polling loops, probabilistic repetition, or scheduler-dependent assumptions solely to coordinate the test.
+
+A suitable test wrapper may:
+- proxy a real `Database`;
+- wrap the QueryExecutor supplied inside `transaction()`;
+- invoke test callbacks immediately before and/or after matching SQL is executed;
+- allow the test to hold one transaction at a deliberate checkpoint with a Promise barrier;
+- preserve real PostgreSQL BEGIN/COMMIT/ROLLBACK and lock behavior.
+
+Keep test synchronization helpers local to the Profile database test unless there is a clear reusable test-support boundary. Do not grow generic test infrastructure unnecessarily.
+
+DETERMINISTIC RACE A — ACTIVATION VS SOURCE UNAPPROVAL
+Use real disposable PostgreSQL and two independently pooled database handles.
+
+Force the exact previously vulnerable interleaving:
+1. seed approved+active Source `alpha`;
+2. create draft Profile `racing_draft` associated only with `alpha`;
+3. start Source `alpha` unapproval;
+4. allow invalidation to acquire the new Source-validity advisory lock;
+5. allow its active-Profile discovery query to execute and return empty while `racing_draft` is still draft;
+6. pause invalidation after that discovery but before it can commit Source unapproval;
+7. start Profile activation through the other database handle;
+8. observe that activation reaches/attempts the same Source-validity advisory lock and cannot pass it while invalidation owns it;
+9. release invalidation;
+10. invalidation commits `alpha` unapproved;
+11. activation resumes, re-reads Source state, and fails with `profile_requires_usable_source`;
+12. assert Profile remains draft and final SQL shows zero invalid active Profiles.
+
+The test must prove serialization, not merely assert that `Promise.allSettled()` returned two outcomes.
+
+Use a bounded test timeout so deadlock/hang fails clearly. Avoid arbitrary wall-clock sleeps as correctness evidence.
+
+DETERMINISTIC RACE B — ACTIVE MEMBERSHIP REMOVAL VS OTHER SOURCE ARCHIVE
+Keep/provide deterministic proof for the second transaction family too.
+
+Recommended setup:
+- active Profile `racing_active` associated with usable `alpha` and usable `beta`;
+- removal targets `alpha`;
+- concurrent Source invalidation archives `beta`.
+
+Force:
+1. association-removal transaction locks the active Profile and pauses before completing removal;
+2. Source `beta` archival starts, acquires its Source-validity advisory guard, then attempts the active Profile lock and waits;
+3. release the removal transaction;
+4. removal validates that `beta` is still usable and commits removal of `alpha`;
+5. archival resumes, re-reads the now-current Profile associations/Sources, detects that archiving `beta` would leave zero usable Sources, and rejects with `source_required_by_active_profile`;
+6. final Profile remains active with usable `beta` and no invalid state.
+
+This case is important evidence that the advisory guard does not introduce a deadlock with existing Profile-row association-removal serialization.
+
+If current query structure makes a slightly different deterministic checkpoint cleaner, preserve the same logical interleaving and outcome.
+
+ADDITIONAL CONCURRENCY PROOF
+Add focused cases or assertions sufficient to prove:
+- Source archival and activation/reactivation use the same corrected boundary as Source unapproval;
+- overlapping multi-Source advisory acquisition is deterministic;
+- two Source invalidations touching one active Profile terminate with at most one invalidation allowed when only one usable Source may remain;
+- no transaction leaves a success Profile audit event after a failed Profile activation/removal.
+
+Do not turn this correction into an exhaustive concurrency framework. Focus on the invariant and lock graph.
+
+UNIT TEST REQUIREMENTS
+Add a focused unit test for the new Profile Source-validity lock module, following the style of `test/unit/article-identity-lock.test.ts`.
+
+Prove at minimum:
+- same Source UUID -> same deterministic key;
+- UUID case normalization does not change the key;
+- different Source UUIDs -> different tested key values;
+- malformed Source ID rejects;
+- key is representable as PostgreSQL signed bigint text;
+- lock namespace is distinct from existing Article identity and endpoint-run lock domains for representative IDs;
+- duplicate Source IDs are acquired once;
+- multiple Source locks are acquired in deterministic Source-ID order regardless of input order;
+- SQL uses `pg_advisory_xact_lock`, not session advisory lock/unlock calls.
+
+Name the new unit file consistently with the production module, for example:
+
+`test/unit/distribution-profile-source-validity-lock.test.ts`
+
+Do not assert an unnecessarily hard-coded digest value unless that is already the repository convention; behavior/order/domain separation are the durable requirements.
+
+DATABASE TEST REQUIREMENTS
+Update `test/database/distribution-profile-administration.test.ts` rather than creating a redundant concurrency suite unless file size/ownership clearly justifies a separate focused Profile database file.
+
+Preserve the existing sequential service tests and invariant helper. Replace the uncontrolled race as primary proof with deterministic interleaving coverage. It is fine to retain one broad uncontrolled smoke race only if it adds value and does not become the claimed evidence.
+
+The database tests must assert observable domain outcomes and final database state, not only private helper call order.
+
+Every deterministic concurrency case must:
+- run against the disposable PostgreSQL database;
+- use independent connections/pools where actual transaction concurrency is required;
+- terminate within a bounded timeout;
+- close every pool/client/transaction before the database-test scope callback returns;
+- leave the scope resettable with no leaked locks;
+- fail rather than skip when database prerequisites are unavailable.
+
+PRESERVED BEHAVIOR
+Preserve without semantic change:
+- Profile `draft`/`active`/`disabled` lifecycle and transition matrix;
+- immutable Profile keys and persisted Profile aggregate;
+- Profile Source/filter configuration semantics;
+- Profile audit action names/state shape and transaction atomicity;
+- Source approval/lifecycle/operational distinctions and existing bounded errors;
+- Source collection/admission/network-safety/jobs/health behavior;
+- Category/Relevance behavior;
+- Article identity, provenance, duplicate, moderation, and public-feed behavior;
+- protected admin request-integrity/security behavior;
+- Profiles admin workspace behavior;
+- `/` and `/api/feed` semantics;
+- one Publication/topic per deployment and topic independence;
+- migrations `0001` through `0015` byte-for-byte;
+- Phase 2 producer handoff from the existing Profile repository/application boundary.
+
+NON-GOALS
+Do not:
+- add migration `0016` or modify any existing migration;
+- change database transaction isolation level globally;
+- reverse Profile→Source row-lock order across the application;
+- add a process-global mutex or installation-global advisory lock;
+- add session advisory locks, lock tables, Redis, queues, or distributed-lock infrastructure;
+- add automatic deadlock retries;
+- change Profile lifecycle or Source usability definitions;
+- change Source operational-state semantics;
+- change Profile API routes or browser UI;
+- implement Profile deletion;
+- implement Article/Profile filtering or canonical distribution read model;
+- implement machine credentials, `/api/v1/distribution/...`, PHP/LKG, WordPress, RSS, widgets, or analytics;
+- alter `/` or `/api/feed`;
+- perform unrelated Phase 1 cleanup/refactoring.
+
+DOWNSTREAM HANDOFF / CONSUMER READINESS
+Before reporting P1 complete, map and prove:
+
+`Source invalidation predicate serialization -> Profile Source-validity advisory guard acquired before active-Profile discovery -> deterministic activation/unapproval PostgreSQL proof`
+
+`Profile activation/reactivation serialization -> locked Profile + associated Source IDs + deterministic advisory guards + existing Source row locks -> deterministic stale-state prevention proof`
+
+`active association removal -> existing Profile-row/Source-row serialization without reversed advisory order -> deterministic removal/archive PostgreSQL proof`
+
+`overlapping Source sets -> deterministic Source-ID advisory acquisition -> unit ordering proof + PostgreSQL termination proof`
+
+`failed activation/removal -> existing transaction/audit atomicity -> database rollback/audit assertion`
+
+`Phase 1 P5 rerun -> corrected services/repository/tests -> no additional SQL/lifecycle semantics required by closeout`
+
+If the correction would require callers outside these existing authorities to invent lock ordering, Source usability, relationship SQL, or retry behavior, stop and report the boundary incomplete.
+
+FOCUSED ITERATIVE VALIDATION
+During implementation, run the smallest command that answers the current question.
+
+Expected focused commands include:
+
+`node scripts/run-tests.mjs --test-concurrency=1 test/unit/distribution-profile-source-validity-lock.test.ts`
+
+and:
+
+`npm run test:db:focused -- test/database/distribution-profile-administration.test.ts`
+
+If the exact unit-test runner invocation differs from repository conventions, use the narrowest existing equivalent. Do not repeatedly run the full DB suite while debugging one interleaving.
+
+FINAL-TREE VALIDATION
+After implementation is complete and package remains `1.1.4`, run this smallest non-overlapping final matrix:
+
+`npm run check`
+
+`npm run test:db`
+
+Do not separately rerun unit/integration/collection suites already contained by `npm run check` solely to duplicate evidence.
+
+No browser, recovery, migration, security, collection-fixture, live-Source, or deployment suite is required because this correction must not change those boundaries. If implementation unexpectedly changes one of those boundaries, stop and report scope drift before broadening the final matrix.
+
+Also run a committed-range whitespace check appropriate to the correction runner/commit state, such as `git diff --check <correction-base>...HEAD` after the implementation commit exists, or the equivalent current-tree check before commit.
+
+ACCEPTANCE
+P1 is complete only when:
+- Source invalidation obtains a Source-scoped transaction advisory validity guard before active-Profile discovery;
+- Profile activation/reactivation obtains deterministic validity guards for its associated Sources before locking/re-reading those Source rows and validating usability;
+- advisory acquisition order for multiple Sources is deterministic;
+- association removal is not accidentally given an opposite advisory/row-lock order that can deadlock with Source invalidation;
+- the exact stale-discovery race found by Phase 1 P5 is deterministically reproduced as a controlled interleaving and proven safe on the corrected implementation;
+- membership-removal vs other-Source invalidation is also deterministically proven safe;
+- real PostgreSQL evidence terminates without deadlock and final SQL proves zero invalid active Profiles;
+- failed Profile mutations do not leave success audit events;
+- no migration/schema/API/UI/product scope is introduced;
+- package remains exactly `1.1.4` and no npm lockfile exists;
+- final applicable validation is green.
+
+STOP CONDITIONS
+Stop and report rather than force implementation if:
+- the planned advisory boundary creates an unavoidable lock cycle with a current mutation path that cannot be removed within this small correction;
+- correctness requires schema/migration changes;
+- maintaining the invariant requires changing Profile/Source product semantics;
+- a process/distributed lock architecture appears necessary;
+- deterministic Level-4 proof cannot be constructed without production testing hooks;
+- current contracts or repository state materially differ from this prompt.
+
+FINAL REPORT
+Report:
+- files changed;
+- final advisory + row-lock protocol in acquisition order for activation, Source invalidation, and association removal;
+- why the stale-discovery window is closed;
+- deterministic interleavings exercised and their exact observed outcomes;
+- unit/database/final validation commands actually run and results;
+- confirmation that package remains `1.1.4`, migrations are unchanged, and no lockfile exists;
+- confirmation that API/UI/collection/Phase 2 behavior was not changed;
+- any remaining concurrency limitation or stop-condition concern.
