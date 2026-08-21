@@ -1,10 +1,10 @@
 # Post-1.0 / 2.0 Roadmap
 
 **Status:** ACTIVE — owner-approved 2.0 implementation roadmap.  
-**Current package baseline:** `1.2.0`.
-**Current implementation phase:** Phase 2 — Canonical distribution read model.
-**Current task folder family:** `p1-<phase>`.  
-**Current Phase 2 prompt versions:** `1.2.<prompt>`.
+**Current package baseline:** `1.3.0`.
+**Current implementation phase:** Phase 3 — Machine credentials and distribution security.
+**Current task folder:** `p1-3`.
+**Current Phase 3 prompt versions:** `1.3.<prompt>`.
 **Terminal release target:** `2.0.0`.  
 **Primary direction:** prove the managed headless distribution product through Distribution Profiles, the authenticated v1 API, generic PHP synchronization/LKG, and a real external customer-site integration.
 
@@ -157,6 +157,8 @@ The producer handoff to Phase 4 must already expose every distribution query cap
 ### Next baseline
 
 Green Phase 2 `/closeout` transitions only `package.json` to `1.3.0`.
+
+**Closeout:** completed successfully; `/closeout` transitioned only `package.json` to `1.3.0`, which is the Phase 3 baseline.
 
 ## Phase 3 — Machine credentials and distribution security
 

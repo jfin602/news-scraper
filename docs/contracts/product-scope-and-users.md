@@ -144,7 +144,7 @@ The original client now intends to integrate collected news into an existing web
 
 WordPress, RSS/Atom, Linux VPS/Docker Compose self-host packaging, native/default self-host administrator authentication, production-grade autonomous public self-hosting, SSO/multi-admin identity, visitor/click/referral/backlink analytics, advanced SEO tooling, browser widgets, Kubernetes/multi-node deployment, delta synchronization, and additional adapter families are post-2.0. News Scraper guarantees neither SEO nor backlink performance.
 
-The seven-phase 2.0 implementation roadmap is active under `docs/roadmap/post-1.0-roadmap.md`; Phase 1 implemented the Distribution Profile foundation, and current implementation is Phase 2 at the `1.2.0` development baseline. The permanent distribution HTTP API, machine credentials, PHP, and external distribution consumers remain future phases.
+The seven-phase 2.0 implementation roadmap is active under `docs/roadmap/post-1.0-roadmap.md`; Phase 1 implemented the Distribution Profile foundation, and Phase 2 implemented the canonical distribution/Profile read model. The permanent distribution HTTP API, machine credentials, PHP, and external distribution consumers remain later work; consult `BOOT.md` and the active roadmap for current phase/version routing.
 
 ## Quality targets
 

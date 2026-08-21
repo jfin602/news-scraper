@@ -91,7 +91,7 @@ At adoption, this ADR did not select or promise:
 - cache/CDN behavior;
 - push/webhook distribution.
 
-Those questions required the later investigation. It is now complete; the owner approved and activated the replacement seven-phase roadmap on 2026-08-20, Phase 1 has completed, and the project is entering Phase 2. This status correction does not rewrite what remained unresolved at this ADR's adoption.
+Those questions required the later investigation. That investigation is complete, and the owner approved the replacement seven-phase roadmap on 2026-08-20. Current execution status is routed through `BOOT.md` and `docs/roadmap/post-1.0-roadmap.md`. This status correction does not rewrite what remained unresolved at this ADR's adoption.
 
 ## Consequences
 

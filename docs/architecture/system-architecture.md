@@ -76,7 +76,7 @@ A second topic uses another configured deployment of the same codebase. The comp
 
 Multiple distribution consumers for one Publication do not imply or authorize concurrent multi-Publication tenancy.
 
-Distribution Profiles run after canonical Article eligibility and can only narrow it. Every serializer and thin adapter consumes the same profile/read-model authority; adapters may synchronize, cache, and render but cannot own editorial or selection semantics. The existing `public-feed/` module name remains the current canonical outward/public read implementation and is not renamed speculatively.
+Distribution Profiles run after canonical Article eligibility and can only narrow it. `src/distribution/` owns the canonical outward Article authority: its `canonical-outward-articles.ts`, `profile-snapshot.ts`, `profile-page.ts`, `cursor.ts`, `snapshot-revision.ts`, and `profiles/` modules supply the shared eligibility, Profile snapshot/page, continuation, revision, and Profile-configuration boundaries. The `public-feed/` reference consumer reuses this authority while retaining reference-specific `public_status` and public-discovery semantics for `/api/feed` and `/`.
 
 ## Process boundaries
 
@@ -121,9 +121,9 @@ src/
     safety/
   articles/
   deduplication/
-  distribution/
-    profiles/          # Profile configuration/persistence and Source-validity coordination
-  public-feed/       # current canonical outward/public Article read semantics
+  distribution/      # canonical outward Article, Profile snapshot/page, cursor, and revision authority
+    profiles/        # Profile configuration/persistence and Source-validity coordination
+  public-feed/       # reference-specific public_status/discovery semantics for /api/feed and /
   admin/
   jobs/              # durable endpoint collection jobs/retry/recovery execution
   database/
@@ -131,7 +131,7 @@ src/
   shared/
 ```
 
-The existing `public-feed/` name reflects the implemented `1.0.x` surfaces. `src/distribution/profiles/` owns Profile configuration/persistence and transactional coordination of Profile/Source usability-reducing mutations; lifecycle/application validation remains the administration/application authority. It does not duplicate Source collection, Articles, identity, or provenance. Later consumers must not query Profile child tables or invent lifecycle/relationship semantics independently. Phase 2 next owns the canonical distribution Article read-model boundary; its final file layout is intentionally not prescribed here.
+`src/distribution/profiles/` owns Profile configuration/persistence and transactional coordination of Profile/Source usability-reducing mutations; lifecycle/application validation remains the administration/application authority. It does not duplicate Source collection, Articles, identity, or provenance. Later consumers must not query Profile child tables or invent lifecycle/relationship semantics independently. The implemented canonical read model is the required path from canonical outward Article authority to both the public-feed/reference consumer and the Distribution Profile snapshot/page consumer. Later API/controllers must remain thin and must not recreate Article eligibility SQL, Profile filters, Category semantics, ordering, continuation semantics, or snapshot-revision semantics.
 
 The exact implementation may keep or rename an existing module only when that choice produces the smallest coherent canonical design. It MUST NOT retain plural/selector-oriented APIs solely as a compatibility bridge. Legacy-only source modules, wrappers, types, tests, fixtures, configuration paths, and other artifacts from superseded pre-production architecture MUST be deleted when the canonical implementation no longer has an independent use for them.
 

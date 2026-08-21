@@ -8,7 +8,7 @@ Publication is an editorial/configuration concept, not a relational tenancy key.
 
 The administrator surface is the instance-owned Platform control plane. The active 2.0 path is canonical eligibility → Distribution Profile → authenticated v1 API → generic PHP complete-snapshot synchronization → local last-known-good data → customer server-rendered output. WordPress, RSS/Atom, Linux VPS/Docker Compose self-host packaging, and native self-host admin authentication are post-2.0. Current implemented outward surfaces remain `GET /api/feed` plus bundled/reference `GET /`.
 
-The accepted `1.0.0` customer launch established the first supported production schema/data baseline. The current development package is `1.2.0`, the active roadmap is Phase 2 — Canonical distribution read model, and terminal release qualification after Phase 7 promotes the final validated `1.7.x` candidate directly to `2.0.0`.
+The accepted `1.0.0` customer launch established the first supported production schema/data baseline. The current development package is `1.3.0`, the active roadmap is Phase 3 — Machine credentials and distribution security, and terminal release qualification after Phase 7 promotes the final validated `1.7.x` candidate directly to `2.0.0`.
 
 Before production database compatibility was established, the supported persistence setup was a fresh database built from the repository's current migration chain and bootstrap/configuration. That historical pre-production destructive-reset policy no longer applies to accepted customer production state. Current production upgrades are governed by `decisions/production-data-and-schema-compatibility.md`.
 
@@ -58,7 +58,7 @@ docs/
 ├── history/
 │   └── superseded-post-1.0-phase-0-closeout.md
 ├── testing/         # created only when specialized validation plans become substantive
-├── tasks/           # active roadmap/correction implementation prompt stacks only
+├── tasks/           # roadmap/correction implementation prompt stacks, including completed history
 └── validation/      # durable observed validation artifacts / implementation closeout evidence
 ```
 
@@ -130,11 +130,12 @@ Use root `BOOT.md` as the session router; it points to the narrowest authoritati
 The MVP roadmap is complete through Phase 21. Former post-1.0 Phase 0 P1 shipped the server-rendered root at package `1.0.1`. Its planned P2 closeout was retired unexecuted when the product direction changed.
 
 **Current roadmap state:** ACTIVE — seven-phase 2.0 implementation roadmap.  
-**Current package baseline:** `1.2.0`.
-**Current implementation phase:** Phase 2 — Canonical distribution read model.
-**Next roadmap prompt version:** `1.2.1`.
+**Current package baseline:** `1.3.0`.
+**Current implementation phase:** Phase 3 — Machine credentials and distribution security.
+**Next roadmap prompt version:** `1.3.1`.
+**Current task folder:** `p1-3`.
 **Terminal release:** final validated `1.7.x` → version-only `2.0.0` transition.
 
-Do not run the old `p1-0` stack or infer versions from the retired frontend-centric roadmap. Normal implementation planning now resumes with `/prompt-ass Phase 2` → `/prompt-plan` → `/prompt-write p1-2`.
+Do not run the old `p1-0` stack or infer versions from the retired frontend-centric roadmap. Normal implementation planning now resumes with `/prompt-ass Phase 3` → `/prompt-plan` → `/prompt-write p1-3`.
 
 Historical validation artifacts describe only the source tree, environment, and observations they record. They do not redefine current contracts.

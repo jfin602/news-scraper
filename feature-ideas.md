@@ -26,7 +26,7 @@ This file is the running feature idea log for ideas proposed in this chat.
 
 - **Status:** Proposed
 - The existing collection pipeline already captures available RSS/Atom description/summary/content metadata, normalizes it into bounded plain-text `Article.summary`, and persists it with the Article. This proposal does **not** add a second description collector or duplicate persisted field.
-- Nullable `summary` exposure in governed v1 distribution output is already required by the permanent v1 API contract and belongs to the active Phase 2 producer/read-model path. Visible use of available summaries in the bundled/reference frontend remains this Proposed presentation enhancement.
+- Phase 2 now supplies nullable `Article.summary` through the transport-independent distribution read model; permanent v1 HTTP exposure remains Phase 4 work. Visible summary presentation in the bundled/reference frontend remains this Proposed presentation enhancement.
 - Preserve the existing bounded/plain-text normalization and treat the value as untrusted Source-derived metadata. Do not render publisher-supplied HTML directly.
 - Missing summaries remain normal and must produce a clean headline-only fallback.
 - Do not fetch Article pages merely to manufacture missing summaries, and do not introduce AI-generated summaries or full Article-body republication.
