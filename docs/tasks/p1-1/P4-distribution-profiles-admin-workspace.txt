@@ -1,0 +1,318 @@
+TASK: Phase 1 / P4 — Distribution Profiles admin workspace
+
+PHASE SCOPE
+This is Phase 1 P4. P1 owns persistence, P2 owns Profile application semantics, and P3 owns the protected Profile admin HTTP surface. This prompt adds the required administrator presentation so an authorized operator can safely create, configure, activate, disable, reactivate, and reload Distribution Profiles without changing the underlying business rules.
+
+This is roadmap-required control-plane functionality on `main`, not an isolated `ui-polish` visual-polish task. Keep the implementation functionally complete but visually conservative and consistent with the current administration shell.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: the task is a bounded but multi-state browser UI that must coordinate Profile lifecycle, nested Source associations, three filter dimensions, authoritative server errors, shared Source/Category catalog state, accessibility, responsive behavior, and existing admin workspaces; the owner explicitly raised the planned Luna configuration to the equivalent Terra tier.
+- Reasoning basis: High is appropriate because browser state must remain synchronized with persisted authoritative state across create/save/association/lifecycle failures and reloads without reimplementing backend rules or breaking the existing modular admin shell.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Luna High`; rejected solely because the repository owner requested all planned Luna prompts in this stack be bumped to the equivalent Terra model.
+- Escalation trigger: source inspection shows the existing admin shell cannot host another isolated workspace without a broader structural redesign, or the P3 API is insufficient and would require new product/application semantics.
+- Escalation target: `Sol Medium`.
+- Estimate confidence: `High`.
+- Efficiency rationale: reuse the current modular workspace pattern, shared `api()` helper, shared Source/Category catalog, existing form/status components and CSS conventions; do not introduce a client framework, state library, design-system rewrite, or duplicate catalog/API layer.
+
+VERSIONING
+This prompt's assigned project version is `1.1.4`.
+- Before editing, require top-level `package.json` to be either the expected preceding version `1.1.3` or already `1.1.4` for a safe rerun.
+- Set only the top-level `package.json` version to `1.1.4` before final validation.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Do not perform a manual Git commit; the phase runner owns the implementation-prompt commit boundary and exact roadmap commit subject.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/contracts/distribution-and-integration-contract.md`, `docs/contracts/public-feed-and-admin-contract.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/roadmap/post-1.0-roadmap.md`, `docs/design/README.md`, and `docs/design/ui-workflow.md` for general UI guardrails while remembering this prompt is required roadmap work on `main`;
+2. inspect P3's final Profile administration routes and response/error shapes, and P2's final admin read model so the browser does not invent hidden semantics;
+3. inspect `src/app/web/admin-page.ts`, `src/app/web/admin/admin.js`, `src/app/web/admin/core.js`, `src/app/web/admin/catalog.js`, `src/app/web/admin/sources.js`, `src/app/web/admin/editorial.js`, `src/app/web/admin/publication.js`, `src/app/web/admin/moderation.js`, `src/app/web/admin/operations.js`, and `src/app/web/admin/admin.css`;
+4. inspect existing browser harnesses/tests, especially `test/browser/admin-page.test.ts`, admin asset/perimeter integration tests, and any reusable test helpers for mutation-header observation and responsive/keyboard assertions;
+5. confirm existing shared catalog exposes Source and Category config keys/display names and can be reused without another API/catalog authority;
+6. stop and report planning drift if the Profile API cannot support the complete required workspace, if a new backend semantic is needed, or if implementing the workspace would require a broad unrelated admin redesign.
+
+GOAL
+Add a first-class **Profiles** administration workspace that is a thin browser client over P3:
+
+`operator interaction -> existing admin api() helper -> P3 -> P2 -> persisted authoritative Profile -> reload/render`
+
+The UI may provide helpful local affordances, but server validation remains authoritative for all lifecycle and relationship rules.
+
+ADMIN NAVIGATION / SHELL
+Add a Profiles tab/workspace to the existing single-Publication admin navigation.
+
+Likely files:
+- `src/app/web/admin-page.ts` for workspace markup/tab/panel shell;
+- `src/app/web/admin/admin.js` to register/activate the workspace;
+- new `src/app/web/admin/profiles.js` for Profile behavior;
+- `src/app/web/admin/admin.css` only for the minimum layout/state rules required;
+- admin asset allowlisting/serving code if the current shell requires explicit asset registration.
+
+Do not add a Publication/topic switcher.
+
+Keep current Publication, Sources, Editorial, Articles, Operations, and other existing workspaces intact and reachable.
+
+SHARED CATALOG
+Reuse `src/app/web/admin/catalog.js` Source and Category data. Do not create a second Source/Category fetch/cache implementation for Profiles.
+
+The Profile workspace may subscribe to or refresh the shared catalog as needed so it has current:
+- Source config key;
+- Source display name;
+- Source approval/lifecycle status if already present in the shared Source models;
+- Category config key;
+- Category display name.
+
+If the existing catalog lacks a field needed only for helpful local presentation, prefer reading it from the Profile read model or minimally extending the shared catalog from existing admin responses rather than adding a Profile-specific duplicate endpoint.
+
+PROFILE LIST / SELECTION
+The workspace must:
+- load the Profile list from `GET /admin/api/distribution-profiles`;
+- clearly show config key, display name, and lifecycle;
+- allow selecting one Profile for editing;
+- preserve selection where practical across a successful refresh;
+- clear/adjust selection safely if the selected Profile is no longer returned;
+- represent loading, empty, ready, and bounded error states explicitly.
+
+Do not use database UUIDs as browser identity.
+
+CREATE DRAFT
+Provide a bounded create form with:
+- immutable `configKey`;
+- `displayName`;
+- result limit prefilled/defaulted to 100.
+
+Submit to `POST /admin/api/distribution-profiles` through the existing shared `api()` helper so the request-integrity header is automatic.
+
+On success:
+- add/update authoritative list state;
+- select the created Profile;
+- render lifecycle `draft`;
+- do not allow editing the config key afterward.
+
+On server rejection:
+- show a bounded useful error near the create workflow;
+- preserve entered values where practical;
+- do not pretend the Profile exists.
+
+PROFILE CONFIGURATION
+For the selected Profile provide editable:
+- display name;
+- result limit.
+
+Save through `PUT /admin/api/distribution-profiles/:profileKey/configuration`.
+
+After success, replace local state with the returned authoritative Profile object rather than mutating only the fields the UI expected to change.
+
+Do not include `configKey` in the configuration payload.
+
+SOURCE ASSOCIATION EDITOR
+For the selected Profile, show existing Source associations and allow the operator to:
+- choose an unassociated Source by immutable Source config key;
+- add an association;
+- edit an existing association;
+- remove an association.
+
+For each association expose all three Phase 1 filter dimensions:
+- `includeAnyPhrases`;
+- `excludeAnyPhrases`;
+- `categoryConfigKeys`.
+
+Phrase UX may use one phrase per line or another simple bounded editor that serializes deterministically to arrays. Do not introduce a query-language/expression editor.
+
+Category filters should use the shared Category catalog with accessible checkbox/multi-select controls. Store/send immutable Category config keys only.
+
+Source identity must come from the association path/selected immutable Source key, not an editable hidden UUID.
+
+Association save uses:
+
+`PUT /admin/api/distribution-profiles/:profileKey/sources/:sourceKey`
+
+Association removal uses:
+
+`DELETE /admin/api/distribution-profiles/:profileKey/sources/:sourceKey`
+
+After every successful association mutation, replace the selected local Profile from the returned authoritative Profile response.
+
+FILTER HELP / SEMANTIC CLARITY
+Make the UI text concise but accurate:
+- include phrases mean match any configured include phrase;
+- exclude phrases mean exclusion wins;
+- Category choices restrict by configured Categories;
+- empty dimensions impose no restriction;
+- these are distribution Profile filters, not Source RSS/Atom collection admission filters.
+
+Do not expose regex/fuzzy/semantic/AI/ranking terminology as available controls.
+
+LIFECYCLE CONTROLS
+Render current lifecycle prominently and expose only actions that make sense for that state:
+- draft: `Activate`;
+- active: `Disable`;
+- disabled: `Reactivate`.
+
+Use `PUT /admin/api/distribution-profiles/:profileKey/lifecycle` with the exact P3/P2 request shape.
+
+The UI may disable the Activate button when it locally sees no currently approved+active associated Source, but this is advisory only. It must still render/handle the authoritative `profile_requires_usable_source` server conflict because Source state can change concurrently.
+
+Do not expose `active -> draft`, `disabled -> draft`, `draft -> disabled`, or Profile deletion.
+
+SERVER ERROR HANDLING
+Handle bounded P3 errors without losing the operator's entire workspace context.
+
+At minimum provide useful messages for:
+- invalid request/input;
+- Profile key conflict;
+- missing Profile/Source/association/Category;
+- invalid lifecycle transition;
+- Profile requires usable Source;
+- generic dependency/unexpected failure.
+
+If a mutation fails because state changed concurrently, keep the current context visible and provide an obvious Refresh/reload action. Do not silently overwrite local edits with guessed state.
+
+Do not expose raw JSON errors, SQLSTATE, constraints, stack traces, or request headers to the operator.
+
+REFRESH / RELOAD
+The workspace must provide an explicit refresh and participate correctly in the shell's global refresh behavior.
+
+A fresh load/reload of `/admin` followed by Profiles activation must reproduce exact persisted state returned by the server:
+- Profile fields;
+- lifecycle;
+- Source associations;
+- phrase order/content;
+- Category filters.
+
+Do not rely on unsaved browser local storage for Profile configuration.
+
+ACCESSIBILITY / RESPONSIVE BASELINE
+Use existing admin patterns for labels, headings, focus, status, and controls.
+
+At minimum:
+- every input/select/textarea/button has an accessible name;
+- grouped association/filter controls have clear headings/labels;
+- keyboard-only navigation can create/select/edit/save/activate/disable without pointer-only behavior;
+- mutation/result/error status is available in meaningful text;
+- visible focus behavior from existing CSS is preserved;
+- narrow/mobile viewport does not force unusable horizontal overflow for the core Profile form/association editor;
+- long Profile/Source/Category labels and phrases wrap safely;
+- destructive-looking association removal/disable actions are visually distinguishable but do not require a broad design redesign.
+
+ADMIN ASSET / CSP SAFETY
+Continue using external same-origin module files and the existing CSP. Do not introduce inline executable script, `unsafe-inline`, external client dependencies, remote assets, or runtime eval/template execution.
+
+All operator-visible text from Profile/Source/Category state must be inserted through safe DOM text/value APIs following current admin code patterns, not interpolated into unsafe HTML.
+
+DOWNSTREAM HANDOFF / CONSUMER READINESS
+Before P4 is complete, map and prove:
+
+`Profiles tab -> createProfilesWorkspace() -> admin workspace activation -> browser proof`
+
+`shared Source/Category catalog -> association editor choices -> no duplicate catalog/API proof`
+
+`create draft form -> P3 POST -> returned Profile -> selected authoritative state -> browser proof`
+
+`configuration save -> P3 PUT -> authoritative returned Profile -> browser proof`
+
+`association include/exclude/categories -> P3 PUT association -> exact reloaded state -> browser proof`
+
+`Activate/Disable/Reactivate -> P3 lifecycle route -> server-authoritative state -> browser proof`
+
+`invalid activation/final usable association removal -> P2/P3 conflict -> visible bounded UI error -> browser proof`
+
+`hard page reload -> P3 reads -> exact persisted Profile state -> browser proof`
+
+If the browser must infer missing lifecycle rules, call undocumented endpoints, use raw UUIDs, or implement its own Source usability/Category relationship authority to function, P3/P2 producer boundaries are incomplete and this prompt must stop rather than hide the gap in JavaScript.
+
+PRESERVED BEHAVIOR
+Preserve:
+- all Profile backend semantics from P1–P3;
+- existing admin perimeter and mutation header helper;
+- Source and Category shared catalog ownership;
+- Publication/Sources/Editorial/Articles/Operations workspace behavior;
+- current admin navigation accessibility and shell behavior;
+- public `/` and `/api/feed` behavior;
+- collection Worker ownership;
+- topic independence and single-Publication deployment semantics.
+
+NON-GOALS
+Do not implement:
+- Profile deletion;
+- a public/customer Profile page;
+- Article selection/matching preview;
+- distribution counts/previews that require Phase 2 Article-query logic;
+- `/api/v1/distribution/...`;
+- machine credentials;
+- PHP/LKG;
+- WordPress/RSS/widgets;
+- a redesign of the admin application;
+- a new framework/state manager/build system;
+- custom theme/polish work better suited to the separate `ui-polish` workflow;
+- Source collection admission controls inside Profiles;
+- regex/fuzzy/semantic/ranking filter editors.
+
+FOCUSED BROWSER TEST REQUIREMENTS
+Prefer a dedicated file such as:
+
+`test/browser/distribution-profile-admin-page.test.ts`
+
+Reuse the existing admin browser harness/service-stub pattern instead of requiring real PostgreSQL for browser behavior already proven in P1/P2.
+
+Cover at minimum:
+1. Profiles tab is present/reachable and existing workspaces remain reachable;
+2. empty Profile state and create draft flow;
+3. create request carries the existing admin mutation header through shared `api()`;
+4. created Profile becomes selected and immutable key is displayed non-editably;
+5. display name/result limit save and authoritative returned-state adoption;
+6. Source association create/edit with non-empty include phrases, exclude phrases, and multiple Category config keys;
+7. association removal success;
+8. draft activation success;
+9. active disable;
+10. disabled reactivation;
+11. invalid activation conflict is shown without corrupting selected Profile state;
+12. final usable association removal conflict is shown;
+13. explicit refresh and full page reload recover the exact server/persisted representation supplied by the harness;
+14. generic server failure is bounded and does not render raw internals;
+15. keyboard-accessible names/labels for core controls;
+16. a narrow viewport keeps core Profile controls usable without layout failure.
+
+Update `test/browser/admin-page.test.ts` shell assertions only where adding the Profiles workspace changes the shared navigation/harness. Do not duplicate every existing Source/Publication browser test.
+
+FOCUSED ITERATIVE VALIDATION
+During implementation run the narrowest browser file(s), for example:
+
+`node scripts/run-tests.mjs --test-concurrency=1 test/browser/distribution-profile-admin-page.test.ts`
+
+Run affected admin integration/unit tests only as needed during iteration.
+
+FINAL VALIDATION
+After implementation is complete and top-level `package.json` is `1.1.4`, run:
+
+`npm run check`
+
+`npm run test:browser`
+
+Do not rerun database/security suites in this prompt unless backend/security files were unexpectedly changed; if such changes become necessary, include the invalidated specialized suite rather than claiming the P1–P3 evidence still applies automatically.
+
+ACCEPTANCE
+P4 is complete only when:
+- an authorized operator can create/select/edit Profiles from a dedicated workspace;
+- all required Source association/filter fields are operable;
+- draft activation, active disable, and disabled reactivation work through P3;
+- authoritative validation conflicts are visible and do not corrupt local state;
+- exact persisted state is recoverable through refresh/reload;
+- shared Source/Category catalog and shared `api()` request-integrity helper are reused;
+- the workspace remains accessible and usable at narrow viewport;
+- existing admin workspaces and public behavior remain green;
+- no Phase 2 Article selection or later distribution capability was smuggled into the UI.
+
+IMPLEMENTATION REPORT
+Report:
+- files changed;
+- Profiles workspace structure and API endpoints consumed;
+- Source/Category catalog reuse;
+- lifecycle/filter UX and server-error behavior;
+- focused and final commands actually run with browser counts/results;
+- any backend/security scope unexpectedly touched and the additional evidence run;
+- remaining risk or deviation.
+
+Do not claim real PostgreSQL Profile behavior beyond P1/P2 evidence, or live/deployed distribution behavior, unless separately executed and observed.
