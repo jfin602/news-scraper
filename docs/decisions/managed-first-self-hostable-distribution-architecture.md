@@ -49,11 +49,13 @@ At adoption, server-side PHP/WordPress periodic synchronization and LKG directio
 
 First-party PHP and WordPress integrations SHOULD produce server-generated customer-page HTML with ordinary direct publisher anchors, without browser JavaScript for core feed links. Iframes are not a first-class SEO integration method, browser-side widgets are outside the initial integration set, and RSS/Atom alone does not make links part of customer-page HTML. News Scraper makes no guaranteed SEO or backlink-performance claim.
 
-Cloudflare Access remains accepted for managed deployments. It is not mandatory for a self-hosted stack. The later 2.0 decision defers native/default self-host admin authentication and limits Compose use to controlled evaluation or an operator-protected perimeter.
+Cloudflare Access remains accepted for managed deployments. It is not mandatory for a future self-hosted stack. Native/default self-host administrator authentication remains deferred.
 
 ## Later 2.0 resolution — 2026-08-20
 
-The completed 2.0 contracts retain this ADR's history and refine it as follows: 2.0 requires the authenticated v1 Profile API and generic PHP complete-snapshot/LKG integration; establishes a standard-Linux VPS Docker Compose evaluation route; and keeps managed integration primary. WordPress, RSS/Atom, native/default self-host admin authentication, and autonomous public self-host production readiness are post-2.0. Exact behavior is owned by `../contracts/distribution-and-integration-contract.md` and `../contracts/distribution-api-contract.md`.
+The completed 2.0 contracts retain this ADR's history and refine it as follows: 2.0 requires the authenticated v1 Profile API and generic PHP complete-snapshot/LKG integration and keeps managed integration as the required operating/release path. WordPress, RSS/Atom, the lightweight Linux VPS/Docker Compose installable packaging route, native/default self-host admin authentication, and autonomous public self-host production readiness are post-2.0.
+
+Deferring self-host packaging changes sequencing, not architecture. Law 12 still requires the product to remain independently operable and free of a mandatory central News Scraper dependency. Exact implemented 2.0 behavior is owned by `../contracts/distribution-and-integration-contract.md` and `../contracts/distribution-api-contract.md`; the active seven-phase sequence is owned by `../roadmap/post-1.0-roadmap.md`.
 
 ## Consequences
 
@@ -64,12 +66,14 @@ The completed 2.0 contracts retain this ADR's history and refine it as follows: 
 - One governed profile boundary prevents transport-specific eligibility drift.
 - Customers can fully control presentation without rebuilding aggregation policy.
 - Local last-known-good rendering limits customer-page dependence on live News Scraper availability.
+- The 2.0 release can validate product usefulness before spending roadmap time on packaging/self-host productization.
 
 ### Costs
 
-- At adoption, Profile/API/auth/cache/RSS/SEO/packaging details still required governed design; the later-resolution contracts completed that work.
+- At adoption, Profile/API/auth/cache/RSS/SEO/packaging details still required governed design; the later-resolution contracts completed the 2.0 distribution details while leaving packaging for later work.
 - Multiple deployable instances require disciplined operational isolation even when infrastructure is shared.
 - First-party adapters require compatibility and reliability proof across different hosting environments.
+- Self-host packaging and its production support boundary require a later roadmap rather than being delivered with 2.0.
 
 ## Rejected alternatives
 
@@ -79,11 +83,14 @@ The completed 2.0 contracts retain this ADR's history and refine it as follows: 
 - **Implement adapter-specific eligibility or profile logic** — transports must not redefine governed selection.
 - **Require a central cloud control plane** — ordinary operation must remain independently possible.
 - **Require first-party presentation** — customers retain presentation ownership.
+- **Make self-host packaging block 2.0** — rejected by the owner so 2.0 can focus on proving the managed integration product first.
 
 ## Migration and compatibility effects
 
-This is a documentation-only architectural decision. It authorizes no schema, API, credential, packaging, runtime, dependency, or version change. Future persistence work must preserve supported customer data and prove migration from the accepted Phase 20 baseline as well as migration from zero. Existing `GET /` and `GET /api/feed` behavior remains supported and is not declared to be the permanent external integration contract.
+This ADR does not itself authorize schema, API, credential, packaging, runtime, dependency, or version changes. Implemented persistence work must preserve supported customer data and prove migration from the accepted Phase 20 baseline as well as migration from zero. Existing `GET /` and `GET /api/feed` behavior remains supported and is not declared to be the permanent external integration contract.
 
 ## Compliance checks
 
-A future implementation must prove that profile selection follows canonical eligibility, all transports share that authority, adapters cannot restore ineligible rows, machine credentials lack admin capability, cache replacement is atomic/validated, presentation customization cannot redefine selection, and a claimed self-hosted deployment operates the complete ordinary stack without a mandatory central News Scraper service.
+A future implementation must prove that profile selection follows canonical eligibility, all transports share that authority, adapters cannot restore ineligible rows, machine credentials lack admin capability, cache replacement is atomic/validated, and presentation customization cannot redefine selection.
+
+A future claim of self-host support additionally requires the complete ordinary stack to operate without a mandatory central News Scraper service. That proof is post-2.0 and is not part of the 2.0 release gate.
