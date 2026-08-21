@@ -1,0 +1,304 @@
+TASK: Phase 4 / P2 — Distribution API runtime security and telemetry
+
+- Recommended configuration: `Terra High`.
+- Model-family basis: this prompt performs the security-sensitive production composition between the permanent v1 route, persisted machine credentials, process-local abuse limiting, Web startup configuration, trusted network identity, and real PostgreSQL-backed Profile reads.
+- Reasoning basis: high reasoning is justified by reverse-proxy trust, HTTPS termination, limiter lifetime, header provenance, secret-safe telemetry, dependency-failure mapping, and the need to prove the real runtime without changing Phase 2/3 semantics.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because a subtle proxy/header trust or lifecycle-composition error could create an externally exploitable authentication/abuse-control weakness even though each underlying producer is already correct.
+- Escalation trigger: safe runtime composition would require a distributed/shared limiter, a new central credential authority, an unresolved reverse-proxy architecture decision, or a contract/ADR change rather than bounded explicit Web configuration.
+- Escalation target: `Sol Medium` for ambiguous cross-system security/architecture reconciliation; otherwise stop with `Planning needed` for owner-level contract/ADR work.
+- Estimate confidence: `High`.
+- Efficiency rationale: reuse the P1 route and Phase 2/3 factories directly, add only the smallest provider-neutral Web configuration/request-context boundary, and prove it through focused security plus real-PostgreSQL HTTP tests.
+
+The assigned project version is `1.4.2`.
+
+## Goal
+
+Wire P1's versioned v1 distribution router into the real Web/API process using the existing Phase 2 Profile page service and Phase 3 credential authentication/request guard, while establishing the concrete trusted client-network/HTTPS boundary and structured redacted runtime telemetry required for production machine access.
+
+Required production chain:
+
+```text
+HTTP request
+-> trusted request context
+-> one long-lived Phase 3 machine request guard
+-> authenticated principal / bounded auth-rate outcome
+-> Phase 2 DistributionProfilePageService
+-> P1 v1 HTTP serializer/status/ETag logic
+-> bounded structured distribution telemetry
+```
+
+P2 must prove that this chain works against real disposable PostgreSQL without reimplementing either producer.
+
+## Prerequisite and read first
+
+P1 must be committed as the reachable Phase 4 prefix and package version must be `1.4.1` (or `1.4.2` for a safe rerun).
+
+Before editing, read:
+
+1. current `BOOT.md` and `AGENTS.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/distribution-api-contract.md`;
+4. `docs/contracts/distribution-and-integration-contract.md`;
+5. `docs/contracts/testing-and-validation-contract.md`;
+6. `docs/operations/security-reliability-and-operations.md`;
+7. `docs/operations/deployment-and-incident-runbook.md`;
+8. `docs/decisions/cloudflare-access-admin-perimeter.md` only for the current managed edge/origin context; do not make Cloudflare a machine-API code dependency;
+9. Phase 4 and Phase 5 roadmap entries;
+10. P1's final router/types/tests;
+11. `src/app/web/main.ts`, `create-app.ts`, `server.ts`, `web-config.ts`, and current startup tests;
+12. `src/distribution/profile-page.ts`;
+13. `src/distribution/credentials/machine-authentication.ts`, `machine-request-guard.ts`, and `repository.ts`;
+14. current security, Web integration, and database-test support patterns.
+
+If P1 does not expose a complete thin route registration seam, repair only an obvious bounded P1 integration omission and cover it; otherwise do not redesign P1.
+
+If Phase 2/3 exports are insufficient and P2 would need producer-owned SQL/token/verifier/quota behavior, stop with `Planning needed`.
+
+## Real Web-process composition
+
+Construct the real distribution dependencies once per Web process, not per request.
+
+At startup/runtime composition:
+
+- create one `DistributionProfilePageService` from the application database;
+- create one distribution credential authentication repository from the application database;
+- create one machine authenticator from that repository;
+- create one machine request guard from that authenticator and the governed Phase 3 rate policy;
+- register the P1 distribution API router exactly once on the Web app;
+- provide one concrete trusted client-network resolver and one structured telemetry sink;
+- keep these objects alive for the Web process lifetime so process-local rate state is meaningful.
+
+Do not add a second limiter/authenticator inside the route or rebuild one for each request.
+
+The distribution route is not controlled by `NEWS_SCRAPER_ADMIN_ENABLED`; human-admin enablement and machine API availability are separate boundaries.
+
+Preserve Web/Worker process separation; no Source collection occurs inline.
+
+## Trusted client-network identity
+
+P2 owns the HTTP/proxy boundary intentionally deferred by Phase 3.
+
+Implement the smallest provider-neutral, explicit trust policy sufficient to derive the invalid-auth network key safely.
+
+Requirements:
+
+- never trust `X-Forwarded-For`, `Forwarded`, `CF-Connecting-IP`, or another client-supplied forwarding header merely because it is present;
+- use the immediate socket peer when no proxy trust is explicitly configured;
+- if forwarded client identity is supported, it must be enabled only through bounded startup configuration that defines a trusted proxy boundary; untrusted direct clients cannot spoof the limiter key by supplying forwarding headers;
+- normalize the resulting network identity into the bounded grammar already accepted by `normalizeInvalidAuthNetworkKey`, handling ordinary IPv4/IPv6/IPv4-mapped forms deterministically without retaining arbitrary header text;
+- invalid/unusable request-network state fails boundedly without using bearer plaintext as a fallback key;
+- do not create a persistent visitor/IP analytics store; the key exists only for request-abuse protection and bounded diagnostics where permitted;
+- avoid provider-specific Cloudflare logic unless the existing managed architecture genuinely requires a tiny optional adapter; the core rule must remain usable without Cloudflare.
+
+Prefer existing Express/Node trusted-proxy facilities when they can be configured safely and tested deterministically; do not hand-roll a broad proxy parser when a narrow existing facility is sufficient.
+
+If the actual environment requires a materially more complex multi-proxy/CIDR trust architecture than current contracts settle, stop rather than guessing.
+
+## Production HTTPS boundary
+
+Production distribution credentials must not be accepted over an externally insecure transport.
+
+Implement/document in code/configuration one explicit production behavior that works with the existing HTTP Node origin behind a trusted TLS-terminating reverse proxy without trusting arbitrary forwarding headers.
+
+Requirements:
+
+- development/test may continue using controlled local HTTP servers;
+- production must either establish a trusted externally-HTTPS request context or fail closed before credential-bearing distribution traffic is served;
+- do not silently infer HTTPS from an untrusted `X-Forwarded-Proto` header;
+- do not add an ungoverned permanent API response class such as a new Profile-specific `403` merely to handle deployment misconfiguration;
+- prefer startup/configuration failure or another bounded deployment-safe behavior over serving bearer credentials through a known insecure external boundary;
+- do not require Node itself to terminate public TLS when the accepted managed deployment uses a trusted upstream terminator;
+- keep the configuration minimal, typed, bounded, and covered by `web-config`/request-context tests.
+
+Any new environment variable must have one clear purpose, safe default, bounded accepted values, and a `RuntimeConfigError` that does not echo secret/private values. Do not introduce a generic reverse-proxy framework.
+
+Because roadmap scope explicitly requires documented HTTPS/configuration behavior, update only the narrow current operator-facing configuration/runbook text needed to explain any newly required non-secret Web/proxy setting. Do not redesign contracts/ADRs/roadmap state; post-closeout `/docs-review` will handle broader current-state alignment.
+
+## Runtime telemetry
+
+Supply P1's telemetry sink with the existing newline-delimited structured Web logging convention or the smallest coherent equivalent.
+
+Emit one bounded event per distribution request with useful operational facts, such as:
+
+- event name and API version;
+- bounded Profile key when safely parsed/known;
+- status/outcome/failure category;
+- duration;
+- item count and whether continuation remains, when applicable;
+- non-secret authenticated credential ID/lookup identity only after authentication succeeds;
+- rate-limit classification where applicable;
+- bounded client/adapter version if P1 finalized such a field;
+- no visitor/click/referral analytics.
+
+Never log:
+
+- raw Authorization header;
+- bearer token or token fragment;
+- verifier bytes;
+- raw cursor payload;
+- response Article payloads;
+- database errors/connection strings;
+- unbounded arbitrary request headers;
+- machine secrets in startup/config errors.
+
+If the logging sink itself throws/fails in a test seam, the route must preserve bounded response behavior rather than leaking sensitive state.
+
+## Runtime route/security semantics
+
+P2 must preserve P1's exact v1 contract rather than reserializing it in `main.ts` or middleware.
+
+Verify the real route remains:
+
+```text
+GET /api/v1/distribution/{profile_key}
+GET /api/v1/distribution/{profile_key}?cursor=...
+```
+
+and that:
+
+- no machine credential is accepted from query/body/cookie/path;
+- a valid instance credential can read any active Profile without Profile-specific permission rows;
+- missing/draft/disabled/Profile cursor states still use P1's status/error mapping;
+- `Retry-After` comes only from the long-lived Phase 3 guard;
+- `ETag`/`304` remain P1/Phase 2 revision behavior;
+- no permissive browser CORS is introduced by runtime middleware;
+- existing admin mutation-integrity middleware does not become machine authorization;
+- machine credentials do not make admin routes accessible when the admin perimeter is disabled or mutation integrity fails.
+
+## Real PostgreSQL end-to-end proof
+
+Add one focused Level 4 database-backed HTTP suite for the actual Phase 4 runtime composition. Use the existing disposable PostgreSQL harness and real migration chain; do not mock persistence for claims below.
+
+Seed the smallest governed Publication/Source/Profile/Article/credential state needed to prove:
+
+1. an issued persisted credential authenticates through the real repository/authenticator/guard and receives the active Profile `200` envelope;
+2. reconstruction from persisted verifier state works without plaintext persistence beyond the test's immediate issued token variable;
+3. exact stored `original_url`, moderated/effective outward fields, Categories, Profile selection, and chronological order come from the existing read producer;
+4. a multi-page Profile traverses with the producer cursor and stable revision without repetition;
+5. a relevant mutation between pages yields `409 snapshot_changed` rather than mixed pages;
+6. revoked and expired credentials return the same bounded `401` class;
+7. different valid credentials have independent authenticated rate buckets;
+8. disabled Profile -> `409 profile_disabled`, while draft/nonexistent remain non-readable;
+9. Publication `public_status` does not suppress active distribution output;
+10. dependency failure is bounded and does not leak SQL/connection detail.
+
+Use focused test helper seams only where needed to control time/rate thresholds. Do not create a test-only production bypass for auth/HTTPS/trust behavior.
+
+No new migration should be necessary. If P2 discovers a persistence/schema change is required, stop with `Planning needed` because that is roadmap drift.
+
+## Focused security/component proof
+
+Add/update focused Level 2/3 security/integration tests for the HTTP-owned boundaries:
+
+- request guard is constructed once and rate state survives repeated requests;
+- immediate peer identity is used when proxy trust is absent;
+- spoofed forwarding headers do not change network identity when the peer is untrusted;
+- explicitly trusted proxy configuration resolves the expected client identity according to the chosen bounded policy;
+- malformed/oversized/multi-hop forms outside the policy fail boundedly;
+- production external HTTPS determination cannot be spoofed by an untrusted proto header;
+- trusted TLS-termination configuration accepts the intended secure production request context;
+- missing/invalid production trust/HTTPS configuration fails closed;
+- local test/development HTTP remains usable;
+- repeated invalid auth from one network key reaches `429` while unrelated keys remain isolated according to Phase 3 policy;
+- valid credential quota is not derived from bearer plaintext;
+- machine bearer headers do not satisfy admin request-integrity or create administrator authority;
+- logs/events contain bounded non-secret IDs/statuses but never token/header/verifier/SQL secrets;
+- route still emits no permissive browser CORS headers.
+
+Do not use flaky timing benchmarks or public-network proxies.
+
+## Preserved behavior and non-goals
+
+Preserve:
+
+- P1 wire/status/schema/ETag/error behavior;
+- all Phase 2 read semantics and SQL ownership;
+- all Phase 3 credential/auth/limiter semantics;
+- current `/`, `/api/feed`, health endpoints, admin routes, request integrity, and admin enablement behavior;
+- collection/Worker behavior;
+- production data/migration history;
+- topic independence and one-Publication architecture.
+
+Do not implement:
+
+- PHP/LKG/client synchronization;
+- browser widgets or permissive CORS;
+- credential-to-Profile permission matrices;
+- persistent/distributed quota storage;
+- visitor/click/referral analytics;
+- new migrations or credential schema changes;
+- native human administrator accounts;
+- Cloudflare-specific mandatory runtime dependency;
+- WordPress/RSS/Atom/self-host packaging;
+- new Article/Profile selector behavior;
+- unrelated docs cleanup or roadmap edits.
+
+## Validation
+
+During iteration prefer focused commands, including the new unit/security/integration files and:
+
+```text
+npm run test:db:focused -- test/database/distribution-api-http.test.ts
+```
+
+(or the actual focused Phase 4 database test filename).
+
+On the final P2 tree run the smallest non-overlapping matrix covering the changed runtime/security blast radius:
+
+```text
+npm run check
+npm run test:security
+npm run test:db:focused -- <Phase 4 distribution API database test file>
+npm run codex:phase:validate -- p1-4
+git diff --check
+```
+
+Run full `npm run test:db` only if P2 changes shared persistence/repository behavior beyond consuming the existing producers. Do not run recovery/live-Source/deployment suites merely for volume. Browser is deferred to final closeout unless P2 unexpectedly changes browser-owned code; if it does, run the implicated browser suite before completion.
+
+## Version and repository rules
+
+- Set only top-level `package.json` to `1.4.2` before final validation.
+- Do not add/rewrite migrations. Stop if schema change becomes necessary.
+- Do not create lockfiles.
+- Do not edit contracts, ADRs, roadmap entries, historical validation artifacts, `.codex/docs-prompt.txt`, or existing task prompts.
+- A narrow operator/runbook update is permitted only for an actually introduced non-secret proxy/HTTPS runtime setting required by this prompt.
+- Do not manually commit; the phase runner owns the implementation commit boundary.
+
+## Downstream handoff to Phase 5
+
+Before P2 completes, record and prove this consumer-ready chain:
+
+`PHP/custom client -> stable v1 URL + bearer header -> P1/P2 HTTP route -> exact v1 envelope/error classes`
+
+`valid bearer -> Phase 3 guard -> redacted principal -> active Profile read`
+
+`Profile/cursor -> Phase 2 page service -> revision-bound page -> P1 JSON/ETag`
+
+`429 -> Phase 3 retryAfterSeconds -> HTTP Retry-After -> future client retry input`
+
+`initial ETag -> If-None-Match -> authenticated unchanged 304 -> future conditional sync input`
+
+`snapshot mutation -> Phase 2 snapshot_changed -> 409 snapshot_changed -> future candidate-discard/restart input`
+
+`disabled Profile -> 409 profile_disabled -> future authoritative cached-output suppression input`
+
+Phase 5 must not need to know database schema, token syntax/verifiers, Profile child tables, Article SQL, cursor payload structure, limiter state, or trusted-proxy implementation.
+
+## Acceptance
+
+P2 is complete only when:
+
+1. the real Web process constructs one long-lived machine guard and one Phase 2 page service and registers P1's route once;
+2. trusted client-network identity cannot be spoofed through untrusted forwarding headers;
+3. production HTTPS/TLS-termination behavior is explicit, safe, provider-neutral, and test-covered while local HTTP tests remain usable;
+4. structured distribution telemetry is useful and secret-free;
+5. real disposable PostgreSQL HTTP proof covers persisted authentication, active Profile output, traversal/revision change, lifecycle/error classes, and `public_status` independence;
+6. machine credentials remain separate from administrator authority and there is no Profile permission matrix;
+7. P1 wire/ETag/CORS behavior remains unchanged;
+8. focused security + PostgreSQL evidence and applicable deterministic regressions are green;
+9. no schema migration or later-phase PHP/LKG work was introduced;
+10. package version is exactly `1.4.2`.
+
+Finish with a concise report listing changed files, runtime composition, exact proxy/HTTPS configuration behavior, telemetry fields/redaction approach, database/security/final commands actually run with results, package version, and any residual risk that should block closeout.
