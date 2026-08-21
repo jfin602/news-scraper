@@ -1,0 +1,354 @@
+TASK: Correction 1 / P2 — Profile/Source concurrency correction closeout
+
+CORRECTION CLOSEOUT SCOPE
+This is the sole final closeout prompt for correction `c1-profile-source-concurrency`. P1 should have repaired the Phase 1 active-Profile usable-Source race by adding a narrow Source-scoped PostgreSQL transaction advisory synchronization boundary while preserving existing Profile→Source row-lock/application semantics.
+
+This closeout independently reviews and proves that correction. It does not close Phase 1, does not substitute for the original Phase 1 P5 closeout, does not advance the roadmap, and must not change the package version.
+
+A GREEN correction means only that the concurrency blocker is cleared. After human review accepts this closeout and its durable correction validation artifact, rerun `docs/tasks/p1-1/P5-distribution-profile-foundation-closeout.txt` from the beginning. Only that original Phase 1 closeout may establish the Phase 1 GREEN artifact and prepare `1.1.5` for later roadmap `/closeout`.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Model-family basis: repository policy deliberately uses Sol Light for independent roadmap/correction closeout so final code-reading and adversarial review are stronger than the implementation prompt without automatically paying for deep implementation reasoning.
+- Reasoning basis: Light is appropriate because P1 should already have one explicit bounded concurrency protocol; this prompt must perform three independent review passes and stop/escalate if the actual tree still contains difficult transaction ambiguity.
+- Complexity / quality floor: `Critical`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Terra High`; not selected because `docs/codex-model-selection.md` deliberately makes Sol Light the normal independent closeout baseline.
+- Escalation trigger: review finds unresolved advisory/row-lock cycles, stale relationship discovery, transaction-ownership ambiguity, or another concurrency architecture problem that cannot be repaired as one small unambiguous closeout fix.
+- Escalation target: `Terra Ultra` for a newly explicit deep concurrency correction; meaningful behavior-preserving structural refactors use the mandatory Terra High handoff below.
+- Estimate confidence: `High`.
+- Efficiency rationale: inspect P1's exact diff and deterministic PostgreSQL proof first, derive independent lock-graph failure hypotheses, then execute one non-overlapping final matrix and record exact-tree evidence.
+
+VERSIONING
+- Required unchanged project version: `1.1.4`.
+- This closeout MUST NOT change `package.json` version.
+- It consumes no Phase 1 patch number and does not invoke or substitute for roadmap `/closeout`.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- The correction remains HUMAN REVIEW REQUIRED even if this final prompt is invoked through the runner's optional `--closeout` flag.
+
+MANUAL / HUMAN REVIEW BOUNDARY
+A final response saying GREEN is advisory until the repository owner reviews and accepts it.
+
+This closeout may write only:
+- one or more genuinely tiny, unambiguous concurrency-correction defects/test-strengthening changes allowed by the bounded repair rule below;
+- the durable correction validation artifact after the exact final correction tree is genuinely green.
+
+Do not update BOOT/AGENTS/roadmap phase state, contracts, ADRs, source schema, migration history, or package version.
+
+MANDATORY HANDOFF
+Before any substantive write:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/codex-model-selection.md`, `docs/contracts/project-contract.md`, `docs/contracts/distribution-and-integration-contract.md`, `docs/contracts/testing-and-validation-contract.md`, and the Phase 1 roadmap entry in `docs/roadmap/post-1.0-roadmap.md`;
+2. read this correction's P1 prompt and the original `docs/tasks/p1-1/P2-distribution-profile-lifecycle-administration.txt` plus `docs/tasks/p1-1/P5-distribution-profile-foundation-closeout.txt`;
+3. identify from Git history the exact correction baseline before P1 and the exact reachable runner-owned P1 implementation commit subject for `c1-profile-source-concurrency/P1`;
+4. inspect P1's complete implementation diff and current final source/tests rather than trusting its final report;
+5. inspect current `src/admin/distribution-profile-administration.ts`, `src/admin/source-administration.ts`, `src/distribution/profiles/repository.ts`, the new Source-validity advisory-lock module, existing Article/endpoint lock helpers, and all changed Profile concurrency tests;
+6. inspect current `package.json`, require exactly `1.1.4`, and confirm no npm lockfile was introduced;
+7. confirm migrations `0001` through `0015` are unchanged by the correction and no `0016` exists solely for this fix;
+8. trace every mutation capable of reducing active-Profile usable-Source validity and every place the new advisory helper is called;
+9. stop and report sequence/scope drift if P1 did not implement the planned bounded correction, if roadmap/contract authority changed, or if unrelated executable work landed after the P1 correction without applicable validation.
+
+GREEN CORRECTION GOAL
+The correction is GREEN only if the exact accepted package-`1.1.4` tree proves all of the following:
+- Source unapproval/archive cannot use stale active-Profile discovery to invalidate a newly activated/reactivated Profile;
+- activation/reactivation and Source invalidation serialize through one Source-scoped PostgreSQL transaction advisory predicate boundary;
+- existing deterministic Profile→Source row locking remains coherent;
+- active Source-association removal remains safe and does not acquire a reversed advisory order that deadlocks against Source invalidation;
+- overlapping Source/Profile mutation sets terminate without deadlock;
+- committed state never contains an active Profile with zero approved+active associated Sources;
+- failed Profile mutations do not leave successful Profile audit history;
+- deterministic real-PostgreSQL tests force the previously vulnerable interleaving rather than relying on scheduler luck;
+- no schema/API/UI/product/Phase-2 scope was introduced.
+
+PASS 1 — CONTRACT / EVIDENCE REVIEW
+Review P1 against contracts, original Phase 1 intent, actual source, and executed evidence.
+
+A. PRODUCT / DOMAIN SEMANTICS
+Verify:
+- usable Profile Source remains exactly approved + active;
+- Source operational state remains irrelevant to Profile usability;
+- drafts/disabled Profiles may be incomplete;
+- activation/reactivation requires at least one usable Source;
+- active Profile final usable association removal still rejects;
+- Source unapproval/archive still rejects only when it would invalidate an active Profile;
+- Profile filtering, collection trust, Article identity/provenance, Relevance, Categories, moderation, duplicates, and existing outward behavior are untouched.
+
+B. ADVISORY LOCK OWNERSHIP
+Verify the new lock helper:
+- is owned by the Profile/distribution domain rather than HTTP/UI or collection code;
+- uses a dedicated stable namespace distinct from Article identity and endpoint-run lock namespaces;
+- derives PostgreSQL signed-bigint-compatible keys deterministically from normalized Source UUIDs;
+- validates Source UUIDs rather than accepting arbitrary unbounded values;
+- uses `pg_advisory_xact_lock` transaction locks;
+- does not manually unlock transaction locks;
+- does not use session locks, `pg_try_advisory_lock`, polling, retries, process mutexes, or one installation-global key;
+- deduplicates and orders multiple Source IDs deterministically before acquisition.
+
+C. SOURCE INVALIDATION ORDER
+For Source transitions capable of making the Source unusable, prove actual order is:
+
+`resolve stable Source identity -> acquire Source validity advisory guard -> discover/lock active Profiles -> lock/re-read relevant Source rows -> validate -> mutate`
+
+Verify there is no path that performs active-Profile discovery before the guard and then trusts that pre-guard set.
+
+Verify the target Source state is re-read under the transaction's real locking/synchronization rather than using an earlier stale approval/lifecycle snapshot.
+
+D. ACTIVATION / REACTIVATION ORDER
+For requested target lifecycle `active`, prove actual order is conceptually:
+
+`lock inactive Profile -> resolve its current associated Source IDs under that Profile lock -> acquire Source validity advisory guards in deterministic order -> lock/re-read associated Source rows -> validate usable Source -> lifecycle mutation + audit`
+
+Verify disabling does not unnecessarily acquire the validity predicate locks.
+
+Verify the Profile association set cannot mutate behind activation while it is deriving/advising/locking Sources under the Profile row lock.
+
+E. ASSOCIATION REMOVAL ORDER
+Verify active association removal preserves its existing Profile-row/Source-row serialization and does NOT accidentally acquire the Source-validity advisory lock after owning an active Profile row.
+
+Explicitly reason about this potential cycle:
+
+`Source invalidation: advisory Source -> active Profile row`
+
+versus a prohibited implementation:
+
+`active association removal: active Profile row -> advisory Source`
+
+The final implementation must not contain that cycle.
+
+F. REPOSITORY / MODULE BOUNDARY
+Verify:
+- any new Profile-association Source-ID read lives in the Profile repository rather than raw SQL in admin routes/services;
+- the repository read returns stable identity only and does not become another Source-usability authority;
+- business validation remains in the application services;
+- the advisory helper is not hidden inside a generic Source-row lock helper whose consumers have incompatible lock order;
+- no Phase 2 consumer is forced to understand this correction's table topology or lock details.
+
+G. TRANSACTION / AUDIT ATOMICITY
+Verify:
+- advisory locks are acquired inside the same real PostgreSQL transactions as the protected mutations;
+- rollback releases transaction locks automatically;
+- failed activation/reactivation does not write a success lifecycle audit event;
+- failed active association removal does not write a success removal audit event;
+- Source invalidation failures leave Source state unchanged;
+- no error path manually commits partial work.
+
+H. DETERMINISTIC LEVEL-4 PROOF
+Inspect the test implementation, not just names.
+
+Require real disposable PostgreSQL proof that deliberately controls the vulnerable ordering. The primary activation/invalidation regression must show:
+1. Source invalidation owns the Source-validity guard;
+2. active-Profile discovery executes while target Profile is still inactive;
+3. invalidation is paused after that discovery;
+4. activation starts and reaches the same guard;
+5. activation cannot pass the guard before invalidation is released;
+6. invalidation commits Source unusable;
+7. activation resumes and rejects from current Source state;
+8. final SQL shows no invalid active Profile.
+
+A test that only starts two promises concurrently, repeats a race, sleeps, or asserts final state without controlling this ordering is insufficient.
+
+Also require deterministic membership-removal vs other-Source invalidation proof demonstrating termination and no advisory/Profile-row deadlock.
+
+I. TEST ISOLATION
+Verify test-only barriers/wrappers:
+- remain outside production source;
+- preserve real Database transactions and PostgreSQL locks;
+- do not mock away advisory/row locking;
+- use bounded completion timeouts;
+- do not rely on arbitrary sleeps as proof;
+- close pools/clients/transactions before database test scope reset;
+- fail clearly if PostgreSQL prerequisites are unavailable.
+
+PASS 2 — ERROR / EDGE-CASE ADVERSARIAL REVIEW
+Independently derive failure hypotheses from the final correction source. Do not satisfy this pass by listing existing tests.
+
+At minimum challenge and disposition:
+- Source invalidation obtains Source identity, then another Source state change commits before validity guard acquisition;
+- activation obtains Profile row while invalidation already owns the Source advisory guard;
+- invalidation owns the advisory guard while activation owns the inactive Profile row;
+- activation has multiple associated Sources and another activation acquires the same Sources in opposite input order;
+- duplicate Source IDs appear in lock input;
+- two Source invalidations target different Sources associated to the same active Profile;
+- an active Profile has exactly two usable Sources and both are concurrently invalidated;
+- Source archive vs Source unapproval of the same Source;
+- Source invalidation races active association removal of that Source;
+- Source invalidation races active association removal of a different usable Source;
+- Source invalidation races association addition to an already-active Profile;
+- Source invalidation races association edits on a draft/disabled Profile;
+- disabled -> active reactivation uses exactly the same predicate boundary as draft -> active;
+- active -> disabled lifecycle mutation does not create an advisory/Profile cycle;
+- a Source is already unapproved/archived and an equivalent no-op/invalid request occurs;
+- advisory lock helper accepts malformed/non-UUID identities;
+- advisory key namespace accidentally duplicates another lock domain implementation;
+- multiple advisory keys are sorted by derived key in one caller and Source UUID in another;
+- generic Source-row helper acquires advisory locks implicitly and changes another consumer's lock graph;
+- transaction error occurs after advisory acquisition but before row locks;
+- validation/audit error occurs after row locks;
+- test barrier resolves too early and only appears deterministic;
+- test timeout hides PostgreSQL deadlock by converting it into a generic failure without proving the lock graph;
+- correction changes an API/UI/error contract even though none was required.
+
+For each plausible concern classify it as:
+- protected by source + meaningful executed evidence;
+- one small bounded closeout repair/test strengthening;
+- Terra High structural-refactor handoff required;
+- deeper concurrency replanning/correction required.
+
+Do not declare GREEN with an unresolved stale-discovery or deadlock concern.
+
+PASS 3 — CODE QUALITY / STRUCTURAL REVIEW
+Inspect the complete P1 correction diff plus important consumers for maintainability.
+
+Look specifically for:
+- duplicated advisory key derivation instead of one Profile-owned helper;
+- duplicate Source-ID ordering rules that can drift;
+- raw `distribution_profile_sources` SQL leaking into admin/router/test production helpers unnecessarily;
+- advisory acquisition buried in generic repository Source-row locks;
+- broad changes to all Profile commands when only activation requires predicate synchronization;
+- broad changes to all Source commands when only usability-reducing transitions require the guard;
+- comments claiming a global order that is not true once advisory locks are included;
+- process-local synchronization that would fail across Web processes;
+- session advisory locks requiring fragile manual release;
+- retries masking deadlocks;
+- test-only hooks leaking into `Database`, production services, or runtime configuration;
+- overly generic new lock framework built for hypothetical future features;
+- brittle tests coupled only to exact SQL formatting rather than deliberate semantic checkpoints;
+- old uncontrolled race test retained as the only meaningful proof;
+- unrelated cleanup or Phase 2 stubs mixed into the correction.
+
+A closeout is not satisfied merely because final commands are green. Record concrete structural hypotheses and their dispositions.
+
+BOUNDED CLOSEOUT REPAIR RULE
+This P2 may fix only a genuinely small, unambiguous defect or strengthen focused proof when:
+- governed behavior is already clear;
+- the repair is local and does not redesign transaction ownership or lock topology;
+- no new product capability/schema/API/UI behavior is introduced;
+- every affected focused/broader suite is rerun.
+
+Examples allowed:
+- malformed UUID validation missed in the lock helper;
+- duplicate Source IDs not deduplicated;
+- one caller fails to sort before multi-lock acquisition;
+- deterministic test fails to assert the losing operation's bounded error;
+- one stale comment incorrectly documents the new order.
+
+The following are NOT bounded closeout repairs:
+- changing which transactions own advisory locks across multiple mutation families;
+- replacing the per-Source synchronization strategy;
+- changing a transaction boundary materially;
+- adding global isolation/retry/lock infrastructure;
+- schema/migration changes;
+- changing Profile/Source lifecycle semantics.
+
+TERRA HIGH REFACTOR HANDOFF
+If PASS 2 or PASS 3 finds a meaningful behavior-preserving structural refactor, STOP before implementing it and output exactly one self-contained transient Terra High remediation prompt following `docs/codex-model-selection.md`.
+
+That remediation prompt MUST:
+- recommend exactly `Terra High`;
+- state the observed structural quality problem and concrete source/test evidence;
+- define the smallest behavior-preserving refactor boundary and important producers/consumers;
+- preserve package `1.1.4`, all migrations, active-Profile usable-Source integrity, advisory/row-lock deadlock safety, transaction/audit atomicity, Source/Category relationships, admin security, public behavior, idempotency/provenance, topic independence, and Phase 2 producer handoff;
+- forbid unrelated cleanup, product/contract/ADR changes, roadmap expansion, Phase 2 selection/API/PHP work, and speculative abstractions;
+- consume no roadmap/correction prompt number;
+- require focused tests plus every broader evidence level invalidated by the refactor;
+- require an implementation report but MUST NOT declare this correction GREEN or finalize the validation artifact;
+- instruct Terra High to stop if the work reveals a genuinely new concurrency architecture decision rather than a behavior-preserving structural cleanup.
+
+After remediation is implemented and its own validation is green, rerun this P2 closeout from the beginning. Only that rerun may certify the correction.
+
+DEEPER CONCURRENCY ESCALATION RULE
+If review finds the P1 synchronization protocol itself is still incorrect or materially incomplete, do not disguise that as closeout cleanup/refactor.
+
+Stop and report:
+- exact interleaving or lock cycle;
+- affected files/transactions;
+- why current deterministic evidence missed it;
+- whether the next correction task is explicit enough for `Terra Ultra` or requires fresh `/prompt-ass` + `/prompt-plan`.
+
+Do not create the durable GREEN artifact while such a concern remains.
+
+FINAL-TREE VALIDATION
+Only after all three passes are complete and any bounded closeout fixes are applied, execute the smallest non-overlapping applicable matrix against the exact final correction tree:
+
+`npm run check`
+
+`npm run test:db`
+
+`npm run codex:phase:validate -- c1-profile-source-concurrency`
+
+`git diff --check <pre-P1-correction-base>...HEAD`
+
+If closeout itself makes a bounded source/test change that is still uncommitted for human review, also run `git diff --check` over that working-tree diff and clearly distinguish committed P1 evidence from final closeout candidate evidence.
+
+Do not separately rerun unit/integration/collection suites contained by `npm run check` solely to duplicate evidence.
+
+No browser, security, recovery, migration, collection-fixture, live-Source, or deployment suite is required unless the correction unexpectedly touched those boundaries; if it did, treat that as scope drift and determine the necessary evidence before claiming GREEN.
+
+DURABLE VALIDATION ARTIFACT
+When and only when the exact final correction tree is GREEN, create:
+
+`docs/validation/profile-source-concurrency-correction.md`
+
+Record at minimum:
+- correction name/folder;
+- exact accepted source SHA or, if closeout review changes remain intentionally uncommitted, the exact P1 commit plus complete final closeout diff identity and the rule for committing/accepting it;
+- correction base SHA;
+- package version `1.1.4`;
+- relevant Node/npm/PostgreSQL versions/environment facts actually observed;
+- files/transactions reviewed;
+- final advisory/row-lock acquisition protocol;
+- deterministic activation/unapproval interleaving procedure and observed outcome;
+- deterministic removal/archive interleaving procedure and observed outcome;
+- overlapping/multi-Source deadlock evidence actually executed;
+- commands/procedures actually run and pass/fail counts where available;
+- evidence levels, especially Level 4 PostgreSQL concurrency proof;
+- PASS 1 contract/evidence dispositions;
+- PASS 2 adversarial hypotheses/dispositions;
+- PASS 3 structural hypotheses/dispositions;
+- bounded defects/tests added during closeout, if any;
+- whether a Terra High remediation handoff occurred before the final rerun;
+- limitations and any unexecuted evidence explicitly not required;
+- statement that this artifact clears only the correction and does not make Phase 1 GREEN.
+
+Do not rewrite historical Phase 1 validation evidence. This artifact records only what was observed against the correction tree.
+
+ORIGINAL PHASE 1 P5 HANDOFF
+Before declaring this correction GREEN, verify the corrected tree now supplies what original Phase 1 P5 needs to independently review:
+
+`Source invalidation cannot stale-discover activation -> Source-validity advisory boundary -> deterministic Level-4 proof`
+
+`activation/reactivation reads current Source usability after serialization -> Profile service + repository/lock helper -> deterministic Level-4 proof`
+
+`association removal remains deadlock-safe against invalidation -> existing Profile row serialization -> deterministic Level-4 proof`
+
+`all active Profiles retain >=1 usable Source -> final invariant query -> deterministic Level-4 proof`
+
+The correction closeout MUST NOT edit original P5 merely to make it pass. Original P5 must be rerun unchanged from the beginning against the corrected repository unless a separately approved prompt/doc workflow later changes it for an independent reason.
+
+ACCEPTANCE
+This correction is GREEN only when:
+- P1's synchronization architecture matches the governed bounded correction;
+- Source invalidation owns the predicate guard before discovery;
+- activation/reactivation owns the matching guards before Source usability validation;
+- multi-Source guard order is deterministic;
+- no reversed advisory/Profile-row cycle exists in association removal or another mutation path;
+- deterministic real-PostgreSQL tests force and prove the stale-discovery interleaving;
+- deterministic PostgreSQL proof covers membership removal vs invalidation and overlapping lock behavior sufficiently to reject deadlock concerns;
+- transaction/audit rollback behavior remains correct;
+- `npm run check`, `npm run test:db`, correction grammar validation, and committed-range whitespace validation are green on the accepted candidate;
+- package remains exactly `1.1.4`, migrations are unchanged, and no lockfile exists;
+- durable correction evidence is created and truthful;
+- no unresolved finding requires replanning, another correction, or architectural escalation.
+
+FINAL REPORT
+Report:
+- correction result: GREEN or RED/BLOCKED;
+- exact correction base and accepted candidate SHA/state;
+- files changed by P1 and any bounded P2 fixes;
+- final advisory + row-lock protocol;
+- deterministic interleavings and observed outcomes;
+- PASS 1, PASS 2, PASS 3 findings/dispositions;
+- validation commands actually run and results;
+- durable artifact path if GREEN;
+- confirmation package remains `1.1.4`, migrations unchanged, no lockfile, no schema/API/UI/Phase-2 scope;
+- whether a refactor/deeper escalation occurred;
+- explicit next step if GREEN: human review, then rerun original Phase 1 P5 from the beginning; do NOT perform roadmap `/closeout` yet.
