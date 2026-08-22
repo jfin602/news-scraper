@@ -1,10 +1,10 @@
 # Post-1.0 / 2.0 Roadmap
 
 **Status:** ACTIVE — owner-approved 2.0 implementation roadmap.  
-**Current package baseline:** `1.4.0`.
-**Current implementation phase:** Phase 4 — Versioned v1 distribution API.
-**Current task folder:** `p1-4`.
-**Current Phase 4 prompt versions:** `1.4.<prompt>`.
+**Current package baseline:** `1.5.0`.
+**Current implementation phase:** Phase 5 — Generic PHP synchronization and last-known-good core.
+**Current task folder:** `p1-5`.
+**Current Phase 5 prompt versions:** `1.5.<prompt>`.
 **Terminal release target:** `2.0.0`.  
 **Primary direction:** prove the managed headless distribution product through Distribution Profiles, the authenticated v1 API, generic PHP synchronization/LKG, and a real external customer-site integration.
 
@@ -247,6 +247,8 @@ A custom server-side consumer can use the v1 API without any PHP-specific behavi
 ### Next baseline
 
 Green Phase 4 `/closeout` transitions only `package.json` to `1.5.0`.
+
+**Closeout:** completed successfully; conversational `/closeout` transitioned only top-level `package.json` to `1.5.0`, which is the Phase 5 baseline.
 
 ## Phase 5 — Generic PHP synchronization and last-known-good core
 

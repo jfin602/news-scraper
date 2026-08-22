@@ -35,7 +35,7 @@ The singleton Publication is an installation/editorial configuration boundary, n
 
 The v1 distribution API uses dedicated high-entropy bearer credentials governed by `docs/contracts/distribution-api-contract.md`.
 
-Phase 3 supplies the tested credential lifecycle, authenticator, and request-guard foundation. Its limiter is intentionally bounded and process-local; trusted HTTP client-network identity extraction and proxy interpretation belong to the HTTP boundary and are not solved by that limiter. Phase 4 owns mapping rate decisions into the v1 `429` response and `Retry-After`, together with the governed HTTP error surface.
+Phase 3 supplies the tested credential lifecycle, authenticator, request guard, and bounded process-local rate foundation. Phase 4 supplies trusted HTTP client-network/proxy interpretation, production HTTPS fail-closed behavior, v1 status/error mapping including `429`/`Retry-After`, cache/security headers, and bounded distribution telemetry. Phase 5 consumes these behaviors and must not reproduce or weaken them in PHP; its PHP/LKG failure-isolation rules do not imply customer rendering in this phase.
 
 - plaintext credentials are shown only at creation and never persisted;
 - persisted state uses a non-secret lookup identity plus secure verifier/digest;

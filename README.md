@@ -7,11 +7,12 @@ Each deployed installation hosts exactly one Publication/topic. The first deploy
 The current implemented outward surfaces are:
 
 ```text
-GET /api/feed  # current JSON feed/output surface
-GET /          # bundled reference/standalone public frontend
+GET /api/v1/distribution/{profile_key}  # permanent authenticated machine distribution API
+GET /api/feed                            # legacy/reference JSON feed/output surface
+GET /                                    # bundled reference/standalone public frontend
 ```
 
-Both currently consume the same canonical outward/public Article-selection semantics. The bundled frontend remains supported, but it is no longer the product's primary architectural identity; future client websites may consume supported distribution output while owning their own presentation.
+All three reuse the governed canonical outward Article-selection authority; the v1 route applies Profile selection after canonical eligibility. The bundled frontend remains supported, but it is no longer the product's primary architectural identity; future client websites may consume supported distribution output while owning their own presentation.
 
 ## Current state
 
@@ -19,7 +20,7 @@ The accepted `1.0.0` customer launch established the first supported production 
 
 On 2026-08-19 the repository owner approved a product-direction shift toward the headless aggregation/distribution core. On 2026-08-20 the owner locked the managed-first/self-hostable macro architecture, Distribution Profiles, machine distribution API, generic PHP/LKG integration direction, and customer presentation freedom.
 
-The replacement 2.0 implementation roadmap is now active. Phase 1 implemented the Distribution Profile foundation; Phase 2 implemented the transport-independent canonical/Profile distribution read model; and Phase 3 implemented dedicated machine credentials and distribution-security foundations. The current `1.4.0` baseline begins Phase 4, the versioned v1 distribution API. PHP/LKG and customer integration remain future phases. Development remains in the `1.x.x` series through seven roadmap phases; after the final Phase 7 managed-integration release gate is green, terminal closeout promotes the final validated `1.7.x` candidate directly to `2.0.0`.
+The replacement 2.0 implementation roadmap is now active. Phases 1–4 are implemented: Distribution Profile foundation, the transport-independent canonical/Profile distribution read model, dedicated machine credentials and distribution-security foundations, and the permanent versioned authenticated v1 distribution API. The current `1.5.0` baseline begins Phase 5, generic PHP synchronization and last-known-good (LKG) core. Customer integration/rendering remains future Phase 6 work. Development remains in the `1.x.x` series through seven roadmap phases; after the final Phase 7 managed-integration release gate is green, terminal closeout promotes the final validated `1.7.x` candidate directly to `2.0.0`.
 
 Linux VPS/Docker Compose self-host packaging, native self-host admin authentication, WordPress, and RSS/Atom remain post-2.0 work. Self-hostability remains an architectural requirement, but packaging no longer blocks the managed 2.0 product validation.
 

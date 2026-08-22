@@ -51,7 +51,7 @@ flowchart LR
     B --> O
 ```
 
-The diagram combines current reference surfaces with the approved 2.0 path. The API, Profile, machine-authentication, and cache contracts are governed by the distribution contracts; no Web/API route performs Source collection inline.
+The diagram combines current reference surfaces with the approved 2.0 path. The v1 API is implemented; PHP synchronization/LKG is current Phase 5 work and customer rendering remains Phase 6 work. The API, Profile, machine-authentication, and cache contracts are governed by the distribution contracts; no Web/API route performs Source collection inline.
 
 ## Deployment boundary
 
@@ -134,7 +134,7 @@ src/
 
 `src/distribution/profiles/` owns Profile configuration/persistence and transactional coordination of Profile/Source usability-reducing mutations; lifecycle/application validation remains the administration/application authority. It does not duplicate Source collection, Articles, identity, or provenance. Later consumers must not query Profile child tables or invent lifecycle/relationship semantics independently. The implemented canonical read model is the required path from canonical outward Article authority to both the public-feed/reference consumer and the Distribution Profile snapshot/page consumer. Later API/controllers must remain thin and must not recreate Article eligibility SQL, Profile filters, Category semantics, ordering, continuation semantics, or snapshot-revision semantics.
 
-`src/distribution/credentials/` owns token generation/parsing and verifier derivation, credential persistence/authentication lookup, machine authentication, request guarding with bounded process-local rate limiting, and credential configuration/policy. Phase 4 Web/API code consumes this implemented boundary and must not recreate credential/token SQL, verifier derivation, lifecycle interpretation, machine authorization semantics, or authenticated-quota/invalid-auth limiter state. The v1 HTTP distribution route remains Phase 4 work; it likewise consumes the implemented Phase 2 Profile page/snapshot/cursor/revision producer rather than recreating Article/Profile query semantics.
+`src/distribution/credentials/` owns token generation/parsing and verifier derivation, credential persistence/authentication lookup, machine authentication, request guarding with bounded process-local rate limiting, and credential configuration/policy. The implemented Phase 4 Web/API distribution runtime/router consumes this boundary and the implemented Phase 2 Profile page/snapshot/cursor/revision producer. It owns the thin permanent v1 HTTP transport, status/schema/header/conditional/telemetry/HTTPS/trust boundary and does not recreate credential/token SQL, verifier derivation, lifecycle interpretation, machine authorization semantics, authenticated-quota/invalid-auth limiter state, or Article/Profile query semantics. Phase 5 PHP code is a downstream integration adapter/client and remains outside these authorities.
 
 The exact implementation may keep or rename an existing module only when that choice produces the smallest coherent canonical design. It MUST NOT retain plural/selector-oriented APIs solely as a compatibility bridge. Legacy-only source modules, wrappers, types, tests, fixtures, configuration paths, and other artifacts from superseded pre-production architecture MUST be deleted when the canonical implementation no longer has an independent use for them.
 
@@ -269,7 +269,7 @@ Unless superseded by an Accepted ADR or later governing roadmap/contract require
 - singleton Publication configuration without relational tenancy;
 - `GET /api/feed` as the legacy/reference JSON/discovery endpoint using canonical outward semantics;
 - root `/` as the bundled reference/standalone frontend, server-rendered from those same semantics with JavaScript only as progressive enhancement;
-- authenticated `GET /api/v1/distribution/{profile_key}` as the permanent 2.0 machine interface once implemented;
+- authenticated `GET /api/v1/distribution/{profile_key}` as the implemented permanent 2.0 machine interface;
 - manual Worker collection preserved as an operator path through the canonical endpoint execution unit;
 - durable scheduler/job mechanism suitable for retries and separate Workers;
 - environment/secrets configuration compatible with managed operation and later self-host packaging.

@@ -14,16 +14,16 @@ It establishes project identity, authority, routing, workflow gates, task gramma
 - Publication: singleton editorial/configuration state, not a relational tenant key
 - Product core: approved Sources → collection → normalization → persistence/provenance → Relevance/Categories → duplicate/moderation → canonical outward Article semantics → governed distribution
 - Control plane: protected administrator UI/API
-- Current implemented outward surfaces: `GET /api/feed` and bundled/reference `GET /`
+- Current implemented outward surfaces: authenticated `GET /api/v1/distribution/{profile_key}`, legacy/reference `GET /api/feed`, and bundled/reference `GET /`
 - Required 2.0 path: canonical eligibility → Distribution Profile → authenticated v1 API → scheduled generic PHP complete-snapshot sync → validated local LKG → customer server-rendered output
 - Permanent machine interface contract: `docs/contracts/distribution-api-contract.md`
 - Distribution/Profile/PHP contract: `docs/contracts/distribution-and-integration-contract.md`
 - Current roadmap: `docs/roadmap/post-1.0-roadmap.md`
 - Current roadmap state: **ACTIVE**
-- Current implementation phase: **Phase 4 — Versioned v1 distribution API**
-- Current package baseline: **`1.4.0`**
-- Current Phase 4 task folder: **`p1-4`** when written
-- Next roadmap prompt version: **`1.4.1`**
+- Current implementation phase: **Phase 5 — Generic PHP synchronization and last-known-good core**
+- Current package baseline: **`1.5.0`**
+- Current Phase 5 task folder: **`p1-5`** when written
+- Next roadmap prompt version: **`1.5.1`**
 - Terminal release target: **`2.0.0`**
 - Accepted production baseline: customer-launch `1.0.0`; supported customer data is durable
 - Former post-1.0 Phase 0 P1: server-rendered reference root shipped at `1.0.1`
@@ -182,7 +182,7 @@ The roadmap is **ACTIVE**.
 
 The complete detailed phase scope/exit gates live in `docs/roadmap/post-1.0-roadmap.md` and must be re-read before phase planning.
 
-Phase 3 completed the machine bearer-credential lifecycle, secure verifier persistence, `distribution:read` authentication boundary, request guard/rate and invalid-auth abuse foundation, protected administrator credential controls, strict machine/admin separation, and production-safe credential persistence. Phase 4 composes that implemented boundary with the Phase 2 canonical/Profile read model to implement the v1 HTTP route. Controllers and serializers must remain thin: they must not recreate credential SQL, token/verifier derivation, lifecycle, authorization, or quota semantics, nor Article/Profile SQL, filters, ordering, cursors, or revisions. `GET /` and `GET /api/feed` remain the current implemented outward HTTP surfaces until Phase 4 ships.
+Phase 4 completed the permanent v1 HTTP route by composing the Phase 2 canonical/Profile read model with the Phase 3 bearer-authentication boundary. Phase 5 consumes that implemented HTTP contract: bearer authentication; the v1 envelope, pagination/cursor, `snapshotRevision`/ETag, response classes, `Retry-After`, HTTPS/trust, and bounded telemetry behavior. PHP remains a thin consumer and must not reconstruct Profile/Article SQL, eligibility/filter/order/Category/duplicate logic, credential/token/verifier/auth semantics, cursor payload structure, rate-limit internals, or trusted-proxy internals. `GET /` and `GET /api/feed` remain supported legacy/reference surfaces; customer SSR remains Phase 6 work.
 
 ## Production compatibility
 
@@ -345,9 +345,9 @@ The roadmap is now active, so this workflow is authorized for the current phase.
 Current invocation target:
 
 ```text
-/prompt-ass Phase 4
+/prompt-ass Phase 5
 → /prompt-plan
-→ /prompt-write p1-4
+→ /prompt-write p1-5
 ```
 
 If requirements/docs/repository state materially conflict, return `Planning needed` rather than silently changing the roadmap.
@@ -360,7 +360,7 @@ Return target behavior, constraints, roadmap phase, stack type, prompt count/ord
 
 Explicitly assess producer→consumer boundaries. Split transactional/state-machine work from separately consumed read/API work when consumers, tests, or failure risks differ materially. Testing is part of task decomposition.
 
-For current Phase 4, plan only the governed v1 HTTP interface by composing the implemented Phase 2 read model and Phase 3 machine-authentication/request-guard boundary. Do not recreate either producer's SQL, cursor/revision, token/verifier, lifecycle, authorization, or quota semantics, and do not pull PHP/LKG or later work forward.
+For current Phase 5, plan only the generic PHP synchronization/LKG core against the implemented v1 API. Do not reconstruct upstream Article/Profile, credential, cursor, revision, rate-limit, or trusted-proxy semantics, and do not pull Phase 6 rendering/local-data behavior or later work forward.
 
 ## `/prompt-plan`
 
@@ -378,14 +378,14 @@ Reassess model/effort using the minimum-cost-adequate rule and produce the small
 
 Requires an unblocked `/prompt-plan`. Revalidate current repo/docs and write ordered prompts under `docs/tasks/<folder name>/`.
 
-Current Phase 4 folder is `p1-4`.
+Current Phase 5 folder is `p1-5`.
 
 Each roadmap prompt includes exact runner metadata, finalized model/reasoning/usage block, focused iterative validation, smallest non-overlapping final validation, downstream handoff gates where relevant, package-version rules, acceptance, and non-goals.
 
 When local execution is available run:
 
 ```text
-npm run codex:phase:validate -- p1-4
+npm run codex:phase:validate -- p1-5
 ```
 
 before reporting the stack ready.
@@ -410,7 +410,7 @@ The shared parser is `scripts/codex-phase-core.mjs`.
 - exactly one phrase `assigned project version is` followed by `1.<phase>.<prompt number>`;
 - no correction unchanged-version metadata.
 
-The runner detects completed implementation prompts from exact reachable commit subjects and requires package version to match the Git-proven completed prefix. With no completed Phase 4 prompt, `p1-4` expects baseline `1.4.0`.
+The runner detects completed implementation prompts from exact reachable commit subjects and requires package version to match the Git-proven completed prefix. With no completed Phase 5 prompt, `p1-5` expects baseline `1.5.0`.
 
 ## Corrections
 
@@ -488,7 +488,7 @@ This terminal rule is the 2.0 analogue of the already-completed historical Phase
 # Versioning
 
 - `package.json` is the sole current-version authority.
-- Current version is `1.4.0`.
+- Current version is `1.5.0`.
 - Phase prompt versions are `1.<phase>.<prompt>`.
 - Non-terminal baseline transitions are `1.<next phase>.0`.
 - Final release only is `2.0.0`.
@@ -544,10 +544,10 @@ The bundled/reference frontend UI work does not govern customer-site integration
 
 ## Current next action
 
-The roadmap is active and Phase 4 is authorized. The next normal implementation-planning command is:
+The roadmap is active and Phase 5 is authorized. The next normal implementation-planning command is:
 
 ```text
-/prompt-ass Phase 4
+/prompt-ass Phase 5
 ```
 
-which should decompose the governed v1 HTTP interface into the smallest safe `p1-4` prompt stack before `/prompt-plan` and `/prompt-write p1-4`. It must compose the implemented Phase 2 and Phase 3 producer boundaries; PHP/LKG remains out of scope.
+which should decompose the generic PHP synchronization/LKG core into the smallest safe `p1-5` prompt stack before `/prompt-plan` and `/prompt-write p1-5`. It must consume the implemented v1 API as a thin downstream client; Phase 6 rendering/local-data behavior remains out of scope.

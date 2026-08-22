@@ -6,9 +6,9 @@ News Scraper is governed as a reusable, topic-independent **headless news aggreg
 
 Publication is an editorial/configuration concept, not a relational tenancy key. Sources, Articles, observations, jobs, Categories, Relevance rules, and duplicate state use installation/Source relationships directly rather than Publication tenant scoping.
 
-The administrator surface is the instance-owned Platform control plane. The active 2.0 path is canonical eligibility → Distribution Profile → authenticated v1 API → generic PHP complete-snapshot synchronization → local last-known-good data → customer server-rendered output. WordPress, RSS/Atom, Linux VPS/Docker Compose self-host packaging, and native self-host admin authentication are post-2.0. Current implemented outward surfaces remain `GET /api/feed` plus bundled/reference `GET /`.
+The administrator surface is the instance-owned Platform control plane. The active 2.0 path is canonical eligibility → Distribution Profile → authenticated v1 API → generic PHP complete-snapshot synchronization → local last-known-good data → customer server-rendered output. WordPress, RSS/Atom, Linux VPS/Docker Compose self-host packaging, and native self-host admin authentication are post-2.0. Current implemented outward surfaces are authenticated `GET /api/v1/distribution/{profile_key}`, legacy/reference `GET /api/feed`, and bundled/reference `GET /`.
 
-The accepted `1.0.0` customer launch established the first supported production schema/data baseline. Phase 3 implemented machine credential/authentication foundations; the current development package is `1.4.0`, the active roadmap is Phase 4 — Versioned v1 distribution API, and the v1 HTTP route is current work. Terminal release qualification after Phase 7 promotes the final validated `1.7.x` candidate directly to `2.0.0`.
+The accepted `1.0.0` customer launch established the first supported production schema/data baseline. Phases 1–4 implemented the Distribution Profile, canonical read-model, machine credential/authentication, and v1 HTTP API foundations; the current development package is `1.5.0`, and the active roadmap is Phase 5 — Generic PHP synchronization and last-known-good core. Terminal release qualification after Phase 7 promotes the final validated `1.7.x` candidate directly to `2.0.0`.
 
 Before production database compatibility was established, the supported persistence setup was a fresh database built from the repository's current migration chain and bootstrap/configuration. That historical pre-production destructive-reset policy no longer applies to accepted customer production state. Current production upgrades are governed by `decisions/production-data-and-schema-compatibility.md`.
 
@@ -133,12 +133,12 @@ Use root `BOOT.md` as the session router; it points to the narrowest authoritati
 The MVP roadmap is complete through Phase 21. Former post-1.0 Phase 0 P1 shipped the server-rendered root at package `1.0.1`. Its planned P2 closeout was retired unexecuted when the product direction changed.
 
 **Current roadmap state:** ACTIVE — seven-phase 2.0 implementation roadmap.  
-**Current package baseline:** `1.4.0`.
-**Current implementation phase:** Phase 4 — Versioned v1 distribution API.
-**Next roadmap prompt version:** `1.4.1`.
-**Current task folder:** `p1-4`.
+**Current package baseline:** `1.5.0`.
+**Current implementation phase:** Phase 5 — Generic PHP synchronization and last-known-good core.
+**Next roadmap prompt version:** `1.5.1`.
+**Current task folder:** `p1-5`.
 **Terminal release:** final validated `1.7.x` → version-only `2.0.0` transition.
 
-Do not run the old `p1-0` stack or infer versions from the retired frontend-centric roadmap. Normal implementation planning now resumes with `/prompt-ass Phase 4` → `/prompt-plan` → `/prompt-write p1-4`. Phase 4 composes the implemented Phase 2 canonical/Profile read model and Phase 3 machine-authentication/request-guard foundations; the v1 HTTP route is not yet implemented.
+Do not run the old `p1-0` stack or infer versions from the retired frontend-centric roadmap. Normal implementation planning now resumes with `/prompt-ass Phase 5` → `/prompt-plan` → `/prompt-write p1-5`. The v1 HTTP API is implemented; Phase 5 is the downstream generic PHP synchronization/LKG work.
 
 Historical validation artifacts describe only the source tree, environment, and observations they record. They do not redefine current contracts.

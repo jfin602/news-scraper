@@ -123,7 +123,7 @@ A Source being approved means it may participate in governed collection and ordi
 
 A Distribution Profile is a named administrator-controlled outward selection over already canonically eligible Articles. One Publication may have multiple profiles without becoming relational tenancy. Profile selection can only narrow eligibility; its lifecycle, Source associations, and bounded filters are governed by `distribution-and-integration-contract.md`. The permanent wire/auth contract is `distribution-api-contract.md`.
 
-Phase 3 implemented the reusable machine credential/authentication/security foundation required by the permanent machine API. It is separate from human administrator authority and does not yet expose the v1 HTTP interface.
+Phases 1–4 implemented the Distribution Profile, canonical read-model, machine credential/authentication/security, and permanent authenticated v1 distribution HTTP API foundations. The machine credential boundary remains separate from human administrator authority. Generic PHP synchronization/LKG is current Phase 5 work; external customer rendering/integration remains Phase 6 work.
 
 ### Deployment architecture
 
@@ -147,7 +147,7 @@ The original client now intends to integrate collected news into an existing web
 
 WordPress, RSS/Atom, Linux VPS/Docker Compose self-host packaging, native/default self-host administrator authentication, production-grade autonomous public self-hosting, SSO/multi-admin identity, visitor/click/referral/backlink analytics, advanced SEO tooling, browser widgets, Kubernetes/multi-node deployment, delta synchronization, and additional adapter families are post-2.0. News Scraper guarantees neither SEO nor backlink performance.
 
-The seven-phase 2.0 implementation roadmap is active under `docs/roadmap/post-1.0-roadmap.md`; Phases 1–3 foundations are implemented: Distribution Profiles, the canonical distribution/Profile read model, and machine credential/authentication/security. The permanent distribution HTTP API is current Phase 4 work; PHP and external distribution consumers remain later work. Consult `BOOT.md` and the active roadmap for current phase/version routing.
+The seven-phase 2.0 implementation roadmap is active under `docs/roadmap/post-1.0-roadmap.md`; Phases 1–4 foundations are implemented: Distribution Profiles, the canonical distribution/Profile read model, machine credential/authentication/security, and the permanent authenticated v1 distribution HTTP API. Generic PHP synchronization/LKG is current Phase 5 work; external customer rendering/integration remains Phase 6 work. Consult `BOOT.md` and the active roadmap for current phase/version routing.
 
 ## Quality targets
 

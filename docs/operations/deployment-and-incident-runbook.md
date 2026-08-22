@@ -26,7 +26,7 @@ Use a change record that never contains secrets.
 
 ## 2.0 managed distribution checks
 
-Distribution Profiles, the canonical distribution read-model producer, and the machine credential/authentication/security foundation are implemented. Phase 4 now introduces the v1 HTTP API; generic PHP integration remains later work. Managed deployment validation expands without creating a separate deployment topology.
+Distribution Profiles, the canonical distribution read-model producer, the machine credential/authentication/security foundation, and the permanent v1 HTTP API with its production HTTPS/trusted-proxy configuration are implemented. Generic PHP synchronization/LKG is current Phase 5 work; customer rendering/integration remains Phase 6 work. Managed deployment validation expands without creating a separate deployment topology.
 
 The final 2.0 managed integration must observe, as applicable:
 
