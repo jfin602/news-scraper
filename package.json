@@ -1,6 +1,6 @@
 {
   "name": "news-scraper",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "private": true,
   "type": "module",
   "engines": {
@@ -11,7 +11,8 @@
     "format:check": "prettier --check package.json tsconfig.json eslint.config.mjs prettier.config.mjs scripts src test README.md",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "node scripts/run-tests.mjs --test-concurrency=4 \"test/unit/**/*.test.ts\" \"test/integration/**/*.test.ts\" \"test/collection/**/*.test.ts\"",
+    "test": "node scripts/run-tests.mjs --test-concurrency=4 \"test/unit/**/*.test.ts\" \"test/integration/**/*.test.ts\" \"test/collection/**/*.test.ts\" && npm run test:php",
+    "test:php": "node scripts/run-php-tests.mjs",
     "test:unit": "node scripts/run-tests.mjs --test-concurrency=4 \"test/unit/**/*.test.ts\"",
     "test:integration": "node scripts/run-tests.mjs --test-concurrency=4 \"test/integration/**/*.test.ts\"",
     "test:collection": "node scripts/run-tests.mjs --test-concurrency=4 \"test/collection/**/*.test.ts\"",
