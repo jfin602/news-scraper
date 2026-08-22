@@ -2,7 +2,7 @@
 
 ## Project and authority
 
-News Scraper is a reusable, topic-independent **headless news aggregation and distribution Platform**. Each installation hosts exactly one Publication/topic; another topic uses another configured deployment of the shared codebase. Publication is singleton editorial/configuration state, not a relational tenant key. The administrator surface is the control plane. Current implemented outward consumers are `GET /api/feed` plus the bundled/reference `GET /` frontend; neither requires a reader-selectable Publication.
+News Scraper is a reusable, topic-independent **headless news aggregation and distribution Platform**. Each installation hosts exactly one Publication/topic; another topic uses another configured deployment of the shared codebase. Publication is singleton editorial/configuration state, not a relational tenant key. The administrator surface is the control plane. Current implemented outward consumers are authenticated `GET /api/v1/distribution/{profile_key}`, `GET /api/feed`, and the bundled/reference `GET /` frontend; neither reference consumer requires a reader-selectable Publication.
 
 Read `BOOT.md` first and route through `docs/README.md` to the narrowest authority. `docs/contracts/project-contract.md` owns locked laws and top-level invariants; `docs/contracts/product-scope-and-users.md` owns current product scope; `docs/contracts/distribution-and-integration-contract.md` owns Distribution Profile/PHP behavior; `docs/contracts/distribution-api-contract.md` owns the permanent machine interface; Accepted ADRs own architecture; the testing contract owns proof; the roadmap owns phase/version sequencing.
 
@@ -18,19 +18,19 @@ Follow `BOOT.md`.
 - Roadmap `/closeout` and a correction stack's final manual closeout are different. A correction closeout clears only that correction and preserves roadmap phase/package version.
 - Terminal MVP Phase 21 `/closeout` already transitioned the final validated `0.21.x` tree to `1.0.0`.
 - Former post-1.0 Phase 0 P1 shipped the server-rendered root at `1.0.1`; its unexecuted P2/`1.0.2` closeout is permanently retired.
-- The owner-approved replacement 2.0 roadmap is active. Phase 4 closed to the Phase 5 `1.5.0` baseline; normal roadmap prompt planning may resume.
+- The owner-approved replacement 2.0 roadmap is active. Phase 5 closed to the Phase 6 `1.6.0` baseline; normal roadmap prompt planning may resume.
 - Use `docs/codex-model-selection.md` for detailed minimum-cost-adequate model/reasoning/usage policy.
 
 ## Versioning and task-stack grammar
 
-`package.json` is the sole current-version authority and is currently `1.5.0`. Documentation, correction, and UI work is non-versioned unless an explicit owner-authorized roadmap activation/release transition says otherwise.
+`package.json` is the sole current-version authority and is currently `1.6.0`. Documentation, correction, and UI work is non-versioned unless an explicit owner-authorized roadmap activation/release transition says otherwise.
 
 The active seven-phase roadmap uses the existing post-1.0 runner grammar:
 
 - Phase N folder: `p1-N`;
 - prompt target: `1.N.<prompt number>`;
-- current Phase 5 folder: `p1-5`;
-- current next prompt version: `1.5.1`;
+- current Phase 6 folder: `p1-6`;
+- current next prompt version: `1.6.1`;
 - non-terminal green `/closeout` moves only to the documented next `1.<phase>.0` baseline;
 - terminal Phase 7 `/closeout` moves the final validated `1.7.x` candidate directly to `2.0.0`, creates no `1.8.0`, and does not create a `2.0.x` development series.
 
@@ -57,9 +57,9 @@ Targeted UI prompts under `docs/design/tasks/` are not a `codex:phase` grammar. 
 
 ## Active 2.0 roadmap
 
-**Current phase:** Phase 5 — Generic PHP synchronization and last-known-good core
-**Current baseline:** `1.5.0`
-**Current task folder:** `docs/tasks/p1-5/` when written
+**Current phase:** Phase 6 — PHP local data API and server-rendered customer integration
+**Current baseline:** `1.6.0`
+**Current task folder:** `docs/tasks/p1-6/` when written
 **Terminal target:** `2.0.0`
 
 The roadmap sequence is:
@@ -86,8 +86,8 @@ Always preserve these boundaries and read the routed contract for detail:
 - The administrator UI/API is the control plane. The bundled `/` frontend is a supported reference/standalone consumer; `GET /api/feed` is a current legacy/reference JSON surface.
 - Collection trust and distribution selection are distinct. Source approval authorizes governed collection; Profile membership determines which already-eligible Source Articles can enter one distribution output.
 - Phase 2 implemented the transport-independent canonical distribution Article eligibility/Profile read-model producer, including effective outward Categories, bounded results/history, keyset continuation positions, and deterministic snapshot revisions. Later API work must reuse it.
-- Phase 4 implemented the governed v1 machine HTTP interface over the Phase 2 read model and Phase 3 credential/authentication/request-guard foundations. Phase 5 consumes that stable API rather than its database/read-model internals.
-- The Phase 5 PHP client/cache layer may own transport configuration, bearer use, synchronization, retries, local locking/storage, freshness, and candidate/active state. It must not reinterpret Source trust, canonical eligibility, Profile selectors, Categories, moderation, duplicate rules, ordering, `originalUrl`, machine credential authority, cursor structure, or HTTP trust internals; it must not pull Phase 6 rendering/customer-local-data behavior or post-2.0 adapters forward.
+- Phase 4 implemented the governed v1 machine HTTP interface over the Phase 2 read model and Phase 3 credential/authentication/request-guard foundations. Phase 5 completed the downstream PHP synchronization/LKG producer over that stable API.
+- Phase 6 consumes the validated `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead` boundary, not cache internals. It may own normalized local Profile/Article access, an extension surface, fallback renderer, safe escaping/null handling, explicit local availability states, direct publisher anchors, customer presentation override, and customer/example SSR integration. It must not reinterpret Source trust, canonical eligibility, Profile selectors, Categories, moderation, duplicates, ordering, `originalUrl`, machine credential authority, cursor/revision semantics, synchronization retry/locking, or LKG activation; it must not pull Phase 7 deployment qualification or post-2.0 adapters forward.
 - Source is the approved publisher/trust boundary; endpoint is its concrete feed/API/HTML location. Approval, lifecycle, operational state, and derived health are distinct.
 - Only approved, active, enabled Sources/endpoints are collectable while singleton Publication collection is active. Bootstrap never auto-approves or silently widens trust.
 - Every request and redirect hop passes approval plus DNS/address/port/SSRF checks before contact. Article links pass their separate post-normalization Source/domain policy gate.
@@ -127,10 +127,10 @@ Historical validation qualifications remain historical and must not be rewritten
 
 The MVP roadmap is complete through terminal Phase 21 and the supported production baseline remains `1.0.0`.
 
-**Current package version:** `1.5.0`
+**Current package version:** `1.6.0`
 **Current roadmap:** `docs/roadmap/post-1.0-roadmap.md`  
-**Current implementation phase:** **Phase 5 — Generic PHP synchronization and last-known-good core**
-**Next prompt version:** `1.5.1`
+**Current implementation phase:** **Phase 6 — PHP local data API and server-rendered customer integration**
+**Next prompt version:** `1.6.1`
 **Terminal release target:** `2.0.0`
 
 The old `p1-0` stack is retired. Use the active roadmap for current phase/version authority.

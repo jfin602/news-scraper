@@ -1,6 +1,6 @@
 # Distribution API Contract
 
-**Status:** Current normative 2.0 machine-interface contract; Phase 3 credential/authentication/security foundations and the Phase 4 v1 HTTP interface are implemented; Phase 5 is the downstream generic PHP synchronization/LKG consumer work
+**Status:** Current normative 2.0 machine-interface contract; Phase 3 credential/authentication/security foundations, the Phase 4 v1 HTTP interface, and the Phase 5 downstream generic PHP synchronization/LKG consumer are implemented; Phase 6 consumes local state for customer integration without changing this v1 contract
 **Adopted:** 2026-08-20
 
 ## Interface and compatibility

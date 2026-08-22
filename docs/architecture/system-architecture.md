@@ -23,11 +23,11 @@ The approved distribution architecture has four layers:
 flowchart LR
     C1[Current JSON consumer /api/feed] --> B[Web/API Application]
     C2[Bundled reference frontend /] --> B
-    PHP[Scheduled PHP sync] --> API[Authenticated v1 Distribution API]
+    PHP[Implemented PHP sync and LKG] --> API[Authenticated v1 Distribution API]
     API --> P[Distribution Profile read model]
     P --> B
     PHP --> LKG[Validated local LKG snapshot]
-    SITE[Customer server-rendered site] --> LKG
+    SITE[Phase 6 customer SSR integration] --> LKG
     A[Cloudflare Access-protected Admin UI/API] --> B
     B --> D[(PostgreSQL)]
     B --> Q[Durable Job Queue / Scheduler]
@@ -51,7 +51,7 @@ flowchart LR
     B --> O
 ```
 
-The diagram combines current reference surfaces with the approved 2.0 path. The v1 API is implemented; PHP synchronization/LKG is current Phase 5 work and customer rendering remains Phase 6 work. The API, Profile, machine-authentication, and cache contracts are governed by the distribution contracts; no Web/API route performs Source collection inline.
+The diagram combines current reference surfaces with the approved 2.0 path. The v1 API and PHP synchronization/LKG are implemented; customer local consumption/server-rendered integration is current Phase 6 work. The API, Profile, machine-authentication, and cache contracts are governed by the distribution contracts; no Web/API route performs Source collection inline.
 
 ## Deployment boundary
 
@@ -134,7 +134,7 @@ src/
 
 `src/distribution/profiles/` owns Profile configuration/persistence and transactional coordination of Profile/Source usability-reducing mutations; lifecycle/application validation remains the administration/application authority. It does not duplicate Source collection, Articles, identity, or provenance. Later consumers must not query Profile child tables or invent lifecycle/relationship semantics independently. The implemented canonical read model is the required path from canonical outward Article authority to both the public-feed/reference consumer and the Distribution Profile snapshot/page consumer. Later API/controllers must remain thin and must not recreate Article eligibility SQL, Profile filters, Category semantics, ordering, continuation semantics, or snapshot-revision semantics.
 
-`src/distribution/credentials/` owns token generation/parsing and verifier derivation, credential persistence/authentication lookup, machine authentication, request guarding with bounded process-local rate limiting, and credential configuration/policy. The implemented Phase 4 Web/API distribution runtime/router consumes this boundary and the implemented Phase 2 Profile page/snapshot/cursor/revision producer. It owns the thin permanent v1 HTTP transport, status/schema/header/conditional/telemetry/HTTPS/trust boundary and does not recreate credential/token SQL, verifier derivation, lifecycle interpretation, machine authorization semantics, authenticated-quota/invalid-auth limiter state, or Article/Profile query semantics. Phase 5 PHP code is a downstream integration adapter/client and remains outside these authorities.
+`src/distribution/credentials/` owns token generation/parsing and verifier derivation, credential persistence/authentication lookup, machine authentication, request guarding with bounded process-local rate limiting, and credential configuration/policy. The implemented Phase 4 Web/API distribution runtime/router consumes this boundary and the implemented Phase 2 Profile page/snapshot/cursor/revision producer. It owns the thin permanent v1 HTTP transport, status/schema/header/conditional/telemetry/HTTPS/trust boundary and does not recreate credential/token SQL, verifier derivation, lifecycle interpretation, machine authorization semantics, authenticated-quota/invalid-auth limiter state, or Article/Profile query semantics. `integrations/php/` owns the implemented downstream client/synchronization/LKG boundary. Phase 6 consumes `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead` and must not parse generation/manifest internals or invent upstream semantics.
 
 The exact implementation may keep or rename an existing module only when that choice produces the smallest coherent canonical design. It MUST NOT retain plural/selector-oriented APIs solely as a compatibility bridge. Legacy-only source modules, wrappers, types, tests, fixtures, configuration paths, and other artifacts from superseded pre-production architecture MUST be deleted when the canonical implementation no longer has an independent use for them.
 

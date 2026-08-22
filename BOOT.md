@@ -20,10 +20,10 @@ It establishes project identity, authority, routing, workflow gates, task gramma
 - Distribution/Profile/PHP contract: `docs/contracts/distribution-and-integration-contract.md`
 - Current roadmap: `docs/roadmap/post-1.0-roadmap.md`
 - Current roadmap state: **ACTIVE**
-- Current implementation phase: **Phase 5 — Generic PHP synchronization and last-known-good core**
-- Current package baseline: **`1.5.0`**
-- Current Phase 5 task folder: **`p1-5`** when written
-- Next roadmap prompt version: **`1.5.1`**
+- Current implementation phase: **Phase 6 — PHP local data API and server-rendered customer integration**
+- Current package baseline: **`1.6.0`**
+- Current Phase 6 task folder: **`p1-6`** when written
+- Next roadmap prompt version: **`1.6.1`**
 - Terminal release target: **`2.0.0`**
 - Accepted production baseline: customer-launch `1.0.0`; supported customer data is durable
 - Former post-1.0 Phase 0 P1: server-rendered reference root shipped at `1.0.1`
@@ -119,6 +119,7 @@ Keep these distinctions explicit: Source vs endpoint; approval vs lifecycle/oper
 | Locked laws / authority                                                   | `docs/contracts/project-contract.md`                                      |
 | Current product scope / 2.0 boundary                                      | `docs/contracts/product-scope-and-users.md`                               |
 | Distribution Profiles / filters / PHP/LKG / presentation/link policy      | `docs/contracts/distribution-and-integration-contract.md`                 |
+| PHP synchronization / LKG / local-read implementation details             | `integrations/php/README.md`                                               |
 | Permanent v1 API / schema / cursors / machine credentials / errors / CORS | `docs/contracts/distribution-api-contract.md`                             |
 | Terminology / entities / persistence                                      | `docs/contracts/domain-and-data-contract.md`                              |
 | Collection / safety / normalization / Relevance / identity                | `docs/contracts/source-and-collection-contract.md`                        |
@@ -182,7 +183,7 @@ The roadmap is **ACTIVE**.
 
 The complete detailed phase scope/exit gates live in `docs/roadmap/post-1.0-roadmap.md` and must be re-read before phase planning.
 
-Phase 4 completed the permanent v1 HTTP route by composing the Phase 2 canonical/Profile read model with the Phase 3 bearer-authentication boundary. Phase 5 consumes that implemented HTTP contract: bearer authentication; the v1 envelope, pagination/cursor, `snapshotRevision`/ETag, response classes, `Retry-After`, HTTPS/trust, and bounded telemetry behavior. PHP remains a thin consumer and must not reconstruct Profile/Article SQL, eligibility/filter/order/Category/duplicate logic, credential/token/verifier/auth semantics, cursor payload structure, rate-limit internals, or trusted-proxy internals. `GET /` and `GET /api/feed` remain supported legacy/reference surfaces; customer SSR remains Phase 6 work.
+Phase 4 completed the permanent v1 HTTP route, and Phase 5 completed the downstream PHP synchronization/LKG producer over that stable interface. Phase 6 consumes `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead` from `integrations/php/`, rather than generation, manifest, or cache paths. It may own normalized local consumption, a safe fallback renderer, escaping/null-state behavior, customer presentation extension points, direct stored `originalUrl` anchors, and a customer-style integration harness. It must not reconstruct Profile/Article SQL, canonical eligibility/filter/order/Category/duplicate/moderation logic, v1 authentication/cursor/revision semantics, synchronization retries, or LKG activation rules. `GET /` and `GET /api/feed` remain supported legacy/reference surfaces.
 
 ## Production compatibility
 
@@ -345,9 +346,9 @@ The roadmap is now active, so this workflow is authorized for the current phase.
 Current invocation target:
 
 ```text
-/prompt-ass Phase 5
+/prompt-ass Phase 6
 → /prompt-plan
-→ /prompt-write p1-5
+→ /prompt-write p1-6
 ```
 
 If requirements/docs/repository state materially conflict, return `Planning needed` rather than silently changing the roadmap.
@@ -360,7 +361,7 @@ Return target behavior, constraints, roadmap phase, stack type, prompt count/ord
 
 Explicitly assess producer→consumer boundaries. Split transactional/state-machine work from separately consumed read/API work when consumers, tests, or failure risks differ materially. Testing is part of task decomposition.
 
-For current Phase 5, plan only the generic PHP synchronization/LKG core against the implemented v1 API. Do not reconstruct upstream Article/Profile, credential, cursor, revision, rate-limit, or trusted-proxy semantics, and do not pull Phase 6 rendering/local-data behavior or later work forward.
+For current Phase 6, plan only local consumption/customer server-rendered integration over the implemented PHP LKG/read boundary. Use `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead`, not cache internals; do not reconstruct upstream Article/Profile, credential, cursor, revision, rate-limit, trusted-proxy, synchronization, or LKG-activation semantics, and do not pull Phase 7 integration qualification or later work forward.
 
 ## `/prompt-plan`
 
@@ -378,14 +379,14 @@ Reassess model/effort using the minimum-cost-adequate rule and produce the small
 
 Requires an unblocked `/prompt-plan`. Revalidate current repo/docs and write ordered prompts under `docs/tasks/<folder name>/`.
 
-Current Phase 5 folder is `p1-5`.
+Current Phase 6 folder is `p1-6`.
 
 Each roadmap prompt includes exact runner metadata, finalized model/reasoning/usage block, focused iterative validation, smallest non-overlapping final validation, downstream handoff gates where relevant, package-version rules, acceptance, and non-goals.
 
 When local execution is available run:
 
 ```text
-npm run codex:phase:validate -- p1-5
+npm run codex:phase:validate -- p1-6
 ```
 
 before reporting the stack ready.
@@ -410,7 +411,7 @@ The shared parser is `scripts/codex-phase-core.mjs`.
 - exactly one phrase `assigned project version is` followed by `1.<phase>.<prompt number>`;
 - no correction unchanged-version metadata.
 
-The runner detects completed implementation prompts from exact reachable commit subjects and requires package version to match the Git-proven completed prefix. With no completed Phase 5 prompt, `p1-5` expects baseline `1.5.0`.
+The runner detects completed implementation prompts from exact reachable commit subjects and requires package version to match the Git-proven completed prefix. With no completed Phase 6 prompt, `p1-6` expects baseline `1.6.0`.
 
 ## Corrections
 
@@ -488,7 +489,7 @@ This terminal rule is the 2.0 analogue of the already-completed historical Phase
 # Versioning
 
 - `package.json` is the sole current-version authority.
-- Current version is `1.5.0`.
+- Current version is `1.6.0`.
 - Phase prompt versions are `1.<phase>.<prompt>`.
 - Non-terminal baseline transitions are `1.<next phase>.0`.
 - Final release only is `2.0.0`.
@@ -544,10 +545,10 @@ The bundled/reference frontend UI work does not govern customer-site integration
 
 ## Current next action
 
-The roadmap is active and Phase 5 is authorized. The next normal implementation-planning command is:
+The roadmap is active and Phase 6 is authorized. The next normal implementation-planning command is:
 
 ```text
-/prompt-ass Phase 5
+/prompt-ass Phase 6
 ```
 
-which should decompose the generic PHP synchronization/LKG core into the smallest safe `p1-5` prompt stack before `/prompt-plan` and `/prompt-write p1-5`. It must consume the implemented v1 API as a thin downstream client; Phase 6 rendering/local-data behavior remains out of scope.
+which should decompose the PHP local data API and customer server-rendered integration into the smallest safe `p1-6` prompt stack before `/prompt-plan` and `/prompt-write p1-6`. It must consume the validated Phase 5 local read boundary rather than cache internals; Phase 7 managed external integration/release qualification remains out of scope.

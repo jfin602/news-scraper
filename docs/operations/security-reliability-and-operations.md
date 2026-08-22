@@ -35,7 +35,7 @@ The singleton Publication is an installation/editorial configuration boundary, n
 
 The v1 distribution API uses dedicated high-entropy bearer credentials governed by `docs/contracts/distribution-api-contract.md`.
 
-Phase 3 supplies the tested credential lifecycle, authenticator, request guard, and bounded process-local rate foundation. Phase 4 supplies trusted HTTP client-network/proxy interpretation, production HTTPS fail-closed behavior, v1 status/error mapping including `429`/`Retry-After`, cache/security headers, and bounded distribution telemetry. Phase 5 consumes these behaviors and must not reproduce or weaken them in PHP; its PHP/LKG failure-isolation rules do not imply customer rendering in this phase.
+Phase 3 supplies the implemented credential lifecycle, authenticator, request guard, and bounded process-local rate foundation. Phase 4 supplies the implemented trusted HTTP client-network/proxy interpretation, production HTTPS fail-closed behavior, v1 status/error mapping including `429`/`Retry-After`, cache/security headers, and bounded distribution telemetry. Phase 5 implemented PHP synchronization/LKG consumption, locking, persistence, freshness/usability, and health without reproducing or weakening those upstream boundaries. Phase 6 must consume validated local state, preserve safe escaping and no-secret/no-live-visitor-call boundaries, and must not weaken upstream authentication or LKG guarantees.
 
 - plaintext credentials are shown only at creation and never persisted;
 - persisted state uses a non-secret lookup identity plus secure verifier/digest;
