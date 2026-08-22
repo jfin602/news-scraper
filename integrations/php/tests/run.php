@@ -13,6 +13,7 @@ use NewsScraper\Integration\Php\DistributionProfile;
 use NewsScraper\Integration\Php\DistributionPublication;
 use NewsScraper\Integration\Php\DistributionArticle;
 use NewsScraper\Integration\Php\DistributionSource;
+use NewsScraper\Integration\Php\DistributionCategory;
 use NewsScraper\Integration\Php\ProfileActivation;
 use NewsScraper\Integration\Php\ProfileLock;
 use NewsScraper\Integration\Php\ProfileLockLease;
@@ -39,6 +40,10 @@ use NewsScraper\Integration\Php\LocalProfileUsabilityResolver;
 use NewsScraper\Integration\Php\LocalProfileUsability;
 use NewsScraper\Integration\Php\IntegrationRuntimeConfiguration;
 use NewsScraper\Integration\Php\ProfileCadence;
+use NewsScraper\Integration\Php\LocalReadConfiguration;
+use NewsScraper\Integration\Php\LocalProfileReader;
+use NewsScraper\Integration\Php\LocalReadResult;
+use NewsScraper\Integration\Php\LocalReadArticle;
 
 $tests = [];
 
@@ -569,6 +574,19 @@ function activeState(string $profileKey = 'weekly-desk', bool $disabled = false)
     return new LocalProfileState($profileKey, new ActiveProfileSnapshot($profileKey, $page->profile, $page->publication, $page->apiVersion, $page->snapshotRevision, $page->etag, $page->generatedAt, $page->items), $disabled, new DateTimeImmutable('2026-08-20T15:00:00+00:00'));
 }
 
+/** @param array<int, DistributionArticle> $items */
+function localReadActivation(DateTimeImmutable $at, array $items): ProfileActivation
+{
+    $page = syncPage($items, null, 'local-revision', 'Weekly Desk', 'Example Publication', 'v1', 'local-etag');
+    $facts = new SynchronizationFacts('weekly-desk', SynchronizationResult::SUCCESS, $at, $at, 1.25, count($items), 1, false, null, $at, 'news-scraper-php');
+    return new ProfileActivation('weekly-desk', $page->profile, $page->publication, $page->apiVersion, $page->snapshotRevision, $page->etag, $page->generatedAt, $page->items, $facts);
+}
+
+function localReadConfiguration(string $root, ?int $maximumStaleAgeSeconds = null): LocalReadConfiguration
+{
+    return new LocalReadConfiguration('weekly-desk', $root, 900, $maximumStaleAgeSeconds);
+}
+
 function synchronizerFor(ScriptedPageClient $client, FakeSynchronizationStore $store, FakeProfileLock $lock, ?FakeSleeper &$sleeper = null, ?SynchronizerConfiguration $configuration = null): ProfileSynchronizer
 {
     $sleeper = new FakeSleeper();
@@ -874,6 +892,174 @@ testCase('cadence uses last attempt, has a 900-second default, and configuration
     $runtime->run('weekly-desk', true);
     same(1, count($lock->attempts), 'forced run still takes the same per-Profile lock');
     try { IntegrationRuntimeConfiguration::fromEnvironment(['NEWS_SCRAPER_BASE_URL'=>'https://api.example.test','NEWS_SCRAPER_PROFILE_KEY'=>'weekly-desk','NEWS_SCRAPER_STATE_ROOT'=>'relative','NEWS_SCRAPER_BEARER_TOKEN'=>'test-bearer-secret']); failTest('relative root accepted'); } catch (InvalidArgumentException $error) { trueValue(!str_contains($error->getMessage(), 'test-bearer-secret'), 'configuration error is secret-free'); }
+});
+
+testCase('local read configuration is independent from upstream credentials and bounded', static function (): void {
+    $root = filesystemRoot();
+    $configuration = LocalReadConfiguration::fromEnvironment([
+        'NEWS_SCRAPER_PROFILE_KEY' => 'weekly-desk',
+        'NEWS_SCRAPER_STATE_ROOT' => $root,
+        'NEWS_SCRAPER_SYNC_CADENCE_SECONDS' => '901',
+        'NEWS_SCRAPER_MAX_STALE_AGE_SECONDS' => '3600',
+    ]);
+    same('weekly-desk', $configuration->profileKey, 'local Profile key is accepted');
+    same($root, $configuration->stateRoot(), 'local state root is accepted');
+    same(901, $configuration->cadenceSeconds, 'local cadence is accepted');
+    same(3600, $configuration->maximumStaleAgeSeconds, 'local stale age is accepted');
+
+    try {
+        LocalReadConfiguration::fromEnvironment(['NEWS_SCRAPER_PROFILE_KEY' => 'weekly-desk']);
+        failTest('missing local state root accepted');
+    } catch (InvalidArgumentException $error) {
+        trueValue(!str_contains($error->getMessage(), 'bearer'), 'missing local setting error is bounded');
+    }
+    foreach ([
+        ['NEWS_SCRAPER_PROFILE_KEY' => 'weekly-desk', 'NEWS_SCRAPER_STATE_ROOT' => $root, 'NEWS_SCRAPER_SYNC_CADENCE_SECONDS' => '0'],
+        ['NEWS_SCRAPER_PROFILE_KEY' => 'weekly-desk', 'NEWS_SCRAPER_STATE_ROOT' => $root, 'NEWS_SCRAPER_MAX_STALE_AGE_SECONDS' => '0'],
+    ] as $environment) {
+        try {
+            LocalReadConfiguration::fromEnvironment($environment);
+            failTest('invalid local freshness setting accepted');
+        } catch (InvalidArgumentException) {
+        }
+    }
+    try {
+        new LocalReadConfiguration('weekly-desk', 'relative-state-root');
+        failTest('relative local state root accepted');
+    } catch (InvalidArgumentException $error) {
+        trueValue(!str_contains($error->getMessage(), 'runtime-secret'), 'state-root error is secret-free');
+    }
+});
+
+testCase('local reader maps the complete ordered active payload and preserves nullable fields', static function (): void {
+    $root = filesystemRoot();
+    $at = new DateTimeImmutable('2026-08-21T15:00:00+00:00');
+    $first = new DistributionArticle(
+        'article-rich',
+        'Rich headline',
+        'https://publisher.example/exact/path?edition=weekly',
+        '2026-08-21T14:00:00Z',
+        'published_at',
+        '2026-08-21T14:01:02Z',
+        'Author Name',
+        'Summary text',
+        'https://publisher.example/image.jpg',
+        new DistributionSource('source-z', 'Source Z'),
+        [new DistributionCategory('category-b', 'Category B'), new DistributionCategory('category-a', 'Category A')],
+    );
+    $second = new DistributionArticle(
+        'article-null',
+        'Null headline',
+        'https://publisher.example/null',
+        '2026-08-21T13:00:00Z',
+        'updated_at',
+        null,
+        null,
+        null,
+        null,
+        new DistributionSource('source-a', 'Source A'),
+        [],
+    );
+    $store = new FilesystemProfileStateStore($root);
+    $store->activate(localReadActivation($at, [$first, $second]));
+    $result = (new LocalProfileReader(localReadConfiguration($root), $store, new FakeClock($at->modify('+10 seconds'))))->read();
+
+    same(LocalReadResult::USABLE, $result->state, 'fresh active state is usable');
+    trueValue($result->isRenderable(), 'usable state is renderable');
+    same('weekly-desk', $result->profile?->configKey, 'Profile key maps');
+    same('Weekly Desk', $result->profile?->displayName, 'Profile name maps');
+    same('Example Publication', $result->publication?->name, 'Publication maps');
+    same(2, count($result->articles), 'all active Articles map');
+    /** @var LocalReadArticle $mappedFirst */
+    $mappedFirst = $result->articles[0];
+    same('article-rich', $mappedFirst->articleId, 'Article order is preserved');
+    same('https://publisher.example/exact/path?edition=weekly', $mappedFirst->originalUrl, 'exact original URL is preserved');
+    same('2026-08-21T14:00:00Z', $mappedFirst->effectiveFeedDate, 'effective feed date is preserved');
+    same('published_at', $mappedFirst->feedDateSource, 'feed date source is preserved');
+    same('2026-08-21T14:01:02Z', $mappedFirst->publishedAt, 'published timestamp is preserved');
+    same('Author Name', $mappedFirst->author, 'author is preserved');
+    same('Summary text', $mappedFirst->summary, 'summary is preserved');
+    same('https://publisher.example/image.jpg', $mappedFirst->imageUrl, 'image URL is preserved');
+    same('source-z', $mappedFirst->source->configKey, 'Source key is preserved');
+    same('Source Z', $mappedFirst->source->displayName, 'Source name is preserved');
+    same(['category-b', 'category-a'], array_map(static fn ($category): string => $category->configKey, $mappedFirst->categories), 'Category order is preserved');
+    $mappedSecond = $result->articles[1];
+    same(null, $mappedSecond->publishedAt, 'nullable published timestamp is preserved');
+    same(null, $mappedSecond->author, 'nullable author is preserved');
+    same(null, $mappedSecond->summary, 'nullable summary is preserved');
+    same(null, $mappedSecond->imageUrl, 'nullable image URL is preserved');
+});
+
+testCase('local reader exposes empty, stale, never-synced, cutoff, disabled, and unavailable states safely', static function (): void {
+    $at = new DateTimeImmutable('2026-08-21T15:00:00+00:00');
+
+    $emptyRoot = filesystemRoot();
+    $emptyStore = new FilesystemProfileStateStore($emptyRoot);
+    $emptyStore->activate(localReadActivation($at, []));
+    $empty = (new LocalProfileReader(localReadConfiguration($emptyRoot), $emptyStore, new FakeClock($at)))->read();
+    same(LocalReadResult::USABLE, $empty->state, 'empty active snapshot remains usable');
+    trueValue($empty->isRenderable(), 'empty active snapshot remains renderable');
+    same([], $empty->articles, 'empty active snapshot has no Articles');
+
+    $staleRoot = filesystemRoot();
+    $staleStore = new FilesystemProfileStateStore($staleRoot);
+    $staleStore->activate(localReadActivation($at, [syncArticle('stale')]));
+    $stale = (new LocalProfileReader(localReadConfiguration($staleRoot), $staleStore, new FakeClock($at->modify('+901 seconds'))))->read();
+    same(LocalReadResult::STALE_USABLE, $stale->state, 'stale active snapshot is stale usable');
+    trueValue($stale->isRenderable(), 'stale usable data remains renderable');
+    same(901, $stale->staleAgeSeconds, 'stale age is exposed');
+
+    $neverRoot = filesystemRoot();
+    $never = (new LocalProfileReader(localReadConfiguration($neverRoot), new FilesystemProfileStateStore($neverRoot), new FakeClock($at)))->read();
+    same(LocalReadResult::NEVER_SYNCED, $never->state, 'missing state is never synced');
+    trueValue(!$never->isRenderable() && $never->articles === [], 'never synced state has no renderable payload');
+
+    $cutoffRoot = filesystemRoot();
+    $cutoffStore = new FilesystemProfileStateStore($cutoffRoot);
+    $cutoffStore->activate(localReadActivation($at, [syncArticle('cutoff')]));
+    $cutoff = (new LocalProfileReader(localReadConfiguration($cutoffRoot, 1000), $cutoffStore, new FakeClock($at->modify('+1001 seconds'))))->read();
+    same(LocalReadResult::STALE_CUTOFF, $cutoff->state, 'stale cutoff is authoritative');
+    trueValue(!$cutoff->isRenderable() && $cutoff->articles === [], 'stale cutoff suppresses retained active data');
+
+    $disabledRoot = filesystemRoot();
+    $disabledStore = new FilesystemProfileStateStore($disabledRoot);
+    $disabledStore->activate(localReadActivation($at, [syncArticle('disabled')]));
+    $disabledStore->markDisabled('weekly-desk', new SynchronizationFacts('weekly-desk', SynchronizationResult::DISABLED, $at, $at, 0.1, 1, 1, false, null, $at, 'news-scraper-php'));
+    $disabled = (new LocalProfileReader(localReadConfiguration($disabledRoot), $disabledStore, new FakeClock($at)))->read();
+    same(LocalReadResult::DISABLED, $disabled->state, 'authoritative disabled state wins');
+    trueValue(!$disabled->isRenderable() && $disabled->articles === [], 'disabled state suppresses retained active data');
+
+    $unavailableRoot = filesystemRoot();
+    $unavailableStore = new FilesystemProfileStateStore($unavailableRoot);
+    $unavailableStore->activate(localReadActivation($at, [syncArticle('corrupt')]));
+    $manifest = $unavailableRoot . DIRECTORY_SEPARATOR . 'profiles' . DIRECTORY_SEPARATOR . hash('sha256', 'weekly-desk') . DIRECTORY_SEPARATOR . 'manifest.json';
+    file_put_contents($manifest, '{');
+    $unavailable = (new LocalProfileReader(localReadConfiguration($unavailableRoot), $unavailableStore, new FakeClock($at)))->read();
+    same(LocalReadResult::UNAVAILABLE, $unavailable->state, 'corrupt committed state is unavailable');
+    trueValue(!$unavailable->isRenderable() && $unavailable->articles === [], 'unavailable state has no partial payload');
+});
+
+testCase('local reader exposes bounded redacted health and only the Phase 6 producer boundary', static function (): void {
+    $root = filesystemRoot();
+    $at = new DateTimeImmutable('2026-08-21T15:00:00+00:00');
+    $store = new FilesystemProfileStateStore($root);
+    $store->activate(localReadActivation($at, [syncArticle('health')]));
+    $result = (new LocalProfileReader(localReadConfiguration($root), $store, new FakeClock($at)))->read();
+    same('weekly-desk', $result->health->profileKey, 'health identifies the Profile');
+    same('success', $result->health->syncResult, 'health exposes sync result');
+    same(1, $result->health->itemCount, 'health exposes item count');
+    same(1, $result->health->pageCount, 'health exposes page count');
+    same('local-revision', $result->health->activeRevision, 'health exposes active revision');
+    same('local-etag', $result->health->activeEtag, 'health exposes active ETag');
+    $serialized = serialize($result);
+    foreach (['runtime-secret', 'Authorization', 'cursor', $root . DIRECTORY_SEPARATOR . 'profiles', 'manifest.json', 'generation'] as $forbidden) {
+        trueValue(!str_contains($serialized, $forbidden), 'local result omits ' . $forbidden);
+    }
+
+    $source = (string) file_get_contents(__DIR__ . '/../src/LocalRead.php');
+    foreach (['DistributionPageClient', 'ClientConfiguration', 'manifest.json', 'generation', 'NEWS_SCRAPER_BASE_URL', 'NEWS_SCRAPER_BEARER_TOKEN'] as $forbidden) {
+        trueValue(!str_contains($source, $forbidden), 'local reader source omits ' . $forbidden);
+    }
 });
 
 testCase('native file lock coordinates real PHP processes and leaves stale files harmless', static function (): void {
