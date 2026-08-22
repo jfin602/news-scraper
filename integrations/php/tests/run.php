@@ -1244,6 +1244,16 @@ testCase('customer presentation can replace or bypass the fallback using only Lo
     }
 });
 
+testCase('customer example composes only local read and presentation boundaries', static function (): void {
+    $example = (string) file_get_contents(__DIR__ . '/../example/index.php');
+    foreach (['LocalReadConfiguration', 'LocalProfileReader', 'FallbackHtmlRenderer'] as $required) {
+        trueValue(str_contains($example, $required), 'example composes ' . $required);
+    }
+    foreach (['DistributionClient', 'ProfileSynchronizer', 'NEWS_SCRAPER_BASE_URL', 'NEWS_SCRAPER_BEARER_TOKEN', 'manifest.json', 'generations'] as $forbidden) {
+        trueValue(!str_contains($example, $forbidden), 'example omits visitor upstream/internal boundary ' . $forbidden);
+    }
+});
+
 testCase('native file lock coordinates real PHP processes and leaves stale files harmless', static function (): void {
     $root = filesystemRoot();
     $bootstrap = var_export(realpath(__DIR__ . '/../src/bootstrap.php'), true);

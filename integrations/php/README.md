@@ -31,4 +31,11 @@ $result = $reader->read();
 $html = (new FallbackHtmlRenderer())->render($result);
 ```
 
+`example/index.php` is a deliberately small, framework-free customer-style
+server-rendered composition. Serve that directory with the local-read values
+(`NEWS_SCRAPER_PROFILE_KEY`, `NEWS_SCRAPER_STATE_ROOT`, cadence, and optional
+stale-age) only. It never needs `NEWS_SCRAPER_BASE_URL` or
+`NEWS_SCRAPER_BEARER_TOKEN` on the visitor process; those belong solely to the
+separate scheduled synchronization process.
+
 `FallbackHtmlRenderer` is optional presentation. A customer renderer can implement `LocalProfileRenderer` and receive only `$result`, or bypass the fallback and build its own HTML from the normalized local model.
