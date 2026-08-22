@@ -29,6 +29,14 @@ use NewsScraper\Integration\Php\UnchangedSynchronization;
 use NewsScraper\Integration\Php\HttpRequest;
 use NewsScraper\Integration\Php\HttpResponse;
 use NewsScraper\Integration\Php\HttpTransport;
+use NewsScraper\Integration\Php\FilesystemProfileStateStore;
+use NewsScraper\Integration\Php\FilesystemProfileLock;
+use NewsScraper\Integration\Php\LocalFilesystem;
+use NewsScraper\Integration\Php\NativeLocalFilesystem;
+use NewsScraper\Integration\Php\LocalProfileUsabilityResolver;
+use NewsScraper\Integration\Php\LocalProfileUsability;
+use NewsScraper\Integration\Php\IntegrationRuntimeConfiguration;
+use NewsScraper\Integration\Php\ProfileCadence;
 
 $tests = [];
 
@@ -690,6 +698,127 @@ testCase('activation, locking, result facts, and Profile state are independently
     same(1, $lock->leases['other-profile']->releases, 'successful lock releases');
     trueValue(!str_contains(serialize($store->activations[0]), 'runtime-secret'), 'activation excludes credentials');
     trueValue(!str_contains(serialize($other->facts), 'cursor'), 'health facts exclude cursor values');
+});
+
+final class FaultInjectingFilesystem implements LocalFilesystem
+{
+    public ?string $failWriteContaining = null;
+    public ?string $failRenameContaining = null;
+    private NativeLocalFilesystem $native;
+    public function __construct() { $this->native = new NativeLocalFilesystem(); }
+    public function writeExclusive(string $path, string $contents): void { if ($this->failWriteContaining !== null && str_contains($path, $this->failWriteContaining)) throw new RuntimeException('injected write failure'); $this->native->writeExclusive($path, $contents); }
+    public function rename(string $from, string $to): void { if ($this->failRenameContaining !== null && str_contains($to, $this->failRenameContaining)) throw new RuntimeException('injected rename failure'); $this->native->rename($from, $to); }
+    public function read(string $path): string { return $this->native->read($path); }
+    public function exists(string $path): bool { return $this->native->exists($path); }
+    public function isFile(string $path): bool { return $this->native->isFile($path); }
+    public function isLink(string $path): bool { return $this->native->isLink($path); }
+    public function entries(string $path): array { return $this->native->entries($path); }
+    public function delete(string $path): void { $this->native->delete($path); }
+}
+
+function filesystemRoot(): string { return sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'news-scraper-php-test-' . bin2hex(random_bytes(8)); }
+function filesystemActivation(string $id, string $profileKey = 'weekly-desk', ?DateTimeImmutable $at = null): ProfileActivation
+{
+    $at ??= new DateTimeImmutable('2026-08-21T15:00:00+00:00');
+    $page = syncPageFor($profileKey, [syncArticle($id)], null, 'revision-' . $id);
+    $facts = new SynchronizationFacts($profileKey, SynchronizationResult::SUCCESS, $at, $at, 0.0, 1, 1, false, null, $at, 'news-scraper-php');
+    return new ProfileActivation($profileKey, $page->profile, $page->publication, $page->apiVersion, $page->snapshotRevision, $page->etag, $page->generatedAt, $page->items, $facts);
+}
+
+testCase('filesystem store commits immutable generations through one manifest and ignores orphans', static function (): void {
+    $root = filesystemRoot();
+    $store = new FilesystemProfileStateStore($root);
+    $store->activate(filesystemActivation('one'));
+    $first = $store->load('weekly-desk');
+    same('one', $first->active->items[0]->articleId, 'first committed generation loads');
+    $store->activate(filesystemActivation('two'));
+    $second = $store->load('weekly-desk');
+    same('two', $second->active->items[0]->articleId, 'manifest switches active generation');
+    same('https://publisher.example/two', $second->active->items[0]->originalUrl, 'exact publisher destination round trips');
+    $profileDirectory = $root . DIRECTORY_SEPARATOR . 'profiles' . DIRECTORY_SEPARATOR . hash('sha256', 'weekly-desk');
+    $manifest = json_decode((string) file_get_contents($profileDirectory . DIRECTORY_SEPARATOR . 'manifest.json'), true, 32, JSON_THROW_ON_ERROR);
+    trueValue(is_file($profileDirectory . DIRECTORY_SEPARATOR . 'generations' . DIRECTORY_SEPARATOR . $manifest['previousGeneration']), 'previous generation is retained');
+    file_put_contents($profileDirectory . DIRECTORY_SEPARATOR . 'generations' . DIRECTORY_SEPARATOR . 'g-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.json', '{}');
+    same('two', $store->load('weekly-desk')->active->items[0]->articleId, 'orphan generation is never promoted');
+    trueValue(!str_contains((string) file_get_contents($profileDirectory . DIRECTORY_SEPARATOR . 'manifest.json'), 'runtime-secret'), 'manifest never contains secret');
+    file_put_contents($profileDirectory . DIRECTORY_SEPARATOR . 'manifest.json', '{');
+    same(LocalProfileUsability::UNAVAILABLE, $store->readForPhase6('weekly-desk', new LocalProfileUsabilityResolver(), new FakeClock())->usability->classification, 'corrupt manifest is bounded unavailable rather than auto-promoted');
+});
+
+testCase('filesystem activation failures preserve committed manifest and active LKG', static function (): void {
+    $root = filesystemRoot();
+    $filesystem = new FaultInjectingFilesystem();
+    $store = new FilesystemProfileStateStore($root, $filesystem);
+    $store->activate(filesystemActivation('old'));
+    $filesystem->failWriteContaining = '.g-';
+    try { $store->activate(filesystemActivation('never')); } catch (Throwable) {}
+    same('old', $store->load('weekly-desk')->active->items[0]->articleId, 'pre-generation failure preserves old active');
+    $filesystem->failWriteContaining = null;
+    $filesystem->failRenameContaining = 'manifest.json';
+    try { $store->activate(filesystemActivation('orphan')); } catch (Throwable) {}
+    same('old', $store->load('weekly-desk')->active->items[0]->articleId, 'pre-manifest failure preserves old active');
+    $filesystem->failRenameContaining = null;
+    $store->activate(filesystemActivation('new'));
+    same('new', $store->load('weekly-desk')->active->items[0]->articleId, 'later commit can recover safely');
+});
+
+testCase('filesystem disabled transitions, health, and freshness remain atomic and bounded', static function (): void {
+    $root = filesystemRoot();
+    $store = new FilesystemProfileStateStore($root);
+    $at = new DateTimeImmutable('2026-08-21T15:00:00+00:00');
+    $activation = filesystemActivation('active', 'weekly-desk', $at);
+    $store->activate($activation);
+    $disabledFacts = new SynchronizationFacts('weekly-desk', SynchronizationResult::DISABLED, $at, $at, 0.0, 1, 0, false, null, $at, 'news-scraper-php');
+    $store->markDisabled('weekly-desk', $disabledFacts);
+    $state = $store->load('weekly-desk');
+    same('active', $state->active->items[0]->articleId, 'disable retains active payload');
+    same(LocalProfileUsability::DISABLED, (new LocalProfileUsabilityResolver())->resolve($state, $at)->classification, 'disabled overrides freshness');
+    $store->recordUnchanged(new UnchangedSynchronization('weekly-desk', 'etag-new', new SynchronizationFacts('weekly-desk', SynchronizationResult::UNCHANGED, $at, $at, 0.0, 1, null, true, null, $at, 'news-scraper-php')));
+    $state = $store->load('weekly-desk');
+    same(false, $state->disabled, 'unchanged authenticated read re-enables');
+    same(LocalProfileUsability::STALE_USABLE, (new LocalProfileUsabilityResolver())->resolve($state, $at->modify('+901 seconds'))->classification, 'default stale data remains usable');
+    same(LocalProfileUsability::STALE_CUTOFF, (new LocalProfileUsabilityResolver(900, 1_000))->resolve($state, $at->modify('+1001 seconds'))->classification, 'configured stale cutoff is enforced');
+    same('success', $store->health('weekly-desk')->syncResult, 'health contains bounded result facts');
+});
+
+testCase('cadence uses last attempt, has a 900-second default, and configuration never echoes secrets', static function (): void {
+    $at = new DateTimeImmutable('2026-08-21T15:00:00+00:00');
+    $health = new \NewsScraper\Integration\Php\LocalProfileHealth('weekly-desk', $at, null, 'failed', null, null, null, false, null, null, 'transport_failure', false, 'news-scraper-php');
+    $cadence = new ProfileCadence();
+    same(false, $cadence->decide($health, $at->modify('+899 seconds'))->due, 'failed attempt prevents cron-frequency hammering');
+    same(true, $cadence->decide($health, $at->modify('+900 seconds'))->due, 'default cadence is 900 seconds');
+    same(true, $cadence->decide($health, $at, true)->due, 'force bypasses due check only');
+    $store = new FilesystemProfileStateStore(filesystemRoot());
+    $store->recordFailure('weekly-desk', new SynchronizationFacts('weekly-desk', SynchronizationResult::FAILED, $at, $at, 0.0, null, null, false, 'transport_failure', null, 'news-scraper-php'));
+    $client = new ScriptedPageClient([new DistributionOutcome(DistributionOutcome::INVALID_RESPONSE)]);
+    $lock = new FakeProfileLock();
+    $runtime = new \NewsScraper\Integration\Php\ProfileSyncRuntime($store, new ProfileSynchronizer($client, $store, $lock, new FakeClock($at->modify('+899 seconds')), new FakeSleeper()), new ProfileCadence(), new FakeClock($at->modify('+899 seconds')));
+    $notDue = $runtime->run('weekly-desk');
+    trueValue($notDue instanceof \NewsScraper\Integration\Php\CadenceDecision && !$notDue->due, 'not-due run is a successful no-op');
+    same([], $client->requests, 'not-due run performs no upstream request');
+    $runtime->run('weekly-desk', true);
+    same(1, count($lock->attempts), 'forced run still takes the same per-Profile lock');
+    try { IntegrationRuntimeConfiguration::fromEnvironment(['NEWS_SCRAPER_BASE_URL'=>'https://api.example.test','NEWS_SCRAPER_PROFILE_KEY'=>'weekly-desk','NEWS_SCRAPER_STATE_ROOT'=>'relative','NEWS_SCRAPER_BEARER_TOKEN'=>'test-bearer-secret']); failTest('relative root accepted'); } catch (InvalidArgumentException $error) { trueValue(!str_contains($error->getMessage(), 'test-bearer-secret'), 'configuration error is secret-free'); }
+});
+
+testCase('native file lock coordinates real PHP processes and leaves stale files harmless', static function (): void {
+    $root = filesystemRoot();
+    $bootstrap = var_export(realpath(__DIR__ . '/../src/bootstrap.php'), true);
+    $script = 'require ' . $bootstrap . '; $lock = new \\NewsScraper\\Integration\\Php\\FilesystemProfileLock(' . var_export($root, true) . '); $lease = $lock->tryAcquire("weekly-desk"); echo $lease === null ? "none" : "owner"; flush(); sleep(2);';
+    $process = proc_open([PHP_BINARY, '-r', $script], [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
+    if (!is_resource($process)) failTest('child PHP process did not start');
+    $owner = stream_get_contents($pipes[1], 5);
+    same('owner', $owner, 'child owns same-Profile lock');
+    $lock = new FilesystemProfileLock($root);
+    same(null, $lock->tryAcquire('weekly-desk'), 'same Profile cannot overlap across processes');
+    $other = $lock->tryAcquire('other-profile');
+    trueValue($other !== null, 'different Profile lock is independent');
+    $other->release();
+    proc_close($process);
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'profiles' . DIRECTORY_SEPARATOR . hash('sha256', 'weekly-desk') . DIRECTORY_SEPARATOR . 'lock', 'stale');
+    $after = $lock->tryAcquire('weekly-desk');
+    trueValue($after !== null, 'stale lock file does not imply ownership');
+    $after->release();
 });
 
 if (count($tests) === 0) {
