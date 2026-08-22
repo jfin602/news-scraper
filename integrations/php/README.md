@@ -1,6 +1,6 @@
 # News Scraper PHP synchronization core
 
-This package is a library-first, host-local cache adapter for the authenticated News Scraper v1 distribution API. It is not a visitor-path endpoint and does not render customer HTML.
+This package is a library-first, host-local cache adapter for the authenticated News Scraper v1 distribution API. It is not a visitor-path endpoint. Customer code may read the normalized `LocalReadResult` directly, implement `LocalProfileRenderer`, or use the optional `FallbackHtmlRenderer` for safe server-rendered reference HTML.
 
 Set these runtime secrets/configuration values outside the public document root:
 
@@ -22,3 +22,13 @@ Run it from cron more frequently than the desired cadence; the local manifest's 
 State uses a SHA-256 Profile identity, an immutable `generations/g-*.json` payload, and `manifest.json` as the sole activation point. Generation and manifest temporary files are written and flushed in their destination directories before atomic rename. Atomic visibility is host-local/same-filesystem only; the package does not claim distributed locking, cross-host coordination, or power-loss durability. Permissions are requested as `0700` directories and `0600` files where POSIX hosts support them; customers must ensure the configured root is non-public and owned appropriately.
 
 Phase 6 consumers must use `FilesystemProfileStateStore::readForPhase6()` and its `LocalProfileRead` result, not cache paths or JSON. It exposes only a validated committed active snapshot, usability classification, and bounded local health.
+
+The customer-facing read path is local-only and does not require the upstream URL or bearer token:
+
+```php
+$reader = new LocalProfileReader($localConfiguration);
+$result = $reader->read();
+$html = (new FallbackHtmlRenderer())->render($result);
+```
+
+`FallbackHtmlRenderer` is optional presentation. A customer renderer can implement `LocalProfileRenderer` and receive only `$result`, or bypass the fallback and build its own HTML from the normalized local model.

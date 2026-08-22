@@ -44,6 +44,12 @@ use NewsScraper\Integration\Php\LocalReadConfiguration;
 use NewsScraper\Integration\Php\LocalProfileReader;
 use NewsScraper\Integration\Php\LocalReadResult;
 use NewsScraper\Integration\Php\LocalReadArticle;
+use NewsScraper\Integration\Php\LocalReadProfile;
+use NewsScraper\Integration\Php\LocalReadPublication;
+use NewsScraper\Integration\Php\LocalReadSource;
+use NewsScraper\Integration\Php\LocalReadHealth;
+use NewsScraper\Integration\Php\LocalProfileRenderer;
+use NewsScraper\Integration\Php\FallbackHtmlRenderer;
 
 $tests = [];
 
@@ -1059,6 +1065,182 @@ testCase('local reader exposes bounded redacted health and only the Phase 6 prod
     $source = (string) file_get_contents(__DIR__ . '/../src/LocalRead.php');
     foreach (['DistributionPageClient', 'ClientConfiguration', 'manifest.json', 'generation', 'NEWS_SCRAPER_BASE_URL', 'NEWS_SCRAPER_BEARER_TOKEN'] as $forbidden) {
         trueValue(!str_contains($source, $forbidden), 'local reader source omits ' . $forbidden);
+    }
+});
+
+testCase('fallback renderer safely escapes untrusted values and preserves direct article links and order', static function (): void {
+    $root = filesystemRoot();
+    $at = new DateTimeImmutable('2026-08-21T15:00:00+00:00');
+    $first = new DistributionArticle(
+        'article-two',
+        '<script>alert("headline")</script>',
+        'https://publisher.example/story?edition="weekly"&amp=1',
+        '2026-08-21T14:00:00Z',
+        'published_at',
+        '2026-08-21T14:01:02Z',
+        'Author <img src=x onerror=alert(1)>',
+        'Summary </p><script>alert(2)</script>',
+        null,
+        new DistributionSource('source-one', 'Source <b>One</b>'),
+        [new DistributionCategory('category-one', 'Category <i>One</i>')],
+    );
+    $second = syncArticle('article-one');
+    $store = new FilesystemProfileStateStore($root);
+    $store->activate(new ProfileActivation(
+        'weekly-desk',
+        new DistributionProfile('weekly-desk', 'Profile <em>Name</em>'),
+        new DistributionPublication('Publication & "Name"'),
+        'v1',
+        'renderer-revision',
+        'renderer-etag',
+        $at,
+        [$first, $second],
+        new SynchronizationFacts('weekly-desk', SynchronizationResult::SUCCESS, $at, $at, 0.1, 2, 1, false, null, $at, 'news-scraper-php'),
+    ));
+    $result = (new LocalProfileReader(localReadConfiguration($root), $store, new FakeClock($at)))->read();
+    $html = (new FallbackHtmlRenderer())->render($result);
+
+    trueValue(str_contains($html, 'Profile &lt;em&gt;Name&lt;/em&gt;'), 'Profile markup is escaped');
+    trueValue(str_contains($html, 'Publication &amp; &quot;Name&quot;'), 'Publication markup and quotes are escaped');
+    trueValue(str_contains($html, '&lt;script&gt;alert(&quot;headline&quot;)&lt;/script&gt;'), 'headline markup is escaped');
+    trueValue(str_contains($html, 'Author &lt;img src=x onerror=alert(1)&gt;'), 'author markup is escaped');
+    trueValue(str_contains($html, 'Summary &lt;/p&gt;&lt;script&gt;alert(2)&lt;/script&gt;'), 'summary markup is escaped');
+    trueValue(str_contains($html, 'Source &lt;b&gt;One&lt;/b&gt;'), 'Source markup is escaped');
+    trueValue(str_contains($html, 'Category &lt;i&gt;One&lt;/i&gt;'), 'Category markup is escaped');
+    trueValue(str_contains($html, 'href="https://publisher.example/story?edition=&quot;weekly&quot;&amp;amp=1"'), 'URL is escaped for an HTML attribute');
+    trueValue(str_contains($html, 'https://publisher.example/story?edition=&quot;weekly&quot;&amp;amp=1'), 'exact URL value remains the direct logical destination');
+    preg_match('/href="([^"]+)"/', $html, $hrefMatch);
+    same($first->originalUrl, html_entity_decode($hrefMatch[1] ?? '', ENT_QUOTES | ENT_HTML5, 'UTF-8'), 'escaped href decodes to the exact original URL');
+    trueValue(str_contains($html, 'href="https://publisher.example/story?edition=&quot;weekly&quot;&amp;amp=1"') && str_contains($html, 'href="https://publisher.example/article-one"'), 'all ordered Article anchors render');
+    trueValue(strpos($html, 'article-two') === false, 'Article IDs are not leaked as presentation content');
+    trueValue(strpos($html, 'href="https://publisher.example/story') < strpos($html, 'href="https://publisher.example/article-one"'), 'Article order is preserved');
+    trueValue(!str_contains($html, '<script') && !str_contains($html, 'onclick=') && !str_contains($html, 'target=') && !str_contains($html, ' rel='), 'core output has no executable or automatic link policy');
+    trueValue(!str_contains($html, 'href="https://news-scraper') && !str_contains($html, '/redirect'), 'renderer adds no News Scraper redirect');
+
+    $invalidUtf8 = new LocalReadResult(
+        LocalReadResult::USABLE,
+        new LocalReadProfile('weekly-desk', "Profile \xC3\x28"),
+        new LocalReadPublication('Publication'),
+        [new LocalReadArticle(
+            'invalid-utf8',
+            "Headline \xC3\x28",
+            'https://publisher.example/invalid',
+            '2026-08-21T14:00:00Z',
+            'published_at',
+            null,
+            null,
+            null,
+            null,
+            new LocalReadSource('source', 'Source'),
+            [],
+        )],
+        0,
+        new LocalReadHealth('weekly-desk', null, null, null, null, null, null, false, null, null, null, false, 'news-scraper-php'),
+    );
+    $invalidHtml = (new FallbackHtmlRenderer())->render($invalidUtf8);
+    trueValue(str_contains($invalidHtml, 'Headline �(') && !str_contains($invalidHtml, "Headline \xC3\x28"), 'invalid UTF-8 is bounded with substitution');
+});
+
+testCase('fallback renderer handles nullable metadata and all local states without retained Article leakage', static function (): void {
+    $renderer = new FallbackHtmlRenderer();
+    $at = new DateTimeImmutable('2026-08-21T15:00:00+00:00');
+
+    $emptyRoot = filesystemRoot();
+    $emptyStore = new FilesystemProfileStateStore($emptyRoot);
+    $emptyStore->activate(localReadActivation($at, []));
+    $empty = (new LocalProfileReader(localReadConfiguration($emptyRoot), $emptyStore, new FakeClock($at)))->read();
+    $emptyHtml = $renderer->render($empty);
+    trueValue(str_contains($emptyHtml, 'No articles are currently available.'), 'empty usable state has an explicit empty message');
+    trueValue(!str_contains($emptyHtml, '<a '), 'empty usable state has no Article anchors');
+
+    $nullableRoot = filesystemRoot();
+    $nullableStore = new FilesystemProfileStateStore($nullableRoot);
+    $nullableStore->activate(localReadActivation($at, [syncArticle('nullable')]));
+    $nullable = (new LocalProfileReader(localReadConfiguration($nullableRoot), $nullableStore, new FakeClock($at)))->read();
+    $nullableHtml = $renderer->render($nullable);
+    trueValue(str_contains($nullableHtml, 'Headline nullable'), 'nullable Article still renders its headline and link');
+    trueValue(!str_contains($nullableHtml, 'Published:') && !str_contains($nullableHtml, 'By '), 'nullable publishedAt and author are omitted');
+    trueValue(!str_contains($nullableHtml, 'news-scraper-summary') && !str_contains($nullableHtml, 'news-scraper-categories'), 'nullable summary and empty categories are omitted');
+    trueValue(!str_contains($nullableHtml, 'null') && !str_contains($nullableHtml, 'undefined'), 'nullable fields do not become placeholder text');
+
+    $staleRoot = filesystemRoot();
+    $staleStore = new FilesystemProfileStateStore($staleRoot);
+    $staleStore->activate(localReadActivation($at, [syncArticle('stale')]));
+    $stale = (new LocalProfileReader(localReadConfiguration($staleRoot), $staleStore, new FakeClock($at->modify('+901 seconds'))))->read();
+    $staleHtml = $renderer->render($stale);
+    trueValue(str_contains($staleHtml, 'Headline stale') && str_contains($staleHtml, '901 seconds'), 'stale usable retains Articles and exposes bounded freshness');
+
+    $states = [
+        LocalReadResult::NEVER_SYNCED => static function () use ($at): LocalReadResult {
+            $root = filesystemRoot();
+            return (new LocalProfileReader(localReadConfiguration($root), new FilesystemProfileStateStore($root), new FakeClock($at)))->read();
+        },
+        LocalReadResult::STALE_CUTOFF => static function () use ($at): LocalReadResult {
+            $root = filesystemRoot();
+            $store = new FilesystemProfileStateStore($root);
+            $store->activate(localReadActivation($at, [syncArticle('cutoff')]));
+            return (new LocalProfileReader(localReadConfiguration($root, 1000), $store, new FakeClock($at->modify('+1001 seconds'))))->read();
+        },
+        LocalReadResult::DISABLED => static function () use ($at): LocalReadResult {
+            $root = filesystemRoot();
+            $store = new FilesystemProfileStateStore($root);
+            $store->activate(localReadActivation($at, [syncArticle('disabled')]));
+            $store->markDisabled('weekly-desk', new SynchronizationFacts('weekly-desk', SynchronizationResult::DISABLED, $at, $at, 0.1, 1, 1, false, null, $at, 'news-scraper-php'));
+            return (new LocalProfileReader(localReadConfiguration($root), $store, new FakeClock($at)))->read();
+        },
+        LocalReadResult::UNAVAILABLE => static function () use ($at): LocalReadResult {
+            $root = filesystemRoot();
+            $store = new FilesystemProfileStateStore($root);
+            $store->activate(localReadActivation($at, [syncArticle('unavailable')]));
+            $manifest = $root . DIRECTORY_SEPARATOR . 'profiles' . DIRECTORY_SEPARATOR . hash('sha256', 'weekly-desk') . DIRECTORY_SEPARATOR . 'manifest.json';
+            file_put_contents($manifest, '{');
+            return (new LocalProfileReader(localReadConfiguration($root), $store, new FakeClock($at)))->read();
+        },
+    ];
+    $messages = [
+        LocalReadResult::NEVER_SYNCED => 'Local content is initializing.',
+        LocalReadResult::STALE_CUTOFF => 'Local content is unavailable because it is too old.',
+        LocalReadResult::DISABLED => 'This Profile is currently disabled.',
+        LocalReadResult::UNAVAILABLE => 'Local content is temporarily unavailable.',
+    ];
+    $retainedHeadlines = [
+        LocalReadResult::NEVER_SYNCED => null,
+        LocalReadResult::STALE_CUTOFF => 'Headline cutoff',
+        LocalReadResult::DISABLED => 'Headline disabled',
+        LocalReadResult::UNAVAILABLE => 'Headline unavailable',
+    ];
+    foreach ($states as $state => $read) {
+        $result = $read();
+        same($state, $result->state, $state . ' is mapped by P1');
+        $html = $renderer->render($result);
+        trueValue(!str_contains($html, '<a '), $state . ' has no Article anchors');
+        trueValue(str_contains($html, $messages[$state]), $state . ' has its distinct bounded message');
+        if ($retainedHeadlines[$state] !== null) {
+            trueValue(!str_contains($html, $retainedHeadlines[$state]), $state . ' does not leak retained Article content');
+        }
+        trueValue(str_contains($html, 'news-scraper-unavailable'), $state . ' has a bounded unavailable fallback');
+        trueValue(!str_contains($html, 'runtime-secret') && !str_contains($html, 'manifest.json') && !str_contains($html, 'Authorization'), $state . ' has no internal health or secret data');
+    }
+});
+
+testCase('customer presentation can replace or bypass the fallback using only LocalReadResult', static function (): void {
+    $root = filesystemRoot();
+    $at = new DateTimeImmutable('2026-08-21T15:00:00+00:00');
+    $store = new FilesystemProfileStateStore($root);
+    $store->activate(localReadActivation($at, [syncArticle('custom')]));
+    $result = (new LocalProfileReader(localReadConfiguration($root), $store, new FakeClock($at)))->read();
+    $custom = new class implements LocalProfileRenderer {
+        public function render(LocalReadResult $result): string
+        {
+            return 'customer:' . ($result->articles[0]->articleId ?? 'empty');
+        }
+    };
+
+    same('customer:custom', $custom->render($result), 'custom renderer receives normalized local data only');
+    same('custom', $result->articles[0]->articleId, 'custom renderer does not need cache or synchronization knowledge');
+    $source = (string) file_get_contents(__DIR__ . '/../src/Renderer.php');
+    foreach (['FilesystemProfileStateStore', 'DistributionPageClient', 'Authorization', 'manifest.json', 'generation', 'NEWS_SCRAPER_BASE_URL', 'NEWS_SCRAPER_BEARER_TOKEN'] as $forbidden) {
+        trueValue(!str_contains($source, $forbidden), 'renderer boundary omits ' . $forbidden);
     }
 });
 
