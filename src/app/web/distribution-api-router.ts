@@ -70,7 +70,7 @@ export function createDistributionApiRouter(
   const now = dependencies.now ?? (() => new Date());
 
   router.get('/:profileKey', async (request, response) => {
-    const startedAt = now();
+    const startedAt = safeClockDate(now);
     let parsed: ParsedRequest | undefined;
     let principal: MachineAuthenticationPrincipal | undefined;
     let event:
@@ -139,7 +139,10 @@ export function createDistributionApiRouter(
       if (event !== undefined) {
         emitTelemetry(dependencies.telemetry, {
           ...event,
-          durationMilliseconds: durationMilliseconds(startedAt, now()),
+          durationMilliseconds: durationMilliseconds(
+            startedAt,
+            safeClockDate(now),
+          ),
         });
       }
     }
@@ -211,7 +214,7 @@ function respondPage(
   });
   return event(200, 'success', request.profileKey, principal, {
     itemCount: page.items.length,
-    continuation: request.cursor !== undefined,
+    continuation: page.nextCursor !== null,
   });
 }
 
@@ -367,8 +370,22 @@ function isoDate(value: Date): string {
   return value.toISOString();
 }
 
-function durationMilliseconds(start: Date, end: Date): number {
-  if (!(start instanceof Date) || !(end instanceof Date)) return 0;
+function safeClockDate(now: () => Date): Date | undefined {
+  try {
+    const value = now();
+    return value instanceof Date && !Number.isNaN(value.getTime())
+      ? value
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function durationMilliseconds(
+  start: Date | undefined,
+  end: Date | undefined,
+): number {
+  if (start === undefined || end === undefined) return 0;
   return Math.max(0, end.getTime() - start.getTime());
 }
 

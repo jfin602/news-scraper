@@ -109,7 +109,7 @@ describe('Versioned distribution API router', () => {
         status: 200,
         outcome: 'success',
         itemCount: 1,
-        continuation: false,
+        continuation: true,
         credential: { credentialId: 'credential-id', lookupId: 'lookup-id' },
         durationMilliseconds: 12,
       },
@@ -217,6 +217,54 @@ describe('Versioned distribution API router', () => {
     server = await startWebServer(app, { host: '127.0.0.1', port: 0 });
     response = await request('authors');
     assert.equal(response.status, 200);
+  });
+
+  it('bounds invalid response clocks and isolates duration-clock failure', async () => {
+    await server.close();
+    let calls = 0;
+    const events: DistributionApiTelemetryEvent[] = [];
+    let app = express();
+    app.use(
+      '/api/v1/distribution',
+      createDistributionApiRouter({
+        pageService: { read: async () => activePage() },
+        requestGuard: { guard: async () => authenticated() },
+        invalidAuthNetworkKey: () => 'network',
+        now: () => {
+          calls += 1;
+          if (calls === 3) throw new Error('duration clock unavailable');
+          return new Date('2026-08-21T10:00:00.000Z');
+        },
+        telemetry: (entry) => events.push(entry),
+      }),
+    );
+    server = await startWebServer(app, { host: '127.0.0.1', port: 0 });
+    let response = await request('authors');
+    assert.equal(response.status, 200);
+    assert.equal(events.length, 1);
+    assert.equal(events[0]!.durationMilliseconds, 0);
+
+    await server.close();
+    calls = 0;
+    app = express();
+    app.use(
+      '/api/v1/distribution',
+      createDistributionApiRouter({
+        pageService: { read: async () => activePage() },
+        requestGuard: { guard: async () => authenticated() },
+        invalidAuthNetworkKey: () => 'network',
+        now: () => {
+          calls += 1;
+          return calls === 2
+            ? new Date(Number.NaN)
+            : new Date('2026-08-21T10:00:00.000Z');
+        },
+      }),
+    );
+    server = await startWebServer(app, { host: '127.0.0.1', port: 0 });
+    response = await request('authors');
+    assert.equal(response.status, 503);
+    assert.deepEqual(await response.json(), { error: 'service_unavailable' });
   });
 
   async function request(
