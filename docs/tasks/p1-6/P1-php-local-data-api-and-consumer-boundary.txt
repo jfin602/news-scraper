@@ -1,0 +1,267 @@
+TASK: Phase 6 / P1 — PHP local data API and consumer boundary
+
+- Recommended configuration: `Luna High`.
+- Task-shape classification: `Bounded`.
+- Specification clarity: `Explicit`.
+- State coupling: `Moderate`.
+- Integrity risk: `Moderate`.
+- Concurrency: `None`.
+- Security: `Sensitive`.
+- Novel inference: `Moderate`.
+- Model-family basis: Phase 5 already exposes the validated `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead` producer and the Phase 6 contract is explicit. P1 is one downstream PHP read/DTO boundary with no database, HTTP, synchronization, locking, or presentation redesign.
+- Reasoning basis: high reasoning within Luna is warranted because the customer-facing read surface must preserve exact upstream Article semantics while correctly suppressing retained active data for disabled/cutoff/unavailable states, expose bounded health without secrets, and separate visitor configuration from synchronization credentials.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna Medium`; rejected because a subtle state-mapping or producer-leakage mistake would force the renderer/customer integration to depend on Phase 5 cache internals or expose data that the local usability contract says is non-renderable.
+- Escalation trigger: `readForPhase6()` does not actually expose a required governed capability, normalized local access would require parsing manifest/generation files or changing Phase 5 LKG semantics, or a contract conflict requires redefining Article/Profile eligibility or synchronization behavior.
+- Escalation target: `Terra Medium` for explicit deeper producer/consumer reconciliation; return `Planning needed` if a contract/ADR/roadmap change is required.
+- Estimate confidence: `High`.
+- Efficiency rationale: establish the smallest stable customer-readable PHP model first, prove its complete renderer handoff, and leave HTML plus browser/process integration to later prompts.
+
+The assigned project version is `1.6.1`.
+
+## Goal
+
+Create the stable normalized local PHP consumption surface for Phase 6 over the already-implemented Phase 5 local LKG/read producer.
+
+P1 must leave one customer-facing read boundary that can be used by either News Scraper's optional fallback renderer or customer-owned PHP presentation without reading cache paths, manifests, generation JSON, lock files, bearer credentials, or the News Scraper API.
+
+Conceptually:
+
+```text
+state root + Profile key + local freshness settings
+-> Phase 5 readForPhase6()/LocalProfileRead
+-> normalized customer-facing Profile/Article/state/health DTOs
+```
+
+P1 owns only local consumer configuration, mapping, immutable normalized read DTOs, and the narrow reader/service composition. It does not own HTML rendering, customer-site routing, browser behavior, synchronization, retries, locking, cache activation, or upstream transport.
+
+## Prerequisite and read first
+
+Require the reachable Phase 5 closeout/documentation alignment, package version `1.6.0` (or `1.6.1` for a safe P1 rerun), and no completed Phase 6 implementation prompt before P1.
+
+Read before editing:
+
+1. current `BOOT.md`, `AGENTS.md`, and `README.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/product-scope-and-users.md`;
+4. `docs/contracts/distribution-and-integration-contract.md`;
+5. `docs/contracts/distribution-api-contract.md` only for the fields already carried by the PHP package;
+6. `docs/contracts/testing-and-validation-contract.md`;
+7. Phase 6 and Phase 7 entries in `docs/roadmap/post-1.0-roadmap.md`;
+8. `docs/validation/phase-5-generic-php-synchronization-and-lkg.md`, especially the final Phase 6 producer handoff and evidence limitations;
+9. `integrations/php/README.md`;
+10. `integrations/php/src/Client.php` for the already-validated typed Article/Profile/Source/Category values;
+11. `integrations/php/src/Synchronizer.php` for `ActiveProfileSnapshot` / `LocalProfileState`;
+12. `integrations/php/src/LocalState.php` for `LocalProfileRead`, usability, and health;
+13. `integrations/php/src/FilesystemStateStore.php`, but only to consume its public `readForPhase6()` boundary rather than its storage internals;
+14. `integrations/php/src/Runtime.php` to avoid creating a conflicting configuration/factory model;
+15. `integrations/php/src/bootstrap.php`, the PHP test harness, `scripts/run-php-tests.mjs`, and current `package.json`.
+
+If P1 would need to parse local JSON/manifests directly, know generation filenames, construct an upstream API client, require the bearer token/base URL for ordinary reads, reconstruct Profile filters/eligibility, or change Phase 5 synchronization/LKG transitions, stop with `Planning needed`.
+
+## Customer-facing local configuration
+
+Separate visitor/read configuration from synchronization configuration.
+
+The local reader needs only the locally relevant values:
+
+- Profile key;
+- absolute local state root;
+- cadence/freshness interval used to classify stale data, defaulting consistently with the existing 900-second integration cadence;
+- optional maximum stale age.
+
+Requirements:
+
+- ordinary customer rendering MUST NOT require `NEWS_SCRAPER_BASE_URL` or `NEWS_SCRAPER_BEARER_TOKEN`;
+- reuse existing validation/bounds where practical instead of forking Profile-key, state-root, cadence, or stale-age rules;
+- if an environment factory is provided, require only local-read variables and optional freshness values; do not silently load transport credentials merely because the sync runtime uses them;
+- no local reader object/result may contain bearer plaintext, Authorization headers, upstream request state, cursor values, or cache paths;
+- do not add customer/site/provider/topic-specific configuration.
+
+A focused read-only configuration class/factory is appropriate if it keeps the visitor path independent from the synchronization runtime. Do not weaken the existing sync configuration to make fields optional if that would make the sync CLI ambiguous.
+
+## Stable normalized local data model
+
+Expose an immutable customer-readable model independent of Phase 5 persistence internals.
+
+Exact class/file names are implementation-owned, but the public local model must provide at least:
+
+- Profile `configKey` and `displayName` when renderable active data exists;
+- Publication `name` when renderable active data exists;
+- ordered Articles containing:
+  - `articleId`;
+  - `headline`;
+  - exact stored `originalUrl`;
+  - `effectiveFeedDate`;
+  - `feedDateSource`;
+  - nullable `publishedAt`;
+  - nullable `author`;
+  - nullable `summary`;
+  - nullable `imageUrl`;
+  - Source `configKey` / `displayName`;
+  - ordered Categories with `configKey` / `displayName`;
+- one explicit local availability/usability state;
+- nullable stale age where applicable;
+- bounded local sync/cache health sufficient for integrator/operator diagnostics.
+
+The local model MAY internally map from the existing Phase 5 typed objects, but customers must not need to understand `ActiveProfileSnapshot`, manifest/generation structures, filesystem paths, or synchronization state-machine classes to consume ordinary data.
+
+Do not add local filtering, sorting, deduplication, ranking, Source inference, Category interpretation, or URL rewriting. Preserve Article order and exact `originalUrl` values from the validated active snapshot.
+
+## State and data-exposure semantics
+
+Map Phase 5 usability exactly and distinguish renderable from non-renderable retained state.
+
+Required states:
+
+- `usable`;
+- `stale_usable`;
+- `never_synced`;
+- `stale_cutoff`;
+- `disabled`;
+- `unavailable`.
+
+Requirements:
+
+- `usable` with zero items is a valid **empty** Profile result, not unavailable;
+- `stale_usable` remains renderable by default and exposes the same active data plus stale-age facts;
+- `never_synced` exposes no Profile/Article payload;
+- `stale_cutoff` exposes no renderable Profile/Article payload even though Phase 5 may retain an active generation internally;
+- `disabled` exposes no renderable Profile/Article payload even though Phase 5 deliberately retains active data for recovery;
+- `unavailable` exposes no partial/corrupt payload;
+- no local state should be inferred from Article dates, Source names, domains, missing nullable metadata, or upstream content;
+- health facts remain diagnostics and MUST NOT override usability state.
+
+The customer-facing surface must make it difficult for later presentation code to accidentally render retained disabled/cutoff bytes. Prefer a result shape where renderable Profile/Articles are absent for non-renderable states rather than requiring every renderer to remember a second suppression rule.
+
+## Bounded local health
+
+Expose only already-governed non-secret local diagnostics useful to an integrator/operator, such as:
+
+- Profile key;
+- last attempt;
+- last successful sync;
+- sync result;
+- duration;
+- item/page counts;
+- unchanged flag;
+- active revision/ETag only if already intentionally part of local health and useful to integrators;
+- failure category;
+- disabled flag;
+- adapter version;
+- stale age/usability.
+
+Do not expose local filesystem paths, generation names, lock state, bearer credentials, Authorization headers, raw upstream bodies, cursors, or exceptions. Do not turn operational health into visitor/click analytics.
+
+## Composition boundary
+
+Leave one simple read operation suitable for later presentation, for example conceptually:
+
+```php
+$result = $reader->read();
+```
+
+or an equivalent operation where the Profile key is supplied explicitly.
+
+The composition must call the existing `FilesystemProfileStateStore::readForPhase6()` with the governed resolver/clock. It must not call `load()`/`health()` separately in a way that recreates or weakens the Phase 5 combined read behavior unless source inspection proves an atomicity/correctness reason and the change remains inside the existing producer contract.
+
+Keep the production read path synchronous and local. No HTTP client, DNS, News Scraper route, synchronization command, lock acquisition, or network fallback belongs in this reader.
+
+## Focused proof
+
+Extend the deterministic PHP suite with tests covering at minimum:
+
+- local read configuration succeeds with state root/Profile/freshness settings and no upstream base URL/bearer credential;
+- invalid Profile/state-root/freshness settings fail boundedly without leaking local paths/secrets unnecessarily;
+- a valid populated active snapshot maps every governed Profile/Publication/Article/Source/Category field, preserves item/category order, nulls, and exact `originalUrl`;
+- a valid active zero-item snapshot is an empty renderable result;
+- `usable` exposes active data;
+- `stale_usable` exposes active data plus positive stale age;
+- `never_synced` exposes no renderable data;
+- configured `stale_cutoff` exposes no renderable data despite retained active state;
+- authoritative `disabled` exposes no renderable data despite retained active state;
+- corrupt/missing committed state maps to `unavailable` with no partial data;
+- bounded health facts are available and contain no bearer/API/cache-path state;
+- the customer-facing reader does not parse manifest/generation JSON or require a `DistributionPageClient`/HTTP transport;
+- upstream ordering/eligibility is not reinterpreted.
+
+Use the existing PHP test harness and fail clearly if PHP CLI is unavailable. Do not introduce public-internet tests.
+
+## Producer-to-consumer handoff to P2
+
+Before P1 completes, leave this auditable handoff:
+
+| Downstream-required capability | P1 owner/export | Focused proof |
+| --- | --- | --- |
+| local-only reader construction without API credentials | local read configuration/factory | credential-independence test |
+| explicit availability/usability state | local read result | six-state mapping tests |
+| safe suppression of retained non-renderable active data | local read mapping | disabled/cutoff/unavailable tests |
+| Profile + Publication data | local normalized DTO | populated/empty tests |
+| complete ordered Article data | local normalized DTOs | field/order/null tests |
+| exact direct publisher destination | local Article DTO `originalUrl` | exact-value test |
+| bounded local health/freshness | local health DTO/result | health/redaction tests |
+| no cache-internal knowledge required | reader/service boundary | source/boundary test plus consumer-facing usage test |
+
+P2 must be able to render all required Phase 6 states using only this local API. If it would need to inspect `LocalProfileRead`, `ActiveProfileSnapshot`, manifest files, generation files, or the synchronization runtime directly, P1 is incomplete.
+
+## Preserved behavior and non-goals
+
+Preserve without semantic change:
+
+- Phase 5 v1 client, synchronization retries/restarts, locking, atomic LKG activation, cadence, disable/re-enable transitions, stale policy, and local store validation;
+- exact upstream Article order and `originalUrl`;
+- all Node Web/API, Worker, admin, `/`, `/api/feed`, and v1 behavior;
+- Source trust, canonical eligibility, Profile selection, Relevance/Categories, moderation, duplicate suppression, and provenance;
+- supported production database/schema state;
+- topic independence and one-Publication-per-installation architecture.
+
+Do not implement in P1:
+
+- HTML/CSS/templates;
+- a renderer interface or fallback renderer;
+- customer-site public routing/server files;
+- Playwright/browser tests;
+- synchronous or fallback News Scraper API access;
+- synchronization/cron behavior;
+- HostGator/provider-specific test planes;
+- WordPress, RSS/Atom, browser widgets, analytics, advanced SEO, or self-host packaging;
+- Node/database/migration changes unless a governing contradiction is discovered and reported instead of silently expanded.
+
+## Validation
+
+During iteration, run the narrow PHP test command and the smallest useful focused selection supported by the existing harness.
+
+On the final P1 tree run the smallest non-overlapping matrix:
+
+```text
+npm run check
+npm run codex:phase:validate -- p1-6
+git diff --check
+```
+
+Do not add database, browser, live-Source, deployment, or recovery suites solely for P1 because it is a local PHP consumer boundary.
+
+## Version and repository rules
+
+- Set only top-level `package.json` to `1.6.1` before final validation.
+- Do not modify News Scraper migrations or persisted database schema.
+- Do not create `package-lock.json`, Composer vendor state, or unrelated lockfiles.
+- Do not edit governing contracts, ADRs, roadmap entries, historical validation artifacts, `.codex/docs-prompt.txt`, or existing task prompts.
+- Do not manually commit; the phase runner owns the implementation commit boundary.
+
+## Acceptance
+
+P1 is complete only when:
+
+1. ordinary customer-side PHP can read the active local Profile without upstream URL/token configuration;
+2. the local API is based on `readForPhase6()` and hides cache/manifests/generations/locks;
+3. renderable data is exposed only for `usable` / `stale_usable`, including valid empty output;
+4. disabled/cutoff/never-synced/unavailable states cannot accidentally expose retained active Articles through the normal customer model;
+5. every governed local Article field, nullable value, order, and exact `originalUrl` is preserved without interpretation;
+6. bounded health/freshness facts are available without secrets or cache internals;
+7. P2 can render all required states without reaching behind this boundary;
+8. deterministic PHP and ordinary repository regressions are green;
+9. package version is exactly `1.6.1`.
+
+Finish with a concise report listing changed files, exported local-read types/services, state/data mapping, focused/final commands actually run with results, PHP runtime exercised, package version, and any finding that should block P2.
