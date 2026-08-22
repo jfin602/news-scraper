@@ -1,0 +1,291 @@
+TASK: Phase 6 / P3 — Customer-style server and browser integration harness
+
+- Recommended configuration: `Terra Medium`.
+- Task-shape classification: `Cross-cutting`.
+- Specification clarity: `Explicit`.
+- State coupling: `Moderate`.
+- Integrity risk: `Moderate`.
+- Concurrency: `Local`.
+- Security: `Sensitive`.
+- Novel inference: `Moderate`.
+- Model-family basis: this prompt crosses the PHP local reader/renderer boundary, a real local PHP HTTP server process, deterministic temporary state, and Playwright/browser evidence. The contracts are explicit, but reliable proof requires broader integration judgment than the isolated P1/P2 implementation tasks.
+- Reasoning basis: medium reasoning in Terra is sufficient to compose the already-governed boundaries, manage process lifecycle deterministically, prove no visitor-path upstream dependency, and cover all required browser states without turning the example into a new product architecture.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Luna High`; rejected because the critical work is not individual PHP logic but cross-language/process/browser evidence, temporary-state setup, failure cleanup, and distinguishing server-side local-only proof from browser-only network observation.
+- Escalation trigger: reliable Phase 6 proof would require changing the Phase 5 sync/LKG contract, introducing a provider-specific production topology, changing the Node v1 API, or building a deployment-level environment rather than the bounded local customer-style harness.
+- Escalation target: `Terra High` for explicit deeper process/integration/test-harness reasoning; return `Planning needed` if the required proof belongs to Phase 7 deployment qualification or requires a contract/ADR/roadmap change.
+- Estimate confidence: `High`.
+- Efficiency rationale: compose the existing local reader and renderer into one intentionally small example site, then spend the stronger model budget on deterministic real-server/browser proof rather than adding more product code.
+
+The assigned project version is `1.6.3`.
+
+## Goal
+
+Build the lightweight customer-style PHP integration/example harness required by Phase 6 and prove with real server/browser evidence that ordinary visitor rendering consumes only synchronized local state, emits direct publisher links, and behaves safely across required local states.
+
+The target chain for this prompt is:
+
+```text
+synthetic successful Phase 5 synchronization / valid local state
+-> P1 local reader
+-> P2 fallback or customer-style renderer
+-> real local PHP server
+-> browser request
+```
+
+The ordinary browser request MUST NOT call the News Scraper API, invoke the synchronization CLI, require the bearer token/base URL, or parse cache internals.
+
+This prompt creates a deterministic local customer-style harness suitable for Phase 7 deployment work. It does **not** claim HostGator, managed external deployment, Cloudflare, public-network, or production hosting compatibility.
+
+## Prerequisite and read first
+
+Require reachable P1 and P2 implementation commits with package version `1.6.2` (or `1.6.3` for a safe rerun) and an intact Phase 6 prefix.
+
+Read before editing:
+
+1. current `BOOT.md`, `AGENTS.md`, `README.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/product-scope-and-users.md`;
+4. `docs/contracts/distribution-and-integration-contract.md`;
+5. `docs/contracts/testing-and-validation-contract.md`;
+6. Phase 6/7 roadmap entries;
+7. `docs/operations/security-reliability-and-operations.md` for content/secret/failure rules;
+8. `integrations/php/README.md`;
+9. P1 local reader/configuration/model code and focused tests;
+10. P2 renderer/extension code and focused tests;
+11. Phase 5 synchronizer/store public boundaries needed only for deterministic test-state creation;
+12. existing browser-test conventions under `test/browser/` and any shared Playwright/process helpers;
+13. `scripts/run-tests.mjs`, `scripts/run-php-tests.mjs`, and current package scripts;
+14. current PHP bootstrap/composition files.
+
+Do not use the bundled Node `/` reference frontend as the customer-site proof. This prompt must exercise the external PHP consumer path.
+
+## Lightweight example/customer-style integration
+
+Add one small example integration under the PHP package, such as:
+
+```text
+integrations/php/example/
+  index.php
+```
+
+plus a concise package-local usage note if needed.
+
+Exact layout is implementation-owned, but the example must:
+
+- require/bootstrap the generic PHP integration package;
+- construct only the P1 **local read** configuration/reader from local Profile/state/freshness settings;
+- render through the P2 fallback renderer or a tiny custom renderer using only the P1 result;
+- send a normal `text/html; charset=UTF-8` response;
+- contain no synchronization call, no `DistributionClient`, no `ProfileSynchronizer`, no bearer handling, no API fallback, and no direct manifest/generation reads;
+- work when `NEWS_SCRAPER_BASE_URL` and `NEWS_SCRAPER_BEARER_TOKEN` are absent from the visitor server environment;
+- remain provider-neutral and framework-free;
+- use no client JavaScript for core Article content/navigation.
+
+The example is a proof/reference integration, not a productized CMS adapter, installer, router framework, or HostGator-specific package.
+
+## Deterministic state setup for integration proof
+
+Build test-only setup that creates realistic local states without hand-authoring normal production cache files when a public Phase 5 boundary can create them.
+
+Preferred approach:
+
+- use the real `ProfileSynchronizer` with a small injected deterministic fake/scripted `DistributionPageClient` to perform at least one successful synchronization into the real `FilesystemProfileStateStore` for populated and empty LKG scenarios;
+- use controlled `SynchronizationFacts` / store public operations where appropriate to establish stale or authoritative disabled state without changing production semantics;
+- use a fresh temporary state root per test/scenario;
+- use a deliberately corrupt/missing local state only for the unavailable scenario, and keep that corruption code test-only;
+- never place real credentials or production state in fixtures;
+- never contact the public internet.
+
+The setup must not create a second persistence format or test-only production backdoor. It should prove that the example can consume state created by the existing Phase 5 machinery.
+
+## Real PHP server process
+
+For browser/server proof, run the example through a real PHP HTTP server process in the test environment, using the PHP CLI/built-in server or an equivalently lightweight local mechanism.
+
+Requirements:
+
+- bind only to loopback on an ephemeral/controlled port;
+- launch with a minimal environment containing local read settings, **without upstream base URL/bearer token** for the visitor path;
+- wait deterministically for readiness with a bounded timeout rather than fixed arbitrary sleeps;
+- capture only bounded stdout/stderr useful for failures and never print secrets/state payloads;
+- terminate/cleanup the child process on success, assertion failure, timeout, and test teardown;
+- isolate state roots/ports between concurrently executable browser tests, or serialize the PHP-specific integration file if that is the safer bounded choice;
+- fail clearly when PHP CLI/server prerequisites are unavailable rather than silently skipping an explicitly invoked required suite.
+
+Do not alter production PHP code merely to make process tests easier if a test helper can own the orchestration.
+
+## Browser/server evidence scenarios
+
+Add substantive browser tests that cover the Phase 6 exit gate using a real browser against the real local PHP server.
+
+### Populated usable state
+
+Observe that:
+
+- Publication/Profile context appears;
+- ordered Articles render in the synchronized order;
+- core headline anchors are present in server-rendered output;
+- anchors point directly to the exact stored publisher `originalUrl` values;
+- there is no News Scraper redirect/tracking URL;
+- no JavaScript is required for those links/content;
+- escaped Source-derived strings remain text, not executable markup.
+
+Use a browser context/page with JavaScript disabled for at least one core-content assertion, or an equivalent browser observation proving the HTML does not depend on JS.
+
+### Empty usable state
+
+Observe a valid empty state distinct from unavailable/never-synced.
+
+### Stale usable state
+
+Observe that retained Articles still render with the bounded stale indicator and no live refresh attempt.
+
+### Never synced
+
+Observe safe fallback content and no Article anchors.
+
+### Stale cutoff
+
+Observe safe fallback content and no retained Article anchors.
+
+### Authoritative disabled
+
+Observe safe disabled content and no retained Article anchors even though the local store may still retain the active generation.
+
+### Unavailable/corrupt local state
+
+Observe bounded safe fallback content with no raw filesystem/error details and no partial Article output.
+
+## Proving no visitor-path News Scraper request
+
+Browser request inspection alone is insufficient to prove absence of a hidden server-side API call. Prove the server-side boundary too.
+
+Required evidence combination:
+
+1. the example/customer visitor server starts and serves successfully with `NEWS_SCRAPER_BASE_URL` and `NEWS_SCRAPER_BEARER_TOKEN` absent;
+2. production visitor composition imports/constructs only the P1 local reader and P2 presentation boundary, not sync/upstream client objects;
+3. after a test performs one successful synchronization to create valid LKG, the customer server continues to render that LKG while no upstream client configuration is present and no synchronization process runs;
+4. browser network observation shows no browser-direct request to News Scraper or tracking endpoint.
+
+If useful, add a deterministic trap/spied dependency around test setup, but do not create a production network abstraction solely for this assertion. The strongest claim should come from the visitor process not possessing upstream configuration/credentials and still rendering correctly.
+
+## Customer presentation override proof
+
+Use at least one server/component test showing the example can swap the fallback renderer for a tiny customer-owned renderer that consumes only P1 data.
+
+The custom example must not:
+
+- reach into cache internals;
+- call synchronization;
+- change Article order/eligibility;
+- rewrite `originalUrl`;
+- require News Scraper-specific HTML structure.
+
+Do not turn this into a design system. A minimal override proves the extension boundary.
+
+## Security and output assertions
+
+Include controlled malicious values in synchronized test data to prove:
+
+- headline/Source/Profile/Publication/author/summary/category markup is escaped;
+- quoted/query-bearing publisher URLs remain direct logical destinations after HTML attribute escaping;
+- no script executes from Source-derived content;
+- no raw PHP exception/local path appears in safe fallback states;
+- no bearer placeholder/Authorization string appears in served HTML/log output;
+- no visitor analytics/tracking beacon is emitted by the example.
+
+Do not claim arbitrary CSP/security-hardening coverage beyond what is actually tested.
+
+## Test command integration
+
+Phase 6 now requires both deterministic PHP and browser/server evidence.
+
+Requirements:
+
+- keep `npm run check` green and containing the PHP deterministic suite;
+- add the new real PHP customer integration/browser proof under the existing `npm run test:browser` capability unless repository structure strongly requires a narrower substantive command;
+- if a focused helper/selector is added for iteration, it must fail on zero selected tests and preserve required prerequisites;
+- do not make the ordinary deterministic `npm test` launch Playwright/browser processes unless existing project policy already does so; specialized browser proof may remain separate;
+- do not run database/live-Source/deployment suites merely because the example consumes exported Article data.
+
+## Phase 7 handoff
+
+Before P3 completes, leave the external-integration handoff auditable:
+
+| Phase 7-required capability | Phase 6 owner/proof |
+| --- | --- |
+| local-only customer reader | P1 local API tests |
+| optional safe fallback SSR | P2 renderer tests |
+| customer presentation override | P2/P3 custom renderer proof |
+| real server-rendered customer-style page | P3 PHP server/browser test |
+| direct exact publisher links | P2 + P3 browser href evidence |
+| populated/empty/stale/never-synced/cutoff/disabled/unavailable | P1/P2 + P3 browser scenarios |
+| no visitor-path News Scraper request | P3 credential-free visitor server + browser network evidence |
+| valid LKG survives upstream absence for visitor rendering | successful Phase 5 sync setup followed by credential-free P3 server rendering |
+| provider-neutral integration harness | `integrations/php/example/` or equivalent |
+
+Phase 7 may deploy this pattern to the real managed/customer environment. It must not need Phase 6 to invent a new API, cache format, or presentation authority during deployment qualification.
+
+## Preserved behavior and non-goals
+
+Preserve without semantic change:
+
+- P1 local-read states/data/health;
+- P2 renderer escaping/direct-link/state behavior;
+- Phase 5 client/sync/LKG/locking/cadence;
+- Node v1 API and all collection/editorial/duplicate semantics;
+- existing `/`, `/api/feed`, admin, Worker, database migrations, and production data;
+- topic independence and one-Publication deployment model.
+
+Do not implement in P3:
+
+- real managed/public deployment;
+- HostGator-specific simulation, cPanel automation, FTP/SFTP deployment, public DNS/TLS setup, or customer credentials;
+- Phase 7 release qualification;
+- WordPress, RSS/Atom, browser widgets, click/referral analytics, advanced SEO, or self-host packaging;
+- visitor-path synchronization or API fallback;
+- new filtering/ranking/dedupe/category logic;
+- a general web framework or CMS adapter.
+
+## Validation
+
+During iteration, use focused PHP and focused browser/server tests.
+
+On the final P3 tree run the smallest non-overlapping required matrix:
+
+```text
+npm run check
+npm run test:browser
+npm run codex:phase:validate -- p1-6
+git diff --check
+```
+
+`npm run check` must exercise all deterministic PHP tests. `npm run test:browser` must exercise the new real PHP customer integration scenarios and fail clearly if the required PHP/browser prerequisite is unavailable.
+
+Do not claim database, live-Source, public-network, HostGator, or deployment evidence unless separately executed; those are not required for P3.
+
+## Version and repository rules
+
+- Set only top-level `package.json` to `1.6.3` before final validation.
+- Do not modify News Scraper migrations or persisted production schema.
+- Do not create `package-lock.json`, Composer vendor state, or unrelated lockfiles.
+- Do not edit governing contracts, ADRs, roadmap entries, historical validation artifacts, `.codex/docs-prompt.txt`, or earlier task prompts.
+- Do not manually commit; the phase runner owns the implementation commit boundary.
+
+## Acceptance
+
+P3 is complete only when:
+
+1. a lightweight provider-neutral customer-style PHP example composes only P1 local data plus P2/customer presentation;
+2. the visitor server runs successfully without upstream base URL/bearer configuration;
+3. a real PHP server plus real browser proves populated, empty, stale, never-synced, stale-cutoff, disabled, and unavailable behavior;
+4. synchronized LKG remains visible to visitors after upstream capability/configuration is absent, with no visitor-path API/sync call;
+5. browser evidence proves direct exact publisher links, server-rendered core content, no JS requirement, and escaped untrusted content;
+6. customer presentation override is proven without cache/sync knowledge;
+7. process/test cleanup is deterministic and required prerequisites fail honestly;
+8. ordinary deterministic and specialized browser regressions are green;
+9. package version is exactly `1.6.3`.
+
+Finish with a concise report listing changed files, example composition, server/browser test harness, scenarios actually observed, proof used for no visitor-path upstream request, PHP/browser/runtime versions exercised, final commands/results, package version, and any finding that should block Phase 6 closeout.
