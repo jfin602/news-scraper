@@ -105,7 +105,16 @@ final class DistributionOutcome
     }
 }
 
-final class DistributionClient
+interface DistributionPageClient
+{
+    public function fetchPage(
+        string $profileKey,
+        ?string $cursor = null,
+        ?string $activeEtag = null,
+    ): DistributionOutcome;
+}
+
+final class DistributionClient implements DistributionPageClient
 {
     private const MAX_STRING_LENGTH = 65_536;
     private const MAX_OPAQUE_LENGTH = 8_192;
