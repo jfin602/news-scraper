@@ -1,0 +1,274 @@
+TASK: Phase 6 / P2 — Safe fallback renderer and presentation extension
+
+- Recommended configuration: `Luna High`.
+- Task-shape classification: `Bounded`.
+- Specification clarity: `Explicit`.
+- State coupling: `Moderate`.
+- Integrity risk: `Moderate`.
+- Concurrency: `None`.
+- Security: `Sensitive`.
+- Novel inference: `Moderate`.
+- Model-family basis: P1 supplies the complete customer-readable local data/state boundary. P2 is an isolated presentation layer over that boundary and does not own persistence, synchronization, HTTP, database, or editorial semantics.
+- Reasoning basis: high reasoning within Luna is appropriate for output-context escaping, exact direct-link preservation, nullable/state rendering, and a customer override interface that must remain thin without becoming a second eligibility/query authority.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna Medium`; rejected because HTML-context safety and non-renderable-state suppression require deliberate negative coverage, and the fallback renderer becomes the reference contract customers may copy.
+- Escalation trigger: the P1 local API cannot express one of the required Phase 6 states without reaching behind its boundary, safe direct-link output conflicts with exact `originalUrl` preservation, or customer presentation replacement would require a new product/contract abstraction.
+- Escalation target: `Terra Medium` for explicit deeper integration/security reasoning; return `Planning needed` for contract/ADR/roadmap changes.
+- Estimate confidence: `High`.
+- Efficiency rationale: keep one small renderer interface plus one safe fallback implementation, prove it exhaustively in PHP, and leave process/browser/customer-site proof to P3.
+
+The assigned project version is `1.6.2`.
+
+## Goal
+
+Implement the optional safe server-rendered fallback presentation over the P1 local data API, while preserving a clean customer-owned presentation escape hatch.
+
+Conceptually:
+
+```text
+P1 local result
+-> renderer interface / customer replacement point
+-> default safe server-rendered HTML
+```
+
+The fallback is a functional reference, not mandatory customer markup. Customer code must be able to consume P1 directly or supply its own renderer without parsing Phase 5 cache internals or reimplementing upstream business rules.
+
+## Prerequisite and read first
+
+Require the reachable P1 implementation commit with package version `1.6.1` (or `1.6.2` for a safe rerun) and an intact Phase 6 task prefix.
+
+Read before editing:
+
+1. current `BOOT.md`, `AGENTS.md`, `README.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/product-scope-and-users.md`;
+4. `docs/contracts/distribution-and-integration-contract.md`;
+5. `docs/contracts/testing-and-validation-contract.md`;
+6. Phase 6/7 roadmap entries;
+7. `integrations/php/README.md`;
+8. all P1 local consumer API/configuration production code and focused tests;
+9. Phase 5 local-read/store types only as needed to verify P1 remains the sole consumer-facing boundary;
+10. `integrations/php/src/bootstrap.php`, PHP test harness, `scripts/run-php-tests.mjs`, and package scripts.
+
+If P2 must inspect cache manifests/generations, call `readForPhase6()` directly instead of the P1 reader, reconstruct upstream eligibility/filtering/order, or add a visitor-path API fallback, stop with `Planning needed`.
+
+## Renderer ownership boundary
+
+Provide a narrow presentation contract suitable for replacement by customer code.
+
+Exact names are implementation-owned, but prefer a shape conceptually like:
+
+```php
+interface LocalProfileRenderer {
+    public function render(LocalProfileResult $result): string;
+}
+
+final class FallbackHtmlRenderer implements LocalProfileRenderer { ... }
+```
+
+or an equivalent small interface.
+
+Requirements:
+
+- the renderer accepts only the P1 customer-facing local result/model;
+- no renderer receives filesystem paths, bearer credentials, API clients, synchronization stores, manifests, or generation data;
+- customer presentation can replace the fallback implementation without replacing the local reader or changing Article selection semantics;
+- the fallback renderer is optional: customers may consume the P1 data API directly;
+- do not introduce a template engine/framework/Composer dependency for this bounded output;
+- do not make the renderer a controller/router/server framework.
+
+## Safe HTML rules
+
+Treat all Source-derived/editorial strings as untrusted output data.
+
+Requirements:
+
+- use one explicit UTF-8 HTML escaping helper or native equivalent appropriate for text and quoted attributes;
+- escape headline, Profile/Publication/Source/Category names, author, summary, dates when rendered as text, and every attribute value;
+- invalid UTF-8 or substitution-worthy input must fail safely or render with bounded substitution rather than becoming executable markup;
+- never render publisher-supplied HTML as trusted markup;
+- do not evaluate Source content, URLs, summaries, or Category names as PHP/template code;
+- avoid inline JavaScript and do not require client JavaScript for core content;
+- no News Scraper tracking redirect, onclick tracking, data beacon, external script, or visitor analytics;
+- do not add `nofollow`, `ugc`, `sponsored`, or tracking parameters merely because a publisher link is external;
+- do not promise SEO/backlink benefit.
+
+The renderer may use simple semantic HTML/classes and modest fallback styling only if useful. Do not turn this prompt into a design/UI-polish project.
+
+## Direct publisher anchors
+
+For every rendered Article headline:
+
+- emit an ordinary `<a>` anchor;
+- use the exact P1 `originalUrl` value as the logical destination;
+- HTML-escape it for attribute context without canonicalizing, redirecting, shortening, reordering query parameters, appending tracking, or substituting a News Scraper URL;
+- use the escaped headline as visible anchor text;
+- do not require JavaScript to navigate;
+- do not infer a different destination from Source domain/name, canonical identity, or image URL.
+
+Do not add `target="_blank"` or relationship attributes as a hidden policy decision unless the existing contract explicitly requires them. The safe default should remain an ordinary direct editorial link.
+
+## Renderable states
+
+The fallback renderer must handle every P1 local state deterministically.
+
+### `usable`
+
+- populated data renders Publication/Profile context plus ordered Articles;
+- zero Articles renders a safe explicit empty state rather than an error/unavailable message.
+
+### `stale_usable`
+
+- render the same active Article content;
+- expose a bounded stale/freshness indicator useful to an integrator/reader without implying the data is invalid;
+- never trigger a live refresh from the visitor path.
+
+### `never_synced`
+
+- render a safe unavailable/initializing fallback with no Article content.
+
+### `stale_cutoff`
+
+- render a safe stale-expired/unavailable fallback with no retained Article content.
+
+### `disabled`
+
+- render a safe disabled/unavailable fallback with no retained Article content.
+
+### `unavailable`
+
+- render a safe bounded unavailable fallback with no partial/corrupt Article content or raw exception details.
+
+Do not infer state from empty Articles: a valid empty `usable` result is distinct from never-synced/unavailable.
+
+## Nullable metadata
+
+Handle nullable Article fields without placeholder junk or malformed HTML.
+
+At minimum:
+
+- headline and direct link always render for a renderable Article;
+- nullable author/summary/publishedAt/imageUrl must not produce literal `null`, `undefined`, broken markup, or unsafe raw values;
+- optional values MAY be omitted cleanly when absent;
+- if image rendering is added at all, it must remain optional, safely escaped, and cannot become a requirement for core Article navigation. Omitting images from the fallback renderer is acceptable and preferred unless there is a clear reason to include them;
+- categories may be rendered as escaped text in existing order or omitted; do not use them to filter/reorder Articles.
+
+## Local health visibility
+
+Where useful, the fallback may expose a small non-sensitive status block derived only from P1 health/freshness data, such as last successful sync, stale age, or adapter version.
+
+Requirements:
+
+- never show bearer/API/cache paths, raw failure payloads, cursor values, or internal generation/lock state;
+- do not expose secrets in HTML comments, data attributes, or hidden elements;
+- do not make health facts control Article eligibility beyond the P1 state already decided.
+
+A minimal bounded indicator is enough; do not build an admin dashboard.
+
+## Customer-owned presentation escape hatch
+
+Prove both supported use modes:
+
+1. use the provided fallback renderer;
+2. consume P1 local data with a custom renderer implementing the narrow presentation interface or bypassing the fallback entirely.
+
+The customer replacement must not need to subclass/modify filesystem store internals, copy cache JSON, or duplicate synchronization code.
+
+Do not add a free-form callback that receives production service internals. The extension point should receive only normalized P1 data and return/emit presentation.
+
+## Focused proof
+
+Extend the deterministic PHP suite with tests covering at minimum:
+
+- malicious HTML/script-like headline/Profile/Publication/Source/Category/author/summary strings are escaped and never executable markup;
+- quote/ampersand characters in exact `originalUrl` are attribute-escaped while the logical destination remains unchanged;
+- no News Scraper redirect/tracking URL is introduced;
+- no script is required for core Article anchors;
+- ordinary external anchors do not gain automatic tracking/nofollow policy;
+- Article ordering is unchanged;
+- valid populated `usable` state renders all expected anchors/content;
+- valid empty `usable` state renders a distinct empty state;
+- `stale_usable` retains Articles and exposes a bounded stale indicator;
+- `never_synced`, `stale_cutoff`, `disabled`, and `unavailable` render no Article anchors/content from retained state;
+- nullable author/summary/publishedAt/imageUrl are handled cleanly;
+- health rendering, if present, is bounded and secret/cache-internal free;
+- a custom renderer can replace the fallback using only the P1 local result;
+- fallback rendering does not instantiate an upstream client/sync runtime or access the filesystem store directly.
+
+Use explicit string/DOM-oriented assertions in PHP where sufficient. Browser proof belongs to P3.
+
+## Producer-to-consumer handoff to P3
+
+Before P2 completes, leave this auditable handoff:
+
+| Downstream-required capability | P2 owner/export | Focused proof |
+| --- | --- | --- |
+| default server-rendered HTML | fallback renderer | populated-state tests |
+| safe output-context escaping | renderer escape boundary | malicious-input tests |
+| direct exact publisher anchors | Article rendering | href/tracking tests |
+| six required local states + empty | renderer state branches | state tests |
+| clean nullable metadata | renderer | null-field tests |
+| stale/health visibility | renderer + P1 health facts | stale/health tests |
+| customer presentation replacement | renderer interface / P1 direct-data path | custom-renderer test |
+| no network/sync/cache-internal dependency | renderer constructor/API | boundary tests |
+
+P3 must be able to build a tiny customer-style page by composing the P1 local reader with the P2 renderer without adding business logic.
+
+## Preserved behavior and non-goals
+
+Preserve without semantic change:
+
+- all P1 local data/state/health semantics;
+- all Phase 5 synchronization/LKG/locking/cadence behavior;
+- exact upstream `originalUrl`, item order, Source/Category values, and eligibility;
+- Node Web/API/Worker/admin/reference surfaces and production database state;
+- machine/admin separation, topic independence, and one-Publication deployment model.
+
+Do not implement in P2:
+
+- public customer-site server/router/example harness;
+- Playwright/browser process orchestration;
+- upstream/network synchronization or visitor fallback;
+- Source/Profile/category filtering, sorting, ranking, deduplication, or moderation;
+- bespoke customer branding/design system;
+- HostGator/provider-specific behavior;
+- WordPress, RSS/Atom, widgets, analytics, advanced SEO tooling, or self-host packaging.
+
+## Validation
+
+During iteration, run the narrow PHP test command and the smallest useful focused selection supported by the harness.
+
+On the final P2 tree run:
+
+```text
+npm run check
+npm run codex:phase:validate -- p1-6
+git diff --check
+```
+
+Browser validation is deliberately deferred to P3, where the real customer-style PHP server composition exists.
+
+## Version and repository rules
+
+- Set only top-level `package.json` to `1.6.2` before final validation.
+- Do not modify migrations or persisted News Scraper database schema.
+- Do not create `package-lock.json`, Composer vendor state, or unrelated lockfiles.
+- Do not edit governing contracts, ADRs, roadmap entries, historical validation artifacts, `.codex/docs-prompt.txt`, or earlier task prompts.
+- Do not manually commit; the phase runner owns the implementation commit boundary.
+
+## Acceptance
+
+P2 is complete only when:
+
+1. one optional default renderer consumes only the P1 local model;
+2. all untrusted text/attributes are safely escaped and publisher HTML is never trusted;
+3. direct headline anchors preserve exact logical `originalUrl`, require no JavaScript, and use no News Scraper tracking redirect;
+4. populated, empty, stale usable, never-synced, stale-cutoff, disabled, and unavailable output are distinct and safe;
+5. non-renderable states cannot leak retained active Articles;
+6. nullable metadata is handled without broken/unsafe placeholders;
+7. customer presentation can replace/bypass the fallback without cache/synchronization knowledge;
+8. deterministic PHP and ordinary regressions are green;
+9. package version is exactly `1.6.2`.
+
+Finish with a concise report listing changed files, renderer/extension exports, escaping/link/state rules, focused/final commands actually run with results, PHP runtime exercised, package version, and any finding that should block P3.
