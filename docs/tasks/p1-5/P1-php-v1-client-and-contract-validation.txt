@@ -1,0 +1,308 @@
+TASK: Phase 5 / P1 — PHP v1 client and contract validation
+
+- Recommended configuration: `Luna High`.
+- Task-shape classification: `Bounded`.
+- Specification clarity: `Explicit`.
+- State coupling: `Moderate`.
+- Integrity risk: `Moderate`.
+- Concurrency: `None`.
+- Security: `Sensitive`.
+- Novel inference: `Moderate`.
+- Model-family basis: the governing v1 wire contract and Phase 4 producer handoff are explicit; this prompt introduces one isolated downstream PHP client/package boundary without changing upstream Node, database, or editorial semantics.
+- Reasoning basis: high reasoning within Luna is warranted for exact schema validation, additive-v1 compatibility, safe bearer handling, HTTPS/redirect behavior, ETag and Retry-After parsing, and a new cross-language deterministic test harness.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna Medium`; rejected because a subtle wire-validation or secret-handling mistake would become the foundation for every later PHP synchronization state transition.
+- Escalation trigger: the implemented Phase 4 API does not actually expose a required governed capability, a safe PHP transport requires changing the v1 contract, or source inspection reveals that the PHP package would need upstream database/Profile/credential internals.
+- Escalation target: `Terra Medium` for explicit deeper integration reasoning; return `Planning needed` if the issue requires contract/ADR/roadmap change.
+- Estimate confidence: `High`.
+- Efficiency rationale: establish one dependency-light PHP transport/validation boundary plus its focused harness, and defer retries, candidate/LKG state, filesystem locking, cadence, and customer rendering to later prompts.
+
+The assigned project version is `1.5.1`.
+
+## Goal
+
+Create the reusable generic PHP integration package foundation and a strict client for the already-implemented permanent v1 distribution API.
+
+P1 must leave one narrow PHP boundary that can:
+
+```text
+validated PHP config
+-> authenticated HTTPS request
+-> exact v1 status/header/body parsing
+-> validated typed page/outcome
+```
+
+P1 owns connection/request construction, bearer-header use, safe native HTTP transport, v1 response/error/header validation, and the PHP deterministic-test capability.
+
+P1 does **not** own multi-page synchronization, retry/restart policy, candidate/active state, local filesystem LKG persistence, locking, cadence, stale policy, health persistence, customer-facing local Article access, or HTML rendering.
+
+## Prerequisite and read first
+
+Require the reachable Phase 4 closeout and documentation alignment, with package version `1.5.0` (or `1.5.1` for a safe rerun) and no completed Phase 5 implementation prompt before P1.
+
+Read before editing:
+
+1. current `BOOT.md`, `AGENTS.md`, and `README.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/product-scope-and-users.md`;
+4. `docs/contracts/distribution-and-integration-contract.md`;
+5. `docs/contracts/distribution-api-contract.md`;
+6. `docs/contracts/testing-and-validation-contract.md`;
+7. `docs/operations/security-reliability-and-operations.md`;
+8. `docs/decisions/headless-distribution-product-boundary.md`;
+9. `docs/decisions/managed-first-self-hostable-distribution-architecture.md`;
+10. Phase 5 and Phase 6 roadmap entries;
+11. `docs/validation/phase-4-versioned-v1-distribution-api.md`, especially the Phase 5 producer handoff table;
+12. `src/app/web/distribution-api-router.ts` only to confirm the implemented wire shape/status/header behavior already governed by the contract;
+13. current `package.json`, test-runner conventions, and repository layout.
+
+If the client would need to know database schema, Profile child tables, token syntax/verifier internals, cursor payload structure, limiter implementation, trusted-proxy internals, or Article eligibility/filter/order logic, stop with `Planning needed`.
+
+## Package boundary
+
+Create the generic external adapter as a dedicated root integration package, preferably:
+
+```text
+integrations/php/
+  src/
+  tests/
+```
+
+Do not place the PHP adapter inside the Node aggregation-engine `src/` tree. It is a downstream consumer of the machine API, not another engine authority.
+
+Keep the Phase 5 PHP core dependency-light and suitable for ordinary shared-host/server PHP deployment:
+
+- use `declare(strict_types=1)` and a package namespace;
+- do not introduce a framework or third-party Composer dependency merely for HTTP, JSON, validation, or testing behavior that can remain small and explicit;
+- do not create `vendor/`, `composer.lock`, or a speculative packaging ecosystem in this prompt;
+- use native PHP facilities/extensions with a narrow production transport boundary and an injected transport seam for deterministic tests;
+- record the actual PHP runtime/extensions exercised in implementation output; do not claim compatibility with untested PHP versions/environments.
+
+Exact class/file names are implementation-owned. Prefer a small number of cohesive files over a generic SDK framework.
+
+## Client configuration and request safety
+
+Define one explicit immutable/bounded client configuration sufficient for Phase 5, including at minimum:
+
+- News Scraper base URL;
+- bearer credential supplied at runtime;
+- bounded connection/request timeout(s) where the chosen native transport supports them.
+
+Requirements:
+
+- normal production configuration accepts only an absolute `https` base URL;
+- reject embedded username/password, query, and fragment components in the configured base URL;
+- do not provide an insecure TLS-verification-disable option;
+- do not automatically follow redirects with the bearer credential; an unexpected redirect is a bounded transport/protocol failure rather than permission to forward Authorization elsewhere;
+- bearer plaintext remains only in runtime client/config memory and the outgoing `Authorization: Bearer ...` header;
+- never append the credential to path/query, persist it, include it in result objects, or echo it through exceptions/diagnostics;
+- safely encode the Profile key as one path segment and the opaque cursor as the only optional query parameter;
+- use the permanent route `/api/v1/distribution/{profile_key}` exactly;
+- continuation requests use only the opaque cursor returned by the previous validated response;
+- do not add Source, Category, q, limit, sort, Publication, or other selector parameters.
+
+Use a production HTTP transport with bounded response handling. Do not create public-internet tests or weaken TLS merely to make the test harness easy.
+
+## v1 typed outcome boundary
+
+Expose one narrow client operation for an initial or continuation page that returns typed outcomes rather than raw transport details to P2.
+
+The downstream boundary must distinguish at least:
+
+- validated active `200` page;
+- bodyless initial `304 not_modified`;
+- `400 invalid_request`;
+- generic `401 unauthenticated`;
+- `404 not_found`;
+- `409 profile_disabled`;
+- `409 snapshot_changed`;
+- `429 rate_limited` with validated positive `Retry-After` seconds;
+- `503 service_unavailable`;
+- bounded transport failure/timeout;
+- bounded invalid/malformed upstream response.
+
+Do not turn different `401` causes into different PHP public states. Do not invent a `403` Profile-authorization model.
+
+Unexpected status codes, redirects, malformed JSON, oversized/unusable transport results, or a documented response class with the wrong body/header shape become a bounded client failure without including sensitive response data.
+
+## Successful page validation
+
+For each `200`, validate the required v1 envelope and item shape from `distribution-api-contract.md`:
+
+```text
+apiVersion
+generatedAt
+snapshotRevision
+profile { configKey, displayName }
+publication { name }
+items[]
+nextCursor
+```
+
+Each item requires:
+
+```text
+articleId
+headline
+originalUrl
+effectiveFeedDate
+feedDateSource
+publishedAt
+author
+summary
+imageUrl
+source { configKey, displayName }
+categories[] { configKey, displayName }
+```
+
+Requirements:
+
+- require `apiVersion === "v1"`;
+- require the response Profile `configKey` to equal the requested Profile key;
+- require required strings/objects/arrays and explicit nullable fields with their governed types;
+- validate required timestamp strings as usable absolute timestamps without rewriting them into a different business meaning;
+- keep `snapshotRevision`, cursor, ETag, IDs, and other opaque values opaque;
+- preserve Article array order exactly as received;
+- preserve exact `originalUrl`; do not canonicalize, rewrite, follow, rank, filter, or reinterpret it;
+- preserve safe nullable metadata and Categories as supplied;
+- permit unknown additional fields so compatible additive `/api/v1` evolution does not break the client merely because a new field exists;
+- do not expose internal raw JSON/headers as the ordinary typed result when the explicit validated shape suffices.
+
+P1 validates shape/compatibility only. It does not decide Article eligibility, duplicate status, Source trust, Profile filtering, Category semantics, chronological ordering, or destination policy.
+
+## ETag, conditional request, and Retry-After handling
+
+Expose exactly the inputs later synchronization needs:
+
+- capture the successful response ETag as an opaque bounded value when present;
+- allow `If-None-Match` only on an initial request when P2 supplies an existing active ETag;
+- never use conditional headers on cursor continuation;
+- treat `304` as a valid typed outcome only for an initial conditional request; it carries no replacement payload;
+- parse `Retry-After` for `429` as a positive bounded integer number of seconds and reject malformed/non-positive values as an invalid upstream response;
+- do not sleep or retry in P1.
+
+Do not derive a second revision identity from the ETag or inspect cursor/revision internals.
+
+## Deterministic PHP test capability
+
+Add the first substantive PHP test harness and root command.
+
+Requirements:
+
+- add `npm run test:php` or an equivalently narrow root command that executes the real PHP CLI tests and fails clearly if the PHP CLI/prerequisite is unavailable;
+- ensure the PHP test runner fails when zero substantive tests are discovered;
+- syntax-check production/test PHP files as part of the PHP test command or an equivalent contained step;
+- do not rely on PHP `assert()` configuration for correctness; use explicit deterministic test failures;
+- do not contact the public internet;
+- use an injected scripted/fake transport to prove HTTP request construction and response parsing without adding a test-only production bypass;
+- integrate the substantive deterministic PHP suite into the repository's ordinary deterministic regression path so `npm test`/`npm run check` cannot remain green while PHP tests are broken;
+- keep Node's existing deterministic tests intact.
+
+Do not add PHPUnit/Composer solely to obtain a test runner unless source inspection proves the small local harness is inadequate; if such a dependency becomes materially necessary, stop and report instead of expanding scope silently.
+
+## Focused proof
+
+Add focused PHP tests covering at minimum:
+
+- exact initial URL/path construction and encoded Profile key;
+- cursor appears only as the single continuation query value;
+- Authorization bearer header is present in the outgoing request but absent from returned result/error text;
+- production base URL rejects non-HTTPS, credentials-in-URL, query, and fragment forms;
+- transport does not auto-follow redirects with Authorization;
+- exact valid first-page schema including nullable fields, empty arrays, and null `nextCursor`;
+- exact `originalUrl` and item order preservation;
+- compatible unknown/additive fields are tolerated;
+- missing/wrong-type required fields are rejected;
+- wrong API version or wrong Profile key is rejected;
+- invalid timestamps/JSON become bounded invalid-response outcomes;
+- ETag capture and initial `If-None-Match` request behavior;
+- `304` accepted only in the initial conditional context;
+- `400`, generic `401`, `404`, both governed `409` outcomes, `429` plus positive Retry-After, and `503` mapping;
+- malformed/missing Retry-After on `429` is rejected boundedly;
+- redirects/unexpected statuses/transport timeouts fail without leaking token/body internals;
+- no Source/Profile/Article business filtering or sorting appears in the PHP client.
+
+## Producer-to-consumer handoff to P2
+
+Before P1 completes, leave this auditable handoff:
+
+| Downstream-required capability | P1 owner/export | Focused proof |
+| --- | --- | --- |
+| exact Profile-addressed v1 request | PHP client/request builder | request-construction tests |
+| bearer-only Authorization | PHP client transport boundary | header/redaction tests |
+| validated active page | v1 decoder/validator | valid/invalid schema tests |
+| opaque cursor continuation input/output | PHP client typed page | cursor request/response tests |
+| `snapshotRevision` preserved opaque | validated page object | schema tests |
+| initial ETag + `304` | client conditional request/result | conditional tests |
+| `409 snapshot_changed` | typed client outcome | status/body mapping test |
+| `409 profile_disabled` | typed client outcome | status/body mapping test |
+| `429` + Retry-After seconds | typed client outcome | rate-limit tests |
+| generic auth/missing/service failures | typed client outcomes | status/error tests |
+| transport/invalid-response failure | bounded client failure | negative transport/schema tests |
+
+P2 must be able to implement synchronization without parsing raw JSON, raw response headers, cursor internals, token syntax, or upstream business rules.
+
+## Preserved behavior and non-goals
+
+Preserve without semantic change:
+
+- all Node Web/API, Worker, admin, `/`, `/api/feed`, and v1 implementation behavior;
+- Phase 1–4 persistence/auth/read-model/API ownership;
+- current migrations and supported production data;
+- Source approval, normalization, idempotency, provenance, duplicate, moderation, Category, ordering, and exact `original_url` rules;
+- machine/admin credential separation;
+- topic independence and one-Publication-per-installation architecture.
+
+Do not implement in P1:
+
+- retries, sleeping, backoff, cadence, cron runner, or overlap locking;
+- complete multi-page snapshot traversal;
+- snapshot-change restart policy;
+- candidate/active/LKG files;
+- stale age/max-stale policy;
+- Profile-disable persistence/re-enable state;
+- local operational health persistence;
+- customer-facing local data API or Article reader;
+- HTML/CSS/template rendering;
+- HostGator/provider-specific test plane or packaging;
+- WordPress, RSS/Atom, browser widgets, click/referral analytics, SEO guarantees, or self-host packaging;
+- Node API/schema/security changes or database migrations.
+
+## Validation
+
+During iteration, run the narrow PHP test command and any focused PHP test selector the new harness supports.
+
+On the final P1 tree run the smallest non-overlapping matrix for this new downstream package boundary:
+
+```text
+npm run check
+npm run codex:phase:validate -- p1-5
+git diff --check
+```
+
+`npm run check` must include the substantive PHP suite by this point. Do not add full PostgreSQL, browser, live-Source, deployment, or recovery suites solely for P1 because this prompt does not change those producers.
+
+## Version and repository rules
+
+- Set only top-level `package.json` to `1.5.1` before final validation.
+- Do not modify migrations or persisted News Scraper database state.
+- Do not create `package-lock.json`, Composer vendor state, or unrelated lockfiles.
+- Do not edit governing contracts, ADRs, roadmap entries, historical validation artifacts, `.codex/docs-prompt.txt`, or existing task prompts.
+- Do not manually commit; the phase runner owns the implementation commit boundary.
+
+## Acceptance
+
+P1 is complete only when:
+
+1. a dedicated external PHP package consumes only the permanent v1 HTTP contract;
+2. production request construction is HTTPS-only, does not auto-follow bearer redirects, and never moves the credential into URL/cache/results/logs;
+3. exact required v1 schema/status/header inputs are validated while compatible additive fields remain tolerated;
+4. opaque cursor/revision/ETag values remain opaque and exact `originalUrl`/item order remain untouched;
+5. one typed page/outcome boundary is sufficient for P2 without raw JSON/header parsing or upstream internals;
+6. deterministic PHP tests run through the repository and are included in ordinary `check` coverage;
+7. existing Node deterministic regressions remain green;
+8. no retry/LKG/rendering/later-phase behavior is pulled forward;
+9. package version is exactly `1.5.1`.
+
+Finish with a concise report listing changed files, PHP runtime/extensions actually exercised, package/client exports, request/validation conventions, focused/final commands actually run with results, package version, and any finding that should block P2.
