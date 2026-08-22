@@ -33,6 +33,8 @@ use NewsScraper\Integration\Php\FilesystemProfileStateStore;
 use NewsScraper\Integration\Php\FilesystemProfileLock;
 use NewsScraper\Integration\Php\LocalFilesystem;
 use NewsScraper\Integration\Php\NativeLocalFilesystem;
+use NewsScraper\Integration\Php\NativeHttpTransport;
+use NewsScraper\Integration\Php\TransportFailure;
 use NewsScraper\Integration\Php\LocalProfileUsabilityResolver;
 use NewsScraper\Integration\Php\LocalProfileUsability;
 use NewsScraper\Integration\Php\IntegrationRuntimeConfiguration;
@@ -172,15 +174,15 @@ testCase('configuration enforces HTTPS origin safety and bounded values', static
 testCase('request construction is profile-addressed and cursor-only', static function (): void {
     $transport = null;
     $client = clientFor(jsonResponse(200, pagePayload()), $transport);
-    $client->fetchPage('weekly desk/edition');
-    same('https://api.example.test/api/v1/distribution/weekly%20desk%2Fedition', $transport->requests[0]->url, 'initial URL');
+    $client->fetchPage('weekly/desk?edition');
+    same('https://api.example.test/api/v1/distribution/weekly%2Fdesk%3Fedition', $transport->requests[0]->url, 'initial URL');
     same('Bearer runtime-secret', $transport->requests[0]->headers['Authorization'], 'bearer header');
     same(false, $transport->requests[0]->followRedirects, 'redirect following disabled');
 
     $transport = new ScriptedTransport([jsonResponse(200, pagePayload())]);
     $client = new DistributionClient(new ClientConfiguration('https://api.example.test', 'runtime-secret'), $transport);
-    $client->fetchPage('weekly-desk', 'opaque cursor+/=');
-    same('https://api.example.test/api/v1/distribution/weekly-desk?cursor=opaque%20cursor%2B%2F%3D', $transport->requests[0]->url, 'continuation URL');
+    $client->fetchPage('weekly-desk', 'opaque+cursor/=');
+    same('https://api.example.test/api/v1/distribution/weekly-desk?cursor=opaque%2Bcursor%2F%3D', $transport->requests[0]->url, 'continuation URL');
     trueValue(!array_key_exists('If-None-Match', $transport->requests[0]->headers), 'continuation has no conditional header');
 });
 
@@ -278,6 +280,77 @@ testCase('redirects, unexpected statuses, and transport failures do not leak cre
     $failure = clientFor(new RuntimeException('failure ' . $token), $transport)->fetchPage('weekly-desk');
     same(DistributionOutcome::TRANSPORT_FAILURE, $failure->kind, 'transport failure bounded');
     trueValue(!str_contains(serialize($failure), $token), 'transport detail not leaked');
+});
+
+testCase('native transport handles controlled HTTP responses without following redirects or leaking secrets', static function (): void {
+    $listener = stream_socket_server('tcp://127.0.0.1:0', $errorCode, $errorMessage);
+    if ($listener === false) failTest('could not reserve a loopback test port');
+    $address = stream_socket_get_name($listener, false);
+    fclose($listener);
+    if (!is_string($address)) failTest('could not determine the loopback test port');
+
+    $router = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'news-scraper-php-router-' . bin2hex(random_bytes(8)) . '.php';
+    file_put_contents($router, <<<'PHP'
+<?php
+$path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+if ($path === '/redirect') {
+    header('Location: /secret-target', true, 302);
+    echo 'redirect';
+    return;
+}
+if ($path === '/secret-target') {
+    http_response_code(500);
+    echo 'redirect-followed';
+    return;
+}
+if ($path === '/oversized') {
+    header('X-Test: bounded');
+    echo str_repeat('x', 2048);
+    return;
+}
+http_response_code(429);
+header('Retry-After: 17');
+header('X-Test: parsed');
+echo '{"error":"rate_limited"}';
+PHP);
+
+    $process = proc_open([PHP_BINARY, '-S', $address, $router], [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
+    if (!is_resource($process)) failTest('controlled PHP HTTP server did not start');
+    try {
+        $ready = false;
+        for ($attempt = 0; $attempt < 100; $attempt++) {
+            $probe = @stream_socket_client('tcp://' . $address, $probeCode, $probeMessage, 0.05);
+            if ($probe !== false) {
+                fclose($probe);
+                $ready = true;
+                break;
+            }
+            usleep(10_000);
+        }
+        if (!$ready) failTest('controlled PHP HTTP server was not ready');
+
+        $transport = new NativeHttpTransport();
+        $response = $transport->send(new HttpRequest('http://' . $address . '/status', ['Authorization' => 'Bearer synthetic-native-secret'], 2, 1024));
+        same(429, $response->status, 'native status is parsed');
+        same('17', $response->header('retry-after'), 'native response header is parsed');
+        same('{"error":"rate_limited"}', $response->body, 'native body is bounded and returned');
+
+        $redirect = $transport->send(new HttpRequest('http://' . $address . '/redirect', ['Authorization' => 'Bearer synthetic-native-secret'], 2, 1024));
+        same(302, $redirect->status, 'native redirect is surfaced rather than followed');
+        same('redirect', $redirect->body, 'redirect target was not contacted');
+
+        try {
+            $transport->send(new HttpRequest('http://' . $address . '/oversized', ['Authorization' => 'Bearer synthetic-native-secret'], 2, 1024));
+            failTest('native response bound was not enforced');
+        } catch (TransportFailure $error) {
+            trueValue(!str_contains($error->getMessage(), 'synthetic-native-secret'), 'native failure is secret-free');
+        }
+    } finally {
+        proc_terminate($process);
+        foreach ($pipes as $pipe) if (is_resource($pipe)) fclose($pipe);
+        proc_close($process);
+        @unlink($router);
+    }
 });
 
 final class ScriptedPageClient implements DistributionPageClient
@@ -766,6 +839,7 @@ testCase('filesystem disabled transitions, health, and freshness remain atomic a
     $root = filesystemRoot();
     $store = new FilesystemProfileStateStore($root);
     $at = new DateTimeImmutable('2026-08-21T15:00:00+00:00');
+    same(LocalProfileUsability::NEVER_SYNCED, $store->readForPhase6('weekly-desk', new LocalProfileUsabilityResolver(), new FakeClock($at))->usability->classification, 'missing committed state is never synced');
     $activation = filesystemActivation('active', 'weekly-desk', $at);
     $store->activate($activation);
     $disabledFacts = new SynchronizationFacts('weekly-desk', SynchronizationResult::DISABLED, $at, $at, 0.0, 1, 0, false, null, $at, 'news-scraper-php');
@@ -777,8 +851,9 @@ testCase('filesystem disabled transitions, health, and freshness remain atomic a
     $state = $store->load('weekly-desk');
     same(false, $state->disabled, 'unchanged authenticated read re-enables');
     same(LocalProfileUsability::STALE_USABLE, (new LocalProfileUsabilityResolver())->resolve($state, $at->modify('+901 seconds'))->classification, 'default stale data remains usable');
+    same(LocalProfileUsability::STALE_USABLE, (new LocalProfileUsabilityResolver(900, 1_000))->resolve($state, $at->modify('+1000 seconds'))->classification, 'configured stale cutoff remains usable at the boundary');
     same(LocalProfileUsability::STALE_CUTOFF, (new LocalProfileUsabilityResolver(900, 1_000))->resolve($state, $at->modify('+1001 seconds'))->classification, 'configured stale cutoff is enforced');
-    same('success', $store->health('weekly-desk')->syncResult, 'health contains bounded result facts');
+    same('unchanged', $store->health('weekly-desk')->syncResult, 'health contains the latest bounded result facts');
 });
 
 testCase('cadence uses last attempt, has a 900-second default, and configuration never echoes secrets', static function (): void {
