@@ -1,0 +1,331 @@
+TASK: Phase 6 / P4 — Phase 6 closeout
+
+- Recommended configuration: `Sol Light`.
+- Task-shape classification: `Investigative`.
+- Specification clarity: `Explicit`.
+- State coupling: `High`.
+- Integrity risk: `High`.
+- Concurrency: `Local`.
+- Security: `Sensitive`.
+- Novel inference: `Moderate`.
+- Model-family basis: repository policy deliberately uses Sol's stronger independent review/code-reading capability for roadmap closeout. Phase 6 spans the P1 local consumer API, P2 HTML/presentation boundary, and P3 real PHP-server/browser integration proof and therefore benefits from an independent integrated audit.
+- Reasoning basis: Light is the policy baseline because the product contracts and prompt boundaries are explicit and the required three-pass closeout structure provides disciplined review. Escalate only if an observed state/security/process/architecture issue needs deeper reasoning.
+- Complexity / quality floor: `Critical`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: none under the current roadmap closeout policy.
+- Escalation trigger: any pass finds unresolved leakage of retained disabled/cutoff data, cache-internal coupling, unsafe escaping/direct-link behavior, visitor-path upstream access, PHP process/browser evidence gaps, state mismatch, or structural defects that cannot be confidently repaired inside bounded Phase 6 behavior.
+- Escalation target: `Terra High` / `Terra Ultra` for explicit deeper state/integration/refactor reasoning, or higher-effort Sol for ambiguous contract/architecture reconciliation, selected from the observed cause.
+- Estimate confidence: `High`.
+- Efficiency rationale: independently audit the complete Phase 6 integration once, repair only bounded unambiguous defects/tests, execute one non-overlapping final evidence matrix, and leave managed/public deployment proof to Phase 7.
+
+The assigned project version is `1.6.4`.
+
+## Goal
+
+Perform the independent final Phase 6 closeout against the exact integrated P1-P3 tree, make only bounded unambiguous repairs/tests already inside Phase 6 scope, execute the complete applicable evidence matrix, and write the durable Phase 6 validation artifact.
+
+This is not a feature prompt. Do not implement Phase 7 managed external integration, HostGator/customer-host deployment qualification, WordPress, RSS/Atom, browser widgets, analytics, advanced SEO tooling, self-host packaging, or any other later behavior.
+
+The final result remains **HUMAN REVIEW REQUIRED**. Do not perform conversational `/closeout` and do not advance the repository to `1.7.0`.
+
+## Prerequisite and exact identity
+
+P1-P3 must be committed as the reachable Phase 6 implementation prefix with exact runner-recognizable commit subjects and package version `1.6.3` before this prompt begins.
+
+Establish from Git rather than conversation text:
+
+- exact pre-P1 Phase 6 base commit;
+- P1/P2/P3 implementation commits;
+- current package version;
+- complete Phase 6 source/task diff.
+
+If Git history/package version does not prove the expected prefix, stop before reviewing behavior.
+
+## Read first
+
+Read:
+
+1. current `BOOT.md`, `AGENTS.md`, `README.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/product-scope-and-users.md`;
+4. `docs/contracts/distribution-and-integration-contract.md`;
+5. `docs/contracts/distribution-api-contract.md` only where Phase 6 must preserve carried data/link semantics;
+6. `docs/contracts/testing-and-validation-contract.md`;
+7. `docs/operations/security-reliability-and-operations.md`;
+8. `docs/operations/deployment-and-incident-runbook.md` for the Phase 6/7 proof boundary;
+9. accepted headless-distribution and managed/self-hostable ADRs;
+10. Phase 6 and Phase 7 roadmap entries;
+11. `docs/validation/phase-5-generic-php-synchronization-and-lkg.md` and its Phase 6 producer handoff;
+12. every prompt under `docs/tasks/p1-6/`;
+13. the complete Phase 6 diff from exact pre-P1 base through current HEAD;
+14. all Phase 6 production PHP files, package/example files, PHP tests, browser tests/helpers, package scripts, and relevant bootstrap/configuration code;
+15. Phase 5 PHP producer code only where needed to verify Phase 6 consumes rather than duplicates its authorities.
+
+Do not treat historical task wording as higher authority than current contracts or accepted source.
+
+# Pass 1 — Contract and evidence review
+
+Review the integrated P1-P3 tree against every Phase 6 roadmap requirement and the governing distribution/integration contract.
+
+## P1 — Local consumer API
+
+Verify:
+
+- ordinary visitor/customer local reads require only local Profile/state/freshness configuration and do not require upstream base URL/bearer credentials;
+- the customer-facing reader consumes `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead` rather than manifest/generation/cache paths;
+- one normalized immutable local model exposes the governed Profile, Publication, ordered Article, Source, Category, null metadata, state, stale age, and bounded health facts needed downstream;
+- exact `originalUrl`, item order, Category order, and nullable metadata survive without filtering/sorting/dedupe/ranking/reinterpretation;
+- `usable` and `stale_usable` expose renderable active data;
+- valid zero-item usable state remains distinct from unavailable;
+- `never_synced`, `stale_cutoff`, `disabled`, and `unavailable` expose no renderable retained Article/Profile payload through the normal customer model;
+- health facts do not expose bearer/API/cache path/generation/lock/cursor internals and cannot override usability;
+- P2/P3 do not need Phase 5 internal DTOs/store APIs directly.
+
+Pay special attention to authoritative disabled and stale-cutoff cases because Phase 5 intentionally may retain active bytes internally.
+
+## P2 — Renderer and presentation boundary
+
+Trace every rendered value into its output context.
+
+Verify:
+
+- fallback renderer accepts only P1 customer-facing data;
+- customer presentation may replace/bypass the fallback without changing local reader/sync/storage logic;
+- Source/editorial strings are escaped as untrusted text/attributes;
+- invalid/malicious text cannot become executable markup;
+- headline anchors use the exact logical stored `originalUrl` with only HTML attribute escaping;
+- no canonicalization, News Scraper redirect, tracking parameter, onclick/beacon, visitor analytics, automatic reciprocal-link logic, or SEO/backlink claim is introduced;
+- no JavaScript is required for core Article links;
+- ordinary external links do not silently gain `nofollow`/sponsored/UGC policy;
+- populated, empty, stale usable, never-synced, stale-cutoff, disabled, and unavailable states are distinct and safe;
+- nullable fields produce no `null`/broken/unsafe markup;
+- non-renderable states cannot leak retained Articles in visible or hidden HTML/comments/data attributes;
+- any rendered health/freshness facts are bounded and non-secret.
+
+## P3 — Customer-style server composition
+
+Verify the example/integration harness is truly downstream and provider-neutral:
+
+- visitor composition constructs only the local reader + presentation boundary;
+- no `DistributionClient`, `ProfileSynchronizer`, sync CLI, bearer handling, upstream HTTP fallback, cache JSON parsing, or editorial/filter logic appears in the visitor route;
+- the visitor server can run with upstream base URL and bearer token absent;
+- example remains a small reference integration, not a CMS/framework/HostGator-specific adapter;
+- core HTML is server rendered;
+- content type/encoding and error behavior are bounded;
+- customer custom rendering remains possible.
+
+## State/failure matrix
+
+Require focused plus integrated proof for:
+
+- populated usable;
+- empty usable;
+- stale usable with no default hard cutoff;
+- never synced;
+- configured stale cutoff;
+- authoritative disabled suppression;
+- unavailable/corrupt local state;
+- safe nullable metadata;
+- malicious Source-derived strings;
+- exact direct publisher links;
+- local health/freshness visibility where implemented.
+
+Confirm empty output is not misclassified as unavailable and stale usable does not trigger visitor-path refresh.
+
+## No visitor-path News Scraper call
+
+Require proof stronger than browser request observation alone.
+
+Verify the final evidence demonstrates all of:
+
+1. local state was produced through the real Phase 5 synchronization/store path or an equivalent public producer boundary appropriate to the test;
+2. the customer PHP server then rendered valid LKG with `NEWS_SCRAPER_BASE_URL` and `NEWS_SCRAPER_BEARER_TOKEN` absent;
+3. no synchronization process ran in response to the visitor request;
+4. production visitor composition has no upstream client dependency;
+5. browser network evidence shows no browser-direct News Scraper/tracking request;
+6. taking/removing upstream capability does not blank valid stale/usable LKG content.
+
+Do not overclaim a real external outage if the test removes credentials/configuration locally. Record exactly what was observed.
+
+## Browser/server evidence quality
+
+Inspect the actual Playwright/process test setup:
+
+- real PHP server process rather than HTML-source-only assertions;
+- real browser rather than string parsing only;
+- loopback isolation and deterministic temporary state;
+- bounded readiness timeout;
+- cleanup on all success/failure paths;
+- no hidden skip when PHP/browser prerequisite is missing;
+- no real internet dependency;
+- JavaScript-disabled observation for core Article content/navigation or equivalent browser proof;
+- href/content assertions against served output;
+- process logs do not leak secrets/raw state.
+
+## Existing behavior and scope preservation
+
+Verify Phase 6 did not alter or weaken:
+
+- Phase 5 synchronization retries/restarts, locking, atomic LKG activation, disable/re-enable, cadence, stale semantics, or store validation;
+- Phase 4 v1 API/auth/security semantics;
+- Phase 2/3 canonical/Profile/credential authorities;
+- Source trust, collection, normalization, idempotency, provenance, Relevance/Categories, moderation, duplicate suppression, ordering, and original publisher destination law;
+- existing `/`, `/api/feed`, admin, Worker, health, and database behavior;
+- supported migrations/production data;
+- topic independence and one-Publication-per-installation architecture.
+
+No News Scraper database migration/schema change is expected in Phase 6. If one exists, stop and reconcile why before claiming green.
+
+## Evidence matrix
+
+Confirm the final tree has:
+
+- substantive deterministic PHP tests included in ordinary `npm run check`;
+- substantive Phase 6 browser tests exercising the real PHP server/customer integration;
+- no zero-test or silent-skip path for required specialized evidence;
+- no public internet/live Source dependency;
+- exact-final-tree execution.
+
+Do not claim HostGator, external managed customer-site, Cloudflare, deployment, live Source, or public-network evidence from Phase 6 local browser tests. Those remain Phase 7.
+
+# Pass 2 — Error / edge-case adversarial review
+
+Independently derive realistic failures from source and contracts rather than merely reading existing test names.
+
+At minimum challenge:
+
+- retained active data accidentally surviving into disabled/stale-cutoff/unavailable customer DTOs;
+- empty usable mistaken for failure;
+- future/zero stale ages or threshold off-by-one behavior leaking through presentation;
+- corrupt local state partially exposing old Profile/Article data;
+- renderer escaping correct in text context but wrong in `href`/attributes;
+- malicious quotes/ampersands/UTF-8/script-like strings;
+- nullable fields creating malformed DOM;
+- original URL accidentally rewritten/normalized/tracked;
+- customer override accidentally receives internal store/sync objects;
+- example server accidentally imports full synchronization runtime and therefore requires bearer/base URL;
+- browser tests seeing no client-side request while the PHP server secretly calls upstream;
+- PHP child process leakage/port collisions/readiness races/hanging teardown;
+- browser suite skipping when PHP is unavailable;
+- stale valid content blanking after simulated upstream absence;
+- exception/local-path/secret leakage in unavailable states or child logs;
+- test-only cache writing creating a second persistence truth instead of using Phase 5 public producer boundaries;
+- order/category/null preservation regressions;
+- hidden JS dependency for core links.
+
+Classify each plausible failure as already protected, requiring a bounded repair/test improvement, or requiring escalation/replanning.
+
+A bounded unambiguous defect/test omission inside Phase 6 may be fixed here, followed by the invalidated focused/broader evidence. Do not expand product scope.
+
+# Pass 3 — Code-quality / structural review
+
+Independently review the Phase 6 diff plus important producers/consumers for:
+
+- duplicated local state interpretation outside P1;
+- duplicated escaping/link/state branches instead of one narrow renderer owner;
+- visitor/server code coupled to Phase 5 cache paths or sync runtime;
+- unnecessary framework/Composer/dependency additions;
+- speculative generic CMS/template abstractions;
+- test-only helpers leaking into production APIs;
+- overlarge monolithic PHP test files when a small split improves maintainability without changing behavior;
+- brittle process cleanup or platform assumptions;
+- dead compatibility code;
+- documentation/examples that overclaim deployment/provider support;
+- untested public exports or weak producer-to-consumer handoffs;
+- meaningful behavior-preserving refactors needed before Phase 7.
+
+Small local cleanup may be performed only when clearly bounded. A meaningful structural refactor triggers the special handoff below.
+
+## Terra High refactor handoff
+
+If any pass discovers a meaningful behavior-preserving refactor — moving responsibility across modules/layers, consolidating duplicated shared logic across consumers, replacing/collapsing an abstraction, reorganizing shared state/data flow, or another multi-file structural simplification whose safety requires producer/consumer tracing — STOP before implementing that refactor and output exactly one self-contained **Terra High refactor remediation prompt**.
+
+That prompt must:
+
+- recommend exactly `Terra High`;
+- state the observed quality problem and concrete evidence;
+- define the smallest behavior-preserving refactor boundary and affected producers/consumers;
+- preserve all Phase 6/Phase 5 security, state, link, failure-isolation, and presentation invariants;
+- forbid unrelated cleanup, new behavior, contract/ADR/roadmap expansion, and speculative abstractions;
+- preserve the package version required by this interrupted closeout and consume no roadmap/correction prompt number;
+- require focused tests plus every broader regression/evidence level invalidated by the refactor;
+- require a concise implementation report but MUST NOT declare Phase 6 green or finalize the validation artifact;
+- instruct Terra High to stop/report if the work actually requires product/contract/ADR change or deeper architecture redesign.
+
+After remediation is applied and implementation-level validation is green, rerun this closeout from the beginning. Only that rerun may accept the final Phase 6 tree.
+
+If the issue is a product/contract/ADR change rather than a behavior-preserving refactor, stop for normal planning/correction instead.
+
+## Required final validation
+
+After all permitted bounded repairs, run the smallest non-overlapping final-tree matrix covering the Phase 6 claims:
+
+```text
+npm run check
+npm run test:browser
+npm run codex:phase:validate -- p1-6
+git diff --check <exact-pre-P1-base>...HEAD
+```
+
+If the repository's current command graph shows another required specialized deterministic command is not contained by these, run it explicitly. Do not duplicate subordinate suites merely for extra green output.
+
+Record actual PHP, Node/npm, browser/Playwright, and OS/runtime details available from the execution environment.
+
+Do **not** require database, recovery, live-Source, or deployment suites unless source inspection shows Phase 6 unexpectedly changed those areas. If such a change exists, reconcile the scope first.
+
+## Durable validation artifact
+
+Create/update exactly one Phase 6 closeout record:
+
+```text
+docs/validation/phase-6-php-local-data-and-server-rendered-integration.md
+```
+
+It must identify:
+
+- exact pre-P1 base SHA;
+- P1/P2/P3 SHAs and final closeout source SHA;
+- package versions through `1.6.4`;
+- commands/procedures actually run and results;
+- environment/tool versions;
+- evidence levels actually achieved;
+- P1 local API handoff and P2/P3 consumer proof;
+- the complete required state matrix;
+- direct-link/escaping/browser observations;
+- exact evidence for no visitor-path upstream call, phrased without overclaim;
+- whether any bounded defects/tests were added during closeout;
+- Pass 2 adversarial findings/disposition;
+- Pass 3 structural findings/disposition;
+- whether a Terra High refactor handoff occurred before a final rerun;
+- limitations: no managed external/HostGator/public-network/live-Source/deployment claim unless separately observed;
+- whether any unresolved finding requires escalation/replanning/correction.
+
+The artifact records evidence; it does not rewrite contracts.
+
+## Version and repository rules
+
+- Set only top-level `package.json` to `1.6.4` for this closeout prompt before final validation if the runner has not already done so under its normal prompt version flow.
+- Do not advance to `1.7.0`; conversational `/closeout` owns that later package-only transition after human acceptance.
+- Do not create `package-lock.json`, Composer vendor state, or unrelated lockfiles.
+- Do not edit governing contracts/ADRs/roadmap merely to make implementation appear compliant.
+- Do not manually commit; the phase runner owns the closeout implementation commit boundary.
+
+## Acceptance
+
+Phase 6 closeout may report GREEN / HUMAN REVIEW REQUIRED only when:
+
+1. exact Git prefix/tree identity is established;
+2. P1 local API is the sole customer data/state boundary and hides Phase 5 cache internals;
+3. P2 fallback/customer presentation safely escapes untrusted data and emits ordinary direct exact publisher anchors with no JS/tracking dependency;
+4. all populated/empty/stale/never-synced/cutoff/disabled/unavailable states are correct and non-renderable states leak no retained Articles;
+5. P3 real PHP server + real browser evidence proves customer-style SSR from local state;
+6. valid synchronized LKG still renders when visitor server has no upstream base URL/bearer capability and no visitor sync/API fallback runs;
+7. browser/core links/content require no JavaScript and no browser-direct News Scraper/tracking request occurs;
+8. customer presentation replacement is proven without cache/sync knowledge;
+9. final `npm run check`, `npm run test:browser`, phase grammar validation, and committed-range diff check are green on the exact final source tree;
+10. no Phase 7/post-2.0 behavior or unsupported provider/deployment claim was pulled forward;
+11. Pass 2 and Pass 3 findings are fully dispositioned with no unresolved correctness/security/structural blocker;
+12. durable Phase 6 validation artifact is complete and honest;
+13. package version is exactly `1.6.4`.
+
+Finish with a concise report containing GREEN or BLOCKED, exact accepted candidate SHA, package version, evidence actually executed, required-state/browser/no-upstream findings, bounded repairs if any, adversarial/structural findings, limitations, and whether conversational `/closeout` may safely transition only `package.json` to the Phase 7 `1.7.0` baseline.
