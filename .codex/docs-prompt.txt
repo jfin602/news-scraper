@@ -1,26 +1,30 @@
-TASK: Documentation alignment after Phase 3 closeout
+TASK: Documentation alignment after Phase 4 closeout
 
-Target configuration: Terra Medium
-Selection basis: owner-specified. `Terra Medium` is a currently supported executable repository configuration (`gpt-5.6-terra`, medium reasoning). Do not substitute another model configuration.
+Recommended configuration: Luna Low
+Selection basis: automatic repository model-selection policy. This task is explicit, docs-only, bounded, and mechanical across a fixed approved file set with no product, architecture, runtime, persistence, security-design, or implementation decisions. `Luna Low` is the minimum-cost adequate currently supported executable configuration (`gpt-5.6-luna`, low reasoning). Stop rather than reinterpret contracts if repository state disagrees with this prompt.
 
 ## Goal
 
-Apply only the owner-approved documentation findings from the post-Phase-3 `/docs-review` so the repository documentation accurately reflects the completed Phase 3 closeout and the new Phase 4 / `1.4.0` baseline.
+Apply only the owner-approved documentation findings from the Phase 5 alignment `/docs-review` so current documentation accurately reflects the completed Phase 4 closeout and the new Phase 5 / `1.5.0` baseline.
 
-This is documentation-only alignment. Do not implement Phase 4, change runtime behavior, modify package version, or broaden product scope.
+This is documentation-only alignment. Do not implement Phase 5, change runtime behavior, modify package version, redesign contracts, or broaden product scope.
 
 Expected current state before edits:
 
 - repository: `jfin602/news-scraper`;
 - branch: `main`;
-- package version: `1.4.0`;
-- Phase 3 — Machine credentials and distribution security: completed and accepted through its durable validation/closeout evidence;
-- Phase 4 — Versioned v1 distribution API: current implementation phase;
-- Phase 4 baseline: `1.4.0`;
-- Phase 4 task folder when written: `p1-4`;
-- next roadmap prompt version: `1.4.1`;
-- Phase 4 must compose the already implemented Phase 2 canonical/Profile read model with the already implemented Phase 3 machine-authentication/request-guard boundary;
-- the actual `GET /api/v1/distribution/{profile_key}` HTTP interface is not implemented yet and remains Phase 4 work.
+- package version: `1.5.0`;
+- Phase 1 — Distribution Profile foundation: completed;
+- Phase 2 — Canonical distribution read model: completed;
+- Phase 3 — Machine credentials and distribution security: completed;
+- Phase 4 — Versioned v1 distribution API: completed and accepted through its durable validation/closeout evidence;
+- Phase 5 — Generic PHP synchronization and last-known-good core: current implementation phase;
+- Phase 5 baseline: `1.5.0`;
+- Phase 5 task folder when written: `p1-5`;
+- next roadmap prompt version: `1.5.1`;
+- implemented permanent machine interface: `GET /api/v1/distribution/{profile_key}` with cursor continuation;
+- Phase 5 consumes the implemented v1 API as a thin downstream client and must not recreate upstream Profile, Article, credential, authorization, cursor, revision, rate-limit, or trust semantics;
+- customer-facing PHP local data API, fallback renderer, and customer-style server-rendered integration remain Phase 6 work.
 
 ## Mandatory repository-freshness preflight
 
@@ -28,7 +32,7 @@ Before modifying documentation:
 
 1. Confirm the checkout is `jfin602/news-scraper`, is on `main`, and the working tree is clean. Do not discard, stash, reset, rebase, or overwrite local work.
 2. Confirm `.codex/docs-prompt.txt` exists in the checkout.
-3. Determine the commit that most recently introduced or replaced the current handoff file, for example with:
+3. Determine the commit that most recently introduced or replaced the current handoff file, for example:
 
    `PROMPT_COMMIT="$(git log -1 --format=%H -- .codex/docs-prompt.txt)"`
 
@@ -42,11 +46,12 @@ Before modifying documentation:
 
    `git fetch origin main`
 
-6. After fetching, stop and report that the repository must be updated if `HEAD` is behind `origin/main` or otherwise does not contain the current prompt-file commit. Do not silently merge/rebase/reset to fix freshness.
-7. Confirm top-level `package.json` is exactly version `1.4.0`. If not, stop and report documentation/repository drift rather than guessing a new phase state.
-8. Confirm the Phase 3 durable validation artifact exists at `docs/validation/phase-3-machine-credentials-and-distribution-security.md` and records the accepted Phase 3 security/authentication producer handoff. Read it for factual alignment only; do not edit it.
+6. After fetching, stop and report that the repository must be updated if `HEAD` is behind `origin/main` or otherwise does not contain the current prompt-file commit. Do not silently merge, rebase, reset, or force-update to repair freshness.
+7. Confirm top-level `package.json` is exactly version `1.5.0`. If not, stop and report documentation/repository drift rather than guessing a new phase state.
+8. Confirm `docs/validation/phase-4-versioned-v1-distribution-api.md` exists and records Phase 4 GREEN evidence plus the Phase 5 producer handoff. Read it for factual alignment only; do not edit it.
+9. Confirm the Phase 4 implementation commits and conversational closeout are reachable in current `main`; in particular, documentation must not claim Phase 4 is complete merely from this prompt if repository history/state does not support it.
 
-If any prerequisite materially disagrees with this prompt, stop and report the conflict. Do not reinterpret the roadmap to make the prompt fit.
+If any prerequisite materially disagrees with this prompt, stop and report the conflict. Do not reinterpret the roadmap or contracts to make the prompt fit.
 
 ## Authority and preserved contracts
 
@@ -60,238 +65,237 @@ Read before editing:
 6. `docs/contracts/product-scope-and-users.md`;
 7. `docs/contracts/distribution-and-integration-contract.md`;
 8. `docs/contracts/distribution-api-contract.md`;
-9. `docs/contracts/domain-and-data-contract.md`;
+9. `docs/contracts/testing-and-validation-contract.md`;
 10. `docs/contracts/public-feed-and-admin-contract.md`;
-11. `docs/contracts/testing-and-validation-contract.md`;
-12. `docs/architecture/system-architecture.md`;
-13. `docs/operations/security-reliability-and-operations.md`;
-14. `docs/operations/deployment-and-incident-runbook.md`;
-15. `docs/operations/database-backup-and-restore.md`;
-16. `docs/roadmap/post-1.0-roadmap.md`;
-17. `docs/validation/phase-3-machine-credentials-and-distribution-security.md`.
+11. `docs/architecture/system-architecture.md`;
+12. `docs/operations/security-reliability-and-operations.md`;
+13. `docs/operations/deployment-and-incident-runbook.md`;
+14. `docs/roadmap/post-1.0-roadmap.md`;
+15. `docs/validation/phase-4-versioned-v1-distribution-api.md`.
 
 Use the authority hierarchy in `BOOT.md` and `docs/contracts/project-contract.md`. This task aligns current-state documentation to already accepted repository state; it does not authorize a new product/architecture decision.
 
 Preserve without reinterpretation:
 
-- topic independence and one Publication/topic per deployed installation;
+- topic independence and exactly one Publication/topic per deployed installation;
 - Source trust/approval boundaries;
 - idempotency, provenance, duplicate suppression, and stored `original_url` semantics;
 - canonical distribution eligibility independent of reference `public_status`;
 - Distribution Profile selection only narrows canonical eligibility;
 - Phase 2 remains the canonical transport-independent Profile/read-model producer;
-- Phase 3 credentials remain instance-scoped, not Profile-scoped;
-- `distribution:read` machine credentials never grant administrator authority;
+- Phase 3 remains the credential/authentication/request-guard/rate-foundation authority;
+- Phase 4 is now the implemented thin v1 HTTP transport/runtime boundary over Phase 2 and Phase 3;
+- machine `distribution:read` credentials never grant administrator authority;
 - no credential↔Profile permission matrix and no Profile-specific authenticated `403` model for 2.0;
-- process-local Phase 3 rate limiting is a foundation, not a claim of distributed enforcement;
+- Phase 4 rate limiting remains bounded/process-local as implemented and documented, not distributed/global enforcement;
+- production v1 HTTPS/trusted-proxy behavior remains exactly as implemented and validated in Phase 4;
 - existing `/` and `/api/feed` behavior remains supported and unchanged;
-- PHP/LKG remains Phase 5+ work; customer SSR remains Phase 6+; managed integration qualification remains Phase 7;
-- WordPress, RSS/Atom output, self-host packaging/native self-host admin auth, browser widgets, visitor/click analytics, advanced SEO tooling, delta sync, and other deferred capabilities remain post-2.0 unless separately owner-approved.
+- Phase 5 owns PHP synchronization/cache correctness, not customer presentation;
+- Phase 6 owns normalized local PHP consumption plus customer-style SSR/fallback presentation;
+- Phase 7 owns managed external integration and final 2.0 release qualification;
+- WordPress, RSS/Atom output, Linux VPS/Docker Compose self-host packaging, native self-host admin auth, browser widgets, visitor/click/referral analytics, advanced SEO tooling, delta sync, and additional adapters remain post-2.0 unless separately owner-approved.
 
 Do not edit historical validation artifacts, historical MVP roadmap evidence, superseded decision history, or old phase/task prompts to make history look current.
 
+## Phase 5 boundary that documentation must preserve
+
+Phase 5 is the reusable generic PHP synchronization and last-known-good core against the stable v1 API. Current documentation may summarize this, but must not silently redesign it.
+
+Phase 5 scope includes:
+
+- PHP API client using bearer authentication;
+- complete bounded Profile snapshot traversal through all cursors;
+- validation of the v1 envelope, item/Profile schema, API version, and `snapshotRevision` consistency;
+- bounded restart after `409 snapshot_changed` while preserving current active state;
+- ETag / conditional initial synchronization where available;
+- customer-configurable cadence with 15-minute default;
+- per-Profile locking and overlap prevention;
+- bounded retries respecting `Retry-After`;
+- candidate state separate from active state;
+- atomic activation only after a complete valid candidate;
+- independent per-Profile LKG state and preservation of prior recoverable valid state where practical;
+- no bearer credential inside cache payloads;
+- freshness/staleness metadata and stale-valid-by-default behavior with optional maximum stale age;
+- safe never-synced behavior;
+- authenticated `409 profile_disabled` as authoritative local suppression state;
+- later successful synchronization restoring re-enabled output;
+- local operational sync/cache health.
+
+Phase 5 does **not** own customer HTML, a customer-facing local data API, fallback renderer, customer-style website integration, or visitor-path rendering. Those remain Phase 6. Do not pull Phase 6 behavior forward merely because the distribution contract describes the full 2.0 PHP integration.
+
 ## Approved documentation changes
 
-Make the smallest coherent edits necessary in the files below. Preserve unrelated wording and structure.
+Make the smallest coherent edits necessary in exactly the files below. Preserve unrelated wording and structure.
 
 ### 1. `BOOT.md`
 
-Advance all current-state/session-routing references from Phase 3 to Phase 4:
+Advance current routing/status from Phase 4 to Phase 5:
 
-- current implementation phase → **Phase 4 — Versioned v1 distribution API**;
-- current package baseline/version → `1.4.0`;
-- current task folder → `p1-4` when written;
-- next roadmap prompt version → `1.4.1`;
-- current invocation target → `/prompt-ass Phase 4` → `/prompt-plan` → `/prompt-write p1-4`;
-- `/prompt-write` current folder/validation example → `p1-4`;
-- runner baseline example for no completed Phase 4 prompt → `1.4.0`;
-- current next action → Phase 4 planning.
+- current implementation phase → **Phase 5 — Generic PHP synchronization and last-known-good core**;
+- current package baseline → `1.5.0`;
+- current task folder → `p1-5` when written;
+- next roadmap prompt version → `1.5.1`;
+- current planning invocation examples/status text → Phase 5 / `p1-5` where they describe the active phase.
 
-Record Phase 3 as completed producer state, not current/future work. Phase 4 is allowed to implement the permanent v1 HTTP route by composing:
+Add the implemented permanent v1 machine route to current outward interfaces/surfaces alongside the existing reference `/` and `/api/feed` surfaces, while keeping the route roles distinct.
 
-- the implemented Phase 2 canonical/Profile read model; and
-- the implemented Phase 3 credential/authentication/request-guard foundation.
+Record Phase 4 as completed producer state. Replace stale Phase-4-as-current handoff text with a concise Phase 5 handoff stating that the generic PHP synchronization/cache core consumes:
 
-State explicitly that Phase 4 controllers/serializers must stay thin and must not recreate credential SQL/token/verifier/lifecycle/quota semantics or Article/Profile SQL/filter/order/cursor/revision semantics.
+- the implemented Phase 4 v1 HTTP contract;
+- its bearer authentication boundary from Phase 3 composition;
+- the v1 envelope, pagination/cursor, `snapshotRevision`/ETag, response classes, `Retry-After`, HTTPS/trust, and bounded telemetry behavior.
 
-Do not claim the v1 HTTP route is already implemented. Keep current implemented outward HTTP surfaces as `/` and `/api/feed` until Phase 4 actually ships.
+State that PHP remains a thin consumer and must not reconstruct Profile/Article SQL, eligibility/filter/order/category/duplicate logic, credential/token/verifier/auth semantics, cursor payload structure, rate-limit internals, or trusted-proxy internals.
 
-### 2. `AGENTS.md`
+Do not describe customer SSR as current Phase 5 work.
 
-Align current roadmap/version/task routing to:
+### 2. `README.md`
 
-- Phase 4;
-- `1.4.0`;
-- `p1-4`;
-- next version `1.4.1`.
+Update the implemented outward-surface list to include the permanent authenticated v1 distribution route while retaining `/api/feed` and `/` as legacy/reference surfaces.
 
-Update the roadmap handoff statement so Phase 3 is recorded as closed to the Phase 4 `1.4.0` baseline.
+Update current-state prose to say:
 
-Replace Phase-3-as-current guardrail wording with:
+- Phases 1–4 are implemented;
+- Phase 4 delivered the permanent versioned authenticated v1 distribution API;
+- current package `1.5.0` begins Phase 5 — generic PHP synchronization/LKG core;
+- Phase 6 customer integration/rendering remains future work.
 
-- Phase 3 implemented the machine credential lifecycle, verifier persistence, authentication boundary, protected credential administration, rate/invalid-auth foundation, and strict machine/admin separation;
-- Phase 4 must consume those implemented boundaries plus the Phase 2 read model;
-- Phase 4 may implement only the governed v1 machine HTTP interface and related HTTP/error/conditional/telemetry/HTTPS/CORS boundary from the roadmap/contracts;
-- Phase 4 must not pull PHP/LKG or post-2.0 work forward.
+Keep the architectural product path and topic-independent boundaries unchanged.
 
-Preserve all existing project laws, production compatibility, UI workstream, and validation-honesty rules.
+### 3. `AGENTS.md`
 
-### 3. `README.md`
+Align all current roadmap/version/task routing to:
 
-Update the concise current-state section to say:
+- Phase 5;
+- `1.5.0`;
+- `p1-5`;
+- next prompt version `1.5.1`.
 
-- Phase 1 implemented Distribution Profiles;
-- Phase 2 implemented the canonical/Profile distribution read model;
-- Phase 3 implemented dedicated machine credentials/distribution-security foundations;
-- current package `1.4.0` begins Phase 4 — versioned v1 distribution API;
-- PHP/LKG and customer integration remain future phases.
+Record Phase 4 as completed and the v1 route as implemented.
 
-Do not present `/api/v1/distribution/...` as an implemented outward surface yet.
+Replace stale Phase-4-current implementation guardrails with Phase 5 guidance:
+
+- Phase 5 consumes the stable v1 machine API rather than the database/read-model internals;
+- the PHP client/cache layer may own transport configuration, bearer use, synchronization, retries, local locking/storage, freshness, and candidate/active state;
+- it must not reinterpret Source trust, canonical eligibility, Profile selectors, Categories, moderation, duplicate rules, ordering, `originalUrl`, machine credential authority, cursor structure, or HTTP trust internals;
+- Phase 5 must not pull Phase 6 rendering/customer-local-data behavior or post-2.0 adapters forward.
+
+Preserve package/version grammar, production compatibility, UI workstream, closeout policy, and validation honesty.
 
 ### 4. `docs/README.md`
 
-Align both the opening current-state summary and the roadmap/implementation-discipline block to:
+Align the opening implementation-state summary and roadmap/implementation-discipline block to:
 
-- current package `1.4.0`;
-- Phase 4 — Versioned v1 distribution API;
-- next prompt `1.4.1`;
-- task folder `p1-4`;
-- normal planning invocation `/prompt-ass Phase 4` → `/prompt-plan` → `/prompt-write p1-4`.
+- current package `1.5.0`;
+- Phase 5 — Generic PHP synchronization and last-known-good core;
+- next prompt `1.5.1`;
+- task folder `p1-5`;
+- normal planning invocation `/prompt-ass Phase 5` → `/prompt-plan` → `/prompt-write p1-5`.
 
-Where routing summaries describe implementation status, identify Phase 3 machine credential/authentication foundations as implemented and the v1 HTTP route as current Phase 4 work.
+Where routing summaries describe implementation status, state that the v1 HTTP API is implemented and generic PHP synchronization/LKG is current work.
 
 Do not change document authority relationships.
 
 ### 5. `docs/roadmap/post-1.0-roadmap.md`
 
-Update only current roadmap state and completion bookkeeping; do not redesign Phase 4.
+Update only current roadmap state and Phase 4 completion bookkeeping; do not redesign Phase 5.
 
 At the top:
 
-- current package baseline → `1.4.0`;
-- current implementation phase → Phase 4;
-- current task folder → `p1-4`;
-- current prompt versions → `1.4.<prompt>`.
+- current package baseline → `1.5.0`;
+- current implementation phase → Phase 5;
+- current task folder → `p1-5`;
+- current Phase 5 prompt versions → `1.5.<prompt>`.
 
-At the end of Phase 3 add a completion record consistent with prior completed-phase wording, stating that `/closeout` completed successfully and transitioned only top-level `package.json` to `1.4.0`, the Phase 4 baseline.
+At the end of Phase 4 add a completion record consistent with prior completed-phase wording, stating that Phase 4 completed successfully and conversational `/closeout` transitioned only top-level `package.json` to `1.5.0`, the Phase 5 baseline.
 
-Leave Phase 4's existing goal/scope/boundaries/exit gate intact except for strictly necessary current-state wording. It remains the thin HTTP composition phase for:
-
-`GET /api/v1/distribution/{profile_key}`
-
-and cursor continuation.
+Leave Phase 5's existing goal/scope/boundaries/exit gate behaviorally unchanged except for strictly necessary current-state wording.
 
 ### 6. `docs/contracts/product-scope-and-users.md`
 
-Correct stale claims that machine credentials are future work.
+Correct implementation-status prose only.
 
-Under administrator/operator capability, include the implemented protected Distribution Credential administration capability at the appropriate abstraction level: create/list/rotate/revoke with labels/lifecycle metadata, one-time plaintext issue/rotation behavior, and strict separation from human administrator authority.
+State at the appropriate abstraction level that:
 
-Under current/core capabilities, make clear that Phase 3 has implemented the reusable machine credential/authentication/security foundation needed by the permanent machine API.
+- Phases 1–4 foundations are implemented;
+- the permanent authenticated v1 distribution HTTP API is implemented;
+- generic PHP synchronization/LKG is current Phase 5 work;
+- external customer rendering/integration remains later Phase 6 work.
 
-In the 2.0/current-roadmap status text, state:
+Replace the stale sentence saying Phase 3 security exists but does not yet expose the v1 HTTP interface.
 
-- Phases 1–3 foundations are implemented;
-- the permanent distribution HTTP API is Phase 4/current work;
-- PHP and external distribution consumers remain later work.
+Do not turn this product-scope contract into a detailed PHP cache or API error specification.
 
-Do not turn this product-scope contract into a token-format or HTTP-error specification; those details remain governed by `distribution-api-contract.md` and the roadmap.
+### 7. `docs/contracts/distribution-api-contract.md`
 
-### 7. `docs/contracts/public-feed-and-admin-contract.md`
+Update the status line only as necessary to reflect reality:
 
-This contract governs the current managed/reference administrator UX, so add the implemented **Distribution Credentials** administrative surface to the Admin information architecture next to Distribution Profiles.
+- this remains the current normative 2.0 machine-interface contract;
+- the Phase 3 credential/authentication/security foundation and Phase 4 v1 HTTP interface are implemented;
+- Phase 5 is now the downstream generic PHP synchronization/LKG consumer work.
 
-Add a concise governed subsection or adjacent paragraph covering the current credential admin behavior:
-
-- routes/workspace remain inside the existing Cloudflare Access-protected admin perimeter;
-- existing request-integrity and bounded resource/command validation continue to apply;
-- authorized admin can create, list, rotate, and revoke distribution credentials;
-- list/revoke responses expose only safe metadata and never plaintext/verifier/digest material;
-- successful create/rotate may return the newly issued plaintext token once;
-- no reveal/recovery endpoint exists for an old plaintext token;
-- browser handling of a newly issued token is transient: it is not persisted in URL, browser storage, cookies, or reloadable state and is cleared/replaced/dismissed according to the implemented one-time-secret workflow;
-- overlapping rotation means the predecessor is not silently revoked merely by creating a successor;
-- machine bearer authentication does not satisfy administrator access or mutation-integrity requirements.
-
-Keep detailed bearer format, verifier, authentication, capability, expiry/revocation, and rate semantics owned by `distribution-api-contract.md` / the security architecture. Do not duplicate those contracts unnecessarily.
+Do not alter the interface, schema, cursor/revision semantics, authentication/authorization, response classes, rate limits, HTTPS requirement, or CORS stance.
 
 ### 8. `docs/architecture/system-architecture.md`
 
-Document the implemented Phase 3 module/ownership boundary under `src/distribution/`.
+Correct stale implementation-state prose that still says the v1 HTTP route remains Phase 4 work.
 
-Extend the ownership map with a `credentials/` child or equivalent concise representation covering:
+Describe the implemented ownership boundary accurately:
 
-- token generation/parsing/verifier derivation;
-- credential persistence/authentication lookup;
-- machine authentication;
-- request guard / bounded process-local rate limiting;
-- credential configuration/policy.
+- `src/distribution/` owns canonical outward/Profile semantics;
+- `src/distribution/credentials/` owns token/verifier/persistence/authentication/request-guard/rate foundations;
+- the Web/API Phase 4 distribution runtime/router owns the thin permanent v1 HTTP transport/status/schema/header/conditional/telemetry/HTTPS/trust boundary;
+- Phase 5 PHP code is a downstream integration adapter/client and must remain outside those authorities.
 
-State that Phase 4 Web/API code must consume this boundary and must not recreate:
+Where useful, update the logical-component prose/diagram annotation so the v1 API is clearly implemented while PHP sync/LKG remains current Phase 5 work and customer rendering remains Phase 6.
 
-- credential/token SQL or verifier derivation;
-- credential lifecycle interpretation;
-- machine authorization semantics;
-- authenticated quota or invalid-auth limiter state.
+Do not move module ownership or invent a new adapter abstraction merely for documentation symmetry.
 
-Likewise preserve the existing rule that Phase 4 consumes the Phase 2 Profile page/snapshot/cursor/revision producer rather than recreating Article/Profile query semantics.
+### 9. `docs/operations/security-reliability-and-operations.md`
 
-If useful, update the logical-component prose/diagram annotation to distinguish **implemented machine-authentication foundation** from the still-unimplemented **v1 HTTP distribution route**. Do not imply PHP/LKG exists yet.
+Convert stale future-tense Phase 4 machine-security wording into implemented-state wording while preserving all normative rules.
 
-### 9. `docs/contracts/distribution-api-contract.md`
+State that:
 
-Refine the status line only as necessary to distinguish partial implementation state from the normative contract:
+- Phase 3 supplies the credential lifecycle/authenticator/request-guard and bounded process-local rate foundation;
+- Phase 4 supplies trusted HTTP client-network/proxy interpretation, production HTTPS fail-closed behavior, v1 status/error mapping including `429`/`Retry-After`, cache/security headers, and bounded distribution telemetry;
+- Phase 5 consumes these behaviors and must not reproduce or weaken them in PHP.
 
-- the document remains the current normative 2.0 machine-interface contract;
-- the Phase 3 credential/authentication/security foundation is implemented;
-- the v1 HTTP interface itself remains pending/current Phase 4 work.
+Keep the existing PHP/LKG failure-isolation rules normative for Phase 5 implementation, but do not imply customer rendering is being built in this phase.
 
-Do not weaken, redesign, or rewrite the existing response schema, cursor/revision rules, credentials/authorization semantics, status-code model, rate-limit requirements, HTTPS boundary, or CORS stance merely for status alignment.
+Do not weaken no-secret-logging, machine/admin separation, or self-hostability constraints.
 
-### 10. `docs/operations/security-reliability-and-operations.md`
+### 10. `docs/operations/deployment-and-incident-runbook.md`
 
-Keep the existing normative machine-security bullets intact, but add precise implementation-state clarification:
+Update only stale managed-distribution implementation status.
 
-- Phase 3 now supplies the tested credential lifecycle/authenticator/request-guard foundation;
-- its rate limiter is intentionally bounded and process-local;
-- trusted HTTP client-network identity extraction/proxy interpretation belongs to the HTTP boundary and is not already solved by the Phase 3 limiter;
-- mapping rate decisions into the v1 `429` response and `Retry-After`, along with the governed HTTP error surface, belongs to Phase 4.
-
-Do not claim distributed/global quota enforcement. Do not weaken the strict no-secret-logging or machine/admin separation rules.
-
-### 11. `docs/operations/deployment-and-incident-runbook.md`
-
-Update the authorized admin smoke-check list to include **Distribution Credentials** alongside Distribution Profiles.
-
-Correct the stale 2.0 managed-distribution introduction sentence. It should now distinguish:
+The `2.0 managed distribution checks` introduction should now distinguish:
 
 - implemented Distribution Profiles;
-- implemented canonical distribution read-model producer;
+- implemented canonical distribution read model;
 - implemented machine credential/authentication/security foundation;
-- current Phase 4 v1 HTTP API work;
-- later generic PHP integration.
+- implemented permanent v1 HTTP API and its production HTTPS/trusted-proxy configuration;
+- current Phase 5 generic PHP synchronization/LKG work;
+- later Phase 6 customer rendering/integration.
 
-Do not add deployment checks that require the v1 HTTP route to exist before Phase 4 implements it. Keep final 2.0 release checks as future/as-applicable requirements.
+Keep the existing Phase 4 production configuration requirements exactly intact unless a direct factual wording correction is necessary. Do not redesign proxy topology or deployment policy.
 
-### 12. `docs/operations/database-backup-and-restore.md`
-
-Add only the small Phase 3 recovery alignment approved by review:
-
-- current recovery/backup validation now includes preservation of machine credential verifier/lifecycle state as durable database state;
-- plaintext bearer credentials are not recoverable from backup/restore because they are never persisted plaintext.
-
-Do not change backup format, restore procedure, retention rules, rollback policy, or claim broader recovery evidence than the accepted Phase 3 validation artifact records.
+Final 2.0 managed-integration checks remain future/as-applicable Phase 7 release proof and must not be rewritten as already executed Phase 5 evidence.
 
 ## Files that must remain unchanged
 
 Unless a direct contradiction in an approved target above makes a minimal reference correction unavoidable, do **not** edit:
 
+- `package.json`;
+- `.codex/docs-prompt.txt` while executing this prompt;
 - `docs/contracts/project-contract.md`;
 - `docs/contracts/distribution-and-integration-contract.md`;
-- `docs/contracts/domain-and-data-contract.md`;
 - `docs/contracts/testing-and-validation-contract.md`;
+- `docs/contracts/public-feed-and-admin-contract.md`;
+- `docs/contracts/domain-and-data-contract.md`;
 - `docs/contracts/source-and-collection-contract.md`;
 - `docs/contracts/article-lifecycle-and-deduplication.md`;
+- `docs/operations/database-backup-and-restore.md`;
 - Accepted/superseded ADR history under `docs/decisions/`;
 - `feature-ideas.md`;
 - `known-issues.md`;
@@ -299,98 +303,80 @@ Unless a direct contradiction in an approved target above makes a minimal refere
 - `docs/roadmap/2.0-planning-questions.md`;
 - `docs/history/`;
 - `docs/tasks/`;
-- `docs/validation/`.
+- `docs/validation/`;
+- `docs/design/`.
 
-Do not edit `.codex/docs-prompt.txt` while executing the prompt.
-
-If you believe one of these must change, stop and report the contradiction instead of silently expanding scope.
+If you believe one of these must change to make the approved targets coherent, stop and report the contradiction instead of silently expanding scope.
 
 ## Absolute non-goals
 
 Do not modify:
 
-- `package.json` or package version (`1.4.0` must remain unchanged);
 - source code;
 - migrations;
-- tests/fixtures;
+- tests or fixtures;
 - dependencies or npm configuration;
 - runtime/environment/deployment configuration;
+- package version (`1.5.0` must remain unchanged);
 - task prompts;
 - validation artifacts;
-- UI design guidance unless explicitly listed above;
-- Source configuration/publication configuration data.
+- Source or Publication configuration data.
 
 Do not:
 
-- implement `/api/v1/distribution/{profile_key}`;
-- add routes, serializers, middleware, logging, or telemetry code;
-- change token format, cryptographic design, verifier storage, lifecycle behavior, or rate-limit implementation;
-- create new permissions/roles/Profile-specific authorization;
-- add a credential↔Profile matrix;
-- pull PHP/LKG/customer rendering forward;
-- claim the v1 route, PHP, or managed 2.0 integration has been validated when it has not;
-- rewrite historical evidence as if it tested the current tree;
-- add speculative abstractions or new architecture decisions;
-- create a new ADR.
+- implement any PHP code;
+- add Composer/package scaffolding;
+- implement synchronization, cache files, locking, retries, cron, renderer, or local data APIs;
+- modify the v1 route, response schema, serializer, auth, rate limit, telemetry, HTTPS, or proxy behavior;
+- change Profile semantics, collection behavior, moderation, duplicate handling, or Article selection;
+- add WordPress, RSS/Atom output, widgets, analytics, SEO features, delta sync, or self-host packaging;
+- claim Phase 5 or later implementation evidence that has not actually been observed.
 
-## Editing approach
+## Historical evidence discipline
 
-This is a bounded state-alignment task, not a prose rewrite.
+Do not rewrite the Phase 4 validation artifact or historical task prompts to say the tree was `1.5.0` when that evidence was recorded against the Phase 4 closeout candidate at `1.4.3`.
 
-- Preserve existing terminology and document structure where practical.
-- Prefer small sentence/list substitutions over broad rewrites.
-- Keep detailed authority in the narrow governing document rather than duplicating it across summaries.
-- Distinguish **implemented producer foundations** from **future/current consumer transport** precisely.
-- Preserve historical statements that are explicitly historical, even when they contain older version/phase numbers.
-- Do not remove useful context merely to reduce stale-search hits.
+The conversational `/closeout` commit after acceptance is the package-only transition to `1.5.0`; current routing docs may record that transition, while historical evidence must retain its original source-tree identity and HUMAN REVIEW REQUIRED wording.
+
+Do not alter older Phase 1–3 validation artifacts merely to make their contemporary status sentences look current.
 
 ## Validation
 
-No runtime/test suite is required for a documentation-only change. Validate the documentation diff itself.
+This is documentation-only work. Validate the final tree without inventing implementation evidence.
 
 At minimum:
 
-1. `git diff --check`
-2. `git diff --name-only`
-3. Confirm every changed path is within this approved set only:
+1. Run `git diff --check` for the documentation edits.
+2. Confirm the only modified tracked documentation files are exactly the 10 approved targets:
    - `BOOT.md`
-   - `AGENTS.md`
    - `README.md`
+   - `AGENTS.md`
    - `docs/README.md`
    - `docs/roadmap/post-1.0-roadmap.md`
    - `docs/contracts/product-scope-and-users.md`
-   - `docs/contracts/public-feed-and-admin-contract.md`
-   - `docs/architecture/system-architecture.md`
    - `docs/contracts/distribution-api-contract.md`
+   - `docs/architecture/system-architecture.md`
    - `docs/operations/security-reliability-and-operations.md`
    - `docs/operations/deployment-and-incident-runbook.md`
-   - `docs/operations/database-backup-and-restore.md`
-4. Confirm `package.json`, source, migrations, tests, task prompts, and validation artifacts are unchanged.
-5. Confirm `package.json` still reads `1.4.0`.
-6. Search the current-state routing documents for stale Phase 3 state, especially:
-   - current package/baseline `1.3.0`;
-   - current implementation phase Phase 3;
-   - next prompt `1.3.1`;
-   - current task folder `p1-3`;
-   - `/prompt-ass Phase 3` as the current next action.
+3. Confirm `package.json` remains exactly `1.5.0` and is unmodified.
+4. Search the edited current-state/routing documents for stale active-state references such as current `1.4.0`, current Phase 4, `p1-4`, next `1.4.1`, or claims that the v1 HTTP route is still unimplemented. Distinguish legitimate historical/roadmap lifecycle references from stale current-state language; do not mechanically delete historical references.
+5. Confirm the edited docs consistently state Phase 5 / `1.5.0` / `p1-5` / next `1.5.1` where current routing is intended.
+6. Confirm the v1 API is described as implemented without implying PHP/LKG or customer rendering is already implemented.
+7. Confirm no historical validation artifact, task prompt, ADR, source file, migration, test, package/dependency file, or runtime configuration changed.
 
-   Historical roadmap/version-lifecycle references to Phase 3 / `1.3.x` are expected and must not be removed merely because they match a search.
-7. Confirm Phase 3 is described as implemented/closed where current-state summaries require it.
-8. Confirm Phase 4 is described as current and **not yet implemented** where HTTP-route status is discussed.
-9. Confirm no edited document claims PHP/LKG, customer SSR integration, WordPress/RSS, self-host packaging, or final 2.0 managed proof is already implemented.
-10. Confirm machine credentials remain instance-scoped, `distribution:read` only, and strictly unable to authorize admin operations.
-11. Confirm the architecture/security docs do not accidentally upgrade the Phase 3 process-local limiter into distributed enforcement or claim trusted proxy/network extraction is already solved.
+No runtime, PostgreSQL, browser, live-Source, or deployment test is required solely for this documentation alignment. Do not claim those evidence levels from documentation inspection.
 
 ## Completion report
 
-Return a concise report containing:
+When complete, report concisely:
 
-- status: docs alignment completed or blocked;
-- changed file list;
-- key Phase 4 state changes made;
-- confirmation that Phase 3 was recorded as implemented producer state without claiming the v1 HTTP route is already implemented;
-- validation commands/checks actually run and their results;
-- confirmation that `package.json` remains `1.4.0` and no source/migration/test/runtime/task/validation-artifact files changed;
-- any unresolved contradiction or drift.
+- the exact 10 documentation files changed;
+- that current routing is aligned to Phase 5 / `1.5.0` / `p1-5` / next `1.5.1`;
+- that Phase 4 is recorded as completed and the permanent v1 API as implemented;
+- that Phase 5 remains synchronization/LKG-only and Phase 6 retains customer rendering/integration;
+- validation actually run and its result;
+- confirmation that `package.json` remained `1.5.0`;
+- confirmation that source, migrations, tests, tasks, validation artifacts, ADRs, and other excluded files were unchanged;
+- any conflict or residual stale wording that could not be resolved inside the approved scope.
 
-Do not perform `/prompt-ass`, `/prompt-plan`, `/prompt-write`, implementation work, or conversational `/closeout` as part of this task.
+Do not perform implementation planning or `/prompt-ass` as part of this docs task. Stop after the approved documentation alignment and report.
