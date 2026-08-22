@@ -1,0 +1,430 @@
+TASK: Phase 5 / P3 — PHP atomic LKG storage, locking, cadence, and health
+
+- Recommended configuration: `Terra High`.
+- Task-shape classification: `Cross-cutting`.
+- Specification clarity: `Explicit`.
+- State coupling: `High`.
+- Integrity risk: `High`.
+- Concurrency: `Cross-process`.
+- Security: `Sensitive`.
+- Novel inference: `Moderate`.
+- Model-family basis: this prompt binds the already-separated P1 transport and P2 synchronization policy to real host-local filesystem state, cross-process locking, atomic activation, schedule/due behavior, stale usability, and secret-safe CLI operations.
+- Reasoning basis: high reasoning is justified by filesystem commit ordering, crash/interruption windows, manifest/snapshot consistency, cross-process lock lifetime, path safety, stale/disabled precedence, and keeping operational wiring from becoming a second synchronization authority.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because a plausible filesystem or lock ordering mistake can expose a partial candidate, lose the previous LKG, permit overlapping writers, or make authoritative disabled/stale state inconsistent across processes.
+- Escalation trigger: a correct implementation would require a database/shared distributed lock, cross-host coordination, provider-specific runtime assumptions, a new upstream API contract, or a fundamentally different persistence topology rather than a bounded local-filesystem adapter.
+- Escalation target: `Terra Ultra` for a deeper but still explicit local recovery/concurrency problem; return `Planning needed` if the issue requires contract/ADR/roadmap change.
+- Estimate confidence: `High`.
+- Efficiency rationale: use immutable generation snapshots plus one atomic manifest/commit point and native per-Profile file locking; avoid a database, framework, generic scheduler, or customer-rendering surface.
+
+The assigned project version is `1.5.3`.
+
+## Goal
+
+Complete the Phase 5 production-side PHP synchronization/LKG core by implementing the concrete local filesystem state boundary, real cross-process per-Profile lock, atomic activation/recovery behavior, configurable cadence, stale/never-synced/disabled usability facts, safe CLI/cron entry point, and local operational health.
+
+P3 must turn the P1 + P2 boundaries into this real host-local chain:
+
+```text
+runtime configuration + bearer secret
+-> per-Profile due decision
+-> real nonblocking cross-process lock
+-> P2 complete synchronization
+-> candidate generation written separately
+-> one atomic manifest/active commit point
+-> recoverable prior generation retained where practical
+-> local health/usability state
+```
+
+P3 owns concrete local storage/locking/runtime wiring. It MUST NOT move retry/restart/candidate-acceptance semantics out of P2 or HTTP/schema semantics out of P1.
+
+P3 does **not** implement customer-facing Article access or HTML rendering; those remain Phase 6.
+
+## Prerequisite and read first
+
+P1 and P2 must be committed as the reachable Phase 5 implementation prefix with package version `1.5.2` (or `1.5.3` for a safe rerun).
+
+Read before editing:
+
+1. current `BOOT.md`, `AGENTS.md`, and `README.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/distribution-and-integration-contract.md`;
+4. `docs/contracts/distribution-api-contract.md`;
+5. `docs/contracts/testing-and-validation-contract.md`;
+6. `docs/operations/security-reliability-and-operations.md`;
+7. `docs/decisions/managed-first-self-hostable-distribution-architecture.md`;
+8. Phase 5 and Phase 6 roadmap entries;
+9. `docs/validation/phase-4-versioned-v1-distribution-api.md`;
+10. P1/P2 prompts and their actual committed PHP package/client/synchronizer/store/lock/result interfaces/tests;
+11. current package/test scripts and repository ignore conventions.
+
+If P3 would need to change the v1 HTTP contract, parse raw API JSON independently, reinterpret Profile/Article semantics, add News Scraper database state, or redesign P2 synchronization transitions, stop with `Planning needed` except for an obvious bounded producer omission with unambiguous behavior and focused regression proof.
+
+## Concrete local storage layout
+
+Implement one dedicated filesystem-backed state store under the PHP integration package.
+
+The production cache root MUST be explicitly configured and suitable for placement outside the customer's public document root. Do not hard-code a provider path, home directory, web root, or operating-system-specific customer location.
+
+Requirements:
+
+- require an absolute configured cache/state root;
+- derive all per-Profile directory/file identities from a deterministic safe encoding or cryptographic digest of the Profile key rather than interpolating raw Profile text into a path;
+- reject path traversal/symlink/file-type states that would make the package write outside the intended root or follow an unsafe existing path;
+- create directories/files with restrictive permissions where the host supports POSIX permission control, and report limitations honestly rather than claiming a universal permission guarantee;
+- never store the bearer token, Authorization header, environment secret values, raw exception dumps, or credential-bearing configuration in any cache/state file;
+- do not make cache/state files web-addressable or create a public HTTP endpoint for them;
+- keep each Profile's state independent.
+
+Do not add SQLite, PostgreSQL, Redis, or another local service merely to implement Phase 5 state.
+
+## Atomic generation + manifest model
+
+Use one coherent single-commit-point design. The preferred shape is:
+
+```text
+profile-state/
+  lock
+  generations/
+    <immutable-generation>.json
+  manifest.json
+  temporary/orphan files ignored until cleanup
+```
+
+Exact names/formats are implementation-owned, but preserve these semantics:
+
+1. active snapshot payload is never edited in place;
+2. write a complete candidate snapshot to a temporary file in the same filesystem/directory boundary;
+3. flush/close it safely and atomically rename it to an immutable generation name;
+4. write a complete new manifest to a temporary peer file;
+5. atomically rename the manifest as the **single visibility/activation commit point**;
+6. readers trust only a valid committed manifest pointing at a valid immutable generation;
+7. keep the previously referenced valid generation until after the new manifest commit succeeds, and retain at least one recoverable prior valid generation where practical without allowing unbounded accumulation;
+8. orphan candidate/temp/generation files that are not referenced by the committed manifest never become active and may be cleaned up only after safe lock ownership.
+
+The manifest must carry enough synchronized state to keep active selection, lifecycle suppression, and health facts internally consistent, for example:
+
+- local storage schema/version;
+- Profile key or safe identity check;
+- active generation reference when one exists;
+- active API version/revision/ETag/upstream generatedAt;
+- last successful local synchronization timestamp;
+- last attempt/result/failure facts;
+- disabled marker;
+- page/item counts and bounded adapter version/health facts;
+- any configured freshness facts that are deliberately persisted.
+
+Do not split one logical public/local state transition across several independently authoritative mutable files when doing so creates a reader-visible contradiction window.
+
+Atomic rename claims apply only within the same local filesystem. Do not claim cross-filesystem, distributed, or power-loss durability beyond what is actually tested/observed.
+
+## Store read/validation and safe recovery
+
+Implement the concrete P2 state-store port so loading local state validates the storage representation before trusting it.
+
+At minimum:
+
+- validate manifest shape/version, Profile identity, referenced generation path/name, and required metadata;
+- validate referenced generation file shape and consistency with manifest Profile/revision/API identity;
+- reject missing/truncated/malformed/mismatched active state rather than partly using it;
+- ignore temporary/orphan generations that are not the committed manifest target;
+- never scan for "newest file" and promote it merely because a manifest is broken;
+- preserve/return a bounded safe unavailable/corrupt local-state result for operations instead of exposing raw JSON or filesystem diagnostics to customer-facing callers;
+- do not silently promote the prior generation if doing so would contradict an authoritative committed disabled/current-state manifest; recovery promotion requires an explicit reviewed policy, not filename guessing.
+
+A valid prior generation may remain available for operator recovery, but the ordinary reader follows the committed manifest only.
+
+## Concrete activation and non-corruption guarantee
+
+Bind P2's `activateCompleteCandidate`-equivalent port to the atomic generation + manifest commit protocol.
+
+Prove these interruption/failure points:
+
+- failure before candidate file completion leaves old manifest/active unchanged;
+- failure after candidate generation rename but before manifest rename leaves an orphan generation and old active unchanged;
+- failure writing the new manifest leaves old manifest/active unchanged;
+- only successful manifest rename exposes the new generation;
+- cleanup/pruning failure after successful activation does not roll back or corrupt the new active state;
+- a failed activation is returned to P2 as failure and never reported as successful sync.
+
+Use injectable/narrow filesystem seams only where needed to deterministically fault specific commit stages; do not place test-only branches in production behavior.
+
+## Authoritative disabled state
+
+Implement P2's disabled-state mutation as an atomic manifest transition that retains any valid active generation but marks it unusable for public/local presentation.
+
+Requirements:
+
+- authenticated `profile_disabled` from P2 sets the committed disabled marker without deleting the active generation;
+- a later successful complete activation or valid unchanged `304` transition clears the marker atomically;
+- ordinary upstream failures never set it;
+- manifest write failure means the disabled/re-enabled state transition did **not** commit and must be surfaced as a local persistence failure;
+- the local usability resolver below always gives committed `disabled` precedence over freshness/stale-valid state;
+- no filename, Source state, Article content, or HTTP `404` inference may substitute for the governed disabled marker.
+
+Do not invent an adapter-side Profile lifecycle beyond the states needed to represent the contract.
+
+## Real cross-process per-Profile locking
+
+Implement P2's lock port using a native host-local file lock such as an open lock file plus nonblocking `flock(LOCK_EX | LOCK_NB)` for the entire synchronization attempt, including bounded `snapshot_changed` restarts and store commits.
+
+Requirements:
+
+- the lock identity is derived from the safe per-Profile identity, never a raw unsafe path;
+- keep the lock handle alive until release; do not acquire/release between pages;
+- lock release is exception-safe;
+- two real PHP processes targeting the same Profile cannot both enter synchronization ownership;
+- two different Profiles use independent locks and can proceed independently;
+- stale lock-file existence alone must not be interpreted as lock ownership; rely on the OS lock state;
+- do not delete a lock file merely to "break" another process's lock;
+- no process-global boolean or News Scraper database row replaces the file lock.
+
+This is host-local coordination only. Do not claim cross-host/distributed lock support.
+
+## Freshness, stale policy, and local usability
+
+Implement one internal Phase-5 local usability resolver over committed state for use by P3 diagnostics and Phase 6.
+
+It must distinguish at minimum:
+
+- `never_synced` — no valid committed active generation;
+- `disabled` — committed authoritative disabled marker, regardless of retained generation freshness;
+- `usable` — valid committed active generation and not beyond any configured maximum stale age;
+- `stale_usable` — valid committed generation is older than the normal sync cadence/expected freshness but no hard cutoff applies, or it remains below the optional configured maximum stale age;
+- `stale_cutoff` / unavailable — valid committed generation exceeds an explicitly configured maximum stale age.
+
+Requirements:
+
+- **no maximum stale cutoff by default**; valid old data remains locally usable unless disabled;
+- optional maximum stale age is a positive bounded customer configuration;
+- compute stale age from the last successful local synchronization timestamp using an injectable clock, not from Article dates;
+- normal sync cadence and hard maximum stale age are distinct settings;
+- disabled takes precedence over otherwise fresh/stale data;
+- never-synced/corrupt local state is not usable;
+- clock skew/invalid future timestamps are handled boundedly rather than producing negative/unsafe stale ages;
+- this resolver returns state/data facts only and emits no HTML.
+
+Do not treat a generic upstream `401`, `404`, `429`, `503`, timeout, or malformed response as local `disabled` or immediate cache deletion.
+
+## Configurable cadence and due behavior
+
+Provide one simple generic way for a scheduler such as cron to run the PHP synchronizer at a frequent interval while the package itself applies the configured Profile cadence.
+
+Requirements:
+
+- default synchronization cadence is **15 minutes / 900 seconds**;
+- allow an explicit positive bounded customer override;
+- keep cadence configuration separate from optional maximum stale age;
+- define and test one deterministic due calculation using committed local attempt/success facts; do not let a cron invocation trigger overlapping work simply because it fires frequently;
+- provide an explicit `force`/manual synchronization path only if it remains bounded and still acquires the same per-Profile lock;
+- an ordinary not-due invocation is a successful no-op with no upstream request and no mutation that corrupts health/freshness;
+- cadence behavior is per Profile so one Profile's activity does not postpone another's;
+- do not build an internal daemon, queue, general scheduler framework, or News Scraper-side job for the customer's PHP host.
+
+Choose and document whether due cadence anchors to `lastAttemptAt` or another committed local operational timestamp. The choice must avoid accidental hammering after failures and be locked by tests; it must not redefine the upstream API contract.
+
+## Runtime configuration and secret handling
+
+Provide a small production-facing configuration/CLI composition sufficient to run one Profile synchronization from cron or manually.
+
+Prefer a library-first composition plus a narrow CLI entry point rather than embedding all behavior in a script.
+
+Configuration needs at minimum:
+
+- News Scraper HTTPS base URL;
+- Profile key;
+- cache/state root;
+- bearer secret from runtime environment/secret injection;
+- optional sync cadence override;
+- optional maximum stale age;
+- P1/P2 timeout/retry settings only where those existing boundaries already expose safe configuration.
+
+Requirements:
+
+- do not accept bearer plaintext in a query string, generated cache file, committed example file, or ordinary CLI positional flag that exposes it in shell history/process listings;
+- prefer an environment variable or equivalent runtime secret source;
+- sample/example configuration contains placeholders only;
+- validation errors identify the invalid field/category without echoing the secret or full private URL/query;
+- Profile key is non-secret and may be a CLI/config value;
+- do not create a mandatory central configuration service or provider-specific integration.
+
+If the package supports several Profiles, each Profile still owns an independent lock/state/cadence result. A single-profile-per-invocation CLI is acceptable and simpler when library callers can compose multiple Profiles themselves.
+
+## CLI / cron semantics
+
+Add one narrow CLI suitable for cron that:
+
+- validates configuration before network/state mutation;
+- evaluates due/force behavior;
+- invokes P2 with the real P1 client/store/lock/clock/sleeper composition;
+- exits `0` for successful synced, unchanged, not-due, and already-running no-corruption outcomes where documented;
+- exits non-zero for configuration errors, upstream synchronization failures, invalid local state, and failed authoritative local persistence transitions;
+- writes one concise secret-free machine/operator result to stdout/stderr;
+- never prints bearer plaintext, Authorization, response bodies, raw cursor, or private exception dump;
+- is not a visitor-path endpoint and is never required during ordinary page rendering.
+
+Document generic cron usage in `integrations/php/README.md` or equivalent package-local documentation. Do not add HostGator-specific instructions in Phase 5; provider simulation belongs to later testing/productization work unless separately promoted.
+
+## Local operational health
+
+Expose/read bounded committed health facts sufficient for operators and Phase 6 to understand local synchronization state without parsing cache internals manually.
+
+At minimum make available:
+
+- Profile key;
+- last attempt timestamp when known;
+- last successful sync timestamp when known;
+- sync result category;
+- duration when known;
+- page/item counts when known;
+- unchanged flag;
+- active revision/ETag where safe/useful as opaque operational values;
+- stale age/usability classification;
+- last bounded failure category;
+- disabled state;
+- adapter version.
+
+Never include credential plaintext, Authorization, raw exception text, response body, visitor/click/referral data, or cursor payload internals.
+
+This may be a library-returned health/read-model object and CLI diagnostic output. Do not create a customer/public HTTP health endpoint in Phase 5.
+
+## Phase 6 producer boundary
+
+Leave a narrow internal/local loader that Phase 6 can consume without understanding filesystem layout.
+
+The Phase 6 handoff must be able to obtain:
+
+- validated committed Profile/Publication metadata;
+- complete ordered active Article items when local usability permits;
+- committed revision/ETag/upstream generatedAt/last-success facts;
+- usability classification (`never_synced`, usable/stale usable, stale cutoff, disabled, local unavailable/corrupt as applicable);
+- bounded local sync health.
+
+This is **not** yet the customer-facing local data API. Do not create filtering/search/sorting/HTML/link rendering or a stable public integration facade merely to anticipate Phase 6. The loader exists to prevent Phase 6 from parsing manifest/generation files directly.
+
+## Deterministic focused and integration proof
+
+Extend `npm run test:php` with real temporary-directory filesystem tests and real PHP-process lock tests where process coordination is the claim.
+
+Cover at minimum:
+
+### Atomic storage and recovery
+
+- first complete activation creates one valid committed active state;
+- second activation switches the manifest to the new generation without editing the old generation;
+- exact complete ordered items and `originalUrl` survive round-trip storage;
+- failure before generation completion preserves old active;
+- orphan generation after pre-manifest interruption is ignored;
+- manifest write/rename failure preserves old active;
+- cleanup/prune failure after manifest commit does not invalidate new active;
+- corrupted/truncated manifest is rejected boundedly;
+- missing/corrupt/mismatched generation is rejected rather than partially loaded;
+- temporary/orphan files are not auto-promoted;
+- prior valid generation is retained according to the bounded recovery policy;
+- stored files contain no synthetic bearer/header secret used by the tests.
+
+### Cross-process locking
+
+- two actual PHP processes contending for the same Profile prove only one lock owner at a time;
+- another Profile lock can be acquired independently;
+- releasing/terminating the owner permits later acquisition;
+- mere stale lock-file presence does not block acquisition after OS lock release;
+- no test deletes another process's lock as an unlock mechanism.
+
+### Disable/re-enable and freshness
+
+- disabled manifest transition retains active generation but usability becomes disabled;
+- successful activation/unchanged state update clears disabled;
+- failure to commit disabled/re-enabled manifest is surfaced and does not pretend success;
+- never-synced is unavailable;
+- no-max-stale default keeps valid old data stale-but-usable;
+- configured max stale allows data before cutoff and rejects after cutoff;
+- disabled beats freshness;
+- stale age uses local successful-sync time, not Article timestamps;
+- future/invalid clock data is bounded safely.
+
+### Cadence/runtime/health
+
+- default cadence is 900 seconds;
+- configured cadence changes due behavior within bounds;
+- not-due performs no HTTP request;
+- forced/manual path still takes the same lock;
+- failed attempt does not cause cron-frequency hammering under the chosen due-anchor semantics;
+- separate Profile cadence state is independent;
+- CLI configuration failure is non-zero and secret-free;
+- sync/unchanged/not-due/already-running output is bounded and secret-free;
+- upstream failure exits non-zero while preserving active state;
+- health exposes required safe fields and never secret/raw payload/cursor internals;
+- Phase 6 loader returns only validated committed state and never parses an orphan candidate.
+
+Use deterministic clocks for freshness/cadence and controlled P1 client seams for API behavior. Use real filesystem/process behavior only for claims that require it. Do not contact public News Scraper or publisher endpoints in ordinary tests.
+
+## Broader regression and evidence boundary
+
+P3 introduces no News Scraper database/schema or browser/customer rendering changes. Its main evidence is PHP component/integration plus real local filesystem/process behavior.
+
+On the final P3 tree run the smallest non-overlapping matrix:
+
+```text
+npm run check
+npm run codex:phase:validate -- p1-5
+git diff --check
+```
+
+`npm run check` must include `npm run test:php`, and `test:php` must include the new real filesystem/cross-process tests. Do not separately rerun `test:php` immediately after a successful unchanged-tree `npm run check` solely to duplicate evidence.
+
+Run Node database/browser/security/recovery/live/deployment suites only if P3 unexpectedly changes those owned boundaries; otherwise do not add validation volume without a blast-radius reason.
+
+## Preserved behavior and non-goals
+
+Preserve:
+
+- P1 v1 transport/schema/auth-header boundary;
+- P2 traversal/retry/restart/disable/activation policy;
+- all upstream Node/API/admin/Worker/read-model/security behavior;
+- supported production database/migration history;
+- exact API item order and original publisher destinations;
+- topic independence, Source trust, provenance, duplicate, moderation, and Profile semantics.
+
+Do not implement:
+
+- customer-facing local Article/filter/search API;
+- HTML templates, CSS, server-rendered customer feed, or browser tests for customer output;
+- synchronous visitor-path News Scraper API requests;
+- WordPress/RSS/Atom/browser widgets;
+- provider-specific HostGator control-panel integration or a HostGator test plane;
+- click/referral/visitor/backlink analytics;
+- delta sync;
+- shared/distributed/cross-host locks;
+- a PHP daemon, queue, database, framework, or mandatory Composer dependency;
+- News Scraper schema/API changes.
+
+## Version and repository rules
+
+- Set only top-level `package.json` to `1.5.3` before final validation.
+- Do not add/rewrite News Scraper migrations.
+- Do not create `package-lock.json`, Composer vendor state, or unrelated generated artifacts.
+- Add ignore rules only for concrete local PHP runtime/test artifacts introduced by this prompt; do not broadly hide source/config files.
+- Package-local `integrations/php/README.md` and placeholder/example non-secret configuration are allowed when needed to operate the completed Phase 5 core.
+- Do not edit governing contracts, ADRs, roadmap state, historical validation artifacts, `.codex/docs-prompt.txt`, or existing task prompts.
+- Do not manually commit; the phase runner owns the implementation commit boundary.
+
+## Acceptance
+
+P3 is complete only when:
+
+1. concrete local state uses immutable generations plus one atomic committed manifest/visibility point or an equivalently strong single-authority design;
+2. every tested pre-commit failure preserves the prior active LKG and no orphan/partial candidate is auto-promoted;
+3. stored state is path-safe, validated, independent per Profile, and contains no bearer secret;
+4. real cross-process nonblocking per-Profile locking prevents overlapping writers while allowing independent Profiles;
+5. authoritative disabled/re-enable transitions are committed atomically while retaining recoverable active data;
+6. default no-cutoff stale-valid behavior, optional max stale age, never-synced, disabled precedence, and bounded corrupt-state handling are deterministic;
+7. customer-configurable cadence defaults to 900 seconds and cron/due behavior cannot cause overlap or cron-frequency hammering;
+8. CLI/runtime composition is generic, secret-safe, provider-independent, and never a visitor-path dependency;
+9. local health and the Phase 6 loader expose validated safe facts without exposing cache internals to later consumers;
+10. no customer HTML/local public API or other Phase 6+ behavior is pulled forward;
+11. deterministic PHP filesystem/process tests and ordinary regressions are green;
+12. package version is exactly `1.5.3`.
+
+Finish with a concise report listing changed files, concrete storage/manifest/lock layout, atomic commit/recovery behavior, cadence and stale-policy settings, CLI/config/secret behavior, Phase 6 loader export, focused/final commands actually run with results, PHP/runtime limitations actually observed, package version, and any finding that should block Phase 5 closeout.
