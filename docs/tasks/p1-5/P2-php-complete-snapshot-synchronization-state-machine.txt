@@ -1,0 +1,379 @@
+TASK: Phase 5 / P2 — PHP complete-snapshot synchronization state machine
+
+- Recommended configuration: `Terra High`.
+- Task-shape classification: `Cross-cutting`.
+- Specification clarity: `Explicit`.
+- State coupling: `High`.
+- Integrity risk: `High`.
+- Concurrency: `Local`.
+- Security: `Sensitive`.
+- Novel inference: `Moderate`.
+- Model-family basis: this prompt coordinates several explicit but failure-sensitive states across the P1 client, candidate traversal, retries, restart semantics, last-known-good preservation, Profile disable/re-enable, and local health without moving upstream business rules into PHP.
+- Reasoning basis: high reasoning is justified by the synchronization state machine, interruption/failure ordering, conditional unchanged behavior, repeated cursor/revision safety, bounded Retry-After handling, candidate discard, and the requirement that no failed run can replace usable active state.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because several individually simple outcomes compose into a nontrivial state machine where one wrong transition can corrupt LKG or accidentally suppress/restore output.
+- Escalation trigger: safe orchestration requires changing the P1 wire contract, inventing upstream selector/order semantics, introducing a database/shared service for PHP state, or resolving a new cross-host distributed-lock architecture.
+- Escalation target: `Terra Ultra` for a deeper but still explicit state-machine/recovery problem; return `Planning needed` if a contract/ADR/roadmap decision is required.
+- Estimate confidence: `High`.
+- Efficiency rationale: keep transport/schema parsing in P1, express synchronization through small injected client/state/lock/clock/sleeper ports, and defer concrete filesystem atomicity/cross-process lock/cadence/CLI details to P3.
+
+The assigned project version is `1.5.2`.
+
+## Goal
+
+Implement the reusable PHP synchronization orchestration that turns P1's typed v1 page/outcome client into a complete, validated Profile candidate and commits only a fully successful synchronization through an injected local-state boundary.
+
+The core flow is:
+
+```text
+acquire Profile lock
+-> load current local state/ETag
+-> start candidate
+-> fetch/validate every v1 cursor page
+-> handle bounded transient retries
+-> restart boundedly on snapshot_changed
+-> reject any partial/mixed/looping candidate
+-> commit one complete valid candidate
+-> record safe health/freshness facts
+-> release lock
+```
+
+P2 owns synchronization policy and state transitions. P3 will supply the production filesystem store, actual cross-process `flock`-style lock, atomic on-disk commit point, cron/due runner, and package operational wiring.
+
+P2 does **not** implement customer-facing Article access or rendering.
+
+## Prerequisite and read first
+
+P1 must be committed as the reachable Phase 5 prefix with package version `1.5.1` (or `1.5.2` for a safe rerun).
+
+Read before editing:
+
+1. current `BOOT.md` and `AGENTS.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/distribution-and-integration-contract.md`;
+4. `docs/contracts/distribution-api-contract.md`;
+5. `docs/contracts/testing-and-validation-contract.md`;
+6. `docs/operations/security-reliability-and-operations.md`;
+7. Phase 5 and Phase 6 roadmap entries;
+8. `docs/validation/phase-4-versioned-v1-distribution-api.md`;
+9. P1 prompt plus the actual committed PHP client/validator/tests;
+10. current package/test command behavior.
+
+Verify P1 provides typed page/status/header outcomes sufficient for this prompt. If P2 must parse raw HTTP/JSON, token syntax, cursor payload internals, Profile filters, Article ordering, or upstream database state, repair only an obvious bounded P1 omission when behavior is unambiguous and add regression proof; otherwise stop with `Planning needed`.
+
+## Synchronization ownership and ports
+
+Keep the synchronizer transport- and filesystem-agnostic through the smallest explicit production-worthy ports/interfaces needed to represent real dependencies, for example:
+
+- P1 distribution API client;
+- local state repository/store;
+- per-Profile lock;
+- clock;
+- sleeper/delay function for retry policy.
+
+Do not create a generic dependency-injection framework. Exact names are implementation-owned.
+
+The synchronizer must be the single owner of synchronization transition policy. The P1 client remains the single owner of HTTP/wire validation. P3's store/lock implementations must not later invent retry, revision, Profile lifecycle, or candidate-acceptance semantics.
+
+## Current local state input
+
+The state boundary P2 consumes must be sufficient to know, without exposing credentials:
+
+- whether a valid active snapshot exists;
+- its Profile key;
+- active `snapshotRevision` and opaque ETag when available;
+- last successful local synchronization timestamp;
+- whether the local Profile is currently marked disabled by an authenticated upstream `profile_disabled` outcome;
+- existing operational/freshness metadata needed to update the next result.
+
+Do not define the customer-facing Phase 6 Article access API here. P2 may use an internal normalized active/candidate representation required for synchronization and future local loading.
+
+Credentials remain exclusively in the P1 runtime client/configuration, never in local state objects passed to the store.
+
+## Lock and overlap semantics
+
+Synchronization is per Profile and must begin by acquiring the injected Profile lock.
+
+Requirements:
+
+- only one synchronization for one Profile may own the critical section at a time;
+- inability to acquire the lock returns a bounded `already_running`/overlap result without touching candidate, active, disabled, or health state except where an explicit non-mutating observation is safe;
+- unrelated Profile keys remain independent;
+- lock acquisition/release is exception-safe and releases on every return/failure path;
+- P2 tests use a deterministic fake lock; P3 must later prove real cross-process locking.
+
+Do not solve overlap by a process-global boolean or by storing lock state in News Scraper PostgreSQL.
+
+## Initial conditional request
+
+When a valid active local snapshot has an ETag, the first request of a normal synchronization SHOULD supply it through P1's initial `If-None-Match` capability.
+
+If P1 returns validated `304 not_modified`:
+
+- require that a valid active snapshot actually exists;
+- preserve the active payload/revision exactly;
+- treat the synchronization as a successful unchanged result;
+- update the local successful-sync/health facts through the state boundary;
+- clear prior transient failure/disabled state as appropriate for a successful authenticated active read;
+- do not fabricate new upstream `generatedAt`, items, or snapshot content.
+
+A `304` with no usable active state is an invalid upstream/local-state combination and must not establish success.
+
+Continuation requests never use ETag/`304`.
+
+## Complete candidate traversal
+
+For a `200` initial page:
+
+1. create a fresh candidate separate from active state;
+2. record the requested Profile key, first page Profile/Publication identity, `apiVersion`, `snapshotRevision`, response ETag, upstream `generatedAt`, and items;
+3. follow each opaque non-null `nextCursor` through P1;
+4. append validated items in the exact order delivered;
+5. continue until a validated page returns `nextCursor = null`;
+6. commit only after complete candidate validation succeeds.
+
+Every page in one candidate must agree on:
+
+- `apiVersion`;
+- requested Profile `configKey`;
+- `snapshotRevision`;
+- Profile display identity where the P1 typed page exposes it;
+- Publication identity where the P1 typed page exposes it.
+
+Do not inspect the cursor payload. Detect only safe opaque equality/repetition needed to prevent a loop.
+
+Reject and discard the candidate if:
+
+- any continuation response is not a valid active page;
+- revision/Profile/API identity changes without the governed `snapshot_changed` response;
+- a cursor repeats/loops;
+- page/candidate safety bounds are exceeded;
+- any page is malformed according to P1;
+- traversal is partial/interrupted.
+
+Do not sort, filter, deduplicate, rank, rewrite URLs, reinterpret Categories, or otherwise "repair" an upstream result. Candidate item order and values come from the API.
+
+## Bounded traversal safety
+
+The synchronizer must not allow a compromised/broken upstream to create an infinite cursor walk or unbounded memory/disk growth.
+
+Implement narrow explicit safety bounds appropriate to the already bounded Profile API, such as maximum pages and/or candidate items. Keep them high enough not to become an alternative normal Profile limit and make them deterministic/testable.
+
+If a safety bound is exceeded, fail the synchronization and preserve active state. Do not silently truncate and activate a partial candidate.
+
+Do not interpret the server's Profile `result_limit` or query database state to choose these bounds.
+
+## Retry policy
+
+Implement one bounded retry policy for transient synchronization failures.
+
+Classify at minimum:
+
+### Retryable within the same request position
+
+- transport timeout/failure when safe to repeat GET;
+- `503 service_unavailable`;
+- `429 rate_limited` using P1's validated Retry-After seconds.
+
+### Terminal for the current synchronization attempt
+
+- generic `401 unauthenticated`;
+- `400 invalid_request`;
+- `404 not_found`;
+- malformed/invalid upstream response;
+- unexpected status/outcome;
+- exhausted retry budget.
+
+All of these preserve the current active LKG under stale policy. Only authenticated `profile_disabled` has the separate authoritative suppression behavior below.
+
+Requirements:
+
+- retries are finite and deterministic;
+- use an injected sleeper in tests; do not perform real multi-second sleeps in the test suite;
+- respect a valid `Retry-After` value rather than immediately hammering the server;
+- if Retry-After exceeds the synchronizer's configured safe maximum wait, stop the run preserving active state rather than sleeping less than the server asked and pretending compliance;
+- ordinary retry delays/backoff remain bounded;
+- retrying a continuation uses the exact same opaque cursor and never restarts unless the governed snapshot-change rule requires it;
+- do not retry `401` endlessly or treat credential failure as Profile disable.
+
+Exact retry counts/delay caps are implementation configuration/constants, not new API contract fields. Keep them small, explicit, and test-locked.
+
+## `snapshot_changed` restart semantics
+
+If P1 returns authenticated `409 snapshot_changed` at any point in a candidate traversal:
+
+- discard the entire in-progress candidate;
+- leave active state unchanged;
+- restart from a fresh initial request;
+- use a separate bounded snapshot-restart budget so repeated upstream churn cannot loop forever;
+- reacquire/reuse synchronization context without releasing the per-Profile ownership to a competing run during the same bounded restart sequence;
+- on restart exhaustion, report failure and preserve active state.
+
+Do not splice old and new pages, resume from the stale cursor, or compare cursor internals.
+
+## Authoritative Profile disable and re-enable
+
+Authenticated `409 profile_disabled` is the only upstream failure outcome that suppresses otherwise valid cached public usability.
+
+P2 must tell the state boundary to persist an authoritative disabled marker while retaining recoverable active snapshot bytes/state.
+
+Requirements:
+
+- do not delete a valid active snapshot merely because the Profile is disabled;
+- generic `401`, `404`, `429`, `503`, timeout, invalid response, or retry exhaustion must not set the disabled marker;
+- a later successful `200` complete activation or valid initial `304` clears the disabled marker and restores enabled local state;
+- state-write failure while attempting to mark disabled cannot be reported as successful authoritative suppression; surface a local persistence failure so P3/Phase 6 can fail safe rather than assume cached output is allowed;
+- no adapter-side attempt may infer disabled state from missing/renamed Sources or other upstream business data.
+
+## Candidate activation boundary
+
+P2 must call the store's activation operation only once a complete candidate has passed all synchronization checks.
+
+Activation input should contain the normalized information P3 needs for one atomic commit point, including:
+
+- Profile identity/display facts;
+- Publication identity;
+- `apiVersion`;
+- complete ordered items;
+- `snapshotRevision`;
+- ETag when available;
+- upstream `generatedAt`;
+- local successful-sync timestamp;
+- item/page counts and safe operational facts;
+- enabled state.
+
+It must never contain bearer plaintext or Authorization headers.
+
+If activation fails, the synchronization fails and the previous active state remains the only valid active state. P2 must not call a separate "clear active" before activation.
+
+## Freshness and operational result facts
+
+Return/persist enough bounded operational facts for P3 and future Phase 6 diagnostics:
+
+- last attempt timestamp;
+- successful/unchanged/failed/disabled/already-running outcome;
+- last successful local sync timestamp when one exists;
+- duration;
+- item count and page count when known;
+- unchanged flag;
+- safe failure category;
+- adapter/client version identifier if the package establishes one.
+
+Do not store raw exception messages, response bodies, Authorization, bearer fragments, cursor payloads, or visitor analytics.
+
+P2 does not yet decide customer HTML. It may define the internal facts from which P3 computes stale/expired/never-synced/disabled usability.
+
+## Deterministic focused tests
+
+Extend the real PHP test suite with a scripted P1 client plus fake store/lock/clock/sleeper.
+
+Cover at minimum:
+
+- one-page success commits once with exact item order/content;
+- multi-page traversal follows every cursor and commits one complete combined candidate;
+- empty active Profile is a valid complete activation;
+- initial ETag is supplied from current active state;
+- valid `304` preserves payload but updates successful unchanged facts;
+- `304` without active state is rejected;
+- page revision/Profile/API mismatch discards candidate and preserves active;
+- repeated cursor/loop and traversal safety-bound exhaustion preserve active;
+- continuation failure never activates partial data;
+- transport/503 retry succeeds within budget;
+- retry exhaustion preserves active;
+- `429` uses the exact validated Retry-After delay through the fake sleeper;
+- excessive Retry-After ends safely rather than under-waiting;
+- `401`, `400`, `404`, malformed response do not suppress/delete active state;
+- one `snapshot_changed` causes full candidate discard and fresh restart;
+- repeated `snapshot_changed` eventually fails without replacing active;
+- `profile_disabled` marks disabled while retaining active snapshot;
+- successful later sync clears disabled state;
+- failure to persist disabled state is surfaced safely;
+- activation failure leaves the prior active state untouched;
+- lock contention returns already-running and performs no remote request/state mutation;
+- lock release occurs after success and every failure/exception path;
+- different Profiles are not logically coupled;
+- no credential/header/raw body/cursor internals enter candidate or health facts.
+
+Use controlled clocks and sleepers. Do not use public network, real long sleeps, or timing races for P2 proof.
+
+## Producer-to-consumer handoff to P3
+
+Before P2 completes, leave this auditable boundary:
+
+| Downstream-required capability | P2 owner/export | Focused proof |
+| --- | --- | --- |
+| one complete Profile sync attempt | synchronizer/orchestrator | one/multi-page tests |
+| initial conditional unchanged sync | synchronizer + P1 client | ETag/304 tests |
+| bounded transient retry | retry policy + sleeper | retry/Retry-After tests |
+| candidate never partially activates | synchronizer + store port | continuation/failure tests |
+| revision-safe restart | synchronizer restart policy | snapshot_changed tests |
+| authoritative disable/re-enable | synchronizer + state port | disable/re-enable tests |
+| per-Profile overlap ownership | synchronizer + lock port | fake lock tests |
+| complete activation payload | candidate/activation DTO | exact activation tests |
+| bounded health/result facts | synchronization result | health/redaction tests |
+
+P3 must be able to implement filesystem storage/locking/cadence without inventing synchronization semantics.
+
+## Preserved behavior and non-goals
+
+Preserve:
+
+- P1 exact v1 request/schema/status/ETag/Retry-After behavior;
+- all upstream Node/API/security/read-model behavior;
+- exact API item order and `originalUrl` values;
+- existing migrations/production data;
+- machine/admin separation and secret redaction;
+- topic independence and one-Publication architecture.
+
+Do not implement in P2:
+
+- concrete filesystem path layout, atomic rename protocol, cross-process `flock`, or temp/orphan cleanup;
+- cron configuration, cadence/due command, CLI config format, or host deployment docs;
+- customer-facing local Profile/Article API;
+- HTML renderer/templates/CSS;
+- visitor-path API calls;
+- WordPress/RSS/Atom/browser widgets;
+- HostGator/provider-specific environment simulation;
+- delta sync or adapter-side filtering/sorting;
+- News Scraper database/migration changes.
+
+## Validation
+
+During iteration run the narrow PHP synchronization tests.
+
+On the final P2 tree run:
+
+```text
+npm run check
+npm run codex:phase:validate -- p1-5
+git diff --check
+```
+
+`npm run check` already contains the PHP suite from P1 and must execute the new synchronization tests. Do not add PostgreSQL/browser/live/deployment suites solely for this filesystem-agnostic PHP orchestration prompt.
+
+## Version and repository rules
+
+- Set only top-level `package.json` to `1.5.2` before final validation.
+- Do not modify News Scraper migrations/database schema.
+- Do not add third-party PHP dependencies or lockfiles merely to implement the state machine.
+- Do not edit governing contracts, ADRs, roadmap, historical validation artifacts, `.codex/docs-prompt.txt`, or existing prompts.
+- Do not manually commit; the phase runner owns the implementation commit boundary.
+
+## Acceptance
+
+P2 is complete only when:
+
+1. synchronization traverses every page into one candidate and preserves exact upstream order/data;
+2. partial/malformed/mixed/looping candidates can never become active;
+3. retries are bounded, Retry-After is respected, and transient exhaustion preserves active state;
+4. snapshot changes discard the whole candidate and restart only within a bounded budget;
+5. only authenticated Profile disable marks cached state suppressed, while generic failures preserve stale-valid eligibility;
+6. successful 200/304 re-enables local state and 304 never fabricates replacement content;
+7. one Profile lock owns the whole attempt/restart sequence and is released safely;
+8. activation is a single store boundary invoked only for a complete valid candidate;
+9. health/result facts are bounded and secret-free;
+10. P3 receives explicit store/lock/clock/cadence-ready seams without synchronization-policy duplication;
+11. deterministic PHP regressions remain green and package version is exactly `1.5.2`.
+
+Finish with a concise report listing changed files, synchronizer/store/lock/result exports, chosen retry/restart/safety bounds, focused/final commands actually run with results, package version, and any finding that should block P3.
