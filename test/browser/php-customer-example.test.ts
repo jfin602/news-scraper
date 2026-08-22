@@ -83,7 +83,7 @@ describe('PHP customer-style local-only example', () => {
 
   it('serves synchronized publisher links and content without JavaScript', async () => {
     await withExample('populated', async ({ base, open }) => {
-      const page = await open(true, []);
+      const page = await open(false, []);
       await page.goto(base);
       assert.equal(await page.locator('.news-scraper-article h2 a').count(), 2);
       assert.equal(
@@ -122,7 +122,8 @@ async function withExample(
       ...processEnvWithoutUpstream(),
       NEWS_SCRAPER_PROFILE_KEY: 'weekly-desk',
       NEWS_SCRAPER_STATE_ROOT: state,
-      NEWS_SCRAPER_SYNC_CADENCE_SECONDS: scenario === 'cutoff' ? '900' : '3600',
+      NEWS_SCRAPER_SYNC_CADENCE_SECONDS:
+        scenario === 'stale' || scenario === 'cutoff' ? '900' : '3600',
       ...(scenario === 'cutoff'
         ? { NEWS_SCRAPER_MAX_STALE_AGE_SECONDS: '900' }
         : {}),

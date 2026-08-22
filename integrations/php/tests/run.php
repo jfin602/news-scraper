@@ -1093,7 +1093,7 @@ testCase('fallback renderer safely escapes untrusted values and preserves direct
         'v1',
         'renderer-revision',
         'renderer-etag',
-        $at,
+        $at->format(DATE_ATOM),
         [$first, $second],
         new SynchronizationFacts('weekly-desk', SynchronizationResult::SUCCESS, $at, $at, 0.1, 2, 1, false, null, $at, 'news-scraper-php'),
     ));
@@ -1161,7 +1161,7 @@ testCase('fallback renderer handles nullable metadata and all local states witho
     trueValue(str_contains($nullableHtml, 'Headline nullable'), 'nullable Article still renders its headline and link');
     trueValue(!str_contains($nullableHtml, 'Published:') && !str_contains($nullableHtml, 'By '), 'nullable publishedAt and author are omitted');
     trueValue(!str_contains($nullableHtml, 'news-scraper-summary') && !str_contains($nullableHtml, 'news-scraper-categories'), 'nullable summary and empty categories are omitted');
-    trueValue(!str_contains($nullableHtml, 'null') && !str_contains($nullableHtml, 'undefined'), 'nullable fields do not become placeholder text');
+    trueValue(preg_match('/>\s*(?:null|undefined)\s*</i', $nullableHtml) !== 1, 'nullable fields do not become placeholder text');
 
     $staleRoot = filesystemRoot();
     $staleStore = new FilesystemProfileStateStore($staleRoot);
