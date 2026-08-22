@@ -1,0 +1,547 @@
+TASK: Phase 5 / P4 — Phase 5 closeout
+
+- Recommended configuration: `Sol Light`.
+- Task-shape classification: `Investigative`.
+- Specification clarity: `Explicit`.
+- State coupling: `High`.
+- Integrity risk: `High`.
+- Concurrency: `Cross-process`.
+- Security: `Sensitive`.
+- Novel inference: `Moderate`.
+- Model-family basis: repository policy deliberately uses Sol's stronger independent review/code-reading capability for roadmap closeout so the integrated P1-P3 PHP client, synchronization state machine, local atomic store, locking, cadence, freshness, and security boundaries receive an independent final audit.
+- Reasoning basis: Light is the policy baseline because the implementation contracts are explicit and the three required closeout passes provide structured independent review; deeper reasoning is reserved for a concrete observed concurrency/recovery/security/architecture finding.
+- Complexity / quality floor: `Critical`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: none under the current roadmap closeout policy.
+- Escalation trigger: any pass finds unresolved cache-activation corruption risk, lock/overlap ambiguity, candidate/revision mixing, disable/re-enable inconsistency, secret leakage, unsafe native transport/TLS behavior, stale-policy contradiction, Phase 6 handoff insufficiency, or a structural defect that cannot be confidently repaired inside bounded Phase 5 behavior.
+- Escalation target: `Terra High` / `Terra Ultra` for explicit deeper state/concurrency/recovery/refactor reasoning, or a higher-effort Sol configuration for ambiguous contract/architecture reconciliation, selected from the observed cause.
+- Estimate confidence: `High`.
+- Efficiency rationale: audit the complete Phase 5 integration once, strengthen only bounded unambiguous defects/tests, and execute one non-overlapping final evidence matrix rather than adding another feature prompt.
+
+The assigned project version is `1.5.4`.
+
+## Goal
+
+Perform the independent final Phase 5 closeout against the exact integrated P1-P3 tree, make only bounded unambiguous repairs/tests already inside Phase 5 scope, execute the complete applicable evidence matrix, and write the durable Phase 5 validation artifact.
+
+This is not a feature prompt. Do not implement Phase 6 customer-facing local data APIs, HTML rendering, a customer website, HostGator/provider simulation, WordPress, RSS/Atom, browser widgets, analytics, self-host packaging, or any other Phase 6+ / post-2.0 behavior.
+
+The final result remains **HUMAN REVIEW REQUIRED**. Do not perform conversational `/closeout` and do not advance the repository to `1.6.0`.
+
+## Prerequisite and exact identity
+
+P1-P3 must be committed as the reachable Phase 5 implementation prefix with exact runner-recognizable commit subjects and package version `1.5.3` before this prompt begins.
+
+Establish from Git rather than conversation text:
+
+- the exact pre-P1 Phase 5 base commit;
+- P1/P2/P3 implementation commits;
+- current package version;
+- the complete Phase 5 source/task diff.
+
+If Git history/package version does not prove the expected prefix, stop before reviewing behavior.
+
+## Read first
+
+Read:
+
+1. current `BOOT.md`, `AGENTS.md`, and `README.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/product-scope-and-users.md`;
+4. `docs/contracts/distribution-and-integration-contract.md`;
+5. `docs/contracts/distribution-api-contract.md`;
+6. `docs/contracts/testing-and-validation-contract.md`;
+7. `docs/operations/security-reliability-and-operations.md`;
+8. `docs/operations/deployment-and-incident-runbook.md` where it governs current managed distribution boundaries;
+9. `docs/decisions/headless-distribution-product-boundary.md`;
+10. `docs/decisions/managed-first-self-hostable-distribution-architecture.md`;
+11. Phase 5 and Phase 6 roadmap entries in `docs/roadmap/post-1.0-roadmap.md`;
+12. `docs/validation/phase-4-versioned-v1-distribution-api.md` and its Phase 5 producer handoff;
+13. every prompt under `docs/tasks/p1-5/`;
+14. the complete Phase 5 diff from the exact pre-P1 base through current HEAD;
+15. all production PHP files, package-local docs/config examples, PHP test harness/files, package scripts, and any ignore/runtime files changed by Phase 5;
+16. the Phase 4 v1 router/contract tests only where needed to verify the downstream compatibility assumptions P1 consumes.
+
+Do not treat historical prompt wording as higher authority than current contracts or actual accepted source.
+
+# Pass 1 — Contract and evidence review
+
+Review the integrated P1-P3 tree against every Phase 5 roadmap requirement and the governing distribution/integration contract.
+
+## PHP package/product boundary
+
+Verify:
+
+- the generic PHP integration is a downstream adapter/package, not Node aggregation-engine business logic;
+- it consumes the permanent authenticated v1 API rather than News Scraper PostgreSQL, internal repositories, Profile child tables, token/verifier internals, or cursor payload structure;
+- PHP does not implement Source approval/trust, collection admission, Relevance, Category semantics, moderation, duplicate suppression, Profile filter interpretation, ordering, ranking, or destination rewriting;
+- exact upstream item order and `originalUrl` values survive synchronization/storage unchanged;
+- topic/client/provider-specific behavior is absent;
+- customer-facing rendering/local public API remains Phase 6, not hidden inside the Phase 5 store/CLI.
+
+Reject any adapter-side "helpful" filtering/sorting/deduplication or Source inference as a competing authority.
+
+## P1 — Native transport, bearer safety, and v1 compatibility
+
+Trace the concrete PHP client from configuration through production transport and typed outcome.
+
+Verify:
+
+- normal production base URL is absolute HTTPS and rejects userinfo/query/fragment misuse;
+- there is no insecure TLS verification-disable option;
+- bearer credential appears only in runtime configuration/memory and the Authorization header, never path/query/cache/result/log/exception output;
+- redirects are not automatically followed with Authorization to another target;
+- timeouts and response-size/error handling are bounded;
+- Profile key is safely encoded as one path segment and cursor is the only continuation query parameter;
+- client accepts only the permanent `/api/v1/distribution/{profile_key}` contract, not `/api/feed` or arbitrary selectors;
+- exact required v1 fields/types/null/empty shapes are validated;
+- `apiVersion` and requested Profile identity are validated;
+- additive unknown v1 fields are tolerated rather than making compatible additions breaking;
+- timestamps are validated without changing business meaning;
+- cursor, revision, ETag, IDs remain opaque;
+- `200`, initial `304`, `400`, generic `401`, `404`, `409 profile_disabled`, `409 snapshot_changed`, `429` + valid positive `Retry-After`, `503`, transport failure, and invalid upstream response are distinguishable through one bounded typed client boundary;
+- continuation never uses `304`/If-None-Match;
+- no `403` credential↔Profile model was invented.
+
+Inspect executed P1/P2/P3 PHP evidence for the native production transport itself, not only fake/scripted transport consumers. At minimum, deterministic controlled-local proof should exercise the concrete transport's status/header/body handling, redirect policy, bounds/timeouts where technically practical, and secret-safe failure behavior. A controlled local transport test may call the lower transport directly over loopback without weakening the production client's HTTPS-only configuration. If this is the only missing item and production behavior is already unambiguous, adding focused deterministic transport coverage is a permitted bounded closeout test repair; do not introduce a test-only insecure production mode.
+
+## P2 — Complete snapshot synchronization
+
+Trace one real synchronizer attempt through P1 outcomes and the state/lock ports.
+
+Verify:
+
+- one per-Profile lock owns the entire attempt, retries, `snapshot_changed` restart sequence, and state commits;
+- active ETag is used only for the initial conditional request;
+- valid `304` requires an existing usable active snapshot, preserves payload/revision, updates successful unchanged facts, and can clear prior disabled state when governed;
+- `304` without active state cannot create success;
+- a `200` candidate begins separate from active state and traverses every opaque cursor until null;
+- every page agrees on API/Profile/revision and other identity facts the typed page exposes;
+- item order/content is appended exactly without filtering/sorting/deduplication;
+- repeated cursor/page/item safety limits stop rather than truncate-and-activate;
+- partial, malformed, mixed-revision, looping, interrupted, or otherwise invalid candidates never call active activation;
+- transport/`503`/`429` retries are finite and deterministic;
+- `Retry-After` is honored rather than under-waited; an excessive configured wait safely ends the run;
+- terminal `401`/`400`/`404`/invalid response preserve active state and are not misclassified as disabled;
+- `snapshot_changed` discards the whole candidate and boundedly restarts from the beginning without splicing pages;
+- repeated snapshot churn eventually fails while preserving active LKG;
+- activation is called only once for a complete candidate;
+- activation failure preserves the previous active state;
+- lock contention performs no upstream/state mutation and returns boundedly;
+- lock release occurs on every success/error/exception path.
+
+## P3 — Atomic LKG storage and recovery
+
+Review the concrete filesystem store at the actual commit protocol, not just happy-path JSON writes.
+
+Require one unambiguous visibility authority such as an atomic manifest/pointer over immutable snapshot generations.
+
+Verify:
+
+- candidate/active bytes are separate;
+- active generation is never modified in place;
+- candidate and manifest temporary files are written in the same filesystem boundary needed for atomic rename;
+- only a successful manifest/pointer rename exposes a new generation;
+- failure before generation completion, after generation rename but before manifest commit, or during manifest write/rename leaves old committed active state intact;
+- orphan/temp generations cannot be discovered/promoted as active merely because they are newer;
+- cleanup failure after a successful commit cannot corrupt the new active state;
+- prior valid recoverable generation is retained where practical without unbounded growth;
+- manifest and referenced generation are validated together for schema/Profile/API/revision consistency;
+- corrupt/truncated/missing/mismatched local state fails boundedly rather than partially loading;
+- path identity cannot escape the configured cache root through Profile text, traversal, unsafe symlinks, or crafted manifest generation paths;
+- the configured state root is explicit and intended for non-public placement;
+- no bearer credential, Authorization, secret environment value, raw error/body, or cursor payload is persisted;
+- any POSIX permission claim is phrased/tested only to the extent the actual host/runtime supports it;
+- cross-filesystem/distributed/power-loss guarantees are not overstated.
+
+Do not accept a sequence that first deletes/replaces active and then writes the new candidate. The previous LKG must remain the committed authority until the new complete snapshot commit point succeeds.
+
+## Cross-process per-Profile locking
+
+Require actual process/filesystem evidence, not only fake lock unit tests, for the real lock implementation.
+
+Verify:
+
+- nonblocking host-local OS file locking owns one Profile synchronization at a time;
+- lock handle/lifetime spans every HTTP page, retry/restart, and local commit;
+- two actual PHP processes for the same Profile cannot both own the critical section;
+- different Profiles use independent lock identities;
+- releasing/terminating one owner permits later acquisition;
+- lock-file existence alone is not lock ownership;
+- code never deletes another process's lock file to force unlock;
+- no process-global boolean or News Scraper DB row is pretending to be cross-process coordination;
+- implementation honestly claims host-local only, not distributed/cross-host locking.
+
+## Profile disable/re-enable semantics
+
+Verify the exact local committed-state transitions:
+
+- only authenticated upstream `409 profile_disabled` requests authoritative disabled suppression;
+- a valid active generation may remain retained for recovery but local usability becomes disabled;
+- generic auth/missing/rate/service/network/schema failures never set disabled;
+- later complete `200` activation or governed valid unchanged `304` clears disabled;
+- disable/re-enable manifest transition itself is atomic;
+- failed local persistence of the authoritative transition is surfaced and never reported as successful;
+- freshness/stale data never overrides committed disabled state;
+- no Source name/domain/content inference creates lifecycle state.
+
+## Freshness, stale, never-synced, and cutoff policy
+
+Verify:
+
+- valid LKG has **no hard stale cutoff by default**;
+- normal sync cadence/freshness and configured maximum stale age are separate concepts;
+- optional maximum stale age is positive/bounded and only customer-configured;
+- stale age derives from last successful local synchronization, not Article timestamps or upstream publication dates;
+- disabled takes precedence over fresh/stale usability;
+- never-synced has no usable active data;
+- corrupt/missing committed local state is unavailable rather than partially rendered;
+- configured cutoff produces unavailable local usability only after the governed threshold;
+- future/invalid timestamps/clock skew do not create negative or permanently-fresh ages;
+- the Phase 5 resolver returns data/usability facts only and no customer HTML.
+
+## Cadence, CLI, and operational behavior
+
+Verify:
+
+- default Profile synchronization cadence is exactly 15 minutes / 900 seconds;
+- customer override is positive/bounded;
+- due calculation is deterministic and documented/tested;
+- failure does not cause a high-frequency cron invocation to hammer the upstream contrary to the selected due-anchor semantics;
+- not-due performs no upstream request;
+- manual/force sync, if present, still uses the same lock and synchronization path;
+- separate Profiles have independent cadence/state;
+- there is no PHP daemon, queue, generic scheduler, or News Scraper-side customer-host job;
+- the CLI is a thin composition over P1/P2/P3 owners, not another synchronization implementation;
+- bearer secret is not accepted through ordinary CLI positional/query inputs that expose it in process listings/history when a safer runtime environment source exists;
+- config/CLI errors and normal output are bounded and secret-free;
+- ordinary customer page rendering never needs to run this CLI or make a live API request.
+
+## Local health and Phase 6 producer handoff
+
+Verify Phase 5 leaves one internal/local validated loader/read boundary that Phase 6 can consume without parsing filesystem internals.
+
+Record an actual final-tree handoff table in the validation artifact:
+
+| Downstream-required Phase 6 capability | Owning Phase 5 implementation/export | Focused proof |
+| --- | --- | --- |
+| validated committed active Profile/Publication state | final PHP local loader/store | local round-trip/corruption tests |
+| complete ordered active Article items | final PHP local loader | activation/storage tests |
+| exact stored `originalUrl` values | P1 page -> P2 candidate -> P3 generation -> loader | end-to-end PHP storage test |
+| revision/ETag/generatedAt/last-success facts | committed manifest/read model | metadata round-trip tests |
+| never-synced state | usability resolver/loader | never-synced test |
+| stale usable with no default cutoff | usability resolver | stale-default test |
+| configured stale cutoff | usability resolver | cutoff boundary tests |
+| authoritative disabled state | committed manifest + usability resolver | disable/re-enable tests |
+| bounded local unavailable/corrupt state | loader validation | corruption tests |
+| bounded sync/cache health | local health read model | health/redaction tests |
+
+Phase 6 must not need to understand generation filenames, manifests, lock files, candidate temp files, P1 raw HTTP, P2 retry transitions, bearer secret location, cursor internals, or upstream Article/Profile business rules.
+
+Do **not** mistake this producer loader for the Phase 6 customer-facing local data API. Customer extension surface, HTML escaping, fallback renderer, publisher anchors, and browser/server integration remain future work.
+
+## Secret and content safety
+
+Search the complete Phase 5 tree and deterministic test outputs for accidental secret persistence/leakage.
+
+Require:
+
+- bearer plaintext never enters committed fixtures/examples, cache snapshots, manifests, lock identity, health objects, ordinary logs, CLI output, or exceptions;
+- Authorization headers/raw upstream bodies are not retained in diagnostics;
+- synthetic test secrets are used for redaction assertions;
+- upstream Article text/URLs are treated as data and not executed/interpreted as configuration;
+- cache JSON is not sourced/evaluated as PHP code;
+- path/file generation cannot turn Profile or Article content into executable path logic;
+- package-local example configuration contains placeholders only.
+
+## Existing behavior and scope preservation
+
+Verify Phase 5 did not alter or weaken:
+
+- Phase 4 v1 URL/schema/status/ETag/Retry-After/HTTPS/trust/CORS behavior;
+- Phase 3 machine credential lifecycle/auth/security or admin separation;
+- Phase 2 canonical/Profile read semantics;
+- existing `/`, `/api/feed`, admin, Worker, health, collection, and public frontend behavior;
+- News Scraper migrations/schema/production data;
+- Source approval, normalization, idempotency, provenance, duplicate suppression, moderation, Category, ordering, and stored original publisher destination laws;
+- topic independence and one-Publication-per-installation architecture.
+
+No News Scraper migration/schema change is expected in Phase 5. If one exists, stop and reconcile why before claiming closeout green.
+
+## Validation/evidence review
+
+Confirm the final PHP test capability:
+
+- fails clearly when required PHP CLI/runtime prerequisites are unavailable;
+- fails on zero substantive tests;
+- syntax-checks production/test PHP;
+- includes substantive P1 client/transport, P2 synchronization, P3 filesystem/process/cadence/health tests;
+- uses controlled local/injected dependencies rather than public internet;
+- is included in ordinary `npm test` / `npm run check` so the repository cannot report green deterministic regressions while PHP is broken.
+
+Do not claim HostGator compatibility, live managed integration, browser customer rendering, public-network behavior, or deployment support from deterministic Phase 5 tests. Those require later Phase 6/7 or explicit future testing-plane work.
+
+# Pass 2 — Error and edge-case adversarial review
+
+Independently derive realistic failure modes from the actual final implementation. Do not merely re-list existing test names. For every plausible issue, inspect source + applicable executed evidence and classify it as:
+
+1. already protected by coherent structure + executed evidence;
+2. bounded Phase 5 defect/test gap repairable inside closeout;
+3. meaningful behavior-preserving refactor requiring the Terra High handoff below; or
+4. contract/architecture/new-scope problem requiring stop/escalation/replanning.
+
+A bounded repair is permitted only when behavior is unambiguous under current contracts and all invalidated evidence can be rerun.
+
+At minimum investigate the following classes.
+
+## Transport/configuration attacks and malformed upstream input
+
+- Profile keys containing slashes, percent-encoding, Unicode, dots, path-looking text, query delimiters, or very long values;
+- base URLs with HTTP, userinfo, path ambiguity, query/fragment, strange ports, or redirect responses;
+- redirect to same host versus different host and whether Authorization could be forwarded unexpectedly;
+- TLS verification/configuration failure and accidental insecure fallback;
+- missing/combined/malformed response headers;
+- malformed JSON, invalid UTF-8, empty/truncated/oversized bodies;
+- required fields absent, wrong type, null where not allowed, duplicate/malformed nested entries;
+- additive unknown v1 fields;
+- wrong API version/Profile key;
+- invalid/extreme timestamps;
+- unexpected status codes or error-body mismatch;
+- `304` with a body or without prior active state;
+- malformed/nonpositive/extreme `Retry-After`;
+- transport exception containing request headers or URL secrets;
+- native transport accidentally auto-following redirects even if client logic assumes it does not.
+
+## Snapshot/traversal/retry failure sequences
+
+- zero items, exactly page boundary, many pages, candidate safety limit edge;
+- repeated cursor, A->B->A loop, cursor that never advances;
+- continuation returns different revision/Profile/API identity without a 409;
+- transport failure after one/many pages;
+- `429`/`503` alternating with successful pages;
+- retry exhaustion on initial versus continuation requests;
+- excessive Retry-After and interruption while sleeping;
+- `snapshot_changed` on first page versus late page;
+- repeated snapshot churn exhausting restart budget;
+- stale cursor accidentally reused after restart;
+- partial old candidate retained/appended into restarted candidate;
+- lock released between restart/pages;
+- exception/fatal-style error path skipping lock release;
+- store activation called before traversal is fully exhausted.
+
+## Filesystem atomicity/recovery/path attacks
+
+- cache root absent/unwritable/read-only;
+- raw Profile key crafted for traversal/path collision;
+- two Profile keys colliding under unsafe normalization;
+- symlink replacing profile directory, manifest, generation directory, or temp target;
+- lock/generation/manifest wrong file type;
+- partial file writes / short writes / disk full;
+- generation rename succeeds but manifest rename fails;
+- process interruption before/after each rename boundary;
+- orphan generation/temp files on next run;
+- manifest references missing, malformed, traversal, or wrong-Profile generation;
+- manifest valid JSON but internally inconsistent revision/API/Profile metadata;
+- cleanup deletes current or prior committed generation due to wrong reference set;
+- pruning races with another process despite lock assumptions;
+- state reader scans newest timestamp/file instead of manifest authority;
+- atomic rename accidentally crosses filesystems;
+- permissions are assumed rather than checked/limited honestly;
+- cache root placed under a public web root contrary to docs/config intent.
+
+## Cross-process locking/race windows
+
+- simultaneous cron invocations for same Profile;
+- one process blocks versus nonblocking contract mismatch;
+- stale lock file after crash;
+- process exits while holding lock;
+- lock handle garbage-collected/closed early;
+- lock acquired on different path spellings for same Profile;
+- one process cleans/prunes while another can read/write;
+- unrelated Profiles incorrectly share one global lock;
+- manual force path bypasses lock;
+- already-running result mutates last-success/disabled/active unexpectedly.
+
+## Disable/freshness/cadence transitions
+
+- valid active -> disabled -> transient failures -> re-enabled success;
+- disabled with no active generation;
+- disabled state write fails;
+- re-enable state write/304 health update fails;
+- `401`/`404` incorrectly suppresses cache;
+- stale valid no-cutoff accidentally becomes unavailable;
+- max stale exactly at boundary;
+- cadence and max-stale values confused;
+- future last-success timestamp / clock jumps backward/forward;
+- failed attempts reset freshness incorrectly;
+- not-due invocation resets attempt timestamp and postpones forever;
+- high-frequency cron + repeated failures hammers upstream;
+- separate Profiles interfere with due state;
+- never-synced incorrectly treated as empty successful feed.
+
+## Secret/logging/CLI leakage
+
+- bearer in CLI args/process listing;
+- bearer in config example/cache JSON/manifest;
+- bearer or Authorization in exception message from native transport;
+- upstream body/cursor in health/log output;
+- environment dumps in diagnostics;
+- token-derived hash/path/lock key revealing stable credential information;
+- response/error object broadly serialized to log;
+- customer Article content accidentally logged as operational diagnostics.
+
+## Preserved-surface and phase-boundary drift
+
+- Node package scripts altered so existing deterministic tests stop running;
+- PHP test command silently passes when PHP is absent or no tests match;
+- package introduces Composer/framework/vendor state unnecessarily;
+- customer-facing Article query/filter/search or rendering API pulled into Phase 5;
+- filesystem layout becomes the de facto public API because no loader boundary exists;
+- provider-specific HostGator assumptions enter generic package code;
+- WordPress/RSS/Atom or backlink/SEO behavior appears;
+- PHP code begins interpreting upstream business rules instead of validating transport shape.
+
+Record representative hypotheses and their dispositions in the durable closeout artifact; do not claim the adversarial pass happened merely because all existing tests passed.
+
+# Pass 3 — Code-quality and structural review
+
+Independently inspect the final Phase 5 diff and important adjacent consumers/producers for maintainability and ownership quality.
+
+Look specifically for:
+
+- HTTP request construction/schema parsing duplicated in synchronizer/store/CLI instead of P1;
+- retry/restart/disable/candidate policy duplicated in P3/CLI instead of P2;
+- filesystem format/locking logic leaked into P2 or future-facing consumers instead of P3 store/loader;
+- active payload/health/disabled state split across competing mutable authorities;
+- broad service locator/DI framework created for a small PHP package;
+- speculative generic SDK/plugin/scheduler abstractions;
+- duplicate DTOs with subtly inconsistent null/type semantics;
+- catch-all exceptions that erase useful safe failure categories or leak unsafe details;
+- overly broad raw arrays where small explicit immutable value objects/read models would materially protect invariants;
+- unnecessary third-party dependencies or generated/vendor files;
+- dead compatibility paths/test-only production branches;
+- unsafe static/global mutable state that undermines per-Profile independence/tests;
+- resource ownership ambiguity for file handles/locks/native transport;
+- temp/orphan cleanup coupled incorrectly to activation success;
+- package scripts that duplicate expensive validation or skip PHP by default;
+- brittle tests asserting private filenames rather than committed-state behavior where exact filenames are not contractual;
+- insufficient producer proof for Phase 6 loader/usability/health;
+- package-local operational docs that make unsupported provider/version/deployment claims.
+
+Prefer a small explicit architecture:
+
+```text
+P1: v1 transport + validation
+P2: synchronization policy/state machine
+P3: local filesystem store + lock + cadence/runtime + internal loader/health
+Phase 6: customer-facing local API/rendering (future)
+```
+
+Do not refactor upstream Node Phase 2-4 code for aesthetic consistency when the HTTP producer handoff is already coherent.
+
+# Terra High refactor handoff
+
+If any pass identifies a **meaningful behavior-preserving structural refactor** required before Phase 5 can be accepted, stop before implementing that refactor and output exactly one self-contained **Terra High refactor remediation prompt**.
+
+The remediation prompt MUST:
+
+- recommend exactly `Terra High` as its starting configuration;
+- state the observed quality problem and concrete evidence that makes structural refactoring necessary;
+- define the smallest behavior-preserving refactor boundary, relevant PHP files/modules, and important P1/P2/P3 producers/consumers to trace;
+- preserve all current v1 wire/auth/secret behavior, complete-snapshot/retry/restart semantics, atomic LKG/non-corruption behavior, per-Profile locking, stale/disable/cadence/health semantics, exact upstream item order/destinations, and existing Node/public/admin behavior;
+- forbid unrelated cleanup, new product behavior, customer rendering/local public API, contract/ADR changes, roadmap expansion, provider-specific work, and speculative abstractions;
+- preserve package version `1.5.4` and consume no roadmap/correction prompt number;
+- require focused tests for the refactored behavior plus every broader regression/evidence level invalidated by the structural change;
+- require a concise implementation report describing the refactor, tests actually run, and remaining risk, but MUST NOT declare Phase 5 GREEN or finalize the closeout validation artifact;
+- instruct Terra High to stop and report if source inspection reveals that the work actually requires a contract/ADR change, new roadmap scope, distributed storage/locking architecture, or another materially different product decision.
+
+This remediation prompt is transient manual closeout output, not a new file under `docs/tasks/` and not a new package-version prompt. After remediation is implemented and its evidence is green, rerun this original P4 closeout from the beginning against the resulting tree. Only the rerun may establish the accepted final source tree and Phase 5 validation artifact.
+
+If the issue is not a behavior-preserving refactor but instead a contract/ADR/new feature/architecture decision, stop for normal planning rather than disguising it as refactor remediation.
+
+# Bounded closeout repairs
+
+A concrete small defect or missing focused regression discovered by any pass MAY be repaired inside this closeout only when:
+
+- the required behavior is already unambiguous under governing Phase 5 contracts;
+- the repair is local/bounded and does not move architectural responsibility;
+- no new product surface or later-phase behavior is introduced;
+- every invalidated focused/broader test is rerun on the final tree.
+
+Examples include one incorrect status classification, one missing bound, one lock-release omission, one atomic-write error check, one stale boundary calculation, one secret-redaction gap, or one missing deterministic native-transport test for already-implemented behavior.
+
+Do not use closeout as permission for feature completion that P1-P3 failed to implement. A material missing Phase 5 capability requires stop/replan or the appropriate structural handoff.
+
+# Final validation and durable artifact
+
+After all three passes are green and any permitted bounded repair is complete, set only top-level `package.json` to `1.5.4` and create/update the durable artifact:
+
+`docs/validation/phase-5-generic-php-synchronization-and-lkg.md`
+
+The artifact must identify:
+
+- exact pre-P1 Phase 5 base SHA;
+- P1/P2/P3 commit SHAs and final closeout candidate identity;
+- final package version;
+- PHP version and relevant native extensions actually exercised;
+- Node/npm environment used for repository validation;
+- exact commands/procedures actually run and results;
+- evidence levels/limitations;
+- Pass 1 contract/evidence findings;
+- representative Pass 2 adversarial hypotheses and dispositions;
+- Pass 3 structural findings;
+- every bounded defect/test repair made by closeout;
+- whether a Terra High refactor handoff occurred before the final rerun;
+- unresolved limitations, explicitly including absence of managed external/customer-browser/HostGator proof when not executed;
+- the actual final Phase 6 producer-handoff table with concrete exports/tests.
+
+Use the smallest non-overlapping final validation command set that covers the actual final tree. At minimum, when `npm run check` truly contains the complete substantive PHP suite:
+
+```text
+npm run check
+npm run codex:phase:validate -- p1-5
+git diff --check <exact-pre-P1-base>...HEAD
+git diff --check
+```
+
+Do not separately rerun `npm run test:php` immediately after an unchanged-tree successful `npm run check` merely to duplicate contained evidence. If current executable scripts show `check` does **not** contain the required PHP suite, that is a Phase 5 completion defect: repair the command composition or run the missing suite explicitly, then validate the final arrangement.
+
+Run `npm run test:security`, `npm run test:db`, `npm run test:browser`, `npm run test:recovery`, live-Source, or deployment suites only when the final Phase 5 diff actually invalidates those boundaries or a closeout repair touches them. Phase 5 should not claim database/browser/live/deployment evidence merely for validation volume.
+
+The deterministic PHP suite must itself prove the real local filesystem/cross-process claims. Record the PHP runtime/process environment actually used. Source inspection or fake locks alone is not proof of cross-process locking/atomic filesystem behavior.
+
+# Version and repository rules
+
+- Set only top-level `package.json` from `1.5.3` to `1.5.4` for this closeout prompt.
+- Do not perform conversational `/closeout`; `1.6.0` remains the separate owner transition after human acceptance.
+- Do not add/rewrite News Scraper migrations or schema.
+- Do not create lockfiles/vendor/generated dependency state.
+- Do not rewrite P1-P3 task prompts or historical validation artifacts.
+- The new Phase 5 durable validation artifact is required and is evidence, not a contract rewrite.
+- Narrow package-local operational documentation may be repaired only when necessary to match the implemented Phase 5 behavior; broad documentation current-state alignment remains the later `/docs-review` workflow.
+- Do not manually commit; the phase runner owns the implementation closeout commit boundary.
+
+# Acceptance
+
+Declare **Phase 5 GREEN — HUMAN REVIEW REQUIRED** only when all of the following are true:
+
+1. the PHP package is a thin downstream v1 consumer and contains no competing editorial/Profile/Article authority;
+2. bearer/TLS/redirect/request/error behavior is bounded and secret-safe;
+3. exact required v1 compatibility is validated while additive v1 fields remain compatible;
+4. complete multi-page traversal cannot activate partial, invalid, mixed, looping, or interrupted candidates;
+5. retries/Retry-After and `snapshot_changed` restarts are finite and preserve active LKG on failure;
+6. only authenticated Profile disable suppresses cached usability and later successful sync/304 re-enables it;
+7. candidate/active local state uses a single atomic visibility authority and every relevant tested pre-commit failure preserves prior active LKG;
+8. real cross-process per-Profile lock evidence proves overlap prevention and independent Profiles;
+9. credentials/Authorization are absent from cache/state/log/health/example output;
+10. stale valid data has no default hard cutoff, optional max stale behaves correctly, never-synced/corrupt state is safe, and disabled precedence is correct;
+11. cadence defaults to 900 seconds, is configurable, and due/force behavior cannot bypass locking or cause cron-frequency hammering;
+12. local operational health is bounded and useful without visitor analytics/secrets;
+13. Phase 6 can consume one validated local loader/usability/health boundary without parsing cache internals or knowing upstream internals;
+14. customer-facing local API/rendering and all Phase 6+/post-2.0 work remain absent;
+15. applicable deterministic final-tree regressions and real PHP filesystem/process evidence are green;
+16. the durable Phase 5 validation artifact accurately records actual evidence/limitations and all three review passes;
+17. no unresolved structural/refactor/contract blocker remains;
+18. package version is exactly `1.5.4`.
+
+Finish with a concise closeout report containing the final source identity, changed/repair files, three-pass findings, actual PHP/Node environment, commands actually run with results, Phase 6 handoff summary, durable artifact path, any limitations, whether a refactor handoff occurred, and the explicit statement that conversational `/closeout` to `1.6.0` remains a separate human-owner step.
