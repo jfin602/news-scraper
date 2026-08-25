@@ -1,32 +1,34 @@
-TASK: Documentation alignment after Phase 5 closeout
+TASK: Documentation alignment after Phase 6 closeout
 
-Target configuration: Terra Medium
-Selection basis: owner-specified. The approved `/docs-review` already resolved the architecture and scope. This is bounded documentation-only cross-file alignment across 11 approved files, with no product, runtime, schema, persistence, security-design, or implementation decision left for the executor. Terra Medium is adequate for the required consistency checks. Stop rather than reinterpret governing contracts if repository state disagrees with this prompt.
+Target configuration: Luna Medium
+Selection basis: automatic minimum-cost-adequate selection under `docs/codex-model-selection.md`. Task shape is bounded/cross-cutting documentation maintenance with explicit approved findings, low state coupling, moderate documentation-integrity risk, no concurrency, ordinary security sensitivity, and low novel inference. Luna Low is not preferred because the executor must distinguish current routing from historical evidence across several authority layers and safely replace Phase 6 implementation guardrails with Phase 7 release-qualification guardrails. No product, runtime, schema, persistence, or architecture decision remains for the executor.
+Estimated usage: Moderate.
 
 ## Goal
 
-Apply only the owner-approved documentation findings from the Phase 6 alignment `/docs-review` so current documentation accurately reflects the completed Phase 5 closeout and the active Phase 6 / `1.6.0` baseline.
+Apply only the owner-approved findings from the Phase 7 alignment `/docs-review` so current documentation accurately reflects the completed Phase 6 closeout and the active Phase 7 / `1.7.0` baseline.
 
-This is documentation-only alignment. Do not implement Phase 6, change runtime behavior, modify package version, redesign contracts/ADRs, broaden product scope, or rewrite historical evidence.
+This is documentation-only alignment. Do not implement Phase 7, change runtime behavior, modify package version, redesign contracts/ADRs, broaden product scope, rewrite historical evidence, or invent deployment proof.
 
 Expected current state before edits:
 
 - repository: `jfin602/news-scraper`;
 - branch: `main`;
-- package version: `1.6.0`;
-- accepted Phase 5 closeout candidate commit: `aa0a25651ed0688c409ee9c2cc5bf48f3792b6b4` (`1.5.4`);
-- conversational Phase 5 closeout transition commit: `c473496129f1dcece4184ac1a3871eb06bb8eaba`;
-- that closeout transition changed only top-level `package.json` from `1.5.4` to `1.6.0`;
-- Phases 1–5 are implemented;
-- Phase 5 delivered the generic PHP v1 client, complete-snapshot synchronization state machine, per-Profile locking, validated local filesystem LKG state, cadence/usability/health behavior, and the Phase 6 local read handoff;
-- durable Phase 5 evidence is `docs/validation/phase-5-generic-php-synchronization-and-lkg.md`;
-- the implemented PHP package is under `integrations/php/` and its operational/library boundary is documented in `integrations/php/README.md`;
-- Phase 6 — PHP local data API and server-rendered customer integration — is the current implementation phase;
-- Phase 6 baseline: `1.6.0`;
-- Phase 6 task folder when written: `p1-6`;
-- next roadmap prompt version: `1.6.1`;
-- Phase 6 must consume the validated Phase 5 local read boundary rather than parse cache internals or reconstruct upstream eligibility/API semantics;
-- Phase 7 remains managed external integration plus final 2.0 release qualification.
+- current package version: `1.7.0`;
+- accepted Phase 6 closeout candidate commit: `a0c135e5adc7afa6c365545c04bf50ffa689bf6c` (`1.6.4`);
+- conversational Phase 6 closeout transition commit: `cd9ffbbbf51d362c0c45a81da41c7fccddec0eab`;
+- that transition changed only top-level `package.json` from `1.6.4` to `1.7.0`;
+- Phases 1–6 are implemented;
+- durable Phase 6 evidence is `docs/validation/phase-6-php-local-data-and-server-rendered-integration.md`;
+- Phase 6 implemented normalized local PHP Profile/Article access, customer-facing normalized DTOs, local availability-state handling, safe fallback server-rendered rendering, escaping/null handling, direct exact stored `originalUrl` anchors, customer presentation override/extension, and a real local PHP server/browser harness with no visitor-path News Scraper request;
+- Phase 6 evidence explicitly does not claim managed external-site, HostGator/cPanel, public-network, approved-live-Source, or deployment proof;
+- the implemented customer-facing local read path is `LocalProfileReader` → `LocalReadResult`; customer/integration code must not parse cache paths, manifests, generations, or upstream business rules;
+- `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead` remain internal producer boundaries consumed by `LocalProfileReader`; do not rename source merely to remove the historical phase number during this docs task;
+- Phase 7 — Managed integration and 2.0 release qualification — is the current implementation phase;
+- Phase 7 baseline: `1.7.0`;
+- Phase 7 task folder when written: `p1-7` / `docs/tasks/p1-7/`;
+- next roadmap prompt version: `1.7.1`;
+- terminal successful Phase 7 `/closeout` promotes the final validated `1.7.x` candidate directly to `2.0.0`; there is no `1.8.0` baseline.
 
 ## Mandatory repository-freshness preflight
 
@@ -46,12 +48,12 @@ Before modifying documentation:
    If it does not, stop and report that the repository must be updated before documentation edits.
 5. Fetch current remote state with `git fetch origin main`.
 6. After fetching, stop and report that the repository must be updated if `HEAD` is behind `origin/main`, has diverged unexpectedly, or otherwise does not contain the current prompt-file commit. Do not silently repair freshness.
-7. Confirm top-level `package.json` is exactly version `1.6.0`. If not, stop and report documentation/repository drift rather than guessing a new phase state.
-8. Confirm `docs/validation/phase-5-generic-php-synchronization-and-lkg.md` exists and records the Phase 5 GREEN/HUMAN REVIEW REQUIRED closeout evidence and Phase 6 producer handoff. Read it for factual alignment only; do not edit it.
-9. Confirm `integrations/php/README.md` exists and documents the implemented host-local synchronization/LKG package and `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead` consumption boundary. Read it for factual alignment only; do not edit it.
-10. Confirm the Phase 5 closeout transition is reachable from current `main` and changed only top-level `package.json` from `1.5.4` to `1.6.0`.
+7. Confirm top-level `package.json` is exactly version `1.7.0`. If not, stop and report documentation/repository drift rather than guessing a new phase state.
+8. Confirm commit `cd9ffbbbf51d362c0c45a81da41c7fccddec0eab` is reachable from current `main` and changed only top-level `package.json` from `1.6.4` to `1.7.0`.
+9. Confirm `docs/validation/phase-6-php-local-data-and-server-rendered-integration.md` exists and records Phase 6 GREEN/HUMAN REVIEW REQUIRED evidence, including the local PHP/browser proof and explicit absence of managed external/HostGator/deployment claims. Read it for factual alignment only; do not edit it.
+10. Confirm `integrations/php/README.md` exists and currently documents the PHP synchronization/LKG package plus customer-facing local-read behavior.
 
-If any prerequisite materially disagrees with this prompt, stop and report the conflict. Do not reinterpret the roadmap or contracts to make the prompt fit.
+If any prerequisite materially disagrees with this prompt, stop and report the conflict. Do not reinterpret the roadmap, implementation, or contracts to make the prompt fit.
 
 ## Authority and factual sources
 
@@ -71,197 +73,207 @@ Read before editing:
 12. `docs/operations/deployment-and-incident-runbook.md`;
 13. `docs/roadmap/post-1.0-roadmap.md`;
 14. `integrations/php/README.md`;
-15. `docs/validation/phase-5-generic-php-synchronization-and-lkg.md`;
-16. `feature-ideas.md` only for the one approved `+H5QZ` factual correction.
+15. `docs/validation/phase-6-php-local-data-and-server-rendered-integration.md`.
 
-Use the authority hierarchy in `BOOT.md` and `docs/contracts/project-contract.md`. The Phase 5 validation artifact proves only the tree/environment it records and is not permission to expand current product scope.
+Use the authority hierarchy in `BOOT.md` and `docs/contracts/project-contract.md`. The Phase 6 validation artifact proves only the exact tree/environment it records and is not permission to expand product scope or claim external deployment evidence.
 
 ## Preserved contracts and boundaries
 
 Preserve without reinterpretation:
 
 - topic independence and exactly one Publication/topic per deployed installation;
-- Publication as singleton editorial/configuration state, not a relational tenant key;
-- approved-Source trust and pre-contact network-safety boundaries;
-- Source-scoped Article identity, idempotency, provenance, Article observations, duplicate retention/Primary semantics, moderation, and stored `original_url` destination law;
+- Publication as singleton editorial/configuration state, not relational tenancy;
+- approved-Source trust and network-safety boundaries;
+- Source-scoped Article identity, idempotency, provenance, observations, duplicate retention/Primary semantics, moderation, and exact stored `original_url` destination law;
 - canonical distribution eligibility independent of reference `public_status`;
 - Distribution Profile selection only narrows canonical eligibility;
-- Phase 2 remains the canonical transport-independent Profile/read-model producer;
-- Phase 3 remains the credential/authentication/request-guard/rate-foundation authority;
-- Phase 4 remains the thin permanent v1 HTTP transport/runtime boundary;
-- Phase 5 is now an implemented downstream PHP synchronization/LKG producer for Phase 6;
-- Phase 6 owns normalized local PHP consumption plus safe customer-style server-rendered/fallback presentation and must consume the Phase 5 validated local read boundary;
-- Phase 7 owns managed external integration and final 2.0 release qualification;
+- Phase 2 remains the canonical transport-independent distribution/Profile read-model authority;
+- Phase 3 remains the machine credential/authentication/request-guard/rate-foundation authority;
+- Phase 4 remains the thin permanent v1 HTTP transport/runtime authority;
+- Phase 5 remains the implemented generic PHP synchronization/LKG authority;
+- Phase 6 is now the implemented normalized local-read and customer SSR/presentation layer over validated LKG state;
 - machine `distribution:read` credentials never grant administrator authority;
 - no credential↔Profile permission matrix and no Profile-specific authenticated `403` model for 2.0;
-- production v1 HTTPS/trusted-proxy behavior remains exactly as implemented and governed;
+- production v1 HTTPS/trusted-proxy behavior remains unchanged;
 - existing `/`, `/api/feed`, and authenticated `/api/v1/distribution/{profile_key}` surfaces remain supported according to their distinct contracts;
-- ordinary visitor rendering in the Phase 6 path must not require a live News Scraper request once valid local LKG exists;
-- customer presentation may vary but cannot reinterpret upstream eligibility, filtering, deduplication, ordering, or stored publisher destinations;
-- WordPress, RSS/Atom output, Linux VPS/Docker Compose self-host packaging, native self-host admin authentication, browser widgets, visitor/click/referral analytics, advanced SEO tooling, delta sync, and additional adapters remain post-2.0 unless separately owner-approved.
+- ordinary customer visitor rendering reads local state and does not synchronously call News Scraper once valid local LKG exists;
+- customer presentation may vary but cannot reinterpret upstream eligibility, filtering, deduplication, ordering, Categories, moderation, or stored publisher destinations;
+- Phase 7 is release qualification/integration, not a general refactor or feature bucket;
+- Phase 7 may fix only release-blocking defects or bounded maintainability/security problems required by the contracted release path;
+- WordPress, RSS/Atom output, Linux VPS/Docker Compose self-host packaging, native self-host admin authentication, browser widgets, visitor/click/referral analytics, advanced SEO tooling, delta sync, additional adapters, and unrelated frontend enhancements remain post-2.0 unless separately owner-approved.
 
-Do not rewrite historical task prompts, validation artifacts, completed MVP roadmap evidence, superseded ADR history, or old issue descriptions to make their historical wording look current.
+Do not rewrite historical task prompts, validation artifacts, completed MVP roadmap evidence, superseded ADR history, or old issue/feature descriptions to make their historical wording look current.
 
-## Phase 5 implementation boundary that current docs must now record
+## Phase 6 implementation boundary that current docs must now record
 
-Phase 5 is complete. Current documentation may summarize the following implemented producer boundary without duplicating implementation detail:
+Phase 6 is complete. Current docs may summarize these implemented facts at the appropriate abstraction level:
 
-- `integrations/php` is a library-first downstream adapter over authenticated v1 distribution output;
-- it owns PHP client configuration/transport consumption, complete cursor traversal, v1 shape/identity validation, bounded retry/restart behavior, candidate-vs-active synchronization policy, per-Profile host-local locking, immutable-generation/manifest LKG persistence, cadence, usability/freshness resolution, bounded local health, CLI composition, and secret-safe local operation;
-- failed, invalid, partial, mixed-revision, or persistence-failed candidates do not replace active valid LKG;
-- authenticated `profile_disabled` is authoritative local suppression state and later successful synchronization can restore re-enabled output;
-- the Phase 6 producer handoff is `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead`, exposing validated committed local state rather than cache paths/manifest/generation internals;
-- Phase 5 did not implement customer-facing local APIs, HTML templates, fallback rendering, customer browser behavior, managed external hosting proof, distributed locks, or cross-host/cross-filesystem durability.
+- `integrations/php` is a library-first downstream adapter over authenticated v1 distribution output and validated host-local LKG state;
+- the customer-facing normalized read boundary is `LocalProfileReader` returning `LocalReadResult`, including normalized Profile, Publication, Article, Source, Category, health, stale-age, and usability-state information;
+- customer visitor/read composition requires local-read configuration only and does not require the upstream base URL or bearer token;
+- safe fallback rendering exists but remains optional presentation; customers may implement `LocalProfileRenderer` or build custom HTML from the normalized local model;
+- populated, empty, stale-usable, never-synced, stale-cutoff, disabled, and unavailable states are handled through the governed local-read/presentation boundary;
+- direct headline anchors preserve exact stored publisher `originalUrl` destinations and do not require JavaScript or News Scraper tracking redirects;
+- Phase 6's local PHP/server/browser evidence proved the local boundary only; it did not prove a real managed external customer host, HostGator/cPanel environment, public-network path, approved live Sources, or production deployment.
 
-Do not broaden these statements beyond the observed Phase 5 artifact.
+Do not duplicate low-level implementation details into high-level contracts where they do not belong.
+
+## Phase 7 current boundary that routing docs must now describe
+
+Phase 7 is **Managed integration and 2.0 release qualification**. Current planning/routing docs should describe it as composing and proving the already-built chain rather than rebuilding earlier ownership:
+
+`real approved Sources → collection/normalization/persistence → canonical eligibility → Distribution Profile → machine authentication → v1 pagination → complete PHP synchronization → validated atomic LKG → customer server-rendered output → direct stored publisher destinations`.
+
+Phase 7 release qualification must retain the roadmap's required failure/reliability coverage, including upstream/API unavailability, synchronization failure, malformed/incomplete candidate state, snapshot revision changes, stale valid LKG, configured stale cutoff where applicable, authoritative Profile disable and later successful re-enable, credential revocation/invalid authentication, rate-limit/`Retry-After`, no visitor-path live News Scraper call, preserved `/` and `/api/feed`, supported production forward migration/data preservation, backup/restore/rollback compatibility, and secret-safe operational telemetry.
+
+Do not turn this documentation alignment into Phase 7 prompt decomposition. `/prompt-ass` and `/prompt-plan` will decide the implementation task stack after the docs are aligned.
 
 ## Approved documentation changes
 
-Make the smallest coherent edits necessary in exactly the 11 files below. Preserve unrelated wording and structure.
+Make the smallest coherent edits necessary in exactly these 11 files. Preserve unrelated wording and structure.
 
 ### 1. `BOOT.md`
 
-Advance all current routing/status from Phase 5 to Phase 6:
+Advance every **current-state/routing** reference from Phase 6 to Phase 7:
 
-- current implementation phase → **Phase 6 — PHP local data API and server-rendered customer integration**;
-- current package baseline → `1.6.0`;
-- current task folder → `p1-6` when written;
-- next roadmap prompt version → `1.6.1`;
-- current planning invocation examples/status text → Phase 6 / `p1-6` where they describe the active phase.
+- current implementation phase → **Phase 7 — Managed integration and 2.0 release qualification**;
+- current package baseline → `1.7.0`;
+- current task folder → `p1-7` when written;
+- next roadmap prompt version → `1.7.1`;
+- current `/prompt-ass`, `/prompt-plan`, `/prompt-write`, runner-baseline, `/next`, and current-action examples/status text → Phase 7 / `p1-7` where they describe active work.
 
-Record Phase 5 as completed producer state. Replace stale Phase-5-as-current handoff prose with a concise Phase 6 handoff:
+Record Phase 6 as completed. Replace the stale Phase-6-as-current implementation guardrail with a Phase 7 release-qualification guardrail that:
 
-- Phase 6 consumes the implemented PHP LKG/read boundary from `integrations/php/`;
-- use `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead` rather than parsing generation/manifest/cache paths;
-- Phase 6 may own a normalized local consumption API/extension surface, safe fallback renderer, escaping/null-state behavior, customer presentation escape hatch, direct stored `originalUrl` anchors, and customer-style integration harness;
-- Phase 6 must not reimplement Profile/Article SQL, canonical eligibility/filter/order/Category/duplicate/moderation logic, v1 auth/cursor/revision semantics, synchronization retries, or LKG activation rules.
+- treats Profiles, canonical read model, machine credentials, v1 API, PHP synchronization/LKG, normalized local read, fallback SSR, and customer-style local integration as implemented producer/consumer boundaries;
+- requires Phase 7 to compose and validate those existing boundaries rather than reimplement them;
+- preserves direct stored publisher destinations, local-only visitor rendering, machine/admin separation, snapshot/LKG integrity, and all prior canonical authorities;
+- allows only release-blocking fixes/bounded hardening inside Phase 7;
+- keeps post-2.0 features out of scope.
 
-Add `integrations/php/README.md` to document routing for PHP synchronization/LKG/local-read implementation details where appropriate.
-
-Keep the seven-phase table, successor mapping, command grammar, closeout workflow, locked invariants, and terminal `2.0.0` transition intact.
+Keep the seven-phase roadmap table, successor mappings, task grammar, command chaining, documentation workflow, correction rules, production compatibility, validation honesty, and terminal Phase 7 → `2.0.0` closeout semantics intact. Historical Phase 6 version/folder references that describe the completed phase remain valid history and must not be mechanically removed.
 
 ### 2. `AGENTS.md`
 
 Align all current roadmap/version/task routing to:
 
-- Phase 6;
-- `1.6.0`;
-- `p1-6` / `docs/tasks/p1-6/` when written;
-- next prompt version `1.6.1`.
+- Phase 7;
+- `1.7.0`;
+- `p1-7` / `docs/tasks/p1-7/` when written;
+- next prompt version `1.7.1`.
 
-Update the current implemented outward-consumer/surface summary so it includes authenticated `GET /api/v1/distribution/{profile_key}` alongside `/api/feed` and `/`.
+Update the documentation-workflow handoff sentence so it records that Phase 6 closed to the Phase 7 `1.7.0` baseline.
 
-Record Phase 5 as completed. Replace stale Phase-5-current implementation guardrails with Phase 6 guidance:
+Record Phases 1–6 as implemented. Replace the stale Phase 6 implementation guardrail with Phase 7 guidance:
 
-- Phase 6 consumes the validated Phase 5 local read boundary, not cache internals;
-- it may own normalized local Profile/Article access, extension surface, fallback renderer, safe escaping/null handling, explicit local availability states, direct publisher anchors, customer presentation override, and customer/example SSR integration;
-- it must not reinterpret upstream Source trust, canonical eligibility, Profile selectors, Categories, moderation, duplicates, ordering, `originalUrl`, machine credential authority, cursor/revision semantics, synchronization retry/locking, or LKG activation;
-- it must not pull Phase 7 deployment qualification or post-2.0 adapters forward.
+- Phase 7 composes the existing canonical/Profile/API/PHP/LKG/local-read/SSR chain;
+- it must not reinterpret Source trust, canonical eligibility, Profile selectors, Categories, moderation, duplicate semantics, ordering, `originalUrl`, machine credential authority, cursor/revision semantics, synchronization retry/locking, LKG activation, local usability, or presentation safety;
+- it owns real managed/external integration and release qualification evidence plus only bounded release-blocking fixes;
+- it must not pull post-2.0 adapters/features forward.
 
-Preserve package/version grammar, production compatibility, UI workstream, closeout policy, and validation honesty.
+Preserve package/version grammar, production compatibility, UI workstream, closeout policy, and validation-honesty rules.
 
 ### 3. `README.md`
 
-Update current-state prose to say:
+Update current-state prose only as necessary to say:
 
-- Phases 1–5 are implemented;
-- Phase 5 delivered generic PHP complete-snapshot synchronization plus validated local LKG state;
-- current package `1.6.0` begins Phase 6 — PHP local data API and server-rendered customer integration;
-- Phase 7 managed external integration/release qualification remains later work.
+- Phases 1–6 are implemented;
+- Phase 6 completed the normalized PHP local-read/customer SSR integration over LKG state;
+- current package `1.7.0` begins Phase 7 — managed integration and 2.0 release qualification;
+- terminal release remains final validated `1.7.x` → version-only `2.0.0`.
 
-Add a lightweight documentation pointer to `integrations/php/README.md` for the implemented PHP synchronization/LKG package. Do not duplicate its operational instructions into the root README.
+Retain the existing lightweight pointer to `integrations/php/README.md`; update its description only if needed to reflect that synchronization/LKG/local-read/customer integration are now implemented. Do not duplicate operational instructions into the root README.
 
-Keep the product path, topic-independent boundaries, current outward surface list, and post-2.0 exclusions unchanged except for strictly necessary status wording.
+Keep the product path, topic-independent boundaries, outward surface list, and post-2.0 exclusions unchanged except for necessary status wording.
 
 ### 4. `docs/README.md`
 
 Align the opening implementation-state summary and roadmap/implementation-discipline block to:
 
-- Phases 1–5 implemented;
-- current package `1.6.0`;
-- current Phase 6 — PHP local data API and server-rendered customer integration;
-- next prompt `1.6.1`;
-- task folder `p1-6`;
-- normal planning invocation `/prompt-ass Phase 6` → `/prompt-plan` → `/prompt-write p1-6`.
+- Phases 1–6 implemented;
+- current package `1.7.0`;
+- current Phase 7 — Managed integration and 2.0 release qualification;
+- next prompt `1.7.1`;
+- task folder `p1-7`;
+- normal planning invocation `/prompt-ass Phase 7` → `/prompt-plan` → `/prompt-write p1-7`.
 
-Add `integrations/php/README.md` to routing as the implemented PHP synchronization/LKG/local-read operational/library guide. Make clear Phase 6 consumes that package rather than cache file formats.
+Update the `integrations/php/README.md` routing description so it describes the implemented synchronization/LKG/local-read/customer-consumption package rather than saying Phase 6 still needs to consume it.
 
 Do not change document authority relationships.
 
 ### 5. `docs/roadmap/post-1.0-roadmap.md`
 
-Advance only current roadmap state and Phase 5 completion bookkeeping; do not redesign Phase 6.
+Advance only current roadmap state and Phase 6 completion bookkeeping; do not redesign Phase 7.
 
 At the top:
 
-- current package baseline → `1.6.0`;
-- current implementation phase → Phase 6;
-- current task folder → `p1-6`;
-- current Phase 6 prompt versions → `1.6.<prompt>`.
+- current package baseline → `1.7.0`;
+- current implementation phase → Phase 7 — Managed integration and 2.0 release qualification;
+- current task folder → `p1-7`;
+- current Phase 7 prompt versions → `1.7.<prompt>`.
 
-At the end of Phase 5 add a completion record consistent with prior completed-phase wording, stating that Phase 5 completed successfully and conversational `/closeout` transitioned only top-level `package.json` from the accepted `1.5.4` candidate to `1.6.0`, the Phase 6 baseline.
+At the end of Phase 6 add a compact completion record consistent with prior completed-phase wording stating that Phase 6 completed successfully and conversational `/closeout` transitioned only top-level `package.json` from the accepted `1.6.4` candidate to `1.7.0`, the Phase 7 baseline.
 
-Leave the Phase 5 historical goal/scope/boundaries/exit gate intact. Leave Phase 6 goal/scope/boundaries/exit gate behaviorally unchanged except for strictly necessary current-state wording.
+Leave the historical Phase 6 goal/scope/boundaries/exit gate intact. Leave the existing Phase 7 goal, scope, release-hardening rule, exit gate, and terminal release transition behaviorally unchanged.
 
 ### 6. `docs/contracts/product-scope-and-users.md`
 
 Correct implementation-status prose only.
 
-State at the appropriate abstraction level that:
+Where it currently says Phases 1–5 are implemented and Phase 6 is current work, change the abstraction-level status to:
 
-- Phases 1–5 foundations are implemented;
-- the permanent authenticated v1 API and generic PHP synchronization/LKG core are implemented;
-- Phase 6 local consumption/customer rendering integration is current work;
-- Phase 7 external managed integration/release qualification remains later work.
+- Phases 1–6 are implemented;
+- the permanent authenticated v1 API, generic PHP synchronization/LKG core, and normalized local/customer SSR integration are implemented;
+- Phase 7 external managed integration/release qualification is current work.
 
-Do not turn this product-scope contract into a detailed PHP filesystem/cache or renderer specification. Do not alter the 2.0 scope boundary itself.
+Do not turn this product-scope contract into a filesystem/cache, renderer, or deployment procedure. Do not alter the 2.0 scope boundary.
 
 ### 7. `docs/contracts/distribution-api-contract.md`
 
-Update the status line only as necessary to reflect reality:
+Update the **status line only as necessary** to reflect reality:
 
 - this remains the current normative 2.0 machine-interface contract;
 - Phase 3 credential/authentication/security foundations are implemented;
 - Phase 4 v1 HTTP interface is implemented;
-- Phase 5 downstream generic PHP synchronization/LKG consumer is implemented;
-- Phase 6 consumes its local state for customer integration without changing the v1 contract.
+- Phase 5 downstream PHP synchronization/LKG consumer is implemented;
+- Phase 6 local-state/customer integration is implemented without changing the v1 contract;
+- Phase 7 qualifies the unchanged interface in the real managed integration path.
 
 Do not alter interface paths, schema, field nullability, cursor/revision semantics, authentication/authorization, response classes, rate limits, HTTPS requirement, or CORS stance.
 
 ### 8. `docs/architecture/system-architecture.md`
 
-Advance stale implementation-state prose from Phase 5-current to Phase 6-current.
+Advance implementation-state annotations from Phase-6-current to Phase-7-current.
 
-Document the implemented PHP ownership boundary compactly:
+Update the logical diagram/prose so the PHP synchronization/LKG and customer local-read/SSR integration are clearly implemented, while Phase 7 is the real managed/external qualification layer rather than a new architectural component.
+
+In module-boundary prose, record compactly that:
 
 - `src/distribution/` owns canonical outward/Profile semantics;
 - `src/distribution/credentials/` owns token/verifier/persistence/authentication/request-guard/rate foundations;
-- the Phase 4 Web/API distribution runtime/router owns the thin permanent v1 HTTP transport/status/schema/header/conditional/telemetry/HTTPS/trust boundary;
-- `integrations/php/` now owns the implemented downstream client/synchronization/LKG boundary;
-- Phase 6 consumes `readForPhase6()` / `LocalProfileRead` and must not parse generation/manifest internals or invent upstream semantics.
+- the Web/API distribution runtime/router owns the thin permanent v1 transport/status/schema/header/conditional/telemetry/HTTPS/trust boundary;
+- `integrations/php/` owns the implemented downstream client/synchronization/LKG/local-read/presentation boundary;
+- ordinary customer code consumes `LocalProfileReader` / `LocalReadResult`; `readForPhase6()` / `LocalProfileRead` are internal state-store handoff details and must not become a new external integration authority;
+- Phase 7 composes/proves these boundaries and must not invent upstream semantics.
 
-Where useful, update the logical-component diagram annotation/prose so PHP synchronization/LKG is clearly implemented and customer local consumption/SSR is current Phase 6 work.
-
-Do not move module ownership, change runtime topology, or invent a speculative adapter abstraction.
+Do not move module ownership, change runtime topology, rename source, or invent speculative abstractions.
 
 ### 9. `docs/operations/security-reliability-and-operations.md`
 
-Convert stale Phase-5-current wording into implemented-state wording while preserving all normative rules.
+Convert the remaining Phase-6-future wording into implemented-state wording while preserving every normative security rule.
 
-State that:
+Record that:
 
 - Phase 3 credential lifecycle/authenticator/request-guard/rate foundation is implemented;
 - Phase 4 HTTP/trusted-proxy/HTTPS/status/error/cache-header/telemetry boundary is implemented;
 - Phase 5 PHP synchronization/LKG consumption, locking, persistence, freshness/usability, and health boundary is implemented;
-- Phase 6 must consume local validated state, preserve safe escaping and no-secret/no-live-visitor-call boundaries, and must not weaken upstream authentication or LKG guarantees.
+- Phase 6 normalized local read, safe escaping/fallback rendering, direct links, local-only visitor path, and no-secret/no-live-visitor-call boundaries are implemented;
+- Phase 7 managed integration/release qualification must preserve and observe those protections rather than weaken them.
 
-Keep existing failure-isolation language accurate. Do not claim managed customer hosting/browser/deployment proof that Phase 5 did not execute.
-
-Do not weaken no-secret logging, machine/admin separation, content safety, Source-fetch SSRF controls, self-hostability, or production data-recovery rules.
+Do not weaken no-secret logging, machine/admin separation, content safety, Source-fetch SSRF controls, self-hostability, LKG integrity, or production data-recovery rules. Do not claim managed external deployment proof from Phase 6 local evidence.
 
 ### 10. `docs/operations/deployment-and-incident-runbook.md`
 
-Update only stale managed-distribution implementation status.
+Update only stale managed-distribution implementation status and evidence boundaries.
 
 The `2.0 managed distribution checks` introduction should distinguish:
 
@@ -269,23 +281,31 @@ The `2.0 managed distribution checks` introduction should distinguish:
 - implemented canonical distribution read model;
 - implemented machine credential/authentication/security foundation;
 - implemented permanent v1 HTTP API and production HTTPS/trusted-proxy configuration;
-- implemented generic PHP synchronization/LKG core from Phase 5;
-- current Phase 6 local consumption/customer rendering integration;
-- later Phase 7 real managed external integration/release qualification.
+- implemented generic PHP synchronization/LKG core;
+- implemented Phase 6 normalized local read/customer SSR integration and local PHP/server/browser proof;
+- current Phase 7 real managed external integration/release qualification.
 
-Keep the existing production proxy configuration and deployment procedure intact.
+Replace any wording that still describes Phase 6 as current or Phase 7 as merely later.
 
-Explicitly avoid turning Phase 5 local Windows/PHP proof into managed external/customer-host/HostGator deployment evidence. Final 2.0 managed-integration checks remain future/as-applicable release proof until actually observed.
+Explicitly state, at the existing level of detail, that Phase 6 local proof is **not** managed external/customer-host/HostGator/cPanel/public-network/deployment evidence. The final 2.0 managed-integration checks remain current Phase 7 proof requirements until actually observed.
 
-### 11. `feature-ideas.md`
+Keep production proxy configuration, ordered deployment procedure, rollback, backup/restore, incident rules, and existing external-proof requirements intact.
 
-Make exactly one factual status correction inside proposed idea `+H5QZ — Public Article summaries from Source descriptions`.
+### 11. `integrations/php/README.md`
 
-The existing sentence says permanent v1 HTTP exposure of nullable `Article.summary` “remains Phase 4 work.” Phase 4 is already implemented and the v1 contract includes nullable `summary`.
+Remove obsolete phase-specific customer-consumer wording without changing source APIs.
 
-Revise only that statement so it records that Phase 2 supplies nullable `Article.summary` through the transport-independent read model and Phase 4 now exposes it through the permanent v1 HTTP API. Keep the proposed feature itself limited to visible summary presentation in the bundled/reference frontend.
+The current text says Phase 6 consumers must directly use `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead`. Align it to the actual implemented public/customer composition:
 
-Do not change the idea's Proposed status, promote it into Phase 6, redesign summary collection/storage, or modify any other feature idea.
+- ordinary customer/integration code uses `LocalProfileReader` and receives normalized `LocalReadResult`;
+- customer code may implement `LocalProfileRenderer`, use `FallbackHtmlRenderer`, or render custom HTML from the normalized model;
+- `LocalProfileReader` internally consumes the validated state-store boundary; customers must not parse cache paths, generation/manifest JSON, or state internals;
+- visitor/read configuration remains local-only and does not require upstream URL or bearer token;
+- synchronization remains a separate scheduled process.
+
+It is acceptable to mention `readForPhase6()` / `LocalProfileRead` as internal implementation/handoff details where useful, but do not present them as the preferred customer-facing API and do not rename them during this docs task.
+
+Preserve the existing synchronization, permissions, cadence, locking, atomic-visibility limitations, and example operational instructions unless a tiny wording adjustment is strictly required for the new customer-boundary description.
 
 ## Files that must remain unchanged
 
@@ -293,7 +313,8 @@ Do not edit anything outside the 11 approved targets above. In particular, do no
 
 - `package.json`;
 - `.codex/docs-prompt.txt` while executing this prompt;
-- `integrations/php/README.md` or any PHP/source file;
+- `feature-ideas.md`;
+- `known-issues.md`;
 - `docs/contracts/project-contract.md`;
 - `docs/contracts/distribution-and-integration-contract.md`;
 - `docs/contracts/testing-and-validation-contract.md`;
@@ -302,7 +323,6 @@ Do not edit anything outside the 11 approved targets above. In particular, do no
 - `docs/contracts/source-and-collection-contract.md`;
 - `docs/contracts/article-lifecycle-and-deduplication.md`;
 - `docs/operations/database-backup-and-restore.md`;
-- `known-issues.md`;
 - `docs/roadmap/mvp-roadmap.md`;
 - `docs/roadmap/2.0-planning-questions.md`;
 - `docs/history/`;
@@ -310,30 +330,31 @@ Do not edit anything outside the 11 approved targets above. In particular, do no
 - `docs/validation/`;
 - `docs/design/`;
 - Accepted/superseded ADR history under `docs/decisions/`;
-- source code, migrations, tests/fixtures, dependencies, npm configuration, runtime/environment/deployment configuration, Publication/Source configuration data.
+- source code, PHP source, migrations, tests/fixtures, dependencies, npm configuration, runtime/environment/deployment configuration, or Publication/Source configuration data.
 
-If a contradiction appears to require another file, stop and report it instead of silently expanding scope.
+If a contradiction appears to require another file or a behavioral contract change, stop and report it instead of silently expanding scope.
 
 ## Absolute non-goals
 
 Do not:
 
-- change package version `1.6.0`;
-- implement the Phase 6 local API, extension surface, renderer, templates, example site, or browser integration;
-- modify Phase 5 PHP client/synchronization/LKG behavior;
-- alter cache/generation/manifest formats, locking, cadence, retries, stale policy, disable/re-enable, or health behavior;
-- modify the v1 route, response schema, serializer, auth, rate limiting, telemetry, HTTPS, or proxy behavior;
+- change package version `1.7.0`;
+- implement Phase 7 or create `docs/tasks/p1-7/`;
+- create Phase 7 prompt decomposition or choose its implementation prompt models;
+- modify PHP classes/functions, cache/generation/manifest formats, locking, cadence, retries, stale policy, disable/re-enable, health, renderer behavior, or visitor behavior;
+- modify the v1 route, schema, serializer, auth, rate limiting, telemetry, HTTPS, or proxy behavior;
 - change Profile, collection, Relevance, Category, moderation, duplicate, Article identity, ordering, or destination semantics;
-- claim managed/external/HostGator/browser/runtime evidence that has not actually been observed;
-- add WordPress, RSS/Atom output, widgets, analytics, SEO features, delta sync, self-host packaging, or other post-2.0 capabilities.
+- claim managed/external/HostGator/cPanel/public-network/live-Source/deployment evidence that has not actually been observed;
+- add WordPress, RSS/Atom output, widgets, analytics, advanced SEO features, delta sync, self-host packaging, or other post-2.0 capabilities;
+- rename `readForPhase6()` or other source symbols merely because the roadmap advanced.
 
 ## Historical evidence discipline
 
-Do not rewrite `docs/validation/phase-5-generic-php-synchronization-and-lkg.md` to say it was executed at `1.6.0`. Its accepted implementation candidate is `1.5.4`; conversational `/closeout` subsequently performed the package-only transition to `1.6.0`.
+Do not rewrite `docs/validation/phase-6-php-local-data-and-server-rendered-integration.md` to say it was executed at `1.7.0`. Its accepted implementation candidate is `1.6.4`; conversational `/closeout` subsequently performed the package-only transition to `1.7.0`.
 
-Current routing docs may record that transition and Phase 5 completion. Historical validation/task artifacts must retain their original source-tree identity, environment limitations, and HUMAN REVIEW REQUIRED wording.
+Current routing docs may record that transition and Phase 6 completion. Historical validation/task artifacts must retain their original source-tree identity, environment limitations, and HUMAN REVIEW REQUIRED wording.
 
-Likewise, do not alter older Phase 1–4 or MVP validation/task history merely to make historical status sentences look current.
+Likewise, do not alter older Phase 1–5 or MVP validation/task history merely to make historical status sentences look current. Historical references to `1.6.x`, `p1-6`, Phase 6 scope, or `readForPhase6()` are not stale merely because Phase 7 is now active.
 
 ## Validation
 
@@ -353,15 +374,15 @@ At minimum:
    - `docs/architecture/system-architecture.md`
    - `docs/operations/security-reliability-and-operations.md`
    - `docs/operations/deployment-and-incident-runbook.md`
-   - `feature-ideas.md`
-3. Confirm `package.json` remains exactly `1.6.0` and is unmodified.
-4. Confirm current routing/status is consistently Phase 6 / `1.6.0` / `p1-6` / next `1.6.1` in `BOOT.md`, `AGENTS.md`, `docs/README.md`, and the active-roadmap header.
-5. Search the edited current-state/routing documents for stale active-state statements such as current `1.5.0`, current Phase 5, current `p1-5`, next `1.5.1`, or claims that generic PHP synchronization/LKG is still future work. Distinguish legitimate historical roadmap/version-lifecycle/Phase-5-section references from stale current-state wording; do not mechanically remove historical references.
-6. Confirm current docs consistently record Phases 1–5 as implemented where phase status is summarized.
-7. Confirm Phase 6 is described as consuming the validated local Phase 5 read boundary rather than cache internals or upstream business rules.
-8. Confirm the deployment/security docs do not claim managed external/customer-host/browser proof from Phase 5 local evidence.
-9. Confirm the only `feature-ideas.md` semantic change is the `+H5QZ` Phase 4 exposure status sentence and that the idea remains Proposed.
-10. Confirm no historical validation artifact, task prompt, ADR, source file, migration, test, package/dependency file, runtime configuration, or PHP file changed.
+   - `integrations/php/README.md`
+3. Confirm `package.json` remains exactly `1.7.0` and is unmodified.
+4. Confirm current routing/status is consistently Phase 7 / `1.7.0` / `p1-7` / next `1.7.1` in `BOOT.md`, `AGENTS.md`, `docs/README.md`, and the active-roadmap header.
+5. Search edited current-state/routing documents for stale active-state statements such as current `1.6.0`, current Phase 6, current `p1-6`, next `1.6.1`, or claims that local PHP/customer SSR integration is still future work. Distinguish legitimate historical roadmap/version-lifecycle/completed-Phase-6 references from stale current-state wording; do not mechanically remove history.
+6. Confirm current docs consistently record Phases 1–6 as implemented where phase status is summarized.
+7. Confirm Phase 7 is consistently described as managed integration + 2.0 release qualification, not a feature/refactor bucket.
+8. Confirm customer/integration documentation presents `LocalProfileReader` / `LocalReadResult` as the normal customer-facing read boundary and does not encourage parsing cache/manifests/generations.
+9. Confirm deployment/security docs distinguish completed Phase 6 local PHP/server/browser proof from still-required Phase 7 managed external/HostGator/public-network/deployment proof.
+10. Confirm no historical validation artifact, task prompt, ADR, source file, migration, test, package/dependency file, runtime configuration, `feature-ideas.md`, or `known-issues.md` changed.
 
 No runtime, PostgreSQL, browser, live-Source, deployment, or PHP test is required solely for this documentation alignment. Do not claim those evidence levels from documentation inspection.
 
@@ -370,11 +391,11 @@ No runtime, PostgreSQL, browser, live-Source, deployment, or PHP test is require
 When complete, report concisely:
 
 - the exact 11 documentation files changed;
-- that current routing is aligned to Phase 6 / `1.6.0` / `p1-6` / next `1.6.1`;
-- that Phase 5 is recorded as completed and its PHP synchronization/LKG producer boundary is routed for Phase 6 consumption;
-- that Phase 6 remains local consumption/customer SSR integration and Phase 7 retains managed external/release qualification;
-- that `+H5QZ` was corrected only for the already-implemented v1 summary exposure fact and remains Proposed;
+- that current routing is aligned to Phase 7 / `1.7.0` / `p1-7` / next `1.7.1`;
+- that Phase 6 is recorded as completed and its local PHP normalized-read/customer SSR boundary is now described as implemented;
+- that Phase 7 remains managed external integration and 2.0 release qualification with only release-blocking hardening in scope;
+- that customer-facing PHP docs now prefer `LocalProfileReader` / `LocalReadResult` over cache/state internals;
 - validation actually run and its result;
-- confirmation that `package.json` remained `1.6.0`;
-- confirmation that source, PHP implementation, migrations, tests, tasks, validation artifacts, ADRs, and all other excluded files were unchanged;
+- confirmation that `package.json` remained `1.7.0`;
+- confirmation that source/PHP implementation, migrations, tests, tasks, validation artifacts, ADRs, feature/issue logs, and all other excluded files were unchanged;
 - any conflict or residual stale wording that could not be resolved inside the approved scope.
