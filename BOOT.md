@@ -20,10 +20,10 @@ It establishes project identity, authority, routing, workflow gates, task gramma
 - Distribution/Profile/PHP contract: `docs/contracts/distribution-and-integration-contract.md`
 - Current roadmap: `docs/roadmap/post-1.0-roadmap.md`
 - Current roadmap state: **ACTIVE**
-- Current implementation phase: **Phase 6 — PHP local data API and server-rendered customer integration**
-- Current package baseline: **`1.6.0`**
-- Current Phase 6 task folder: **`p1-6`** when written
-- Next roadmap prompt version: **`1.6.1`**
+- Current implementation phase: **Phase 7 — Managed integration and 2.0 release qualification**
+- Current package baseline: **`1.7.0`**
+- Current Phase 7 task folder: **`p1-7`** when written
+- Next roadmap prompt version: **`1.7.1`**
 - Terminal release target: **`2.0.0`**
 - Accepted production baseline: customer-launch `1.0.0`; supported customer data is durable
 - Former post-1.0 Phase 0 P1: server-rendered reference root shipped at `1.0.1`
@@ -183,7 +183,7 @@ The roadmap is **ACTIVE**.
 
 The complete detailed phase scope/exit gates live in `docs/roadmap/post-1.0-roadmap.md` and must be re-read before phase planning.
 
-Phase 4 completed the permanent v1 HTTP route, and Phase 5 completed the downstream PHP synchronization/LKG producer over that stable interface. Phase 6 consumes `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead` from `integrations/php/`, rather than generation, manifest, or cache paths. It may own normalized local consumption, a safe fallback renderer, escaping/null-state behavior, customer presentation extension points, direct stored `originalUrl` anchors, and a customer-style integration harness. It must not reconstruct Profile/Article SQL, canonical eligibility/filter/order/Category/duplicate/moderation logic, v1 authentication/cursor/revision semantics, synchronization retries, or LKG activation rules. `GET /` and `GET /api/feed` remain supported legacy/reference surfaces.
+Phases 1–6 implemented the permanent v1 HTTP route, downstream PHP synchronization/LKG producer, and normalized local read/customer server-rendered integration. Phase 7 composes and qualifies those existing boundaries: canonical eligibility/Profile read model, machine credentials, v1 API, PHP synchronization/LKG, `LocalProfileReader` / `LocalReadResult`, fallback SSR, and customer-style local integration. It must preserve direct stored publisher destinations, local-only visitor rendering, machine/admin separation, snapshot/LKG integrity, and every prior canonical authority; it must not reinterpret Source trust, eligibility, Profile selectors, Categories, moderation, duplicates, ordering, `originalUrl`, cursor/revision semantics, synchronization, local usability, or presentation safety. Only release-blocking fixes or bounded hardening are in scope; post-2.0 features remain out of scope. `GET /` and `GET /api/feed` remain supported legacy/reference surfaces.
 
 ## Production compatibility
 
@@ -346,9 +346,9 @@ The roadmap is now active, so this workflow is authorized for the current phase.
 Current invocation target:
 
 ```text
-/prompt-ass Phase 6
+/prompt-ass Phase 7
 → /prompt-plan
-→ /prompt-write p1-6
+→ /prompt-write p1-7
 ```
 
 If requirements/docs/repository state materially conflict, return `Planning needed` rather than silently changing the roadmap.
@@ -361,7 +361,7 @@ Return target behavior, constraints, roadmap phase, stack type, prompt count/ord
 
 Explicitly assess producer→consumer boundaries. Split transactional/state-machine work from separately consumed read/API work when consumers, tests, or failure risks differ materially. Testing is part of task decomposition.
 
-For current Phase 6, plan only local consumption/customer server-rendered integration over the implemented PHP LKG/read boundary. Use `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead`, not cache internals; do not reconstruct upstream Article/Profile, credential, cursor, revision, rate-limit, trusted-proxy, synchronization, or LKG-activation semantics, and do not pull Phase 7 integration qualification or later work forward.
+For current Phase 7, compose and prove the implemented canonical/Profile/API/PHP/LKG/local-read/SSR chain in a real managed external integration. Do not reconstruct or reinterpret upstream Article/Profile, credential, cursor, revision, rate-limit, trusted-proxy, synchronization, LKG-activation, local-usability, or presentation-safety semantics; only release-blocking fixes or bounded hardening are permitted, and post-2.0 work stays out of scope.
 
 ## `/prompt-plan`
 
@@ -379,14 +379,14 @@ Reassess model/effort using the minimum-cost-adequate rule and produce the small
 
 Requires an unblocked `/prompt-plan`. Revalidate current repo/docs and write ordered prompts under `docs/tasks/<folder name>/`.
 
-Current Phase 6 folder is `p1-6`.
+Current Phase 7 folder is `p1-7`.
 
 Each roadmap prompt includes exact runner metadata, finalized model/reasoning/usage block, focused iterative validation, smallest non-overlapping final validation, downstream handoff gates where relevant, package-version rules, acceptance, and non-goals.
 
 When local execution is available run:
 
 ```text
-npm run codex:phase:validate -- p1-6
+npm run codex:phase:validate -- p1-7
 ```
 
 before reporting the stack ready.
@@ -411,7 +411,7 @@ The shared parser is `scripts/codex-phase-core.mjs`.
 - exactly one phrase `assigned project version is` followed by `1.<phase>.<prompt number>`;
 - no correction unchanged-version metadata.
 
-The runner detects completed implementation prompts from exact reachable commit subjects and requires package version to match the Git-proven completed prefix. With no completed Phase 6 prompt, `p1-6` expects baseline `1.6.0`.
+The runner detects completed implementation prompts from exact reachable commit subjects and requires package version to match the Git-proven completed prefix. With no completed Phase 7 prompt, `p1-7` expects baseline `1.7.0`.
 
 ## Corrections
 
@@ -489,7 +489,7 @@ This terminal rule is the 2.0 analogue of the already-completed historical Phase
 # Versioning
 
 - `package.json` is the sole current-version authority.
-- Current version is `1.6.0`.
+- Current version is `1.7.0`.
 - Phase prompt versions are `1.<phase>.<prompt>`.
 - Non-terminal baseline transitions are `1.<next phase>.0`.
 - Final release only is `2.0.0`.
@@ -545,10 +545,10 @@ The bundled/reference frontend UI work does not govern customer-site integration
 
 ## Current next action
 
-The roadmap is active and Phase 6 is authorized. The next normal implementation-planning command is:
+The roadmap is active and Phase 7 is authorized. The next normal implementation-planning command is:
 
 ```text
-/prompt-ass Phase 6
+/prompt-ass Phase 7
 ```
 
-which should decompose the PHP local data API and customer server-rendered integration into the smallest safe `p1-6` prompt stack before `/prompt-plan` and `/prompt-write p1-6`. It must consume the validated Phase 5 local read boundary rather than cache internals; Phase 7 managed external integration/release qualification remains out of scope.
+which should decompose managed integration and 2.0 release qualification into the smallest safe `p1-7` prompt stack before `/prompt-plan` and `/prompt-write p1-7`. It must compose and prove the implemented canonical/Profile/API/PHP/LKG/local-read/SSR chain; only release-blocking hardening is in scope.

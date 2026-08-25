@@ -1,10 +1,10 @@
 # Post-1.0 / 2.0 Roadmap
 
 **Status:** ACTIVE — owner-approved 2.0 implementation roadmap.  
-**Current package baseline:** `1.6.0`.
-**Current implementation phase:** Phase 6 — PHP local data API and server-rendered customer integration.
-**Current task folder:** `p1-6`.
-**Current Phase 6 prompt versions:** `1.6.<prompt>`.
+**Current package baseline:** `1.7.0`.
+**Current implementation phase:** Phase 7 — Managed integration and 2.0 release qualification.
+**Current task folder:** `p1-7`.
+**Current Phase 7 prompt versions:** `1.7.<prompt>`.
 **Terminal release target:** `2.0.0`.  
 **Primary direction:** prove the managed headless distribution product through Distribution Profiles, the authenticated v1 API, generic PHP synchronization/LKG, and a real external customer-site integration.
 
@@ -330,6 +330,8 @@ Server/browser integration evidence proves a customer-style PHP site renders cor
 ### Next baseline
 
 Green Phase 6 `/closeout` transitions only `package.json` to `1.7.0`.
+
+**Closeout:** completed successfully; conversational `/closeout` transitioned only top-level `package.json` from the accepted `1.6.4` candidate to `1.7.0`, which is the Phase 7 baseline.
 
 ## Phase 7 — Managed integration and 2.0 release qualification
 

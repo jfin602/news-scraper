@@ -35,7 +35,7 @@ The singleton Publication is an installation/editorial configuration boundary, n
 
 The v1 distribution API uses dedicated high-entropy bearer credentials governed by `docs/contracts/distribution-api-contract.md`.
 
-Phase 3 supplies the implemented credential lifecycle, authenticator, request guard, and bounded process-local rate foundation. Phase 4 supplies the implemented trusted HTTP client-network/proxy interpretation, production HTTPS fail-closed behavior, v1 status/error mapping including `429`/`Retry-After`, cache/security headers, and bounded distribution telemetry. Phase 5 implemented PHP synchronization/LKG consumption, locking, persistence, freshness/usability, and health without reproducing or weakening those upstream boundaries. Phase 6 must consume validated local state, preserve safe escaping and no-secret/no-live-visitor-call boundaries, and must not weaken upstream authentication or LKG guarantees.
+Phase 3 implemented the credential lifecycle, authenticator, request guard, and bounded process-local rate foundation. Phase 4 implemented trusted HTTP client-network/proxy interpretation, production HTTPS fail-closed behavior, v1 status/error mapping including `429`/`Retry-After`, cache/security headers, and bounded distribution telemetry. Phase 5 implemented PHP synchronization/LKG consumption, locking, persistence, freshness/usability, and health without reproducing or weakening those upstream boundaries. Phase 6 implemented normalized local read, safe escaping/fallback rendering, direct links, and local-only visitor-path/no-secret/no-live-visitor-call boundaries. Phase 7 managed integration/release qualification must preserve and observe those protections rather than weaken upstream authentication or LKG guarantees; Phase 6 local evidence is not managed external deployment proof.
 
 - plaintext credentials are shown only at creation and never persisted;
 - persisted state uses a non-secret lookup identity plus secure verifier/digest;
@@ -183,7 +183,7 @@ Current operations maintain runbooks for:
 - Cloudflare Access/admin-perimeter incident or lockout handling;
 - unsafe/compromised Source response;
 - legal/editorial Article takedown;
-- 2.0 distribution authentication/Profile/PHP synchronization/LKG failures as those phases are implemented.
+- 2.0 distribution authentication/Profile/PHP synchronization/LKG/local-read failures and the Phase 7 managed-integration qualification path.
 
 ## Privacy and retention
 

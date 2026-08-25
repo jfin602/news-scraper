@@ -21,7 +21,7 @@ Run it from cron more frequently than the desired cadence; the local manifest's 
 
 State uses a SHA-256 Profile identity, an immutable `generations/g-*.json` payload, and `manifest.json` as the sole activation point. Generation and manifest temporary files are written and flushed in their destination directories before atomic rename. Atomic visibility is host-local/same-filesystem only; the package does not claim distributed locking, cross-host coordination, or power-loss durability. Permissions are requested as `0700` directories and `0600` files where POSIX hosts support them; customers must ensure the configured root is non-public and owned appropriately.
 
-Phase 6 consumers must use `FilesystemProfileStateStore::readForPhase6()` and its `LocalProfileRead` result, not cache paths or JSON. It exposes only a validated committed active snapshot, usability classification, and bounded local health.
+Ordinary customer/integration code uses `LocalProfileReader` and receives normalized `LocalReadResult`; it may implement `LocalProfileRenderer`, use `FallbackHtmlRenderer`, or render custom HTML from that model. `LocalProfileReader` internally consumes the validated `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead` handoff. Customers must not parse cache paths, generation/manifest JSON, or other state internals; the boundary exposes only a validated committed active snapshot, usability classification, and bounded local health.
 
 The customer-facing read path is local-only and does not require the upstream URL or bearer token:
 

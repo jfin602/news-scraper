@@ -8,7 +8,7 @@ Publication is an editorial/configuration concept, not a relational tenancy key.
 
 The administrator surface is the instance-owned Platform control plane. The active 2.0 path is canonical eligibility → Distribution Profile → authenticated v1 API → generic PHP complete-snapshot synchronization → local last-known-good data → customer server-rendered output. WordPress, RSS/Atom, Linux VPS/Docker Compose self-host packaging, and native self-host admin authentication are post-2.0. Current implemented outward surfaces are authenticated `GET /api/v1/distribution/{profile_key}`, legacy/reference `GET /api/feed`, and bundled/reference `GET /`.
 
-The accepted `1.0.0` customer launch established the first supported production schema/data baseline. Phases 1–5 implemented the Distribution Profile, canonical read-model, machine credential/authentication, v1 HTTP API, and generic PHP synchronization/LKG foundations; the current development package is `1.6.0`, and the active roadmap is Phase 6 — PHP local data API and server-rendered customer integration. Terminal release qualification after Phase 7 promotes the final validated `1.7.x` candidate directly to `2.0.0`.
+The accepted `1.0.0` customer launch established the first supported production schema/data baseline. Phases 1–6 implemented the Distribution Profile, canonical read-model, machine credential/authentication, v1 HTTP API, generic PHP synchronization/LKG, and normalized local-read/customer server-rendered integration; the current development package is `1.7.0`, and the active roadmap is Phase 7 — Managed integration and 2.0 release qualification. Terminal release qualification promotes the final validated `1.7.x` candidate directly to `2.0.0`.
 
 Before production database compatibility was established, the supported persistence setup was a fresh database built from the repository's current migration chain and bootstrap/configuration. That historical pre-production destructive-reset policy no longer applies to accepted customer production state. Current production upgrades are governed by `decisions/production-data-and-schema-compatibility.md`.
 
@@ -71,7 +71,7 @@ The tracked docs-maintenance handoff lives outside `docs/` at repository-root `.
 - `contracts/project-contract.md` — locked Platform laws, authority hierarchy, one-Publication-per-deployment boundary, headless product/output law, original-publisher destination law, and derived production-data invariant.
 - `contracts/product-scope-and-users.md` — **current post-1.0 product scope** and 2.0 managed-integration boundary.
 - `contracts/distribution-and-integration-contract.md` — Distribution Profiles, filters, PHP/LKG behavior, adapter/presentation/link boundaries, later adapters, telemetry, and the 2.0 release boundary.
-- `integrations/php/README.md` — implemented PHP synchronization/LKG/local-read operational and library guide; Phase 6 consumes its validated local-read boundary rather than cache file formats.
+- `integrations/php/README.md` — implemented PHP synchronization/LKG/local-read/customer-consumption operational and library guide; ordinary customer code consumes its normalized local-read boundary rather than cache file formats.
 - `contracts/distribution-api-contract.md` — permanent v1 Profile API, schema, revisions/cursors, machine credentials, response classes, rate limits, and CORS stance.
 - `contracts/mvp-scope-and-users.md` — **historical** scope for the accepted `1.0.0` standalone-feed MVP; useful for interpreting completed MVP work but not current product direction.
 - `contracts/domain-and-data-contract.md` — canonical terminology, singleton Publication configuration, real entity relationships, endpoint-owned HTML profile semantics, Source RSS/Atom item-admission configuration/accounting, Category/Relevance persistence and deterministic rule semantics, identity/provenance invariants, schema lifecycle, and current public-row semantics.
@@ -134,12 +134,12 @@ Use root `BOOT.md` as the session router; it points to the narrowest authoritati
 The MVP roadmap is complete through Phase 21. Former post-1.0 Phase 0 P1 shipped the server-rendered root at package `1.0.1`. Its planned P2 closeout was retired unexecuted when the product direction changed.
 
 **Current roadmap state:** ACTIVE — seven-phase 2.0 implementation roadmap.  
-**Current package baseline:** `1.6.0`.
-**Current implementation phase:** Phase 6 — PHP local data API and server-rendered customer integration.
-**Next roadmap prompt version:** `1.6.1`.
-**Current task folder:** `p1-6`.
+**Current package baseline:** `1.7.0`.
+**Current implementation phase:** Phase 7 — Managed integration and 2.0 release qualification.
+**Next roadmap prompt version:** `1.7.1`.
+**Current task folder:** `p1-7`.
 **Terminal release:** final validated `1.7.x` → version-only `2.0.0` transition.
 
-Do not run the old `p1-0` stack or infer versions from the retired frontend-centric roadmap. Normal implementation planning now resumes with `/prompt-ass Phase 6` → `/prompt-plan` → `/prompt-write p1-6`. The v1 HTTP API and Phase 5 downstream generic PHP synchronization/LKG producer are implemented; Phase 6 consumes its validated local read boundary rather than cache file formats.
+Do not run the old `p1-0` stack or infer versions from the retired frontend-centric roadmap. Normal implementation planning now resumes with `/prompt-ass Phase 7` → `/prompt-plan` → `/prompt-write p1-7`. The v1 HTTP API, generic PHP synchronization/LKG, and normalized local-read/customer integration are implemented; Phase 7 composes and qualifies those boundaries without bypassing their governed semantics.
 
 Historical validation artifacts describe only the source tree, environment, and observations they record. They do not redefine current contracts.

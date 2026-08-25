@@ -27,7 +27,8 @@ flowchart LR
     API --> P[Distribution Profile read model]
     P --> B
     PHP --> LKG[Validated local LKG snapshot]
-    SITE[Phase 6 customer SSR integration] --> LKG
+    SITE[Implemented customer local-read / SSR integration] --> LKG
+    Q7[Phase 7 managed external qualification] --> SITE
     A[Cloudflare Access-protected Admin UI/API] --> B
     B --> D[(PostgreSQL)]
     B --> Q[Durable Job Queue / Scheduler]
@@ -51,7 +52,7 @@ flowchart LR
     B --> O
 ```
 
-The diagram combines current reference surfaces with the approved 2.0 path. The v1 API and PHP synchronization/LKG are implemented; customer local consumption/server-rendered integration is current Phase 6 work. The API, Profile, machine-authentication, and cache contracts are governed by the distribution contracts; no Web/API route performs Source collection inline.
+The diagram combines current reference surfaces with the approved 2.0 path. The v1 API, PHP synchronization/LKG, and customer local consumption/server-rendered integration are implemented; Phase 7 composes and qualifies them in the real managed/external path rather than adding an architectural component. The API, Profile, machine-authentication, and cache contracts are governed by the distribution contracts; no Web/API route performs Source collection inline.
 
 ## Deployment boundary
 
@@ -134,7 +135,7 @@ src/
 
 `src/distribution/profiles/` owns Profile configuration/persistence and transactional coordination of Profile/Source usability-reducing mutations; lifecycle/application validation remains the administration/application authority. It does not duplicate Source collection, Articles, identity, or provenance. Later consumers must not query Profile child tables or invent lifecycle/relationship semantics independently. The implemented canonical read model is the required path from canonical outward Article authority to both the public-feed/reference consumer and the Distribution Profile snapshot/page consumer. Later API/controllers must remain thin and must not recreate Article eligibility SQL, Profile filters, Category semantics, ordering, continuation semantics, or snapshot-revision semantics.
 
-`src/distribution/credentials/` owns token generation/parsing and verifier derivation, credential persistence/authentication lookup, machine authentication, request guarding with bounded process-local rate limiting, and credential configuration/policy. The implemented Phase 4 Web/API distribution runtime/router consumes this boundary and the implemented Phase 2 Profile page/snapshot/cursor/revision producer. It owns the thin permanent v1 HTTP transport, status/schema/header/conditional/telemetry/HTTPS/trust boundary and does not recreate credential/token SQL, verifier derivation, lifecycle interpretation, machine authorization semantics, authenticated-quota/invalid-auth limiter state, or Article/Profile query semantics. `integrations/php/` owns the implemented downstream client/synchronization/LKG boundary. Phase 6 consumes `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead` and must not parse generation/manifest internals or invent upstream semantics.
+`src/distribution/credentials/` owns token generation/parsing and verifier derivation, credential persistence/authentication lookup, machine authentication, request guarding with bounded process-local rate limiting, and credential configuration/policy. The implemented Phase 4 Web/API distribution runtime/router consumes this boundary and the implemented Phase 2 Profile page/snapshot/cursor/revision producer. It owns the thin permanent v1 HTTP transport, status/schema/header/conditional/telemetry/HTTPS/trust boundary and does not recreate credential/token SQL, verifier derivation, lifecycle interpretation, machine authorization semantics, authenticated-quota/invalid-auth limiter state, or Article/Profile query semantics. `integrations/php/` owns the implemented downstream client/synchronization/LKG/local-read/presentation boundary. Ordinary customer code consumes `LocalProfileReader` / `LocalReadResult`; `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead` are internal validated state-store handoff details, not a new external integration authority. Phase 7 composes and proves these boundaries without inventing upstream semantics.
 
 The exact implementation may keep or rename an existing module only when that choice produces the smallest coherent canonical design. It MUST NOT retain plural/selector-oriented APIs solely as a compatibility bridge. Legacy-only source modules, wrappers, types, tests, fixtures, configuration paths, and other artifacts from superseded pre-production architecture MUST be deleted when the canonical implementation no longer has an independent use for them.
 

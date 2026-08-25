@@ -18,19 +18,19 @@ Follow `BOOT.md`.
 - Roadmap `/closeout` and a correction stack's final manual closeout are different. A correction closeout clears only that correction and preserves roadmap phase/package version.
 - Terminal MVP Phase 21 `/closeout` already transitioned the final validated `0.21.x` tree to `1.0.0`.
 - Former post-1.0 Phase 0 P1 shipped the server-rendered root at `1.0.1`; its unexecuted P2/`1.0.2` closeout is permanently retired.
-- The owner-approved replacement 2.0 roadmap is active. Phase 5 closed to the Phase 6 `1.6.0` baseline; normal roadmap prompt planning may resume.
+- The owner-approved replacement 2.0 roadmap is active. Phase 6 closed to the Phase 7 `1.7.0` baseline; normal roadmap prompt planning may resume.
 - Use `docs/codex-model-selection.md` for detailed minimum-cost-adequate model/reasoning/usage policy.
 
 ## Versioning and task-stack grammar
 
-`package.json` is the sole current-version authority and is currently `1.6.0`. Documentation, correction, and UI work is non-versioned unless an explicit owner-authorized roadmap activation/release transition says otherwise.
+`package.json` is the sole current-version authority and is currently `1.7.0`. Documentation, correction, and UI work is non-versioned unless an explicit owner-authorized roadmap activation/release transition says otherwise.
 
 The active seven-phase roadmap uses the existing post-1.0 runner grammar:
 
 - Phase N folder: `p1-N`;
 - prompt target: `1.N.<prompt number>`;
-- current Phase 6 folder: `p1-6`;
-- current next prompt version: `1.6.1`;
+- current Phase 7 folder: `p1-7`;
+- current next prompt version: `1.7.1`;
 - non-terminal green `/closeout` moves only to the documented next `1.<phase>.0` baseline;
 - terminal Phase 7 `/closeout` moves the final validated `1.7.x` candidate directly to `2.0.0`, creates no `1.8.0`, and does not create a `2.0.x` development series.
 
@@ -57,10 +57,12 @@ Targeted UI prompts under `docs/design/tasks/` are not a `codex:phase` grammar. 
 
 ## Active 2.0 roadmap
 
-**Current phase:** Phase 6 — PHP local data API and server-rendered customer integration
-**Current baseline:** `1.6.0`
-**Current task folder:** `docs/tasks/p1-6/` when written
+**Current phase:** Phase 7 — Managed integration and 2.0 release qualification
+**Current baseline:** `1.7.0`
+**Current task folder:** `docs/tasks/p1-7/` when written
 **Terminal target:** `2.0.0`
+
+Phases 1–6 are implemented; Phase 7 is the current managed integration and 2.0 release-qualification work.
 
 The roadmap sequence is:
 
@@ -87,7 +89,7 @@ Always preserve these boundaries and read the routed contract for detail:
 - Collection trust and distribution selection are distinct. Source approval authorizes governed collection; Profile membership determines which already-eligible Source Articles can enter one distribution output.
 - Phase 2 implemented the transport-independent canonical distribution Article eligibility/Profile read-model producer, including effective outward Categories, bounded results/history, keyset continuation positions, and deterministic snapshot revisions. Later API work must reuse it.
 - Phase 4 implemented the governed v1 machine HTTP interface over the Phase 2 read model and Phase 3 credential/authentication/request-guard foundations. Phase 5 completed the downstream PHP synchronization/LKG producer over that stable API.
-- Phase 6 consumes the validated `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead` boundary, not cache internals. It may own normalized local Profile/Article access, an extension surface, fallback renderer, safe escaping/null handling, explicit local availability states, direct publisher anchors, customer presentation override, and customer/example SSR integration. It must not reinterpret Source trust, canonical eligibility, Profile selectors, Categories, moderation, duplicates, ordering, `originalUrl`, machine credential authority, cursor/revision semantics, synchronization retry/locking, or LKG activation; it must not pull Phase 7 deployment qualification or post-2.0 adapters forward.
+- Phase 6 completed normalized local Profile/Article access, the customer-facing `LocalProfileReader` / `LocalReadResult` boundary, fallback SSR, safe escaping/null handling, local availability states, direct publisher anchors, presentation override, and customer/example SSR integration over validated LKG state. Phase 7 composes the existing canonical/Profile/API/PHP/LKG/local-read/SSR chain and must not reinterpret Source trust, canonical eligibility, Profile selectors, Categories, moderation, duplicate semantics, ordering, `originalUrl`, machine credential authority, cursor/revision semantics, synchronization retry/locking, LKG activation, local usability, or presentation safety. It owns real managed/external integration and release-qualification evidence plus only bounded release-blocking fixes; it must not pull post-2.0 adapters/features forward.
 - Source is the approved publisher/trust boundary; endpoint is its concrete feed/API/HTML location. Approval, lifecycle, operational state, and derived health are distinct.
 - Only approved, active, enabled Sources/endpoints are collectable while singleton Publication collection is active. Bootstrap never auto-approves or silently widens trust.
 - Every request and redirect hop passes approval plus DNS/address/port/SSRF checks before contact. Article links pass their separate post-normalization Source/domain policy gate.
@@ -127,10 +129,10 @@ Historical validation qualifications remain historical and must not be rewritten
 
 The MVP roadmap is complete through terminal Phase 21 and the supported production baseline remains `1.0.0`.
 
-**Current package version:** `1.6.0`
+**Current package version:** `1.7.0`
 **Current roadmap:** `docs/roadmap/post-1.0-roadmap.md`  
-**Current implementation phase:** **Phase 6 — PHP local data API and server-rendered customer integration**
-**Next prompt version:** `1.6.1`
+**Current implementation phase:** **Phase 7 — Managed integration and 2.0 release qualification**
+**Next prompt version:** `1.7.1`
 **Terminal release target:** `2.0.0`
 
 The old `p1-0` stack is retired. Use the active roadmap for current phase/version authority.

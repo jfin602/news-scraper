@@ -26,7 +26,7 @@ Use a change record that never contains secrets.
 
 ## 2.0 managed distribution checks
 
-Distribution Profiles, the canonical distribution read-model producer, the machine credential/authentication/security foundation, the permanent v1 HTTP API with its production HTTPS/trusted-proxy configuration, and the Phase 5 generic PHP synchronization/LKG core are implemented. Phase 6 local consumption/customer rendering integration is current work; Phase 7 real managed external integration/release qualification remains later work. Managed deployment validation expands without creating a separate deployment topology. Phase 5 local PHP proof is not managed external/customer-host or HostGator deployment evidence.
+Distribution Profiles, the canonical distribution read-model producer, the machine credential/authentication/security foundation, the permanent v1 HTTP API with its production HTTPS/trusted-proxy configuration, the generic PHP synchronization/LKG core, and Phase 6 normalized local read/customer SSR integration are implemented. Phase 6 has local PHP/server/browser proof only; it is not managed external/customer-host/HostGator/cPanel/public-network/deployment evidence. Phase 7 real managed external integration and 2.0 release qualification are current work, and the final managed-integration checks below remain required until observed. Managed deployment validation expands without creating a separate deployment topology.
 
 The final 2.0 managed integration must observe, as applicable:
 
