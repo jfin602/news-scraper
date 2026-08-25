@@ -4,7 +4,13 @@ This file is the running issue log for problems reported in this chat.
 
 ## Open Issues
 
-None currently recorded.
+### N6WD — 2026-08-25 — RSS descriptions may contain excessive full-article content
+
+- **Status:** Open
+- Some RSS/Atom feeds provide the full article body, or a substantial portion of it, in the item description/content field rather than a short summary.
+- Persisting these oversized values without a bound can waste database storage and increase downstream payload, processing, and indexing costs without providing proportional value to the product.
+- The correction should define an explicit safe length policy for stored Article descriptions, likely including a character limit or equivalent bounded normalization behavior, while preserving ordinary feed summaries and avoiding source-specific or topic-specific aggregation logic.
+- The exact limit and truncation semantics should be decided against the governing collection/data/distribution contracts before implementation.
 
 ## Resolved Issues
 
