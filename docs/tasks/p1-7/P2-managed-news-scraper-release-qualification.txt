@@ -1,0 +1,294 @@
+TASK: Phase 7 / P2 — Managed News Scraper release qualification
+
+- Recommended configuration: `Terra High`.
+- Task-shape classification: `Cross-cutting`.
+- Specification clarity: `Explicit`.
+- State coupling: `High`.
+- Integrity risk: `High`.
+- Concurrency: `Cross-process`.
+- Security: `Sensitive`.
+- Novel inference: `Moderate`.
+- Model-family basis: P2 qualifies the already-implemented managed Web/Worker/PostgreSQL/distribution chain rather than designing it, but the task spans supported production migration/recovery, real approved Sources, protected Profile/credential state, machine authentication/rate limits, snapshot pagination, trusted-proxy deployment behavior, and operational telemetry. Terra is the minimum family with enough integrated state/security judgment.
+- Reasoning basis: High reasoning is warranted because evidence must distinguish real managed observations from deterministic tests, preserve the accepted production database, coordinate disposable validation credentials/Profile mutations safely, and diagnose any release blocker without widening Phase 7 into architecture work.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because the combined production-upgrade/recovery/security/live-deployment boundary has multiple failure and rollback states whose interaction matters to the 2.0 gate.
+- Escalation trigger: an observed managed failure exposes uncertain transaction ownership, migration/data-loss risk, a difficult credential/rate/security boundary, a nontrivial concurrency/race defect, or a release blocker whose correct repair is not explicit from current contracts.
+- Escalation target: `Terra Ultra` for explicit deep transaction/recovery/state-machine reasoning; higher-effort Sol only for ambiguous cross-system contract/architecture reconciliation; return `Planning needed` for material new product capability.
+- Estimate confidence: `High`.
+- Efficiency rationale: prove the upstream managed half once against the real candidate, use existing specialized suites instead of rebuilding them, and leave customer-host LKG/SSR failure proof to P3.
+
+The assigned project version is `1.7.2`.
+
+## Goal
+
+Qualify the real managed News Scraper side of the 2.0 release path on the P1-integrated tree, fixing only bounded release-blocking defects if actually observed.
+
+P2 must establish real managed evidence for:
+
+```text
+supported production state
+-> current migration/schema
+-> real approved Source collection
+-> canonical outward/Profile state
+-> machine authentication
+-> real v1 API pagination/revision/status behavior
+-> operational telemetry + existing reference surfaces/perimeter
+```
+
+P2 does **not** claim the customer-site release gate by itself. P3 owns the genuinely external PHP host, real LKG activation/rendering, visitor-path isolation, and downstream failure matrix.
+
+## Prerequisite and fail-closed external requirements
+
+Require the reachable P1 implementation commit, package version `1.7.1` (or `1.7.2` on a safe P2 rerun), and a clean worktree.
+
+Before changing source or package version, establish whether the real managed qualification prerequisites are available. Required external prerequisites are not optional skips:
+
+- deployment access to the real managed News Scraper instance intended for the 2.0 release path;
+- access to its real PostgreSQL/database tooling through the existing deployment procedure;
+- the deployment-specific private reference-deployment validator configuration;
+- at least one currently administrator-approved live Source/endpoint that can be safely observed/collected;
+- an operator-provisioned dedicated Phase 7 validation Distribution Profile created through the protected control plane, not raw SQL;
+- enough canonically eligible Articles for that validation Profile to exercise a second v1 page (page size is 100, so the Profile must expose more than 100 eligible results and have a result limit above 100);
+- a valid dedicated machine credential for synchronization/read validation;
+- at least one disposable validation credential that may be rate-limited and/or revoked without affecting customer integrations;
+- a safe authorized way for the operator to mutate/disable/re-enable the dedicated validation Profile through existing admin controls when the procedure requires it.
+
+Real bearer values, database URLs, Cloudflare credentials/cookies, private hostnames, backup contents, and private config files MUST remain outside tracked repository content and final prose output.
+
+If a required real prerequisite is unavailable, stop and report the exact missing prerequisite. Do not substitute mocks and call the managed gate green. Do not create an admin bypass, direct database mutation path, debug route, or hard-coded production credential to make the test automatable.
+
+## Read first
+
+Read before editing/executing:
+
+1. current `BOOT.md`, `AGENTS.md`, and root `README.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/product-scope-and-users.md`;
+4. `docs/contracts/distribution-and-integration-contract.md`;
+5. `docs/contracts/distribution-api-contract.md`;
+6. `docs/contracts/testing-and-validation-contract.md`;
+7. `docs/decisions/production-data-and-schema-compatibility.md`;
+8. accepted headless-distribution and managed/self-hostable ADRs;
+9. `docs/operations/database-backup-and-restore.md`;
+10. `docs/operations/security-reliability-and-operations.md`;
+11. `docs/operations/deployment-and-incident-runbook.md`;
+12. Phase 7 roadmap entry;
+13. `docs/validation/phase-20-customer-launch-validation.md` for the exact supported production baseline and accepted migration ledger;
+14. Phase 1-6 validation artifacts only for the producer guarantees/limitations implicated by this procedure;
+15. P1 prompt and complete P1 implementation diff, including its qualification tooling/fault-plane boundary;
+16. current migrations and `test/database/distribution-profile-production-upgrade.test.ts`;
+17. current database migration/status/backup/restore scripts and recovery test;
+18. current Source collection entrypoint/live-Source suite;
+19. `src/distribution/profile-page.ts`, Profile repository/services, credential authenticator/request guard/rate limiter/repository, and `src/app/web/distribution-api-router.ts`;
+20. current v1 API integration/database/security tests;
+21. `src/operations/reference-deployment-validator.ts` and `scripts/validate-reference-deployment.ts`;
+22. current `package.json` command containment.
+
+Trace existing owners before any repair. Do not implement a second eligibility query, credential system, cursor/revision algorithm, rate limiter, migration path, backup format, or deployment topology.
+
+## Candidate deployment and production-data safety
+
+Qualify the actual candidate under the existing deployment runbook.
+
+Before applying a migration or replacing a running candidate:
+
+1. record the current deployed source SHA/package version and `db:status` classification without printing the database URL;
+2. inspect the migration ledger and confirm accepted production migrations `0001` through `0014` remain byte-for-byte supported history and the current post-launch migrations are additive/current;
+3. create/confirm an appropriate pre-change backup under the existing recovery policy when the managed database is being upgraded or otherwise put at risk;
+4. if migrations are pending, review their lock/data implications and use the runbook's safe quiescence order when compatibility with running processes is not proven;
+5. apply only the canonical migration command and require `db:status` current afterward;
+6. start/verify Web then Worker in the documented order;
+7. preserve the real customer database; never reset/reseed/rebuild it as a shortcut.
+
+If the managed database is already current, do not manufacture a destructive migration exercise against production. Instead record the observed current ledger and use the repository's disposable production-upgrade test to re-prove the accepted `0014 -> current` preservation path on the final source tree.
+
+For recovery compatibility, create a current managed backup when safe/required and restore it only to a fresh explicit disposable/recovery target, never over the production source database. Verify the restored schema ledger and a bounded set of governed state/relationships sufficient to demonstrate the backup remains usable under current code. Remove the disposable recovery target afterward according to the established procedure.
+
+A backup file existing is not restore proof.
+
+## Real approved-Source and Worker path
+
+Use only currently approved Source/endpoint configuration from the managed control plane.
+
+Observe at least one real approved live endpoint through the canonical collection path and record safe facts proving:
+
+- the Source and endpoint were approved/active/enabled before contact;
+- the configured endpoint was collected through the normal Worker/collection implementation rather than a bypass fetch script;
+- transport/parser/normalization/processing outcome was bounded and unrelated Sources remained unaffected;
+- repeated collection/idempotency/provenance behavior remains consistent with the existing contract;
+- Articles used later by the validation Profile retain exact publisher destinations;
+- no Source trust/domain rule was widened merely to make the release test pass.
+
+Use `npm run test:live-sources` for the repository's Level 7 regression and separately record the real managed Source/endpoint observation. The deterministic/live test suite does not replace the managed deployment observation, and the managed observation does not redefine the whitelist.
+
+## Dedicated validation Profile
+
+The dedicated Phase 7 validation Profile exists solely to exercise the real distribution path safely. Provision/configure it only through the existing protected administrator control plane.
+
+Requirements:
+
+- immutable unique validation `config_key`;
+- active lifecycle for normal reads;
+- explicit Source associations only to already-approved live Sources;
+- a result limit high enough to expose more than 100 eligible Articles;
+- no topic-specific engine changes or fake Source approvals;
+- no mutation of ordinary customer Profiles merely for testing.
+
+If the current real corpus cannot yield more than 100 canonically eligible Articles through any safe validation Profile, stop and report the pagination prerequisite rather than inserting fabricated production Articles or lowering the production page-size constant.
+
+Record the Profile's intended pre-test configuration so temporary display/filter/lifecycle changes used for revision/disable testing can be restored exactly.
+
+## Real machine-authenticated v1 API observations
+
+Use the dedicated credentials and Profile against the real managed HTTPS endpoint.
+
+Observe at minimum:
+
+### Normal multi-page traversal
+
+- first request returns `200` with expected v1 envelope shape and a non-null cursor;
+- continuation returns another `200`;
+- Profile key remains the requested immutable key;
+- `snapshotRevision` remains identical across the unchanged traversal;
+- page ordering is stable and there is no duplicate/missing boundary item caused by pagination;
+- exact stored `originalUrl` values are preserved;
+- a conditional initial request using the observed ETag/revision behavior produces the governed unchanged response when applicable;
+- no browser CORS assumption is needed.
+
+Do not build an adapter-side validator that reimplements Profile filtering or cursor decoding. Observe the wire contract and let the real API/PHP client remain the semantic owners.
+
+### Invalid and revoked authentication
+
+- a deliberately invalid bearer returns bounded `401 unauthenticated` with no credential detail;
+- a disposable valid credential works before revocation;
+- revoke that disposable credential through the authorized admin lifecycle;
+- the same credential then returns bounded `401` and cannot mutate admin state;
+- do not revoke the credential needed by ordinary customer integrations.
+
+### Rate limit and `Retry-After`
+
+Using only a disposable credential, intentionally reach the authenticated per-credential limiter with a bounded request sequence derived from the current configured policy. Require:
+
+- `429 rate_limited`;
+- positive `Retry-After`;
+- no token/verifier/internal limiter state in body/log output;
+- unrelated credentials are not consumed by the disposable credential's bucket.
+
+Do not change the production rate-limit policy merely to make the test shorter unless source inspection finds a release-blocking configurability defect already inside the contract. Do not launch an unbounded/high-concurrency request flood.
+
+### Real snapshot-change response
+
+Use the dedicated validation Profile and authorized admin mutation, not a debug endpoint:
+
+1. obtain page 1 and retain its continuation cursor;
+2. change a bounded Profile property/selector through the protected control plane in a way that legitimately changes the distribution snapshot revision while keeping the Profile otherwise valid;
+3. request the retained cursor;
+4. require real managed `409 snapshot_changed` rather than mixed pages;
+5. restore the intended Profile configuration through the same control plane;
+6. require a fresh initial traversal to succeed.
+
+Do not mutate underlying tables directly and do not add an artificial production delay/fault route.
+
+### Disabled API state
+
+Temporarily disable only the dedicated validation Profile through admin and require authenticated `409 profile_disabled`. Restore/re-enable it before the P2 handoff and require a successful fresh read. P3 will separately prove that the PHP LKG suppresses/restores rendering correctly.
+
+## Reference surfaces, perimeter, and telemetry
+
+On the same candidate:
+
+- `/health/live` and `/health/ready` are healthy as applicable;
+- `/` and `/api/feed` preserve their existing supported reference behavior;
+- `npm run deployment:validate -- <private-reference-config.json>` passes the bounded public/admin/direct-origin checks;
+- authorized admin access remains behind the configured Cloudflare/origin perimeter; the shared validator does not automate an Access identity;
+- machine bearer credentials alone cannot obtain administrator authority;
+- direct origin is not accidentally exposed by distribution changes;
+- Web and Worker emit enough bounded operational facts to diagnose collection/distribution attempts;
+- distribution telemetry records safe Profile/status/duration/item/credential-identity classifications as implemented without bearer plaintext, Authorization headers, verifier data, response payloads, visitor/click tracking, or private config leakage.
+
+Inspect logs using targeted filters. Do not dump the whole process environment or secret-bearing request headers into evidence.
+
+## Bounded release-blocker repair rule
+
+P2 may modify implementation/tests only when real qualification exposes a concrete defect already inside the existing 2.0 contracts.
+
+Allowed examples include a bounded migration-preservation bug, incorrect status/header mapping, credential revocation/rate-limit defect, telemetry secret leak, trusted-proxy release blocker, or other unambiguous defect that prevents the specified managed path.
+
+For every repair:
+
+- identify the governing invariant and root cause;
+- trace important producers/consumers;
+- add a focused regression test whenever technically practical;
+- rerun every invalidated specialized suite/procedure;
+- preserve the dedicated validation Profile/customer state and unrelated behavior.
+
+If a repair requires a new deployment topology, new API behavior, new credential authorization model, new Profile semantics, a general refactor, or another material capability, stop with `Planning needed` instead of hiding it inside Phase 7.
+
+## P2 -> P3 handoff
+
+Before P2 completes, leave the real managed environment in a known usable state and report an auditable handoff without secrets:
+
+| P3-required capability | P2 owner/evidence |
+| --- | --- |
+| deployed candidate identity + current schema | managed deployment SHA/version/status observation |
+| supported production upgrade preservation | disposable PostgreSQL production-upgrade suite + managed ledger/backup observation |
+| recoverable managed backup | fresh-target restore observation |
+| real approved Source data | managed collection + Level 7 live-Source evidence |
+| active validation Profile with >100 results | protected control-plane state + real two-page read |
+| valid machine read credential | real `200` traversal; token remains private |
+| invalid/revoked credential behavior | real `401` observations |
+| real rate limit | disposable credential `429` + `Retry-After` |
+| real snapshot change | page-1 cursor + authorized Profile mutation -> `409 snapshot_changed` |
+| real disabled Profile | authenticated `409 profile_disabled` then successful restore |
+| preserved reference/perimeter behavior | health/reference/deployment-validator observations |
+| bounded secret-safe telemetry | managed log observation |
+
+P3 must not need raw database writes, internal cursor decoding, Source/eligibility logic, or a production fault endpoint to consume this handoff.
+
+## Final P2 validation
+
+Use focused commands while diagnosing/repairing. On the final unchanged P2 source tree, run the smallest non-overlapping automated matrix covering the upstream release surface:
+
+```text
+npm run check
+npm run test:db
+npm run test:security
+npm run test:recovery
+npm run test:live-sources
+npm run codex:phase:validate -- p1-7
+git diff --check
+```
+
+Also run the real managed procedures above, including the private `deployment:validate` invocation. `npm run check` already contains ordinary unit/integration/collection/PHP tests; do not rerun those aliases solely to duplicate evidence.
+
+Run `npm run test:browser` only if P2 changes browser/admin UI behavior or if browser execution is the chosen means of proving an invalidated admin interaction. P3 owns the required external customer browser/server gate.
+
+## Version and repository rules
+
+- Set only top-level `package.json` version to `1.7.2` before final validation.
+- Keep real deployment/private qualification configuration untracked.
+- Do not create `package-lock.json`, Composer vendor state, credential files, database dumps inside the repository, or tracked runtime state.
+- Do not edit governing contracts/ADRs/roadmap or historical validation artifacts.
+- Do not rewrite accepted migrations `0001`-`0014`; any discovered incompatibility is a release blocker requiring governed repair, not migration-history rewriting.
+- Do not manually commit; the phase runner owns the implementation commit boundary.
+
+## Acceptance
+
+P2 is complete only when:
+
+1. the real managed candidate is identified, deployable, healthy, and uses current supported schema without customer-data loss;
+2. the accepted production baseline -> current migration path passes against disposable PostgreSQL and the managed database's real ledger is current;
+3. backup/restore compatibility is observed against a fresh recovery target without overwriting production;
+4. at least one real approved managed Source is observed through the canonical collection path and the Level 7 live suite is green;
+5. the dedicated validation Profile produces a real multi-page authenticated v1 traversal with stable revision/order/destinations;
+6. invalid and revoked credentials produce bounded `401` and machine credentials still lack admin authority;
+7. the real authenticated limiter produces bounded `429` with positive `Retry-After` on a disposable credential;
+8. a real Profile mutation causes the retained continuation cursor to return `409 snapshot_changed` and a fresh traversal recovers;
+9. real Profile disable returns `409 profile_disabled`, then re-enable restores API output;
+10. `/`, `/api/feed`, readiness, admin perimeter/direct-origin checks, and bounded secret-safe telemetry remain correct;
+11. any repair is narrowly release-blocking, tested, and does not introduce Phase 8/post-2.0 behavior;
+12. the environment is restored to a safe active P3 handoff state;
+13. package version is exactly `1.7.2`.
+
+Finish with a concise report containing candidate SHA/version, commands/procedures actually executed and results, evidence levels actually observed, safe validation Profile/Source identifiers if non-secret, migration/backup/restore outcome, API/auth/rate/snapshot/disable results, repaired defects if any, explicit limitations, and any blocker that should prevent P3.
