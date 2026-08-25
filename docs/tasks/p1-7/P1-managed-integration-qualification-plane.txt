@@ -1,191 +1,348 @@
 TASK: Phase 7 / P1 — Managed integration qualification plane
 
-- Recommended configuration: `Terra Medium`.
+- Recommended configuration: `Terra High`.
 - Task-shape classification: `Cross-cutting`.
 - Specification clarity: `Explicit`.
 - State coupling: `Moderate`.
-- Integrity risk: `Moderate`.
-- Concurrency: `Local`.
+- Integrity risk: `High`.
+- Concurrency: `Cross-process`.
 - Security: `Sensitive`.
 - Novel inference: `Moderate`.
-- Model-family basis: Phase 7 does not need new distribution semantics; it needs provider-neutral release tooling that composes the already-implemented PHP sync/LKG/local-read/SSR boundaries without leaking credentials or creating a production fault/debug surface. The work crosses Node test tooling, PHP process/filesystem behavior, and external-host assumptions, which merits Terra over Luna despite the explicit contract.
-- Reasoning basis: Medium reasoning is sufficient because the governing behavior and ownership boundaries are already fixed. The main work is to build a deterministic shared-hosting qualification plane and test-only fault origin, preserve production/test separation, and leave auditable handoffs for the real managed/external prompts.
-- Complexity / quality floor: `Elevated`.
-- Estimated usage: `Moderate`.
-- Lower-cost alternative considered: `Luna High`; rejected because a weak boundary between qualification fixtures and production runtime, or unsafe secret/path handling in operator tooling, could invalidate the later Level 8 evidence or accidentally create a product-facing debug capability.
-- Escalation trigger: source inspection shows the existing PHP package cannot be exercised in a realistic public-root/private-state/scheduled-sync split without product changes, the fault plane would require modifying the production v1 API, or host/runtime requirements materially conflict with the managed/self-hostable architecture.
-- Escalation target: `Terra High` for explicit deeper cross-process/tooling reconciliation; return `Planning needed` if a product contract, ADR, or Phase 7 scope change is required.
+- Model-family basis: P1 remains release/test tooling, but the owner has now established a deliberately restricted Windows -> managed-VPS SSH transport. P1 must build a safe qualification protocol around that boundary without turning it into general shell/deploy access, leaking secrets, weakening production security, or creating a product debug surface. The privilege/transport boundary raises the task above ordinary local test scaffolding.
+- Reasoning basis: High reasoning is warranted because the implementation must compose local Windows orchestration, an operator-installed root-owned forced-command boundary, narrowly delegated managed-host helpers, shared-PHP qualification, secret-safe evidence, fail-closed arming for mutations, and deterministic fault tooling while preserving every Phase 1-6 authority.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because a permissive SSH wrapper, unsafe sudo rule, executable argument injection, or remote helper that runs arbitrary repository code would defeat the owner-requested safeguard and materially increase production risk.
+- Escalation trigger: safe qualification would require unrestricted SSH, arbitrary shell command execution, broad sudo/deploy-user impersonation, execution of uncommitted agent-controlled code on production, a production debug/fault route, or a new product/admin authorization model.
+- Escalation target: `Terra Ultra` for explicit deeper privilege/state-machine reasoning; return `Planning needed` if the product/deployment contract itself must change.
 - Estimate confidence: `High`.
-- Efficiency rationale: build one narrow qualification plane first, prove it deterministically, and reuse it for managed/external release evidence instead of embedding one-off fault logic or provider assumptions into P2/P3.
+- Efficiency rationale: establish one narrow, testable remote-validation protocol in P1, then make P2/P3/P4 consume it instead of embedding ad-hoc SSH commands, operator secrets, or provider-specific shell logic in later prompts.
 
 The assigned project version is `1.7.1`.
 
 ## Goal
 
-Build the provider-neutral Phase 7 qualification tooling needed to exercise the existing generic PHP integration as if it were installed on ordinary shared PHP hosting, including a constrained HostGator-like plane that can be run on a Linux VPS and a qualification-only fault origin for controlled downstream failure tests.
+Build the provider-neutral Phase 7 qualification tooling needed to exercise the existing generic PHP integration and the managed News Scraper deployment from the local Windows runner while preserving a strict remote-access boundary.
 
-P1 is **release/test tooling**, not a new product adapter and not self-host packaging. It must not change canonical Article/Profile semantics, the v1 contract, machine authentication, synchronization/LKG behavior, local usability, or rendering behavior.
-
-The intended qualification shape is:
+The owner has already provisioned this base transport outside the repository:
 
 ```text
-operator/test orchestrator
--> shared-host-like public root + separate private state/config
--> real integrations/php/bin/sync.php scheduled process
--> real FilesystemProfileStateStore / LocalProfileReader
--> real customer-style server-rendered page
-
-and, only for controlled failure scenarios:
-qualification-only fault origin
--> existing PHP DistributionClient/ProfileSynchronizer
--> existing candidate/LKG rules
+Windows OpenSSH client / ssh-agent
+-> SSH config alias: news-scraper-phase7
+-> dedicated key identity
+-> managed VPS account: news-scraper-validator
+-> no password auth
+-> no PTY
+-> no forwarding
+-> root-owned ForceCommand: /usr/local/sbin/news-scraper-phase7-validator
 ```
 
-The fault origin is never mounted into the News Scraper Web/API process and never becomes a supported distribution endpoint.
+The currently installed bootstrap forced command accepts only:
 
-## Prerequisite and read first
+```text
+preflight
+```
 
-Require the current Phase 7 baseline and documentation alignment, package version `1.7.0` (or `1.7.1` on a safe P1 rerun), and no completed Phase 7 implementation prompt before P1.
+and rejects arbitrary commands. This operator-owned SSH configuration is a prerequisite, not product code.
+
+P1 must preserve that model. It may build the repository-side client, server-helper bundle, deterministic tests, HostGator-like/shared-PHP qualification plane, and operator installation/arming instructions. It MUST NOT give Codex general SSH shell access and MUST NOT silently weaken the existing VPS hardening.
+
+P1 is release/test tooling, not a new adapter, production API, self-host package, remote-administration feature, or customer deployment product.
+
+## Governing boundaries and read first
+
+Require package version `1.7.0` (or `1.7.1` on a safe rerun) and no completed Phase 7 implementation prompt before P1.
 
 Read before editing:
 
-1. `BOOT.md`, `AGENTS.md`, and root `README.md`;
+1. `BOOT.md`, `AGENTS.md`, root `README.md`;
 2. `docs/contracts/project-contract.md`;
 3. `docs/contracts/product-scope-and-users.md`;
 4. `docs/contracts/distribution-and-integration-contract.md`;
 5. `docs/contracts/distribution-api-contract.md`;
 6. `docs/contracts/testing-and-validation-contract.md`;
 7. accepted headless-distribution and managed/self-hostable ADRs;
-8. `docs/operations/security-reliability-and-operations.md` and `docs/operations/deployment-and-incident-runbook.md` for evidence/secret/deployment boundaries;
-9. Phase 7 in `docs/roadmap/post-1.0-roadmap.md`;
-10. `docs/validation/phase-6-php-local-data-and-server-rendered-integration.md` and its explicit evidence limitations;
-11. `integrations/php/README.md`;
-12. `integrations/php/bin/sync.php`;
-13. `integrations/php/src/Configuration.php`, `Client.php`, `Runtime.php`, `Synchronizer.php`, `FilesystemStateStore.php`, `LocalState.php`, `LocalRead.php`, `Renderer.php`, and `bootstrap.php`;
-14. `integrations/php/tests/run.php`, `scripts/run-php-tests.mjs`, and `test/browser/php-customer-example.test.ts`;
-15. `src/operations/reference-deployment-validator.ts`, `scripts/validate-reference-deployment.ts`, and `test/unit/reference-deployment-validator.test.ts` so P1 does not duplicate or overload the existing reference-deployment responsibility;
-16. current `package.json` and `test/support/` conventions.
+8. `docs/operations/security-reliability-and-operations.md`;
+9. `docs/operations/deployment-and-incident-runbook.md`;
+10. `docs/operations/database-backup-and-restore.md` where the later managed helper boundary may invoke existing recovery procedures;
+11. Phase 7 in `docs/roadmap/post-1.0-roadmap.md`;
+12. Phase 5/6 validation artifacts and explicit evidence limitations;
+13. `integrations/php/README.md`, `bin/sync.php`, production PHP source, tests, and browser harness;
+14. current deployment/reference validation scripts and tests;
+15. current Source collection, Profile, credential, API, migration, backup/recovery, and operational command entrypoints that later remote helpers may safely invoke;
+16. current `package.json`, runner grammar, `scripts/`, and `test/support/` conventions.
 
-If the implementation would require weakening HTTPS-only PHP client configuration, changing the active/candidate/LKG format, making the visitor process aware of bearer credentials, adding a production debug/fault route, or introducing HostGator-specific product logic, stop with `Planning needed`.
+Trace actual existing operator commands before designing remote helper operations. Do not create a second eligibility query, cursor/revision implementation, credential system, admin authorization system, backup format, collection path, or deployment topology.
+
+## Mandatory SSH transport contract
+
+All Codex/runner access to the managed VPS in Phase 7 must go through the configured alias:
+
+```text
+news-scraper-phase7
+```
+
+Never hard-code or fall back to the VPS IP, hostname, `deploy`, `root`, or another account.
+
+The local client/orchestrator must invoke the transport non-interactively, equivalent to:
+
+```text
+ssh -o BatchMode=yes -o ConnectTimeout=10 -o ConnectionAttempts=1 news-scraper-phase7 <named-operation>
+```
+
+The SSH config/host-key pin remains operator-owned. P1 MUST NOT:
+
+- run `ssh-keyscan` or modify `known_hosts`;
+- modify Windows `~/.ssh/config`;
+- add/remove keys from `ssh-agent`;
+- use `StrictHostKeyChecking=no` or `accept-new`;
+- use `ssh -t`, interactive shells, `bash`, `sh`, arbitrary quoted shell strings, `ProxyCommand`, agent forwarding, local/remote/dynamic port forwarding;
+- use `scp`, `sftp`, `rsync`, or another file-transfer bypass;
+- use `ssh -F NUL deploy@...`, direct IP fallback, root SSH, or the normal deployment identity;
+- automatically retry SSH authentication, host-key, or connection failures.
+
+One failed transport/preflight attempt is enough. Report the bounded failure and stop rather than triggering abuse controls such as Fail2ban.
+
+Run exactly one bootstrap observation early:
+
+```text
+ssh -o BatchMode=yes -o ConnectTimeout=10 -o ConnectionAttempts=1 news-scraper-phase7 preflight
+```
+
+Require bounded JSON indicating the `news-scraper-validator` identity. If it fails, do not troubleshoot by weakening SSH from Codex; stop with `OPERATOR ACTION REQUIRED` and report the safe local error class.
+
+## Build a versioned remote-validation protocol
+
+Create the smallest repository-owned Phase 7 remote-validation client + installable server-helper bundle needed by P2/P3/P4.
+
+The protocol must be intentionally narrower than shell access:
+
+- every remote operation has an exact stable name;
+- prefer no caller-supplied arguments. Environment/resource details should come from operator-owned server-side Phase 7 configuration rather than arbitrary SSH command text;
+- if a bounded identifier argument is unavoidable, parse it as data with a strict allowlist/length grammar and never interpolate it into shell;
+- never use `eval`, `bash -c "$SSH_ORIGINAL_COMMAND"`, `sh -c`, command substitution from remote input, caller-selected executable paths, arbitrary npm script names, arbitrary filesystem paths, or arbitrary SQL;
+- stdout is one bounded machine-readable JSON result per invocation; stderr is bounded diagnostics only;
+- neither stream may contain bearer values, Authorization headers, database URLs, environment dumps, cookies, raw response bodies, private backup contents, or secret-bearing paths;
+- every result includes protocol version, operation name, outcome, and enough candidate/environment identity to prevent evidence from being attributed to the wrong deployment;
+- the client rejects malformed/non-JSON/oversized remote output rather than trusting it.
+
+Include an operation such as `capabilities` after operator installation that reports only safe protocol metadata and supported operation names. It must not expose secrets or server configuration contents.
+
+The installed bundle must have an auditable version/hash identity derived from the P1 committed artifact. P2/P4 must be able to compare the installed protocol/bundle identity with the expected P1 handoff before trusting evidence.
+
+## Server privilege boundary
+
+The repository may contain installable helper scripts/config templates, but Codex must not install them through the restricted validator connection.
+
+The intended installed shape is:
+
+```text
+sshd ForceCommand running as news-scraper-validator
+-> exact operation dispatcher
+-> optional exact delegated helper
+-> existing News Scraper operator/runtime command
+-> bounded JSON evidence
+```
+
+The operator, not Codex, installs or updates `/usr/local/sbin`, `/usr/local/libexec`, `/etc/ssh`, `/etc/sudoers.d`, private Phase 7 config, and arming state.
+
+If delegation to the `deploy` identity is needed for an existing application command, design the narrowest possible operator-installed rule. Prefer exact helper executables/operations with no arbitrary command/path argument. Explicitly forbid:
+
+- `sudo ALL`, `(ALL)`, a general shell, editor, interpreter REPL, package manager, service manager wildcard, or unrestricted `sudo -u deploy`;
+- caller-selected commands or arbitrary executable arguments;
+- environment preservation that could inject `PATH`, loader, Node/PHP config, or secret values;
+- executing uncommitted/local-agent-controlled repository code on the managed VPS as a privilege shortcut.
+
+Remote helpers may invoke only reviewed existing product/operator commands and narrow P1 qualification helpers. If a later required admin mutation cannot be performed without inventing an admin bypass or raw SQL path, report it as `operator_required`; do not smuggle admin authority into this SSH account.
+
+## Operator-owned private configuration
+
+Design the server-helper bundle so deployment-specific values remain outside source control.
+
+The operator-owned configuration may identify only the resources needed for Phase 7, such as:
+
+- expected managed repository path;
+- public managed base URL;
+- dedicated validation Profile key;
+- approved validation Source/endpoint keys;
+- paths/references to private deployment validator configuration;
+- references to dedicated/disposable machine credentials without returning their plaintext;
+- recovery target naming constraints;
+- external qualification/fault-origin settings when appropriate.
+
+Do not require the validator account to read the production `.env` wholesale. Prefer a narrow helper running under the existing operator identity to consume only the private values required by the exact operation and return redacted results.
+
+No private Phase 7 config, token, key, database URL, backup, generated LKG, or arming file may be committed.
+
+## Explicit arming for state-changing managed operations
+
+Read-only observations and mutating qualification operations must be distinct.
+
+Any operation capable of changing the managed deployment, database/recovery target, validation Profile, validation credential, collection state, process state, or rate-limit state must fail unless an **operator-created short-lived arm** authorizes it.
+
+The arm must be outside the repository and unwritable by `news-scraper-validator`. At minimum it binds:
+
+- expiration/TTL;
+- exact expected committed candidate SHA;
+- exact dedicated validation Profile key;
+- exact disposable credential identities where implicated;
+- exact approved Source/endpoint identifiers where implicated;
+- explicit allowed mutation operation names.
+
+The validator may inspect only a bounded arm status/classification. It MUST NOT create, renew, broaden, or edit the arm.
+
+Every mutating helper must:
+
+1. verify arm presence, expiry, candidate identity, resource identity, and allowed operation;
+2. reject ordinary customer Profile/credential/Source identifiers;
+3. record safe before-state;
+4. perform only the named bounded action through the existing owning product/operator boundary;
+5. execute deterministic cleanup/restore where the scenario owns temporary state;
+6. return bounded after-state and restoration classification;
+7. fail closed when cleanup cannot be proven.
+
+The operator must always retain a separate normal `deploy`/provider-console recovery path; the validator account is never the recovery authority.
+
+## Remote operation planning
+
+Inspect current implementation and implement only the safe operations actually needed downstream. The eventual protocol should support bounded equivalents of these capabilities where current product/operator boundaries make them safe:
+
+### Read-only / low-mutation observations
+
+- `preflight`;
+- `capabilities`;
+- candidate SHA/package/runtime identity;
+- Web/Worker/health/readiness status;
+- migration/database status without database URL;
+- private reference-deployment validation with only bounded result output;
+- validation Profile/read pagination observation;
+- targeted safe telemetry/redaction observation;
+- P1 shared-PHP host prerequisite/layout checks.
+
+### Armed managed qualification actions
+
+Where safely possible through existing owners:
+
+- deploy/verify a committed candidate using the existing runbook boundary;
+- current backup + fresh disposable restore check;
+- canonical collection of the configured approved validation endpoint;
+- bounded disposable-credential rate-limit exercise;
+- bounded disposable credential lifecycle/revocation check;
+- legitimate validation-Profile snapshot-change exercise;
+- validation-Profile disable/re-enable exercise;
+- final restore-to-normal verification.
+
+Do not implement an operation merely because it appears in this list. If the only implementation is broad shell/sudo, raw SQL, direct repository/service internals that bypass the protected control plane, or a new product debug route, mark that capability `operator_required` for P2/P4 instead.
 
 ## Provider-neutral shared-PHP hosting plane
 
-Create the smallest test/release-support implementation that can be run from a repository checkout on a Linux VPS configured to approximate ordinary shared PHP hosting.
+Preserve the original P1 shared-host qualification requirement.
 
-The plane must model these constraints rather than a vendor brand:
+Create the smallest release-support plane capable of modeling:
 
-- one public document root used by visitor HTTP requests;
-- one distinct non-public state root outside that document root;
-- synchronization secrets/configuration available only to the scheduled sync process;
-- visitor rendering configured only with Profile key, state root, cadence, and optional stale cutoff;
-- real PHP CLI execution of `integrations/php/bin/sync.php` for synchronization;
-- real customer-style server rendering through the implemented local-read/presentation boundary;
-- cron-like/scheduled invocation semantics separate from visitor requests;
-- host-local/same-filesystem LKG assumptions rather than distributed locking;
-- filesystem ownership/permission checks sufficient to detect obviously public/unwritable state placement;
-- no Composer/vendor install requirement;
-- no Node dependency in the visitor PHP request path. Node MAY orchestrate the qualification procedure on the VPS because this is test tooling, but the customer-facing PHP runtime itself must remain independently usable.
+- public document root;
+- distinct non-public state/config root;
+- sync secrets visible only to scheduled sync;
+- visitor process configured only for local Profile/state/freshness behavior;
+- real PHP CLI `integrations/php/bin/sync.php` execution;
+- real local-read/customer SSR composition;
+- cron-like process separation;
+- host-local filesystem/LKG assumptions;
+- permission/path checks;
+- no Composer requirement;
+- no Node dependency in the visitor request path.
 
-Prefer release/test support under `scripts/` and `test/support/` rather than adding a second production adapter. If a reusable validation module is justified, keep it under the existing operations/testing boundary and do not make it a Web route.
+Node may orchestrate the qualification procedure. The customer PHP runtime remains independent.
 
-The qualification entrypoint must fail clearly when required prerequisites are absent. Do not silently skip because PHP, filesystem capabilities, a requested HTTPS fault origin, or another explicitly requested prerequisite is unavailable.
-
-## Public/private and secret boundary
-
-The plane must prove and enforce at least:
-
-- state root is not the public document root and is not nested beneath it;
-- bearer token and upstream base URL are not written into public files, generated HTML, LKG payloads, test reports, or normal visitor logs;
-- visitor process execution remains valid after removing `NEWS_SCRAPER_BASE_URL` and `NEWS_SCRAPER_BEARER_TOKEN`;
-- synchronization process receives the upstream settings only through private runtime configuration/environment;
-- qualification output reports bounded classifications, not raw environment dumps, Authorization headers, token values, response bodies, filesystem contents, cookies, or query-bearing URLs;
-- temporary probe files/directories are removed after a run;
-- no qualification helper remains reachable from the ordinary customer public page unless it is explicitly running as an isolated test-only origin.
-
-Do not solve secret handling by committing example real tokens or private deployment configuration.
+The same managed VPS/shared-host-like plane is **preflight only** and never satisfies the final genuinely external customer-host requirement.
 
 ## Qualification-only fault origin
 
-Add the minimum controlled fault origin needed for P3 to exercise the real external PHP synchronizer/LKG path without corrupting or teaching fault behavior to the production News Scraper API.
+Preserve the isolated P1 fault responder needed by later PHP failure tests.
 
-The origin belongs only under test/release-support code. It MUST NOT be imported, mounted, or reachable from `src/app/web/` or the deployed News Scraper Web process.
+It may provide only deterministic contract-shaped scenarios such as:
 
-It may use synthetic Profile/Publication/Article values and contract-shaped v1 fixtures. It should support only the bounded scenarios later required by Phase 7, for example:
+- valid bounded initial/multi-page response;
+- malformed/incomplete continuation;
+- `409 snapshot_changed`;
+- bounded `429 rate_limited` + `Retry-After`;
+- bounded `503`/transport failure.
 
-- a valid bounded initial/multi-page response useful for establishing controlled traversal state;
-- malformed or incomplete candidate response after a valid page;
-- `409 snapshot_changed` during traversal;
-- bounded `429 rate_limited` with `Retry-After` followed by a configured recovery response when useful;
-- bounded `503 service_unavailable` / transport-unavailable simulation when useful.
+It MUST NOT be imported/mounted into production Web/API and MUST NOT recreate Profile filtering, eligibility, duplicate handling, machine-auth policy, cursor generation, or revision algorithms.
 
-Do not recreate the entire production API or implement Profile filtering, canonical eligibility, duplicate handling, authentication policy, cursor generation, or snapshot-revision algorithms in this fixture. It is a scripted responder used to challenge the existing PHP client/synchronizer.
-
-The fault origin must not need a real production bearer token. If it observes an Authorization header, never log or echo it. Scenario control must be explicit, deterministic, non-secret, and incapable of affecting the real managed Web/API.
-
-If serving it externally requires TLS termination, keep certificate/proxy provisioning deployment-specific; do not weaken `ClientConfiguration` to accept HTTP and do not add TLS/private-key material to the repository.
+It does not need a real bearer token and must never log/echo Authorization values. HTTPS termination remains deployment-specific; do not weaken the PHP client's HTTPS requirement.
 
 ## Deterministic proof
 
-Add focused deterministic tests for the qualification tooling itself. At minimum prove:
+Add focused tests covering at least:
 
-- accepted public-root/private-state layouts are classified correctly;
-- state roots inside/below the public document root are rejected;
-- missing PHP/required host prerequisites fail clearly rather than becoming a skip;
-- visitor configuration can be constructed without upstream URL/token and does not gain them from the sync environment accidentally;
-- qualification output cannot echo sentinel bearer values, Authorization headers, private config values, or raw fault-response bodies;
-- the controlled fault origin produces only the explicitly supported scripted statuses/shapes and never follows/forwards to arbitrary destinations;
-- malformed/second-page and snapshot-change scenarios are deterministic rather than timing-dependent;
-- no production Web/API module imports the fault origin/test support;
-- cleanup leaves no generated state/config probe files behind the deterministic harness;
-- the existing Phase 5/6 PHP and browser regressions remain unchanged in meaning.
+- local SSH invocation builder accepts only the configured alias + named operation vocabulary;
+- no direct host/user fallback or PTY/forwarding/file-transfer path exists;
+- SSH auth/host-key/connect failure is attempted once and then fails closed;
+- remote output size/schema/redaction validation;
+- server dispatcher rejects unknown operations, whitespace/shell metacharacter injection, path/command arguments, and malformed input;
+- no `eval`/general shell execution path;
+- generated operator privilege template does not grant broad sudo/shell/interpreter access;
+- mutation operations require valid matching unexpired arm state;
+- validator cannot create/renew/broaden arm state through any exposed operation;
+- candidate/Profile/credential/Source mismatch rejects mutation;
+- cleanup failure is reported as failure, not success;
+- public/private PHP layouts are classified correctly;
+- visitor config is credential-free;
+- secret sentinels never appear in output;
+- deterministic fault scenarios behave as scripted;
+- no production Web/API module imports fault/remote-test helpers;
+- generated temporary state is cleaned up;
+- existing Phase 5/6 PHP/browser behavior remains unchanged.
 
-Use local/injected servers and temporary directories for deterministic tests. Ordinary `npm test`/`npm run check` must not require the public internet, a managed deployment, HostGator, a real external site, or real bearer credentials.
+Ordinary deterministic tests must not require the managed VPS or public internet. Remote integration is specialized Phase 7 evidence, not ordinary `npm test`.
 
-## P1 -> P2/P3 handoff
+## P1 operator handoff
 
-Before P1 completes, leave the following auditable handoff:
+P1 must leave an exact, reviewable operator installation handoff for the managed VPS after the runner creates the P1 commit.
 
-| Downstream-required capability | P1 owner/export | Focused proof |
-| --- | --- | --- |
-| shared-host-like public/private filesystem separation | qualification-plane entrypoint/support | accepted/rejected layout tests |
-| real sync process can be launched separately from visitor rendering | qualification orchestration over existing `sync.php` | process/config separation test |
-| visitor path requires no upstream secret | existing `LocalReadConfiguration`/example exercised by plane | credential-removal test |
-| explicit host prerequisite failures | qualification preflight | missing-prerequisite tests |
-| malformed/partial scripted upstream candidate | test-only fault origin | deterministic scenario test |
-| scripted revision/rate/dependency failures | test-only fault origin | deterministic status/sequence tests |
-| qualification evidence is secret-safe | reporter/output boundary | sentinel redaction tests |
-| no production debug/fault surface | test-support/module boundary | import/route boundary inspection/test |
+The handoff must identify:
 
-P2/P3 must be able to use these tools without modifying Source trust, Profile selection, v1 serialization/authentication, PHP synchronization, cache state format, or customer rendering.
+- P1 commit/bundle identity that the operator must install;
+- exact root-owned forced-command/dispatcher/helper files to install or replace;
+- exact narrow ownership/mode expectations;
+- any exact sudoers fragment required, with explanation of why each command is needed;
+- private config template and required non-secret resource identifiers;
+- arm-file format/creation procedure without real secrets;
+- validation commands for `sshd -t`, effective `sshd -T` policy, helper permissions, and remote `preflight`/`capabilities`;
+- rollback commands that restore the bootstrap `preflight`-only wrapper without changing the normal `deploy` account;
+- warning to keep an existing normal SSH/provider-console recovery path open while changing SSH/privilege configuration.
 
-## Preserved behavior and non-goals
+P1 MUST NOT claim the operator installed this bundle unless it was actually observed after the P1 commit. The runner may proceed to P2 and P2 must fail closed with `OPERATOR ACTION REQUIRED` if the expected installed bundle/capabilities are absent.
+
+## Preserved behavior / non-goals
 
 Preserve without semantic change:
 
-- approved-Source collection/network-safety/normalization/idempotency/provenance behavior;
-- canonical outward eligibility, Profile filtering/order/Categories/duplicate/moderation semantics;
-- Phase 3 machine credential/authentication/rate behavior;
-- Phase 4 v1 route/schema/cursor/revision/HTTPS/trusted-proxy behavior;
-- Phase 5 PHP client, retries/restarts, per-Profile lock, candidate validation, atomic LKG activation, disable/re-enable and stale policy;
-- Phase 6 `LocalProfileReader` / `LocalReadResult`, fallback renderer, escaping, direct exact `originalUrl`, and local-only visitor behavior;
-- `/`, `/api/feed`, admin, Worker, migration, database, backup/recovery, and topic-independent behavior.
+- approved-Source trust/network safety/normalization/idempotency/provenance;
+- canonical outward eligibility/Profile filtering/order/Category/duplicate/moderation behavior;
+- machine credential/authentication/rate behavior;
+- v1 route/schema/cursor/revision/HTTPS/trusted-proxy behavior;
+- PHP retry/restart/locking/candidate validation/atomic LKG/disable/stale behavior;
+- local-read/fallback rendering/escaping/direct exact `originalUrl`/local-only visitor behavior;
+- `/`, `/api/feed`, admin, Worker, migration, database, backup/recovery, and topic independence.
 
 Do not implement:
 
-- a new distribution API or proxy product;
-- debug/fault endpoints in production;
-- HostGator/cPanel-specific application branches;
-- SSH/SFTP credential management as a product feature;
-- Docker/Compose/self-host packaging;
-- WordPress, RSS/Atom, widgets, visitor analytics, SEO tooling, delta sync, or additional adapters;
-- new database schema/migrations;
-- governing documentation/ADR changes.
+- unrestricted SSH or remote shell management;
+- SSH/SFTP deployment as a product feature;
+- production debug/fault endpoints;
+- HostGator/cPanel-specific product branches;
+- self-host packaging;
+- WordPress/RSS/widgets/analytics/SEO/delta sync/additional adapters;
+- new database schema solely for validation;
+- governing contract/ADR/roadmap changes.
 
 ## Validation
 
-During iteration run the smallest focused unit/integration/PHP checks covering the qualification code being edited.
+During iteration use the smallest focused deterministic checks.
 
-On the final P1 tree run the smallest non-overlapping deterministic matrix:
+On the final P1 source tree run:
 
 ```text
 npm run check
@@ -193,28 +350,32 @@ npm run codex:phase:validate -- p1-7
 git diff --check
 ```
 
-If the implementation adds a specialized deterministic command not contained by `npm run check`, run it once on the final tree as well. Do not claim managed, public-network, live-Source, recovery, or external-host evidence from P1 deterministic execution.
+Run any newly introduced specialized deterministic remote-protocol/shared-PHP command not already contained by `npm run check`.
+
+Run the one safe managed bootstrap transport observation (`preflight`) if the operator-provisioned alias is available. Do not claim managed deployment, live-Source, database/recovery, or external-host evidence from that connectivity check.
 
 ## Version and repository rules
 
 - Set only top-level `package.json` version to `1.7.1` before final validation.
-- Do not create `package-lock.json`, Composer vendor state, private key/certificate files, deployment secrets, or tracked runtime state.
-- Do not edit governing contracts, ADRs, roadmap entries, historical validation artifacts, `.codex/docs-prompt.txt`, or existing task prompts.
-- Do not modify production database migrations/schema.
+- Do not create `package-lock.json`, Composer vendor state, private keys/certificates, deployment secrets, database dumps, generated LKG, or tracked runtime state.
+- Do not edit governing contracts, ADRs, roadmap, historical validation artifacts, `.codex/docs-prompt.txt`, or other Phase 7 task prompts.
+- Do not modify production schema/migrations unless an actual pre-existing release blocker requires normal governed planning; P1 itself should not need schema work.
 - Do not manually commit; the phase runner owns the implementation commit boundary.
 
 ## Acceptance
 
 P1 is complete only when:
 
-1. a provider-neutral shared-PHP qualification plane can exercise the existing sync/read/render boundaries with public/private state separation;
-2. it can be run on the project VPS to model ordinary shared-host restrictions without claiming that VPS is the final external-site proof;
-3. visitor rendering remains credential-free and local-only while scheduled sync owns upstream configuration;
-4. a deterministic test-only fault origin can produce the small required failure scenarios without touching production Web/API behavior;
-5. qualification output and fixtures cannot leak real bearer credentials, private response bodies, or filesystem secrets;
-6. missing prerequisites fail clearly rather than passing/skipping;
-7. P2/P3 have a stable test/evidence handoff and do not need to invent product semantics;
-8. ordinary deterministic regressions remain green;
-9. package version is exactly `1.7.1`.
+1. the local Windows runner has a safe named-operation SSH client boundary that uses only `news-scraper-phase7`;
+2. arbitrary shell/direct-host/PTY/forwarding/file-transfer fallback is structurally impossible through the P1 client/tooling;
+3. a versioned operator-installable server validator bundle exists with strict operation dispatch, bounded JSON, redaction, and no arbitrary command execution;
+4. state-changing operations are designed to require a short-lived operator-created arm bound to the exact committed candidate and validation resources;
+5. the validator cannot create/broaden its own privilege or arm state;
+6. shared-PHP qualification and isolated deterministic fault tooling remain provider-neutral and production-isolated;
+7. deterministic tests prove injection rejection, secret safety, cleanup, and Phase 5/6 preservation;
+8. the current bootstrap `ssh ... news-scraper-phase7 preflight` succeeds when available, or P1 reports the transport prerequisite honestly without weakening it;
+9. an exact post-P1 operator installation/rollback handoff is produced for the managed VPS;
+10. no managed Level 7/8 or external-host claim is made from P1;
+11. package version is exactly `1.7.1`.
 
-Finish with a concise report listing changed files, qualification entrypoints/scenarios, deterministic tests run and results, package version, explicit statement that no managed/external evidence is claimed yet, and any blocker that should prevent P2.
+Finish with a concise report listing changed files, protocol/operation boundaries, deterministic tests and results, bootstrap SSH observation, operator installation/arming handoff, explicit remote-security limitations, package version, and any blocker that should prevent P2.
