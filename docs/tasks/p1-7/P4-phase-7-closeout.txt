@@ -1,0 +1,412 @@
+TASK: Phase 7 / P4 — Phase 7 closeout
+
+- Recommended configuration: `Sol Light`.
+- Task-shape classification: `Investigative`.
+- Specification clarity: `Explicit`.
+- State coupling: `High`.
+- Integrity risk: `High`.
+- Concurrency: `Cross-process`.
+- Security: `Sensitive`.
+- Novel inference: `Moderate`.
+- Model-family basis: repository policy deliberately uses Sol's stronger independent review/code-reading capability for roadmap closeout. Phase 7 is the terminal 2.0 gate and spans P1 qualification tooling, P2 real managed Web/Worker/PostgreSQL/live-Source/API/security/recovery proof, and P3 genuinely external PHP/LKG/SSR/failure proof.
+- Reasoning basis: Light is the policy baseline because contracts and task boundaries are explicit and this prompt requires three distinct disciplined passes. Escalate only when an observed release blocker actually needs deeper state/security/architecture reasoning; do not escalate merely because the evidence matrix is large.
+- Complexity / quality floor: `Critical`.
+- Estimated usage: `Very High`.
+- Lower-cost alternative considered: none under the current roadmap closeout policy.
+- Escalation trigger: any pass finds unresolved production-data risk, Source-trust drift, credential/admin leakage, pagination/revision inconsistency, LKG corruption, unsafe fault tooling, external-host secret leakage, visitor-path API coupling, disable/re-enable failure, recovery incompatibility, or a structural defect that cannot be confidently repaired inside bounded existing 2.0 behavior.
+- Escalation target: `Terra High` / `Terra Ultra` for explicit deeper state/integration/refactor reasoning, or higher-effort Sol for ambiguous contract/architecture reconciliation, selected from the observed cause.
+- Estimate confidence: `High`.
+- Efficiency rationale: independently audit the integrated release candidate once, repair only bounded unambiguous blockers, run the smallest complete final evidence set, and produce the one durable Phase 7 artifact that gates the terminal version-only `2.0.0` transition.
+
+The assigned project version is `1.7.4`.
+
+## Goal
+
+Perform the independent terminal Phase 7 closeout against the exact integrated P1-P3 tree, make only bounded unambiguous repairs/tests already inside the 2.0 release contract, execute the complete applicable Level 0-8 evidence matrix, and write the durable Phase 7 release-qualification artifact.
+
+This is not a feature prompt and not the terminal conversational release transition.
+
+The final result remains **HUMAN REVIEW REQUIRED**. Do not perform `/closeout`, do not change package version to `2.0.0`, and do not create a `1.8.0` or `2.0.1` development baseline.
+
+## Prerequisite and exact identity
+
+P1-P3 must be committed as the reachable Phase 7 implementation prefix with exact runner-recognizable commit subjects and package version `1.7.3` before this prompt begins.
+
+Establish from Git, not conversation text:
+
+- exact pre-P1 Phase 7 base commit;
+- P1/P2/P3 implementation commits;
+- current package version;
+- complete Phase 7 task/source diff;
+- current managed deployment candidate SHA/version;
+- P2/P3 final non-secret environment/evidence handoffs.
+
+If Git history/package version does not prove the expected prefix, stop before reviewing behavior.
+
+All real prerequisites required by P2/P3 remain mandatory at closeout. If the managed instance, real approved Source, PostgreSQL/recovery environment, dedicated validation Profile/credentials, genuinely external PHP site, browser, or required qualification fault origin is unavailable, the release gate is BLOCKED. Do not downgrade to deterministic evidence and call Phase 7 green.
+
+## Read first
+
+Read:
+
+1. current `BOOT.md`, `AGENTS.md`, and root `README.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/product-scope-and-users.md`;
+4. `docs/contracts/distribution-and-integration-contract.md`;
+5. `docs/contracts/distribution-api-contract.md`;
+6. `docs/contracts/testing-and-validation-contract.md`;
+7. `docs/contracts/source-and-collection-contract.md` and Article lifecycle/deduplication contract where approved Source/eligibility/provenance claims are checked;
+8. accepted headless-distribution and managed/self-hostable ADRs;
+9. `docs/decisions/production-data-and-schema-compatibility.md`;
+10. `docs/operations/database-backup-and-restore.md`;
+11. `docs/operations/security-reliability-and-operations.md`;
+12. `docs/operations/deployment-and-incident-runbook.md`;
+13. Phase 7 and terminal release entries in `docs/roadmap/post-1.0-roadmap.md`;
+14. Phase 20 accepted production baseline artifact and Phase 1-6 validation artifacts relevant to producer guarantees/limitations;
+15. every prompt under `docs/tasks/p1-7/`;
+16. the complete Phase 7 diff from exact pre-P1 base through current HEAD;
+17. P1 qualification plane/fault-origin code/tests;
+18. all managed distribution/Profile/credential/v1 source and tests implicated by P2;
+19. all PHP synchronization/LKG/local-read/render/example source and tests implicated by P3;
+20. current migration, backup/restore, live-Source, reference-deployment, browser, security, database, and recovery helpers/commands;
+21. current `package.json` command graph and runner grammar.
+
+Do not treat task wording or prior green output as higher authority than contracts/current source. Re-derive the important release claims from the final implementation and rerun required evidence.
+
+# Pass 1 — Contract and evidence review
+
+Audit the complete Phase 7 result against every roadmap requirement and the governing contracts.
+
+## P1 — Qualification-plane boundary
+
+Verify P1 remained test/release tooling and did not create product behavior:
+
+- shared-host-like plane models public document root + separate non-public state/config and scheduled sync separation;
+- visitor PHP remains independent of upstream URL/token;
+- same-VPS plane is described/used only as preflight and never mislabeled as the final external customer host;
+- qualification-only fault origin lives outside production Web/API composition;
+- no production route imports, exposes, or depends on fault/scenario code;
+- no real bearer credential is required/stored by the fault origin;
+- scripted malformed/revision/rate/dependency responses are deterministic and do not implement a competing Profile/cursor/eligibility authority;
+- qualification output is secret-safe and cleanup is bounded;
+- missing prerequisites fail rather than skip.
+
+A test-only fault server accidentally mounted into production is a release blocker.
+
+## P2 — Real managed upstream proof
+
+Verify the final source/environment evidence establishes:
+
+- accepted Phase 20 production data remains durable and migrations `0001`-`0014` were not rewritten;
+- current post-launch migrations/ledger are additive/current;
+- migration from zero remains green and accepted production baseline -> current upgrade preserves governed data/relationships;
+- actual managed database upgrade/status was observed honestly without destructive reset;
+- a current backup was restored to a fresh target at least once where required by the Phase 7 recovery gate;
+- Web and Worker use the existing managed topology and startup/readiness behavior;
+- at least one real currently approved live Source/endpoint was observed through canonical collection, with no whitelist/domain widening for test convenience;
+- dedicated validation Profile was provisioned through the protected control plane and exposed more than 100 real eligible Articles so managed pagination was genuinely exercised;
+- real managed v1 first/continuation pages preserve Profile key, snapshot revision, order/boundary continuity, and exact stored destinations;
+- invalid/revoked machine auth produces bounded `401` and bearer credentials do not authorize admin;
+- a disposable credential reaches the real authenticated limiter and receives bounded `429` plus positive `Retry-After` without impacting unrelated credentials;
+- a legitimate authorized validation-Profile mutation causes an old continuation cursor to return real `409 snapshot_changed` rather than mixed pages;
+- real Profile disable returns authenticated `409 profile_disabled`, and restoration/re-enable returns normal API output;
+- `/`, `/api/feed`, health, Cloudflare/admin perimeter, direct-origin boundary, HTTPS/trusted-proxy behavior, and structured operational telemetry remain correct;
+- logs/evidence do not contain tokens, Authorization headers, verifier material, database URLs, private bodies, visitor tracking, or unrelated secrets.
+
+If any managed claim was actually observed only in a disposable/local test, downgrade the claim and require the real procedure before green.
+
+## P3 — Genuine external PHP customer proof
+
+Verify the external host is materially separate from the managed News Scraper host/process/filesystem. A different directory/vhost on the same server does not satisfy the final external-customer requirement even if it was useful P1 preflight.
+
+Verify normal real path:
+
+- current generic PHP package is installed/used without provider-specific product branches;
+- sync-only config/secrets and LKG state live outside the public document root;
+- real external scheduled/CLI synchronization uses the real managed HTTPS v1 API and traverses more than one page;
+- complete candidate validates and atomically activates;
+- ordinary visitor code consumes `LocalProfileReader` / `LocalReadResult` plus customer/fallback renderer and does not parse cache internals;
+- public page is server-rendered and visible from a real external browser/HTTP client;
+- JavaScript-disabled browser sees core Article content and links;
+- exact stored `originalUrl` values are emitted as ordinary direct publisher anchors without News Scraper redirect/tracking rewriting;
+- visitor process runs with upstream URL/token absent and does not trigger server-side or browser-direct News Scraper API requests;
+- no qualification/fault controls appear in ordinary customer output.
+
+## Required final failure matrix
+
+On the final candidate, require honest evidence for each state. Controlled fault-origin observations must be labeled separately from normal real-managed observations.
+
+### Upstream/API/sync failure
+
+- failed sync does not replace/corrupt active valid LKG;
+- ordinary usable/stale-usable visitor rendering continues locally;
+- no emergency visitor API fallback appears;
+- a later real sync recovers.
+
+### Malformed/incomplete candidate
+
+- isolated qualification origin challenges the **real external PHP client/synchronizer/store**;
+- partial/malformed candidate is rejected;
+- prior real LKG remains exact/active;
+- no malformed body leaks;
+- real managed sync later succeeds.
+
+### Snapshot revision change
+
+Require both halves:
+
+1. P2/closeout real managed API observation proves legitimate revision change yields real `409 snapshot_changed` for an old cursor;
+2. P3/closeout external PHP observation proves candidate discard/bounded restart/LKG preservation when that class occurs, using real coordinated mutation if deterministic or the isolated fault origin when needed.
+
+Do not claim the isolated fault origin alone proves the production API's revision semantics.
+
+### Stale valid / configured cutoff / never synced
+
+- stale valid state remains renderable by default with no hard cutoff;
+- configured strict cutoff suppresses retained Articles without deleting recoverable state;
+- fresh successful sync/restored config returns usable rendering;
+- separate fresh state proves never-synced safe fallback with no live visitor request.
+
+### Authoritative disable/re-enable
+
+- real admin Profile disable -> real `409 profile_disabled` -> external sync records authoritative disabled -> customer page suppresses cached Articles;
+- re-enable/restore -> successful real sync -> external page renders again;
+- adapter does not infer disable from other failures.
+
+### Invalid/revoked authentication
+
+- external sync receives bounded auth failure with disposable/invalid credential;
+- existing LKG remains governed by stale policy and is not marked disabled;
+- valid replacement credential restores sync;
+- no credential leaks.
+
+### Rate-limit / Retry-After
+
+- P2/closeout proves real managed `429` + `Retry-After`;
+- P3/closeout proves external PHP retry/sleep/exhaustion behavior using a deterministic short qualification sequence rather than hammering production again;
+- active state is preserved throughout.
+
+## Final restoration state
+
+Before green, independently require:
+
+- managed Web and Worker healthy;
+- managed DB current;
+- validation Profile active and restored to intended configuration;
+- ordinary customer Profiles unaffected;
+- one valid external sync credential active/private and disposable revoked/rate-test credentials not accidentally used by customer config;
+- external sync base URL points to the real managed instance;
+- external cadence/cutoff values restored;
+- fresh real multi-page sync completed;
+- external public page renders current real data;
+- no test firewall/DNS outage, fault-base URL, scenario flag, temporary admin mutation, or fault process remains in the normal path;
+- no private/generated runtime state is tracked.
+
+## Evidence-level honesty
+
+Classify evidence using the testing contract:
+
+- Levels 0-3: inspection/static/deterministic component tests;
+- Level 4: real disposable PostgreSQL migration/data/recovery behavior and observed managed DB state where applicable;
+- Level 5: deterministic collection/fault fixtures where applicable;
+- Level 6: real browser evidence;
+- Level 7: explicitly approved real Source observations;
+- Level 8: managed deployment plus genuinely external customer-style integration under the recorded conditions.
+
+Do not call the release production-ready merely because Levels 0-6 are green. Phase 7 requires actual Level 7/8 evidence.
+
+# Pass 2 — Error / edge-case adversarial review
+
+Independently derive plausible failures from the implementation/contracts rather than checking only existing test names.
+
+At minimum challenge:
+
+- qualification fault origin accidentally reachable from or imported by production Web/API;
+- same-VPS preflight accidentally presented as external-host evidence;
+- public document root containing state, token config, backup, logs, or scenario controls;
+- sync and visitor processes sharing an environment such that visitor code can obtain bearer credentials;
+- external page appearing local-only in the browser while server-side PHP silently calls upstream;
+- partial multi-page candidate activating after page 1;
+- revision mismatch being ignored or cursor traversal mixing revisions;
+- Profile result limit/page-size assumptions causing supposed pagination proof to be one page;
+- boundary Article duplicated/dropped between pages;
+- stale valid state blanking after ordinary sync failure;
+- auth/rate/service failures incorrectly marking local state disabled;
+- real `profile_disabled` failing to suppress retained LKG;
+- re-enable succeeding at API but cached page remaining disabled/stale forever;
+- cutoff off-by-one/future clock behavior causing premature exposure/suppression;
+- malformed fault response leaking raw body/path/secret into logs or HTML;
+- rate-limit test accidentally hammering ordinary credentials or leaving a valid customer credential throttled;
+- validation Profile mutation not restored or unintentionally affecting real customer Profiles;
+- production migration proof relying only on clean database creation;
+- backup created but never restored;
+- restore targeting non-empty/source database;
+- accepted migration history rewritten;
+- live test touching an unapproved endpoint or broadening domain trust;
+- machine bearer gaining admin authority through a routing/perimeter shortcut;
+- trusted-proxy configuration accepting spoofed headers/direct origin;
+- telemetry containing bearer/plaintext verifier/Authorization/private response data;
+- direct publisher URLs rewritten/tracked/canonicalized by adapter or customer fallback;
+- JavaScript becoming required for core links/content;
+- temporary failure-injection network/DNS/process state left active after test;
+- fault-origin synthetic data accidentally replacing final real LKG;
+- final evidence executed before a later bounded repair and not rerun afterward;
+- external prerequisite missing but reported as skip/pass.
+
+Classify each plausible failure as already protected, requiring a bounded repair/test improvement, requiring a Terra High refactor handoff, or requiring planning/correction.
+
+A bounded unambiguous defect/test omission already inside the 2.0 contract may be fixed here, followed by every invalidated focused/specialized/managed/external procedure. Do not expand product scope.
+
+# Pass 3 — Code-quality / structural review
+
+Independently inspect the Phase 7 diff plus important producers/consumers for:
+
+- release tooling duplicated with existing reference-deployment validation without a distinct responsibility;
+- test-only fault/scenario helpers leaking into production imports/build/runtime;
+- provider/HostGator-specific branching inside generic PHP code;
+- new adapter-side Profile/filter/order/cursor/revision interpretation;
+- new visitor-path upstream fallback;
+- duplicate PHP state/usability/escaping/link ownership outside existing Phase 5/6 boundaries;
+- one-off deployment scripts that smuggle self-host packaging into 2.0;
+- secret-bearing config/report abstractions;
+- brittle process cleanup, path assumptions, or timing-only fault tests;
+- duplicated production migration/recovery logic in release scripts;
+- dead compatibility shims or speculative abstractions introduced only to satisfy test setup;
+- meaningful behavior-preserving simplification required before release;
+- missing focused regression tests for any bounded repair;
+- documentation/task/evidence wording that overclaims external/provider/production support beyond observed conditions.
+
+Small local cleanup may be performed only when clearly bounded. A meaningful structural refactor triggers the special handoff below.
+
+## Terra High refactor handoff
+
+If any pass discovers a meaningful behavior-preserving refactor — moving responsibility across modules/layers, consolidating duplicated shared logic across important consumers, replacing/collapsing an abstraction, reorganizing shared state/data flow, changing a transaction boundary while preserving governed semantics, or another multi-file structural simplification whose safety depends on producer/consumer tracing — STOP before implementing that refactor and output exactly one self-contained **Terra High refactor remediation prompt**.
+
+That prompt MUST:
+
+- recommend exactly `Terra High` as its starting configuration;
+- state the observed quality problem and concrete evidence that makes structural refactoring necessary;
+- define the smallest behavior-preserving refactor boundary, relevant files/modules, and important producers/consumers to trace;
+- restate the contracts/invariants that remain unchanged, including Source trust/network safety, idempotency/provenance, Profile/canonical eligibility, machine/admin separation, cursor/revision/rate behavior, synchronization/LKG atomicity, local usability, direct links, secret safety, production data, and failure isolation where implicated;
+- forbid unrelated cleanup, new product behavior, contract/ADR changes, roadmap expansion, post-2.0 features, and speculative abstractions;
+- preserve package version `1.7.4` and consume no roadmap/correction prompt number;
+- require focused tests for the refactor plus every broader regression/evidence level invalidated by it;
+- require a concise implementation report describing the refactor, tests actually run, and remaining risk, but MUST NOT declare Phase 7 GREEN or finalize the validation artifact;
+- instruct Terra High to stop/report rather than force the refactor if inspection reveals a product/contract/ADR change, new roadmap scope, difficult concurrency/transaction redesign beyond Terra High's reliable boundary, or another materially different architecture decision.
+
+The generated remediation prompt is transient manual closeout output, not a new file under `docs/tasks/` and not a package-version increment. After remediation is applied and implementation-level validation is green, rerun this original P4 closeout from the beginning. Only that rerun may establish the final accepted candidate.
+
+If the discovered issue is not behavior-preserving refactoring but instead requires new product behavior, contract/ADR change, or material architecture work, stop for normal planning/correction rather than disguising it as refactor remediation.
+
+## Required final automated validation
+
+After all permitted bounded repairs and before final external evidence is accepted, run a clean/final-tree matrix using the current command graph.
+
+At minimum:
+
+```text
+npm install
+npm run check
+npm run test:db
+npm run test:security
+npm run test:recovery
+npm run test:browser
+npm run test:live-sources
+npm run codex:phase:validate -- p1-7
+git diff --check <exact-pre-P1-base>...HEAD
+```
+
+Use repository npm configuration so no `package-lock.json` is created. Record actual resolved Node/npm/PHP/PostgreSQL/Playwright/browser/runtime versions.
+
+Do not separately rerun subordinate unit/integration/collection/PHP aliases solely because `npm run check` already executed them on the unchanged tree.
+
+Run the current P1 shared-hosting qualification command(s) and the private `npm run deployment:validate -- <private-reference-config.json>` procedure in addition to the automated matrix.
+
+Then rerun the P2/P3 managed/external release procedures on the final executable candidate where required to tie Levels 7/8 to the accepted tree. If closeout makes any production-code/test-tooling repair, rerun every real managed/external case whose result could be affected. Do not reuse stale pre-repair evidence.
+
+## Durable validation artifact
+
+Create/update exactly one terminal Phase 7 record:
+
+```text
+docs/validation/phase-7-managed-integration-and-2.0-release-qualification.md
+```
+
+It must identify:
+
+- exact pre-P1 Phase 7 base SHA;
+- P1/P2/P3 commit SHAs;
+- exact pre-closeout P3 HEAD SHA;
+- package sequence `1.7.0` -> `1.7.1` -> `1.7.2` -> `1.7.3` -> `1.7.4`;
+- final candidate content identity as described in the next section;
+- commands/procedures actually run and results;
+- environment/tool versions;
+- evidence levels actually achieved;
+- managed deployment identity and safe environment description;
+- approved live Source/endpoint observations without redefining trust;
+- production migration/data-preservation and managed backup/fresh-target restore evidence;
+- Profile/pagination/revision/ETag/status observations;
+- credential invalid/revoked/admin-separation/rate-limit evidence;
+- reference `/`, `/api/feed`, health, Cloudflare/admin/direct-origin and telemetry observations;
+- P1 shared-host-like preflight evidence and its limitation;
+- genuinely external PHP host/environment class;
+- real complete sync/LKG/SSR/direct-link evidence;
+- no visitor-path live News Scraper evidence from source/process/browser/managed observations;
+- every required failure-matrix case and whether it used the normal real managed path or isolated qualification fault origin;
+- final restoration state;
+- bounded defects/tests added during closeout;
+- Pass 2 adversarial findings/disposition;
+- Pass 3 structural findings/disposition;
+- whether a Terra High refactor handoff occurred before the final rerun;
+- all limitations/accepted deployment-specific recovery posture;
+- any unresolved finding requiring escalation/replanning/correction.
+
+The artifact records evidence; it does not redefine contracts, promise HostGator support generally, or claim self-host product readiness.
+
+## Exact final candidate identity under runner-owned commit
+
+The phase runner owns the P4 commit, so the closeout agent cannot truthfully know the final P4 commit SHA before returning. Do **not** invent or predict it.
+
+After all P4 repairs, package update, and validation-artifact edits are complete and the working tree is the exact candidate to be committed:
+
+1. record the exact pre-closeout P3 `HEAD` SHA;
+2. compute and record the exact Git **candidate tree SHA** for the full intended P4 working tree using a non-destructive temporary-index/equivalent method that includes tracked edits and new files without changing the real index or committing;
+3. record the exact list of P4-changed files and require no private/runtime state;
+4. record that the phase runner must create the single direct successor commit with subject `1.7.4`;
+5. in the final response, explicitly instruct human review to verify the runner-created `1.7.4` commit has that recorded tree SHA and direct parent before treating its commit SHA as the accepted final `1.7.x` candidate.
+
+The durable artifact must use the candidate tree SHA as exact pre-commit content identity and must distinguish it from a commit SHA. After runner commit, human review/terminal `/closeout` must bind the actual `1.7.4` commit SHA to that recorded tree and reject any drift. This preserves evidence honesty without violating runner commit ownership.
+
+If a reliable candidate tree identity cannot be computed, the terminal release gate is BLOCKED rather than guessing a SHA.
+
+## Version and repository rules
+
+- Set only top-level `package.json` version to `1.7.4` for this closeout prompt before final validation.
+- Do not advance to `2.0.0`; terminal conversational `/closeout` owns that later version-only transition after human acceptance.
+- Do not create `1.8.0` or `2.0.1` development state.
+- Do not create `package-lock.json`, Composer vendor state, TLS secrets, database dumps, private deployment config, generated LKG, or other tracked runtime state.
+- Do not edit governing contracts/ADRs/roadmap merely to make implementation appear compliant.
+- Do not manually commit; the phase runner owns the P4 commit boundary.
+
+## Acceptance
+
+Phase 7 closeout may report **GREEN — HUMAN REVIEW REQUIRED** only when:
+
+1. exact Git prefix and final candidate tree identity are established honestly;
+2. P1 qualification tooling remains isolated test/release support and no production fault/debug surface exists;
+3. the real managed candidate preserves supported production data/migrations and backup/restore compatibility;
+4. a real approved Source is observed through canonical managed collection and Level 7 evidence is green;
+5. a dedicated real Profile produces genuine multi-page v1 traversal with stable normal revision and exact destinations;
+6. real invalid/revoked auth, machine/admin separation, authenticated rate limit + `Retry-After`, real `snapshot_changed`, and real `profile_disabled` behavior are observed;
+7. `/`, `/api/feed`, health, trusted-proxy/HTTPS, admin perimeter/direct-origin, Worker/Web health, and secret-safe telemetry remain correct;
+8. a genuinely external PHP host completes real multi-page sync, atomic LKG activation, local read, server-rendered output, and exact direct publisher links;
+9. visitor rendering has no upstream URL/token dependency and no server/browser live News Scraper call;
+10. upstream/sync failure, malformed/incomplete candidate, revision change, stale/no-cutoff, configured cutoff, never-synced, authoritative disable/re-enable, invalid/revoked auth, and Retry-After handling all preserve the governed LKG/usability semantics;
+11. every temporary Profile/credential/config/fault/network state is restored and both managed/external environments finish healthy on a fresh real sync;
+12. final `npm install`, `npm run check`, database, security, recovery, browser, live-Source, phase grammar, committed-range diff, shared-hosting qualification, reference-deployment, and required managed/external procedures are green on the final candidate or honestly tied to an unchanged equivalent executable tree;
+13. Pass 2 and Pass 3 findings are fully dispositioned with no unresolved correctness/security/data/structural blocker;
+14. no general refactor, provider-specific product branch, WordPress/RSS/widget/analytics/SEO/delta/self-host packaging, or other post-2.0 behavior was pulled into Phase 7;
+15. durable Phase 7 validation artifact is complete, evidence-level honest, and records final candidate tree identity;
+16. package version is exactly `1.7.4`.
+
+Finish with a concise report containing GREEN or BLOCKED, exact pre-P1/P1-P3 identity, candidate tree SHA, package version, final evidence actually executed, managed/live/recovery/API/security/external/failure findings, bounded repairs if any, adversarial/structural findings, limitations, final restoration state, whether a Terra High remediation occurred, and whether human review may bind the runner-created `1.7.4` commit to the recorded tree and proceed to terminal `/closeout` for the package-only `2.0.0` transition.
