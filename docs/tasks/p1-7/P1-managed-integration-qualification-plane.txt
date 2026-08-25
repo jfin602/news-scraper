@@ -1,0 +1,220 @@
+TASK: Phase 7 / P1 — Managed integration qualification plane
+
+- Recommended configuration: `Terra Medium`.
+- Task-shape classification: `Cross-cutting`.
+- Specification clarity: `Explicit`.
+- State coupling: `Moderate`.
+- Integrity risk: `Moderate`.
+- Concurrency: `Local`.
+- Security: `Sensitive`.
+- Novel inference: `Moderate`.
+- Model-family basis: Phase 7 does not need new distribution semantics; it needs provider-neutral release tooling that composes the already-implemented PHP sync/LKG/local-read/SSR boundaries without leaking credentials or creating a production fault/debug surface. The work crosses Node test tooling, PHP process/filesystem behavior, and external-host assumptions, which merits Terra over Luna despite the explicit contract.
+- Reasoning basis: Medium reasoning is sufficient because the governing behavior and ownership boundaries are already fixed. The main work is to build a deterministic shared-hosting qualification plane and test-only fault origin, preserve production/test separation, and leave auditable handoffs for the real managed/external prompts.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna High`; rejected because a weak boundary between qualification fixtures and production runtime, or unsafe secret/path handling in operator tooling, could invalidate the later Level 8 evidence or accidentally create a product-facing debug capability.
+- Escalation trigger: source inspection shows the existing PHP package cannot be exercised in a realistic public-root/private-state/scheduled-sync split without product changes, the fault plane would require modifying the production v1 API, or host/runtime requirements materially conflict with the managed/self-hostable architecture.
+- Escalation target: `Terra High` for explicit deeper cross-process/tooling reconciliation; return `Planning needed` if a product contract, ADR, or Phase 7 scope change is required.
+- Estimate confidence: `High`.
+- Efficiency rationale: build one narrow qualification plane first, prove it deterministically, and reuse it for managed/external release evidence instead of embedding one-off fault logic or provider assumptions into P2/P3.
+
+The assigned project version is `1.7.1`.
+
+## Goal
+
+Build the provider-neutral Phase 7 qualification tooling needed to exercise the existing generic PHP integration as if it were installed on ordinary shared PHP hosting, including a constrained HostGator-like plane that can be run on a Linux VPS and a qualification-only fault origin for controlled downstream failure tests.
+
+P1 is **release/test tooling**, not a new product adapter and not self-host packaging. It must not change canonical Article/Profile semantics, the v1 contract, machine authentication, synchronization/LKG behavior, local usability, or rendering behavior.
+
+The intended qualification shape is:
+
+```text
+operator/test orchestrator
+-> shared-host-like public root + separate private state/config
+-> real integrations/php/bin/sync.php scheduled process
+-> real FilesystemProfileStateStore / LocalProfileReader
+-> real customer-style server-rendered page
+
+and, only for controlled failure scenarios:
+qualification-only fault origin
+-> existing PHP DistributionClient/ProfileSynchronizer
+-> existing candidate/LKG rules
+```
+
+The fault origin is never mounted into the News Scraper Web/API process and never becomes a supported distribution endpoint.
+
+## Prerequisite and read first
+
+Require the current Phase 7 baseline and documentation alignment, package version `1.7.0` (or `1.7.1` on a safe P1 rerun), and no completed Phase 7 implementation prompt before P1.
+
+Read before editing:
+
+1. `BOOT.md`, `AGENTS.md`, and root `README.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/product-scope-and-users.md`;
+4. `docs/contracts/distribution-and-integration-contract.md`;
+5. `docs/contracts/distribution-api-contract.md`;
+6. `docs/contracts/testing-and-validation-contract.md`;
+7. accepted headless-distribution and managed/self-hostable ADRs;
+8. `docs/operations/security-reliability-and-operations.md` and `docs/operations/deployment-and-incident-runbook.md` for evidence/secret/deployment boundaries;
+9. Phase 7 in `docs/roadmap/post-1.0-roadmap.md`;
+10. `docs/validation/phase-6-php-local-data-and-server-rendered-integration.md` and its explicit evidence limitations;
+11. `integrations/php/README.md`;
+12. `integrations/php/bin/sync.php`;
+13. `integrations/php/src/Configuration.php`, `Client.php`, `Runtime.php`, `Synchronizer.php`, `FilesystemStateStore.php`, `LocalState.php`, `LocalRead.php`, `Renderer.php`, and `bootstrap.php`;
+14. `integrations/php/tests/run.php`, `scripts/run-php-tests.mjs`, and `test/browser/php-customer-example.test.ts`;
+15. `src/operations/reference-deployment-validator.ts`, `scripts/validate-reference-deployment.ts`, and `test/unit/reference-deployment-validator.test.ts` so P1 does not duplicate or overload the existing reference-deployment responsibility;
+16. current `package.json` and `test/support/` conventions.
+
+If the implementation would require weakening HTTPS-only PHP client configuration, changing the active/candidate/LKG format, making the visitor process aware of bearer credentials, adding a production debug/fault route, or introducing HostGator-specific product logic, stop with `Planning needed`.
+
+## Provider-neutral shared-PHP hosting plane
+
+Create the smallest test/release-support implementation that can be run from a repository checkout on a Linux VPS configured to approximate ordinary shared PHP hosting.
+
+The plane must model these constraints rather than a vendor brand:
+
+- one public document root used by visitor HTTP requests;
+- one distinct non-public state root outside that document root;
+- synchronization secrets/configuration available only to the scheduled sync process;
+- visitor rendering configured only with Profile key, state root, cadence, and optional stale cutoff;
+- real PHP CLI execution of `integrations/php/bin/sync.php` for synchronization;
+- real customer-style server rendering through the implemented local-read/presentation boundary;
+- cron-like/scheduled invocation semantics separate from visitor requests;
+- host-local/same-filesystem LKG assumptions rather than distributed locking;
+- filesystem ownership/permission checks sufficient to detect obviously public/unwritable state placement;
+- no Composer/vendor install requirement;
+- no Node dependency in the visitor PHP request path. Node MAY orchestrate the qualification procedure on the VPS because this is test tooling, but the customer-facing PHP runtime itself must remain independently usable.
+
+Prefer release/test support under `scripts/` and `test/support/` rather than adding a second production adapter. If a reusable validation module is justified, keep it under the existing operations/testing boundary and do not make it a Web route.
+
+The qualification entrypoint must fail clearly when required prerequisites are absent. Do not silently skip because PHP, filesystem capabilities, a requested HTTPS fault origin, or another explicitly requested prerequisite is unavailable.
+
+## Public/private and secret boundary
+
+The plane must prove and enforce at least:
+
+- state root is not the public document root and is not nested beneath it;
+- bearer token and upstream base URL are not written into public files, generated HTML, LKG payloads, test reports, or normal visitor logs;
+- visitor process execution remains valid after removing `NEWS_SCRAPER_BASE_URL` and `NEWS_SCRAPER_BEARER_TOKEN`;
+- synchronization process receives the upstream settings only through private runtime configuration/environment;
+- qualification output reports bounded classifications, not raw environment dumps, Authorization headers, token values, response bodies, filesystem contents, cookies, or query-bearing URLs;
+- temporary probe files/directories are removed after a run;
+- no qualification helper remains reachable from the ordinary customer public page unless it is explicitly running as an isolated test-only origin.
+
+Do not solve secret handling by committing example real tokens or private deployment configuration.
+
+## Qualification-only fault origin
+
+Add the minimum controlled fault origin needed for P3 to exercise the real external PHP synchronizer/LKG path without corrupting or teaching fault behavior to the production News Scraper API.
+
+The origin belongs only under test/release-support code. It MUST NOT be imported, mounted, or reachable from `src/app/web/` or the deployed News Scraper Web process.
+
+It may use synthetic Profile/Publication/Article values and contract-shaped v1 fixtures. It should support only the bounded scenarios later required by Phase 7, for example:
+
+- a valid bounded initial/multi-page response useful for establishing controlled traversal state;
+- malformed or incomplete candidate response after a valid page;
+- `409 snapshot_changed` during traversal;
+- bounded `429 rate_limited` with `Retry-After` followed by a configured recovery response when useful;
+- bounded `503 service_unavailable` / transport-unavailable simulation when useful.
+
+Do not recreate the entire production API or implement Profile filtering, canonical eligibility, duplicate handling, authentication policy, cursor generation, or snapshot-revision algorithms in this fixture. It is a scripted responder used to challenge the existing PHP client/synchronizer.
+
+The fault origin must not need a real production bearer token. If it observes an Authorization header, never log or echo it. Scenario control must be explicit, deterministic, non-secret, and incapable of affecting the real managed Web/API.
+
+If serving it externally requires TLS termination, keep certificate/proxy provisioning deployment-specific; do not weaken `ClientConfiguration` to accept HTTP and do not add TLS/private-key material to the repository.
+
+## Deterministic proof
+
+Add focused deterministic tests for the qualification tooling itself. At minimum prove:
+
+- accepted public-root/private-state layouts are classified correctly;
+- state roots inside/below the public document root are rejected;
+- missing PHP/required host prerequisites fail clearly rather than becoming a skip;
+- visitor configuration can be constructed without upstream URL/token and does not gain them from the sync environment accidentally;
+- qualification output cannot echo sentinel bearer values, Authorization headers, private config values, or raw fault-response bodies;
+- the controlled fault origin produces only the explicitly supported scripted statuses/shapes and never follows/forwards to arbitrary destinations;
+- malformed/second-page and snapshot-change scenarios are deterministic rather than timing-dependent;
+- no production Web/API module imports the fault origin/test support;
+- cleanup leaves no generated state/config probe files behind the deterministic harness;
+- the existing Phase 5/6 PHP and browser regressions remain unchanged in meaning.
+
+Use local/injected servers and temporary directories for deterministic tests. Ordinary `npm test`/`npm run check` must not require the public internet, a managed deployment, HostGator, a real external site, or real bearer credentials.
+
+## P1 -> P2/P3 handoff
+
+Before P1 completes, leave the following auditable handoff:
+
+| Downstream-required capability | P1 owner/export | Focused proof |
+| --- | --- | --- |
+| shared-host-like public/private filesystem separation | qualification-plane entrypoint/support | accepted/rejected layout tests |
+| real sync process can be launched separately from visitor rendering | qualification orchestration over existing `sync.php` | process/config separation test |
+| visitor path requires no upstream secret | existing `LocalReadConfiguration`/example exercised by plane | credential-removal test |
+| explicit host prerequisite failures | qualification preflight | missing-prerequisite tests |
+| malformed/partial scripted upstream candidate | test-only fault origin | deterministic scenario test |
+| scripted revision/rate/dependency failures | test-only fault origin | deterministic status/sequence tests |
+| qualification evidence is secret-safe | reporter/output boundary | sentinel redaction tests |
+| no production debug/fault surface | test-support/module boundary | import/route boundary inspection/test |
+
+P2/P3 must be able to use these tools without modifying Source trust, Profile selection, v1 serialization/authentication, PHP synchronization, cache state format, or customer rendering.
+
+## Preserved behavior and non-goals
+
+Preserve without semantic change:
+
+- approved-Source collection/network-safety/normalization/idempotency/provenance behavior;
+- canonical outward eligibility, Profile filtering/order/Categories/duplicate/moderation semantics;
+- Phase 3 machine credential/authentication/rate behavior;
+- Phase 4 v1 route/schema/cursor/revision/HTTPS/trusted-proxy behavior;
+- Phase 5 PHP client, retries/restarts, per-Profile lock, candidate validation, atomic LKG activation, disable/re-enable and stale policy;
+- Phase 6 `LocalProfileReader` / `LocalReadResult`, fallback renderer, escaping, direct exact `originalUrl`, and local-only visitor behavior;
+- `/`, `/api/feed`, admin, Worker, migration, database, backup/recovery, and topic-independent behavior.
+
+Do not implement:
+
+- a new distribution API or proxy product;
+- debug/fault endpoints in production;
+- HostGator/cPanel-specific application branches;
+- SSH/SFTP credential management as a product feature;
+- Docker/Compose/self-host packaging;
+- WordPress, RSS/Atom, widgets, visitor analytics, SEO tooling, delta sync, or additional adapters;
+- new database schema/migrations;
+- governing documentation/ADR changes.
+
+## Validation
+
+During iteration run the smallest focused unit/integration/PHP checks covering the qualification code being edited.
+
+On the final P1 tree run the smallest non-overlapping deterministic matrix:
+
+```text
+npm run check
+npm run codex:phase:validate -- p1-7
+git diff --check
+```
+
+If the implementation adds a specialized deterministic command not contained by `npm run check`, run it once on the final tree as well. Do not claim managed, public-network, live-Source, recovery, or external-host evidence from P1 deterministic execution.
+
+## Version and repository rules
+
+- Set only top-level `package.json` version to `1.7.1` before final validation.
+- Do not create `package-lock.json`, Composer vendor state, private key/certificate files, deployment secrets, or tracked runtime state.
+- Do not edit governing contracts, ADRs, roadmap entries, historical validation artifacts, `.codex/docs-prompt.txt`, or existing task prompts.
+- Do not modify production database migrations/schema.
+- Do not manually commit; the phase runner owns the implementation commit boundary.
+
+## Acceptance
+
+P1 is complete only when:
+
+1. a provider-neutral shared-PHP qualification plane can exercise the existing sync/read/render boundaries with public/private state separation;
+2. it can be run on the project VPS to model ordinary shared-host restrictions without claiming that VPS is the final external-site proof;
+3. visitor rendering remains credential-free and local-only while scheduled sync owns upstream configuration;
+4. a deterministic test-only fault origin can produce the small required failure scenarios without touching production Web/API behavior;
+5. qualification output and fixtures cannot leak real bearer credentials, private response bodies, or filesystem secrets;
+6. missing prerequisites fail clearly rather than passing/skipping;
+7. P2/P3 have a stable test/evidence handoff and do not need to invent product semantics;
+8. ordinary deterministic regressions remain green;
+9. package version is exactly `1.7.1`.
+
+Finish with a concise report listing changed files, qualification entrypoints/scenarios, deterministic tests run and results, package version, explicit statement that no managed/external evidence is claimed yet, and any blocker that should prevent P2.
