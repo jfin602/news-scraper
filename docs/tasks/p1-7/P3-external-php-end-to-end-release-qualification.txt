@@ -1,0 +1,343 @@
+TASK: Phase 7 / P3 — External PHP end-to-end release qualification
+
+- Recommended configuration: `Terra High`.
+- Task-shape classification: `Cross-cutting`.
+- Specification clarity: `Explicit`.
+- State coupling: `High`.
+- Integrity risk: `High`.
+- Concurrency: `Cross-process`.
+- Security: `Sensitive`.
+- Novel inference: `Moderate`.
+- Model-family basis: P3 composes the real managed upstream from P2 with an independently hosted PHP sync/LKG/SSR consumer and controlled fault injection. The contracts are explicit, but correctness depends on cross-host process separation, filesystem/LKG state, credential handling, Profile lifecycle, retries, browser behavior, and recovery after failures.
+- Reasoning basis: High reasoning is required to keep the normal real managed path distinct from qualification-only fault scenarios, preserve prior LKG through each failure, restore the external environment safely, and diagnose a release blocker without inventing adapter-side business semantics.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because the external-host state/failure matrix includes several interacting transitions where a superficially passing page can hide corrupted LKG, leaked credentials, visitor-path coupling, or an incorrectly restored Profile/credential state.
+- Escalation trigger: an external failure reveals uncertain atomicity/locking/retry ownership, a difficult cross-process race, a security/secret-boundary defect, or a product behavior conflict that cannot be repaired confidently inside existing Phase 5/6 contracts.
+- Escalation target: `Terra Ultra` for explicit deep state-machine/recovery/concurrency reasoning; higher-effort Sol for ambiguous cross-system contract reconciliation; return `Planning needed` if a material adapter/product/hosting capability is actually missing.
+- Estimate confidence: `High`.
+- Efficiency rationale: use the real upstream and existing PHP implementation for the happy path, use P1's isolated fault plane only where production fault injection would be unsafe, and leave one independent full rerun/audit to P4.
+
+The assigned project version is `1.7.3`.
+
+## Goal
+
+Prove the complete 2.0 customer path on a genuinely external customer-style PHP host against the real managed News Scraper instance qualified by P2, including the required LKG/failure/security/browser states.
+
+Normal path:
+
+```text
+real approved Sources
+-> managed collection / persistence
+-> canonical eligibility / validation Profile
+-> real authenticated multi-page v1 API
+-> real external PHP scheduled synchronization
+-> complete validated atomic LKG
+-> LocalProfileReader / LocalReadResult
+-> customer server-rendered HTML
+-> exact direct stored publisher originalUrl links
+```
+
+The external customer visitor path must remain local-only. Controlled qualification fault origins may challenge the PHP synchronizer, but they are never part of the normal customer path and never become production News Scraper behavior.
+
+## Prerequisite and fail-closed external requirements
+
+Require the reachable P1 and P2 implementation commits, package version `1.7.2` (or `1.7.3` on a safe P3 rerun), and P2's managed environment restored to a known healthy active validation state.
+
+Required P3 prerequisites:
+
+- the real managed News Scraper candidate and active dedicated validation Profile from P2;
+- a valid dedicated machine credential appropriate for the external synchronization process;
+- a **genuinely external PHP hosting boundary** distinct from the managed News Scraper host/process/filesystem. This may be the customer's real shared host, HostGator, or another externally hosted customer-style PHP environment. A shared-host-like plane on the same VPS as News Scraper is valuable P1 preflight but does not satisfy this final external-host requirement;
+- public HTTPS access to the external customer-style page from a real browser/operator environment;
+- PHP CLI plus PHP web execution and a scheduler/cron-equivalent on the external host;
+- a non-public writable state root outside the site's public document root;
+- a private way to supply sync-only base URL/token/Profile/state settings without exposing them to the visitor process or tracked repository;
+- an authorized way to disable/re-enable the dedicated validation Profile through the existing managed admin control plane;
+- an HTTPS-accessible qualification-only P1 fault origin or equivalent isolated controlled endpoint for malformed/revision/rate/dependency scenarios that cannot safely be injected into production. It must not be a production News Scraper route;
+- a browser capable of observing the external page with JavaScript disabled and recording browser requests.
+
+If any required external prerequisite is absent, stop and report it. Do not replace the external site with loopback/P1 same-host evidence and declare the release gate green.
+
+Do not commit host credentials, bearer tokens, database URLs, Cloudflare cookies, SSH keys, private TLS material, generated LKG state, or customer private configuration.
+
+## Read first
+
+Read before editing/executing:
+
+1. current `BOOT.md`, `AGENTS.md`, and root `README.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/product-scope-and-users.md`;
+4. `docs/contracts/distribution-and-integration-contract.md`;
+5. `docs/contracts/distribution-api-contract.md`;
+6. `docs/contracts/testing-and-validation-contract.md`;
+7. accepted headless-distribution and managed/self-hostable ADRs;
+8. `docs/operations/security-reliability-and-operations.md` and `docs/operations/deployment-and-incident-runbook.md`;
+9. Phase 7 roadmap entry;
+10. Phase 5 and Phase 6 validation artifacts for synchronization/LKG/local-read/browser guarantees and limitations;
+11. all P1/P2 prompts and their complete implementation diffs/final reports;
+12. P1 qualification-plane/fault-origin implementation and focused tests;
+13. `integrations/php/README.md`, `bin/sync.php`, all PHP production files, and the example/customer-style composition;
+14. `integrations/php/tests/run.php` and `test/browser/php-customer-example.test.ts`;
+15. P2's current v1/Profile/credential implementation only where needed to interpret real statuses, never to reimplement them;
+16. current `package.json` and runner/task grammar.
+
+Before repairing anything, trace whether the defect belongs to Web/API, credential guard, PHP client/synchronizer/store, local-read mapping, renderer/example composition, qualification tooling, or deployment configuration. Fix the owning boundary only.
+
+## External host installation boundary
+
+Install/use the current repository's generic PHP package on the external host in a customer-style layout.
+
+Requirements:
+
+- customer public document root contains only files required for ordinary site rendering; local state, bearer token, sync-only configuration, qualification scenario controls, and private logs remain outside it;
+- ordinary visitor composition uses `LocalReadConfiguration` / `LocalProfileReader` / customer renderer or `FallbackHtmlRenderer` and does not construct `DistributionClient`, `ProfileSynchronizer`, or sync runtime;
+- synchronization runs separately through the real `integrations/php/bin/sync.php` (or an unchanged production composition using the same public boundary) on a schedule/cron-equivalent;
+- no manual cache JSON/manifests/generation parsing is introduced to make hosting easier;
+- no copy of Profile filtering/eligibility/order/Category/duplicate logic is placed in customer code;
+- no Node service is required to answer visitor requests;
+- no Composer/vendor framework is required unless it already existed, which it does not at the Phase 7 baseline;
+- the P1 shared-hosting preflight/qualification checks pass for the real external layout where applicable.
+
+Use customer-owned markup only if needed to represent a realistic external site; presentation changes must consume `LocalReadResult` and cannot reinterpret data selection/destinations.
+
+## Normal real managed synchronization
+
+With the validation Profile active and the valid dedicated credential configured only for the sync process:
+
+1. run a forced initial synchronization against the real managed HTTPS v1 API;
+2. require complete multi-page traversal of the P2 validation Profile, not a one-page substitute;
+3. require a successful complete candidate and atomic activation;
+4. inspect bounded local health/result facts through the implemented public PHP boundaries, not raw manifest editing;
+5. require item/page counts and active revision to be consistent with the observed real traversal;
+6. run another normal/conditional synchronization and observe the governed unchanged/success behavior as applicable;
+7. verify the bearer token does not appear in LKG payloads, public files, HTML, browser requests, or normal logs.
+
+Do not compare by re-sorting/refiltering Articles on the customer host. The external host accepts upstream order/selection as authoritative.
+
+## External server-rendered browser proof
+
+Against the public external customer URL, observe with a real browser and with JavaScript disabled:
+
+- HTTP page is genuinely server rendered; core Article content/headline links are present without client-side data fetching;
+- populated Profile content renders in upstream order;
+- headline href values are the exact stored publisher `originalUrl` values after normal browser/HTML decoding;
+- no News Scraper tracking redirect, rewritten destination, click beacon, or required JavaScript is added;
+- nullable/Source/Category/editorial values remain safely rendered through the existing escaping boundary;
+- no bearer token, Authorization header, private state path, manifest/generation filename, qualification scenario value, or internal exception is visible;
+- browser request observation shows no direct News Scraper API call, tracking endpoint, or hidden visitor-triggered synchronization;
+- ordinary external Article anchors may navigate to publishers, but the proof need not crawl/fetch every publisher destination.
+
+Also fetch the page as plain HTML (`curl`/equivalent) and confirm the relevant Article anchors/content exist in the response body without executing JavaScript.
+
+## Prove no visitor-path live News Scraper dependency
+
+After a successful real sync, prove the visitor boundary independently:
+
+- remove/withhold `NEWS_SCRAPER_BASE_URL` and `NEWS_SCRAPER_BEARER_TOKEN` from the visitor PHP process/environment while leaving local-read configuration present;
+- issue repeated visitor requests and require valid LKG content to remain available;
+- use external browser/network observation and managed API/access telemetry where available to show those visitor requests do not cause v1 API requests;
+- do not launch synchronization from request handlers;
+- do not treat a browser-only lack of API requests as sufficient if server-side visitor code could still call upstream; inspect the deployed visitor composition and managed request observations too.
+
+## Required external failure matrix
+
+Every case starts from a known valid real LKG unless the case explicitly proves never-synced behavior. Capture safe before/after local health/state facts so a failed candidate cannot masquerade as success.
+
+### 1. Upstream/API unavailability and synchronization failure
+
+Prefer a customer-side/qualification-network failure that does not unnecessarily take the public managed service offline, for example an isolated unavailable qualification origin or controlled connection failure for the sync process.
+
+Require:
+
+- sync attempt fails boundedly;
+- prior active valid LKG is not replaced/corrupted;
+- stale policy, not an emergency live API fallback, determines visitor behavior;
+- visitor page continues rendering valid LKG while it is usable;
+- normal real API sync succeeds again after restoring configuration/network state.
+
+If the managed Web/API itself is intentionally stopped for this test, use a bounded maintenance window, preserve the reference site/admin recovery path, restore Web before Worker as applicable, and do not leave the production deployment degraded.
+
+### 2. Malformed/incomplete candidate
+
+Point only the synchronization process at the isolated P1 fault origin configured to return a valid initial page followed by a malformed/incomplete continuation/candidate.
+
+Require:
+
+- existing PHP schema/candidate validation rejects the candidate;
+- no partial page set becomes active;
+- prior real LKG revision/items remain active and unchanged;
+- visitor output remains based on prior LKG;
+- no malformed payload/body is exposed in logs or HTML;
+- switch back to the real managed base URL and require a successful sync.
+
+Do not alter the production API serializer to emit malformed responses.
+
+### 3. Snapshot revision change during traversal
+
+P2 already proves that the real managed API emits `409 snapshot_changed` after a legitimate Profile revision change. P3 must prove the external PHP synchronizer handles that class correctly.
+
+Use either:
+
+- a safely coordinated real Profile mutation during the external multi-page sync if it can be made deterministic without production debug behavior; or
+- the P1 isolated fault origin's deterministic valid-page-then-`409 snapshot_changed` sequence, while explicitly combining that downstream proof with P2's real managed `409` observation.
+
+Require candidate discard, bounded restart/retry behavior, prior LKG preservation, and eventual successful real managed synchronization after restoring normal state.
+
+Do not claim the fault-origin case alone proves the real managed API emits the status; P2 owns that real observation.
+
+### 4. Stale valid cache and configured cutoff
+
+Use bounded test-specific local freshness settings rather than editing generation/manifest timestamps by hand when practical.
+
+Prove:
+
+- after a successful sync, age beyond the configured cadence makes the same valid state `stale_usable` and Articles still render when no hard cutoff is configured;
+- a configured maximum stale age suppresses rendering once strictly exceeded while retained active state remains recoverable;
+- removing/restoring the test cutoff plus a successful sync returns normal usable rendering;
+- visitor rendering never calls the API merely because state became stale/cut off.
+
+Choose short safe cadence/cutoff values for qualification so the procedure does not require an artificial long wait. Restore intended deployment values afterward.
+
+### 5. Authoritative Profile disable and re-enable
+
+Against the **real managed API**:
+
+1. begin with active Profile + valid external LKG rendering;
+2. disable only the dedicated validation Profile through authorized admin;
+3. run external synchronization and require authenticated `409 profile_disabled` to become authoritative local disabled state;
+4. require the external public page to suppress cached Articles even though recoverable active bytes may remain;
+5. re-enable/restore the Profile through admin;
+6. run a successful real synchronization;
+7. require normal external rendering to return.
+
+Do not implement adapter-side disable inference or delete LKG files manually.
+
+### 6. Invalid/revoked machine authentication
+
+Use a disposable/revoked validation credential or deliberately invalid token only in the sync process.
+
+Require:
+
+- bounded `401`/failed synchronization;
+- prior active LKG remains subject to normal stale policy and is not treated as disabled;
+- visitor process never receives the token;
+- a newly valid/rotated credential can resume successful real synchronization;
+- no credential value appears in output/logs/evidence.
+
+Do not revoke an ordinary customer integration credential for this proof.
+
+### 7. Rate limit / `Retry-After`
+
+P2 proves the real managed limiter emits `429` with `Retry-After`. P3 proves the real PHP synchronizer respects the retry contract on the external host.
+
+Prefer the isolated P1 fault origin with a short bounded `Retry-After` sequence so the external sync can deterministically demonstrate sleep/retry behavior without deliberately hammering the real managed API again.
+
+Require bounded retry timing/classification, no active-state corruption, and either successful completion after the scripted retry or preserved LKG after bounded exhaustion according to the existing synchronizer contract.
+
+Do not change production limiter values or PHP retry semantics merely to simplify the test.
+
+### 8. Never-synced/unavailable safety on the external host
+
+Using a separate fresh test state root/Profile instance or equivalent non-destructive setup, observe the external page before any valid snapshot exists and require the safe initializing/unavailable behavior with no stale Articles or live API fallback.
+
+Do not destroy the primary validation LKG to create this case.
+
+## Final restoration gate
+
+Before P3 can complete:
+
+- validation Profile is active and restored to its intended configuration;
+- a valid non-revoked synchronization credential is configured privately;
+- external sync base URL points to the real managed instance, not the fault origin;
+- intended cadence/stale-cutoff values are restored;
+- a fresh successful real multi-page synchronization has completed;
+- the external customer page renders the expected real data;
+- no fault origin/scenario control is reachable from the ordinary customer page;
+- no temporary firewall/DNS/process outage remains;
+- managed Web/Worker/reference surfaces remain healthy;
+- no private generated state/config has been committed.
+
+## Bounded release-blocker repair rule
+
+P3 may repair only concrete defects that block the contracted external path.
+
+Allowed examples include a real PHP portability issue, atomic-state bug, retry classification defect, local usability/rendering regression, secret leak, external-host path assumption, or small qualification-tool defect whose intended behavior is unambiguous from existing contracts.
+
+For any repair:
+
+- identify the owning module and violated invariant;
+- preserve producer/consumer ownership;
+- add focused regression coverage whenever technically practical;
+- rerun the affected external case and every invalidated deterministic/specialized suite;
+- do not opportunistically refactor unrelated Phase 1-6 code.
+
+Stop with `Planning needed` if the only solution is WordPress/CMS support, a new product API, SSH deployment productization, new authentication semantics, cross-host/distributed locking, self-host packaging, or other material post-2.0 capability.
+
+## P3 -> P4 handoff
+
+Report enough non-secret evidence for closeout to rerun/independently challenge the final gate:
+
+| Required release fact | P3 evidence |
+| --- | --- |
+| genuinely external customer host | recorded host/environment class and public HTTPS observation without secrets |
+| real complete PHP traversal | external sync item/page/revision outcome against P2 managed API |
+| atomic validated LKG | before/after state/health observations |
+| SSR/direct links | external HTML + JavaScript-disabled browser observation |
+| no visitor-path API | visitor config/source inspection + browser/server/managed request observations |
+| upstream/sync failure preservation | external failed sync + unchanged LKG + continued rendering |
+| malformed candidate rejection | P1 fault origin -> real external PHP client/store -> unchanged LKG |
+| revision change handling | P2 real API status + P3 external PHP restart/preservation proof |
+| stale/no-cutoff + configured cutoff | external local-read/page state observations |
+| authoritative disable/re-enable | real managed admin/API -> external sync -> page suppression -> restored sync/page |
+| invalid/revoked auth | real/failure sync -> preserved LKG -> valid credential recovery |
+| Retry-After handling | P2 real 429 + P3 external PHP scripted retry proof |
+| final restored normal state | fresh real sync + healthy external page and managed services |
+
+P4 must be able to rerun or independently verify these without interpreting cache internals or relying solely on P3 prose.
+
+## Final P3 validation
+
+During iteration use the smallest focused PHP/browser/qualification checks affected by edits.
+
+On the final unchanged P3 source tree run:
+
+```text
+npm run check
+npm run test:browser
+npm run codex:phase:validate -- p1-7
+git diff --check
+```
+
+Also run the P1 shared-hosting/qualification command(s) applicable to the external environment and every real external procedure above.
+
+If P3 changes upstream database, credential/security, recovery, collection, or API behavior, additionally rerun the corresponding specialized P2 suite(s), including `test:db`, `test:security`, `test:recovery`, or `test:live-sources` as actually invalidated. Do not rerun them merely to duplicate unchanged evidence; P4 will execute the complete final release matrix.
+
+## Version and repository rules
+
+- Set only top-level `package.json` version to `1.7.3` before final validation.
+- Keep all real host credentials/private qualification configuration/LKG/runtime logs outside tracked files.
+- Do not create `package-lock.json`, Composer vendor state, TLS private keys/certificates, database dumps, or generated customer state in the repository.
+- Do not edit governing contracts, ADRs, roadmap entries, or historical validation artifacts.
+- Do not manually commit; the phase runner owns the implementation commit boundary.
+
+## Acceptance
+
+P3 is complete only when:
+
+1. a genuinely external customer-style PHP host runs the current generic integration against the real managed News Scraper candidate;
+2. the real validation Profile synchronizes through more than one API page into a complete validated active LKG;
+3. the public external page is server rendered, works with JavaScript disabled, and emits exact direct stored publisher links;
+4. ordinary visitor rendering requires no upstream URL/token and causes no live News Scraper API request;
+5. upstream/network/sync failure preserves valid LKG and does not blank ordinary usable content;
+6. malformed/incomplete and revision-change candidates never replace active LKG;
+7. stale valid content remains renderable without a hard cutoff and configured cutoff suppresses it correctly;
+8. real Profile disable suppresses cached external Articles and a later successful real sync after re-enable restores them;
+9. invalid/revoked auth preserves LKG under stale policy and valid credential recovery works;
+10. P2's real `429` plus P3's external PHP retry observation prove `Retry-After` behavior without secret leakage;
+11. never-synced/unavailable state is safe and does not trigger visitor API fallback;
+12. all temporary failure conditions are removed and both managed and external environments finish healthy on a fresh real sync;
+13. any code repair is bounded, regression-tested, and within existing 2.0 behavior;
+14. package version is exactly `1.7.3`.
+
+Finish with a concise report listing changed files, external environment class, commands/procedures actually executed and results, evidence levels actually observed, normal sync/page counts and revision only when non-secret, each failure-matrix outcome, browser/no-visitor-call proof, repairs if any, final restoration status, explicit limitations, and any blocker that should prevent P4 closeout.
