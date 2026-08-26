@@ -2,6 +2,8 @@
 
 This package is a library-first, host-local cache adapter for the authenticated News Scraper v1 distribution API. It is not a visitor-path endpoint. Customer code may read the normalized `LocalReadResult` directly, implement `LocalProfileRenderer`, or use the optional `FallbackHtmlRenderer` for safe server-rendered reference HTML.
 
+The News Scraper application produces a versioned generic customer package from an explicit manifest. It contains the runtime files, `config/sync.env.example`, `config/local-read.env.example`, and generated `VERSION` and `integration-package.json` metadata. Tests, cache state, credentials, and unrelated repository files are not package inputs. The package producer returns the complete download result to its protected application consumer; it does not write an archive into this repository or a public directory.
+
 Set these runtime secrets/configuration values outside the public document root:
 
 ```text
