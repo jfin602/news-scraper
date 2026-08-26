@@ -7,11 +7,16 @@ import {
   type DistributionCredentialAdministrationService,
 } from '../../src/admin/distribution-credential-administration.ts';
 import {
+  PhpIntegrationPackageError,
+  type PhpIntegrationPackageProducer,
+} from '../../src/integrations/php-integration-package.ts';
+import {
   ADMIN_REQUEST_HEADER,
   ADMIN_REQUEST_HEADER_VALUE,
 } from '../../src/app/web/admin-api-security.ts';
 import { createWebApp } from '../../src/app/web/create-app.ts';
 import { registerDistributionCredentialAdministrationRoutes } from '../../src/app/web/distribution-credential-administration-router.ts';
+import { registerPhpIntegrationDownloadRoutes } from '../../src/app/web/php-integration-download-router.ts';
 import { startWebServer } from '../../src/app/web/server.ts';
 
 const plaintextToken = `nsd1.l${'a'.repeat(22)}.${'b'.repeat(43)}`;
@@ -147,6 +152,108 @@ describe('Distribution credential administration HTTP API', () => {
       await server.close();
     }
   });
+
+  it('serves the exact producer package without credential or selection coupling', async () => {
+    const credentialCalls: unknown[][] = [];
+    const packageBytes = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x00, 0xff]);
+    let packageBuilds = 0;
+    const producer: PhpIntegrationPackageProducer = {
+      async build() {
+        packageBuilds += 1;
+        return {
+          filename: 'news-scraper-php-integration-1.7.0.zip',
+          contentType: 'application/zip',
+          version: '1.7.0',
+          bytes: packageBytes,
+        };
+      },
+    };
+
+    await withAdminServer(
+      mockService(credentialCalls),
+      async (baseUrl) => {
+        const response = await fetch(
+          `${baseUrl}/admin/api/php-integration/download`,
+        );
+        assert.equal(response.status, 200);
+        assert.equal(response.headers.get('content-type'), 'application/zip');
+        assert.equal(
+          response.headers.get('content-disposition'),
+          'attachment; filename="news-scraper-php-integration-1.7.0.zip"',
+        );
+        assert.equal(
+          response.headers.get('content-length'),
+          String(packageBytes.length),
+        );
+        assert.deepEqual(
+          Buffer.from(await response.arrayBuffer()),
+          packageBytes,
+        );
+        assert.equal(response.headers.get('access-control-allow-origin'), null);
+        assertAdminSecurityHeaders(response);
+
+        const selected = await fetch(
+          `${baseUrl}/admin/api/php-integration/download?version=9.9.9&profile=other&credential=secret`,
+        );
+        assert.equal(selected.status, 400);
+        assert.deepEqual(await selected.json(), { error: 'invalid_request' });
+      },
+      producer,
+    );
+
+    assert.equal(packageBuilds, 1);
+    assert.deepEqual(credentialCalls, []);
+  });
+
+  it('contains package failures without exposing producer details', async () => {
+    const internalPath = 'C:\\private\\sentinel\\package.zip';
+    const internalError = 'zip failure secret sentinel';
+    const producer: PhpIntegrationPackageProducer = {
+      async build() {
+        const error = new PhpIntegrationPackageError('missing_file');
+        error.message = `${internalPath}: ${internalError}`;
+        throw error;
+      },
+    };
+
+    await withAdminServer(
+      mockService([]),
+      async (baseUrl) => {
+        const response = await fetch(
+          `${baseUrl}/admin/api/php-integration/download`,
+        );
+        const body = await response.text();
+        assert.equal(response.status, 503);
+        assert.deepEqual(JSON.parse(body), {
+          error: 'integration_package_unavailable',
+        });
+        assert.doesNotMatch(
+          body,
+          /private|sentinel|zip failure|package\.zip/iu,
+        );
+        assertAdminSecurityHeaders(response);
+      },
+      producer,
+    );
+  });
+
+  it('does not expose the download route when administration is disabled', async () => {
+    const server = await startWebServer(
+      createWebApp({
+        readiness: { checkReady: async () => true },
+        publicFeed: { read: async () => undefined },
+      }),
+      { host: '127.0.0.1', port: 0 },
+    );
+    try {
+      const response = await fetch(
+        `http://${server.host}:${String(server.port)}/admin/api/php-integration/download`,
+      );
+      assert.equal(response.status, 404);
+    } finally {
+      await server.close();
+    }
+  });
 });
 
 function metadata(lookupId: string): AdminDistributionCredentialReadModel {
@@ -191,6 +298,7 @@ function mockService(
 async function withAdminServer(
   service: DistributionCredentialAdministrationService,
   work: (baseUrl: string) => Promise<void>,
+  packageProducer?: PhpIntegrationPackageProducer,
 ): Promise<void> {
   const server = await startWebServer(
     createWebApp(
@@ -200,8 +308,11 @@ async function withAdminServer(
       },
       {
         adminEnabled: true,
-        registerAdminApiRoutes:
-          registerDistributionCredentialAdministrationRoutes(service),
+        registerAdminApiRoutes: (router) => {
+          registerDistributionCredentialAdministrationRoutes(service)(router);
+          if (packageProducer !== undefined)
+            registerPhpIntegrationDownloadRoutes(packageProducer)(router);
+        },
       },
     ),
     { host: '127.0.0.1', port: 0 },

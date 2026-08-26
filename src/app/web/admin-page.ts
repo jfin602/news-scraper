@@ -627,7 +627,10 @@ const adminPage = `<!doctype html>
                 <p class="section-kicker">Machine distribution access</p>
                 <h2 id="credentials-heading" tabindex="-1">Distribution Credentials</h2>
               </div>
-              <button type="button" class="button secondary" data-refresh-credentials>Refresh Credentials</button>
+              <div class="panel-actions">
+                <a class="button primary" href="/admin/api/php-integration/download">Download PHP Integration</a>
+                <button type="button" class="button secondary" data-refresh-credentials>Refresh Credentials</button>
+              </div>
             </div>
             <p class="section-help">Credentials grant only <code>distribution:read</code>. They never grant administrator access.</p>
             <div class="workspace-state" data-credentials-state="idle" role="status" aria-live="polite">Open Credentials to load the current credential records.</div>

@@ -21,8 +21,10 @@ import { startWebServer } from './server.ts';
 import { registerSourceAdministrationRoutes } from './source-administration-router.ts';
 import { registerModerationAdministrationRoutes } from './moderation-administration-router.ts';
 import { registerOperationalSnapshotRoutes } from './operational-snapshot-router.ts';
+import { registerPhpIntegrationDownloadRoutes } from './php-integration-download-router.ts';
 import { parseWebConfig } from './web-config.ts';
 import { createDistributionApiRuntime } from './distribution-api-runtime.ts';
+import { createPhpIntegrationPackageProducer } from '../../integrations/php-integration-package.ts';
 
 async function main(): Promise<void> {
   let database: ReturnType<typeof createDatabase> | undefined;
@@ -57,6 +59,10 @@ async function main(): Promise<void> {
       registerDistributionCredentialAdministrationRoutes(
         createDistributionCredentialAdministrationService(applicationDatabase),
       );
+    const registerPhpIntegrationDownloadRoute =
+      registerPhpIntegrationDownloadRoutes(
+        createPhpIntegrationPackageProducer(),
+      );
     const registerModerationRoutes = registerModerationAdministrationRoutes(
       applicationDatabase,
       createArticleAdministrationService(applicationDatabase),
@@ -83,6 +89,7 @@ async function main(): Promise<void> {
             registerEditorialRoutes(router);
             registerDistributionProfileRoutes(router);
             registerDistributionCredentialRoutes(router);
+            registerPhpIntegrationDownloadRoute(router);
             registerModerationRoutes(router);
             registerOperationalRoutes(router);
           },

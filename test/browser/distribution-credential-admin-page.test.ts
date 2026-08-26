@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { after, before, describe, it } from 'node:test';
 
 import { chromium, type Browser } from 'playwright';
@@ -8,9 +9,14 @@ import {
   type AdminDistributionCredentialReadModel,
   type DistributionCredentialAdministrationService,
 } from '../../src/admin/distribution-credential-administration.ts';
+import type { PhpIntegrationPackageProducer } from '../../src/integrations/php-integration-package.ts';
 import { createWebApp } from '../../src/app/web/create-app.ts';
 import { registerDistributionCredentialAdministrationRoutes } from '../../src/app/web/distribution-credential-administration-router.ts';
+import { registerPhpIntegrationDownloadRoutes } from '../../src/app/web/php-integration-download-router.ts';
 import { startWebServer, type WebServer } from '../../src/app/web/server.ts';
+
+const packageBytes = Buffer.from('fake-package-bytes');
+const packageFilename = 'news-scraper-php-integration-1.7.0.zip';
 
 describe('Distribution credential administration page browser behavior', () => {
   let browser: Browser;
@@ -146,12 +152,84 @@ describe('Distribution credential administration page browser behavior', () => {
       await server.close();
     }
   });
+
+  it('downloads the generic package with zero credentials and no token coupling', async () => {
+    const harness = new CredentialHarness();
+    const server = await startHarnessServer(harness);
+    const context = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+    });
+    const page = await context.newPage();
+    let downloadRequestUrl = '';
+    page.on('request', (request) => {
+      if (request.url().includes('/admin/api/php-integration/download'))
+        downloadRequestUrl = request.url();
+    });
+    try {
+      await page.goto(`${baseUrl(server)}/admin`);
+      await page.getByRole('tab', { name: /^Credentials/u }).click();
+      await page
+        .locator('[data-credentials-state][data-list-state="empty"]')
+        .waitFor();
+
+      const downloadLink = page.getByRole('link', {
+        name: 'Download PHP Integration',
+      });
+      await downloadLink.waitFor();
+      assert.equal(
+        await downloadLink.getAttribute('href'),
+        '/admin/api/php-integration/download',
+      );
+      const downloadPromise = page.waitForEvent('download');
+      await downloadLink.click();
+      const download = await downloadPromise;
+      assert.equal(download.suggestedFilename(), packageFilename);
+      const downloadedPath = await download.path();
+      assert.ok(downloadedPath);
+      assert.deepEqual(await readFile(downloadedPath), packageBytes);
+      assert.doesNotMatch(packageBytes.toString('utf8'), /nsd1|secret|token/iu);
+      assert.doesNotMatch(
+        downloadRequestUrl,
+        /nsd1|token|credential|profile|version/iu,
+      );
+      assert.doesNotMatch(download.suggestedFilename(), /nsd1|secret|token/iu);
+      assert.equal(
+        await page.evaluate(() => localStorage.length + sessionStorage.length),
+        0,
+      );
+      assert.equal(harness.packageBuilds, 1);
+      assert.equal(harness.credentials.length, 0);
+      assert.equal(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+        true,
+      );
+    } finally {
+      await context.close();
+      await server.close();
+    }
+  });
 });
 
 class CredentialHarness {
   credentials: AdminDistributionCredentialReadModel[] = [];
   serial = 0;
   failCreate = false;
+  packageBuilds = 0;
+  packageProducer(): PhpIntegrationPackageProducer {
+    return {
+      build: async () => {
+        this.packageBuilds += 1;
+        return {
+          filename: packageFilename,
+          contentType: 'application/zip',
+          version: '1.7.0',
+          bytes: packageBytes,
+        };
+      },
+    };
+  }
   service(): DistributionCredentialAdministrationService {
     return {
       listCredentials: async () => this.credentials,
@@ -237,8 +315,14 @@ async function startHarnessServer(
       },
       {
         adminEnabled: true,
-        registerAdminApiRoutes:
-          registerDistributionCredentialAdministrationRoutes(harness.service()),
+        registerAdminApiRoutes: (router) => {
+          registerDistributionCredentialAdministrationRoutes(harness.service())(
+            router,
+          );
+          registerPhpIntegrationDownloadRoutes(harness.packageProducer())(
+            router,
+          );
+        },
       },
     ),
     { host: '127.0.0.1', port: 0 },
