@@ -161,6 +161,14 @@ test('fails closed for malformed or missing project metadata', async () => {
         path.join(fixture, 'package.json'),
         JSON.stringify({ name: 'other', version: '1.7.0' }),
       ),
+    async (fixture: string) =>
+      await writeFile(
+        path.join(fixture, 'package.json'),
+        JSON.stringify({
+          name: 'news-scraper',
+          version: '1.7.0"\r\nX-Injected: true',
+        }),
+      ),
     async (fixture: string) => await rm(path.join(fixture, 'package.json')),
   ]) {
     const fixture = await createFixture('1.7.0');
@@ -264,6 +272,15 @@ test('fails closed when package entry or aggregate bounds are exceeded', async (
           maxTotalEntryBytes: 1,
         }).build(),
       isPackageError('size_limit_exceeded'),
+    );
+    await assert.rejects(
+      () =>
+        createPhpIntegrationPackageProducer(fixture, {
+          maxEntryBytes: 1_000_000,
+          maxTotalEntryBytes: 8_000_000,
+          maxArchiveBytes: 1,
+        }).build(),
+      isPackageError('archive_limit_exceeded'),
     );
   } finally {
     await rm(fixture, { recursive: true, force: true });
