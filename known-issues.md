@@ -4,6 +4,15 @@ This file is the running issue log for problems reported in this chat.
 
 ## Open Issues
 
+### T4QP — 2026-08-26 — PHP integration package requires a hand-created sync launcher
+
+- **Status:** Open
+- The generated PHP integration package includes `bin/sync.php` plus `config/sync.env.example`, but `bin/sync.php` reads configuration from the process environment and does not load the supplied `sync.env` file itself.
+- On shared hosting such as HostGator, this forces the customer to hand-create a private wrapper such as `run-sync.php` merely to load the private sync configuration before invoking the packaged synchronization entrypoint.
+- The supported integration package should include a version-matched launcher/wrapper that safely loads the private `sync.env` configuration and invokes `bin/sync.php`, so the normal installation path does not require customers to write integration glue code.
+- The launcher must keep the bearer token out of `public_html`, public PHP/HTML, and the Cron Jobs command line; preserve the existing sync entrypoint semantics including CLI options such as `--force`; and remain generic rather than HostGator-specific.
+- Documentation and the customer integration worksheet should use the packaged launcher once implemented rather than instructing customers to create their own wrapper.
+
 ### N6WD — 2026-08-25 — RSS descriptions may contain excessive full-article content
 
 - **Status:** Open
