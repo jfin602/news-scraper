@@ -1,0 +1,197 @@
+TASK: Correction 7 / P2 — Protected admin PHP integration download
+
+CORRECTION SCOPE
+This prompt consumes the P1 package producer and adds only the protected admin download endpoint plus the page-level `Download PHP Integration` action in the existing Distribution Credentials workspace. It must not change package membership/version rules owned by P1, credential lifecycle/authentication, Profile/API/PHP semantics, or any unrelated admin workspace.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Luna High`.
+- Task-shape classification: `Bounded`.
+- Specification clarity: `Explicit`.
+- State coupling: `Low`.
+- Integrity risk: `Moderate`.
+- Concurrency: `Local`.
+- Security: `Sensitive`.
+- Novel inference: `Low`.
+- Model-family basis: this is a narrow HTTP/UI consumer over the P1 producer using established admin routing and presentation conventions.
+- Reasoning basis: High reasoning is warranted to preserve the admin perimeter, binary response correctness, one-time credential secrecy, failure containment, browser download behavior, and existing credential controls while avoiding accidental coupling between credentials and the generic package.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna Medium`; rejected because download/error/security behavior spans Express response semantics plus real browser behavior and must not regress transient credential handling.
+- Escalation trigger: P1 does not expose a complete package result, the existing admin route boundary cannot serve a binary response without architectural change, or implementation would require weakening/admin-bypassing the current perimeter.
+- Escalation target: `Terra Medium`; return `Planning needed` if P1 must be redesigned or admin authorization contracts must change.
+- Estimate confidence: `High`.
+- Efficiency rationale: keep the route thin, reuse the existing admin-enabled perimeter and button styling, and extend the existing credential HTTP/browser suites rather than creating a new UI framework.
+
+VERSIONING
+- Required unchanged project version: `1.7.0`.
+- This correction MUST NOT change `package.json` version.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Correction prompt numbering consumes no Phase 7 roadmap patch number.
+
+GOAL
+Allow an administrator to click one page-level `Download PHP Integration` action from the Distribution Credentials workspace and receive the generic ZIP produced by P1 for the exact deployed News Scraper version.
+
+MANDATORY HANDOFF / PREFLIGHT
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, governing distribution/integration/security/testing contracts, Phase 7 roadmap entry, and `docs/codex-model-selection.md`;
+2. inspect the completed P1 diff, its package service/export, focused tests, and final report;
+3. inspect `src/app/web/admin-page.ts`, `src/app/web/admin/credentials.js`, `src/app/web/distribution-credential-administration-router.ts`, `src/app/web/main.ts`, `src/app/web/create-app.ts`, admin security middleware, existing admin HTTP tests, and `test/browser/distribution-credential-admin-page.test.ts`;
+4. trace how admin API routes are mounted only when administration is enabled and how security/no-store headers are applied;
+5. confirm Git history proves P1 complete and `package.json` remains exactly `1.7.0`;
+6. stop and report P1 incomplete if the HTTP consumer would need to read package files, determine the version, build ZIP bytes, or reconstruct package metadata itself.
+
+P1 PRODUCER -> P2 CONSUMER CONTRACT
+Consume exactly the P1 package result boundary:
+
+`download request -> P1 package service -> {safe filename, application/zip, deployed version, bounded ZIP bytes} -> HTTP response`
+
+P2 must not:
+- traverse `integrations/php`;
+- maintain a second file allowlist;
+- parse top-level `package.json` to discover the version;
+- generate `VERSION`/metadata/config templates;
+- implement CRC/ZIP encoding;
+- access machine credential records or plaintext tokens to construct the package.
+
+If any of those are necessary, stop and repair/replan P1 rather than duplicating producer-owned behavior.
+
+ADMIN ROUTE
+Add one dedicated admin GET route with this canonical path:
+
+`GET /admin/api/php-integration/download`
+
+Keep it logically separate from credential CRUD. Prefer a small dedicated route registrar/service consumer rather than adding package behavior to `DistributionCredentialAdministrationService` or its repository.
+
+The route must:
+- exist only inside the same admin-enabled API perimeter as current protected administrator routes;
+- call only the P1 package producer;
+- return status `200` on success;
+- set `Content-Type: application/zip`;
+- set a safe attachment `Content-Disposition` using exactly the P1 filename;
+- set the exact bounded byte body; set `Content-Length` when consistent with current Express conventions;
+- preserve the existing admin response security/no-store headers;
+- not add permissive CORS;
+- not accept credential/Profile/version/path query parameters;
+- not read request body state;
+- not expose local filesystem paths, source manifest internals, stack traces, or package-generation details.
+
+A package-unavailable/build failure must return a bounded admin-safe failure response, preferably `503` with a stable machine-readable code such as `integration_package_unavailable`, without leaking the underlying file/path/error. Use existing error handling conventions where they cleanly fit. Do not catch unrelated programmer errors merely to misclassify them.
+
+Administration-disabled behavior must remain fail-closed: the route is absent/404 just like other admin routes.
+
+Do not interpret the ordinary machine distribution bearer token as admin authorization and do not add a machine-auth path to this download.
+
+ADMIN UI
+In the existing Distribution Credentials workspace heading/actions, add one page-level action labeled exactly:
+
+`Download PHP Integration`
+
+It is not attached to an individual credential row and must remain available even when zero credentials exist, because the package itself is generic.
+
+Prefer the simplest accessible same-origin download control supported by the current page: a normal anchor styled with existing button classes and pointing to `/admin/api/php-integration/download`, relying on server `Content-Disposition` for attachment behavior. Do not add JS blob/object-URL machinery unless source inspection proves a normal link cannot satisfy the browser/download contract.
+
+Keep `Refresh Credentials` and all create/rotate/revoke controls unchanged. Do not automatically embed/copy a token into the ZIP and do not imply that downloading the package saves the one-time token.
+
+ONE-TIME CREDENTIAL SECRECY MUST REMAIN UNCHANGED
+The current credential workspace displays plaintext only immediately after create/rotate and clears it on dismiss/deactivate/reload. Preserve that exact behavior.
+
+The download control must not:
+- append the token to a URL/query/fragment;
+- place it in filename/headers/package bytes/localStorage/sessionStorage;
+- read `state.token` in `credentials.js`;
+- associate the package with a credential lookup ID;
+- make a credential metadata request as a prerequisite for download.
+
+If the UI can remain purely declarative in `admin-page.ts`, prefer leaving `credentials.js` untouched.
+
+RUNTIME COMPOSITION
+Wire the real P1 package service into `src/app/web/main.ts` through the same admin route-registration composition used by existing admin features.
+
+Do not make package construction a database dependency. The route must remain independent of PostgreSQL/credential repositories except for the existing overall Web/admin process availability.
+
+Avoid eagerly generating the ZIP during Web startup if that would turn a package-file problem into a complete Web startup outage. Prefer the smallest lazy/on-request or safely memoized producer behavior established by P1, with package failure contained to this admin download route.
+
+FOCUSED HTTP TEST REQUIREMENTS
+Add/extend component/integration coverage proving at least:
+- successful GET returns exact fake/package bytes without JSON/text mutation;
+- `Content-Type` is `application/zip`;
+- `Content-Disposition` contains only the exact safe versioned filename;
+- security/no-store headers remain present;
+- route calls the package producer and does not call credential CRUD service methods;
+- route accepts no version/Profile/credential selection behavior;
+- bounded package-unavailable failure does not leak injected internal path/error/secret sentinels;
+- administration-disabled app returns 404 for the download path;
+- existing credential create/list/rotate/revoke HTTP behavior and one-time plaintext boundaries remain green.
+
+Use an injected fake package producer in route tests so HTTP behavior is independent of filesystem ZIP generation already proved by P1.
+
+BROWSER TEST REQUIREMENTS
+Extend the existing real Playwright Distribution Credentials workspace coverage (or the narrowest clearly owned adjacent browser test) to prove:
+- `Download PHP Integration` is visible as a page-level action when Credentials is opened;
+- it is available with zero credentials;
+- clicking it produces a browser download with the exact expected versioned filename and expected test bytes/content from an injected fake package producer;
+- download does not create a credential, rotate/revoke one, reveal a token, or require a token to exist;
+- after issuing a credential, the existing plaintext transient/clear/reload behavior still passes;
+- no token appears in download URL, suggested filename, storage, or package fixture bytes;
+- mobile viewport remains free of horizontal overflow after adding the action;
+- existing keyboard/accessibility semantics remain sensible by using native link/button behavior and existing styles.
+
+Do not use the public internet or managed VPS in deterministic tests.
+
+PRESERVED BEHAVIOR / NON-GOALS
+Preserve without semantic change:
+- exact P1 archive manifest/version/config/exclusion rules;
+- machine credential generation, list, rotation overlap, revocation, expiry, one-time plaintext presentation, and `distribution:read` scope;
+- admin request-integrity behavior for mutations;
+- all other admin workspaces;
+- v1 API/auth/rate-limit/CORS behavior;
+- PHP synchronization/LKG/local-read/SSR behavior;
+- Source/Profile/Article/Category/moderation/deduplication behavior;
+- package version `1.7.0`.
+
+Do not:
+- add per-credential or per-Profile packages;
+- embed secrets;
+- add install/upload/deploy automation;
+- add a package registry, updater, WordPress/RSS/browser widget;
+- redesign Credentials UI;
+- add telemetry/analytics for downloads beyond existing bounded request handling unless already automatic infrastructure does so;
+- modify schema/migrations/database state;
+- modify Phase 7 qualification prompts or validation artifacts in this implementation prompt.
+
+FOCUSED DEVELOPMENT VALIDATION
+During implementation, use the narrowest affected HTTP integration test and browser test paths first. Rerun P1 package unit coverage whenever the producer interface is touched.
+
+FINAL-TREE VALIDATION
+On the unchanged final P2 tree run the smallest non-overlapping applicable set:
+- `npm run check`
+- `npm run test:security`
+- `npm run test:browser`
+- `npm run codex:phase:validate -- c7-php-dl`
+- committed-range `git diff --check` or equivalent over the accepted P2 change range
+
+`npm run check` already contains ordinary deterministic unit/integration/collection/PHP coverage; do not rerun those contained suites solely for duplicate evidence. No database/live-source/recovery/deployment suite is required unless the implementation unexpectedly enters those boundaries; if it does, stop and report scope drift.
+
+ACCEPTANCE CRITERIA
+P2 is complete only when:
+- one protected admin GET route serves only the P1 generic deployed-version package;
+- one page-level `Download PHP Integration` action appears in Credentials without credential-specific coupling;
+- the real browser downloads the exact version-bearing ZIP filename;
+- package failures are bounded and non-leaking;
+- admin-disabled behavior fails closed;
+- one-time credential secrecy and all existing credential controls are unchanged;
+- HTTP, security, browser, ordinary deterministic, and PHP regressions are green on the final tree;
+- P1's package contract remains the only package/version/manifest authority;
+- package version remains `1.7.0` and no npm lockfile exists.
+
+FINAL REPORT
+Report:
+- files changed;
+- route path and response contract;
+- exact UI placement/control behavior;
+- P1 producer -> P2 consumer mapping;
+- focused HTTP/browser proof and final validation commands/results;
+- confirmation that the ZIP is generic and no token/Profile/version request data enters packaging;
+- confirmation existing credential secrecy/lifecycle behavior remains preserved;
+- confirmation package version remains `1.7.0`;
+- any limitation or planning drift.
