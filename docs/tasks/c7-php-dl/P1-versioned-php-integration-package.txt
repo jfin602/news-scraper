@@ -1,0 +1,221 @@
+TASK: Correction 7 / P1 — Versioned PHP integration package
+
+CORRECTION SCOPE
+This bounded Phase 7 release-integration hardening correction adds only the customer-downloadable PHP integration package producer required by P2. It must not change Distribution Profile semantics, machine credential lifecycle/authentication, the v1 distribution API, PHP synchronization/LKG semantics, customer local-read semantics, or Phase 7 qualification behavior.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Luna High`.
+- Task-shape classification: `Bounded`.
+- Specification clarity: `Explicit`.
+- State coupling: `Low`.
+- Integrity risk: `Moderate`.
+- Concurrency: `None`.
+- Security: `Sensitive`.
+- Novel inference: `Low`.
+- Model-family basis: the change is a deterministic packaging boundary over an explicit fixed runtime file set; Luna is sufficient if the implementation remains dependency-free and isolated from product semantics.
+- Reasoning basis: High reasoning is warranted for archive correctness, fail-closed manifest validation, secret/state exclusion, deployed-version identity, and negative coverage around malformed/missing package inputs.
+- Complexity / quality floor: `Elevated`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna Medium`; rejected because an archive that silently omits runtime dependencies, includes private/test material, or reports the wrong version would create a customer-facing release defect that may not be obvious from happy-path tests.
+- Escalation trigger: implementation requires a new production dependency, shelling out to external archive tools, a new application build/release pipeline, or shared architecture beyond this bounded package producer.
+- Escalation target: `Terra Medium`; return `Planning needed` if a product/deployment contract change is actually required.
+- Estimate confidence: `High`.
+- Efficiency rationale: own one fixed manifest + one small package service with focused unit proof; do not mix HTTP/admin UI concerns into this producer prompt.
+
+VERSIONING
+- Required unchanged project version: `1.7.0`.
+- This correction MUST NOT change `package.json` version.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Correction prompt numbering consumes no Phase 7 roadmap patch number.
+
+GOAL
+Create a narrow production-side service that can build the exact generic PHP integration ZIP for the currently deployed News Scraper source/version. P2 must be able to consume this service without reading arbitrary filesystem paths, inventing package membership, discovering the project version independently, or understanding ZIP internals.
+
+READ FIRST / PREFLIGHT
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/contracts/distribution-and-integration-contract.md`, `docs/contracts/distribution-api-contract.md`, `docs/contracts/testing-and-validation-contract.md`, Phase 7 in `docs/roadmap/post-1.0-roadmap.md`, and `docs/codex-model-selection.md`;
+2. inspect `package.json`, `integrations/php/README.md`, every production file under `integrations/php/src/`, `integrations/php/bin/sync.php`, `integrations/php/example/index.php`, and the PHP test harness;
+3. inspect how `src/app/web/main.ts` resolves runtime resources and current source/module conventions before choosing the package-service module location;
+4. confirm the package version is exactly `1.7.0` and no earlier prompt in `c7-php-dl` is already completed in Git history;
+5. stop and report planning drift if the repository already contains a deployed-version PHP download/package authority that should be reused rather than duplicated.
+
+PACKAGE CONTRACT
+The downloadable artifact is generic and MUST NOT be tied to a specific machine credential or Distribution Profile.
+
+The ZIP filename exposed to P2 must be exactly version-bearing and safe, using this shape:
+
+`news-scraper-php-integration-<deployed-version>.zip`
+
+The archive must contain one stable top-level directory:
+
+`news-scraper-php-integration/`
+
+Within that root, package only customer-facing runtime/install material. Use an explicit allowlist; never recursively archive `integrations/php/`.
+
+Required runtime membership at the current tree is:
+- `README.md`;
+- `bin/sync.php`;
+- `example/index.php`;
+- every PHP file required by `src/bootstrap.php`: `Http.php`, `Configuration.php`, `Client.php`, `Synchronizer.php`, `LocalState.php`, `FilesystemStateStore.php`, `LocalRead.php`, `Renderer.php`, `Runtime.php`, and `bootstrap.php`;
+- `config/sync.env.example`;
+- `config/local-read.env.example`;
+- generated `VERSION`;
+- generated `integration-package.json`.
+
+Do not dynamically glob new files into the package merely because they appear under `integrations/php`. If the production runtime dependency set changes, the explicit package manifest must be intentionally updated and tested.
+
+EXCLUSIONS
+The ZIP MUST NOT contain:
+- `integrations/php/tests/` or any test-only fixture/helper;
+- repository root files unrelated to customer PHP installation;
+- `.env`, credentials, bearer tokens, Authorization values, cookies, database URLs, private keys, host-specific secrets, deployment paths, generated LKG/cache state, logs, backups, runtime temporary files, or operator configuration;
+- `package.json` from the Node application unless it is intentionally represented only through the generated bounded package metadata described below;
+- source maps, Node modules, Composer/vendor files, or speculative installer/updater code.
+
+DEFAULT CONFIG TEMPLATES
+Add version-controlled customer templates under `integrations/php/config/` so the package contents are reviewable in source control.
+
+`sync.env.example` must expose only supported synchronization configuration with safe placeholder values and actual current defaults:
+- `NEWS_SCRAPER_BASE_URL=https://your-news-scraper.example` or equivalent clearly non-live HTTPS placeholder;
+- `NEWS_SCRAPER_PROFILE_KEY=replace-with-profile-key`;
+- `NEWS_SCRAPER_STATE_ROOT=/absolute/private/path/news-scraper-state` or equivalent;
+- `NEWS_SCRAPER_BEARER_TOKEN=replace-with-machine-credential`;
+- `NEWS_SCRAPER_SYNC_CADENCE_SECONDS=900`;
+- `NEWS_SCRAPER_TIMEOUT_SECONDS=20`;
+- `NEWS_SCRAPER_MAX_RESPONSE_BYTES=2097152`;
+- optional `NEWS_SCRAPER_MAX_STALE_AGE_SECONDS` documented/commented rather than inventing a default hard cutoff.
+
+`local-read.env.example` must contain only visitor/local-read configuration:
+- Profile key;
+- non-public state root;
+- cadence `900`;
+- optional stale-age setting.
+
+It MUST NOT contain `NEWS_SCRAPER_BASE_URL` or `NEWS_SCRAPER_BEARER_TOKEN`.
+
+Keep these templates aligned with the current PHP configuration classes. Do not add unsupported knobs.
+
+VERSION / METADATA AUTHORITY
+The package producer must derive the deployed News Scraper version from the same deployed repository tree that supplies the PHP files, rather than accepting arbitrary request/user input.
+
+Generate:
+- `VERSION` containing the exact top-level application semantic version plus a trailing newline;
+- `integration-package.json` containing a small stable JSON object identifying at least the product/package name, exact News Scraper version, and API generation `v1`.
+
+Do not include timestamps, hostnames, filesystem paths, credentials, or mutable deployment state in this metadata unless an existing authoritative runtime build identity already exists and can be included without expanding scope. The important invariant is package/source/version correspondence.
+
+If top-level package metadata is missing, malformed, unsupported, or cannot be associated with the same repository tree as the allowlisted PHP files, fail closed rather than manufacturing a package.
+
+ARCHIVE IMPLEMENTATION
+Use Node core only for this correction. Do not add an npm dependency and do not invoke `zip`, PowerShell, Python, PHP, shell commands, or other external executables from the web process.
+
+Implement the smallest standards-compliant ZIP encoding needed for this fixed package. Stored/uncompressed entries are acceptable; compression is not a requirement. Keep archive paths UTF-8, relative, slash-separated, deterministic, and free of traversal/absolute path forms.
+
+Bound package generation so an accidental source change cannot turn an admin request into an unbounded memory/filesystem operation. Use explicit per-entry and aggregate byte limits appropriate to this small package, validate all allowlisted entries are ordinary files, and reject symlink/path escape behavior. Do not follow arbitrary links outside the package root.
+
+Do not create generated ZIP files in the repository or a public directory. The producer should return a bounded in-memory package result suitable for a later HTTP response.
+
+OWNING SERVICE / HANDOFF
+Create one narrow package producer/service outside the canonical distribution read-model/authentication domains. It may live under an existing appropriate admin/integration infrastructure boundary; do not introduce a broad new architecture layer merely for one artifact.
+
+Expose a small result contract sufficient for P2, for example conceptually:
+- exact safe download filename;
+- MIME type `application/zip`;
+- exact deployed version;
+- ZIP bytes.
+
+The exact symbol names are implementation-owned, but P2 must not need to know:
+- repository paths;
+- PHP manifest details;
+- ZIP header/CRC rules;
+- version parsing rules;
+- config-template generation rules.
+
+Do not couple this service to `DistributionCredentialAdministrationService`, credential repositories, Profile repositories, PostgreSQL, or v1 API services.
+
+P2 DOWNSTREAM HANDOFF CONTRACT
+Before reporting P1 complete, explicitly map and prove:
+
+`deployed repository tree -> package version authority -> focused version/metadata test`
+
+`fixed PHP customer manifest -> package entries -> focused exact-membership/exclusion test`
+
+`config source templates -> archive config entries -> focused default/secret-boundary test`
+
+`package result -> filename/content type/version/bytes export -> focused consumer-readiness test`
+
+P2 must be able to mount a protected GET route using only this package result. If P2 would need to read package.json, traverse `integrations/php`, construct metadata, or manipulate ZIP internals itself, P1 is incomplete.
+
+FOCUSED TEST REQUIREMENTS
+Add focused unit coverage for at least:
+- exact archive entry set and stable top-level directory;
+- every `bootstrap.php` runtime dependency is present;
+- tests and unrelated repository files are absent;
+- config templates contain the actual governed defaults;
+- visitor config contains no base URL or bearer-token field;
+- no representative token/secret/state sentinel leaks into generated package bytes/entries;
+- `VERSION` and metadata match the fixture/deployed project version;
+- safe version-bearing filename;
+- malformed/missing top-level package metadata fails closed;
+- missing required PHP/config file fails closed;
+- symlink/path escape/non-ordinary-file case fails closed where supported by the injected fixture boundary;
+- per-entry/aggregate size limit violation fails closed;
+- archive is structurally valid enough to independently enumerate/read stored entries in the test without trusting the same production manifest logic;
+- repeated packaging of unchanged deterministic inputs yields stable entry ordering/content and no mutable host-specific fields.
+
+Prefer a test-only independent minimal ZIP reader/parser over invoking an external unzip program. Do not add a production ZIP decoder solely for tests.
+
+PRESERVED BEHAVIOR / NON-GOALS
+Preserve without semantic change:
+- PHP sync/client/retry/cursor/revision/locking/LKG behavior;
+- local-read/usability/stale/disabled behavior;
+- fallback renderer and exact `originalUrl` destinations;
+- machine credential generation/list/rotate/revoke/authentication behavior;
+- admin request-integrity and perimeter behavior;
+- v1 distribution route/schema/auth/rate-limit behavior;
+- all Source/Profile/Article/Category/moderation/deduplication semantics;
+- package version `1.7.0`.
+
+Do not:
+- add the admin route/button in P1;
+- embed credentials or Profile-specific values;
+- auto-install/deploy to a customer host;
+- build WordPress/RSS/browser-widget support;
+- add a general artifact framework/package registry/updater;
+- change roadmap/docs outside the narrow PHP package README/config documentation needed to explain the shipped templates;
+- modify schema/migrations or persistence.
+
+FOCUSED DEVELOPMENT VALIDATION
+During implementation, run the narrowest focused unit command for the new package producer repeatedly as needed, plus PHP tests if README/config/source changes implicate PHP package assumptions.
+
+FINAL-TREE VALIDATION
+On the unchanged final P1 tree run the smallest non-overlapping applicable set:
+- `npm run check`
+- `npm run codex:phase:validate -- c7-php-dl`
+- committed-range `git diff --check` or equivalent over the accepted P1 change range
+
+No database, browser, live-source, recovery, or deployment evidence is required for P1 unless scope unexpectedly enters those boundaries; if it does, stop and report scope drift.
+
+ACCEPTANCE CRITERIA
+P1 is complete only when:
+- one explicit allowlisted generic PHP customer package is produced from the deployed source tree;
+- version/metadata unambiguously match that same deployed tree;
+- no credential/Profile-specific data, secrets, tests, state, or unrelated files can enter the archive;
+- both safe config templates exist with correct current defaults and visitor/sync separation;
+- the ZIP is standards-compliant, bounded, dependency-free, and produced without external executables;
+- P2 has one tested package result boundary and needs no filesystem/ZIP/version knowledge;
+- focused negative tests are substantive;
+- existing deterministic regressions remain green;
+- package version remains `1.7.0` and no npm lockfile exists.
+
+FINAL REPORT
+Report:
+- files changed;
+- exact archive manifest and generated metadata;
+- package producer/export consumed by P2;
+- archive safety/bounds decisions;
+- downstream handoff mapping and focused proof;
+- focused and final validation commands actually run/results;
+- confirmation that no secret, runtime state, test directory, Node dependency, or external archive executable is included/required;
+- confirmation package version remains `1.7.0`;
+- any limitation or planning drift.
