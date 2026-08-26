@@ -1,0 +1,210 @@
+TASK: Correction 7 / P3 — PHP integration download closeout
+
+CORRECTION SCOPE
+This is the final independent closeout for `c7-php-dl`. Review and harden only the P1 deployed-version PHP ZIP producer and P2 protected admin download surface. Do not add new integration features, alter Phase 7 qualification scope, or redesign any upstream distribution/PHP/credential behavior.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Task-shape classification: `Cross-cutting`.
+- Specification clarity: `Explicit`.
+- State coupling: `Low`.
+- Integrity risk: `Moderate`.
+- Concurrency: `Local`.
+- Security: `Sensitive`.
+- Novel inference: `Moderate`.
+- Model-family basis: closeout requires independent code-reading across package producer, filesystem/archive safety, protected HTTP response, admin browser behavior, and preserved credential secrecy; repository policy intentionally uses Sol for this final adversarial review.
+- Reasoning basis: Light is the default closeout effort because the architecture is already explicit and bounded; the work is independent verification/hardening rather than a new design exercise.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: lower-family closeout is not the normal repository policy; `Sol Light` is the minimum intended independent-review baseline.
+- Escalation trigger: material ambiguity appears in archive/source/version ownership, admin authorization/security, concurrency/resource behavior, or a defect requires architectural redesign rather than a bounded repair.
+- Escalation target: compare `Terra High`/`Terra Ultra` for deeper explicit state reasoning; use higher-effort Sol when stronger cross-system inference/contract reconciliation is the actual need; return `Planning needed` for product/contract scope changes.
+- Estimate confidence: `High`.
+- Efficiency rationale: independently inspect the final P1+P2 diff and important consumers, derive adversarial failure hypotheses, repair only concrete bounded defects, and run one non-overlapping final validation matrix.
+
+VERSIONING
+- Required unchanged project version: `1.7.0`.
+- This correction closeout MUST NOT change `package.json` version.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Do not consume a Phase 7 roadmap patch number.
+
+GOAL
+Establish whether the final correction tree safely provides a generic customer PHP ZIP matching the deployed News Scraper version and a protected page-level admin download, without secrets/state/tests in the archive, without credential-specific coupling, and without regressions to machine credentials or PHP/distribution behavior.
+
+PREFLIGHT / READ FIRST
+Before reviewing or editing:
+1. read current `BOOT.md`, `AGENTS.md`, governing project/distribution/integration/API/testing/security contracts, Phase 7 roadmap entry, and `docs/codex-model-selection.md` closeout rules;
+2. inspect P1 and P2 prompts plus their implementation commits/reports;
+3. inspect the complete committed P1+P2 diff, not only files named in reports;
+4. inspect every important package-producer helper, its unit tests, PHP package templates/README, the admin download route, Web composition, Credentials HTML/JS, admin security middleware, HTTP tests, browser tests, and existing credential/PHP consumers implicated by shared helpers;
+5. verify Git history proves P1 then P2 complete with no gap and `package.json` is exactly `1.7.0`;
+6. inspect `git status`, unexpected generated artifacts, lockfiles, ZIPs, secrets/state/logs, and unrelated changes before claiming a clean correction candidate;
+7. stop and report if the work has expanded into Profile/API/PHP synchronization semantics, database/schema behavior, deployment automation, or another feature outside this correction.
+
+FINAL INVARIANTS
+The final tree must satisfy all of these simultaneously:
+- one explicit allowlisted generic PHP package; no recursive arbitrary-directory packaging;
+- archive corresponds to the same deployed repository tree/version that supplies its PHP files;
+- exact version-bearing safe filename and bounded metadata;
+- safe sync/local-read templates with current supported defaults and strict visitor credential separation;
+- no credentials, bearer tokens, Authorization values, Profile-specific values, private state, logs, backups, tests, deployment secrets/paths, Node modules, or unrelated repository content in the ZIP;
+- bounded ordinary-file reads, no symlink/path escape, no absolute/traversal archive paths, bounded memory/entry/aggregate behavior;
+- standards-compliant ZIP produced using Node core only, with no production npm archive dependency or external executable;
+- P1 package service remains the sole manifest/version/archive authority;
+- `GET /admin/api/php-integration/download` is a thin protected admin consumer only;
+- successful response uses exact `application/zip`, safe attachment filename, bounded bytes, and existing security/no-store behavior;
+- package failure is bounded/non-leaking and does not take down unrelated Web/admin behavior;
+- admin-disabled configuration does not expose the route;
+- the Credentials workspace has one page-level `Download PHP Integration` action independent of credential rows/count;
+- download never reads/embeds/exposes the transient plaintext token and does not create/rotate/revoke credentials;
+- existing create/list/rotate/revoke/one-time-clear behavior is unchanged;
+- no v1 API/Profile/Source/Article/Category/moderation/deduplication/PHP sync/LKG/local-read behavior changed;
+- package version remains `1.7.0`.
+
+PASS 1 — CONTRACT / EVIDENCE REVIEW
+Independently verify implementation against the correction prompts and governing contracts.
+
+At minimum trace:
+
+`same deployed repo root -> top-level version -> generated VERSION/metadata -> download filename`
+
+`explicit customer manifest -> file validation/bounds -> ZIP encoder -> package result`
+
+`package result -> protected admin route -> attachment response -> browser download`
+
+`credential create/rotate plaintext state -> Credentials workspace -> download control` and prove the download path is independent.
+
+Check producer/consumer ownership: the route/UI must not duplicate manifest/version/ZIP logic and the producer must not depend on credential/Profile/database services.
+
+Inspect focused tests for meaningful independent proof rather than self-confirming implementation assertions. Confirm tests exercise malformed/missing/oversized/path/symlink cases where applicable, exact exclusions/defaults/version metadata, binary HTTP headers/body, admin-disabled behavior, package failure redaction, browser filename/content, zero-credential availability, and transient-token preservation.
+
+Classify actual evidence honestly using the testing contract. Do not claim deployment/reference-host proof from local unit/integration/browser tests.
+
+PASS 2 — ERROR / EDGE-CASE ADVERSARIAL REVIEW
+Generate realistic failure hypotheses from the final code even if current tests are green. Deliberately inspect at least:
+- malformed or hostile semantic version affecting filename/header/metadata;
+- missing/malformed top-level package metadata;
+- required source file removed/renamed between manifest maintenance and packaging;
+- symlink or non-ordinary allowlisted source entry;
+- path normalization differences across Windows/Linux;
+- UTF-8/filename/header escaping and `Content-Disposition` injection;
+- zero-length/unexpectedly large source files and aggregate archive growth;
+- CRC/offset/ZIP central-directory correctness and large-size assumptions within the bounded limits;
+- partial filesystem read/package failure and whether previous/request state can leak;
+- simultaneous/repeated downloads and accidental mutable shared buffers/cache corruption;
+- package service failure accidentally becoming Web startup failure;
+- admin-disabled route exposure or route mounted outside the admin API perimeter;
+- machine bearer credential being accepted as substitute admin authority;
+- error responses leaking filesystem paths, source content, stack traces, token-like sentinels, or internal package details;
+- token present in current page state while a download occurs;
+- download URL/filename/storage/history containing token/Profile/credential identity;
+- zero credentials, revoked credentials, rotated credentials, reload/deactivate paths;
+- mobile layout/focus/accessibility regressions from the new page-level action;
+- accidental `tests/`, `.env`, state/log files, generated ZIPs, npm lockfiles, or archive dependencies entering the repository/package.
+
+For every plausible failure, determine from source plus executed evidence whether it is protected, requires a focused negative test, or reveals a bounded defect. A concrete unambiguous defect inside correction scope MAY be repaired here with focused regression coverage and affected broader validation rerun. Do not use closeout to invent new package/install functionality.
+
+PASS 3 — CODE QUALITY / STRUCTURAL REVIEW
+Inspect the final diff and important producers/consumers for:
+- duplicated package manifest/version/config logic;
+- ZIP logic leaking into Express/UI modules;
+- credential service/repository coupling that serves no domain purpose;
+- broad generic artifact/package abstractions created for one bounded feature;
+- speculative update/registry/install machinery;
+- unnecessary production dependency or external-process execution;
+- unbounded reads/buffers or weak error ownership;
+- hard-coded runtime paths that make deployed source resolution brittle;
+- test helpers incorrectly placed in production source;
+- changes to `credentials.js` that are unnecessary when a native same-origin download link suffices;
+- brittle browser tests coupled to private implementation rather than observable download behavior;
+- stale README/default template claims inconsistent with actual PHP configuration classes;
+- unrelated cleanup/documentation/roadmap drift.
+
+Small local cleanup or a concrete bounded defect may be fixed here when behavior is unambiguous and validation can be rerun.
+
+MEANINGFUL REFACTOR HANDOFF
+If any pass finds a meaningful behavior-preserving refactor is required (responsibility movement across modules, shared-flow consolidation, abstraction replacement, multi-file structural simplification, or comparable work whose safety depends on tracing multiple consumers), STOP before implementing that refactor and output exactly one self-contained `Terra High` refactor remediation prompt.
+
+That remediation prompt must:
+- recommend exactly `Terra High`;
+- state the observed structural problem and evidence;
+- define the smallest behavior-preserving files/modules/producers/consumers boundary;
+- preserve all package-security, admin-security, credential-secrecy, distribution/PHP semantics, data-integrity/idempotency/provenance/failure-isolation invariants implicated by touched code;
+- forbid new product behavior, contract/ADR changes, roadmap expansion, unrelated cleanup, and speculative abstractions;
+- preserve package version `1.7.0` and consume no correction/roadmap prompt number;
+- require focused tests plus every broader suite invalidated by the refactor;
+- require an implementation report but MUST NOT declare this correction GREEN or finalize its validation artifact;
+- instruct Terra High to stop/report if the work is actually a product/contract/architecture change or exceeds a bounded behavior-preserving refactor.
+
+After that remediation is applied, rerun this P3 closeout from the beginning. Only the rerun may establish GREEN.
+
+BOUNDED CLOSEOUT REPAIRS
+Without invoking the refactor handoff, P3 may fix only concrete, unambiguous defects already inside P1/P2 intent, such as:
+- missing archive/header/path validation;
+- one bounded package-error translation leak;
+- incorrect filename/content-type/content-disposition behavior;
+- missing no-store/security header preservation;
+- accidental token/package coupling;
+- a missing focused negative regression test;
+- small local dead/duplicate branch cleanup.
+
+After any repair, rerun the focused affected tests and the full final matrix on the resulting unchanged tree.
+
+DURABLE VALIDATION ARTIFACT
+Because this correction gates the intended customer-integration exercise and Phase 7 continuation, create/update one durable correction validation record under:
+
+`docs/validation/c7-php-integration-download.md`
+
+Record only evidence actually observed. Include:
+- correction identity and accepted source/commit SHA as available under runner conventions;
+- unchanged package version;
+- files/behavior reviewed;
+- the P1 producer -> P2 HTTP/UI consumer chain;
+- exact focused/final commands run and results;
+- evidence levels (unit, component/integration, browser, static);
+- findings/disposition from all three passes;
+- any bounded defects/tests added during closeout;
+- whether a Terra High refactor handoff occurred before the final rerun;
+- explicit limitations: no reference-deployment/customer-host proof is claimed by this correction closeout unless actually separately observed;
+- unresolved risks/blockers, if any.
+
+Do not rewrite historical Phase 3/5/6/7 validation evidence.
+
+FINAL VALIDATION
+Use focused tests during review/repair. On the final unchanged correction tree run the smallest non-overlapping applicable set:
+- `npm run check`
+- `npm run test:security`
+- `npm run test:browser`
+- `npm run codex:phase:validate -- c7-php-dl`
+- committed-range `git diff --check` or equivalent over the complete accepted correction range
+
+Do not separately rerun ordinary unit/integration/PHP suites solely to duplicate `npm run check`. No database/live-source/recovery/reference-deployment suite is required because this correction changes no persistence/collection/deployment semantics. If actual edits unexpectedly enter those boundaries, stop and classify scope drift before broadening evidence.
+
+GREEN GATE
+Declare `GREEN — HUMAN REVIEW REQUIRED` only if:
+- P1 and P2 behavior fully satisfies their contracts;
+- no unresolved security/archive/credential-secrecy defect remains;
+- producer/consumer ownership is clean and non-duplicated;
+- all three independent review passes have findings/disposition recorded;
+- focused proof is substantive and the final non-overlapping matrix passes on the exact final tree;
+- durable correction validation is recorded honestly;
+- no unrelated behavior, dependency, lockfile, schema, roadmap version, or package version change remains;
+- package version is still exactly `1.7.0`.
+
+If any required evidence fails, an unresolved defect remains, or the work needs architecture/product scope beyond a bounded closeout repair, report NOT GREEN and the exact blocker instead.
+
+FINAL REPORT
+Report:
+- pre-closeout HEAD/candidate identity;
+- final changed-file/diff summary including any P3 repairs;
+- package producer/archive manifest/version-security conclusions;
+- admin route/UI/security/credential-secrecy conclusions;
+- contract/evidence pass findings;
+- error/edge-case adversarial pass findings and disposition;
+- code-quality/structural pass findings and disposition;
+- bounded defects/tests added, if any;
+- whether a Terra High refactor handoff occurred and whether this is the final rerun;
+- exact validation commands/results/evidence levels;
+- durable validation artifact path;
+- confirmation package version remains `1.7.0` and no npm lockfile exists;
+- any limitation/blocker requiring human review.
