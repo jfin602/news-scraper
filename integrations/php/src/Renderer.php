@@ -76,7 +76,7 @@ final class FallbackHtmlRenderer implements LocalProfileRenderer
         $html .= '<article>';
         $html .= '<h2><a href="' . $this->escape($article->originalUrl) . '">' . $this->escape($article->headline) . '</a></h2>';
         $html .= '<p class="news-scraper-source">Source: ' . $this->escape($article->source->displayName) . '</p>';
-        $html .= '<p class="news-scraper-date"><time datetime="' . $this->escape($article->effectiveFeedDate) . '">' . $this->escape($article->effectiveFeedDate) . '</time></p>';
+        $html .= '<p class="news-scraper-date"><time datetime="' . $this->escape($article->effectiveFeedDate) . '">' . $this->escape((new \DateTimeImmutable($article->effectiveFeedDate))->format('M j, Y')) . '</time></p>';
 
         if ($article->publishedAt !== null) {
             $html .= '<p class="news-scraper-published">Published: ' . $this->escape($article->publishedAt) . '</p>';
