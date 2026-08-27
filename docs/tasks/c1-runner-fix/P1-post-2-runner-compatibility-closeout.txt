@@ -1,0 +1,309 @@
+TASK: Correction 1 / P1 — Post-2 runner compatibility implementation and closeout
+
+CORRECTION SCOPE
+This is the owner-approved single-prompt combined implementation + closeout correction that removes the final tooling blocker before the 3.0 roadmap can be activated. The package is already released at `2.0.0`; the 3.0 roadmap is owner-approved but PRE-ACTIVATION. This correction changes only Codex roadmap-family/task-stack tooling, its focused tests/type declarations, a durable correction validation artifact, and narrow current-state workflow documentation that must match the implemented runner.
+
+OWNER PROCESS WAIVER
+The owner explicitly approved `/prompt-ass`, `/prompt-plan`, and `/prompt-write c1-runner-fix` as one uninterrupted workflow and explicitly requested this one-prompt combined implementation/closeout stack. Do not split this work into separate implementation and closeout prompts and do not stop for another planning/acceptance checkpoint merely because the normal workflow would use separate prompts. This process waiver does NOT waive technical correctness, fail-closed behavior, test execution, validation honesty, package-version safety, or final human review of the resulting uncommitted closeout changes.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: this task changes the shared parser/plan/version/resume authority consumed by every later roadmap run and must simultaneously review its own integrated result; Terra is the minimum family appropriate for this bounded but high-integrity cross-file tooling change.
+- Reasoning basis: High is warranted because three roadmap families, correction semantics, type declarations, exact Git-history resume expectations, validator/display consumers, negative collision cases, and the one-prompt closeout execution shape must remain mutually consistent.
+- Task shape: `Cross-cutting`.
+- Specification clarity: `Explicit`.
+- State coupling: `High`.
+- Integrity risk: `High`.
+- Concurrency: `None`.
+- Security: `Ordinary`.
+- Novel inference: `Moderate`.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because a subtle family/version/resume mismatch could make valid 2.x roadmap work unsafe or misinterpret retained historical task history.
+- Higher-family alternative considered: `Sol Light`; not selected because this is primarily an implementation task requiring deliberate state/version reasoning, and the owner intentionally collapsed the normally independent closeout boundary into this same prompt.
+- Escalation trigger: current source reveals an ambiguity that cannot be resolved from the existing 3.0 roadmap, or safe support requires redesigning Git-history semantics, correction semantics, or roadmap version policy rather than adding the explicit third family.
+- Escalation target: `Sol High` only for genuinely ambiguous cross-system reasoning; otherwise stop and report planning drift rather than broadening scope.
+- Estimate confidence: `High`.
+- Efficiency rationale: extend the existing normalized roadmap-family authority once, update direct consumers/types/tests, then perform the three required closeout passes in the same run instead of creating another abstraction or parallel parser.
+
+VERSIONING
+- Required unchanged project version: `2.0.0`.
+- This correction MUST NOT change the top-level `package.json` version.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Do not activate `2.1.0` in this prompt.
+- Correction prompt numbering is local only and consumes no 3.0 roadmap patch version.
+
+EXECUTION SHAPE
+This folder intentionally contains exactly one prompt and that prompt is the correction closeout. The current parser already permits a correction stack with one final closeout and zero ordinary implementation prompts. Therefore the intended runner invocation is:
+
+`npm run codex:phase -- c1-runner-fix --closeout`
+
+Do NOT recursively invoke that command from inside this prompt. This prompt is already the invoked closeout process.
+
+Because the runner's closeout path is a human-review boundary, do not self-commit implementation or validation changes. Preserve HEAD, leave the final reviewed changes uncommitted for human inspection, and report HUMAN REVIEW REQUIRED. A later human commit is outside this prompt.
+
+MANDATORY PRE-EDIT HANDOFF
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/roadmap/3.0-roadmap.md`, `docs/contracts/testing-and-validation-contract.md`, and `docs/codex-model-selection.md`;
+2. inspect current `scripts/codex-phase-core.mjs`, `scripts/codex-phase-core.d.mts`, `scripts/codex-phase.mjs`, and `scripts/validate-codex-phase.mjs`;
+3. inspect all relevant focused coverage in `test/unit/codex-phase-prompt-grammar.test.ts` and `test/unit/codex-phase-runner.test.ts`;
+4. search every consumer of `roadmapFamily`, `roadmapMajor`, `roadmapVersionFor`, `buildPlan`, `detectCompletedPromptPrefix`, `assertVersionCompatible`, `promptCommitSubject`, and plan/display labels before changing shared behavior;
+5. inspect current `package.json` scripts so final validation containment is based on what `npm run check` actually executes;
+6. confirm package version is exactly `2.0.0`, the working tree was clean at invocation, this folder contains only this P1 task, and the 3.0 roadmap still requires the bounded post-2.0 runner correction before activation;
+7. capture the pre-correction HEAD for the durable validation artifact and final diff review;
+8. stop and report `Planning needed` if the post-2.0 family has already been implemented differently, the 3.0 roadmap/version law changed, or current source requires a materially broader runner architecture change.
+
+CURRENT IMPLEMENTATION FACTS TO VERIFY
+The current shared core is expected to have:
+- `ROADMAP_FAMILIES.historical` with major `0` and id `pre-1.0`;
+- `ROADMAP_FAMILIES.post1` with major `1` and id `post-1.0`;
+- historical phase folders `p<number>`;
+- post-1.0 folders `p1-<phase>`;
+- correction folders `c<phase>-<lower-kebab-slug>`;
+- one shared `roadmapVersionFor(plan, promptNumber)` used for phase target validation and Git-proven resume reconstruction;
+- type declarations restricting roadmap family/major to the current two-family union;
+- validator output that distinguishes only post-1.0 from historical pre-1.0;
+- focused grammar/runner tests that prove the 0.x and 1.x families plus correction fixed-version behavior.
+
+Treat those as inspection expectations, not authority. If the current tree differs, follow the actual current implementation and governing docs.
+
+GOAL
+Extend the existing roadmap-family authority with one explicit post-2.0 family so the runner can safely represent the owner-approved 3.0 development line:
+
+`p2-<phase>` -> roadmap major `2` -> target versions `2.<phase>.<prompt-number>`
+
+while preserving historical `p<number>` -> `0.<phase>.<prompt-number>`, post-1.0 `p1-<phase>` -> `1.<phase>.<prompt-number>`, and all correction fixed-version semantics exactly.
+
+Do this without introducing a generic arbitrary-major roadmap framework. The current requirement is exactly three known roadmap families: historical/pre-1.0, post-1.0, and post-2.0.
+
+REQUIRED IMPLEMENTATION BOUNDARY
+
+A. SHARED ROADMAP-FAMILY AUTHORITY
+In `scripts/codex-phase-core.mjs`:
+- add one explicit post-2.0 roadmap family with canonical id `post-2.0` and major `2`;
+- add canonical `p2-<phase>` folder recognition using the same non-negative decimal phase normalization rules used by the post-1.0 family: `0` is valid, positive integers have no leading zero;
+- preserve historical `p<number>` interpretation exactly; in particular historical `p2` remains historical Phase 2 and MUST NOT be reinterpreted as a post-2.0 family marker;
+- preserve `p1-<phase>` interpretation exactly;
+- preserve correction folder grammar and semantics exactly;
+- normalize the new family in `buildPlan()` so downstream consumers use plan metadata rather than reparsing folder strings;
+- keep `roadmapVersionFor()` as the single semantic-version derivation for all roadmap families unless a smaller equivalent shared helper is demonstrably necessary;
+- update only error/help text needed to truthfully list the accepted folder families;
+- keep immutable plan/prompt behavior and all existing commit/history safety semantics.
+
+Do NOT add aliases such as `p3-*`, `v2-*`, `phase2-*`, generic `p<major>-<phase>` parsing, config-driven family registration, or speculative future-major support.
+
+B. TYPE DECLARATION CONSISTENCY
+In `scripts/codex-phase-core.d.mts`:
+- extend `PhasePlan.roadmapFamily` to include `post-2.0`;
+- extend `roadmapMajor` and `roadmapVersionFor()` input typing to include major `2`;
+- keep correction types unchanged;
+- ensure TypeScript consumers cannot observe a runtime family/major value that the declaration rejects.
+
+Do not solve declaration drift with broad `string`/`number` weakening when the supported family set is closed and known.
+
+C. VALIDATOR / RUNNER CONSUMERS
+Inspect `scripts/validate-codex-phase.mjs`, `scripts/codex-phase.mjs`, and relevant render/handoff helpers.
+
+- update the validator's family label so `post-2.0` is reported truthfully instead of falling through a binary post-1.0/historical branch;
+- update any runner/display consumer that assumes roadmap family is only 0/1;
+- do NOT create a second parser/version formula in display code;
+- do NOT alter Codex launcher/model mapping, structured event handling, closeout invocation semantics, commit ownership, dirty-tree checks, package-lock checks, or terminal-output behavior unless a focused regression proves a direct family-label dependency requires the smallest analogous update.
+
+D. PROMPT-GRAMMAR COVERAGE
+Extend `test/unit/codex-phase-prompt-grammar.test.ts` rather than creating a parallel suite.
+
+Prove at minimum:
+- historical `p2` still means pre-1.0 Phase 2 and validates `0.2.x` prompt targets;
+- `p1-1` still means post-1.0 Phase 1 and validates `1.1.x` targets;
+- `p2-0` is accepted as post-2.0 Phase 0 with `2.0.x` targets;
+- `p2-1` is accepted as post-2.0 Phase 1 with `2.1.x` targets;
+- plan metadata for `p2-1` is exactly family `post-2.0`, major `2`, phase `1`;
+- wrong major/minor/patch combinations fail closed, including a `p2-1` prompt carrying a `1.1.x` or `0.1.x` target and a `p1-1` prompt carrying a `2.1.x` target;
+- malformed/collision folders fail closed: at minimum `p2-00`, `p2-01`, `p02-1`, `P2-1`, `p2--1`, and empty/malformed phase forms;
+- `p2` and `p2-1` remain unambiguously different families;
+- prompt numbering remains one-based and closeout classification remains unchanged;
+- correction grammar/fixed-version tests remain green without reinterpretation.
+
+E. GIT RESUME / EXECUTION COVERAGE
+Extend `test/unit/codex-phase-runner.test.ts` using the existing helpers/patterns where practical.
+
+Prove at minimum:
+- a synthetic post-2.0 `p2-1` repository with no completed implementation prompts reconstructs baseline `2.1.0`;
+- after committed P1, resume reconstructs `2.1.1` from the same shared roadmap-version authority;
+- exact semantic-version commit subjects remain the roadmap implementation identity for the 2.x family;
+- unrelated newer commits do not break an otherwise proven prefix;
+- duplicate matching subjects, completion gaps, and package/history version mismatch still fail closed;
+- historical 0.x and post-1.0 1.x resume expectations remain unchanged;
+- correction fixed-version resume expectations remain unchanged;
+- a one-prompt correction stack with zero ordinary implementation prompts remains a valid closeout shape and the explicit `--closeout` path can invoke it without weakening HEAD/version/package-lock/human-review behavior. This test protects the exact stack shape being used here.
+
+Do not weaken Git-history checks to make the new family pass.
+
+F. CURRENT-STATE DOCUMENTATION
+After implementation and focused tests are green, update only current routing/status documentation that explicitly says the post-2.0 family is unsupported or the runner correction is still blocking activation.
+
+At minimum inspect:
+- `BOOT.md`;
+- `AGENTS.md`;
+- `README.md`;
+- `docs/README.md`;
+- `docs/roadmap/3.0-roadmap.md`.
+
+If GREEN, align them to these facts:
+- package remains `2.0.0`;
+- 3.0 roadmap remains OWNER-APPROVED / PRE-ACTIVATION;
+- runner now supports historical `p<number>` / 0.x, `p1-<phase>` / 1.x, and `p2-<phase>` / 2.x families;
+- correction grammar remains unchanged;
+- the pre-activation runner blocker is cleared;
+- the next action is the separately authorized version-only roadmap activation `2.0.0` -> `2.1.0`, followed by `/prompt-ass Phase 1` -> `/prompt-plan` -> `/prompt-write p2-1`;
+- no Phase 1 Gemini implementation has started merely because runner support exists.
+
+Do not rewrite historical task prompts, historical validation artifacts, or completed 2.0 roadmap history except for a current forward-reference that is genuinely stale and cannot be interpreted correctly without a narrow note.
+
+PRESERVED BEHAVIOR
+Preserve all of the following:
+- package version `2.0.0`;
+- all current MODEL_CONFIGS and concrete model/reasoning mappings;
+- prompt filename grammar and one-based numbering;
+- exactly one final unambiguous closeout per stack;
+- correction fixed-version semantics and correction commit-subject convention;
+- historical roadmap commit-subject convention;
+- post-1.0 roadmap commit-subject convention;
+- Git-proven contiguous prefix detection and duplicate/gap rejection;
+- unrelated-newer-commit tolerance only where the exact required prefix is still proven;
+- package/history compatibility checks;
+- `--closeout` as explicit invocation only and HUMAN REVIEW REQUIRED, never automatic semantic acceptance;
+- no self-commit on the closeout path;
+- dirty-tree, HEAD-drift, package-lock, whitespace, and coherence safety boundaries;
+- validator and runner consumption of the shared parsed plan;
+- all product/application/database/API/PHP behavior.
+
+NON-GOALS
+Do not:
+- change `package.json` version to `2.1.0`;
+- implement Gemini, digest persistence, AI chat, multi-feed product behavior, or admin/PHP feature work;
+- change Source, Article, Profile, API, credential, PHP/LKG, database schema, migration, or customer rendering behavior;
+- add dependencies;
+- rewrite historical prompt stacks or commit history;
+- rename old roadmap families;
+- generalize to arbitrary future roadmap majors;
+- modify the correction grammar unless a direct regression is found and the current contract already dictates the fix;
+- change runner closeout acceptance semantics merely because this correction uses a combined prompt.
+
+FOCUSED ITERATION
+During implementation use the narrowest relevant commands first. Prefer targeted Node test selection supported by the repository test runner for:
+- `test/unit/codex-phase-prompt-grammar.test.ts`;
+- `test/unit/codex-phase-runner.test.ts`.
+
+Also run the prompt-stack validator against `c1-runner-fix` after edits to ensure this task remains parseable under the final runner.
+
+Do not repeatedly run the full repository matrix while iterating on a local parser/test failure.
+
+THREE-PASS COMBINED CLOSEOUT REVIEW
+After the implementation is functionally complete and focused tests are green, perform all three passes below against the actual final candidate. This owner-approved combined prompt intentionally lacks an independent second model, so the passes must be explicit and adversarial rather than a restatement of implementation intent.
+
+PASS 1 — CONTRACT / EVIDENCE
+Verify from current source, tests, and executed commands:
+- the 3.0 roadmap's pre-activation correction requirements are all implemented;
+- `p2-<phase>` is an explicit third family with major `2` and uses the same centralized version authority;
+- historical `p<number>` and `p1-<phase>` behavior is unchanged;
+- corrections remain fixed-version and independent of roadmap family;
+- type declarations match runtime family/major values;
+- validator/runner output identifies all supported families truthfully;
+- resume/version behavior is proven, not merely inferred from grammar tests;
+- the one-prompt correction/`--closeout` shape remains safe;
+- package is still exactly `2.0.0` and no lockfile exists;
+- no product behavior or 2.1.0 activation leaked into the correction.
+
+PASS 2 — ERROR / EDGE-CASE ADVERSARIAL REVIEW
+Independently derive and inspect realistic failure cases, including at minimum:
+- historical `p2` accidentally colliding with `p2-1`;
+- `p2-1` accepting a 0.x/1.x target;
+- `p1-1` accidentally accepting 2.x after shared-helper changes;
+- leading-zero, uppercase, missing-phase, doubled-hyphen, or alternate-family aliases slipping through;
+- roadmap family normalized correctly for target validation but not for resume reconstruction;
+- declaration/runtime union drift;
+- validator display mislabeling `post-2.0` as historical;
+- a completed 2.x P1 with package still on baseline or wrong patch being treated as resumable;
+- duplicate/gapped history becoming accepted because of family changes;
+- correction semantics accidentally consuming roadmap-major logic;
+- zero-implementation one-prompt correction closeout triggering an undefined-prefix/off-by-one path;
+- closeout implementation changes accidentally weakening HEAD-drift/no-self-commit/human-review semantics;
+- current docs saying the blocker is cleared before tests/evidence actually support it.
+
+For each plausible issue, either show the protecting source/test/evidence, add the smallest missing regression/fix inside scope, or report RED/BLOCKED.
+
+PASS 3 — CODE QUALITY / STRUCTURE
+Review the complete diff and important consumers for:
+- duplicate folder parsing outside `buildPlan()`;
+- duplicate version formulas outside `roadmapVersionFor()` or equivalent single authority;
+- unnecessary generic future-major abstractions;
+- broad declaration weakening instead of explicit unions;
+- ternary/binary family display logic that is already brittle with three families;
+- test helpers that obscure family identity or fail to prove observable resume behavior;
+- edits to `codex-phase.mjs` that are not actually needed;
+- stale current docs or over-editing of historical docs;
+- unrelated cleanup, dependency, product, or package-version drift.
+
+Small direct defects or missing focused tests found in these passes MAY be repaired inside this prompt, followed by rerunning invalidated validation. If a meaningful architectural refactor or ambiguous version-policy redesign is required, stop and report `Planning needed` rather than expanding this correction.
+
+FINAL-TREE VALIDATION
+After all implementation and bounded closeout fixes are complete, run the smallest non-overlapping final matrix against the exact final working tree:
+1. `npm run check`
+2. `npm run codex:phase:validate -- c1-runner-fix`
+3. `git diff --check`
+4. inspect `git diff --name-only` and confirm every changed path belongs to the approved tooling/tests/current-docs/validation-artifact boundary
+5. inspect `package.json` and confirm version is still exactly `2.0.0` and no npm lockfile was created
+
+`npm run check` already contains ordinary formatting, lint, typecheck, unit/integration/collection, and PHP regression coverage. Do not separately rerun those subordinate full suites solely to duplicate final evidence on the unchanged tree.
+
+No PostgreSQL, browser, live-Source, external deployment, or Gemini-provider proof is required because this correction changes only local development tooling and docs. If product/runtime files are touched, treat that as scope drift rather than broadening the evidence matrix.
+
+DURABLE VALIDATION ARTIFACT
+Only after final evidence is gathered, create/update:
+
+`docs/validation/3.0-runner-compatibility-correction.md`
+
+Record at minimum:
+- correction purpose and one-prompt owner-approved combined-closeout shape;
+- exact pre-correction HEAD and final reviewed working-tree state/reference available at prompt completion;
+- package `2.0.0` preserved;
+- files changed;
+- final three roadmap families/folder/version semantics;
+- centralized target/resume derivation;
+- correction semantics preserved;
+- one-prompt closeout execution coverage;
+- focused tests actually run and results;
+- final validation commands actually run and results;
+- PASS 1 findings;
+- PASS 2 hypotheses/findings/dispositions;
+- PASS 3 structural findings/disposition;
+- bounded fixes/tests added during closeout, if any;
+- explicit statement that no Gemini/product/2.1.0 activation work occurred;
+- remaining limitations;
+- final GREEN / RED / BLOCKED disposition.
+
+Do not invent a final commit SHA for uncommitted closeout changes. The human-reviewed commit happens later. Be explicit about the pre-run HEAD and that the final candidate is an uncommitted human-review tree when that is the observed state.
+
+GREEN GATE DOCUMENTATION
+Only if all final applicable evidence is green:
+- update current router/status docs as described above to say the runner compatibility blocker is cleared;
+- keep the 3.0 roadmap PRE-ACTIVATION at package `2.0.0`;
+- make the next action the version-only activation to `2.1.0`;
+- do not mark Phase 1 started or complete.
+
+If evidence is RED/BLOCKED, do not update current docs to claim the blocker is cleared.
+
+FINAL REPORT
+End with a concise closeout report containing:
+- `GREEN — HUMAN REVIEW REQUIRED`, `RED — HUMAN REVIEW REQUIRED`, or `BLOCKED — HUMAN REVIEW REQUIRED`;
+- pre-correction HEAD;
+- package version confirmation;
+- files changed;
+- final folder/family/version grammar;
+- confirmation of preserved historical/post-1/correction behavior;
+- focused and final validation commands actually run with results;
+- three-pass findings summary;
+- durable validation artifact path/status;
+- confirmation that no self-commit occurred and final changes are intentionally left for human review;
+- if GREEN, exact next step: version-only `2.0.0` -> `2.1.0` roadmap activation, then `/prompt-ass Phase 1` -> `/prompt-plan` -> `/prompt-write p2-1`.
