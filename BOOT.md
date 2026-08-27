@@ -10,31 +10,38 @@ It establishes project identity, authority, routing, workflow gates, task gramma
 - Default branch: `main`
 - Parallel UI branch: `ui-polish`
 - Product: reusable, topic-independent **headless news aggregation and distribution Platform**
-- Deployment cardinality: exactly one Publication/topic per deployed installation
-- Publication: singleton editorial/configuration state, not a relational tenant key
+- Deployment cardinality: exactly one singleton Publication/editorial property per deployed installation; one Publication MAY contain multiple related subject verticals/feeds through Distribution Profiles
+- Publication: singleton customer/editorial configuration state, not a relational tenant key
 - Product core: approved Sources → collection → normalization → persistence/provenance → Relevance/Categories → duplicate/moderation → canonical outward Article semantics → governed distribution
 - Control plane: protected administrator UI/API
 - Current implemented outward surfaces: authenticated `GET /api/v1/distribution/{profile_key}`, legacy/reference `GET /api/feed`, and bundled/reference `GET /`
-- Required 2.0 path: canonical eligibility → Distribution Profile → authenticated v1 API → scheduled generic PHP complete-snapshot sync → validated local LKG → customer server-rendered output
+- Implemented 2.0 path: canonical eligibility → Distribution Profile → authenticated v1 API → scheduled generic PHP complete-snapshot sync → validated local LKG → normalized local-read → customer server-rendered output
 - Permanent machine interface contract: `docs/contracts/distribution-api-contract.md`
 - Distribution/Profile/PHP contract: `docs/contracts/distribution-and-integration-contract.md`
-- Current roadmap: `docs/roadmap/post-1.0-roadmap.md`
-- Current roadmap state: **ACTIVE**
-- Current implementation phase: **Phase 7 — Managed integration and 2.0 release qualification**
-- Current package baseline: **`1.7.0`**
-- Current Phase 7 task folder: **`p1-7`** when written
-- Next roadmap prompt version: **`1.7.1`**
-- Terminal release target: **`2.0.0`**
+- AI assistance contract: `docs/contracts/ai-assistance-contract.md`
+- Current roadmap: `docs/roadmap/3.0-roadmap.md`
+- Current roadmap state: **OWNER-APPROVED / PRE-ACTIVATION**
+- Current package baseline: **`2.0.0`**
+- Immediate implementation blocker: the phase runner currently supports roadmap major versions `0` and `1` only; a bounded unchanged-`2.0.0` runner compatibility correction must add the intended `2.x` roadmap family before Phase 1 prompts are written/executed
+- Planned roadmap activation baseline: **`2.1.0`**
+- Planned Phase 1: Gemini Profile digest foundation
+- Planned Phase 2: Profile-grounded "Ask this feed" chatbot
+- Planned Phase 3: multi-feed customer proof for publishing news, opportunities, and indie filmmaking from one singleton Publication/editorial property
+- Planned Phase 4: admin/PHP integration tightening based on real observed friction
+- Planned terminal release target: **`3.0.0`**, with terminal exit gate intentionally owner-controlled/TBD
+- Completed prior roadmap: `docs/roadmap/post-1.0-roadmap.md` reached `2.0.0` on 2026-08-27
 - Accepted production baseline: customer-launch `1.0.0`; supported customer data is durable
 - Former post-1.0 Phase 0 P1: server-rendered reference root shipped at `1.0.1`
 - Former Phase 0 P2/`1.0.2`: retired unexecuted and never reserved
-- Initial Publication: publishing-industry news relevant to indie authors; topic behavior remains configuration
+- Initial customer Publication began with publishing-industry news relevant to indie authors; shared behavior remains topic independent and the same Publication may now contain related opportunities/filmmaking verticals through Profiles
 
-The owner-approved 2.0 roadmap keeps all implementation development in the `1.x.x` series and performs one terminal release transition from the final validated `1.7.x` candidate to `2.0.0`.
+The owner-approved 2.0 roadmap is complete. Its historical task grammar and validation artifacts remain authoritative only for the trees/evidence they recorded. The terminal `2.0.0` transition was package-version-only and did not itself add new runtime behavior.
 
-Linux VPS/Docker Compose self-host packaging, autonomous self-host production support, native self-host administrator authentication, WordPress, RSS/Atom, browser widgets, click/referral analytics, advanced SEO tooling, delta sync, and additional adapters are **post-2.0** unless a later owner-approved decision promotes them.
+The owner-approved 3.0 roadmap intentionally starts from `2.0.0`, but it is not activated yet. The current runner cannot safely parse the intended `p2-<phase>` / `2.<phase>.<prompt>` family. Do not fabricate that support or write Phase 1 prompts until the dedicated runner correction is implemented, tested, reviewed, and accepted at unchanged `2.0.0`.
 
-Self-hostability remains a locked architectural direction under Project Contract Law 12. Deferring packaging changes sequencing only; it does not permit a mandatory central News Scraper runtime dependency.
+Linux VPS/Docker Compose self-host packaging, autonomous self-host production support, native self-host administrator authentication, WordPress, RSS/Atom, browser widgets, click/referral analytics, advanced SEO tooling, delta sync, and additional adapters remain outside the current committed 3.0 scope unless a later owner-approved decision promotes them.
+
+Self-hostability remains a locked architectural direction under Project Contract Law 12. Deferring packaging changes sequencing only; it does not permit a mandatory central News Scraper runtime dependency. Optional Gemini assistance must likewise remain non-mandatory for ordinary non-AI operation.
 
 ## New-session startup
 
@@ -45,15 +52,18 @@ For substantial project-wide repository-aware work read, in order:
 3. `AGENTS.md`
 4. `docs/contracts/project-contract.md`
 5. `docs/contracts/product-scope-and-users.md`
-6. `docs/decisions/headless-distribution-product-boundary.md`
-7. `docs/decisions/managed-first-self-hostable-distribution-architecture.md`
-8. `docs/contracts/distribution-and-integration-contract.md`
-9. `docs/contracts/distribution-api-contract.md` when machine/API behavior is relevant
-10. `docs/roadmap/post-1.0-roadmap.md`
-11. narrowest governing contract/ADR plus `docs/contracts/testing-and-validation-contract.md` for implementation/review work
-12. relevant implementation/tests and recent changes when repository state matters
+6. `docs/decisions/single-publication-multi-vertical-editorial-property.md`
+7. `docs/decisions/headless-distribution-product-boundary.md`
+8. `docs/decisions/managed-first-self-hostable-distribution-architecture.md`
+9. `docs/contracts/distribution-and-integration-contract.md`
+10. `docs/contracts/distribution-api-contract.md` when machine/API behavior is relevant
+11. `docs/contracts/ai-assistance-contract.md` when Gemini/digest/chat behavior is relevant
+12. `docs/roadmap/3.0-roadmap.md`
+13. `docs/roadmap/post-1.0-roadmap.md` only when completed 2.0 history/version sequencing is relevant
+14. narrowest governing contract/ADR plus `docs/contracts/testing-and-validation-contract.md` for implementation/review work
+15. relevant implementation/tests and recent changes when repository state matters
 
-Use `docs/contracts/mvp-scope-and-users.md`, `docs/roadmap/mvp-roadmap.md`, and `docs/validation/` only when historical MVP intent/evidence matters.
+Use `docs/contracts/mvp-scope-and-users.md`, `docs/roadmap/mvp-roadmap.md`, and `docs/validation/` only when historical MVP intent/evidence matters. Historical 2.0 task/validation documents remain useful for interpreting implemented boundaries but do not override the current 3.0 contracts/roadmap.
 
 For UI work also read `docs/design/README.md` and `docs/design/ui-workflow.md`. `docs/design/public-feed-presentation.md` governs only the bundled/reference frontend.
 
@@ -83,13 +93,15 @@ Report authoritative conflicts rather than choosing silently.
 
 ## Canonical terminology
 
-- `Platform` — reusable headless aggregation/distribution software configured and deployed separately for topics
-- `Publication` — the one configured news/editorial product for an installation; not a tenant key
+- `Platform` — reusable headless aggregation/distribution software; shared behavior remains topic independent
+- `Publication` — the one configured customer/editorial property and governed content universe for an installation; not a tenant key and not necessarily one narrow topic
+- `subject vertical` / `feed section` — a customer-facing subject/feed concept inside the singleton Publication; does not create Article ownership or tenancy
 - `control plane` — protected administrator UI/API
 - `News Scraper instance` — independently bounded single-Publication Web/Admin + Worker + PostgreSQL + scheduler/jobs + config/secrets + interfaces
-- `Distribution Profile` — named administrator-controlled post-eligibility selection that can only narrow canonically eligible Articles
+- `Distribution Profile` — named administrator-controlled post-eligibility selection that can only narrow canonically eligible Articles; supported independent feed/section boundary within the singleton Publication
 - `distribution consumer` — supported API/site/adapter consuming governed normalized output
 - `integration adapter` — thin transport/sync/cache/rendering layer, never an editorial/query authority
+- `AI assistance` — optional downstream Profile-grounded digest/chat behavior; never an editorial/eligibility authority
 - `canonical outward Article semantics` — shared trust/visibility/duplicate/order/destination authority used by outward consumers
 - `reference frontend` — bundled `GET /` consumer; supported but not the primary product identity
 - `Source` — configured publisher/outlet; approval determines collection trust
@@ -110,17 +122,19 @@ Report authoritative conflicts rather than choosing silently.
 - `task` — roadmap/correction implementation prompt under `docs/tasks/`
 - `validation artifact` — durable record of evidence actually observed
 
-Keep these distinctions explicit: Source vs endpoint; approval vs lifecycle/operational state vs health; collection admission vs Relevance vs Distribution Profile filtering; Article identity vs duplicate identity; Article visibility vs duplicate role; reference `public_status` vs canonical distribution eligibility; human admin access vs machine distribution authentication; source inspection vs executed evidence.
+Keep these distinctions explicit: Publication vs subject vertical vs Profile; Source vs endpoint; approval vs lifecycle/operational state vs health; collection admission vs Relevance vs Distribution Profile filtering; Article identity vs duplicate identity; Article visibility vs duplicate role; reference `public_status` vs canonical distribution eligibility; human admin access vs machine distribution authentication vs later AI spending authority; source inspection vs executed evidence; local orchestration test vs live Gemini proof.
 
 ## Document routing
 
 | Area                                                                      | Read first                                                                |
 | ------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | Locked laws / authority                                                   | `docs/contracts/project-contract.md`                                      |
-| Current product scope / 2.0 boundary                                      | `docs/contracts/product-scope-and-users.md`                               |
+| Current product scope / post-2.0 direction                                | `docs/contracts/product-scope-and-users.md`                               |
+| Singleton Publication / multi-vertical interpretation                     | `docs/decisions/single-publication-multi-vertical-editorial-property.md`  |
 | Distribution Profiles / filters / PHP/LKG / presentation/link policy      | `docs/contracts/distribution-and-integration-contract.md`                 |
 | PHP synchronization / LKG / local-read implementation details             | `integrations/php/README.md`                                               |
 | Permanent v1 API / schema / cursors / machine credentials / errors / CORS | `docs/contracts/distribution-api-contract.md`                             |
+| Gemini digest / chat / grounding / AI security                            | `docs/contracts/ai-assistance-contract.md`                                |
 | Terminology / entities / persistence                                      | `docs/contracts/domain-and-data-contract.md`                              |
 | Collection / safety / normalization / Relevance / identity                | `docs/contracts/source-and-collection-contract.md`                        |
 | Article visibility / duplicates / Primary                                 | `docs/contracts/article-lifecycle-and-deduplication.md`                   |
@@ -130,7 +144,8 @@ Keep these distinctions explicit: Source vs endpoint; approval vs lifecycle/oper
 | Security / reliability / observability                                    | `docs/operations/security-reliability-and-operations.md`                  |
 | Backup / restore                                                          | `docs/operations/database-backup-and-restore.md`                          |
 | Deployment / rollback / incidents                                         | `docs/operations/deployment-and-incident-runbook.md`                      |
-| Active 2.0 phases / versions                                              | `docs/roadmap/post-1.0-roadmap.md`                                        |
+| Current 3.0 roadmap / versions                                            | `docs/roadmap/3.0-roadmap.md`                                             |
+| Completed 2.0 roadmap history                                             | `docs/roadmap/post-1.0-roadmap.md`                                        |
 | Completed MVP history                                                     | `docs/roadmap/mvp-roadmap.md`                                             |
 | Historical 2.0 planning record                                            | `docs/roadmap/2.0-planning-questions.md`                                  |
 | Product-boundary ADR                                                      | `docs/decisions/headless-distribution-product-boundary.md`                |
@@ -145,30 +160,36 @@ If a path does not exist, search for its current equivalent before assuming inte
 
 ## High-risk project invariants
 
-- Shared aggregation/distribution logic remains topic independent.
-- One deployed installation hosts exactly one Publication/topic; multiple Profiles do not imply tenancy.
+- Shared aggregation/distribution/AI orchestration remains topic independent.
+- One deployed installation hosts exactly one singleton Publication/editorial property. The Publication MAY contain multiple related subject verticals/feeds; multiple Profiles/verticals do not imply tenancy.
+- Distribution Profiles are the supported independently configured feed/section boundary and can only narrow canonically eligible Articles.
 - The administrator surface is the control plane. `/` and `/api/feed` remain supported reference/legacy consumers.
 - Collection trust and distribution selection are separate. Source approval does not automatically make a Source part of every Profile.
 - Canonical distribution eligibility is independent of reference `public_status`; Profile selection occurs after canonical eligibility and can only narrow it.
-- Every outward consumer uses the same governed Article eligibility/order/duplicate/destination authority. Adapters/controllers must not invent competing SQL or interpretation.
+- Every outward consumer uses the same governed Article eligibility/order/duplicate/destination authority. Adapters/controllers/AI services must not invent competing SQL or interpretation.
 - Source configuration/collection is singular; Profiles do not duplicate Source collection, Article identity, or provenance.
 - Source and endpoint approval/lifecycle/operational/health concepts remain distinct.
 - Every fetch/redirect passes approval plus DNS/address/port/SSRF validation before contact. Article-link policy is a separate post-normalization gate.
 - Parsers produce Raw items and never persist Articles.
-- Normalization precedes link policy, Relevance/Categories, identity, duplicate processing, and outward use.
+- Normalization precedes link policy, Relevance/Categories, identity, duplicate processing, outward use, and AI grounding.
 - Article identity is Source-scoped and transactionally idempotent.
 - True-duplicate grouping retains every Source Article/provenance and has exactly one Primary.
 - Article visibility is orthogonal to duplicate role.
 - Web/API never collects Sources inline; Source failures remain isolated.
 - Stored `original_url` remains the reader/headline destination.
-- Machine `distribution:read` credentials never grant administrator authority.
+- Machine `distribution:read` credentials never grant administrator authority or silently authorize unlimited billable interactive AI.
 - Current managed administrator access remains protected by Cloudflare Access plus direct-origin/request-integrity/resource-validation controls.
 - Supported production customer data is durable from the accepted `1.0.0` baseline. Clean migration from zero does not prove production upgrade safety.
-- WordPress/RSS/self-host packaging/native self-host auth and other post-2.0 capabilities must not be pulled into the current roadmap without explicit owner approval.
+- AI is optional. Gemini failure/disablement cannot break ordinary collection, administration, persistence, canonical distribution, PHP Article LKG, or non-AI rendering.
+- Gemini/API secrets never enter browser JavaScript, public PHP state, cache payloads, URLs, or logs. Source/user/model text is untrusted.
+- AI citations resolve only after application validation to governed Articles and exact stored `originalUrl` values; model-generated URLs are not trusted destinations.
+- WordPress/RSS/self-host packaging/native self-host auth and other unpromoted capabilities must not be pulled into the current roadmap without explicit owner approval.
 
-## Active 2.0 roadmap
+## Completed 2.0 roadmap
 
-The roadmap is **ACTIVE**.
+`docs/roadmap/post-1.0-roadmap.md` is **COMPLETE** at package `2.0.0`.
+
+Historical sequence:
 
 | Phase   | Baseline      | Prompt versions | Goal                                                   |
 | ------- | ------------- | --------------- | ------------------------------------------------------ |
@@ -178,12 +199,44 @@ The roadmap is **ACTIVE**.
 | 4       | `1.4.0`       | `1.4.x`         | Versioned v1 distribution API                          |
 | 5       | `1.5.0`       | `1.5.x`         | Generic PHP synchronization + LKG core                 |
 | 6       | `1.6.0`       | `1.6.x`         | PHP local data API + customer SSR integration          |
-| 7       | `1.7.0`       | `1.7.x`         | Managed integration + 2.0 release qualification        |
-| Release | final `1.7.x` | —               | terminal version-only transition to `2.0.0`            |
+| 7       | `1.7.0`       | planned `1.7.x` | Managed integration + 2.0 release qualification        |
+| Release | `1.7.0`       | —               | owner-accepted terminal version-only transition to `2.0.0` |
 
-The complete detailed phase scope/exit gates live in `docs/roadmap/post-1.0-roadmap.md` and must be re-read before phase planning.
+The full planned Phase 7 prompt sequence was not executed. The owner explicitly accepted the live customer integration and waived the formal Phase 7 P1–P4 evidence sequence; `docs/validation/phase-7-managed-integration-and-2.0-release-qualification.md` records that exception. Do not report unexecuted tests/failure injection as observed.
 
-Phases 1–6 implemented the permanent v1 HTTP route, downstream PHP synchronization/LKG producer, and normalized local read/customer server-rendered integration. Phase 7 composes and qualifies those existing boundaries: canonical eligibility/Profile read model, machine credentials, v1 API, PHP synchronization/LKG, `LocalProfileReader` / `LocalReadResult`, fallback SSR, and customer-style local integration. It must preserve direct stored publisher destinations, local-only visitor rendering, machine/admin separation, snapshot/LKG integrity, and every prior canonical authority; it must not reinterpret Source trust, eligibility, Profile selectors, Categories, moderation, duplicates, ordering, `originalUrl`, cursor/revision semantics, synchronization, local usability, or presentation safety. Only release-blocking fixes or bounded hardening are in scope; post-2.0 features remain out of scope. `GET /` and `GET /api/feed` remain supported legacy/reference surfaces.
+## Owner-approved 3.0 roadmap — pre-activation
+
+`docs/roadmap/3.0-roadmap.md` is **OWNER-APPROVED / PRE-ACTIVATION**.
+
+Planned version sequence after the runner compatibility correction:
+
+| Phase   | Baseline | Prompt versions | Goal                                                    |
+| ------- | -------- | --------------- | ------------------------------------------------------- |
+| 1       | `2.1.0`  | `2.1.x`         | Gemini Profile digest foundation                        |
+| 2       | `2.2.0`  | `2.2.x`         | Profile-grounded "Ask this feed" chatbot              |
+| 3       | `2.3.0`  | `2.3.x`         | Multi-feed customer integration proof                   |
+| 4       | `2.4.0`  | `2.4.x+`        | Admin + PHP integration tightening                      |
+| Release | final accepted `2.x.x` | — | terminal `3.0.0` only after owner locks final exit gate |
+
+The current next executable implementation work is **not Phase 1**. It is the bounded runner compatibility correction at unchanged `2.0.0`. The existing parser currently has only `pre-1.0` major `0` and `post-1.0` major `1` roadmap families.
+
+The intended future phase family is `p2-<phase>` with target `2.<phase>.<prompt>`, but that grammar is merely planned until source/tests prove it. Do not create a `p2-1` stack before that correction closes.
+
+### Phase 1 direction
+
+Phase 1 generates scheduled Gemini digests from bounded canonical Profile Articles, resolves/bounds excessive Source summary input before AI use, validates structured output, preserves prior valid digest state on failure, propagates compatible digest state through API/PHP/LKG/local-read, and proves ordinary customer page rendering does not call Gemini.
+
+### Phase 2 direction
+
+Phase 2 implements Profile-grounded "Ask this feed" chat with bounded context/history, validated Article citations, exact stored destination resolution, server-side Gemini secrets, explicit AI authorization/rate/cost controls, and no cross-Profile/admin leakage.
+
+### Phase 3 direction
+
+Phase 3 proves one singleton customer Publication/editorial property can expose publishing-news, opportunities, and indie-filmmaking Profiles through the full canonical Profile/API/PHP/local-read/customer SSR chain. It also resolves the current hand-created PHP sync-launcher integration issue so multi-feed setup uses shipped generic package tooling rather than customer-written glue.
+
+### Phase 4 direction
+
+Phase 4 is intentionally open-ended admin/PHP integration hardening based on observed real use. It is not permission to smuggle unrelated product families into 3.0. The terminal `3.0.0` exit gate remains intentionally TBD until the owner explicitly locks it.
 
 ## Production compatibility
 
@@ -193,11 +246,11 @@ Whenever schema/persisted representation changes:
 
 - migration from zero still passes for new/disposable installations;
 - supported production state is upgraded through the real migration chain;
-- governed data/relationships/provenance/editorial/moderation/duplicate state are preserved;
+- governed data/relationships/provenance/editorial/moderation/duplicate/Profile/credential state are preserved;
 - backup/restore/rollback planning remains compatible;
 - supported migration history is not rewritten merely for cosmetic cleanup.
 
-Phase 1 Profile persistence required Level 4 production-forward migration proof in addition to zero-to-latest migration.
+Distribution Profile persistence already required Level 4 production-forward migration proof in addition to zero-to-latest migration. Any later persisted AI/auth/integration state inherits the same production compatibility requirements.
 
 ## Validation honesty
 
@@ -206,11 +259,12 @@ Phase 1 Profile persistence required Level 4 production-forward migration proof 
 - Use the narrowest useful focused command during iteration and the smallest non-overlapping final command set covering the applicable evidence.
 - Evidence applies only to the exact tree/environment actually tested.
 - Source inspection is not runtime/browser/database/live proof.
-- Mocks do not prove PostgreSQL constraints, transactions, migrations, locks, or races.
+- Mocks do not prove PostgreSQL constraints, transactions, migrations, locks, races, or live Gemini behavior.
 - Required specialized suites fail clearly when prerequisites are unavailable; skips/zero-match/flakiness do not satisfy an exit gate.
-- Phase/correction closeout requires a durable validation artifact tied to the accepted source tree.
+- Phase/correction closeout requires a durable validation artifact tied to the accepted source tree when the governing roadmap/test contract requires it.
+- Live-provider AI claims require an actually executed Gemini request against the relevant tree/environment; mocked provider behavior is not provider proof.
 
-Historical Phase 9 and Phase 14 evidence limitations remain historical; later evidence never rewrites what was observed earlier.
+Historical Phase 9, Phase 14, and Phase 7 evidence limitations remain historical; later evidence never rewrites what was observed earlier.
 
 # Conversation commands
 
@@ -246,7 +300,7 @@ means finish `/boot` first, then perform `/closeout phase 2` against the refresh
 
 ### `/boot`
 
-Refresh BOOT, root summaries, Project Contract, current product scope/ADRs, active roadmap, and the narrow governing docs for the requested work.
+Refresh BOOT, root summaries, Project Contract, current product scope/ADRs, current roadmap state, and the narrow governing docs for the requested work.
 
 ### `/refresh <area>`
 
@@ -280,7 +334,7 @@ Trace Publication configuration → Source → endpoint → state → job/run �
 
 ### `/article-trace <field or concept>`
 
-Trace Raw item → candidate → Relevance/Category → Article identity/persistence → observations → overrides → duplicate role → canonical outward semantics → consumers/tests.
+Trace Raw item → candidate → Relevance/Category → Article identity/persistence → observations → overrides → duplicate role → canonical outward semantics → Profile/consumers/AI/tests.
 
 ### `/blast-radius <change>`
 
@@ -341,27 +395,37 @@ Strict order:
 → /prompt-write <folder name>
 ```
 
-The roadmap is now active, so this workflow is authorized for the current phase. Do not skip stages.
+Do not skip stages.
 
-Current invocation target:
+### Current state
+
+The 3.0 roadmap is approved but pre-activation, and its intended phase grammar is not yet executable. Therefore `/prompt-ass Phase 1` may be used only after the bounded runner correction is accepted **and** the owner performs the explicit version-only `2.0.0` → `2.1.0` roadmap activation.
+
+The immediate implementation planning target is the runner compatibility correction, not a roadmap phase:
 
 ```text
-/prompt-ass Phase 7
-→ /prompt-plan
-→ /prompt-write p1-7
+unchanged package 2.0.0
+→ correction planning
+→ extend runner/parser for the post-2.0 major-2 roadmap family
+→ focused regression/compatibility proof
+→ human review / correction closeout
+→ explicit roadmap activation to 2.1.0
+→ /prompt-ass Phase 1
 ```
 
 If requirements/docs/repository state materially conflict, return `Planning needed` rather than silently changing the roadmap.
 
 ## `/prompt-ass`
 
-Determine safe task boundaries from the active roadmap and governing contracts. No writes.
+Determine safe task boundaries from the active/current roadmap or correction need and governing contracts. No writes.
 
-Return target behavior, constraints, roadmap phase, stack type, prompt count/order, goal/summary/dependencies/boundary rationale/deferred behavior, closeout task, and provisional model/usage recommendations.
+Return target behavior, constraints, roadmap phase or correction scope, stack type, prompt count/order, goal/summary/dependencies/boundary rationale/deferred behavior, closeout task, and provisional model/usage recommendations.
 
 Explicitly assess producer→consumer boundaries. Split transactional/state-machine work from separately consumed read/API work when consumers, tests, or failure risks differ materially. Testing is part of task decomposition.
 
-For current Phase 7, compose and prove the implemented canonical/Profile/API/PHP/LKG/local-read/SSR chain in a real managed external integration. Do not reconstruct or reinterpret upstream Article/Profile, credential, cursor, revision, rate-limit, trusted-proxy, synchronization, LKG-activation, local-usability, or presentation-safety semantics; only release-blocking fixes or bounded hardening are permitted, and post-2.0 work stays out of scope.
+For the immediate runner correction, preserve all historical `p<number>` and `p1-<phase>` grammar while adding only the deliberate major-2 roadmap family required by the approved 3.0 version lifecycle. Package remains `2.0.0`; no Gemini/product implementation belongs in that correction.
+
+For future Phase 1, the AI layer must consume bounded canonical Profile Articles and must not reconstruct or reinterpret Source trust, canonical eligibility, Profile selectors, Categories, moderation, duplicate semantics, ordering, `originalUrl`, cursor/revision semantics, synchronization, LKG activation, local usability, or presentation safety.
 
 ## `/prompt-plan`
 
@@ -379,17 +443,11 @@ Reassess model/effort using the minimum-cost-adequate rule and produce the small
 
 Requires an unblocked `/prompt-plan`. Revalidate current repo/docs and write ordered prompts under `docs/tasks/<folder name>/`.
 
-Current Phase 7 folder is `p1-7`.
+For corrections, use the established correction grammar and current unchanged package version.
 
-Each roadmap prompt includes exact runner metadata, finalized model/reasoning/usage block, focused iterative validation, smallest non-overlapping final validation, downstream handoff gates where relevant, package-version rules, acceptance, and non-goals.
+For the future 3.0 roadmap, do not write `p2-*` folders until the runner correction has made that grammar executable and the roadmap has been explicitly activated to its required baseline.
 
-When local execution is available run:
-
-```text
-npm run codex:phase:validate -- p1-7
-```
-
-before reporting the stack ready.
+Before reporting a stack ready, run `npm run codex:phase:validate -- <folder>` when local execution is available.
 
 # Codex phase-runner grammar
 
@@ -404,14 +462,31 @@ The shared parser is `scripts/codex-phase-core.mjs`.
 - closeout filename and `TASK:` title both signal `closeout`;
 - every prompt has exactly one valid `- Recommended configuration: `<MODEL_CONFIGS label>`.` line.
 
-## Post-1.0 roadmap phases
+## Historical pre-1.0 roadmap phases
+
+- folder: `p<phase>`;
+- header: `TASK: Phase <phase> / P<number> — <title>`;
+- target version: `0.<phase>.<prompt number>`.
+
+## Historical post-1.0 / 2.0 roadmap phases
 
 - folder: `p1-<phase>`;
 - header: `TASK: Phase <phase> / P<number> — <title>`;
 - exactly one phrase `assigned project version is` followed by `1.<phase>.<prompt number>`;
 - no correction unchanged-version metadata.
 
-The runner detects completed implementation prompts from exact reachable commit subjects and requires package version to match the Git-proven completed prefix. With no completed Phase 7 prompt, `p1-7` expects baseline `1.7.0`.
+These semantics remain supported so historical task stacks and Git-proven prefix detection are not reinterpreted.
+
+## Planned post-2.0 / 3.0 roadmap family
+
+Intended after the runner correction:
+
+- folder: `p2-<phase>`;
+- header: `TASK: Phase <phase> / P<number> — <title>`;
+- target version: `2.<phase>.<prompt number>`;
+- no correction unchanged-version metadata.
+
+This section is a **planned contract target**, not a claim about current parser behavior. Until the source/tests correction is accepted, `p2-*` must fail closed rather than being used manually around the parser.
 
 ## Corrections
 
@@ -425,7 +500,7 @@ Corrections are only for genuine bounded regressions/repairs and must not smuggl
 
 # Phase handoff and `/closeout`
 
-After a non-terminal phase has passed its final closeout prompt and durable validation gate:
+After an activated non-terminal roadmap phase has passed its final closeout prompt and durable validation gate:
 
 ```text
 phase implementation
@@ -436,7 +511,7 @@ phase implementation
 → /docs-apply
 → /prompt-ass next phase
 → /prompt-plan
-→ /prompt-write p1-<next phase>
+→ /prompt-write <next phase folder>
 ```
 
 ## Non-terminal `/closeout`
@@ -445,55 +520,54 @@ phase implementation
 
 Fast path:
 
-1. read BOOT plus the completed/next roadmap entries;
-2. read the completed phase durable validation artifact and accepted source SHA;
+1. read BOOT plus the completed/next current-roadmap entries;
+2. read the completed phase durable validation artifact and accepted source SHA when the roadmap requires it;
 3. read `package.json` and task/version sequence;
 4. compare accepted SHA to current `main` for relevant unvalidated executable drift;
-5. if green, update only top-level `package.json` to the exact successor baseline in the roadmap;
+5. if green, update only top-level `package.json` to the exact successor baseline in the current roadmap;
 6. compare transition and require package-version-only change;
 7. report GREEN, transition SHA, next P1 version, and freshly read next phase entry.
 
-Successor baselines are:
+The historical 2.0 successor baselines remain recorded in `docs/roadmap/post-1.0-roadmap.md` and are no longer current transition targets.
 
-- Phase 1 → `1.2.0`
-- Phase 2 → `1.3.0`
-- Phase 3 → `1.4.0`
-- Phase 4 → `1.5.0`
-- Phase 5 → `1.6.0`
-- Phase 6 → `1.7.0`
+The planned 3.0 successor baselines become executable only after roadmap activation and runner compatibility are complete:
+
+- Phase 1 → `2.2.0`
+- Phase 2 → `2.3.0`
+- Phase 3 → `2.4.0`
+- Phase 4 terminal/successor behavior remains owner-controlled until the final 3.0 exit gate is explicitly locked.
 
 Do not rerun full validation during `/closeout`; use the recorded accepted evidence and one drift comparison. Relevant executable drift blocks transition.
 
-## Terminal Phase 7 `/closeout`
+## Historical terminal 2.0 `/closeout`
 
-Phase 7 is terminal for this roadmap.
-
-After its final closeout prompt is reviewed and its durable validation artifact proves the complete managed external-site 2.0 gate against the exact accepted final `1.7.x` tree, `/closeout` performs exactly one version-only release transition:
+The 2.0 roadmap is complete. The terminal transition performed on 2026-08-27 was:
 
 ```text
-final validated 1.7.x
+accepted 1.7.0 baseline under explicit Phase 7 owner exception
 → top-level package.json version only
 → 2.0.0
 ```
 
-It MUST:
+Commit `58a5387fba23a3ae3e14cccfd92c062817351ca0` changed only the package version. This historical transition created no `1.8.0` or `2.0.x` development line.
 
-- create no `1.8.0` baseline;
-- create no `2.0.1` development candidate;
-- change no source, migration, test, dependency, config, or docs in the version transition itself;
-- verify the complete transition diff is package-version-only;
-- report `Roadmap status: COMPLETE` and final `2.0.0` state.
+Do not use the historical Phase 7 terminal rule to infer a current 3.0 release gate.
 
-This terminal rule is the 2.0 analogue of the already-completed historical Phase 21 transition to `1.0.0`.
+## Future terminal 3.0 `/closeout`
+
+The intended terminal release is `3.0.0`, but the exit gate is deliberately **TBD** until the owner locks it after Gemini, chatbot, multi-feed, and integration-hardening experience.
+
+Until `docs/roadmap/3.0-roadmap.md` is explicitly amended with that gate, `/closeout` MUST NOT infer or perform a terminal `3.0.0` transition from package version alone.
 
 # Versioning
 
 - `package.json` is the sole current-version authority.
-- Current version is `1.7.0`.
-- Phase prompt versions are `1.<phase>.<prompt>`.
-- Non-terminal baseline transitions are `1.<next phase>.0`.
-- Final release only is `2.0.0`.
-- There are no planned `2.0.x` development builds before the release.
+- Current version is `2.0.0`.
+- The completed 2.0 roadmap used `1.<phase>.<prompt>` phase versions and terminated at `2.0.0`.
+- The intended 3.0 roadmap uses `2.<phase>.<prompt>` phase versions only after runner compatibility and explicit roadmap activation.
+- The immediate runner correction is non-versioned and keeps package `2.0.0`.
+- Planned roadmap activation is a version-only `2.0.0` → `2.1.0` transition after the runner correction is accepted.
+- Final release target is `3.0.0`, but its terminal gate is not yet locked.
 - `1.0.2` remains retired/unassigned historical space and is not reused.
 - UI/docs/correction work is non-versioned unless explicitly authorized otherwise.
 
@@ -526,12 +600,12 @@ The bundled/reference frontend UI work does not govern customer-site integration
 - Prefer the smallest coherent, independently reviewable task boundaries.
 - State preserved behavior and non-goals.
 - Trace shared producers and all important consumers before changing shared behavior.
-- Treat database constraints/transactions, idempotency, provenance, security, failure behavior, and backward compatibility as first-class review concerns.
+- Treat database constraints/transactions, idempotency, provenance, security, failure behavior, AI failure isolation, and backward compatibility as first-class review concerns.
 - Do not substitute stronger models for oversized task boundaries.
-- Keep adapters thin; do not let later consumers invent producer-owned SQL/query/state/cursor semantics.
+- Keep adapters and AI consumers thin; do not let later consumers invent producer-owned SQL/query/state/cursor/selection semantics.
 - Use focused iteration and non-overlapping final validation.
-- Do not claim tests/runtime/browser/database/live behavior unless actually observed.
-- Never invent repository state, Source behavior, or validation results.
+- Do not claim tests/runtime/browser/database/live-Source/live-Gemini behavior unless actually observed.
+- Never invent repository state, Source behavior, provider behavior, or validation results.
 
 # Decision and review commands
 
@@ -545,10 +619,23 @@ The bundled/reference frontend UI work does not govern customer-site integration
 
 ## Current next action
 
-The roadmap is active and Phase 7 is authorized. The next normal implementation-planning command is:
+The 2.0 roadmap is complete and the 3.0 roadmap is owner-approved but not activated.
+
+The next implementation work is the bounded **post-2.0 runner compatibility correction at unchanged `2.0.0`**. It must extend `scripts/codex-phase-core.mjs` and focused runner/parser tests to support the intended major-2 roadmap family while preserving every historical major-0, major-1, and correction behavior.
+
+After that correction is reviewed and accepted, perform the explicit version-only roadmap activation:
 
 ```text
-/prompt-ass Phase 7
+2.0.0
+→ 2.1.0
 ```
 
-which should decompose managed integration and 2.0 release qualification into the smallest safe `p1-7` prompt stack before `/prompt-plan` and `/prompt-write p1-7`. It must compose and prove the implemented canonical/Profile/API/PHP/LKG/local-read/SSR chain; only release-blocking hardening is in scope.
+Then the normal planning sequence becomes:
+
+```text
+/prompt-ass Phase 1
+→ /prompt-plan
+→ /prompt-write p2-1
+```
+
+for the Gemini Profile digest foundation governed by `docs/contracts/ai-assistance-contract.md` and `docs/roadmap/3.0-roadmap.md`.

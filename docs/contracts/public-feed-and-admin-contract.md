@@ -6,13 +6,15 @@ This contract governs the **existing outward/public surfaces** implemented throu
 
 The 2026-08-19 headless product shift does not remove these surfaces or weaken their Article-selection rules. It changes their product role. Under the amended Project Contract and `docs/decisions/headless-distribution-product-boundary.md`, `/` is canonical **for the bundled reference/standalone frontend**, not every customer website. `GET /api/feed` remains the supported reference/legacy JSON feed and is not the permanent integration API.
 
-Distribution Profiles and PHP/custom integrations are governed by `distribution-and-integration-contract.md`; the permanent `GET /api/v1/distribution/{profile_key}` interface is governed by `distribution-api-contract.md`. They reuse canonical eligibility but are independent of Publication `public_status`. WordPress and RSS/Atom are post-2.0. None may redefine Source trust, visibility, duplicate, moderation, ordering, or `original_url` semantics.
+The 2026-08-27 Publication amendment further clarifies that the singleton Publication is one customer/editorial property and may contain multiple related subject verticals or feed sections. This contract's reference `/` and `/api/feed` surfaces remain singleton-Publication consumers; they do not automatically become a Distribution Profile/vertical switcher. Distribution Profiles are the supported independently configured feed/section boundary for customer integrations.
+
+Distribution Profiles and PHP/custom integrations are governed by `distribution-and-integration-contract.md`; the permanent `GET /api/v1/distribution/{profile_key}` interface is governed by `distribution-api-contract.md`. They reuse canonical eligibility but are independent of Publication `public_status`. Optional 3.0 AI assistance is governed separately by `ai-assistance-contract.md` and must consume canonical Profile output rather than redefining these public-feed rules. None may redefine Source trust, visibility, duplicate, moderation, ordering, or `original_url` semantics.
 
 ## Public-feed purpose
 
 The bundled public experience is a fast, readable index of recent relevant headlines. It promotes discovery and sends readers to the original publisher.
 
-A deployed installation hosts exactly one Publication. The deployment itself identifies the news product/topic; public readers do not select among Publications.
+A deployed installation hosts exactly one Publication. The deployment itself identifies the singleton customer/editorial property; public readers do not select among Publications. The Publication may contain multiple subject verticals for downstream Profiles without introducing reader-selectable Publication tenancy here.
 
 ## Feed eligibility
 
@@ -33,14 +35,15 @@ Collection eligibility and public-feed eligibility are separate. `active_for_col
 
 ## Single-Publication deployment boundary
 
-Each deployed installation contains one singleton Publication configuration as its topic/editorial boundary.
+Each deployed installation contains one singleton Publication configuration as its customer/editorial-property boundary.
 
 - Publication configuration owns installation-wide name, collection/public state, branding/feed settings, Categories, Relevance rules, Sources, Source priority, and presentation settings.
-- Publication is not a relational tenant/ownership key. Public-feed, Source, Article, Category, Relevance, duplicate, scheduler, admin, and future distribution-consumer behavior MUST NOT require a Publication UUID/slug/foreign key merely to scope the one installation.
-- Public/reference routing MUST NOT require a Publication slug or expose a topic-selection surface.
-- Concurrent multi-Publication/topic hosting inside one installation is not supported behavior.
-- A different topic is served by another configured deployment of the same topic-independent codebase.
-- Multiple outward consumers for one Publication do not imply or authorize Publication tenancy.
+- A Publication MAY include multiple related subjects, verticals, or feed concepts. Those distinctions are exposed through Distribution Profiles where independently configured outward feeds are required; they are not separate Publication identities.
+- Publication is not a relational tenant/ownership key. Public-feed, Source, Article, Category, Relevance, duplicate, scheduler, admin, and distribution-consumer behavior MUST NOT require a Publication UUID/slug/foreign key merely to scope the one installation or distinguish verticals.
+- Public/reference routing MUST NOT require a Publication slug or expose a Publication-selection surface.
+- Concurrent multi-Publication hosting inside one installation is not supported behavior.
+- A distinct customer/editorial property or intentionally independent operational/security boundary uses another configured deployment of the same topic-independent codebase. Subject difference alone does not require another deployment when the subjects belong to the same Publication/editorial property and can be represented through Profiles.
+- Multiple outward consumers, subject verticals, or Profiles for one Publication do not imply or authorize Publication tenancy.
 
 ## Basic public-feed backend
 
@@ -175,7 +178,7 @@ The current API supports these optional query parameters:
 - `category` — one Category filter;
 - `cursor` — opaque continuation cursor for load-more/keyset pagination.
 
-The root page accepts the supported first-page discovery dimensions `q`, `source`, and `category` and server-renders their corresponding initial result state. The current `1.0.1` reference frontend does not promote cursor-depth continuation into crawlable/no-JavaScript navigation. Any later evolution of reference-frontend continuation is subject to the replacement roadmap rather than the retired former Phase 1 plan.
+The root page accepts the supported first-page discovery dimensions `q`, `source`, and `category` and server-renders their corresponding initial result state. The current `1.0.1` reference frontend does not promote cursor-depth continuation into crawlable/no-JavaScript navigation. Any later evolution of reference-frontend continuation requires an approved roadmap change rather than being inferred from Profile/multi-vertical support.
 
 Each discovery parameter represents one logical value. Repeated/ambiguous forms, malformed encodings, unsupported values, invalid cursors, or values outside the implementation's documented bounds MUST fail with bounded generic `400` behavior rather than being silently reinterpreted. Existing generic `404` behavior for absent/non-public singleton Publication state and bounded dependency-error behavior remain unchanged.
 
@@ -237,7 +240,7 @@ The public page uses the singleton Publication presentation fields defined by th
 - optional canonical sRGB `accent_color` in `#RRGGBB` form, exposed publicly as `accentColor`;
 - Category labels already supplied by the canonical public discovery metadata.
 
-Missing optional branding values MUST degrade to a complete generic presentation rather than causing page/API failure. Publication branding is data/configuration; shared engine/UI code MUST NOT embed indie-author-specific names, copy, logos, colors, or topic conditionals.
+Missing optional branding values MUST degrade to a complete generic presentation rather than causing page/API failure. Publication branding is data/configuration; shared engine/UI code MUST NOT embed indie-author-specific names, copy, logos, colors, filmmaking copy, opportunity copy, or subject conditionals.
 
 The canonical read model exposes these minimum public values, and Cloudflare-protected administration edits them.
 
@@ -310,7 +313,7 @@ Initial singleton Publication/Source configuration MAY be supplied through appro
 
 Ordinary bootstrap remains create-if-absent and MUST NOT overwrite existing operator-managed Publication state. Changing committed bootstrap input alone is not a state-transition mechanism for already-created state.
 
-Bootstrap/deployment configuration supplies one singleton Publication configuration; it MUST NOT require a slug selector or choose among multiple Publication records. Before production database compatibility was established, older pre-production databases could be recreated and bootstrapped rather than supported through an in-place upgrade path; accepted production state is now governed separately by the production-data compatibility ADR.
+Bootstrap/deployment configuration supplies one singleton Publication configuration; it MUST NOT require a slug selector or choose among multiple Publication records. Multiple subject verticals do not change this bootstrap cardinality. Before production database compatibility was established, older pre-production databases could be recreated and bootstrapped rather than supported through an in-place upgrade path; accepted production state is now governed separately by the production-data compatibility ADR.
 
 Administrative UI/API routes are protected by Cloudflare Access under `docs/decisions/cloudflare-access-admin-perimeter.md`.
 
@@ -330,11 +333,13 @@ Administrative area SHOULD contain:
 - change/audit history;
 - Settings.
 
-Navigation is single-Publication and does not expose a topic switcher. Application commands validate actual Source/endpoint/run/Article/observation/duplicate relationships and domain invariants rather than a Publication tenancy boundary.
+Navigation is single-Publication and does not expose a Publication switcher. Different feed/subject verticals are managed through Sources, Categories/Relevance where appropriate, and Distribution Profiles rather than by switching Publications. Application commands validate actual Source/endpoint/run/Article/observation/duplicate relationships and domain invariants rather than a Publication tenancy boundary.
 
 Distribution Profiles are a governed control-plane resource defined by `distribution-and-integration-contract.md`, independent of the reference frontend's `public_status`. Authorized operators can create a draft Profile, inspect/reload persisted Profiles, edit mutable configuration, add/update/remove Source associations and bounded filters, activate only when the usable-Source invariant is met, disable an active Profile, and reactivate a valid disabled Profile. These routes remain under the managed Cloudflare Access, request-integrity, and resource-validation boundary; they are neither machine distribution authentication nor the permanent v1 API.
 
 Distribution Credentials are an adjacent governed control-plane resource. Inside the existing Cloudflare Access-protected admin perimeter, with the same request-integrity and bounded command/resource validation, authorized administrators can create, list, rotate, and revoke credentials. List and revoke responses expose safe metadata only, never plaintext, verifier, or digest material. Successful create/rotate commands may return a newly issued plaintext token once; no reveal or recovery endpoint exists for an old plaintext token. Browser handling is transient: a newly issued token is not persisted in the URL, browser storage, cookies, or reloadable state and is cleared, replaced, or dismissed by the one-time-secret workflow. Rotation does not silently revoke the predecessor. Machine bearer authentication does not satisfy administrator access or mutation-integrity requirements.
+
+When interactive AI ships, its billable/abuse-sensitive machine authorization must be added as a separately governed control-plane concern; existing `distribution:read` credentials do not silently inherit that capability.
 
 ## Source management UI
 
@@ -417,7 +422,7 @@ Dismissed decisions persist so unchanged evidence does not repeatedly recreate t
 - Administrative commands MUST validate real resource relationships and domain invariants even without per-user permissions.
 - Administrative errors must not expose secrets, stack traces, or raw database details.
 
-Cloudflare Access is not a mandatory self-hosted runtime dependency. Native/default self-host admin authentication is post-2.0; machine distribution authentication is governed separately by `distribution-api-contract.md` and MUST NOT grant administrator authority.
+Cloudflare Access is not a mandatory self-hosted runtime dependency. Native/default self-host admin authentication remains deferred unless later promoted; machine distribution authentication is governed separately by `distribution-api-contract.md` and MUST NOT grant administrator authority. AI secrets/interactive authorization are governed separately by `ai-assistance-contract.md`.
 
 ## Change history
 

@@ -1,24 +1,25 @@
 # Post-1.0 / 2.0 Roadmap
 
-**Status:** ACTIVE — owner-approved 2.0 implementation roadmap.  
-**Current package baseline:** `1.7.0`.
-**Current implementation phase:** Phase 7 — Managed integration and 2.0 release qualification.
-**Current task folder:** `p1-7`.
-**Current Phase 7 prompt versions:** `1.7.<prompt>`.
-**Terminal release target:** `2.0.0`.  
-**Primary direction:** prove the managed headless distribution product through Distribution Profiles, the authenticated v1 API, generic PHP synchronization/LKG, and a real external customer-site integration.
+**Status:** COMPLETE — terminal release transition reached `2.0.0` on 2026-08-27.  
+**Final package release:** `2.0.0`.  
+**Historical implementation phases:** Phase 1 through Phase 7.  
+**Historical task family:** `p1-<phase>` / `1.<phase>.<prompt>`.  
+**Successor roadmap:** `docs/roadmap/3.0-roadmap.md` — owner-approved / pre-activation at package `2.0.0`.  
+**Primary result:** the managed headless distribution product now has Distribution Profiles, the authenticated v1 API, generic PHP synchronization/LKG/local-read behavior, and a real customer-site integration baseline.
+
+> This file is now historical roadmap authority for the path that produced `2.0.0`. Current post-2.0 phase/version routing belongs to `BOOT.md` and `docs/roadmap/3.0-roadmap.md`. Historical phase wording below is retained so implementation/validation evidence can be interpreted against the roadmap that governed it.
 
 ## Roadmap activation
 
 The accepted `1.0.0` customer launch established the first supported production schema/data baseline. Former post-1.0 Phase 0 P1 then shipped the server-rendered bundled/reference root at `1.0.1`.
 
-Before the former Phase 0 P2 closeout executed, the owner approved the headless aggregation/distribution product pivot. That unexecuted P2 was retired and never reserved `1.0.2`. The subsequent 2.0 architecture/planning gate is now complete and the resulting contracts are authoritative.
+Before the former Phase 0 P2 closeout executed, the owner approved the headless aggregation/distribution product pivot. That unexecuted P2 was retired and never reserved `1.0.2`. The subsequent 2.0 architecture/planning gate completed and the resulting contracts remain authoritative for the implemented 2.0 baseline unless explicitly amended later.
 
-On 2026-08-20 the owner approved this replacement seven-phase roadmap and explicitly removed Docker Compose/self-host packaging from the `2.0.0` completion gate. The product goal for 2.0 is to prove the managed integration model quickly and rigorously; self-host packaging remains a later product direction rather than release-blocking work.
+On 2026-08-20 the owner approved this replacement seven-phase roadmap and explicitly removed Docker Compose/self-host packaging from the `2.0.0` completion gate. The product goal for 2.0 was to prove the managed integration model quickly and rigorously; self-host packaging remained a later product direction rather than release-blocking work.
 
-Roadmap activation authorizes the version-only baseline transition from `1.0.1` to `1.1.0`. No retired Phase 0 version is reused.
+Roadmap activation authorized the version-only baseline transition from `1.0.1` to `1.1.0`. No retired Phase 0 version was reused.
 
-Normal roadmap implementation may now resume through:
+The historical roadmap workflow was:
 
 ```text
 /prompt-ass
@@ -35,7 +36,7 @@ Normal roadmap implementation may now resume through:
 
 ## Version lifecycle
 
-All 2.0 development remains in the `1.x.x` series. The final release transition alone produces `2.0.0`.
+All 2.0 development remained in the `1.x.x` series. The final release transition alone produced `2.0.0`.
 
 ```text
 roadmap activation       1.1.0
@@ -51,11 +52,11 @@ Phase 5 prompts           1.5.1 ... 1.5.x
 Phase 5 /closeout         1.6.0
 Phase 6 prompts           1.6.1 ... 1.6.x
 Phase 6 /closeout         1.7.0
-Phase 7 prompts           1.7.1 ... 1.7.x
+Phase 7 prompt/qualification space 1.7.x
 terminal /closeout        2.0.0
 ```
 
-Post-1.0 runner grammar remains unchanged:
+Historical post-1.0 runner grammar remains preserved for old task stacks:
 
 - Phase N folder: `docs/tasks/p1-N/`;
 - exact task header: `TASK: Phase N / P<number> — <title>`;
@@ -63,11 +64,13 @@ Post-1.0 runner grammar remains unchanged:
 - exactly one final closeout prompt per phase;
 - prompt numbers are contiguous from P1.
 
-The terminal Phase 7 `/closeout` is a deliberate release exception to the ordinary non-terminal handoff. After the final Phase 7 tree has satisfied its durable release-validation gate, `/closeout` changes only top-level `package.json` from the final validated `1.7.x` candidate to `2.0.0`, creates no `1.8.0` or `2.0.1` successor baseline, and marks this roadmap complete.
+The terminal Phase 7 `/closeout` was a deliberate release exception to the ordinary non-terminal handoff. The owner ultimately accepted an explicit Phase 7 release-evidence exception recorded in the durable validation artifact, then terminal `/closeout` changed only top-level `package.json` from `1.7.0` to `2.0.0`. No `1.8.0` baseline or `2.0.x` development candidate was created.
+
+That historical acceptance does not retroactively claim that unexecuted Phase 7 prompts/tests ran. The durable Phase 7 artifact remains the truthful record of the owner-authorized release exception.
 
 ## Required product path
 
-The roadmap must deliver and prove this one end-to-end authority chain:
+The roadmap was designed to deliver and prove this end-to-end authority chain:
 
 ```text
 approved Sources
@@ -81,7 +84,7 @@ approved Sources
 → direct stored publisher originalUrl links
 ```
 
-Every phase must preserve topic independence, one Publication per installation, approved-Source trust, idempotency/provenance, duplicate suppression, stored `original_url`, and the existing supported `/` plus `/api/feed` reference behavior.
+Every phase preserved topic independence, singleton Publication architecture, approved-Source trust, idempotency/provenance, duplicate suppression, stored `original_url`, and the existing supported `/` plus `/api/feed` reference behavior. The later 2026-08-27 Publication amendment changes only the historical one-Publication/one-topic interpretation: current singleton Publications may contain multiple subject verticals while remaining non-tenant singleton editorial properties.
 
 ## Phase 1 — Distribution Profile foundation (completed)
 
@@ -107,21 +110,21 @@ Every phase must preserve topic independence, one Publication per installation, 
 
 ### Boundaries
 
-Phase 1 does **not** build the permanent distribution API, machine bearer credentials, PHP client/cache, WordPress, RSS/Atom, or self-host packaging.
+Phase 1 did **not** build the permanent distribution API, machine bearer credentials, PHP client/cache, WordPress, RSS/Atom, or self-host packaging.
 
-Source configuration/collection remains singular and is never duplicated into a Profile. Profile filtering is post-eligibility distribution configuration and never becomes Article identity, Relevance, moderation, duplicate, or collection logic.
+Source configuration/collection remained singular and was never duplicated into a Profile. Profile filtering was post-eligibility distribution configuration and never became Article identity, Relevance, moderation, duplicate, or collection logic.
 
 ### Exit gate
 
-An authorized administrator can safely create a draft Profile, configure its Source associations and bounded filters, activate it only when valid, disable it, and reload the exact persisted state. Database constraints/transactions preserve immutable keys and relationship integrity. Migration-from-zero and supported production-forward migration preserve all previously governed 1.x data.
+An authorized administrator can safely create a draft Profile, configure its Source associations and bounded filters, activate it only when valid, disable it, and reload the exact persisted state. Database constraints/transactions preserve immutable keys and relationship integrity. Migration-from-zero and supported production-forward migration preserve previously governed production data.
 
-The complete persisted/application Profile boundary required by Phase 2 is proven at the appropriate Level 2–4 evidence before Phase 1 closes.
+The complete persisted/application Profile boundary required by later phases was proven through the phase's accepted evidence.
 
 ### Next baseline
 
-Green Phase 1 `/closeout` transitions only `package.json` to `1.2.0`.
+Green Phase 1 `/closeout` transitioned only `package.json` to `1.2.0`.
 
-**Closeout:** completed; the current baseline is `1.2.0`.
+**Closeout:** completed; baseline advanced to `1.2.0`.
 
 ## Phase 2 — Canonical distribution read model
 
@@ -144,21 +147,21 @@ Green Phase 1 `/closeout` transitions only `package.json` to `1.2.0`.
 
 ### Boundaries
 
-Phase 2 does not expose `/api/v1/distribution/...`, authenticate machines, or implement PHP.
+Phase 2 did not expose `/api/v1/distribution/...`, authenticate machines, or implement PHP.
 
-Do not copy the existing `public-feed` query and then maintain a competing eligibility implementation. Refactor/evolve only as required to leave one governed canonical eligibility authority plus separate reference-public and Profile-selection consumers.
+The implementation avoided maintaining a competing eligibility implementation and left one governed canonical eligibility authority plus separate reference-public and Profile-selection consumers.
 
 ### Exit gate
 
-Focused plus real-PostgreSQL evidence proves canonical eligibility, Profile filtering, ordering, Category semantics, bounded result behavior, pagination positions, revision behavior, and `public_status` independence. Existing `/` and `/api/feed` regressions remain green.
+Focused plus real-PostgreSQL evidence proved canonical eligibility, Profile filtering, ordering, Category semantics, bounded result behavior, pagination positions, revision behavior, and `public_status` independence. Existing `/` and `/api/feed` regressions remained green for the accepted tree.
 
-The producer handoff to Phase 4 must already expose every distribution query capability the HTTP layer needs; later API work must not invent Article SQL, Profile interpretation, ordering, or revision semantics.
+The producer handoff exposed the distribution query capabilities later HTTP work required; the API did not invent Article SQL, Profile interpretation, ordering, or revision semantics.
 
 ### Next baseline
 
-Green Phase 2 `/closeout` transitions only `package.json` to `1.3.0`.
+Green Phase 2 `/closeout` transitioned only `package.json` to `1.3.0`.
 
-**Closeout:** completed successfully; `/closeout` transitioned only `package.json` to `1.3.0`, which is the Phase 3 baseline.
+**Closeout:** completed successfully; baseline advanced to `1.3.0`.
 
 ## Phase 3 — Machine credentials and distribution security
 
@@ -186,19 +189,19 @@ Green Phase 2 `/closeout` transitions only `package.json` to `1.3.0`.
 
 ### Boundaries
 
-Initial 2.0 credentials are instance-scoped, not Profile-scoped. Do not create a credential↔Profile authorization matrix or Profile-specific `403` model.
+Initial 2.0 credentials were instance-scoped, not Profile-scoped. The phase did not create a credential↔Profile authorization matrix or Profile-specific authenticated-but-forbidden `403` model.
 
-This phase does not build the distribution HTTP route itself.
+This phase did not build the distribution HTTP route itself.
 
 ### Exit gate
 
-Credential generation, verifier storage, authentication, expiry, rotation overlap, revocation, rate/abuse boundaries, and strict machine/admin separation are proven with focused security/integration/database evidence. Phase 4 can consume one tested authentication interface rather than inventing security logic in a route.
+Credential generation, verifier storage, authentication, expiry, rotation overlap, revocation, rate/abuse boundaries, and strict machine/admin separation were proven with focused security/integration/database evidence. Phase 4 consumed the tested authentication interface rather than inventing security logic in a route.
 
 ### Next baseline
 
-Green Phase 3 `/closeout` transitions only `package.json` to `1.4.0`.
+Green Phase 3 `/closeout` transitioned only `package.json` to `1.4.0`.
 
-**Closeout:** completed successfully; `/closeout` transitioned only top-level `package.json` to `1.4.0`, which is the Phase 4 baseline.
+**Closeout:** completed successfully; baseline advanced to `1.4.0`.
 
 ## Phase 4 — Versioned v1 distribution API
 
@@ -208,7 +211,7 @@ Green Phase 3 `/closeout` transitions only `package.json` to `1.4.0`.
 
 ### Required scope
 
-Implement:
+Implemented:
 
 ```text
 GET /api/v1/distribution/{profile_key}
@@ -234,21 +237,21 @@ with:
 
 ### Boundaries
 
-The HTTP serializer/controller is thin. It must not reimplement Profile filters, canonical eligibility, Category semantics, duplicate suppression, cursor positions, revision generation, or Article query composition.
+The HTTP serializer/controller remains thin. It does not reimplement Profile filters, canonical eligibility, Category semantics, duplicate suppression, cursor positions, revision generation, or Article query composition.
 
-`GET /` and `GET /api/feed` remain supported legacy/reference surfaces and are not expanded into the new Profile API.
+`GET /` and `GET /api/feed` remain supported legacy/reference surfaces and were not expanded into the Profile API.
 
 ### Exit gate
 
-The complete documented v1 contract passes focused HTTP/component/security tests plus applicable real-PostgreSQL query/revision evidence. Multi-page traversal cannot mix revisions. Invalid/disabled/missing/rate-limited/dependency states remain bounded. Existing public/admin regressions remain green.
+The documented v1 contract passed focused HTTP/component/security tests plus applicable real-PostgreSQL query/revision evidence for its accepted source tree. Multi-page traversal cannot mix revisions. Invalid/disabled/missing/rate-limited/dependency states are bounded.
 
-A custom server-side consumer can use the v1 API without any PHP-specific behavior.
+A custom server-side consumer can use the v1 API without PHP-specific behavior.
 
 ### Next baseline
 
-Green Phase 4 `/closeout` transitions only `package.json` to `1.5.0`.
+Green Phase 4 `/closeout` transitioned only `package.json` to `1.5.0`.
 
-**Closeout:** completed successfully; conversational `/closeout` transitioned only top-level `package.json` to `1.5.0`, which is the Phase 5 baseline.
+**Closeout:** completed successfully; baseline advanced to `1.5.0`.
 
 ## Phase 5 — Generic PHP synchronization and last-known-good core
 
@@ -282,19 +285,19 @@ Green Phase 4 `/closeout` transitions only `package.json` to `1.5.0`.
 
 ### Boundaries
 
-Phase 5 owns synchronization/cache correctness, not customer HTML presentation. Rendering must not be required to prove the synchronization engine.
+Phase 5 owns synchronization/cache correctness, not customer HTML presentation. Rendering was not required to prove the synchronization engine.
 
-The PHP client is thin and cannot implement Source trust, Profile selectors, Relevance, Category, moderation, duplicate, ordering, or destination rules.
+The PHP client remains thin and cannot implement Source trust, Profile selectors, Relevance, Category, moderation, duplicate, ordering, or destination rules.
 
 ### Exit gate
 
-Deterministic PHP integration tests prove complete traversal, validation, locking, retry behavior, mixed/partial candidate rejection, atomic activation, LKG preservation, stale policy, never-synced behavior, authoritative disable, and re-enable. An upstream/network/API failure cannot corrupt or replace the active valid snapshot.
+Deterministic PHP integration tests proved complete traversal, validation, locking, retry behavior, mixed/partial candidate rejection, atomic activation, LKG preservation, stale policy, never-synced behavior, authoritative disable, and re-enable for the accepted tree. Upstream/network/API failure cannot corrupt or replace active valid snapshot state.
 
 ### Next baseline
 
-Green Phase 5 `/closeout` transitions only `package.json` to `1.6.0`.
+Green Phase 5 `/closeout` transitioned only `package.json` to `1.6.0`.
 
-**Closeout:** completed successfully; conversational `/closeout` transitioned only top-level `package.json` from the accepted `1.5.4` candidate to `1.6.0`, which is the Phase 6 baseline.
+**Closeout:** completed successfully; baseline advanced to `1.6.0`.
 
 ## Phase 6 — PHP local data API and server-rendered customer integration
 
@@ -314,34 +317,34 @@ Green Phase 5 `/closeout` transitions only `package.json` to `1.6.0`.
 - no News Scraper tracking/redirect URL by default;
 - customer-owned presentation override/escape hatch;
 - no visitor-path live API call;
-- lightweight customer-style/example integration harness suitable for Phase 7 deployment proof;
+- lightweight customer-style/example integration harness suitable for later deployment proof;
 - visible local sync/cache health where useful to integrators/operators.
 
 ### Boundaries
 
 Customer presentation may replace the fallback renderer but cannot reinterpret upstream eligibility, filtering, deduplication, ordering, or destinations.
 
-Do not build WordPress, RSS/Atom, click analytics, browser widgets, or advanced SEO tooling.
+The phase did not build WordPress, RSS/Atom, click analytics, browser widgets, or advanced SEO tooling.
 
 ### Exit gate
 
-Server/browser integration evidence proves a customer-style PHP site renders correct local Profile data, direct publisher links, and safe fallback states. After one successful synchronization, making News Scraper unavailable does not make ordinary visitor rendering perform a live API request or blank valid LKG content.
+Server/browser integration evidence proved a customer-style PHP site can render correct local Profile data, direct publisher links, and safe fallback states. After one successful synchronization, making News Scraper unavailable does not make ordinary visitor rendering perform a live API request or blank valid LKG content.
 
 ### Next baseline
 
-Green Phase 6 `/closeout` transitions only `package.json` to `1.7.0`.
+Green Phase 6 `/closeout` transitioned only `package.json` to `1.7.0`.
 
-**Closeout:** completed successfully; conversational `/closeout` transitioned only top-level `package.json` from the accepted `1.6.4` candidate to `1.7.0`, which is the Phase 7 baseline.
+**Closeout:** completed successfully; baseline advanced to `1.7.0`.
 
 ## Phase 7 — Managed integration and 2.0 release qualification
 
 **Baseline:** `1.7.0`  
-**Prompt versions:** `1.7.x`  
+**Prompt versions:** planned `1.7.x`  
 **Goal:** integrate, harden only release-blocking defects, and produce the real managed evidence required to call the product `2.0.0`.
 
-### Required scope
+### Planned required scope
 
-Use a real managed News Scraper instance and an externally hosted customer-style PHP site to observe the full chain:
+The intended real managed qualification chain was:
 
 ```text
 real approved Sources
@@ -356,49 +359,29 @@ real approved Sources
 → direct stored publisher destinations
 ```
 
-Release qualification must additionally exercise at minimum:
+The planned release qualification also covered upstream/API unavailability, synchronization failure, invalid/mixed snapshots, stale behavior, Profile disable/re-enable, credential/rate behavior, no visitor-path live call, legacy/reference regressions, production migration/data preservation, backup/restore/rollback compatibility, and secret-safe telemetry.
 
-- upstream/API unavailability;
-- synchronization failure;
-- malformed or incomplete candidate snapshot;
-- snapshot revision change during traversal;
-- stale valid cache behavior;
-- configured stale cutoff where applicable;
-- authoritative Profile disable suppressing cached public rendering;
-- later successful synchronization restoring re-enabled output;
-- credential revocation/invalid authentication;
-- rate-limit/`Retry-After` behavior;
-- no visitor-path live News Scraper call;
-- preserved existing `/` and `/api/feed` behavior;
-- production-safe forward migration/data preservation for all 2.0 schema additions;
-- existing backup/restore/rollback procedure compatibility;
-- operational telemetry sufficient to diagnose the distribution path without visitor/click tracking or secret leakage.
+### Actual terminal acceptance
 
-### Release-hardening rule
+The full planned P1–P4 Phase 7 prompt/evidence sequence was not executed before release. The repository owner explicitly accepted the live customer integration as sufficient operator evidence to waive that formal sequence and proceed to the terminal release. The durable artifact `docs/validation/phase-7-managed-integration-and-2.0-release-qualification.md` records that exception and must remain the source of truth for what was and was not verified.
 
-Phase 7 is not a general refactor or feature bucket. Fix only defects or bounded maintainability/security problems that block the contracted 2.0 release path. Material new product capability requires explicit replanning rather than being hidden in release qualification.
-
-### Exit gate
-
-A durable Phase 7 validation artifact identifies the exact final `1.7.x` candidate SHA and records the applicable automated, real-PostgreSQL, security, browser/server, approved-live-Source, managed-deployment, failure-injection, migration, and recovery evidence.
-
-The gate is green only when the managed external integration is genuinely usable and every required LKG/security/snapshot/disable/compatibility invariant has been observed at the appropriate evidence level.
+This roadmap therefore records Phase 7 as **owner-accepted by explicit release exception**, not as a claim that every originally planned test/failure-injection item was observed.
 
 ### Terminal release transition
 
-After the final Phase 7 closeout prompt is reviewed and the Phase 7 validation artifact is green, terminal `/closeout` performs exactly one release transition:
+After owner acceptance, terminal `/closeout` performed exactly one release transition:
 
 ```text
-final validated 1.7.x candidate
+1.7.0 accepted baseline
 → package.json version only
 → 2.0.0
 ```
 
-No `1.8.0` baseline is created. No `2.0.x` development candidate is created. The transition does not change source, schema, tests, configuration, dependencies, or runtime behavior.
+Commit `58a5387fba23a3ae3e14cccfd92c062817351ca0` changed only the top-level `package.json` version from `1.7.0` to `2.0.0`. No `1.8.0` baseline or `2.0.x` development candidate was created by this roadmap.
 
-## Explicitly post-2.0
+## Explicitly post-2.0 at roadmap completion
 
-The following do not block `2.0.0` and require later owner-approved roadmap work before implementation:
+At 2.0 completion, the following had not been required and remained future work unless later promoted:
 
 - Linux VPS/Docker Compose self-host packaging/installable deployment route;
 - production-grade autonomous self-hosting;
@@ -413,31 +396,41 @@ The following do not block `2.0.0` and require later owner-approved roadmap work
 - delta synchronization;
 - additional adapter families;
 - unrelated standalone-reference-frontend SEO/archive/pagination enhancements;
-- unrelated collection-filter redesigns unless separately promoted because they become a concrete 2.0 blocker.
+- unrelated collection-filter redesigns.
 
-Self-hostability remains a locked architectural direction under Law 12 and the managed/self-hostable ADR; only its packaging/productization is deferred beyond the managed 2.0 release.
+A later owner-approved roadmap may promote any of these; their presence in this historical list does not put them into current scope automatically.
+
+Self-hostability remains a locked architectural direction under Law 12 and the managed/self-hostable ADR; only its packaging/productization was deferred beyond the managed 2.0 release.
 
 ## Preserved compatibility and non-goals
 
-Throughout all seven phases:
+Throughout the seven-phase design and completed baseline:
 
-- one Publication/topic per deployed installation remains unchanged;
-- topic-specific behavior remains configuration;
-- every collected Article still originates from an approved Source;
-- Worker owns Source collection;
-- Web/API does not collect Sources inline;
-- Source/endpoint/run/Article/observation provenance remains intact;
-- Source-scoped identity/idempotency remains intact;
-- duplicate grouping retains every Source Article and one Primary outward representation;
-- exact stored `original_url` remains the reader destination;
-- existing `GET /` and `GET /api/feed` remain supported reference/legacy surfaces with existing `public_status` semantics;
-- supported production customer data is never treated as disposable;
-- migration-from-zero never substitutes for supported production forward-upgrade proof;
-- adapters/serializers never become competing editorial/query authorities;
-- no 2.0 work guarantees SEO or backlink performance.
+- one singleton Publication per deployed installation remained unchanged;
+- topic-specific behavior remained configuration;
+- every collected Article still originated from an approved Source;
+- Worker owned Source collection;
+- Web/API did not collect Sources inline;
+- Source/endpoint/run/Article/observation provenance remained intact;
+- Source-scoped identity/idempotency remained intact;
+- duplicate grouping retained every Source Article and one Primary outward representation;
+- exact stored `original_url` remained the reader destination;
+- existing `GET /` and `GET /api/feed` remained supported reference/legacy surfaces with existing `public_status` semantics;
+- supported production customer data was not treated as disposable;
+- migration-from-zero did not substitute for supported production forward-upgrade proof;
+- adapters/serializers did not become competing editorial/query authorities;
+- no 2.0 work guaranteed SEO or backlink performance.
+
+The later 2026-08-27 Law 11 amendment retains every item above while clarifying that the one singleton Publication is a customer/editorial property that may contain multiple subject verticals through Profiles.
 
 ## Historical roadmap context
 
-The retired frontend-centric post-1.0 plan remains historical only. Its unexecuted Phase 0 P2/`1.0.2` closeout is permanently retired. Earlier ideas such as crawlable standalone pagination, standalone-site SEO, public summaries, historical archive discovery, thumbnails, and general scale work may be reconsidered later but have no implied position in this active roadmap.
+The retired frontend-centric post-1.0 plan remains historical only. Its unexecuted Phase 0 P2/`1.0.2` closeout is permanently retired. Earlier ideas such as crawlable standalone pagination, standalone-site SEO, public summaries, historical archive discovery, thumbnails, and general scale work may be reconsidered later but have no implied position in the successor roadmap.
 
 Use `docs/roadmap/mvp-roadmap.md` for completed pre-1.0 Phase 0–21 history and its historical validation links.
+
+## Successor roadmap
+
+The owner-approved post-2.0 direction is `docs/roadmap/3.0-roadmap.md`.
+
+That roadmap is intentionally **pre-activation** at package `2.0.0` until the phase runner is extended, through a separate unchanged-`2.0.0` correction, to safely support the intended `2.<phase>.<prompt>` development family. Historical `p1-*` grammar in this document must remain unchanged while that correction is designed and tested.

@@ -4,6 +4,8 @@
 **Date:** 2026-08-20  
 **Extends:** `headless-distribution-product-boundary.md` and `single-publication-simplified-data-model.md`
 
+> **2026-08-27 interpretation note:** `single-publication-multi-vertical-editorial-property.md` preserves this ADR's isolated one-Publication/no-tenancy instance architecture while amending the historical one-Publication/one-topic wording. One managed/self-hostable instance still has one singleton Publication/editorial property, but that Publication may contain multiple subject verticals/feeds exposed through Distribution Profiles. No additional tenant or Publication scope is introduced.
+
 ## Context
 
 The 2026-08-19 headless-product decision established News Scraper as a governed aggregation and distribution core, but deliberately left deployment shape, consumer profiles, adapter families, presentation ownership, machine access, and caching direction unresolved. Those macro boundaries must be stable before a replacement post-1.0 roadmap can be written.
@@ -55,7 +57,16 @@ Cloudflare Access remains accepted for managed deployments. It is not mandatory 
 
 The completed 2.0 contracts retain this ADR's history and refine it as follows: 2.0 requires the authenticated v1 Profile API and generic PHP complete-snapshot/LKG integration and keeps managed integration as the required operating/release path. WordPress, RSS/Atom, the lightweight Linux VPS/Docker Compose installable packaging route, native/default self-host admin authentication, and autonomous public self-host production readiness are post-2.0.
 
-Deferring self-host packaging changes sequencing, not architecture. Law 12 still requires the product to remain independently operable and free of a mandatory central News Scraper dependency. Exact implemented 2.0 behavior is owned by `../contracts/distribution-and-integration-contract.md` and `../contracts/distribution-api-contract.md`; the active seven-phase sequence is owned by `../roadmap/post-1.0-roadmap.md`.
+Deferring self-host packaging changes sequencing, not architecture. Law 12 still requires the product to remain independently operable and free of a mandatory central News Scraper dependency. Exact implemented 2.0 behavior is owned by `../contracts/distribution-and-integration-contract.md` and `../contracts/distribution-api-contract.md`; the historical seven-phase sequence is owned by `../roadmap/post-1.0-roadmap.md`.
+
+## Later 3.0 direction — 2026-08-27
+
+The owner-approved pre-activation 3.0 roadmap retains the complete 2.0 instance/Profile/API/PHP architecture and adds two bounded directions:
+
+- optional Profile-grounded Gemini assistance governed by `../contracts/ai-assistance-contract.md`; and
+- proof that one singleton customer Publication can expose several materially different subject feeds through Distribution Profiles without adding Publication tenancy.
+
+AI is an optional downstream dependency. Ordinary collection, administration, persistence, canonical distribution, PHP Article LKG, and non-AI rendering remain independently operable when Gemini is disabled or unavailable.
 
 ## Consequences
 
@@ -66,7 +77,8 @@ Deferring self-host packaging changes sequencing, not architecture. Law 12 still
 - One governed profile boundary prevents transport-specific eligibility drift.
 - Customers can fully control presentation without rebuilding aggregation policy.
 - Local last-known-good rendering limits customer-page dependence on live News Scraper availability.
-- The 2.0 release can validate product usefulness before spending roadmap time on packaging/self-host productization.
+- The 2.0 release validated product usefulness before self-host packaging/productization.
+- The same Profile boundary can now support multiple vertical feeds and optional AI assistance without becoming a tenancy or editorial-authority layer.
 
 ### Costs
 
@@ -74,6 +86,7 @@ Deferring self-host packaging changes sequencing, not architecture. Law 12 still
 - Multiple deployable instances require disciplined operational isolation even when infrastructure is shared.
 - First-party adapters require compatibility and reliability proof across different hosting environments.
 - Self-host packaging and its production support boundary require a later roadmap rather than being delivered with 2.0.
+- Optional AI adds an external provider/cost/failure boundary that must remain isolated from ordinary product operation.
 
 ## Rejected alternatives
 
@@ -83,14 +96,16 @@ Deferring self-host packaging changes sequencing, not architecture. Law 12 still
 - **Implement adapter-specific eligibility or profile logic** — transports must not redefine governed selection.
 - **Require a central cloud control plane** — ordinary operation must remain independently possible.
 - **Require first-party presentation** — customers retain presentation ownership.
-- **Make self-host packaging block 2.0** — rejected by the owner so 2.0 can focus on proving the managed integration product first.
+- **Make self-host packaging block 2.0** — rejected by the owner so 2.0 could focus on proving the managed integration product first.
 
 ## Migration and compatibility effects
 
 This ADR does not itself authorize schema, API, credential, packaging, runtime, dependency, or version changes. Implemented persistence work must preserve supported customer data and prove migration from the accepted Phase 20 baseline as well as migration from zero. Existing `GET /` and `GET /api/feed` behavior remains supported and is not declared to be the permanent external integration contract.
 
+The 2026-08-27 Publication interpretation amendment also authorizes no schema change by itself; the singleton/no-tenancy persistence model remains current.
+
 ## Compliance checks
 
 A future implementation must prove that profile selection follows canonical eligibility, all transports share that authority, adapters cannot restore ineligible rows, machine credentials lack admin capability, cache replacement is atomic/validated, and presentation customization cannot redefine selection.
 
-A future claim of self-host support additionally requires the complete ordinary stack to operate without a mandatory central News Scraper service. That proof is post-2.0 and is not part of the 2.0 release gate.
+A future claim of self-host support additionally requires the complete ordinary stack to operate without a mandatory central News Scraper service. Optional Gemini use must not turn a central News Scraper AI service into an ordinary runtime dependency.

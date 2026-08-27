@@ -2,15 +2,15 @@
 
 ## Security model
 
-The highest-risk surfaces are administrative access, machine distribution credentials, local adapter cache integrity, and server-side fetching of externally configured URLs. Controls appear with the first implementation of each affected surface; historical Phase 19 hardened and operationalized the production deployment boundary rather than introducing those controls for the first time.
+The highest-risk surfaces are administrative access, machine distribution credentials, local adapter cache integrity, server-side fetching of externally configured URLs, and—once 3.0 AI work is implemented—external AI-provider secrets, untrusted prompt/context content, interactive AI abuse/cost control, and model-output validation. Controls appear with the first implementation of each affected surface; historical Phase 19 hardened and operationalized the production deployment boundary rather than introducing those controls for the first time.
 
-Testing/validation for these controls is governed project-wide by `docs/contracts/testing-and-validation-contract.md`.
+Testing/validation for these controls is governed project-wide by `docs/contracts/testing-and-validation-contract.md`. AI-specific behavior is additionally governed by `docs/contracts/ai-assistance-contract.md`.
 
 ## Administrative security
 
-Cloudflare Access remains the accepted administrator perimeter for current managed deployments through 2.0, including direct-origin protection and request-integrity/resource validation. Native/default self-host administrator authentication is post-2.0. Linux VPS/Docker Compose self-host packaging is also post-2.0 and therefore has no current release-perimeter requirement.
+Cloudflare Access remains the accepted administrator perimeter for current managed deployments, including direct-origin protection and request-integrity/resource validation. Native/default self-host administrator authentication remains deferred unless explicitly promoted. Linux VPS/Docker Compose self-host packaging likewise remains outside the current committed 3.0 scope unless promoted.
 
-Human administrator credentials and machine distribution credentials are separate security boundaries. Machine credentials MUST be least-capability for integration use and MUST NOT implicitly grant administrator authority; compromise of an adapter credential must not authorize Source, editorial, moderation, duplicate, Profile, or operations mutations.
+Human administrator credentials and machine distribution credentials are separate security boundaries. Machine credentials MUST be least-capability for integration use and MUST NOT implicitly grant administrator authority; compromise of an adapter credential must not authorize Source, editorial, moderation, duplicate, Profile, AI-administration, or operations mutations.
 
 Managed administrative UI/API routes use Cloudflare Access as the external authentication/access-control perimeter under `docs/decisions/cloudflare-access-admin-perimeter.md`.
 
@@ -23,19 +23,19 @@ The application MUST preserve:
 - bounded configuration/moderation change history where required by governing contracts;
 - secrets outside source control.
 
-The 2.0 application does not require native administrator accounts, passwords/passkeys, application login/logout sessions, account recovery, roles, per-user Publication authorization, or canonical internal administrator identity.
+The current application does not require native administrator accounts, passwords/passkeys, application login/logout sessions, account recovery, roles, per-user Publication authorization, or canonical internal administrator identity.
 
 Cloudflare identity/access logs may provide operational evidence but are not the application's canonical domain identity/audit attribution.
 
 Administrative errors must not expose secrets, stack traces, or raw database details.
 
-The singleton Publication is an installation/editorial configuration boundary, not an application tenant key. Administrative security therefore validates actual Source/endpoint/run/Article/observation/duplicate/Profile relationships and invariants rather than cross-Publication ownership.
+The singleton Publication is one customer/editorial property and installation configuration boundary, not an application tenant key. It may contain multiple related subject verticals/Profiles. Administrative security therefore validates actual Source/endpoint/run/Article/observation/duplicate/Profile relationships and invariants rather than cross-Publication or vertical ownership.
 
 ## Machine distribution security
 
 The v1 distribution API uses dedicated high-entropy bearer credentials governed by `docs/contracts/distribution-api-contract.md`.
 
-Phase 3 implemented the credential lifecycle, authenticator, request guard, and bounded process-local rate foundation. Phase 4 implemented trusted HTTP client-network/proxy interpretation, production HTTPS fail-closed behavior, v1 status/error mapping including `429`/`Retry-After`, cache/security headers, and bounded distribution telemetry. Phase 5 implemented PHP synchronization/LKG consumption, locking, persistence, freshness/usability, and health without reproducing or weakening those upstream boundaries. Phase 6 implemented normalized local read, safe escaping/fallback rendering, direct links, and local-only visitor-path/no-secret/no-live-visitor-call boundaries. Phase 7 managed integration/release qualification must preserve and observe those protections rather than weaken upstream authentication or LKG guarantees; Phase 6 local evidence is not managed external deployment proof.
+The completed 2.0 baseline implemented the credential lifecycle, authenticator, request guard, trusted HTTP client-network/proxy interpretation, production HTTPS fail-closed behavior, v1 status/error mapping including `429`/`Retry-After`, cache/security headers, bounded distribution telemetry, PHP synchronization/LKG consumption, normalized local read, safe escaping/fallback rendering, direct links, and local-only visitor-path/no-secret/no-live-visitor-call boundaries.
 
 - plaintext credentials are shown only at creation and never persisted;
 - persisted state uses a non-secret lookup identity plus secure verifier/digest;
@@ -48,6 +48,36 @@ Phase 3 implemented the credential lifecycle, authenticator, request guard, and 
 - `429` includes `Retry-After`;
 - production distribution requires HTTPS;
 - browser-direct use/permissive CORS is not part of the v1 requirement.
+
+`distribution:read` does **not** silently authorize unlimited billable interactive AI. The 3.0 AI contract requires a separately governed server-side authorization/capability, request-size, rate, and cost-abuse boundary before interactive chat ships. That AI capability must remain separate from human administrator authority.
+
+## AI provider and chat security
+
+The owner-approved 3.0 direction initially uses Google Gemini. Until implemented, these requirements are contract targets rather than observed runtime behavior.
+
+Gemini/provider secrets MUST remain server-side and MUST NOT appear in:
+
+- browser JavaScript or HTML;
+- public customer PHP configuration/document roots;
+- URLs or query strings;
+- cache/LKG payloads;
+- logs or telemetry;
+- persisted Article/Source metadata.
+
+Source-derived Article text, customer chat input, conversation history, and model output are all untrusted data.
+
+AI orchestration MUST:
+
+- separate system/developer instructions from Source/user content;
+- treat Article text such as “ignore previous instructions” as data with no authority;
+- bound Article context, user input, conversation history, and output sizes;
+- validate structured model output before persistence/distribution/use;
+- validate model-proposed Article references against the actual Profile context;
+- resolve visible citation destinations from exact stored `originalUrl`, never from untrusted model-generated URLs;
+- avoid sending unrelated Profiles, private admin configuration, credentials, Raw bodies, Collection-run payloads, or internal persistence fields merely because they exist;
+- log only bounded non-secret operational facts.
+
+An explicit customer chat action MAY make a live server-side upstream request. Ordinary Article rendering and synchronized digest display MUST NOT expose the provider key or require a live Gemini call.
 
 ## Fetching and SSRF defenses
 
@@ -69,6 +99,8 @@ Every redirect destination reruns scheme, domain, port, DNS, and resolved-addres
 
 After parsing/normalization, Article URLs are separately validated against Source/endpoint Article-domain policy before acceptance. Post-parse Article-link validation does not replace pre-fetch network safety.
 
+AI provider requests are not Source collection and do not authorize arbitrary URLs supplied by Source/user/model text. Provider endpoints/configuration must use a bounded application-owned transport/configuration path rather than a generic model-directed fetcher.
+
 ## Content safety
 
 Collected content is untrusted. The system MUST:
@@ -85,9 +117,15 @@ Static HTML input remains untrusted under this same model. HTML selector/profile
 
 HTML parser errors, logs, run diagnostics, and preview responses MUST NOT retain or emit raw page bodies, script contents, secrets, or unbounded extracted content. Ordinary HTML endpoint fetches continue through the same approval, whitelist, DNS/address/port, redirect, rebinding, timeout, and response/decompression protections as other endpoint types.
 
+AI prompt context uses only bounded safe normalized outward Article metadata selected through canonical Profile semantics. It MUST NOT use unbounded Raw items/full feed bodies merely because they are stored. Open issue `N6WD` or an equivalent explicit input bound must be resolved before oversized Source descriptions can become unbounded AI prompt content.
+
+AI-generated text is untrusted output and must be escaped/sanitized for its rendering context. It must not be rendered as trusted executable HTML/markup unless a separately governed safe renderer is implemented.
+
 ## Failure isolation
 
 The generic PHP adapter synchronizes complete Profile snapshots into independent per-Profile candidate state and atomically activates only a fully validated revision. Failed, invalid, partial, or mixed-revision candidates preserve active last-known-good state. Stale valid output remains usable by default without a hard cutoff; configured expiry uses a safe fallback and never a visitor-path live API call. Authenticated `409 profile_disabled` is authoritative and suppresses cached rendering until a later successful synchronization.
+
+Each Profile has independent local candidate/active state. Publishing-news, opportunities, indie-filmmaking, or other Profiles on the same customer host must not share locks/manifests/failure state in a way that lets one failed/disabled/stale Profile corrupt another.
 
 Each endpoint Collection run is an independent execution unit and one endpoint failure must not invalidate another run.
 
@@ -99,6 +137,13 @@ For durable scheduling:
 - circuit-breaking/cooldown protects repeatedly failing endpoints;
 - Worker concurrency is bounded globally and per host/Source;
 - public/reference reads remain available during collection failures.
+
+AI failure isolation is additional:
+
+- Gemini/provider timeout, error, rate limit, malformed/invalid structured output, or safety rejection cannot interrupt Source collection, Article persistence, canonical Profile distribution, PHP Article LKG, or ordinary customer Article rendering;
+- a failed scheduled digest may preserve a prior valid digest with truthful age/freshness metadata or expose an explicit unavailable AI state;
+- a failed interactive chat request fails that chat action only and does not suppress feed/digest state;
+- AI disablement leaves the non-AI product independently operable.
 
 Failure-isolation claims require executed tests at the lowest evidence level capable of proving the actual boundary. A test that only asserts an exception occurred is insufficient when the contract requires unrelated work/state to remain intact.
 
@@ -113,9 +158,11 @@ Approval/trust, lifecycle, operational state, and health are emitted/reported se
 
 An archived or paused endpoint is not labeled unhealthy merely because it is intentionally not running.
 
+When AI is implemented, AI generation/chat health is a separate operational concern and must not be folded into Source health or canonical Article eligibility.
+
 ## Observability
 
-2.0 distribution telemetry records bounded Profile key, API version, response status/duration, item/page information, non-secret credential identity, authentication/rate/missing/disabled/failure categories, and supplied adapter version. PHP health exposes last attempt/success, duration, items/pages, freshness and stale age, unchanged result, last failure category, and adapter version. This is operational diagnostics, not click, referral, visitor, page-view, reader-identity, or backlink analytics. Telemetry remains locally operable; central aggregation cannot become a runtime dependency.
+The implemented distribution telemetry records bounded Profile key, API version, response status/duration, item/page information, non-secret credential identity, authentication/rate/missing/disabled/failure categories, and supplied adapter version. PHP health exposes last attempt/success, duration, items/pages, freshness and stale age, unchanged result, last failure category, and adapter version. This is operational diagnostics, not click, referral, visitor, page-view, reader-identity, or backlink analytics. Telemetry remains locally operable; central aggregation cannot become a runtime dependency.
 
 Collection/operations telemetry remains sufficient to answer:
 
@@ -127,20 +174,22 @@ Collection/operations telemetry remains sufficient to answer:
 - why a duplicate candidate was created, dismissed, or grouped;
 - what material administrative configuration/moderation change occurred and to which resource.
 
+AI telemetry, when implemented, MAY record bounded Profile key, provider/model, duration, safe token/usage facts when available, result/failure category, and non-secret correlation identifiers. It MUST NOT become reader profiling or unbounded prompt/response logging.
+
 Foundations include structured logs with run/correlation identifiers, bounded Collection-run history, job/queue metrics, Web/API liveness/readiness, Worker startup/dependency checks, and alert-ready endpoint health.
 
 ## Logging constraints
 
 Logs MUST NOT contain:
 
-- passwords, access/session tokens, API keys, bearer credential plaintext, or Authorization headers;
-- unbounded response bodies or sensitive distribution payloads;
+- passwords, access/session tokens, Gemini/API keys, bearer credential plaintext, or Authorization headers;
+- unbounded prompts, Article corpora, chat histories, model responses, response bodies, or sensitive distribution payloads;
 - sensitive environment values;
 - credential-bearing database connection strings.
 
 Query strings are redacted when they may contain credentials/private tokens.
 
-Security/redaction tests MUST use synthetic credentials/secrets and MUST NOT require real production credentials.
+Security/redaction tests MUST use synthetic credentials/secrets and MUST NOT require real production credentials. Live Gemini integration proof may use safely provisioned non-production credentials, but those credentials still must not appear in evidence/logs.
 
 ## Backup and recovery
 
@@ -150,14 +199,16 @@ Because Article identity is idempotent, safe replay is the preferred recovery me
 
 Recovery claims require observed or injected recovery validation under the testing contract. Documentation of a restore procedure alone is not restore proof.
 
+Any persisted AI digest/auth state introduced later must follow supported production migration/backup/restore requirements. AI output must not become the only copy of canonical Article facts.
+
 ## Deployment configuration
 
-- Secrets and environment-specific settings, including database connection details, live outside committed source.
+- Secrets and environment-specific settings, including database connection details and later Gemini/provider credentials, live outside committed source.
 - Git-tracked migrations and migration infrastructure are authoritative for the supported database schema.
 - Web/API and Worker startup do not silently apply schema changes.
 - Web/API and Worker versions remain compatible with the active schema.
 - Graceful shutdown lets jobs finish or become safely retryable.
-- Readiness fails when critical dependencies are unavailable.
+- Readiness fails when critical required dependencies are unavailable; optional Gemini failure must not make non-AI readiness falsely fail unless an explicitly AI-specific readiness surface is being checked.
 - Managed deployments with admin routes prevent direct-origin bypass of the Cloudflare Access perimeter.
 
 From the accepted production baseline forward, `docs/decisions/production-data-and-schema-compatibility.md` applies:
@@ -168,7 +219,7 @@ From the accepted production baseline forward, `docs/decisions/production-data-a
 - clean migration-from-zero continues for new/disposable installations but is not production-upgrade proof;
 - post-launch schema changes require explicit forward-upgrade/data-preservation validation and compatible rollback/restore planning.
 
-The active 2.0 managed release reuses this established deployment/backup boundary. Self-host packaging and its separate deployment/support perimeter are post-2.0.
+The completed 2.0 managed release established the existing deployment/backup boundary. The owner-approved 3.0 roadmap builds on it; self-host packaging and its separate deployment/support perimeter remain outside current scope unless promoted.
 
 ## Operational runbooks
 
@@ -183,8 +234,14 @@ Current operations maintain runbooks for:
 - Cloudflare Access/admin-perimeter incident or lockout handling;
 - unsafe/compromised Source response;
 - legal/editorial Article takedown;
-- 2.0 distribution authentication/Profile/PHP synchronization/LKG/local-read failures and the Phase 7 managed-integration qualification path.
+- distribution authentication/Profile/PHP synchronization/LKG/local-read failures.
+
+3.0 implementation should add bounded operator guidance for Gemini digest/chat failure, key rotation/revocation, cost/rate-limit incidents, and multi-Profile customer integration only when those behaviors actually ship. Historical Phase 7 qualification procedures remain historical evidence/workflow rather than current roadmap routing.
 
 ## Privacy and retention
 
-The Platform collects minimal reader data and 2.0 does not introduce visitor/click analytics. Cloudflare/admin access logs, application change records, IP logs, Source-provided author metadata, bounded Raw-item payloads, machine-credential audit metadata, and distribution operational logs require bounded retention/access appropriate to the deployment. Native administrator account data remains post-2.0.
+The Platform collects minimal reader data and the current product does not introduce visitor/click analytics. Cloudflare/admin access logs, application change records, IP logs, Source-provided author metadata, bounded Raw-item payloads, machine-credential audit metadata, distribution operational logs, and later bounded AI operational telemetry require bounded retention/access appropriate to the deployment.
+
+Interactive chat should send only the minimum bounded Profile/user context needed for the request. News Scraper documentation must not invent provider retention/privacy claims; operators remain responsible for provider terms/configuration appropriate to their deployment.
+
+Native administrator account data remains deferred unless later promoted.

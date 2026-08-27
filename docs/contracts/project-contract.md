@@ -5,7 +5,7 @@
 **Repository:** `jfin602/news-scraper`  
 **Initial Publication:** Indie-author publishing industry news  
 **Established:** 2026-08-06  
-**Product-direction amendments:** 2026-08-19 and 2026-08-20
+**Product-direction amendments:** 2026-08-19, 2026-08-20, and 2026-08-27
 
 ## Product definition
 
@@ -13,9 +13,9 @@ The system is a reusable, topic-independent **headless news aggregation and dist
 
 The Platform core is the collection, normalization, persistence, editorial/moderation, and distribution system. The protected administrator surface is its control plane. A bundled first-party public feed may consume the same canonical outward read semantics as a reference/standalone frontend, but that frontend is not the identity of the aggregation engine and downstream websites do not need to adopt its presentation.
 
-The indie-author Publication is the first configuration of the Platform, not the identity of the aggregation engine. Reuse occurs by configuring and deploying another installation of the same codebase for another topic; one deployed installation does not concurrently host multiple topic Publications.
+The original indie-author news feed is the first configured use of the Platform, not the identity of the aggregation engine. Each deployed installation still hosts one singleton Publication, but that Publication represents one customer/editorial property and governed content universe rather than necessarily one narrow topic. One Publication may contain multiple related subject verticals or feed sections, exposed through Distribution Profiles, while shared engine behavior remains topic independent. A distinct customer/editorial property or intentionally independent operational boundary may use another configured deployment of the same codebase.
 
-The approved 2.0 contracts define Distribution Profile selectors/lifecycle, the permanent v1 machine API, machine authentication, generic PHP synchronization/cache behavior, link/SEO limits, telemetry, and managed integration proof. They are implemented through the active seven-phase 2.0 roadmap. WordPress, RSS/Atom, Linux VPS/Docker Compose self-host packaging, native self-host admin authentication, and autonomous public self-host production readiness are post-2.0.
+The completed 2.0 contracts define Distribution Profile selectors/lifecycle, the permanent v1 machine API, machine authentication, generic PHP synchronization/cache behavior, link/SEO limits, telemetry, and managed integration behavior. The owner-approved 3.0 roadmap is currently pre-activation at package `2.0.0`; it adds Profile-grounded Gemini assistance, multi-feed proof, and later admin/PHP integration hardening without weakening the existing 2.0 boundaries. WordPress, RSS/Atom, Linux VPS/Docker Compose self-host packaging, native self-host admin authentication, and autonomous public self-host production readiness remain outside the current commitment unless explicitly promoted.
 
 ## Locked project laws
 
@@ -29,15 +29,17 @@ The approved 2.0 contracts define Distribution Profile selectors/lifecycle, the 
 8. **Categories, Relevance rules, branding, and Sources belong to Publication configuration.**
 9. **A failing Source must not interrupt collection from other Sources.**
 10. **Near-real-time means configurable polling unless a Source explicitly supports push delivery.**
-11. **Each deployed installation hosts exactly one Publication/topic. Topic independence means the same shared codebase can be configured and deployed for different topics without topic-specific engine changes; it does not mean one installation concurrently hosts multiple Publications. The Platform's primary product boundary is the governed collection, normalization, persistence, editorial control, and distribution of normalized Article metadata. Supported outward consumers must reuse canonical distribution eligibility/selection semantics rather than introduce competing Article-selection authorities. A bundled first-party public frontend may consume that same boundary but is not the aggregation engine's primary product identity.**
+11. **Each deployed installation hosts exactly one Publication. A Publication represents the installation's customer/editorial property and governed content universe and may cover multiple related subjects, verticals, or feed sections. Distribution Profiles are the supported mechanism for exposing independently configured feeds within that singleton Publication. Topic independence means shared aggregation/distribution behavior contains no subject-specific engine logic; Sources, Categories, Relevance rules, branding, Profile composition, and other editorial choices remain configuration. This does not authorize concurrent multi-Publication tenancy, Publication selection in ordinary runtime flows, or competing Article-selection authorities. Supported outward consumers must reuse canonical distribution eligibility/selection semantics, and the bundled first-party public frontend remains a consumer rather than the aggregation engine's primary product identity.**
 12. **News Scraper must remain deployable as a complete, independently operable single-Publication stack. The managed service is one deployment model of that same stack, not a separate cloud-dependent product architecture. The managed product is the self-hostable product operated on the customer's behalf. Customer installations must not require a central News Scraper service for ordinary collection, administration, persistence, moderation, or distribution.**
 13. **Customers must retain maximum practical control over presentation of distributed Article data. First-party rendering integrations must provide a safe, functional fallback presentation while also exposing stable extension points or normalized distribution data that allow the customer to replace or bypass the default markup and build a custom presentation without reimplementing collection, eligibility, moderation, duplicate suppression, or Distribution Profile semantics.**
 
 ## Derived invariants
 
 - Collector code operates on generic Sources, endpoints, candidates, Articles, observations, Duplicate groups, singleton Publication configuration, and topic-independent outward read semantics.
-- A deployed installation has one Publication configuration as its application-level editorial/topic boundary; ordinary runtime flows do not select a Publication.
-- Publication is not a tenancy or relational ownership key. Publication UUIDs, slugs, foreign keys, joins, uniqueness scopes, API parameters, or compatibility paths MUST NOT be retained solely for hypothetical concurrent multi-Publication hosting.
+- A deployed installation has one Publication configuration as its application-level editorial/property boundary; ordinary runtime flows do not select a Publication.
+- The singleton Publication MAY contain multiple configured subject verticals/sections; those verticals do not create Publication tenancy or Article ownership scopes.
+- Distribution Profiles are the supported independently configured feed/section boundary within one Publication and MAY use disjoint or overlapping Source membership and bounded filters.
+- Publication is not a tenancy or relational ownership key. Publication UUIDs, slugs, foreign keys, joins, uniqueness scopes, API parameters, or compatibility paths MUST NOT be retained solely for hypothetical concurrent multi-Publication hosting or vertical separation.
 - The singleton Publication configuration owns installation-wide editorial settings such as name, collection/public state, branding, Categories, Relevance rules, Sources, Source priority, and presentation/distribution settings when those settings are explicitly implemented, without requiring those resources to carry a Publication foreign key.
 - Real domain relationships remain explicit: a Source owns endpoints and Articles; an endpoint owns Collection runs; observations preserve the endpoint/run and Article/Source provenance needed for integrity.
 - A Source or endpoint cannot be collected while unapproved, archived, paused, or disabled, and global collection is disabled when the singleton Publication configuration is not active for collection.
@@ -48,13 +50,14 @@ The approved 2.0 contracts define Distribution Profile selectors/lifecycle, the 
 - Article identity and true-duplicate grouping are separate concerns.
 - Source failures are isolated by Source endpoint and Collection run.
 - Duplicate suppression never destroys Article instances or provenance.
-- Topic-specific settings are data/configuration, not topic conditionals in shared engine code.
+- Subject/vertical-specific settings are data/configuration, not subject conditionals in shared engine code.
 - Any outward adapter or integration that presents ordinary Article results MUST consume one governed Article-selection/read boundary for eligibility, ordering, moderation, duplicate suppression, and stored `original_url` destination semantics rather than reimplementing those rules independently.
 - The existing `GET /api/feed` JSON endpoint and bundled `GET /` reference frontend remain supported current consumers of the canonical public/outward read semantics. Their existence does not require future client sites to use the bundled frontend.
-- Managed and future self-hosted deployments are modes of the same complete, independently operable single-Publication stack; the approved architecture does not claim self-host packaging is implemented today or required for `2.0.0`.
+- Managed and future self-hosted deployments are modes of the same complete, independently operable single-Publication stack; the approved architecture does not claim self-host packaging is implemented today.
 - Managed customer instances keep configuration, secrets, editorial/persistence state, jobs, human access, and machine credentials independently bounded even when physical infrastructure is shared; this isolation MUST NOT be modeled as relational customer/Publication tenancy.
 - The instance-owned control plane remains authoritative for collection, editorial/moderation, operational configuration, and Distribution Profiles.
 - Distribution Profile selection occurs after canonical outward eligibility and can only narrow it. All serializers and adapters consume that same profile/read-model authority.
+- AI assistance is downstream of canonical Profile selection and MUST NOT become a Source-trust, Relevance, Category, moderation, Article-identity, duplicate, ordering, or destination authority. AI failure MUST NOT make ordinary non-AI collection/distribution/rendering depend on the external AI provider.
 - PHP, WordPress, RSS/Atom, and custom integrations are thin consumers, never competing editorial or eligibility authorities.
 - Customers control integration presentation; safe first-party templates are fallbacks, not mandatory markup.
 - Ordinary collection, administration, persistence, moderation, and distribution MUST NOT depend on a mandatory central News Scraper cloud service.
@@ -98,20 +101,28 @@ Ordinary implementation work must not weaken a law indirectly.
 
 ### 2026-08-19 product-direction amendment
 
-The repository owner explicitly amended Law 11 after the original client identified integration with an existing website and cross-source outbound-link distribution as the primary product use case. This amendment changes the product/output boundary from "standalone public website as the product" to "headless collection/control/distribution core with supported consumers." It does not change the one-Publication-per-deployment data model, Source trust law, normalization/idempotency/provenance/deduplication laws, original-publisher destination rule, or supported production-data boundary.
+The repository owner explicitly amended Law 11 after the original client identified integration with an existing website and cross-source outbound-link distribution as the primary product use case. This amendment changes the product/output boundary from "standalone public website as the product" to "headless collection/control/distribution core with supported consumers." It did not change the then-current one-Publication-per-deployment data model, Source trust law, normalization/idempotency/provenance/deduplication laws, original-publisher destination rule, or supported production-data boundary.
 
 The foundational architecture rationale is recorded in `docs/decisions/headless-distribution-product-boundary.md`.
 
 ### 2026-08-20 managed-first/self-hostable distribution amendment
 
-The owner added Laws 12 and 13 to lock complete-stack portability and customer presentation freedom. The architectural rationale is recorded in `docs/decisions/managed-first-self-hostable-distribution-architecture.md`; behavioral distribution authority is `docs/contracts/distribution-and-integration-contract.md`. This amendment preserves Laws 1–11 and does not assert that future adapters or self-host packaging are implemented or that packaging must block 2.0.
+The owner added Laws 12 and 13 to lock complete-stack portability and customer presentation freedom. The architectural rationale is recorded in `docs/decisions/managed-first-self-hostable-distribution-architecture.md`; behavioral distribution authority is `docs/contracts/distribution-and-integration-contract.md`. This amendment preserved Laws 1–11 as they were then defined and did not assert that future adapters or self-host packaging were implemented or that packaging must block 2.0.
+
+### 2026-08-27 multi-vertical Publication amendment
+
+The repository owner explicitly amended Law 11 after the live customer integration expanded from one publishing-news feed to a broader customer website requiring publishing news, opportunities, and indie-filmmaking feeds.
+
+This amendment preserves exactly one singleton Publication per installation and the no-relational-tenancy data model, but changes Publication from a one-narrow-topic boundary to a one-customer/editorial-property boundary that may contain multiple subject verticals. Distribution Profiles are the supported independent feed/section mechanism inside that Publication.
+
+No schema, migration, package-version, Source-trust, identity, provenance, duplicate, canonical eligibility, API, or PHP/LKG change is authorized merely by this law amendment. The architectural rationale and compatibility effects are recorded in `docs/decisions/single-publication-multi-vertical-editorial-property.md`.
 
 ## Product boundaries
 
 ### The Platform is
 
 - a controlled-Source Article-metadata aggregator and distribution core;
-- a reusable shell for different subject areas through separate configured deployments;
+- a reusable shell whose singleton customer/editorial Publication may span multiple configured subject verticals without shared-engine topic code;
 - a single-Publication collection/editorial domain with an administrative control plane per deployment;
 - a managed-first, self-hostable-by-design complete stack whose customer instances remain independently bounded;
 - a system that exposes governed normalized outward Article data to supported consumers/integrations;
@@ -121,7 +132,7 @@ The owner added Laws 12 and 13 to lock complete-stack portability and customer p
 ### The Platform is not
 
 - a requirement that the customer's public website be hosted or visually controlled by News Scraper;
-- a multi-topic/multi-Publication host within one deployed installation;
+- a concurrent multi-Publication or relational multi-tenant host merely because one Publication contains several subject verticals/Profiles;
 - an unrestricted web crawler;
 - a full-content republishing system;
 - an open-web search engine;
@@ -144,4 +155,4 @@ The original MVP Phase 0 was accepted when:
 - security, reliability, and observability baselines were defined;
 - implementation phases had measurable, internally consistent completion gates.
 
-This historical acceptance section does not define the current post-1.0 roadmap state.
+This historical acceptance section does not define the current post-2.0 roadmap state.

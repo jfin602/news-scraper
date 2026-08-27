@@ -1,12 +1,14 @@
 # Distribution and Integration Contract
 
-**Status:** Current approved 2.0 architecture; implementation roadmap active
-**Adopted:** 2026-08-20
-**Completed:** 2026-08-20
+**Status:** Current approved 2.0 architecture and implemented baseline; extended by the owner-approved pre-activation 3.0 direction where explicitly referenced below  
+**Adopted:** 2026-08-20  
+**Completed 2.0 baseline:** 2026-08-27
 
 ## Authority and required path
 
 A **Distribution Profile** is a first-class installation-owned, administrator-controlled selection over the singleton Publication's canonically eligible Articles. Profiles and Sources are peer top-level resources; multiple Profiles do not create Publications, customers, or tenancy.
+
+Under the 2026-08-27 Publication amendment, one singleton Publication may contain multiple related subject verticals or feed sections belonging to one customer/editorial property. Distribution Profiles are the supported independently configured feed/section boundary for those verticals and MAY use disjoint or overlapping Source membership. This changes no Profile eligibility, persistence, or tenancy semantics.
 
 ```text
 approved Sources → collection / normalization / persistence → canonical outward eligibility
@@ -37,9 +39,11 @@ Profile filtering occurs after canonical eligibility and only narrows it. It nev
 
 There is no special “exclude self” semantic. Omit a Source association to exclude it; ownership MUST NOT be inferred from domains, names, or aliases.
 
+Profiles may represent materially different customer-facing feed concepts—such as publishing news, opportunities, or indie filmmaking—without creating another Publication. Those labels/subjects remain configuration and presentation. Shared Profile filtering code MUST NOT contain subject-specific logic.
+
 ## Generic PHP integration and last-known-good state
 
-The generic PHP integration is required for 2.0 and has a synchronization/cache client, normalized local Profile-data access, and an optional safe fallback server-rendered renderer. It synchronizes complete bounded Profile snapshots:
+The generic PHP integration is the implemented 2.0 customer integration core and has a synchronization/cache client, normalized local Profile-data access, and an optional safe fallback server-rendered renderer. It synchronizes complete bounded Profile snapshots:
 
 ```text
 start candidate → fetch every cursor page → validate schema/profile/API version/snapshotRevision
@@ -48,7 +52,7 @@ start candidate → fetch every cursor page → validate schema/profile/API vers
 
 Partial, invalid, or mixed-revision candidates MUST NOT become visible. Synchronization locks per Profile, prevents overlap, uses bounded retries, respects `Retry-After`, and supports conditional initial requests. Default cadence is 15 minutes and is customer-configurable. `snapshot_changed` discards the candidate, preserves active state, and restarts within bounded retry rules.
 
-Each Profile has independent candidate and active state. Cache metadata SHOULD include Profile key, API version, `snapshotRevision`/ETag, upstream `generatedAt`, last successful local sync, and health/freshness facts. Credentials MUST NOT be stored in cache payloads.
+Each Profile has independent candidate and active state. Multiple Profiles on the same customer host MUST NOT share locks, manifests, candidate activation, freshness, disabled state, or failure state in a way that allows one Profile to corrupt or suppress another. Cache metadata SHOULD include Profile key, API version, `snapshotRevision`/ETag, upstream `generatedAt`, last successful local sync, and health/freshness facts. Credentials MUST NOT be stored in cache payloads.
 
 Freshness and usability are distinct. Stale valid output remains renderable by default with no hard cutoff. Customers MAY configure a maximum stale age; once exceeded, or before any valid snapshot exists, render the configured safe empty/unavailable fallback. Public rendering reads local active state only and MUST NOT make a synchronous News Scraper API request.
 
@@ -62,20 +66,32 @@ Fallback output SHOULD be normal server-rendered HTML. Core anchors use exact st
 
 News Scraper MUST NOT guarantee SEO improvement, backlink value, or PageRank transfer; automate reciprocal links; condition inclusion on backlinks; impose backlink quotas; or keyword-stuff anchors. The supported claim is limited to crawlable server-rendered direct publisher links.
 
+A customer MAY render several Profiles on separate pages, separate sections, or one page. Presentation composition does not authorize PHP/customer code to merge, re-filter, rerank, or reinterpret Article eligibility outside the normalized Profile results it receives.
+
+## AI assistance extension
+
+The owner-approved 3.0 direction adds optional AI assistance governed exclusively by `ai-assistance-contract.md`.
+
+AI consumes canonical Profile output downstream of the rules in this contract. It MUST NOT be used as a Profile selector, Relevance rule, Category rule, moderation rule, duplicate rule, ordering authority, or Source trust/admission mechanism.
+
+A compatible implementation MAY propagate a nullable/optional Profile AI digest through the existing v1/PHP/LKG/local-read path, provided Article snapshot validity and LKG integrity are not weakened. Ordinary public Article rendering remains local-only and non-AI-dependent. Interactive chat is a separate explicit user action and must use its separately governed authorization/cost/failure boundary.
+
 ## Later adapters and telemetry
 
-WordPress and RSS/Atom are post-2.0. A later WordPress adapter builds on the WordPress-independent generic PHP core and owns only CMS concerns. Later RSS/Atom is an optional bare-bones public fallback per Profile, explicitly enabled and disabled by default, using the same read model. It is not a selector engine; secret-bearing feed URLs are prohibited and authenticated consumers use JSON.
+WordPress and RSS/Atom were post-2.0 and remain outside the currently committed 3.0 scope unless explicitly promoted. A later WordPress adapter builds on the WordPress-independent generic PHP core and owns only CMS concerns. Later RSS/Atom is an optional bare-bones public fallback per Profile, explicitly enabled and disabled by default, using the same read model. It is not a selector engine; secret-bearing feed URLs are prohibited and authenticated consumers use JSON.
 
 2.0 telemetry is operational, not visitor analytics. Bounded API facts SHOULD include Profile key, API version, status, duration, item/page information, non-secret credential identity, auth/rate/missing/disabled/failure categories, and client version. PHP health SHOULD include attempts/success, duration, items/pages, freshness/stale age, unchanged result, failure category, and adapter version. Tokens, Authorization headers, secrets, and sensitive payloads MUST NOT be logged. Click, referral, visitor, page-view, reader-identity, backlink-performance, and tracking-redirect analytics are excluded. Telemetry remains locally operable.
 
-## 2.0 boundary
+AI telemetry additions, when implemented, are governed by `ai-assistance-contract.md` and remain bounded/secret-safe rather than becoming visitor analytics.
 
-The required 2.0 consumer is the v1 API plus generic PHP scheduled sync, last-known-good cache, and customer-style server-rendered output. Browser widgets, WordPress, RSS/Atom, Linux VPS/Docker Compose self-host packaging, native self-host admin authentication, autonomous public self-host production readiness, SSO/multi-admin identity, visitor analytics, advanced SEO tooling, Kubernetes/multi-node deployment, delta synchronization, and additional adapters are post-2.0.
+## Completed 2.0 boundary
 
-`2.0.0` requires administrator-configurable Profiles with immutable keys, lifecycle, explicit Source associations and bounded filters; one canonical distribution read model; bearer credential generation/rotation/revocation and `distribution:read`; rate/abuse protection; stable v1 schema and snapshot/cursor consistency; generic PHP complete-snapshot traversal, per-Profile locking, atomic LKG activation, optional stale cutoff and fallback SSR; operational telemetry; and supported production forward migration plus backup/restore compatibility.
+The 2.0 consumer baseline is the v1 API plus generic PHP scheduled sync, last-known-good cache, normalized local-read access, and customer server-rendered output. Browser widgets, WordPress, RSS/Atom, Linux VPS/Docker Compose self-host packaging, native/default self-host admin authentication, autonomous public self-host production readiness, SSO/multi-admin identity, visitor analytics, advanced SEO tooling, Kubernetes/multi-node deployment, delta synchronization, and additional adapters were not required for `2.0.0`.
 
-Release proof requires a real managed external customer-style integration from approved Source collection through canonical/Profile selection, authenticated pagination, complete validated PHP activation, local server rendering with no visitor-path API request, and direct stored publisher links. It must also show that upstream failure, invalid/partial candidates, and revision changes do not replace active LKG, while authoritative Profile disable suppresses cached public rendering.
+`2.0.0` established administrator-configurable Profiles with immutable keys, lifecycle, explicit Source associations and bounded filters; one canonical distribution read model; bearer credential generation/rotation/revocation and `distribution:read`; rate/abuse protection; stable v1 schema and snapshot/cursor consistency; generic PHP complete-snapshot traversal, per-Profile locking, atomic LKG activation, optional stale cutoff and fallback SSR; operational telemetry; and supported production forward migration plus backup/restore compatibility.
 
-Self-hostability remains a locked architectural direction under Project Contract Law 12 and the managed/self-hostable ADR. Deferring the installable VPS/Compose package beyond 2.0 changes release sequencing only; it does not authorize a mandatory central service or weaken independent-instance architecture.
+The accepted customer integration and Phase 7 owner exception are recorded in the durable 2.0 validation history. Historical qualification claims remain limited to the evidence actually recorded there.
 
-The active implementation sequence and version lifecycle are governed by `docs/roadmap/post-1.0-roadmap.md`.
+Self-hostability remains a locked architectural direction under Project Contract Law 12 and the managed/self-hostable ADR. Deferring installable VPS/Compose packaging beyond 2.0 changes release sequencing only; it does not authorize a mandatory central service or weaken independent-instance architecture.
+
+The completed 2.0 implementation sequence remains in `docs/roadmap/post-1.0-roadmap.md`. Current post-2.0 direction and sequencing are governed by `docs/roadmap/3.0-roadmap.md` once routed through `BOOT.md`.

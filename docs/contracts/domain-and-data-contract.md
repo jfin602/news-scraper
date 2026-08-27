@@ -4,7 +4,7 @@
 
 ### Platform
 
-The reusable software system that hosts collection, normalization, identity resolution, deduplication, administration, and public-feed capabilities.
+The reusable software system that hosts collection, normalization, identity resolution, deduplication, administration, and outward distribution/public-feed capabilities.
 
 ### News Scraper instance
 
@@ -12,7 +12,9 @@ One independently bounded deployment of the complete single-Publication stack: W
 
 ### Publication
 
-The one configured news product for a deployed installation. Publication owns topic-specific editorial configuration such as name, collection/public state, branding, optional presentation timezone, Categories, Relevance rules, Sources, Source priority, and public-feed settings.
+The one configured customer/editorial property and governed content universe for a deployed installation. Publication owns installation-wide editorial configuration such as name, collection/public state, branding, optional presentation timezone, Categories, Relevance rules, Sources, Source priority, and public/distribution settings.
+
+A Publication MAY contain multiple related subjects, verticals, sections, or feed concepts. Those subject distinctions are configuration, not additional Publication identities. Distribution Profiles are the supported independently configured outward feed/section boundary over the singleton Publication's governed Articles.
 
 A supported installation has exactly one Publication configuration. Publication is an editorial/configuration boundary, **not** a tenancy or relational ownership key.
 
@@ -72,23 +74,30 @@ An installation-wide deterministic rule used to include, exclude, or categorize 
 
 A first-class installation-owned administrator-controlled outward selection over the singleton Publication's canonically eligible Article corpus. It has immutable `config_key`, mutable `display_name`, `draft`/`active`/`disabled` lifecycle, and a bounded result/history limit. A first-class Profile↔Source association selects participating Sources and may hold the bounded filters governed by `distribution-and-integration-contract.md`. Multiple Profiles do not create tenancy.
 
+A Profile MAY represent a distinct customer-facing feed, section, or subject vertical within the singleton Publication and MAY have disjoint or overlapping Source membership with other Profiles. That presentation/editorial concept does not become Article identity, provenance, Publication tenancy, or a competing eligibility authority.
+
 ### Distribution consumer and integration adapter
 
 A distribution consumer receives supported normalized profile output. An integration adapter is a thin transport, synchronization, cache, or rendering layer; it is not an authority for Source trust, Article eligibility, moderation, duplicate selection, or profile interpretation.
 
+### AI assistance
+
+Optional AI assistance is a downstream consumer of canonical Distribution Profile output governed by `ai-assistance-contract.md`. AI-generated digest/chat output is not Source Article metadata and cannot become a Source trust, Relevance, Category, Article identity, duplicate, moderation, ordering, or destination authority.
+
 ## Relationship boundaries
 
 - The singleton Publication configuration owns installation-wide editorial settings but does not provide a tenant foreign key for other entities.
+- The singleton Publication may contain multiple configured subject verticals; vertical separation is expressed through Source/editorial configuration and Distribution Profiles, not Publication or Article ownership keys.
 - A Source owns one or more Source endpoints.
 - A Source endpoint owns collection scheduling/cache/health state and Collection runs.
 - An Article belongs to one Source.
 - Article observations link Articles/candidate outcomes to the Source endpoint and Collection run that produced them and preserve Source consistency where stored directly.
 - Duplicate groups and Duplicate review candidates relate Articles within the one installation; an Article belongs to at most one Duplicate group, and cross-Publication checks are structurally unnecessary because the installation cannot contain another Publication domain.
 - Administrative commands validate real resource relationships and domain invariants even though MVP does not implement per-user authorization.
-- Distribution Profiles belong conceptually to the singleton Publication configuration, operate only over canonically eligible Articles, and do not add Publication/customer tenant keys.
+- Distribution Profiles belong conceptually to the singleton Publication configuration, operate only over canonically eligible Articles, and do not add Publication/customer/vertical tenant keys.
 - Distribution Profile operation is independent of Publication `public_status`, which controls only the bundled reference surfaces.
 
-Do not introduce Publication UUIDs, slugs, foreign keys, composite uniqueness scopes, repository arguments, or compatibility aliases solely to model concurrent Publications that the supported product does not host.
+Do not introduce Publication UUIDs, slugs, foreign keys, composite uniqueness scopes, repository arguments, compatibility aliases, or vertical/section ownership keys solely to model concurrent Publications or Profile feed separation that the supported product does not host.
 
 ## State model
 
@@ -106,7 +115,7 @@ Required concepts:
 
 The singleton Publication may collect while its public feed is not exposed. Public feed reads require `public_status = public`; `active_for_collection` is a collection-state control and does not independently expose or suppress already-persisted feed rows.
 
-The persisted representation MUST enforce singleton semantics. It does not expose a dynamic Publication identifier or slug to other domain records merely for scoping.
+The persisted representation MUST enforce singleton semantics. It does not expose a dynamic Publication identifier or slug to other domain records merely for scoping. The presence of several subject verticals or Distribution Profiles does not change that singleton representation.
 
 ### Source
 
@@ -408,9 +417,13 @@ Generic `boost`/ranking behavior is deferred until a ranking/scoring contract ex
 
 Logical persistence preserves Profile immutable `config_key`, display name, lifecycle, bounded result/history setting, and activation history sufficient to protect stable integration identity. Profile↔Source associations reference real Sources and store only the bounded `include_any_phrases[]`, `exclude_any_phrases[]`, and `category_config_keys[]` selection configuration. Category keys reference real Categories. An active Profile has at least one usable approved Source association; draft Profiles may be incomplete. Profile persistence does not duplicate Source configuration, Articles, identity, or provenance.
 
+Multiple Profiles MAY represent different subject verticals or feed sections of the same singleton Publication. No Profile↔vertical ownership entity is required merely to label that customer-facing purpose; the Profile's own immutable key, display name, explicit Source associations, and bounded filters define the supported outward selection.
+
 ### Machine distribution credentials
 
 Logical credential records store a non-secret lookup identity, secure verifier/digest, label, lifecycle/audit timestamps, optional expiration, revocation state, and `distribution:read` capability. Plaintext credentials are never persisted. Credentials belong to the isolated instance and do not require Profile permission rows in 2.0. Their persistence remains distinct from human administrator identity and authority.
+
+The 3.0 AI contract requires a separately governed authorization/cost boundary before interactive AI is implemented; this statement does not predefine its persistence schema or silently expand `distribution:read`.
 
 ### `duplicate_review_candidates`
 

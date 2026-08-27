@@ -1,7 +1,8 @@
 # Product Scope and Users
 
-**Status:** Current post-1.0 product scope  
+**Status:** Current post-2.0 product scope  
 **Adopted:** 2026-08-19  
+**Updated:** 2026-08-27 for the multi-vertical Publication model and owner-approved 3.0 direction  
 **Historical MVP scope:** `docs/contracts/mvp-scope-and-users.md`
 
 ## Product objective
@@ -15,12 +16,12 @@ Its primary job is to:
 3. persist Articles idempotently with provenance;
 4. apply deterministic editorial/Relevance/Category rules;
 5. detect and suppress true duplicates without deleting Source instances;
-6. give operators an administrative control plane for Source, Article, duplicate, health, and Publication configuration; and
+6. give operators an administrative control plane for Source, Article, duplicate, health, Publication, and Distribution Profile configuration; and
 7. expose governed normalized Article output to supported downstream consumers while preserving the original publisher destination.
 
 The bundled first-party public feed remains a supported reference/standalone consumer of the same outward read semantics. It is not the defining product boundary, and a client may instead integrate the Platform's distribution output into an existing website or other supported consumer.
 
-A deployed installation hosts exactly one Publication/topic. Topic independence is a reusable-code/configuration property, not a requirement for one live installation to host multiple selectable Publications or carry dormant tenant keys throughout persistence.
+A deployed installation hosts exactly one Publication. The Publication represents one customer/editorial property and governed content universe and MAY contain multiple related subject verticals or feed sections. Distribution Profiles are the supported mechanism for exposing independently configured feeds within that singleton Publication. Topic independence is a reusable-code/configuration property and does not require relational multi-Publication tenancy or dormant tenant keys throughout persistence.
 
 ## Primary users
 
@@ -36,14 +37,15 @@ An authorized operator controls the installation's collection and editorial stat
 - Article visibility/display overrides/categories;
 - Duplicate review/group corrections;
 - Source/endpoint health and Collection-run history;
-- implemented Distribution Profile configuration: persisted Profiles with immutable keys, mutable display names, lifecycle, bounded result/history limits, Source associations, bounded association filters, protected administration, and transactional change history.
-- implemented Distribution Credential administration: protected create/list/rotate/revoke controls with labels and lifecycle metadata, one-time plaintext issue/rotation behavior, and strict separation from human administrator authority.
+- implemented Distribution Profile configuration: persisted Profiles with immutable keys, mutable display names, lifecycle, bounded result/history limits, Source associations, bounded association filters, protected administration, and transactional change history;
+- implemented Distribution Credential administration: protected create/list/rotate/revoke controls with labels and lifecycle metadata, one-time plaintext issue/rotation behavior, and strict separation from human administrator authority; and
+- when 3.0 AI work is implemented, governed Profile-level AI configuration/health and any separately authorized interactive AI capability defined by `ai-assistance-contract.md`.
 
 The administrator surface is the instance-owned Platform control plane. Current managed/reference administrative routes remain protected by Cloudflare Access under the accepted admin-perimeter ADR. Future self-hosted deployments require a governed secure perimeter, but Cloudflare is not a universal runtime dependency.
 
 ### Website/CMS integrator
 
-An integrator wants to consume a governed stream of normalized Articles and render it inside an existing website, CMS, publication section, or other supported delivery surface without reimplementing collection, Source trust, duplicate suppression, moderation, or Article-selection logic.
+An integrator wants to consume one or more governed streams of normalized Articles and render them inside an existing website, CMS, publication section, or other supported delivery surface without reimplementing collection, Source trust, duplicate suppression, moderation, or Article-selection logic.
 
 The integrator should be able to rely on stable outward semantics for:
 
@@ -53,18 +55,24 @@ The integrator should be able to rely on stable outward semantics for:
 - Source identity;
 - stored `original_url` as the reader destination;
 - ordinary visibility/duplicate suppression;
-- explicitly supported filters/distribution selection;
-- bounded safe metadata made public by the relevant outward contract.
+- explicitly supported Profile filters/distribution selection;
+- bounded safe metadata made public by the relevant outward contract;
+- independent local state for multiple synchronized Profiles; and
+- when implemented, bounded Profile-scoped AI digest/chat surfaces without taking custody of Gemini secrets or reimplementing Profile grounding.
 
-The required 2.0 integration is the authenticated versioned distribution API plus scheduled generic PHP synchronization, validated last-known-good local data, and server-rendered customer output. Custom server applications may consume the same API. WordPress and RSS/Atom are planned post-2.0 adapters; browser widgets are outside 2.0.
+The implemented 2.0 integration is the authenticated versioned distribution API plus scheduled generic PHP synchronization, validated last-known-good local data, normalized local-read access, and server-rendered customer output. Custom server applications may consume the same API. The owner-approved 3.0 roadmap builds on that path rather than replacing it.
 
 ### Operator/developer
 
-An operator/developer needs telemetry to diagnose Source failures, parser changes, delayed collection, identity behavior, duplicate decisions, failed jobs, and outward-delivery failures without manual database inspection.
+An operator/developer needs telemetry to diagnose Source failures, parser changes, delayed collection, identity behavior, duplicate decisions, failed jobs, outward-delivery failures, Profile synchronization issues, and later AI generation/chat failures without manual database inspection or secret-bearing logs.
 
 ### Reference-frontend reader
 
 A public reader may still use the bundled first-party `/` feed when a deployment exposes it. That reader experience remains supported, but it is a consumer of the Platform core rather than the product's primary architectural identity.
+
+### Customer-site AI user
+
+When 3.0 AI assistance is implemented, a customer-site user may read a synchronized AI-generated digest or explicitly invoke "Ask this feed" for one selected Distribution Profile. That user does not receive administrator authority, Gemini credentials, unrestricted database access, or cross-Profile context merely by using the public customer site.
 
 ## Core product capabilities
 
@@ -90,13 +98,16 @@ The Platform continues to provide:
 
 The Platform continues to provide:
 
-- Publication configuration;
+- singleton Publication configuration;
 - Source/endpoint lifecycle, approval, operational state, domain policy, and health controls;
 - Category and Relevance management;
 - Article visibility/display/category moderation;
 - Duplicate review/group/Primary controls;
+- Distribution Profile configuration;
 - bounded change history;
 - operational collection visibility.
+
+A Publication may contain Sources serving different subject verticals. Subject differences do not create Publication tenancy or Article ownership scopes. Operators use Profile Source membership and bounded Profile filters to expose independently configured feeds while keeping collection and canonical editorial authority centralized.
 
 ### Canonical outward Article semantics
 
@@ -113,41 +124,74 @@ At minimum, ordinary outward output preserves:
 - bounded, normalized, escaped/safe public metadata;
 - topic independence.
 
-The existing `GET /api/feed` and bundled `GET /` reference frontend are current consumers of these semantics. Future distribution adapters must consume the same authority rather than introducing adapter-specific Article SQL, duplicate rules, moderation rules, or destination rewriting.
+The existing `GET /api/feed` and bundled `GET /` reference frontend are current consumers of these semantics. Distribution adapters and AI assistance must consume the same authority rather than introducing adapter/model-specific Article SQL, duplicate rules, moderation rules, or destination rewriting.
 
 ### Distribution configuration boundary
 
 Collection trust and distribution selection are separate concerns.
 
-A Source being approved means it may participate in governed collection and ordinary outward eligibility. It does not automatically mean every future downstream integration must receive every Article from that Source.
+A Source being approved means it may participate in governed collection and ordinary outward eligibility. It does not automatically mean every downstream integration or Profile must receive every Article from that Source.
 
-A Distribution Profile is a named administrator-controlled outward selection over already canonically eligible Articles. One Publication may have multiple profiles without becoming relational tenancy. Profile selection can only narrow eligibility; its lifecycle, Source associations, and bounded filters are governed by `distribution-and-integration-contract.md`. The permanent wire/auth contract is `distribution-api-contract.md`.
+A Distribution Profile is a named administrator-controlled outward selection over already canonically eligible Articles. One Publication may have multiple Profiles representing different feeds, sections, or subject verticals without becoming relational tenancy. Profiles MAY use disjoint or overlapping Source membership. Profile selection can only narrow eligibility; its lifecycle, Source associations, and bounded filters are governed by `distribution-and-integration-contract.md`. The permanent wire/auth contract is `distribution-api-contract.md`.
 
-Phases 1–6 implemented the Distribution Profile, canonical read-model, machine credential/authentication/security, permanent authenticated v1 distribution HTTP API, generic PHP synchronization/LKG, and normalized local/customer server-rendered integration. The machine credential boundary remains separate from human administrator authority. Phase 7 external managed integration/release qualification is current work.
+The completed 2.0 work implemented the Distribution Profile, canonical read-model, machine credential/authentication/security, permanent authenticated v1 distribution HTTP API, generic PHP synchronization/LKG, normalized local/customer server-rendered integration, and accepted managed customer integration path.
+
+### AI assistance boundary
+
+The owner-approved 3.0 direction adds AI only downstream of governed Profile output.
+
+Scheduled Profile digests and interactive "Ask this feed" chat are governed by `ai-assistance-contract.md`. The same AI implementation must work across materially different Profile subjects without hard-coded topic prompts or shared-engine subject rules.
+
+AI does not authorize or perform Source approval, collection, Relevance, Category, moderation, Article identity, duplicate decisions, ordering, or destination rewriting. Gemini failure cannot become a dependency for ordinary non-AI collection, canonical distribution, PHP Article LKG, or customer Article rendering.
 
 ### Deployment architecture
 
-Managed integration is the required 2.0 operating path. News Scraper remains self-hostable by design under the Project Contract and managed/self-hostable ADR, but packaging that complete stack into a lightweight Linux VPS/Docker Compose installation is post-2.0 work. Native/default self-host administrator authentication and autonomous public self-host production readiness are likewise post-2.0.
+Managed integration is the proven 2.0 operating path. News Scraper remains self-hostable by design under the Project Contract and managed/self-hostable ADR. Packaging the complete stack into a lightweight Linux VPS/Docker Compose installation remains outside the current 3.0 commitment unless explicitly promoted.
 
-Deferring packaging does not permit a mandatory central News Scraper dependency or weaken instance isolation. It only removes self-host productization from the 2.0 release gate so the managed Profile/API/PHP integration can be validated first.
+Deferring packaging does not permit a mandatory central News Scraper dependency or weaken instance isolation. The existing managed Profile/API/PHP integration remains the baseline on which the 3.0 AI and multi-feed work is built.
 
 ### Presentation ownership
 
-News Scraper owns governed Article selection, normalized output, and `original_url` semantics. Customers may own and replace HTML, CSS, typography, layout, responsive behavior, placement, and custom UI. First-party PHP/WordPress templates are safe functional fallbacks, not mandatory presentation.
+News Scraper owns governed Article selection, normalized output, and `original_url` semantics. Customers may own and replace HTML, CSS, typography, layout, responsive behavior, placement, and custom UI. First-party PHP/WordPress-style templates are safe functional fallbacks, not mandatory presentation.
 
-## Initial Publication configuration
+AI-generated output is also presentation input, not publisher metadata. Supported examples should make AI origin clear and must escape/sanitize model output as untrusted content.
 
-The first deployment remains publishing-industry news relevant to independent authors. Its Sources, Categories, Relevance rules, branding, admission phrases, and editorial decisions are configuration rather than shared-engine behavior.
+## Current customer Publication configuration
 
-The original client now intends to integrate collected news into an existing website and explore lawful/appropriate cross-source outbound-link distribution. That client use case motivates the current product-direction change but MUST NOT become indie-author-specific shared-engine behavior.
+The first deployed customer editorial property began as publishing-industry news relevant to independent authors. Its Sources, Categories, Relevance rules, branding, admission phrases, and editorial decisions are configuration rather than shared-engine behavior.
 
-## 2.0 scope boundary
+The same customer property now intends to expose at least three materially different feeds through Distribution Profiles:
 
-`2.0.0` proves the managed Profile → authenticated v1 API → generic PHP complete-snapshot sync → atomic last-known-good cache → customer-style server-rendered integration path. It includes the operational distribution telemetry, production migration/backup compatibility, and real managed failure/reliability proof needed to support that path.
+```text
+publishing-news
+opportunities
+indie-filmmaking
+```
 
-WordPress, RSS/Atom, Linux VPS/Docker Compose self-host packaging, native/default self-host administrator authentication, production-grade autonomous public self-hosting, SSO/multi-admin identity, visitor/click/referral/backlink analytics, advanced SEO tooling, browser widgets, Kubernetes/multi-node deployment, delta synchronization, and additional adapter families are post-2.0. News Scraper guarantees neither SEO nor backlink performance.
+That expansion is a configuration/use-case proof of the singleton multi-vertical Publication model. It MUST NOT become indie-author-, opportunity-, filmmaking-, or customer-specific shared-engine behavior.
 
-The seven-phase 2.0 implementation roadmap is active under `docs/roadmap/post-1.0-roadmap.md`; Phases 1–6 are implemented: Distribution Profiles, the canonical distribution/Profile read model, machine credential/authentication/security, the permanent authenticated v1 distribution HTTP API, generic PHP synchronization/LKG, and normalized local/customer server-rendered integration. Phase 7 external managed integration/release qualification is current work. Consult `BOOT.md` and the active roadmap for current phase/version routing.
+## Completed 2.0 scope boundary
+
+`2.0.0` established the managed Profile → authenticated v1 API → generic PHP complete-snapshot sync → atomic last-known-good cache → normalized local-read → customer server-rendered integration path, together with the governing operational/security/data-compatibility boundaries.
+
+The historical seven-phase 2.0 roadmap is complete under `docs/roadmap/post-1.0-roadmap.md`. Package `2.0.0` is the current released baseline.
+
+## Owner-approved 3.0 direction
+
+`docs/roadmap/3.0-roadmap.md` is owner-approved but **pre-activation** at package `2.0.0`.
+
+Its immediate sequence is:
+
+1. a bounded unchanged-`2.0.0` runner compatibility correction so phase tooling can safely support `2.x` development versions;
+2. roadmap activation to the `2.1.0` baseline;
+3. Gemini Profile digest work;
+4. Profile-grounded "Ask this feed" chat;
+5. real three-feed publishing/opportunities/indie-filmmaking integration proof; and
+6. open-ended admin/PHP integration hardening based on observed real deployment friction.
+
+The final `3.0.0` exit gate remains intentionally owner-controlled/TBD until those capabilities have been exercised in the real customer integration.
+
+WordPress-specific productization, public RSS/Atom output, Linux VPS/Docker Compose self-host packaging, native/default self-host administrator authentication, production-grade autonomous public self-hosting, SSO/multi-admin identity, visitor/click/referral/backlink analytics, advanced SEO tooling, browser widgets, Kubernetes/multi-node deployment, delta synchronization, autonomous AI editorial decisions, Article-body AI crawling, and additional adapter families remain outside the current commitment unless explicitly promoted.
 
 ## Quality targets
 
@@ -160,8 +204,11 @@ The Platform SHOULD be judged by:
 - operator intervention frequency;
 - percentage of outward links resolving to the intended original Article;
 - ability to add ordinary approved Sources without code changes;
-- ability to deploy a different topic without aggregation-engine changes;
+- ability to add materially different subject verticals/Profiles within one customer Publication without aggregation-engine changes;
+- ability to deploy another customer/editorial property without aggregation-engine changes;
 - ability for supported downstream consumers to reuse canonical Article-selection semantics without duplicating business logic;
-- operational observability of collection and outward-delivery failures when those delivery methods are implemented.
+- independent correctness/failure isolation of multiple Profile feeds;
+- when AI is enabled, grounded/citable Profile assistance that cannot break ordinary non-AI operation;
+- operational observability of collection, distribution, synchronization, and AI failures when those delivery methods are implemented.
 
-No SEO-performance guarantee or numerical service-level objective is locked by this product-direction change.
+No SEO-performance guarantee or numerical service-level objective is locked by this product direction.

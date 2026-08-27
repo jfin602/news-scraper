@@ -4,6 +4,8 @@
 **Date:** 2026-08-19  
 **Amends:** product-surface interpretation of `docs/contracts/project-contract.md` Law 11 and the route-surface assumptions in the current public-feed/single-Publication documentation
 
+> **2026-08-27 interpretation note:** `single-publication-multi-vertical-editorial-property.md` preserves this ADR's one-Publication/no-tenancy product boundary while amending its historical statement that one Publication necessarily equals one narrow topic. The current singleton Publication may contain multiple subject verticals/feeds belonging to one customer/editorial property, exposed through Distribution Profiles. This does not create concurrent multi-Publication tenancy or weaken canonical Article-selection rules.
+
 ## Context
 
 News Scraper reached a supported `1.0.0` production baseline as a standalone single-Publication news website with an administrator control plane. Post-1.0 Phase 0 then implemented server-rendered root output at `1.0.1` so the first-party feed could be useful without client JavaScript.
@@ -91,7 +93,7 @@ At adoption, this ADR did not select or promise:
 - cache/CDN behavior;
 - push/webhook distribution.
 
-Those questions required the later investigation. That investigation is complete, and the owner approved the replacement seven-phase roadmap on 2026-08-20. Current execution status is routed through `BOOT.md` and `docs/roadmap/post-1.0-roadmap.md`. This status correction does not rewrite what remained unresolved at this ADR's adoption.
+Those questions required the later investigation. That investigation is complete, and the owner approved the replacement seven-phase roadmap on 2026-08-20. Current execution status is routed through `BOOT.md` and the current roadmap selected there. This status correction does not rewrite what remained unresolved at this ADR's adoption.
 
 ## Consequences
 
@@ -156,4 +158,4 @@ A future change violates this ADR when it:
 - bypasses normalized Article/provenance boundaries;
 - silently replaces stored `original_url` as the reader destination;
 - hard-codes indie-author/client-specific exchange logic in the shared engine; or
-- implements distribution behavior outside the completed governing contracts or before the replacement roadmap authorizes it.
+- implements distribution behavior outside the completed governing contracts or before the current roadmap authorizes it.

@@ -2,13 +2,15 @@
 
 This directory is the source of truth for product and engineering contracts in `jfin602/news-scraper`.
 
-News Scraper is governed as a reusable, topic-independent **headless news aggregation and distribution Platform**. Each deployed installation hosts exactly one Publication/topic. The first configured deployment is an indie-author publishing news product, but the Platform codebase is topic independent. Topic vocabulary, Sources, Relevance rules, Categories, branding, and distribution configuration belong to singleton Publication/configuration state rather than shared aggregation-engine code. A different topic reuses the same codebase through a separately configured deployment rather than another concurrently hosted Publication.
+News Scraper is governed as a reusable, topic-independent **headless news aggregation and distribution Platform**. Each deployed installation hosts exactly one singleton Publication representing one customer/editorial property and governed content universe. A Publication may contain multiple related subjects, verticals, or feed sections exposed through Distribution Profiles. Subject vocabulary, Sources, Relevance rules, Categories, branding, Profile composition, and distribution configuration belong to singleton Publication/configuration state rather than shared aggregation-engine code.
 
-Publication is an editorial/configuration concept, not a relational tenancy key. Sources, Articles, observations, jobs, Categories, Relevance rules, and duplicate state use installation/Source relationships directly rather than Publication tenant scoping.
+Publication is an editorial/configuration concept, not a relational tenancy key. Sources, Articles, observations, jobs, Categories, Relevance rules, duplicate state, and Profiles use installation/Source relationships directly rather than Publication tenant scoping. Several Profile feeds within one Publication do not introduce vertical tenant keys or concurrent Publications.
 
-The administrator surface is the instance-owned Platform control plane. The active 2.0 path is canonical eligibility → Distribution Profile → authenticated v1 API → generic PHP complete-snapshot synchronization → local last-known-good data → customer server-rendered output. WordPress, RSS/Atom, Linux VPS/Docker Compose self-host packaging, and native self-host admin authentication are post-2.0. Current implemented outward surfaces are authenticated `GET /api/v1/distribution/{profile_key}`, legacy/reference `GET /api/feed`, and bundled/reference `GET /`.
+The administrator surface is the instance-owned Platform control plane. The implemented 2.0 path is canonical eligibility → Distribution Profile → authenticated v1 API → generic PHP complete-snapshot synchronization → local last-known-good data → normalized local-read → customer server-rendered output. Current implemented outward surfaces are authenticated `GET /api/v1/distribution/{profile_key}`, legacy/reference `GET /api/feed`, and bundled/reference `GET /`.
 
-The accepted `1.0.0` customer launch established the first supported production schema/data baseline. Phases 1–6 implemented the Distribution Profile, canonical read-model, machine credential/authentication, v1 HTTP API, generic PHP synchronization/LKG, and normalized local-read/customer server-rendered integration; the current development package is `1.7.0`, and the active roadmap is Phase 7 — Managed integration and 2.0 release qualification. Terminal release qualification promotes the final validated `1.7.x` candidate directly to `2.0.0`.
+The accepted `1.0.0` customer launch established the first supported production schema/data baseline. The seven-phase 2.0 roadmap is complete and package `2.0.0` is the current release baseline. The owner-approved 3.0 roadmap is **pre-activation** at `2.0.0`: first a bounded unchanged-version runner compatibility correction must add the intended major-2 phase grammar; only then may roadmap activation move to `2.1.0` for Gemini Profile digests, followed by Profile-grounded chat, multi-feed customer proof, and admin/PHP integration tightening.
+
+The 3.0 AI behavior is governed by `contracts/ai-assistance-contract.md`. Gemini is optional and downstream of canonical Profile output; ordinary non-AI collection/distribution/PHP Article rendering must remain independently operable when AI is unavailable.
 
 Before production database compatibility was established, the supported persistence setup was a fresh database built from the repository's current migration chain and bootstrap/configuration. That historical pre-production destructive-reset policy no longer applies to accepted customer production state. Current production upgrades are governed by `decisions/production-data-and-schema-compatibility.md`.
 
@@ -28,6 +30,7 @@ docs/
 │   ├── public-feed-and-admin-contract.md
 │   ├── distribution-and-integration-contract.md
 │   ├── distribution-api-contract.md
+│   ├── ai-assistance-contract.md
 │   └── testing-and-validation-contract.md
 ├── architecture/
 │   └── system-architecture.md
@@ -39,11 +42,13 @@ docs/
 ├── roadmap/
 │   ├── mvp-roadmap.md
 │   ├── 2.0-planning-questions.md
-│   └── post-1.0-roadmap.md
+│   ├── post-1.0-roadmap.md                  # completed 2.0 history
+│   └── 3.0-roadmap.md                       # owner-approved / pre-activation
 ├── decisions/
 │   ├── README.md
 │   ├── headless-distribution-product-boundary.md
 │   ├── managed-first-self-hostable-distribution-architecture.md
+│   ├── single-publication-multi-vertical-editorial-property.md
 │   ├── single-publication-simplified-data-model.md
 │   ├── production-data-and-schema-compatibility.md
 │   ├── topic-independent-publication-model.md        # superseded historical ADR
@@ -68,31 +73,34 @@ The tracked docs-maintenance handoff lives outside `docs/` at repository-root `.
 
 ## Document routing
 
-- `contracts/project-contract.md` — locked Platform laws, authority hierarchy, one-Publication-per-deployment boundary, headless product/output law, original-publisher destination law, and derived production-data invariant.
-- `contracts/product-scope-and-users.md` — **current post-1.0 product scope** and 2.0 managed-integration boundary.
-- `contracts/distribution-and-integration-contract.md` — Distribution Profiles, filters, PHP/LKG behavior, adapter/presentation/link boundaries, later adapters, telemetry, and the 2.0 release boundary.
+- `contracts/project-contract.md` — locked Platform laws, authority hierarchy, singleton Publication/editorial-property boundary, headless product/output law, original-publisher destination law, and derived production-data/AI invariants.
+- `contracts/product-scope-and-users.md` — **current post-2.0 product scope**, multi-vertical Publication interpretation, implemented distribution baseline, and owner-approved 3.0 direction.
+- `contracts/ai-assistance-contract.md` — **current owner-approved 3.0 AI contract** for Gemini Profile digests, Profile-grounded chat, prompt/content trust, citations, secrets, authorization/cost controls, failure isolation, and topic independence.
+- `contracts/distribution-and-integration-contract.md` — Distribution Profiles, filters, PHP/LKG/local-read behavior, multi-Profile isolation, adapter/presentation/link boundaries, telemetry, and optional AI digest propagation boundary.
 - `integrations/php/README.md` — implemented PHP synchronization/LKG/local-read/customer-consumption operational and library guide; ordinary customer code consumes its normalized local-read boundary rather than cache file formats.
-- `contracts/distribution-api-contract.md` — permanent v1 Profile API, schema, revisions/cursors, machine credentials, response classes, rate limits, and CORS stance.
+- `contracts/distribution-api-contract.md` — permanent v1 Profile API, schema, revisions/cursors, machine credentials, response classes, rate limits, and CORS stance. Compatible additive fields are allowed; incompatible reinterpretation requires a later major API path.
 - `contracts/mvp-scope-and-users.md` — **historical** scope for the accepted `1.0.0` standalone-feed MVP; useful for interpreting completed MVP work but not current product direction.
-- `contracts/domain-and-data-contract.md` — canonical terminology, singleton Publication configuration, real entity relationships, endpoint-owned HTML profile semantics, Source RSS/Atom item-admission configuration/accounting, Category/Relevance persistence and deterministic rule semantics, identity/provenance invariants, schema lifecycle, and current public-row semantics.
+- `contracts/domain-and-data-contract.md` — canonical terminology, singleton Publication/editorial-property configuration, real entity relationships, Source/Article identity/provenance, Category/Relevance persistence, Distribution Profiles, and schema lifecycle.
 - `contracts/testing-and-validation-contract.md` — project-wide regression law, evidence levels, test isolation, local/final-tree execution, PostgreSQL/fixture/browser/live-Source validation, production-upgrade validation, and completion gates.
-- `architecture/system-architecture.md` — implemented deployment/process/module boundaries, singleton configuration, staged Worker execution, endpoint-selected RSS/Atom/static-HTML adapters, shared downstream flow, durable scheduling/jobs, transactions, and current Web/API consumers. Product-wide surface interpretation is governed by the headless-distribution ADR.
+- `architecture/system-architecture.md` — implemented deployment/process/module boundaries, singleton configuration, staged Worker execution, endpoint-selected adapters, shared downstream flow, durable scheduling/jobs, transactions, and current Web/API consumers. Current Publication interpretation is additionally governed by the multi-vertical ADR.
 - `contracts/source-and-collection-contract.md` — approval/bootstrap rules, network safety, bounded static HTML profiles/preview, collection adapters, RSS/Atom-only Source item admission, normalization, installation/Source-scoped Relevance execution, Source-scoped identity/idempotency, and Collection-run accounting.
 - `contracts/article-lifecycle-and-deduplication.md` — Article visibility, Source-scoped identity, duplicate roles/review/groups, Primary selection, and current outward/public eligibility semantics.
-- `contracts/public-feed-and-admin-contract.md` — existing `GET /`, `GET /api/feed`, search/filter/theme behavior, external links, and Cloudflare-protected admin UX. Its statements treating `/` as the Platform's universal customer-facing product surface are narrowed by `decisions/headless-distribution-product-boundary.md`; it remains authoritative for the bundled/reference frontend and current JSON feed behavior.
+- `contracts/public-feed-and-admin-contract.md` — existing `GET /`, `GET /api/feed`, search/filter/theme behavior, external links, and Cloudflare-protected admin UX. Its historical one-topic wording is narrowed by Project Contract Law 11 and `decisions/single-publication-multi-vertical-editorial-property.md`; the reference frontend remains a singleton-Publication consumer and does not become a Profile/Publication selector automatically.
 - `design/README.md` — design-document authority/routing and the entry point for the parallel UI workstream.
 - `design/public-feed-presentation.md` — durable presentation guidance for the bundled/reference public frontend. It does not define the presentation of consuming client websites.
 - `design/ui-workflow.md` — permanent `ui-polish` branch/worktree rules, presentation task boundaries, conditional `/ui-review` → `/ui-apply` design-guidance workflow, and targeted `/ui-plan` → `/ui-write` prompt workflow.
-- `operations/security-reliability-and-operations.md` — managed admin perimeter, machine credential separation, distribution LKG/telemetry security, fetch safety, failure isolation, observability, recovery, and deployment security.
+- `operations/security-reliability-and-operations.md` — managed admin perimeter, machine credential separation, distribution LKG/telemetry security, fetch safety, failure isolation, observability, recovery, and deployment security. The AI contract adds the current Gemini-specific secret/content/failure rules.
 - `operations/source-onboarding.md` — operator-facing Source/endpoint onboarding procedure, field-by-field purpose, approved-domain configuration, RSS/Atom admission-phrase semantics, state model, HTML listing profile guidance, approval/enablement sequence, and Check-now/run interpretation.
 - `operations/database-backup-and-restore.md` — governed PostgreSQL backup, restore verification, managed-backup retention, recovery validation, and launch reconfirmation procedure.
-- `operations/deployment-and-incident-runbook.md` — ordered deployment/schema-upgrade/rollback procedure, reference-deployment validation, incident response, and current deployed-surface checks. Self-host packaging is post-2.0.
+- `operations/deployment-and-incident-runbook.md` — ordered deployment/schema-upgrade/rollback procedure, reference-deployment validation, incident response, and deployed-surface checks. Self-host packaging remains outside current scope unless promoted.
 - `roadmap/mvp-roadmap.md` — historical completed Phase 0–21 MVP sequence and production-baseline handoff.
-- `roadmap/2.0-planning-questions.md` — completed non-normative planning record; later owner decisions and governing contracts/roadmap control current scope.
-- `roadmap/post-1.0-roadmap.md` — **current active roadmap authority**: seven 1.x development phases ending in the terminal `2.0.0` release transition.
+- `roadmap/2.0-planning-questions.md` — completed non-normative planning record; later owner decisions and governing contracts/roadmaps control current scope.
+- `roadmap/post-1.0-roadmap.md` — **completed historical 2.0 roadmap authority**: seven 1.x development phases and the owner-accepted terminal `2.0.0` release transition.
+- `roadmap/3.0-roadmap.md` — **current owner-approved pre-activation roadmap authority** for the post-2.0 version/direction sequence and open terminal gate.
+- `decisions/single-publication-multi-vertical-editorial-property.md` — **Accepted current Publication interpretation**: one customer/editorial property may contain multiple subject verticals/feeds through Profiles without tenancy.
 - `decisions/headless-distribution-product-boundary.md` — **Accepted ADR** for the headless product boundary and its historical 2026-08-19 decision context.
-- `decisions/managed-first-self-hostable-distribution-architecture.md` — **Accepted ADR** for isolated managed/self-hostable instances, complete-stack portability, Distribution Profiles, thin integration families, presentation ownership, and the post-2.0 packaging boundary.
-- `decisions/single-publication-simplified-data-model.md` — **Accepted ADR** for topic-independent separate deployments and singleton Publication configuration without relational tenancy. Its data-model decision remains current; route/product-surface wording is narrowed by the headless-distribution ADR.
+- `decisions/managed-first-self-hostable-distribution-architecture.md` — **Accepted ADR** for isolated managed/self-hostable instances, complete-stack portability, Distribution Profiles, thin integration families, presentation ownership, and later AI direction.
+- `decisions/single-publication-simplified-data-model.md` — **Accepted ADR** for singleton Publication configuration without relational tenancy. The 2026-08-27 multi-vertical ADR amends only its historical one-Publication/one-topic interpretation.
 - `decisions/production-data-and-schema-compatibility.md` — **Accepted ADR** for the Phase 20 production-baseline boundary, durable customer-data preservation, supported production migration history, and post-launch schema-upgrade evidence.
 - `decisions/topic-independent-publication-model.md` — **Superseded historical ADR** retained only as decision history.
 - `decisions/whitelist-and-structured-feed-first.md` — whitelist/trust and structured-feed priority.
@@ -119,27 +127,33 @@ Use root `BOOT.md` as the session router; it points to the narrowest authoritati
 - Contract changes update all affected current authorities in the same logical change.
 - Code that knowingly violates a locked law is invalid even if tests pass.
 - Tests that pass only because a contract-critical invariant was weakened are invalid evidence.
-- New Sources, Categories, or separately deployed Publication configurations must not silently redefine Platform-wide behavior.
-- Concurrent multi-Publication hosting inside one installation is not inferred from Publication configuration and requires a new explicit locked contract/ADR decision plus deliberate data-model work if ever promoted.
-- Multiple distribution consumers for one Publication do not imply multi-Publication tenancy.
+- New Sources, Categories, subject verticals, or Distribution Profiles must not silently redefine Platform-wide shared-engine behavior.
+- Concurrent multi-Publication hosting inside one installation is not inferred from multi-vertical Publication configuration and requires a new explicit locked contract/ADR decision plus deliberate data-model work if ever promoted.
+- Multiple Distribution Profiles/verticals for one Publication do not imply multi-Publication tenancy or vertical Article ownership keys.
 - Source approval/trust and consumer-specific distribution selection remain separate concerns.
-- Do not introduce Publication tenant IDs/slugs/FKs/scopes solely as speculative future compatibility.
+- Do not introduce Publication tenant IDs/slugs/FKs/scopes solely as speculative future compatibility or merely to distinguish Profile feeds.
 - After Phase 20 production-baseline acceptance, customer production state must be preserved under `decisions/production-data-and-schema-compatibility.md`.
-- Follow the active seven-phase 2.0 roadmap for Profile/API/PHP implementation. Do not promote post-2.0 self-host packaging, WordPress, RSS/Atom, native self-host auth, analytics, browser widgets, or SEO guarantees into the release without a new owner-approved contract/roadmap decision.
-- Foundational architecture changes require an Accepted/superseding ADR where appropriate.
+- The 2.0 roadmap is complete. Follow `roadmap/3.0-roadmap.md` for current post-2.0 direction, including its explicit pre-activation runner-correction gate.
+- Do not promote self-host packaging, WordPress, RSS/Atom, native self-host auth, analytics, browser widgets, advanced SEO, or other deferred product families into 3.0 without a new owner-approved contract/roadmap decision.
+- AI must remain downstream of canonical Profile output and optional for ordinary operation; it cannot become an editorial/eligibility authority or a secret-bearing browser feature.
+- Foundational architecture changes require an Accepted/superseding/amending ADR where appropriate.
 - Design guidance under `design/` is subordinate to product/domain contracts, ADRs, roadmap, and the testing contract; it may refine the reference frontend but may not redefine supported product behavior.
 
 ## Roadmap / implementation discipline
 
 The MVP roadmap is complete through Phase 21. Former post-1.0 Phase 0 P1 shipped the server-rendered root at package `1.0.1`. Its planned P2 closeout was retired unexecuted when the product direction changed.
 
-**Current roadmap state:** ACTIVE — seven-phase 2.0 implementation roadmap.  
-**Current package baseline:** `1.7.0`.
-**Current implementation phase:** Phase 7 — Managed integration and 2.0 release qualification.
-**Next roadmap prompt version:** `1.7.1`.
-**Current task folder:** `p1-7`.
-**Terminal release:** final validated `1.7.x` → version-only `2.0.0` transition.
+The seven-phase 2.0 roadmap is COMPLETE and current package version is `2.0.0`.
 
-Do not run the old `p1-0` stack or infer versions from the retired frontend-centric roadmap. Normal implementation planning now resumes with `/prompt-ass Phase 7` → `/prompt-plan` → `/prompt-write p1-7`. The v1 HTTP API, generic PHP synchronization/LKG, and normalized local-read/customer integration are implemented; Phase 7 composes and qualifies those boundaries without bypassing their governed semantics.
+**Current roadmap state:** OWNER-APPROVED / PRE-ACTIVATION — 3.0 roadmap.  
+**Current package baseline:** `2.0.0`.  
+**Immediate next implementation:** unchanged-`2.0.0` phase-runner compatibility correction.  
+**Planned activation baseline:** `2.1.0`.  
+**Planned Phase 1:** Gemini Profile digest foundation.  
+**Planned terminal release:** `3.0.0`, with terminal exit gate intentionally owner-controlled/TBD.
 
-Historical validation artifacts describe only the source tree, environment, and observations they record. They do not redefine current contracts.
+The intended future task family is `p2-<phase>` / `2.<phase>.<prompt>`, but the current runner does not support that family. Do not write or execute `p2-1` until the dedicated source/test correction proves the grammar while preserving historical major-0, major-1, and correction behavior.
+
+After that correction is reviewed/accepted and the owner performs the version-only `2.0.0` → `2.1.0` roadmap activation, normal implementation planning may resume with `/prompt-ass Phase 1` → `/prompt-plan` → `/prompt-write p2-1`.
+
+Historical validation artifacts describe only the source tree, environment, and observations they record. They do not redefine current contracts. In particular, the Phase 7 artifact truthfully records the owner's explicit release-evidence exception rather than proving the unexecuted formal Phase 7 prompt sequence.

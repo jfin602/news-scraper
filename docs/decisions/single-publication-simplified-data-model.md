@@ -5,6 +5,8 @@
 **Supersedes:** [`topic-independent-publication-model.md`](./topic-independent-publication-model.md)
 
 > **2026-08-19 interpretation note:** This ADR remains fully authoritative for the one-Publication-per-deployment and no-relational-tenancy data model. Its references to `/` and `/api/feed` describe the implemented first-party surfaces that existed when the decision was made. `headless-distribution-product-boundary.md` now governs their product role: `/` is the bundled reference/standalone frontend, `/api/feed` is a current JSON outward interface, and neither makes the standalone frontend the Platform's primary product identity.
+>
+> **2026-08-27 interpretation note:** `single-publication-multi-vertical-editorial-property.md` amends only this ADR's narrow equation of Publication with one topic. The singleton/no-relational-tenancy data model remains fully authoritative. Where this historical decision says another topic necessarily uses another deployment, current behavior instead treats Publication as one customer/editorial property that may contain multiple subject verticals exposed through Distribution Profiles. A distinct Publication/editorial property still requires another independently bounded deployment unless a future explicit multi-Publication architecture change is adopted.
 
 ## Context
 
