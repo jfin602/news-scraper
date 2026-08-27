@@ -2,91 +2,85 @@
 
 ## Result and identity
 
-- Status: **BLOCKED — PRELIMINARY CUSTOMER INTEGRATION OBSERVATION ONLY**.
-- Repository observed on 2026-08-27 at `main` commit `08dd1f7429c1221d2d5b6bec07af29fe69a886f6` (`Fix PHP fallback date presentation`).
-- Observed package version: `1.7.0`.
-- Required Phase 7 implementation sequence has **not** been completed on the observed committed tree: no runner-created P1 (`1.7.1`), P2 (`1.7.2`), or P3 (`1.7.3`) implementation commits are present after the `1.7.0` baseline.
-- This artifact therefore does **not** satisfy the Phase 7 release gate and does **not** authorize the terminal `/closeout` transition to `2.0.0`.
+- Status: **OWNER ACCEPTED — TERMINAL 2.0.0 RELEASE AUTHORIZED WITH DOCUMENTED EVIDENCE EXCEPTION**.
+- Repository observed before this acceptance on 2026-08-27 at `main` commit `08dd1f7429c1221d2d5b6bec07af29fe69a886f6` (`Fix PHP fallback date presentation`), package version `1.7.0`.
+- The normal written Phase 7 P1–P4 qualification sequence was not executed on the observed committed tree.
+- On 2026-08-27 the repository owner/operator explicitly confirmed that the deployed customer integration is good and explicitly authorized proceeding to the terminal **`2.0.0`** transition despite the omitted formal Phase 7 evidence sequence.
+- This is an intentional owner-approved release-gate exception. It must not be represented later as evidence that unexecuted tests or failure scenarios passed.
 
 ## Customer integration milestone
 
-On 2026-08-27 the repository owner reported that the generic PHP integration package was successfully installed into the real customer website at:
+The generic PHP integration package has been installed into the real customer website at:
 
 `https://michael-finney.com/indie-author-publishing-news.php`
 
-The owner reports that this is the first real customer-site integration of the package and that the page is functioning in production.
+The repository owner/operator reports that the integration is functioning correctly in production and accepts that real customer deployment as sufficient practical release confidence for the terminal transition.
 
-This is an important Phase 7 prerequisite and establishes that a genuinely external customer PHP site now exists for final release qualification. It does not, by itself, prove the complete Phase 7 evidence matrix or bind the observed customer runtime to an exact final committed P3 candidate.
+This establishes the product milestone that motivated Phase 7: News Scraper is supplying its PHP integration to a genuinely external customer site that renders the integrated news feed.
 
-## Why release closeout is currently blocked
+## Owner-approved qualification exception
 
-The governing Phase 7 roadmap requires the final release artifact to be tied to the exact committed final `1.7.x` candidate and to record applicable automated, real-PostgreSQL, security, browser/server, approved-live-Source, managed-deployment, failure-injection, migration, recovery, and external-host evidence.
-
-The written Phase 7 task stack requires:
+The governing Phase 7 roadmap normally calls for:
 
 1. P1 — managed integration qualification plane (`1.7.1`);
 2. P2 — managed News Scraper release qualification (`1.7.2`);
 3. P3 — external PHP end-to-end release qualification (`1.7.3`);
-4. deployment/installation of the exact committed P3 behavior candidate to the managed News Scraper instance and external PHP host;
-5. P4 — independent Phase 7 closeout (`1.7.4` candidate) against those exact identities.
+4. deployment/installation of the exact committed P3 behavior candidate;
+5. P4 — independent Phase 7 closeout (`1.7.4` candidate) with the full managed/external evidence matrix.
 
-The observed `main` tree is still the `1.7.0` Phase 7 baseline, so the required exact-candidate identity chain does not yet exist.
+That normal sequence was deliberately waived by the owner/operator for this release after the successful real customer integration.
 
-## Evidence still required before GREEN
-
-Final Phase 7 closeout must execute and record, at the appropriate evidence level, the contracted real-path and failure/recovery matrix, including at minimum:
-
-- real approved-Source collection through canonical eligibility and Profile selection;
-- dedicated machine authentication and genuine v1 API pagination/revision behavior;
-- complete external PHP synchronization and validated atomic LKG activation;
-- customer server-rendered output with exact direct stored publisher `originalUrl` destinations;
-- proof that ordinary visitor rendering performs no live News Scraper API request;
-- upstream/API unavailability while valid LKG remains usable;
-- synchronization failure without corrupting/replacing active LKG;
-- malformed/incomplete candidate rejection;
-- snapshot revision change during traversal;
-- stale-valid cache behavior and configured stale cutoff where applicable;
-- authoritative Profile disable suppressing cached rendering and later successful re-enable restoration;
-- invalid/revoked credential behavior;
-- rate-limit / `Retry-After` behavior;
-- preserved `GET /` and `GET /api/feed` behavior;
-- supported production-forward migration/data preservation for all 2.0 schema additions;
-- backup/restore/rollback compatibility;
-- bounded operational telemetry without credential/secret leakage;
-- restricted managed/external validation transport and exact installed/deployed candidate identity where required by the Phase 7 prompts.
+The waiver is limited to release qualification/evidence. It does not alter the Project Contract's product laws, topic independence, Source trust, canonical eligibility, Profile semantics, machine/admin separation, LKG architecture, publisher-destination rule, production-data durability, or any runtime behavior.
 
 ## Evidence classification
 
-### Observed / owner-reported
+### Accepted practical evidence
 
 - A real customer PHP site exists outside the managed News Scraper deployment.
-- The owner reports that the PHP integration package has been installed and is functioning at the customer URL above.
+- The generic PHP integration package has been installed there.
+- The repository owner/operator reports that the integration is functioning correctly in production.
+- The repository owner/operator explicitly accepts the current product state for the `2.0.0` release transition.
 
-### Not established by this artifact
+### Historical automated evidence retained from prior phases
 
-- exact deployed News Scraper SHA;
-- exact installed external PHP package/source SHA/version identity;
-- P1 validator protocol/bundle identity;
-- P2 managed qualification results;
-- P3 external end-to-end qualification results;
-- Level 7/8 managed/external failure-injection evidence;
-- final automated/database/security/browser/recovery reruns against an exact P3 candidate;
-- a green P4 closeout conclusion.
+Earlier Phase 1–6 validation artifacts remain authoritative only for the exact trees/environments they recorded. In particular, Phase 5 established the generic PHP synchronization/LKG behavior and Phase 6 established the local-read/server-rendered customer integration behavior in their recorded test environments. Those artifacts are not rewritten by this exception.
 
-Owner report is recorded as deployment context, not substituted for executed release evidence.
+### Not claimed as executed for Phase 7
 
-## Terminal transition gate
+This artifact does **not** claim that the following Phase 7-specific evidence was executed against an exact P3 candidate:
 
-The terminal release transition remains:
+- P1 restricted remote-validator protocol/bundle qualification;
+- P2 managed production qualification;
+- P3 exact external-host qualification;
+- Level 7/8 managed/external failure injection;
+- exact deployed News Scraper SHA ↔ external installed PHP source identity matching;
+- deliberate upstream/API outage testing;
+- malformed/incomplete candidate injection;
+- live snapshot-revision-change injection;
+- live stale-cutoff/disable/re-enable scenario execution;
+- live credential-revocation/rate-limit scenario execution;
+- a final P4 automated/database/security/browser/recovery rerun.
+
+These omissions are accepted release risks, not passing test results.
+
+## Release decision
+
+The repository owner/operator has reviewed the practical deployment state and accepts the remaining qualification risk.
+
+**Release decision: ACCEPTED FOR TERMINAL 2.0.0 TRANSITION.**
+
+The next conversational `/closeout` may therefore perform the roadmap's terminal release transition from the current accepted `1.7.0` product tree to `2.0.0`, subject to its normal repository-drift and version-only safety checks.
+
+The transition must remain version-only:
 
 ```text
-final validated 1.7.x candidate
+accepted 1.7.0 product tree
 -> package.json version only
 -> 2.0.0
 ```
 
-No `1.8.0` or `2.0.x` development baseline is created.
+No `1.8.0` baseline is created. No `2.0.x` development candidate is created. No source, schema, dependency, configuration, or runtime behavior change is authorized as part of the terminal version transition.
 
-Before conversational `/closeout` may perform that transition, this preliminary artifact must be replaced or updated by the real P4 closeout artifact with **Phase 7 GREEN — HUMAN REVIEW REQUIRED** status, exact final candidate identity, and the required executed evidence.
+## Audit note
 
-Until then, `/closeout` must fail closed rather than advancing the package version.
+This artifact intentionally distinguishes **owner release acceptance** from **executed technical validation**. Future documentation must preserve that distinction. The `2.0.0` release may be described as owner-accepted following successful real customer integration, but must not claim the omitted Phase 7 P1–P4 evidence matrix was executed or green.
