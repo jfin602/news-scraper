@@ -50,6 +50,25 @@ replace ns-integration as one package operation
 
 This is a planning target, not yet a locked implementation contract except where a decision below is explicitly marked LOCKED.
 
+## Cross-cutting Profile AI administration requirement
+
+**Status:** LOCKED — owner-approved 2026-08-28
+
+Each Distribution Profile gains a dedicated **AI** section in the protected admin control plane. AI behavior remains Profile configuration rather than hard-coded shared-engine subject logic.
+
+For the Phase 1 digest, the Profile AI section must provide the key safe configuration and operational controls decided by this worksheet, including at minimum:
+
+- enable/disable the Profile digest independently of ordinary Profile Article distribution;
+- configure the bounded digest lookback window;
+- configure the bounded maximum digest Article count;
+- expose the digest evaluation schedule/cadence in a bounded operator-friendly form consistent with Decision 2;
+- manually request digest generation/evaluation through the same governed server-side generation path used by scheduled work;
+- show enough current digest status/freshness information for an administrator to understand whether a valid digest exists and when it was last generated.
+
+Later worksheet decisions may add further safe Profile-level controls such as presentation/output options. Gemini credentials/API secrets are deployment/operator secrets and MUST NOT become Profile fields or be exposed by this AI section. Provider/model configuration should remain outside subject-specific Profile behavior unless a later explicit decision makes a bounded value Profile-configurable.
+
+Manual generation is an administrative operation only. It does not create a browser-side Gemini path and does not weaken canonical Profile grounding, input bounds, output validation, or failure isolation.
+
 ---
 
 ## Decision 1 — Customer upgrade / installation model
@@ -105,26 +124,56 @@ Canonical eligibility changes are a correctness exception to the normal new-Arti
 
 The twice-daily evaluation schedule is logically independent from collection execution and collection failure. Gemini failure cannot fail Source collection or ordinary Article distribution.
 
-An administrator MAY request manual digest generation/evaluation for testing or operations, but it must use the same governed generation path rather than a separate synchronous implementation. Exact manual-force semantics, including whether an operator may deliberately regenerate unchanged input, may be finalized with the admin/lifecycle design.
+An administrator may request manual digest generation/evaluation from the Profile AI admin section, but it must use the same governed generation path rather than a separate synchronous implementation. Exact manual-force semantics, including whether an operator may deliberately regenerate unchanged input, may be finalized with the admin/lifecycle design.
 
 ---
 
 ## Decision 3 — Digest input Article set
 
-**Status:** OPEN
-
-### Questions
-
-- How many recent canonically governed Profile Articles should be eligible for one digest?
-- What time window, if any, should constrain the input?
-- Should the input be purely the first N Articles from canonical Profile order, or use another deterministic bounded rule?
-- How should empty/very-small feeds behave?
-- What exact bounded metadata is sent for each Article?
-- How many exact stored `originalUrl` values should be supplied to Gemini URL Context?
+**Status:** LOCKED — owner-approved 2026-08-28
 
 ### Answer
 
-_TBD_
+The initial digest input is a deterministic narrowing of the canonical governed Profile result, preserving canonical Profile order rather than introducing AI ranking or a second selector.
+
+Default Profile AI configuration:
+
+- **lookback window:** 7 days;
+- **maximum input Articles:** 20.
+
+Both are Profile-level AI configuration exposed in the protected Profile AI admin section. They must remain bounded. The initial maximum Article setting is **1–20**, with 20 as the default and hard Phase 1 ceiling. The lookback control must likewise have an application-owned safe finite bound; its exact allowed minimum/maximum may be finalized during implementation planning without changing the owner-approved 7-day default.
+
+For each digest evaluation:
+
+1. start from Articles already selected through canonical Profile eligibility/filter/order semantics;
+2. keep only Articles whose `effectiveFeedDate` falls within the configured rolling lookback window;
+3. take at most the configured maximum count from the front of canonical Profile order;
+4. preserve that canonical order in the AI input.
+
+Input cardinality behavior:
+
+- 0 qualifying Articles: do not generate a new digest;
+- 1 qualifying Article: sufficient input for a digest;
+- 2 through the configured maximum: use all qualifying Articles;
+- more than the configured maximum: use only the newest bounded set in canonical Profile order.
+
+The normalized per-Article Gemini context is limited to useful safe outward data:
+
+- `articleId`;
+- headline;
+- Source display name;
+- `effectiveFeedDate`;
+- `publishedAt` when available;
+- author when available;
+- bounded persisted summary when available;
+- effective outward Categories;
+- exact stored `originalUrl`.
+
+Do not send image URLs, Source/endpoint configuration, collection/run internals, duplicate mechanics, moderation/Relevance internals, private persistence identifiers, credentials, or unrelated Profiles merely because they exist.
+
+For Gemini URL Context, Phase 1 may supply the exact stored `originalUrl` for every Article in the bounded digest input, subject to the same application-owned maximum of 20. URL Context does not expand the governed URL set: user text, Source/retrieved text, or model output cannot add destinations. The bounded normalized summary remains present as fallback context even when URL Context is attempted.
+
+The configured lookback/count values define the current bounded digest input used by Decision 2's regeneration comparison. Changing either Profile AI setting therefore changes the governed digest input definition and must be treated as requiring reevaluation of the existing digest rather than waiting indefinitely for a newly collected Article.
 
 ---
 
@@ -139,6 +188,7 @@ _TBD_
 - Should Gemini return supporting Article IDs for themes/highlights?
 - What wording/tone is generic enough to work for every Profile subject without topic-specific code?
 - How should AI-generated origin be labeled?
+- Which safe output/presentation preferences, if any, should be configurable from the Profile AI admin section?
 
 ### Answer
 
@@ -182,6 +232,7 @@ _TBD_
 - What happens on Gemini timeout, rate limit, malformed output, safety rejection, or URL Context degradation?
 - When is the previous valid digest retained?
 - How are absent, current, stale, and failed-generation states represented?
+- What digest health/status facts should appear in the Profile AI admin section?
 
 ### Answer
 
@@ -298,7 +349,7 @@ _TBD_
 
 ## Completion gate for this worksheet
 
-This worksheet is complete when Decisions 1–12 have owner-approved answers detailed enough that `/prompt-ass Phase 1` can decompose implementation without inventing customer-install, digest-lifecycle, revision, API, PHP, or presentation semantics.
+This worksheet is complete when Decisions 1–12 and the cross-cutting Profile AI administration requirement have owner-approved answers detailed enough that `/prompt-ass Phase 1` can decompose implementation without inventing customer-install, digest-lifecycle, revision, API, PHP, admin-control, or presentation semantics.
 
 After all answers are locked:
 
