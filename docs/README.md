@@ -43,7 +43,8 @@ docs/
 │   ├── mvp-roadmap.md
 │   ├── 2.0-planning-questions.md
 │   ├── post-1.0-roadmap.md                  # completed 2.0 history
-│   └── 3.0-roadmap.md                       # owner-approved / pre-activation
+│   ├── 3.0-roadmap.md                       # owner-approved / pre-activation
+│   └── 3.0-changelog.md                     # brief accepted-history companion
 ├── decisions/
 │   ├── README.md
 │   ├── headless-distribution-product-boundary.md
@@ -97,6 +98,7 @@ The tracked docs-maintenance handoff lives outside `docs/` at repository-root `.
 - `roadmap/2.0-planning-questions.md` — completed non-normative planning record; later owner decisions and governing contracts/roadmaps control current scope.
 - `roadmap/post-1.0-roadmap.md` — **completed historical 2.0 roadmap authority**: seven 1.x development phases and the owner-accepted terminal `2.0.0` release transition.
 - `roadmap/3.0-roadmap.md` — **current owner-approved pre-activation roadmap authority** for the post-2.0 version/direction sequence and open terminal gate.
+- `roadmap/3.0-changelog.md` — **brief non-authoritative accepted-history companion** for material 3.0 roadmap work, decisions, transitions, and closeouts; it summarizes accepted changes but never substitutes for contracts, roadmap authority, or validation evidence.
 - `decisions/single-publication-multi-vertical-editorial-property.md` — **Accepted current Publication interpretation**: one customer/editorial property may contain multiple subject verticals/feeds through Profiles without tenancy.
 - `decisions/headless-distribution-product-boundary.md` — **Accepted ADR** for the headless product boundary and its historical 2026-08-19 decision context.
 - `decisions/managed-first-self-hostable-distribution-architecture.md` — **Accepted ADR** for isolated managed/self-hostable instances, complete-stack portability, Distribution Profiles, thin integration families, presentation ownership, and later AI direction.
