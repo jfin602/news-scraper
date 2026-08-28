@@ -320,19 +320,47 @@ Failure details exposed to administrators remain bounded and secret-safe. Public
 
 ## Decision 7 — v1 API representation
 
-**Status:** OPEN
-
-### Questions
-
-- What exact optional top-level field should expose the digest?
-- Which digest provenance/freshness fields belong in the machine response?
-- Should the field always exist as nullable, or be omitted when unsupported/absent?
-- How do old PHP clients safely ignore it?
-- What validation protects Article delivery if digest data is malformed internally?
+**Status:** LOCKED — owner-approved 2026-08-28
 
 ### Answer
 
-_TBD_
+Every successful active v1 Profile page includes one top-level **`digest`** field. The field is always present and is either:
+
+- a validated structured active digest object; or
+- `null` when no currently distributable digest exists.
+
+The API does not use omission to represent ordinary digest absence. This gives upgraded integrations an explicit machine state while remaining a compatible additive field that older PHP clients may ignore.
+
+A distributable digest payload contains only the bounded downstream data needed to render and inspect the active summary, including:
+
+- `generatedAt`;
+- bounded `inputArticleCount`;
+- provider identity;
+- model identity;
+- overview text;
+- bounded structured highlights;
+- application-resolved supporting Article references for each highlight, including governed `articleId`, headline, and exact stored `originalUrl`.
+
+Internal `digestInputIdentity`, generation-attempt IDs, failed-attempt status/details, prompt text, URL Context diagnostics, raw provider metadata, admin configuration, persistence-only identifiers, and secrets remain server-side and are not included merely because they exist.
+
+The same digest value belongs to **every page of one outward Profile snapshot revision**. The API must not make the digest a page-1-only side channel. Repeating the small bounded digest object across continuation pages is acceptable and preserves straightforward complete-snapshot identity/validation.
+
+If the active digest changes during a traversal, Decision 5's normal revision/cursor behavior applies: the outward revision changes and a continuation under the old revision receives the existing snapshot-changed behavior, causing the PHP synchronizer to restart within its bounded existing logic.
+
+Before serving a digest object, News Scraper must validate that the active durable AI state satisfies the application-owned digest shape, text bounds, reference bounds, and governed supporting-Article rules. AI remains additive and fail-open relative to otherwise valid Article delivery.
+
+Therefore, if an internally stored/loaded digest is malformed or otherwise cannot safely be materialized while the Profile's ordinary Article state is valid:
+
+```text
+valid Articles + invalid AI state
+→ serve the Profile Articles normally
+→ `digest: null`
+→ record/expose the AI integrity problem through bounded operator diagnostics
+```
+
+An invalid AI payload must not by itself turn an otherwise valid v1 Article response into a `503`, corrupt Article semantics, or suppress ordinary Profile distribution.
+
+The top-level `digest` participates in the outward `snapshotRevision`/ETag according to Decision 5. Transitioning between `null` and a valid digest, or from one valid active digest to another, is outward state change.
 
 ---
 
