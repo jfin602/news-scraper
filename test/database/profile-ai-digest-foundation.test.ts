@@ -227,6 +227,21 @@ test('digest lifecycle repository exposes bounded attempt reads and exact truthf
         (await findRunningDigestAttempt(database, first.configKey))?.id,
         claim.attempt.id,
       );
+      await assert.rejects(
+        database.transaction(async (transaction) => {
+          await transaction.query(
+            'DROP INDEX distribution_profile_digest_attempts_one_running_per_profile',
+          );
+          await transaction.query(
+            `INSERT INTO distribution_profile_digest_attempts
+               (id, profile_id, trigger_kind, state, started_at)
+             VALUES ($1, $2, 'manual', 'running', $3)`,
+            [randomUUID(), first.id, new Date('2026-08-28T12:00:01.000Z')],
+          );
+          await findRunningDigestAttempt(transaction, first.configKey);
+        }),
+        /running-attempt state is invalid/u,
+      );
       assert.equal(
         await findRunningDigestAttempt(database, second.configKey),
         undefined,
@@ -432,7 +447,61 @@ test('digest lifecycle transaction composition rolls back coherently and seriali
           model: 'model',
         });
       });
-      assert.ok(await findActiveDigest(primary, first.configKey));
+      const priorActive = await findActiveDigest(primary, first.configKey);
+      assert.ok(priorActive);
+      const generationsBeforeRejectedCompletion = await primary.query<{
+        readonly count: string;
+      }>(
+        `SELECT count(*)::text AS count
+             FROM distribution_profile_digest_generations
+            WHERE profile_id = $1`,
+        [first.id],
+      );
+      await assert.rejects(
+        primary.transaction(async (transaction) => {
+          const digest = await createSuccessfulDigestGeneration(transaction, {
+            profileConfigKey: first.configKey,
+            digestInputIdentity: 'd'.repeat(64),
+            generatedAt: new Date('2026-08-28T12:02:30.000Z'),
+            provider: 'gemini',
+            model: 'model',
+            inputArticleIds: [article],
+            overview: 'Rejected completion',
+            highlights: [],
+          });
+          await activateSuccessfulDigestGeneration(
+            transaction,
+            first.configKey,
+            digest.id,
+            new Date('2026-08-28T12:02:30.000Z'),
+          );
+          await completeDigestAttemptInTransaction(transaction, {
+            profileConfigKey: first.configKey,
+            attemptId: randomUUID(),
+            terminalOutcome: 'success',
+            completedAt: new Date('2026-08-28T12:02:30.000Z'),
+            digestInputIdentity: 'd'.repeat(64),
+            inputArticleCount: 1,
+            provider: 'gemini',
+            model: 'model',
+          });
+        }),
+      );
+      assert.equal(
+        (await findActiveDigest(primary, first.configKey))?.id,
+        priorActive.id,
+      );
+      assert.equal(
+        (
+          await primary.query<{ readonly count: string }>(
+            `SELECT count(*)::text AS count
+               FROM distribution_profile_digest_generations
+              WHERE profile_id = $1`,
+            [first.id],
+          )
+        ).rows[0]?.count,
+        generationsBeforeRejectedCompletion.rows[0]?.count,
+      );
       const suppressionClaim = await claimDigestAttempt(primary, {
         profileConfigKey: first.configKey,
         triggerKind: 'manual',

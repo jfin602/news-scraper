@@ -515,7 +515,7 @@ export async function findRunningDigestAttempt(
   profileConfigKey: unknown,
 ): Promise<PersistedDigestAttempt | undefined> {
   const profile = await requireProfile(executor, profileConfigKey);
-  return findDigestAttempt(executor, profile, "state = 'running'");
+  return findDigestAttempt(executor, profile, "state = 'running'", true);
 }
 
 export async function findLatestDigestAttempt(
@@ -581,6 +581,7 @@ async function findDigestAttempt(
   executor: QueryExecutor,
   profile: Readonly<{ id: string; configKey: string }>,
   predicate: string,
+  requireUnique = false,
 ): Promise<PersistedDigestAttempt | undefined> {
   const result = await executor.query<AttemptRow>(
     `SELECT attempt.id, attempt.profile_id, $2::text AS config_key,
@@ -595,9 +596,11 @@ async function findDigestAttempt(
        FROM distribution_profile_digest_attempts attempt
       WHERE attempt.profile_id = $1 AND ${predicate}
       ORDER BY attempt.started_at DESC, attempt.id ASC
-      LIMIT 1`,
-    [profile.id, profile.configKey],
+      LIMIT $3`,
+    [profile.id, profile.configKey, requireUnique ? 2 : 1],
   );
+  if (requireUnique && result.rows.length > 1)
+    throw new Error('Persisted digest running-attempt state is invalid.');
   const row = result.rows[0];
   return row === undefined ? undefined : mapAttempt(row);
 }
