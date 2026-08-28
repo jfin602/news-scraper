@@ -20,6 +20,7 @@ It establishes project identity, authority, routing, workflow gates, task gramma
 - Distribution/Profile/PHP contract: `docs/contracts/distribution-and-integration-contract.md`
 - AI assistance contract: `docs/contracts/ai-assistance-contract.md`
 - Current roadmap: `docs/roadmap/3.0-roadmap.md`
+- Current roadmap changelog: `docs/roadmap/3.0-changelog.md`
 - Current roadmap state: **OWNER-APPROVED / PRE-ACTIVATION**
 - Current package baseline: **`2.0.0`**
 - Immediate implementation blocker: the phase runner currently supports roadmap major versions `0` and `1` only; a bounded unchanged-`2.0.0` runner compatibility correction must add the intended `2.x` roadmap family before Phase 1 prompts are written/executed
@@ -145,6 +146,7 @@ Keep these distinctions explicit: Publication vs subject vertical vs Profile; So
 | Backup / restore                                                          | `docs/operations/database-backup-and-restore.md`                          |
 | Deployment / rollback / incidents                                         | `docs/operations/deployment-and-incident-runbook.md`                      |
 | Current 3.0 roadmap / versions                                            | `docs/roadmap/3.0-roadmap.md`                                             |
+| Current 3.0 accepted-history summary                                      | `docs/roadmap/3.0-changelog.md`                                           |
 | Completed 2.0 roadmap history                                             | `docs/roadmap/post-1.0-roadmap.md`                                        |
 | Completed MVP history                                                     | `docs/roadmap/mvp-roadmap.md`                                             |
 | Historical 2.0 planning record                                            | `docs/roadmap/2.0-planning-questions.md`                                  |
@@ -350,9 +352,13 @@ Trace suspected regression to likely change, affected invariants, missing test p
 
 Read-only. Default scope is tracked `.md`/`.txt` excluding task and validation artifacts unless narrowed. Report contradictions, drift, stale statements, duplicated authority, missing references, and recommended changes. Never modify files.
 
+For the current roadmap, also assess whether already accepted work, version/state transitions, phase closeouts, or material owner-approved roadmap/contract decisions require a brief entry in its companion changelog. Do not propose changelog entries for merely planned work, and do not treat the changelog as behavioral authority or validation evidence.
+
 ## `/docs-apply`
 
 Apply only approved documentation findings after re-reading current targets. Do not alter source, migrations, tests, dependencies, runtime config, or package version unless separately explicitly authorized.
+
+When an approved finding includes current-roadmap changelog impact, update the companion changelog in the same docs-only application. Keep entries brief—normally date, package version when relevant, and one to three bullets—and summarize accepted outcomes without duplicating validation evidence.
 
 ## `/docs-prompt [<model configuration>]`
 
@@ -460,7 +466,7 @@ The shared parser is `scripts/codex-phase-core.mjs`.
 - numbering one-based, contiguous from P1;
 - exactly one final closeout prompt;
 - closeout filename and `TASK:` title both signal `closeout`;
-- every prompt has exactly one valid `- Recommended configuration: `<MODEL_CONFIGS label>`.` line.
+- every prompt has exactly one valid `- Recommended configuration:` `<MODEL_CONFIGS label>`.` line.
 
 ## Historical pre-1.0 roadmap phases
 
