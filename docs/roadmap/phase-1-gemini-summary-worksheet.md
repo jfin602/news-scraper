@@ -14,6 +14,7 @@ Governing behavior remains in the current contracts and roadmap. If a worksheet 
 - Gemini digest generation runs server-side in News Scraper, never in the customer's public PHP visitor path.
 - Gemini/API secrets must never be installed on the customer website or exposed to browser code.
 - The customer already has the generic PHP integration installed and operational.
+- The existing customer installation uses sibling directories named `ns-integration` and `ns-private`; `ns-integration` is the replaceable integration package and `ns-private` owns the existing private configuration/state that must be preserved across the Phase 1 upgrade.
 - The owner will not be physically present with the customer when this feature launches.
 - Customer deployment therefore needs to be simple enough for a remote, low-friction install.
 - Ordinary visitor rendering must remain local-only and must not call Gemini or News Scraper merely to display the latest summary.
@@ -43,40 +44,40 @@ no new News Scraper machine credential
 no new customer database
 no new scheduled Gemini job
 no new public upstream dependency
-preserve existing private config/state
-replace/update integration runtime
-minimal customer presentation-file change
+preserve ns-private configuration/state
+replace ns-integration as one package operation
 ```
 
-This is a planning target, not yet a locked implementation contract.
+This is a planning target, not yet a locked implementation contract except where a decision below is explicitly marked LOCKED.
 
 ---
 
 ## Decision 1 — Customer upgrade / installation model
 
-**Status:** OPEN
+**Status:** LOCKED — owner-approved 2026-08-28
 
 ### Question
 
 What exact set of steps should the existing customer perform to enable the Gemini summary after News Scraper Phase 1 ships?
 
-### Current recommendation
+### Answer
 
-Use an in-place/drop-in PHP integration upgrade that preserves the customer's existing private configuration, bearer credential, state root, and cron schedule.
+Use a whole-package replacement of the existing `ns-integration` directory while preserving the sibling `ns-private` directory unchanged.
 
 Target customer experience:
 
-1. download/extract the new version-matched integration package;
-2. replace the existing integration runtime/package files;
-3. leave private configuration and existing synchronized state untouched;
-4. keep the existing Article synchronization cron/job unchanged where safely possible;
-5. upload/replace at most one simple PHP presentation/include file to display the synchronized digest.
+1. use the News Scraper admin panel to download the current version-matched PHP integration ZIP;
+2. replace the existing `ns-integration` directory with the newly downloaded `ns-integration` package as one upgrade operation;
+3. leave `ns-private` untouched so the existing private configuration, bearer credential, state root/LKG data, and other customer-specific private state remain in place;
+4. keep the existing synchronization cron/job and current site integration wiring unchanged where compatible;
+5. after the folder swap, the existing customer site must continue rendering the normal Article feed without requiring separate presentation-file replacement solely because the integration runtime was upgraded;
+6. the upgraded integration may then expose/render the new synchronized digest through the existing integration boundary as later worksheet decisions define.
 
-Avoid requiring a separate Gemini add-on, new Gemini/API secret, new News Scraper machine credential, new database, or second customer-side synchronization system merely to display the digest.
+The Phase 1 customer upgrade MUST NOT require a separate Gemini add-on, Gemini/API secret on the customer host, new News Scraper machine credential, new customer database, new cron job, or second customer-side synchronization system merely to receive/display the digest.
 
-### Answer
+The admin panel package-download control MUST visibly identify the exact integration package version being offered so the customer/operator can confirm what version they are about to install. The downloaded package's own version metadata remains the authoritative artifact identity; the admin display must agree with it rather than maintaining a separate manually typed version label.
 
-_TBD_
+Backward compatibility is part of this decision: swapping `ns-integration` must not require clearing or rebuilding `ns-private`, and pre-digest local state must remain a valid upgrade starting point.
 
 ---
 
@@ -272,10 +273,10 @@ _TBD_
 
 ### Questions
 
-- What exact files/directories does the customer replace?
-- Which existing files/directories must never be overwritten because they contain private config or LKG state?
+- What exact archive/directory shape should the admin-panel download use so the customer can replace `ns-integration` as one package operation?
+- Which existing files/directories must never be overwritten because they belong to `ns-private` and contain private config or LKG state?
 - Can the integration package include a purpose-built upgrade/readme checklist for this release?
-- Can the update be reduced to an archive upload/extract plus one website PHP file replacement?
+- How should the admin panel display the exact integration package version offered by the download button, and how is that display tied to authoritative package metadata?
 - What preflight/rollback instructions should be given to a non-developer customer?
 - How can the client verify the summary is installed correctly without server-shell expertise?
 
