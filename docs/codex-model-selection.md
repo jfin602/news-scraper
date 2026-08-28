@@ -215,7 +215,7 @@ Escalation target: Terra High
 
 ## `/prompt-plan` model-selection contract
 
-`/prompt-plan` is the **real model gate** because it has inspected the implementation, consumers, tests, and actual coupling.
+`/prompt-plan` is the **real model gate** because it has inspected the implementation, consumers, tests, actual coupling, and validation ownership.
 
 For every assessed prompt:
 
@@ -224,7 +224,8 @@ For every assessed prompt:
 3. downgrade implementation prompts when source inspection makes the task more explicit/local/mechanical than assessment assumed; retain `Sol Light` as the normal closeout floor unless the owner changes the closeout policy or the label is unavailable;
 4. escalate only when observed implementation complexity proves the cheaper/default configuration inadequate;
 5. identify whether escalation is driven by **base model capability** or **reasoning depth**;
-6. record the final configuration and a model-decision delta from `/prompt-ass`.
+6. record the final configuration and a model-decision delta from `/prompt-ass`;
+7. resolve the Test Necessity Matrix and Test Environment Matrix from `docs/contracts/testing-and-validation-contract.md` into a prompt-specific validation manifest before `/prompt-write`.
 
 The required delta is one of:
 
@@ -255,18 +256,70 @@ Driver: reasoning depth and cross-module state coupling
 
 Do not retain an expensive provisional rating merely because it was already written in `/prompt-ass`; the `Sol Light` closeout baseline is a deliberate review-policy floor, not an expensive provisional rating inherited from assessment.
 
+### `/prompt-plan` validation manifest contract
+
+For each proposed prompt, `/prompt-plan` MUST classify the actual affected validation surfaces and resolve every relevant evidence class to exactly one state:
+
+- **`RUN`** — required and executable in the prompt's assigned environment;
+- **`DEFER`** — required now or by the final gate but intentionally assigned to another environment;
+- **`N/A`** — not required by this task/gate.
+
+The manifest MUST identify:
+
+- affected validation surfaces and why they are implicated;
+- the prompt execution environment;
+- focused iterative evidence;
+- final `RUN` commands/procedures as the smallest non-overlapping set;
+- every `DEFER` item, its required environment, and the gate by which it must run;
+- important evidence explicitly classified `N/A` when omission could otherwise be ambiguous;
+- aggregate-command containment so `/prompt-write` does not duplicate subordinate commands already executed by a selected aggregate;
+- exact-tree handoff requirements when evidence crosses Windows/VPS/live/reference environments.
+
+Example:
+
+```text
+Validation surfaces: normalization + persistence
+Execution environment: local Windows Codex
+
+RUN:
+- focused normalization tests
+- focused database tests
+- npm run check
+- npm run test:db
+
+DEFER:
+- none
+
+N/A:
+- PHP runtime
+- PHP-backed browser
+- live Sources
+- live Gemini provider
+- reference deployment
+
+Containment:
+- npm run check already owns the portable ordinary unit/integration/collection regression set
+```
+
+For a PHP-affecting task executed locally, a valid plan might instead classify PHP runtime and PHP-backed browser evidence as `DEFER → VPS` while retaining locally executable producer/consumer tests under `RUN`. Planning MUST NOT convert the expected prerequisite failure into an instruction to run-and-retry locally.
+
+The validation manifest is a correctness and efficiency contract, not an optional prompt hint. A change crossing multiple necessity rows takes their union, and shared helpers inherit important-consumer obligations. Source inspection may increase or decrease the required matrix before prompt writing, but `/prompt-write` must not silently broaden or narrow it afterward.
+
 ## `/prompt-write` model-selection contract
 
-`/prompt-write` consumes the finalized `/prompt-plan` decision. It does **not** perform a fresh speculative upgrade based on prompt length or perceived importance.
+`/prompt-write` consumes the finalized `/prompt-plan` model decision **and validation manifest**. It does **not** perform a fresh speculative upgrade based on prompt length or perceived importance and does not invent a new validation superset.
 
 Before writing each task file:
 
 1. re-read current `MODEL_CONFIGS` and confirm the planned label still exists;
-2. confirm repository drift has not materially changed the implementation boundary or model floor;
+2. confirm repository drift has not materially changed the implementation boundary, model floor, validation surfaces, or execution-environment assumptions;
 3. if the exact finalized configuration is unsupported, stop with `Planning needed` rather than substituting a guessed label;
 4. if an implementation task boundary is unchanged and only a safe lower-cost configuration has become available, explicit owner-authorized `/revalidate` may downgrade it without reopening implementation scope; closeout prompts remain subject to the `Sol Light` independent-review baseline above;
 5. never silently upgrade because the generated prompt contains many requirements, tests, or validation commands;
-6. for every closeout prompt, add distinct error/edge-case adversarial and code-quality/structural review sections after the contract/evidence validation matrix, inherit the Terra High refactor-handoff rule above, permit only governed bounded repairs/test strengthening, and require all three pass outcomes in the durable validation/final report.
+6. copy the finalized `RUN` / `DEFER` / `N/A` validation manifest into the task in an implementation-ready form, preserving assigned environments and aggregate containment;
+7. do not instruct a Windows prompt to knowingly execute VPS-required or live/external evidence; explicitly invoked specialized suites still fail closed if their expected prerequisite is unexpectedly unavailable;
+8. do not instruct automatic retries for deterministic prerequisite/environment failures;
+9. for every closeout prompt, add distinct error/edge-case adversarial and code-quality/structural review sections after the contract/evidence validation matrix, inherit the Terra High refactor-handoff rule above, permit only governed bounded repairs/test strengthening, and require all three pass outcomes in the durable validation/final report.
 
 The final `MODEL / REASONING / USAGE` block SHOULD contain:
 
@@ -295,27 +348,30 @@ Revalidation should answer:
 - Does it still require the same reasoning effort?
 - Has a cheaper supported configuration become available for an implementation task without crossing the correctness floor?
 - For a closeout, is `Sol Light` still available and does observed complexity require escalation above it?
+- Does the validation manifest still match the current changed surfaces, current command containment, and current execution-environment prerequisites?
+- Are any previously `DEFER` items now `RUN`, or vice versa, because the assigned execution environment changed?
 - Does the closeout contain the required independent error/edge-case adversarial pass rather than relying on the existing test matrix?
 - Does the closeout contain the required code-quality/structural pass and Terra High refactor-handoff behavior?
 - Has implementation drift introduced stronger coupling/security/concurrency risk?
 - Is the prompt long because the task is difficult, or merely because it is explicit?
-- Can redundant prompt prose be removed without weakening contracts, tests, evidence requirements, either adversarial closeout pass, or its refactor handoff?
+- Can redundant prompt prose be removed without weakening contracts, tests, evidence requirements, the validation manifest, either adversarial closeout pass, or its refactor handoff?
 
-Historical completed prompts may retain the configuration used when executed. Unexecuted prompts should be revalidated after a material model-policy or runner-matrix change. Unexecuted closeout prompts written under a prior policy should be updated to the `Sol Light` baseline plus the explicit three-pass hardening flow and Terra High refactor handoff before execution when practical.
+Historical completed prompts may retain the configuration used when executed. Unexecuted prompts should be revalidated after a material model-policy, testing-contract, command-containment, or runner-matrix change. Unexecuted closeout prompts written under a prior policy should be updated to the `Sol Light` baseline plus the explicit three-pass hardening flow, Terra High refactor handoff, and current validation manifest before execution when practical.
 
 ## Prompt-token discipline
 
-Model savings are only part of usage conservation. Prompt construction must also avoid unnecessary input tokens.
+Model savings are only part of usage conservation. Prompt construction must also avoid unnecessary input tokens and unnecessary test execution.
 
 - Reference governing contracts/ADRs by path and restate only task-critical invariants.
 - Do not repeat identical requirements in Context, Constraints, Preserved behavior, Acceptance criteria, and Final report unless repetition prevents a concrete failure mode.
 - Inspect and list only relevant source/consumers/tests rather than ceremonial exhaustive inventories.
 - Keep validation explicit but avoid narrating the same test purpose multiple times.
+- Use the resolved validation manifest rather than asking Codex to rediscover the entire repository test matrix during execution.
 - Prefer precise acceptance criteria over long motivational prose.
 - Prompt length, phase number, number of tests, and perceived feature importance MUST NOT independently increase the model rating.
 - A highly explicit prompt often reduces required model reasoning because ambiguity has already been removed.
 
-Never remove required correctness, security, regression, or evidence requirements merely to shorten a prompt.
+Never remove required correctness, security, regression, or evidence requirements merely to shorten a prompt or validation run.
 
 ## Runner-change discipline
 
