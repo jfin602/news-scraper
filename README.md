@@ -26,7 +26,16 @@ On 2026-08-27 the owner amended the singleton Publication model so one Publicati
 
 The owner-approved 3.0 roadmap is **active in Phase 1** at package `2.1.0`. The post-2.0 runner compatibility correction is accepted, so `p2-<phase>` task folders and `2.<phase>.<prompt>` versions are executable. The N6WD Article-summary correction is also accepted: normalized persisted `Article.summary` is already bounded to 4,000 Unicode code points through runtime normalization and additive production migration `0017`.
 
-Current Phase 1 adds Profile-grounded Gemini digests. Its first prompt version is `2.1.1` under task folder `p2-1`. Later roadmap goals remain an "Ask this feed" Gemini chatbot, real multiple-feed customer proof, and then admin/PHP integration tightening based on observed deployment friction.
+The completed Phase 1 Gemini worksheet is now incorporated into the governing AI/distribution contracts and roadmap. Phase 1 uses twice-daily change-aware digest evaluations, a default 7-day / maximum-20-Article canonical Profile input, structured bounded output, durable digest/attempt lifecycle, `current | older | null` freshness semantics, one additive v1 `digest` value per Profile snapshot revision, and normalized PHP local-read propagation. Its first prompt version is `2.1.1` under task folder `p2-1`.
+
+The active 3.0 sequence is:
+
+1. `2.1.x` — Gemini Profile digest foundation;
+2. `2.2.x` — PHP integration correction and Gemini-capable customer package refresh/deployment;
+3. `2.3.x` — Profile-grounded "Ask this feed" chatbot;
+4. `2.4.x` — real publishing-news/opportunities/indie-filmmaking multi-feed customer proof;
+5. `2.5.x+` — remaining admin/PHP hardening from observed deployment friction;
+6. terminal `3.0.0` only after the owner explicitly locks and satisfies the final release gate.
 
 Current product authority is:
 
@@ -81,7 +90,7 @@ The reader destination is stored Article `original_url`; canonicalized URLs rema
 
 The implemented distribution path is canonical eligibility → administrator-owned Profile → authenticated v1 API → scheduled generic PHP complete-snapshot synchronization → local last-known-good data → customer server-rendered output.
 
-The planned AI path remains downstream of that Profile authority. Scheduled digests may be synchronized into local customer state; ordinary visitor feed rendering must not call Gemini. Explicit interactive chat may make a live server-side request but must use the separately governed AI authorization/rate/cost boundary and never expose the Gemini key to browser code.
+Phase 1 AI remains downstream of that Profile authority. The active digest is planned as part of the same outward Profile snapshot/revision and PHP LKG/local-read path; ordinary visitor rendering must not call Gemini. The later explicit interactive chat action may make a live server-side request but must use a separately governed AI authorization/rate/cost boundary and never expose the Gemini key to browser code.
 
 See `docs/architecture/system-architecture.md` and the contracts/ADRs for authoritative detail.
 
@@ -125,15 +134,16 @@ Start every repository-aware session with `BOOT.md`, which routes to the narrowe
 - `docs/contracts/article-lifecycle-and-deduplication.md` — visibility, duplicate review/groups, and Primary behavior.
 - `docs/contracts/public-feed-and-admin-contract.md` — current `/` reference-frontend and `/api/feed` behavior plus admin UX; product-surface interpretation is narrowed by the headless-distribution ADR and Publication scope by the 2026-08-27 multi-vertical ADR.
 - `docs/contracts/distribution-and-integration-contract.md` — Distribution Profiles, PHP/LKG behavior, adapter/presentation/link boundaries, multi-Profile integration, and telemetry.
-- `integrations/php/README.md` — implemented PHP synchronization/LKG, normalized local-read, and customer-integration package.
-- `docs/contracts/distribution-api-contract.md` — permanent v1 Profile API, schema, snapshot/cursor behavior, machine credentials, errors, limits, and CORS stance.
-- `docs/contracts/ai-assistance-contract.md` — owner-approved 3.0 Gemini digest/chat grounding, security, failure-isolation, citation, and topic-independence contract.
+- `integrations/php/README.md` — implemented PHP synchronization/LKG, normalized local-read, and customer-integration package; it remains implementation-truth documentation and changes when the package implementation changes.
+- `docs/contracts/distribution-api-contract.md` — permanent v1 Profile API, schema, snapshot/cursor behavior, machine credentials, errors, limits, and the owner-approved additive Phase 1 digest field.
+- `docs/contracts/ai-assistance-contract.md` — active Phase 1 Gemini digest plus later chat grounding, lifecycle, security, failure-isolation, citation, and topic-independence contract.
 - `docs/contracts/testing-and-validation-contract.md` — regression and evidence requirements.
-- `docs/architecture/system-architecture.md` — process, module, pipeline, scheduling, transaction, and distribution ownership for the implemented system.
+- `docs/architecture/system-architecture.md` — process, module, pipeline, scheduling, transaction, and distribution ownership for the implemented system and planned downstream AI boundary.
 - `docs/operations/` — onboarding, security/reliability, backup/restore, deployment, rollback, and incidents.
 - `docs/roadmap/mvp-roadmap.md` — completed MVP phase history and exit gates through the `1.0.0` release.
 - `docs/roadmap/post-1.0-roadmap.md` — completed historical seven-phase 2.0 roadmap and version lifecycle.
 - `docs/roadmap/3.0-roadmap.md` — owner-approved active post-2.0 roadmap; Phase 1 is current at `2.1.0`.
+- `docs/roadmap/phase-1-gemini-summary-worksheet.md` — completed owner-approved Phase 1 decision record consumed by the governing contracts/roadmap before prompt planning.
 - `docs/roadmap/2.0-planning-questions.md` — completed non-normative planning record that led to the governing 2.0 contracts.
 - `docs/decisions/single-publication-multi-vertical-editorial-property.md` — Accepted current interpretation of singleton Publication scope.
 - `docs/decisions/headless-distribution-product-boundary.md` — Accepted headless product/output boundary decision.
