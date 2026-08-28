@@ -4,6 +4,65 @@ This file is the running issue log for problems reported in this chat.
 
 ## Open Issues
 
+### H3CJ — 2026-08-28 — PHP local-read configuration file is not loaded by the supported visitor path
+
+- **Status:** Open
+- **Target:** 3.0 Phase 2 / `2.2.x`
+- The PHP integration package ships `config/local-read.env.example`, but the supported customer example reads local-read settings only from the PHP process environment and does not load the supplied private configuration file itself.
+- This leaves the visitor-side integration dependent on web-server environment injection or customer-written loading glue even if the sync-side launcher is corrected under `T4QP`.
+- Phase 2 must provide one supported package-owned local-read configuration-loading path that can consume the private customer configuration without exposing the sync bearer token, upstream URL, or other synchronization-only secrets to the visitor process.
+- The supported customer tag must not require the customer to invent an environment loader merely to read `NEWS_SCRAPER_PROFILE_KEY`, `NEWS_SCRAPER_STATE_ROOT`, cadence, or stale-age configuration.
+- The correction must preserve local-only visitor rendering and the existing separation between public rendering and upstream synchronization authority.
+
+### P9BW — 2026-08-28 — PHP sync and local-read shared configuration can drift
+
+- **Status:** Open
+- **Target:** 3.0 Phase 2 / `2.2.x`
+- The current `sync.env` and `local-read.env` examples duplicate shared values such as Profile key, state root, cadence, and optional stale-age settings.
+- Because the two processes can be configured independently, the synchronizer and visitor reader can silently point at different Profile/state/freshness settings even though they are intended to operate on one customer integration.
+- Phase 2 should establish one supported source of truth for shared non-secret integration settings while keeping synchronization-only secrets such as the bearer token and upstream base URL unavailable to ordinary visitor rendering.
+- Configuration loading must fail clearly on incompatible or ambiguous configuration rather than silently choosing mismatched values.
+- The design must remain suitable for the supported sibling `ns-integration` / `ns-private` layout and future multi-Profile configuration without embedding customer-specific paths or secrets into package source.
+
+### D4NZ — 2026-08-28 — PHP integration package lacks an explicit live upgrade and rollback path
+
+- **Status:** Open
+- **Target:** 3.0 Phase 2 / `2.2.x`
+- The next customer deployment is a replacement of an already-live PHP integration package rather than a fresh installation, but the current package contract primarily describes initial installation/runtime behavior.
+- A whole-folder replacement must preserve private configuration, existing LKG/state, machine credentials, stable cron targets, and customer-owned presentation while allowing the package code itself to be replaced cleanly.
+- Phase 2 must define and validate a supported upgrade procedure for the current `ns-integration` + sibling `ns-private` layout, including a practical rollback path to the prior package when the new package fails qualification after installation.
+- Package replacement must not delete or rewrite customer state merely because runtime code is upgraded, and rollback must not require reconstructing credentials or previously valid LKG data.
+- Upgrade/rollback instructions must identify which files/directories are package-owned versus customer/private state so operators do not accidentally overwrite durable configuration or state.
+
+### Y8FK — 2026-08-28 — Installed PHP integration runtime does not expose the exact package version
+
+- **Status:** Open
+- **Target:** 3.0 Phase 2 / `2.2.x`
+- Generated ZIPs contain exact `VERSION` and `integration-package.json` metadata, but the PHP runtime health model currently reports a generic adapter identity rather than the exact installed package version.
+- This makes it unnecessarily difficult to confirm which customer package is actually running during upgrades, support, and post-deployment verification.
+- Phase 2 should make the exact installed integration package version safely observable through the supported package/runtime diagnostic surface without exposing credentials, filesystem internals, or other secrets.
+- Version reporting must be derived from package-owned version metadata rather than duplicated hand-maintained constants that can drift from the generated ZIP version.
+
+### C2RV — 2026-08-28 — Customer local-read integration depends on internal package source layout
+
+- **Status:** Open
+- **Target:** 3.0 Phase 2 / `2.2.x`
+- The current customer example directly requires `src/bootstrap.php`, coupling customer-facing integration code to the package's internal source-directory layout.
+- This makes future internal refactors riskier and gives customer-owned presentation code knowledge it should not need about package internals.
+- Phase 2 should provide a stable package-owned local-read entry point intended for customer integration and have the shipped default `top-tag.php` use that boundary.
+- Customer presentation should receive normalized local-read data through the supported entry point without parsing cache files, reaching into individual internal source files, or reimplementing Profile/eligibility semantics.
+- Internal package organization may evolve behind that boundary as long as the supported customer integration contract remains stable.
+
+### W5GH — 2026-08-28 — PHP integration package has no supported installation preflight
+
+- **Status:** Open
+- **Target:** 3.0 Phase 2 / `2.2.x`
+- The package currently relies on runtime failure to reveal several installation problems, such as unreadable private configuration, invalid package metadata, unusable state-root paths, or missing PHP/runtime prerequisites.
+- This makes customer-package replacement harder to qualify safely before the live cron/tag path is switched over.
+- Phase 2 should provide a bounded non-secret preflight/diagnostic path that can verify the installed package identity/version, required PHP/runtime prerequisites, private configuration readability/shape, and local state-root usability before customer cutover.
+- Any explicit upstream connectivity/authentication check must remain opt-in to the synchronization diagnostic path and must never print the bearer credential or secret-bearing configuration values.
+- Preflight success is setup evidence only; it must not be confused with successful synchronization, valid LKG activation, or customer-page rendering evidence.
+
 ### M6SX — 2026-08-28 — Source RSS/Atom admission filter cannot exclude unwanted items
 
 - **Status:** Open
@@ -18,16 +77,19 @@ This file is the running issue log for problems reported in this chat.
 ### Q7HF — 2026-08-28 — PHP integration duplicates customer-owned presentation through bundled renderer
 
 - **Status:** Open
+- **Target:** 3.0 Phase 2 / `2.2.x`
 - The current customer integration uses the bundled PHP renderer path but then overrides that presentation in the customer's top PHP tag, leaving two presentation layers for the same feed output.
 - This is unnecessarily indirect and cuts against the integration contract boundary that the customer owns feed presentation, CSS/classes, surrounding markup, and site composition while News Scraper supplies governed normalized Profile data.
 - The intended correction is to remove the bundled/local renderer as a supported presentation layer and keep the PHP package focused on synchronization, last-known-good state, and normalized local-read access.
-- The default/example customer PHP tag should instead demonstrate a minimal server-rendered table directly from normalized local-read data. That example is instructional rather than authoritative presentation, so the customer can clearly see and modify the exact markup used on their site without overriding an internal renderer.
+- The generated ZIP must instead include a customer-editable root-level `top-tag.php` that demonstrates the default local-read insertion directly from normalized data. The default should be a basic server-rendered table/example rather than an internal renderer abstraction.
+- `top-tag.php` must keep its PHP/HTML easy to inspect and edit: HTML elements should be laid out on separate source lines rather than assembled into an opaque single-line concatenated HTML string. The file is an instructional default, not authoritative presentation.
 - The replacement must preserve the existing normalized Profile results, canonical Article ordering/eligibility, exact stored publisher `originalUrl` destinations, local-only rendering, safe empty/unavailable handling, and all sync/LKG behavior. Customer markup must not become a new filtering, reranking, or editorial-interpretation layer.
-- Do not fold this correction into the current Gemini Phase 1 / `2.1.x` work. Address it when the PHP integration package is next revised, preferably alongside the later Gemini-capable package refresh so the customer receives one coherent updated package.
+- Do not fold this correction into the current Gemini Phase 1 / `2.1.x` work. Address it in the Phase 2 Gemini-capable package refresh so the customer receives one coherent updated package.
 
 ### T4QP — 2026-08-26 — PHP integration package requires a hand-created sync launcher
 
 - **Status:** Open
+- **Target:** 3.0 Phase 2 / `2.2.x`
 - The generated PHP integration package includes `bin/sync.php` plus `config/sync.env.example`, but `bin/sync.php` reads configuration from the process environment and does not load the supplied `sync.env` file itself.
 - On shared hosting such as HostGator, this forces the customer to hand-create a private wrapper such as `run-sync.php` merely to load the private sync configuration before invoking the packaged synchronization entrypoint.
 - The current production customer already uses such a custom `run-sync.php`, and the customer's existing cron job calls that launcher. A future whole-folder replacement of `ns-integration` would therefore break scheduled synchronization if the replacement package omitted the launcher or moved its path.
