@@ -1,0 +1,246 @@
+TASK: Correction 1 / P1 — Implement N6WD Article summary bound
+
+CORRECTION SCOPE
+This is the sole implementation prompt in correction `c1-n6wd`. It resolves the executable/data portion of known issue N6WD before the 3.0 Gemini roadmap is activated.
+
+The owner-approved contract is already locked: normalized persisted `Article.summary` has a hard maximum of 4,000 characters after plain-text normalization; oversized summaries are truncated at the last usable complete-word boundary that permits exactly `...` while keeping the final value at or below 4,000 characters; when no usable word boundary exists, retain the first 3,997 characters and append `...`. Oversized Source description/content must not cause the Article to be rejected merely because it exceeds this normalized summary bound.
+
+This correction owns the normalizer/persistence bound, additive production migration/data transformation, and focused/regression proof. It does not implement Gemini, URL Context, digest/chat behavior, roadmap activation, Source admission changes, public presentation changes, or unrelated cleanup.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Luna High`.
+- Model-family basis: this is a bounded explicit correction with an already-established normalization path, migration framework, PostgreSQL constraint, accepted-production upgrade harness, and precise owner-approved truncation semantics; no new architecture or transaction topology is required.
+- Reasoning basis: High is warranted because the implementation must keep runtime normalization, persistence validation, PostgreSQL character/boundary semantics, additive production migration, and supported-data preservation coherent across exact boundary cases.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna Medium`; rejected because a data-transforming post-production migration plus exact runtime/SQL truncation parity and boundary regression coverage create enough integrity risk to justify deeper reasoning within the economical Luna family.
+- Escalation trigger: source inspection shows the 4,000-character invariant cannot be introduced additively from the accepted `0001`–`0014` production baseline without rewriting supported migration history, changing Article identity/provenance semantics, or making an unresolved contract decision about persisted summary representation.
+- Escalation target: `Terra High`.
+- Estimate confidence: `High`.
+- Efficiency rationale: reuse the existing `Article.summary` field, `collectionPlainText`, `ARTICLE_CANDIDATE_LIMITS`, Article repository validation, additive migration framework, and existing production-upgrade test harness; do not invent a second description field, generic text-policy subsystem, or Gemini-specific workaround.
+
+VERSIONING
+- Required unchanged project version: `2.0.0`.
+- This correction MUST NOT change the top-level `package.json` version.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- This correction consumes no 3.0 roadmap patch number and does not activate `2.1.0`.
+- Do not perform a manual implementation commit; the correction runner owns the implementation-prompt commit boundary.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/codex-model-selection.md`, `docs/contracts/project-contract.md`, `docs/contracts/domain-and-data-contract.md`, `docs/contracts/source-and-collection-contract.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/decisions/production-data-and-schema-compatibility.md`, `docs/operations/security-reliability-and-operations.md`, and the Phase 1 Gemini entry in `docs/roadmap/3.0-roadmap.md`;
+2. read current `known-issues.md` entry N6WD and treat its locked 4,000-character behavior as the correction target, but do not resolve/move that documentation entry in this implementation prompt;
+3. inspect `src/collection/text/plain-text.ts`, `src/collection/normalization/article-candidate.ts`, `src/collection/normalization/normalizer.ts`, `src/articles/repository.ts`, and every other current consumer of `ARTICLE_CANDIDATE_LIMITS.summary`;
+4. inspect `migrations/0001_initial_schema.sql`, especially `articles_summary_shape_check`, all later migration files through the current final migration, and `src/database/migrations.ts`;
+5. inspect `test/unit/article-normalization.test.ts`, `test/database/migrations.test.ts`, `test/database/article-persistence.test.ts`, `test/database/distribution-profile-production-upgrade.test.ts`, database test support, and any other focused tests that assert Article summary limits or persistence mapping;
+6. read `docs/validation/phase-20-customer-launch-validation.md` and confirm the accepted supported production schema ledger is `0001` through `0014` while current `main` contains additive `0015` and `0016` migrations;
+7. inspect current package scripts and confirm package remains exactly `2.0.0`;
+8. trace the Source text path `RSS/Atom parse -> optional Source admission filter -> Article normalization -> Relevance -> persistence -> outward consumers` so the correction changes only normalized/persisted `Article.summary` behavior and does not accidentally move the bound into the Raw-item/parser/admission stage;
+9. stop and report planning drift if current authority or implementation has materially changed, N6WD is already implemented, current migration numbering is no longer compatible with the planned additive migration, or the accepted production baseline cannot be upgraded through the repository's real migration path.
+
+GOVERNED N6WD INVARIANT
+Implement exactly this topic-independent behavior:
+- `Article.summary` remains nullable Source-derived metadata;
+- Source description/content is converted through the existing deterministic plain-text normalization before the final summary bound is applied;
+- a normalized summary of 1 through 4,000 characters is preserved unchanged;
+- an empty normalized value remains absent under existing semantics;
+- a normalized summary longer than 4,000 characters is truncated, not rejected;
+- reserve exactly three characters for the literal ASCII suffix `...`;
+- prefer the last complete word boundary that fits before that suffix;
+- for this correction, a usable word boundary is deterministic normalized whitespace separation, not locale-dependent NLP segmentation; ordinary `collectionPlainText` output already collapses whitespace to single spaces;
+- if the content that fits before the suffix ends at a complete word, preserve that complete word rather than unnecessarily backing up to an earlier word;
+- if no usable word boundary exists before the 3,997-character content ceiling, retain the first 3,997 characters and append `...`;
+- the final stored/normalized summary is never longer than 4,000 characters;
+- do not split a Unicode character/surrogate pair while truncating;
+- preserve the existing PostgreSQL `char_length` concept for the persisted summary invariant and make TypeScript summary-specific length/truncation behavior agree with that human-character/code-point boundary rather than accidentally relying on UTF-16 code-unit slicing for this field;
+- do not change unrelated field limits or generic string-bound semantics solely to implement the summary correction.
+
+Do not introduce Unicode word segmentation, stemming, tokenization, semantic summarization, HTML-aware truncation after the plain-text stage, or Source/topic-specific exceptions.
+
+NORMALIZATION IMPLEMENTATION
+The current summary limit is owned by `ARTICLE_CANDIDATE_LIMITS.summary` and `normalizer.ts` currently slices the normalized summary directly.
+
+Change the summary limit to exactly 4,000 and replace the raw slice behavior with one small deterministic summary-specific truncation implementation.
+
+The implementation must:
+- call `collectionPlainText` first;
+- make the <=4,000 and >4,000 decision using the same character semantics protected by the database summary constraint;
+- preserve <=4,000 output byte-for-byte after normal plain-text normalization;
+- calculate the maximum pre-ellipsis content as 3,997 characters;
+- recognize whether the 3,997-character prefix already ends on a complete word before backing up to the previous whitespace boundary;
+- remove the separating whitespace at a selected earlier boundary before appending `...`;
+- return exactly one `...` suffix for truncated output;
+- never emit a trailing space before `...`;
+- remain deterministic across repeated normalization;
+- not mutate the Raw item.
+
+Keep ownership narrow. A summary-specific helper inside the existing normalization boundary is preferable to a generic new truncation framework unless current source clearly already has a reusable governed helper.
+
+PERSISTENCE VALIDATION
+Trace `src/articles/repository.ts` candidate validation. The persistence boundary must accept every valid normalized summary permitted by the new 4,000-character persisted invariant and reject malformed/out-of-bound direct candidates consistently.
+
+Because generic TypeScript `.length` uses UTF-16 code units while PostgreSQL `char_length` counts Unicode characters, do not leave a summary-only runtime/database disagreement that would reject a valid 4,000-character normalized summary containing non-BMP characters or permit a value outside the database invariant.
+
+Use the smallest summary-specific validation change needed. Do not globally reinterpret every existing field bound as part of N6WD.
+
+Persisted Article create/update/idempotency/provenance behavior must otherwise remain unchanged.
+
+ADDITIVE PRODUCTION MIGRATION
+Add exactly one new migration after the current `0016_distribution_credentials.sql`:
+
+`migrations/0017_article_summary_bound.sql`
+
+Do not modify, squash, reorder, or checksum-change migrations `0001` through `0016`.
+
+The migration must, transactionally through the existing migration runner:
+1. transform only existing non-null `articles.summary` values longer than the new bound using the same visible N6WD semantics as runtime normalization;
+2. preserve summaries already at or below 4,000 characters exactly;
+3. for oversized multi-word summaries, preserve the longest complete-word prefix that fits with `...`;
+4. use the 3,997 + `...` fallback when no usable boundary exists;
+5. preserve valid Unicode text and use PostgreSQL character semantics consistently with the final constraint;
+6. not change Article `updated_at`, identity fields, URLs, Source ownership, provenance, dates, moderation/visibility, Category membership/overrides, duplicate state, observations, audit state, or any other unrelated persisted value merely because the migration truncates `summary`;
+7. replace the existing `articles_summary_shape_check` maximum of 32,768 with the new 4,000-character maximum while preserving its existing nullable/non-empty/trimmed shape semantics;
+8. leave the database in a state where every existing Article satisfies the new constraint before the constraint is activated.
+
+Use the existing constraint name when safely replacing the constraint so schema intent remains obvious. Do not edit `0001_initial_schema.sql` to make clean installs look simpler: supported migration history is immutable after the production baseline.
+
+The migration is a one-time data correction, not permission to persist a second full Article body, AI text, or truncation provenance column.
+
+RAW PARSER / SOURCE ADMISSION BOUNDARY
+Do not reduce the existing RSS/Atom raw parser content limit merely because normalized summaries are now 4,000 characters. The larger Raw content/input ceiling is a separate ingestion-safety boundary.
+
+Preserve current ordering:
+
+`parse Raw content -> Source RSS/Atom admission matching -> Article normalization/4,000 summary bound -> Relevance -> persistence`
+
+This means Source RSS/Atom admission filtering may continue to inspect the bounded Raw description/content it already owns before normalization. N6WD must not silently change admission semantics by truncating Raw content earlier.
+
+Relevance `summary_contains` and outward Article summary consumers continue to consume the normalized Article summary and therefore naturally see only the governed bounded persisted value. Do not add compatibility access to discarded suffix text.
+
+FOCUSED UNIT PROOF
+Strengthen `test/unit/article-normalization.test.ts` so observable N6WD behavior is explicit rather than inferred only from a constant.
+
+At minimum cover:
+- ordinary short markup/source content normalizes as before;
+- normalized length 3,999 is unchanged;
+- normalized length exactly 4,000 is unchanged and has no ellipsis;
+- a >4,000 multi-word value truncates at the last fitting complete-word boundary and appends exactly `...`;
+- a case where the first 3,997 characters already end at a complete word does not back up unnecessarily;
+- a long no-whitespace word uses exactly the 3,997 + `...` fallback;
+- whitespace/markup normalization occurs before length/boundary selection;
+- truncated output has no whitespace before `...` and is <=4,000 characters;
+- non-BMP/emoji content does not split a Unicode character and respects the summary character bound;
+- repeated normalization produces the same result;
+- oversized summary input still yields a successful Article candidate rather than `unusable_title`, `unusable_article_url`, or another rejection.
+
+Avoid giant literal fixtures where a small generated deterministic string makes the assertion clearer.
+
+PERSISTENCE / MIGRATION PROOF
+Use real disposable PostgreSQL.
+
+A. MIGRATION FROM ZERO
+Update `test/database/migrations.test.ts` for the additive `0017_article_summary_bound.sql` migration and prove the final `articles_summary_shape_check` rejects >4,000-character persisted summaries while accepting valid <=4,000 values.
+
+Do not weaken the existing ordered migration/ledger/checksum coverage.
+
+B. ACCEPTED PRODUCTION FORWARD UPGRADE
+Extend the existing `test/database/distribution-profile-production-upgrade.test.ts` harness or add one narrowly named Article-summary production-upgrade test if that yields materially clearer ownership.
+
+The proof must actually begin with the accepted repository migrations `0001` through `0014`, seed representative supported Article/governed state, and then apply the real current additive migration chain including `0015`, `0016`, and new `0017`.
+
+Seed enough summaries to prove migration behavior, including at minimum:
+- one ordinary <=4,000 summary that must remain exactly unchanged;
+- one oversized multi-word summary that must word-boundary truncate with `...`;
+- one oversized no-boundary summary that must take the hard fallback.
+
+At least one transformed Article should participate in representative existing governed relationships so the test proves the migration is not replacing/recreating Article identity. Reuse the existing production-upgrade fixture's Source/endpoint, Category/Relevance, Article observation/provenance, moderation override, duplicate group/Primary, audit, job, Profile, and credential state instead of building a parallel fake production model when practical.
+
+After the full upgrade prove:
+- Article IDs/source IDs/original URLs/canonical identity values and other preserved Article fields are unchanged;
+- observations/provenance remain attached to the same Articles;
+- visibility/moderation/Category/duplicate/audit/job/Profile/credential relationships represented by the fixture remain semantically intact;
+- only the intended oversized summary values changed;
+- unchanged summaries remain exact;
+- transformed summaries match the runtime N6WD semantics;
+- Article `updated_at` was not spuriously rewritten by the migration;
+- the migration ledger contains the accepted history plus the real additive `0015`, `0016`, and `0017` migrations in order;
+- migration bytes/checksums `0001`–`0016` remain unchanged.
+
+A clean database that simply runs all migrations is not production-forward evidence.
+
+C. ARTICLE PERSISTENCE BOUNDARY
+Add or strengthen the smallest relevant Article persistence test proving a valid 4,000-character normalized summary survives create/read/update and an out-of-contract direct Article candidate does not bypass persistence validation.
+
+Do not duplicate the normalizer's word-boundary algorithm inside persistence tests; persistence should prove its boundary contract, not become a second truncation authority.
+
+RECOVERY REGRESSION
+N6WD does not add a new field or serialization format, so do not expand backup/restore fixtures speculatively. Run the existing `npm run test:recovery` suite on the final P1 tree because this is a post-production persisted-data/migration correction. Only change recovery tests if the existing suite reveals a real regression attributable to this correction.
+
+PRESERVED BEHAVIOR / NON-GOALS
+Preserve all of the following:
+- package version `2.0.0`;
+- approved-Source collection and network-safety boundaries;
+- RSS/Atom raw parser/input/content safety limits;
+- Source admission filter semantics and ordering;
+- Article URL normalization and exact stored `original_url` destination;
+- Relevance/Category behavior except for the intentional fact that `summary_contains` sees the newly bounded normalized summary;
+- Source-scoped Article identity and repeated-collection idempotency;
+- Article observation provenance;
+- duplicate grouping/Primary behavior;
+- moderation/visibility/display override state;
+- canonical distribution ordering/eligibility and v1 schema;
+- PHP/LKG/local-read behavior; existing consumers simply receive a shorter valid nullable summary when the Source content exceeded the new bound;
+- topic independence.
+
+Explicit non-goals:
+- no Gemini dependency/API/key/configuration;
+- no URL Context or Article-page fetch;
+- no AI digest/chat schema;
+- no change to description visibility/presentation;
+- no Source-specific truncation exceptions;
+- no generic full-content storage;
+- no migration-history rewrite;
+- no roadmap activation/version change;
+- no unrelated refactor.
+
+VALIDATION EXECUTION
+During implementation, use focused tests first.
+
+Useful focused commands include the current repository-supported equivalents of:
+
+`node scripts/run-tests.mjs --test-concurrency=1 test/unit/article-normalization.test.ts`
+
+`npm run test:db:focused -- test/database/migrations.test.ts test/database/distribution-profile-production-upgrade.test.ts test/database/article-persistence.test.ts`
+
+If source-level planning chooses a dedicated production-upgrade test file, include that actual file in the focused database invocation instead of pretending the example path covers it.
+
+Before reporting P1 complete, run the smallest non-overlapping final matrix that proves the complete implementation boundary on the exact final P1 tree:
+
+`npm run check`
+
+`npm run test:db`
+
+`npm run test:recovery`
+
+`npm run codex:phase:validate -- c1-n6wd`
+
+`git diff --check`
+
+Do not separately rerun unit/integration/collection/PHP suites already executed by `npm run check` solely to duplicate evidence.
+
+Database and recovery suites must fail honestly when prerequisites are unavailable. Do not convert missing PostgreSQL/native recovery prerequisites into skips and then call P1 complete.
+
+Do not claim browser, live-Source, deployed-customer, or Gemini evidence; none is required for this bounded correction.
+
+IMPLEMENTATION REPORT
+Report concisely:
+- files changed;
+- exact runtime summary truncation semantics implemented;
+- new migration name and data/constraint behavior;
+- production-forward fixture path and what supported state it preserves;
+- focused tests added/changed;
+- exact validation commands actually run and results;
+- confirmation package remains `2.0.0`, migrations `0001`–`0016` were not modified, no lockfile was created, and no Gemini/roadmap scope was introduced;
+- any limitation or prerequisite that prevented required Level-4/recovery proof.
+
+Do not mark N6WD resolved in documentation and do not declare the correction GREEN. P2 owns independent correction closeout and durable evidence.
