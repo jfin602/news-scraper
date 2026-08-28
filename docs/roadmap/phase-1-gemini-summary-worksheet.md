@@ -429,18 +429,33 @@ Digest text and supporting references remain subject to the same application-own
 
 ## Decision 9 — Customer-facing PHP rendering interface
 
-**Status:** OPEN
-
-### Questions
-
-- What is the smallest customer-side code change required to display the digest?
-- Should the integration package ship a dedicated digest renderer/helper, expose only normalized local-read data, or both?
-- Can the customer update one existing include/template file rather than editing several pages?
-- Should the existing fallback renderer gain optional digest rendering, or should digest presentation stay opt-in?
+**Status:** LOCKED — owner-approved 2026-08-28
 
 ### Answer
 
-_TBD_
+Phase 1's supported customer-facing presentation boundary is the normalized `LocalProfileReader` / `LocalReadResult` data contract. The upgraded PHP integration must make the synchronized AI digest data straightforward for the customer's existing PHP tag/template to consume alongside ordinary Article data.
+
+Customer code should be able to read normalized values such as:
+
+- `digest.generatedAt`;
+- `digest.overview`;
+- bounded highlights and their title/text;
+- each highlight's governed supporting Article headline and exact stored `originalUrl`;
+- the existing normalized Article collection.
+
+The customer must not need to parse internal cache files, raw API JSON, filesystem state, or provider responses, and ordinary public rendering must remain local-only.
+
+News Scraper/integration code owns synchronization, LKG persistence, validation, normalization, and safe data exposure. The customer owns the final HTML, CSS/classes, layout, placement, and site-specific presentation.
+
+Phase 1 therefore does **not** introduce an authoritative digest renderer, hidden presentation layer, or customer-facing CSS system. It should not expand the existing bundled fallback/local renderer merely to display the digest. The PHP package may include a minimal instructional/example snippet demonstrating safe server-side access to the normalized Article and digest values, but such example markup is non-authoritative and intended to be copied/adapted by the customer.
+
+Replacing `ns-integration` must preserve the customer's existing Article presentation/wiring where compatible and must not require public-site markup changes merely to keep the feed operating. To make the new AI summary visible, the intended integration work is at most a small edit to the customer's existing presentation/top PHP tag or equivalent single template boundary so that it conditionally consumes `$result->digest` in addition to `$result->articles`.
+
+Customer-specific template/rendering work—including the final visual treatment for the overview, key developments, and important Article links—is deliberately deferred to the later customer integration step. That work must not become aggregation-engine or shared PHP presentation authority.
+
+When `digest === null`, the default integration behavior is simply that there is no digest data to render; Phase 1 does not inject an unavailable placeholder or AI markup automatically. Decision 10 governs the presentation semantics for absent/stale/failed digest states when customer/template code chooses to display such status.
+
+This decision is intentionally aligned with open issue Q7HF: the later Gemini-capable PHP package refresh should move toward normalized local-read data plus customer-owned presentation rather than extending the duplicated bundled-renderer architecture.
 
 ---
 
