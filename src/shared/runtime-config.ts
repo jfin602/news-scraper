@@ -6,6 +6,17 @@ export interface RuntimeConfig {
   readonly nodeEnv: NodeEnvironment;
 }
 
+export const DEFAULT_GEMINI_MODEL = 'gemini-3.7-flash';
+
+/**
+ * Deployment-only Gemini configuration. It is intentionally parsed by the
+ * optional AI boundary rather than during ordinary Web or Worker startup.
+ */
+export interface GeminiProviderRuntimeConfig {
+  readonly apiKey: string | undefined;
+  readonly model: string;
+}
+
 export class RuntimeConfigError extends Error {
   readonly variable: string;
 
@@ -29,6 +40,29 @@ export function parseRuntimeConfig(
   }
 
   return Object.freeze({ nodeEnv });
+}
+
+export function parseGeminiProviderRuntimeConfig(
+  environment: Readonly<Record<string, string | undefined>>,
+): Readonly<GeminiProviderRuntimeConfig> {
+  const suppliedModel = environment.NEWS_SCRAPER_GEMINI_MODEL?.trim();
+  if (
+    suppliedModel !== undefined &&
+    (suppliedModel.length === 0 ||
+      suppliedModel.length > 100 ||
+      !/^[A-Za-z0-9._-]+$/.test(suppliedModel))
+  ) {
+    throw new RuntimeConfigError(
+      'NEWS_SCRAPER_GEMINI_MODEL',
+      'must be a bounded Gemini model identifier',
+    );
+  }
+
+  const suppliedKey = environment.NEWS_SCRAPER_GEMINI_API_KEY?.trim();
+  return Object.freeze({
+    apiKey: suppliedKey === '' ? undefined : suppliedKey,
+    model: suppliedModel ?? DEFAULT_GEMINI_MODEL,
+  });
 }
 
 function isNodeEnvironment(value: string): value is NodeEnvironment {

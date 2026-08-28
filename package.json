@@ -1,6 +1,6 @@
 {
   "name": "news-scraper",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "private": true,
   "type": "module",
   "engines": {
@@ -22,6 +22,7 @@
     "test:db": "node --env-file-if-exists=.env scripts/run-tests.mjs --test-concurrency=2 --test-global-setup=test/support/database/database-test-global-setup.ts \"test/database/**/*.test.ts\"",
     "test:db:focused": "node --env-file-if-exists=.env scripts/run-tests.mjs --test-concurrency=1 --test-global-setup=test/support/database/database-test-global-setup.ts",
     "test:live-sources": "node --env-file-if-exists=.env scripts/run-tests.mjs --test-concurrency=1 \"test/live-sources/**/*.test.ts\"",
+    "test:live-gemini": "node --env-file-if-exists=.env scripts/run-tests.mjs --test-concurrency=1 \"test/live-gemini/**/*.test.ts\"",
     "db:migrate": "node --env-file-if-exists=.env scripts/migrate-database.ts",
     "db:status": "node --env-file-if-exists=.env scripts/database-status.ts",
     "db:backup": "node --env-file-if-exists=.env scripts/backup-database.ts",
@@ -52,6 +53,7 @@
     "typescript-eslint": "^8.66.0"
   },
   "dependencies": {
+    "@google/genai": "^2.19.0",
     "cheerio": "^1.2.0",
     "css-what": "^7.0.0",
     "express": "^5.2.1",
