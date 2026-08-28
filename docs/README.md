@@ -8,7 +8,7 @@ Publication is an editorial/configuration concept, not a relational tenancy key.
 
 The administrator surface is the instance-owned Platform control plane. The implemented 2.0 path is canonical eligibility → Distribution Profile → authenticated v1 API → generic PHP complete-snapshot synchronization → local last-known-good data → normalized local-read → customer server-rendered output. Current implemented outward surfaces are authenticated `GET /api/v1/distribution/{profile_key}`, legacy/reference `GET /api/feed`, and bundled/reference `GET /`.
 
-The accepted `1.0.0` customer launch established the first supported production schema/data baseline. The seven-phase 2.0 roadmap is complete and package `2.0.0` is the current release baseline. The owner-approved 3.0 roadmap is **pre-activation** at `2.0.0`: first a bounded unchanged-version runner compatibility correction must add the intended major-2 phase grammar; only then may roadmap activation move to `2.1.0` for Gemini Profile digests, followed by Profile-grounded chat, multi-feed customer proof, and admin/PHP integration tightening.
+The accepted `1.0.0` customer launch established the first supported production schema/data baseline. The seven-phase 2.0 roadmap is complete at release baseline `2.0.0`. The owner-approved 3.0 roadmap is **active in Phase 1** at `2.1.0`: the accepted runner supports the major-2 `p2-<phase>` task family, and the current implementation target is the Gemini Profile digest foundation followed by Profile-grounded chat, multi-feed customer proof, and admin/PHP integration tightening. The accepted N6WD correction already owns the bounded persisted Article-summary invariant Phase 1 consumes.
 
 The 3.0 AI behavior is governed by `contracts/ai-assistance-contract.md`. Gemini is optional and downstream of canonical Profile output; ordinary non-AI collection/distribution/PHP Article rendering must remain independently operable when AI is unavailable.
 
@@ -43,7 +43,7 @@ docs/
 │   ├── mvp-roadmap.md
 │   ├── 2.0-planning-questions.md
 │   ├── post-1.0-roadmap.md                  # completed 2.0 history
-│   ├── 3.0-roadmap.md                       # owner-approved / pre-activation
+│   ├── 3.0-roadmap.md                       # owner-approved / active Phase 1
 │   └── 3.0-changelog.md                     # brief accepted-history companion
 ├── decisions/
 │   ├── README.md
@@ -82,7 +82,7 @@ The tracked docs-maintenance handoff lives outside `docs/` at repository-root `.
 - `contracts/distribution-api-contract.md` — permanent v1 Profile API, schema, revisions/cursors, machine credentials, response classes, rate limits, and CORS stance. Compatible additive fields are allowed; incompatible reinterpretation requires a later major API path.
 - `contracts/mvp-scope-and-users.md` — **historical** scope for the accepted `1.0.0` standalone-feed MVP; useful for interpreting completed MVP work but not current product direction.
 - `contracts/domain-and-data-contract.md` — canonical terminology, singleton Publication/editorial-property configuration, real entity relationships, Source/Article identity/provenance, Category/Relevance persistence, Distribution Profiles, and schema lifecycle.
-- `contracts/testing-and-validation-contract.md` — project-wide regression law, evidence levels, Test Necessity Matrix, Test Environment Matrix, `RUN`/`DEFER`/`N/A` selection, exact-tree cross-environment handoff, command containment, prerequisite/retry policy, PostgreSQL/fixture/browser/live-provider validation, production-upgrade validation, and completion gates.
+- `contracts/testing-and-validation-contract.md` — project-wide regression law, evidence levels, Test Necessity Matrix, Test Environment Matrix, `RUN`/`DEFER`/`N/A` selection, qualification-gate ownership, exact-tree cross-environment evidence when combining environments for one claim, command containment, prerequisite/retry policy, PostgreSQL/fixture/browser/live-provider validation, production-upgrade validation, and completion gates.
 - `architecture/system-architecture.md` — implemented deployment/process/module boundaries, singleton configuration, staged Worker execution, endpoint-selected adapters, shared downstream flow, durable scheduling/jobs, transactions, and current Web/API consumers. Current Publication interpretation is additionally governed by the multi-vertical ADR.
 - `contracts/source-and-collection-contract.md` — approval/bootstrap rules, network safety, bounded static HTML profiles/preview, collection adapters, RSS/Atom-only Source item admission, normalization, installation/Source-scoped Relevance execution, Source-scoped identity/idempotency, and Collection-run accounting.
 - `contracts/article-lifecycle-and-deduplication.md` — Article visibility, Source-scoped identity, duplicate roles/review/groups, Primary selection, and current outward/public eligibility semantics.
@@ -97,7 +97,7 @@ The tracked docs-maintenance handoff lives outside `docs/` at repository-root `.
 - `roadmap/mvp-roadmap.md` — historical completed Phase 0–21 MVP sequence and production-baseline handoff.
 - `roadmap/2.0-planning-questions.md` — completed non-normative planning record; later owner decisions and governing contracts/roadmaps control current scope.
 - `roadmap/post-1.0-roadmap.md` — **completed historical 2.0 roadmap authority**: seven 1.x development phases and the owner-accepted terminal `2.0.0` release transition.
-- `roadmap/3.0-roadmap.md` — **current owner-approved pre-activation roadmap authority** for the post-2.0 version/direction sequence and open terminal gate.
+- `roadmap/3.0-roadmap.md` — **current owner-approved active roadmap authority**; Phase 1 is current at `2.1.0`, with the terminal `3.0.0` gate still owner-controlled/TBD.
 - `roadmap/3.0-changelog.md` — **brief non-authoritative accepted-history companion** for material 3.0 roadmap work, decisions, transitions, and closeouts; it summarizes accepted changes but never substitutes for contracts, roadmap authority, or validation evidence.
 - `decisions/single-publication-multi-vertical-editorial-property.md` — **Accepted current Publication interpretation**: one customer/editorial property may contain multiple subject verticals/feeds through Profiles without tenancy.
 - `decisions/headless-distribution-product-boundary.md` — **Accepted ADR** for the headless product boundary and its historical 2026-08-19 decision context.
@@ -135,7 +135,7 @@ Use root `BOOT.md` as the session router; it points to the narrowest authoritati
 - Source approval/trust and consumer-specific distribution selection remain separate concerns.
 - Do not introduce Publication tenant IDs/slugs/FKs/scopes solely as speculative future compatibility or merely to distinguish Profile feeds.
 - After Phase 20 production-baseline acceptance, customer production state must be preserved under `decisions/production-data-and-schema-compatibility.md`.
-- The 2.0 roadmap is complete. Follow `roadmap/3.0-roadmap.md` for current post-2.0 direction, including its explicit pre-activation runner-correction gate.
+- The 2.0 roadmap is complete. Follow `roadmap/3.0-roadmap.md` for the active post-2.0 direction; Phase 1 is current at `2.1.0`.
 - Do not promote self-host packaging, WordPress, RSS/Atom, native self-host auth, analytics, browser widgets, advanced SEO, or other deferred product families into 3.0 without a new owner-approved contract/roadmap decision.
 - AI must remain downstream of canonical Profile output and optional for ordinary operation; it cannot become an editorial/eligibility authority or a secret-bearing browser feature.
 - Foundational architecture changes require an Accepted/superseding/amending ADR where appropriate.
@@ -145,17 +145,19 @@ Use root `BOOT.md` as the session router; it points to the narrowest authoritati
 
 The MVP roadmap is complete through Phase 21. Former post-1.0 Phase 0 P1 shipped the server-rendered root at package `1.0.1`. Its planned P2 closeout was retired unexecuted when the product direction changed.
 
-The seven-phase 2.0 roadmap is COMPLETE and current package version is `2.0.0`.
+The seven-phase 2.0 roadmap is COMPLETE at release baseline `2.0.0`.
 
-**Current roadmap state:** OWNER-APPROVED / PRE-ACTIVATION — 3.0 roadmap.  
-**Current package baseline:** `2.0.0`.  
-**Immediate next implementation:** unchanged-`2.0.0` phase-runner compatibility correction.  
-**Planned activation baseline:** `2.1.0`.  
-**Planned Phase 1:** Gemini Profile digest foundation.  
+**Current roadmap state:** OWNER-APPROVED / ACTIVE — PHASE 1.  
+**Current package baseline:** `2.1.0`.  
+**Immediate next implementation:** Phase 1 Gemini Profile digest foundation.  
+**Current task folder:** `p2-1`.  
+**First prompt version:** `2.1.1`.  
 **Planned terminal release:** `3.0.0`, with terminal exit gate intentionally owner-controlled/TBD.
 
-The intended future task family is `p2-<phase>` / `2.<phase>.<prompt>`, but the current runner does not support that family. Do not write or execute `p2-1` until the dedicated source/test correction proves the grammar while preserving historical major-0, major-1, and correction behavior.
+The active task family is `p2-<phase>` / `2.<phase>.<prompt>`. The runner compatibility correction is GREEN/owner-accepted and preserves historical major-0, major-1, and correction behavior.
 
-After that correction is reviewed/accepted and the owner performs the version-only `2.0.0` → `2.1.0` roadmap activation, normal implementation planning may resume with `/prompt-ass Phase 1` → `/prompt-plan` → `/prompt-write p2-1`.
+The accepted `c1-n6wd` correction already owns the normalized/persisted 4,000-code-point Article-summary invariant and additive production migration. Phase 1 planning must consume that producer boundary rather than duplicate it.
+
+Normal implementation planning proceeds with `/prompt-ass Phase 1` → `/prompt-plan` → `/prompt-write p2-1`.
 
 Historical validation artifacts describe only the source tree, environment, and observations they record. They do not redefine current contracts. In particular, the Phase 7 artifact truthfully records the owner's explicit release-evidence exception rather than proving the unexecuted formal Phase 7 prompt sequence.
