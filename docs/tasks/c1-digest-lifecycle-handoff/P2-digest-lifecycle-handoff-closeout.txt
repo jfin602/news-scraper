@@ -1,0 +1,438 @@
+TASK: Correction 1 / P2 — Digest lifecycle handoff correction closeout
+
+CORRECTION CLOSEOUT SCOPE
+This is the sole final closeout prompt for correction `c1-digest-lifecycle-handoff`.
+
+Phase 1 P3 previously stopped with `Planning needed` because the implemented `2.1.1` P1 repository did not expose the complete producer API that P3 was contractually required to consume. P1 of this correction should have repaired that bounded handoff at unchanged package version `2.1.2` without implementing any P3 roadmap behavior.
+
+This closeout independently verifies the correction against the actual current source, schema, transactions, tests, and existing Phase 1 P3 consumer requirements. A GREEN result means only that the P1→P3 producer handoff defect is repaired and existing Phase 1 P3 may be rerun. It does not close Phase 1, does not execute Gemini, and does not advance package version.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Task-shape classification: `Investigative`.
+- Specification clarity: `Explicit`.
+- State coupling: `High`.
+- Integrity risk: `High`.
+- Concurrency: `Cross-process`.
+- Security: `Sensitive`.
+- Novel inference: `Moderate`.
+- Model-family basis: repository policy deliberately uses Sol Light for independent correction closeout so the final review is not performed by the same implementation reasoning tier.
+- Reasoning basis: Light is appropriate because the target state is explicit and bounded; this prompt performs the required three distinct passes and must stop/escalate if transaction/concurrency ownership is still ambiguous.
+- Complexity / quality floor: `Critical`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: none under the current correction-closeout policy; `Sol Light` is the intentional independent-review baseline.
+- Escalation trigger: review finds unresolved completion/recovery races, incomplete rollback semantics, cross-Profile mutation risk, active-reference/history corruption, a missing P3-required producer operation, migration-history damage, or a meaningful structural refactor requirement.
+- Escalation target: `Terra High` for the mandatory behavior-preserving refactor handoff; use `Terra Ultra` or stronger Sol reasoning only when the observed issue genuinely requires deeper transaction/architecture reconciliation rather than ordinary bounded repair.
+- Estimate confidence: `High`.
+- Efficiency rationale: inspect the narrow correction diff, derive races independently, execute one real-PostgreSQL/recovery matrix on the exact final tree, and then hand Phase 1 back to the already-written P3 prompt.
+
+VERSIONING
+- Required unchanged project version: `2.1.2`.
+- This closeout MUST NOT change top-level `package.json` version.
+- It consumes no Phase 1 roadmap patch number. `2.1.3` remains the target of the existing Phase 1 P3 prompt.
+- Do not create `package-lock.json`, `npm-shrinkwrap.json`, Composer vendor state, or unrelated lockfiles.
+- The correction remains **HUMAN REVIEW REQUIRED** even if invoked through the runner's combined `--closeout` path.
+
+MANUAL / HUMAN REVIEW BOUNDARY
+A GREEN response is advisory until the repository owner reviews and accepts the correction candidate and durable evidence.
+
+This closeout may write only:
+
+- a genuinely tiny, unambiguous defect/test repair already inside this correction's producer-handoff scope, followed by rerunning every invalidated RUN item; and
+- the final durable correction validation artifact when the exact final tree is genuinely green.
+
+Do not implement P3, change package version, edit governing contracts/roadmap/worksheet, edit earlier Phase 1 prompts, or turn this closeout into a broader refactor.
+
+MANDATORY HANDOFF / IDENTITY
+Before reviewing behavior:
+
+1. read current `BOOT.md`, `AGENTS.md`, `README.md`, `docs/README.md`, and `docs/codex-model-selection.md`;
+2. read `docs/contracts/project-contract.md`, `docs/contracts/ai-assistance-contract.md`, `docs/contracts/domain-and-data-contract.md`, `docs/contracts/testing-and-validation-contract.md`, and `docs/decisions/production-data-and-schema-compatibility.md`;
+3. read the current Phase 1 roadmap entry and completed Phase 1 worksheet only for governed digest-attempt/lifecycle requirements;
+4. read `docs/tasks/p2-1/P1-profile-ai-data-and-digest-input-foundation.txt`, P2 provider prompt, and the complete existing `P3-digest-lifecycle-and-worker-scheduling.txt` consumer prompt;
+5. read this correction's P1 prompt;
+6. establish from Git the exact correction base: current Phase 1 P1 and P2 implementation commits reachable, package `2.1.2`, P3 unimplemented before correction P1;
+7. identify the correction P1 implementation commit through runner-owned history and inspect its complete diff rather than trusting its final report;
+8. inspect `migrations/0018_profile_ai_digest_foundation.sql` and the correction's additive `0019` migration if present; verify `0001`–`0018` remain unchanged by this correction;
+9. inspect current `src/distribution/digests/repository.ts`, `input.ts`, P2 `provider.ts`, database transaction helpers, and all current consumers/importers of digest repository exports;
+10. inspect all correction-focused unit/database/recovery tests plus the P1 tests that established attempt claim/recovery/active digest behavior;
+11. inspect current `package.json`, require exactly `2.1.2`, and confirm no lockfile was introduced;
+12. stop if P3 or later roadmap implementation has landed concurrently, package version moved, governing lifecycle contracts changed, or unrelated executable changes make this correction impossible to isolate honestly.
+
+Do not treat source inspection as database/concurrency proof.
+
+GREEN CORRECTION GOAL
+The correction is GREEN only if the exact package-`2.1.2` final tree exposes and proves a complete P1-owned persistence/application contract for existing Phase 1 P3:
+
+```text
+claim exact running attempt
+-> read running attempt for recovery/status
+-> provider work may occur outside DB transaction
+-> finalize exact attempt as success/skip/failure
+-> optionally activate/suppress digest in same bounded transaction
+-> running ownership released
+-> stale recovery remains race-safe
+```
+
+P3 must not need raw AI-table SQL, migration knowledge, direct state mutation, or provider-specific persistence logic.
+
+# PASS 1 — CONTRACT / EVIDENCE REVIEW
+
+Review the correction against current contracts, the actual P1 implementation, P3's downstream requirements, and executed evidence.
+
+## A. Scope and sequence
+
+Verify:
+
+- package remains exactly `2.1.2`;
+- no Phase 1 `2.1.3` implementation was pulled forward;
+- P2 Gemini provider behavior is unchanged except for imports/types strictly forced by the corrected repository contract, if any;
+- v1/PHP/admin/Worker scheduling/lifecycle service behavior remains unimplemented as before;
+- correction source changes are limited to digest persistence/repository, additive migration, and focused/regression tests/support required to prove it;
+- migrations `0001`–`0018` are not rewritten.
+
+## B. Additive attempt-outcome schema
+
+If migration `0019_digest_lifecycle_handoff.sql` exists, verify:
+
+- it changes only the minimum attempt terminal-outcome schema required to support truthful `skipped_disabled` state and any strictly necessary compatibility shape;
+- existing allowed outcomes remain valid;
+- existing attempt rows survive forward migration;
+- scheduled-slot and one-running-per-Profile indexes remain intact;
+- no successful digest/history/active-reference rows are rewritten merely by migration;
+- clean migration from zero includes the final constraint;
+- supported production-forward upgrade reaches the final ledger without data loss.
+
+If P1 correctly determined no migration was required because current schema already supported the truthful disabled outcome, verify that claim from actual schema/migrations and ensure no redundant migration was added.
+
+## C. Running and latest attempt reads
+
+Trace the read APIs.
+
+Require:
+
+- one validated current-running-attempt read scoped by Profile;
+- no cross-Profile return;
+- absence is explicit and bounded;
+- no stale classification embedded in the read;
+- one deterministic latest-attempt read using a bounded query rather than unbounded history loading;
+- running and completed rows map through the same durable validation rules;
+- malformed persisted attempt state fails closed rather than leaking raw rows.
+
+Confirm P3 can obtain the exact stale-running attempt id/start time from this producer rather than querying the table.
+
+## D. Exact-attempt completion
+
+Trace normal completion from exported API to SQL mutation.
+
+Verify:
+
+- completion requires Profile identity and exact attempt id;
+- mutation is conditional on `state='running'` or an equally strong invariant;
+- wrong Profile cannot complete another Profile's attempt;
+- an already completed/abandoned attempt cannot be silently rewritten;
+- normal completion never means "complete whichever attempt is running";
+- one successful completion sets completed state/timestamp and truthful terminal outcome;
+- the one-running-attempt constraint becomes available to a later claim only after truthful completion;
+- ordinary completion cannot manufacture `abandoned`; stale recovery remains the only owner of that transition unless current code has an equivalently explicit protected path.
+
+Inspect application-level terminal metadata validation for:
+
+- `success`;
+- `skipped_disabled`;
+- `skipped_no_input`;
+- `skipped_unchanged`;
+- `failed`;
+- stale-recovery `abandoned`.
+
+The state model must not allow impossible combinations such as a skipped attempt with provider retrieval facts, no-input with nonzero input count, a running row with completed timestamp, or a failed row carrying unbounded raw provider error text.
+
+## E. Per-Profile lifecycle locking
+
+Trace the transaction-scoped Profile advisory-lock helper through all important mutation paths.
+
+Require the same lock discipline for:
+
+- claim;
+- stale recovery/reclaim;
+- normal completion;
+- active activation/replacement;
+- active suppression.
+
+Verify:
+
+- stale recovery locks before changing the running attempt to abandoned;
+- normal completion locks before transitioning running state;
+- activation/suppression lock in the caller-owned transaction;
+- different Profiles remain independently concurrent;
+- unique constraints remain authoritative backstops;
+- no transaction/advisory lock survives across provider I/O;
+- reentrant use within one PostgreSQL transaction is safe.
+
+## F. Active digest suppression
+
+Verify the producer exposes an explicit active-reference suppression operation and that it:
+
+- removes only `distribution_profile_active_digests` state for the requested Profile;
+- preserves immutable successful generations, input provenance, highlights, supports, and attempt history;
+- is idempotent when no active digest exists;
+- cannot affect another Profile;
+- participates in the same lifecycle lock;
+- has caller-owned transaction composition available to P3.
+
+No "suppression" implementation may delete the immutable digest simply to hide it.
+
+## G. Activation alignment
+
+Verify existing activation/replacement behavior remains cross-Profile safe and now participates coherently in lifecycle serialization.
+
+Require:
+
+- generation exists completely before active pointer switch;
+- prior generation remains immutable history;
+- cross-Profile pointer remains impossible/rejected;
+- existing convenience `persistAndActivate...` semantics are not weakened;
+- P3 can still use lower-level caller-owned transaction primitives when it needs attempt completion in the same transaction.
+
+## H. Atomic P3 composition proof
+
+Require real integration/database evidence for the exact downstream handoff, not just isolated methods.
+
+The tests must prove P3 could do all of these with exported producer operations only:
+
+1. successful path:
+   - claim attempt;
+   - later transaction creates immutable digest;
+   - activates that digest;
+   - completes that exact attempt as success;
+   - commit exposes all three coherent effects;
+2. rollback path:
+   - force a failure after one or more of create/activate/complete inside the same transaction;
+   - none of the partial new state survives;
+   - prior active digest/history remains correct;
+3. suppression path:
+   - suppress active reference + complete exact skip/failure attempt in one transaction;
+   - rollback preserves prior state;
+4. failed provider path:
+   - exact attempt completes as failed with bounded diagnostics and no new digest;
+5. skip paths:
+   - disabled/no-input/unchanged finish without provider-state fabrication.
+
+If the tests only prove each repository function independently but not caller-owned transaction composition, the P3 producer handoff is still incomplete.
+
+## I. Stale recovery handoff
+
+Verify the corrected read + recovery boundary works as one safe producer contract:
+
+- P3 can read the current running attempt;
+- P3 supplies its own stale cutoff policy;
+- recovery revalidates exact id/Profile/running/start time under transaction/lock;
+- a stale row becomes terminal `abandoned` history before replacement claim;
+- a non-stale or already-completed row is not abandoned;
+- recovery never deletes history;
+- the replacement claim obeys the same scheduled-slot and one-running constraints.
+
+## J. P3 readiness audit
+
+Read the existing P3 prompt line by line and construct this final readiness table from actual exports/tests:
+
+| P3-required capability | Producer export | Proof |
+| --- | --- | --- |
+| exact running-attempt discovery | required | required |
+| current settings/input | existing P1 | existing/confirmed |
+| active/latest successful digest | existing P1 | existing/confirmed |
+| scheduled/manual claim | existing/corrected P1 | required regression |
+| stale recovery | corrected P1 | required race proof |
+| normal exact completion | corrected P1 | required |
+| immutable generation create | existing P1 | required regression |
+| active activation | existing/corrected P1 | required regression |
+| active suppression | corrected P1 | required |
+| latest attempt/status | corrected P1 | required |
+| caller-owned atomic composition | corrected P1 | required rollback proof |
+
+If any P3-required row still forces consumer-owned SQL, table-name knowledge, state-transition invention, or transaction inference, the correction is BLOCKED.
+
+# PASS 2 — ERROR / EDGE-CASE ADVERSARIAL REVIEW
+
+Independently derive failures from the final implementation and contracts. Do not merely read test names.
+
+At minimum challenge:
+
+- completion called twice for the same attempt;
+- completion using another Profile's attempt id;
+- completion racing stale recovery at the exact cutoff;
+- stale recovery racing a legitimate success transaction;
+- scheduled claim racing manual claim;
+- manual claim racing manual claim;
+- scheduled duplicate slot after its earlier attempt already completed;
+- one Profile's advisory lock accidentally serializing all Profiles globally;
+- different code paths using different advisory-lock key derivation;
+- suppression racing activation;
+- active suppression accidentally cascading/deleting immutable history;
+- success transaction creates generation then completion rejects: entire transaction must roll back;
+- success transaction activates new digest then completion rejects: active pointer must roll back to prior value;
+- suppression+completion transaction partially fails;
+- invalid `skipped_disabled` metadata includes provider/retrieval facts;
+- disabled evaluation mislabeled as unchanged/no-input;
+- zero-input count represented incorrectly;
+- failed outcome accepts unbounded error text or raw provider material;
+- completion accepts invalid provider/model/identity/count values that the schema later rejects after partial work;
+- latest attempt ordering is nondeterministic at equal timestamps;
+- running read assumes uniqueness but malformed database state returns multiple rows without failing closed;
+- stale recovery abandons a newer replacement attempt because only Profile, not exact attempt id, is checked;
+- recovery marks an attempt abandoned before acquiring the lifecycle lock;
+- activation/suppression bypass lifecycle lock in a convenience wrapper;
+- caller-owned transaction accidentally nests an independent transaction and breaks atomicity;
+- migration `0019` drops/recreates a constraint in a way that temporarily accepts invalid final state or fails on existing legal rows;
+- older migrations/checksums were rewritten to make tests pass;
+- recovery/production-upgrade fixtures silently omit new attempt/active state.
+
+For each plausible failure classify it as:
+
+- protected by source + focused proof;
+- requires one tiny unambiguous closeout-local defect/test fix;
+- requires Terra High structural-refactor handoff; or
+- requires fresh planning/contract correction.
+
+Do not hide a concurrency defect behind retries or broad exception swallowing.
+
+# PASS 3 — CODE-QUALITY / STRUCTURAL REVIEW
+
+Independently inspect the correction diff plus important P1/P3 producer/consumer seams for:
+
+- duplicated advisory-lock SQL/key derivation;
+- duplicate attempt row validation/mapping;
+- separate standalone/in-transaction functions that drift semantically;
+- raw database rows leaking across module boundaries;
+- P3-specific policy accidentally implemented in repository code;
+- provider-specific imports/coupling in P1 persistence;
+- unnecessary schema/table abstractions;
+- active-reference deletion code duplicated across callers;
+- attempt completion accepting too-large generic payload objects instead of one bounded typed contract;
+- transaction helpers that accidentally open nested transactions where caller-owned composition is required;
+- missing focused tests for public repository exports;
+- stale/dead compatibility code introduced by the correction;
+- misleading names where `delete` could imply immutable-history deletion rather than active-reference suppression;
+- comments/tests that overclaim P3/Phase 1 completion.
+
+Small local cleanup is allowed only when plainly behavior-preserving and already inside correction scope. A meaningful structural refactor triggers the mandatory handoff below.
+
+## TERRA HIGH REFACTOR HANDOFF
+
+If any pass discovers a meaningful behavior-preserving refactor — moving transaction/state ownership across modules, replacing or collapsing a repository abstraction, consolidating duplicated lifecycle logic across consumers, reorganizing shared persistence flow, or another multi-file structural simplification whose safety depends on producer/consumer tracing — STOP before implementing it and output exactly one self-contained **Terra High refactor remediation prompt**.
+
+That prompt must:
+
+- recommend exactly `Terra High`;
+- state the observed quality problem and concrete source/evidence;
+- define the smallest behavior-preserving refactor boundary and all important producers/consumers;
+- preserve package `2.1.2`;
+- preserve claim/completion/recovery/activation/suppression semantics, one-running constraint, immutable history, P2 provider behavior, canonical Profile behavior, security/redaction, and all unrelated Phase 1/non-AI behavior;
+- forbid new product behavior, P3 implementation, contract/ADR/roadmap edits, unrelated cleanup, and speculative abstractions;
+- require focused tests plus every broader RUN item invalidated by the refactor;
+- require an implementation report but MUST NOT declare this correction GREEN or write/finalize the correction validation artifact;
+- instruct Terra High to stop/report if the change actually requires a new product/contract/architecture decision.
+
+After remediation, rerun this closeout from the beginning. Only that rerun may accept the final correction tree.
+
+If the issue is not behavior-preserving refactoring but a product/contract/roadmap decision, use normal replanning instead.
+
+BOUNDED CLOSEOUT REPAIR RULE
+This Sol Light closeout may fix only a tiny unambiguous defect already governed by the correction, for example:
+
+- one missing wrong-Profile guard;
+- one missing terminal metadata check;
+- one incorrect query predicate;
+- one missing idempotency return;
+- one focused negative test.
+
+After any such repair, rerun every RUN item invalidated by the source change. Do not perform concurrency architecture redesign, introduce a new migration concept, or add P3 behavior under this rule.
+
+REQUIRED FINAL VALIDATION
+Resolve the current Testing Contract matrices against the actual final correction diff.
+
+On the exact final tree run the smallest non-overlapping required matrix:
+
+```text
+npm run check
+npm run test:db
+npm run test:recovery
+npm run codex:phase:validate -- c1-digest-lifecycle-handoff
+git diff --check <exact-correction-base>...HEAD
+```
+
+If source inspection shows another current deterministic specialized command is required by the actual correction blast radius and is not contained by these, run it explicitly and explain why. Do not add unrelated browser/PHP/live suites merely for more green output.
+
+`npm run test:db` must execute the real-PostgreSQL attempt/completion/recovery/concurrency/transaction/migration proofs. `npm run test:recovery` must prove the supported persisted state remains recoverable after the correction.
+
+### DEFER
+
+Record but do not execute in this ordinary correction gate:
+
+- real Gemini / URL Context — `LIVE/EXTERNAL`, owned by Phase 1 closeout;
+- PHP CLI/runtime and PHP-backed browser — `VPS-REQUIRED`, owned by the mandatory Phase 2 package/release qualification gate;
+- production/reference customer deployment — `REFERENCE-DEPLOYMENT`, owned by Phase 2.
+
+Do not run `test:live-gemini`, `test:php`, or `test:browser:php` from the normal Windows correction environment merely to rediscover expected prerequisites.
+
+DURABLE VALIDATION ARTIFACT
+When and only when the exact final correction tree is GREEN, create/update exactly:
+
+`docs/validation/c1-digest-lifecycle-handoff.md`
+
+The artifact must record:
+
+- correction purpose and the original P3 `Planning needed` handoff failure;
+- exact correction base SHA;
+- correction P1 implementation SHA;
+- exact final source SHA reviewed by closeout;
+- unchanged package version `2.1.2`;
+- migration decision (`0019` added or why unnecessary) and confirmation prior migrations were not rewritten;
+- new/changed repository producer exports;
+- per-Profile lifecycle-lock ownership;
+- terminal-outcome/metadata validation including truthful disabled skip;
+- running/latest attempt reads;
+- normal completion and stale recovery behavior;
+- active suppression/history-preservation behavior;
+- atomic success/suppress rollback evidence;
+- P3 readiness table with concrete exports/tests;
+- commands actually executed and results;
+- Node/npm/PostgreSQL/OS details available from the environment;
+- evidence levels actually achieved;
+- Pass 2 adversarial findings and disposition;
+- Pass 3 structural findings and disposition;
+- bounded closeout repairs, if any;
+- whether a Terra High refactor handoff occurred before a later successful rerun;
+- deferred live/PHP/reference evidence and later owning gates;
+- explicit statement that Phase 1 P3/P4/P5/P6 and Phase 1 closeout were not implemented/validated by this correction;
+- any unresolved blocker.
+
+The artifact is evidence, not behavioral authority.
+
+REPOSITORY RULES
+- Package must remain exactly `2.1.2`.
+- Do not create lock/vendor state.
+- Do not rewrite migrations `0001`–`0018`.
+- Do not edit Phase 1 prompts, contracts, ADRs, roadmap, completed worksheet, changelog, or unrelated validation artifacts.
+- Do not manually commit; the correction runner owns closeout commit behavior where applicable.
+
+ACCEPTANCE
+This correction closeout may report **GREEN — HUMAN REVIEW REQUIRED** only when:
+
+1. exact correction base/P1/final source identities are established;
+2. package remains `2.1.2`;
+3. additive schema support truthfully represents disabled skip without rewriting prior migration history;
+4. current running and latest attempts are available through validated Profile-scoped reads;
+5. exact running attempts can be completed once as truthful success/skip/failure states and later claims can proceed;
+6. wrong-Profile, double-complete, invalid-terminal-shape, and malformed persisted-state paths fail safely;
+7. claim, completion, stale recovery, activation, and suppression share coherent per-Profile transaction-scoped lifecycle locking;
+8. completion-vs-recovery and claim races are proven against real PostgreSQL;
+9. active suppression is idempotent and cannot delete immutable digest history;
+10. caller-owned transactions prove atomic persist+activate+complete and suppress+complete behavior including rollback;
+11. supported migration/recovery evidence is green and existing P1/P2/non-AI behavior remains intact;
+12. the explicit P3 readiness table has no missing producer capability and requires no P3-owned AI-table SQL;
+13. all required RUN evidence passes on the exact final tree;
+14. Pass 2 and Pass 3 findings are fully dispositioned with no unresolved correctness/security/structural blocker;
+15. durable correction validation artifact is complete and honest.
+
+Finish with a concise report containing GREEN or BLOCKED, exact final SHA, unchanged package version, migration decision, new repository APIs, concurrency/rollback findings, validation commands actually run/results, P3 readiness conclusion, deferred evidence, limitations, and whether the owner may safely rerun the existing Phase 1 `p2-1` stack to resume at P3.
