@@ -299,7 +299,7 @@ A command is added only with its first substantive suite. Empty/no-op commands a
 
 `npm test` MUST represent the ordinary deterministic **portable development regression matrix** suitable for the normal local development environment and portable final-tree validation. `npm run check` MUST compose applicable portable static/type/format checks plus that portable ordinary regression matrix. Neither command may require a runtime that the repository classifies as VPS-required or live/external evidence.
 
-Specialized environment- or prerequisite-requiring suites remain separately invokable. Final implementation-phase/correction validation MUST explicitly execute every specialized deterministic suite required by the behavior being accepted, in the environment assigned by the validation selection rules below.
+Specialized environment- or prerequisite-requiring suites remain separately invokable. A normal implementation prompt or ordinary phase/correction closeout runs only the specialized deterministic suites that its validation manifest classifies `RUN` in that prompt's assigned environment. VPS-required suites are not automatically promoted to `RUN` merely because the task is a closeout.
 
 PHP CLI/runtime tests are a separate specialized capability under `npm run test:php`. PHP-backed customer/server browser proof is separately addressable under `npm run test:browser:php`; the ordinary `npm run test:browser` command MUST remain usable for browser evidence that does not require the PHP runtime. The exact executable split is implemented by repository tooling and MUST preserve substantive existing coverage rather than silently dropping PHP or browser cases.
 
@@ -378,15 +378,31 @@ The current default classification is:
 
 Do not infer that every database or browser test is VPS-only merely because some specialized evidence is. Historical and current capability evidence may establish that PostgreSQL or Playwright is valid on the Windows development environment. Classification follows the current supported setup and actual prerequisite, not a blanket operating-system label.
 
+### Qualification-gate policy
+
+Environment classification does **not** determine when evidence must run. The validation manifest also assigns each required evidence class to the gate that owns it.
+
+By default:
+
+- ordinary implementation prompts run their applicable local `RUN` evidence and may finish GREEN with correctly recorded VPS-required evidence still `DEFER`;
+- ordinary roadmap phase closeouts and ordinary correction closeouts likewise do **not** promote VPS-required evidence to `RUN` merely because they are closeouts;
+- VPS-required evidence normally remains `DEFER` until an explicitly designated **full-system/project release qualification gate** for the integrated release candidate at the end of the current major development line;
+- only a task/gate explicitly designated for VPS/full-system/release qualification, or a narrower owner-approved exceptional gate, may promote VPS-required evidence to immediate `RUN`;
+- live/external and reference-deployment evidence follow the same principle: they run at the explicit gate that owns the corresponding live/deployment claim rather than at every prompt that touches a related producer.
+
+A normal phase/correction closeout MAY therefore declare GREEN when all evidence assigned `RUN` at that gate passes and remaining VPS/live/reference items are accurately recorded as deferred to their later qualification gate. That GREEN certifies the closeout's governed scope; it is not a claim that the deferred environment behavior has already been observed.
+
+The later full-system/project release qualification gate MUST build its own final Test Necessity Matrix from the integrated candidate and promote every applicable deferred VPS/live/reference item required for the release claim to `RUN`.
+
 ### Validation manifest: `RUN` / `DEFER` / `N/A`
 
 Every implementation/closeout plan MUST resolve the union of required evidence into a validation manifest before prompt writing:
 
-- **`RUN`** — required by the change and executable in the prompt's assigned environment;
-- **`DEFER`** — required by the change or final gate, but intentionally assigned to another environment;
-- **`N/A`** — not required by the change/gate.
+- **`RUN`** — required by the current task/gate and executable in the prompt's assigned environment;
+- **`DEFER`** — required by a later qualification/release claim but intentionally not owned by the current prompt/gate;
+- **`N/A`** — not required by the current task or any later known gate implicated by the change.
 
-`DEFER` MUST NOT be interpreted as skipped, passed, waived, optional, or permanently omitted. A deferred item records the exact evidence still owed, its assigned environment, and the gate by which it must be completed.
+`DEFER` MUST NOT be interpreted as skipped, passed, waived, optional, or permanently omitted. A deferred item records the evidence still owed, its assigned environment, and the later gate that owns it. For VPS-required evidence, that later gate defaults to the full-system/project release qualification gate unless an explicit task or owner decision assigns an earlier gate.
 
 A prompt running on Windows MUST NOT knowingly invoke a `VPS-REQUIRED` or `LIVE/EXTERNAL` suite merely to rediscover that its prerequisite is absent. Conversely, if a specialized suite is explicitly invoked in an environment where its prerequisite was expected and that prerequisite is unexpectedly unavailable, the command MUST fail once and report the mismatch.
 
@@ -394,13 +410,17 @@ A deterministic prerequisite/environment mismatch MUST NOT be automatically retr
 
 ### Cross-environment exact-tree evidence
 
-Evidence collected in different environments can combine only when it applies to the same accepted source tree/commit and compatible governed configuration. The handoff SHOULD be auditable as:
+Exact-tree matching is required when evidence from multiple environments is being combined for the **same acceptance/qualification claim**. It is not a requirement to collect a VPS receipt for every intermediate implementation or closeout commit.
 
-`final candidate tree → local RUN evidence → deferred environment evidence → closeout acceptance`
+The normal major-line handoff is:
 
-A normal implementation prompt MAY truthfully finish with **local validation green / deferred environment evidence pending** when all evidence assigned to that prompt environment passed and the governing implementation gate explicitly allows later specialized proof. That state is not RED merely because correctly deferred evidence was not attempted locally.
+`integrated release candidate → local qualification evidence → VPS/live/reference qualification evidence → release acceptance`
 
-A roadmap phase/correction closeout or other gate that requires the deferred evidence MUST NOT declare full GREEN until every gate-required `DEFER` item has actually run successfully against the exact accepted final tree in its assigned environment. Changing source/configuration after either environment's proof invalidates whichever evidence is no longer tied to the accepted tree and requires the applicable matrix to be rerun.
+Intermediate implementation/phase/correction evidence remains historically useful for the trees it tested, but deferred VPS evidence may be tested later against the final integrated candidate rather than against every intermediate tree that contributed to it.
+
+A normal implementation prompt or ordinary phase/correction closeout MAY truthfully finish GREEN with deferred environment evidence pending when all evidence assigned `RUN` at that gate passed. The report MUST identify the deferred evidence and later owning qualification gate, and MUST NOT imply that deferred behavior was observed.
+
+When the designated full-system/project release qualification gate combines local and VPS/live/reference evidence, every required result MUST apply to the exact integrated candidate/source tree being accepted. Changing executable source/configuration after that qualification evidence invalidates the affected evidence and requires the applicable qualification matrix to be rerun.
 
 Parallel execution MAY reduce wall-clock time when it preserves test semantics. Independently isolated test files SHOULD be allowed to execute concurrently where practical, subject to bounded resource limits. File/process scheduling order is not itself a deterministic product invariant: test selection, inputs, assertions, and outcomes must be deterministic, but independent test-process stdout completion order need not be.
 
@@ -412,19 +432,19 @@ News Scraper intentionally does not use npm package locks. `package.json` is the
 
 Final-tree validation MUST, as applicable:
 
-- establish the prompt/closeout validation manifest from the Test Necessity and Test Environment matrices;
+- establish the prompt/closeout validation manifest from the Test Necessity and Test Environment matrices plus the Qualification-gate policy;
 - perform a clean dependency installation from `package.json` using the repository npm configuration when required by the governing gate;
 - run applicable static/type/lint/format checks;
 - run the complete portable deterministic test matrix required by the current implemented behavior;
 - use aggregate commands to satisfy contained subordinate checks/suites where doing so avoids duplicate execution without reducing coverage;
-- run every required specialized suite classified `RUN` for the current environment and record required `DEFER` evidence without attempting it in the wrong environment;
+- run every required specialized suite classified `RUN` for the current environment and record `DEFER` evidence with its later owning qualification gate without attempting it in the wrong environment;
 - fail when a required selected suite contains zero tests;
 - validate the committed change range for whitespace/diff errors rather than relying on an empty clean-working-tree diff;
-- execute any required runtime/database/fixture/browser/recovery/provider procedures at the evidence level and environment needed for the acceptance claim;
+- execute any required runtime/database/fixture/browser/recovery/provider procedures at the evidence level and environment needed for the current acceptance claim;
 - avoid hidden automatic retries that mask flaky tests or deterministic prerequisite failures;
 - preserve terminal output or an accurate concise result summary sufficient to show the command/procedure actually executed and its result.
 
-Routine implementation review may use observed terminal output in the review session. Implementation-roadmap phase closeout MUST create a durable record under `docs/validation/` tied to the exact accepted source tree and listing the executed commands/procedures, relevant environment/tool versions, results, evidence levels, deferred-environment handoffs, and limitations. The artifact records evidence; it does not redefine contracts.
+Routine implementation review may use observed terminal output in the review session. Implementation-roadmap phase closeout MUST create a durable record under `docs/validation/` tied to the exact accepted source tree and listing the executed commands/procedures, relevant environment/tool versions, results, evidence levels, deferred-environment items/later gates, and limitations. The artifact records evidence; it does not redefine contracts.
 
 ### Production-upgrade validation
 
@@ -640,27 +660,30 @@ A flaky test is a defect in the test or product until understood.
 - Fix nondeterminism or document an explicit bounded environmental limitation.
 - `skip`, `todo`, quarantine, or temporary disablement MUST NOT satisfy an implementation-roadmap/correction exit gate for the behavior they would have proved.
 - Required specialized suites MUST fail clearly when explicitly invoked and prerequisites are missing rather than silently becoming green.
-- If the available local/reference environment cannot execute a required evidence level, classify it as deferred to the governed environment before invocation and keep the corresponding claim unverified until that evidence runs.
+- If the current prompt environment cannot execute evidence assigned to a later qualification gate, keep it `DEFER` and keep the corresponding environment-specific claim unobserved until that qualification runs; the deferral alone does not make an ordinary prompt/closeout RED.
 
 ## Phase and prompt completion gate
 
 Every implementation roadmap phase and correction stack inherits this contract even when its roadmap/correction entry does not repeat the full matrix.
 
-A phase or correction cannot close until:
+An ordinary phase or correction can close when:
 
 - each implemented deliverable has appropriate focused tests;
-- relevant earlier regression suites pass against the final tree;
-- contract-critical negative/failure cases are covered at the correct level;
-- required database/browser/fixture/recovery/provider evidence has actually been executed in its assigned environment;
-- every gate-required `DEFER` item has been completed successfully against the exact accepted final tree;
-- the complete required validation manifest has been satisfied with terminal evidence for the accepted tree;
-- the required durable closeout validation artifact records the exact accepted commit/source tree, commands/procedures, environments, results, evidence levels, deferred handoffs, and limitations;
-- known skipped/flaky tests do not hide exit-gate behavior;
-- validation limitations are reported explicitly.
+- relevant earlier regression suites assigned `RUN` at that gate pass against the final tree;
+- contract-critical negative/failure cases owned by that gate are covered at the correct level;
+- required database/browser/fixture/recovery/provider evidence classified `RUN` for that gate has actually been executed in its assigned environment;
+- the complete current-gate validation manifest has been satisfied with terminal evidence for the accepted tree;
+- the required durable closeout validation artifact records the exact accepted commit/source tree, commands/procedures, environments, results, evidence levels, deferred later-gate items, and limitations;
+- known skipped/flaky tests do not hide current-gate behavior;
+- validation limitations and deferred qualification evidence are reported explicitly.
 
-Every Codex implementation prompt MUST specify focused tests, broader regression tests, and any runtime/browser/database/fixture/provider validation needed for acceptance. It MUST distinguish iterative focused validation from final-tree regression validation, MUST include the resolved `RUN` / `DEFER` / `N/A` validation manifest, and SHOULD express `RUN` commands as the smallest non-overlapping set that covers all required evidence. A prompt SHOULD NOT require subordinate commands immediately alongside an aggregate command that already executes them on the same unchanged final tree unless a diagnostic or other explicit reason makes the repeated execution meaningful.
+VPS/live/reference `DEFER` items do **not** block an ordinary phase/correction GREEN unless the roadmap/task/owner explicitly designates that closeout as the gate that owns them.
 
-A normal implementation prompt MAY complete with local validation green and explicitly deferred specialized evidence when its governing task boundary allows later environment proof. Such a result MUST list the exact deferred evidence/environment and MUST NOT be promoted to phase/correction GREEN until the gate-required deferred evidence is complete.
+A full-system/project release qualification gate cannot close until every applicable deferred item promoted to `RUN` for that release candidate has executed successfully against the exact integrated candidate and the resulting durable qualification evidence records the environments/results honestly.
+
+Every Codex implementation prompt MUST specify focused tests, broader regression tests, and any runtime/browser/database/fixture/provider validation needed for acceptance. It MUST distinguish iterative focused validation from final-tree regression validation, MUST include the resolved `RUN` / `DEFER` / `N/A` validation manifest plus later owning gates, and SHOULD express `RUN` commands as the smallest non-overlapping set that covers all required evidence. A prompt SHOULD NOT require subordinate commands immediately alongside an aggregate command that already executes them on the same unchanged final tree unless a diagnostic or other explicit reason makes the repeated execution meaningful.
+
+A normal implementation prompt or ordinary closeout MAY complete GREEN with explicitly deferred VPS/live/reference evidence when all current-gate `RUN` evidence is green. Such a result MUST list the deferred evidence/environment/later gate and MUST NOT claim that deferred behavior was observed.
 
 When a prompt is a producer for a later explicitly planned consumer, its completion criteria MUST also identify and prove the complete downstream-required handoff surface under the consumer-readiness law above. A later thin adapter/controller/UI prompt is not evidence that the producer can defer its own service/query/command semantics until consumption time.
 
