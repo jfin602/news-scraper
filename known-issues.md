@@ -13,17 +13,15 @@ This file is the running issue log for problems reported in this chat.
 - The launcher must keep the bearer token out of `public_html`, public PHP/HTML, and the Cron Jobs command line; preserve the existing sync entrypoint semantics including CLI options such as `--force`; and remain generic rather than HostGator-specific.
 - Documentation and the customer integration worksheet should use the packaged launcher once implemented rather than instructing customers to create their own wrapper.
 
+## Resolved Issues
+
 ### N6WD — 2026-08-25 — RSS descriptions may contain excessive full-article content
 
-- **Status:** Open
-- Some RSS/Atom feeds provide the full article body, or a substantial portion of it, in the item description/content field rather than a short summary.
-- Normalized persisted `Article.summary` is now intended to have a hard maximum of **4,000 characters** after plain-text normalization. Values at or below that limit are preserved unchanged.
-- Oversized summaries should be truncated rather than causing the Article to be rejected. Truncation should use the last complete word boundary that allows exactly `...` to be appended while keeping the final stored value at or below 4,000 characters. If no usable word boundary exists, truncate to 3,997 characters and append `...`.
-- The existing larger Raw RSS/Atom parser content limit remains a separate ingestion-safety bound and must not be treated as the persisted-summary limit.
-- The implementation must apply the same deterministic bound to existing supported production summaries through the governed forward-upgrade/data-preservation path, not only to newly collected Articles.
-- Until implementation and regression evidence exist, this issue remains open.
-
-## Resolved Issues
+- **Status:** Resolved on 2026-08-28 at package `2.0.0`
+- **Resolution:** Correction `c1-n6wd` bounds normalized persisted `Article.summary` to 4,000 Unicode code points after plain-text normalization. Values at or below the limit remain unchanged; oversized values preserve the longest complete-word prefix that fits with literal `...`, with a 3,997-code-point hard fallback when no usable boundary exists.
+- The larger Raw RSS/Atom parser content limit remains separate and unchanged, so Source admission still operates on its existing bounded Raw content before Article normalization.
+- Additive migration `0017_article_summary_bound.sql` transforms existing supported oversized summaries before tightening `articles_summary_shape_check`, without rewriting supported migrations `0001`–`0016` or replacing Article identity/provenance.
+- **Evidence:** `docs/validation/c1-n6wd-validation.md` records focused boundary/Unicode proof, real PostgreSQL production-forward migration evidence, full database/recovery regressions, the three-pass closeout review, and owner acceptance.
 
 ### V7MT — 2026-08-28 — Local validation runs environment-incompatible suites
 
