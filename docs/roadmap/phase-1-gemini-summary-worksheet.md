@@ -217,25 +217,34 @@ Phase 1 does not expose arbitrary raw prompt editing or freeform output-size con
 
 ## Decision 5 — Digest revision and Article snapshot interaction
 
-**Status:** OPEN
-
-### Problem
-
-The current PHP synchronization uses Profile `snapshotRevision`, `ETag`, `If-None-Match`, and `304 Not Modified`. If a digest changes while the Article set remains unchanged, an Article-only revision could cause the customer to receive `304` and never download the new digest.
-
-### Questions
-
-- Should active digest state participate in the existing outward Profile `snapshotRevision`/ETag?
-- If yes, does every new valid digest cause a complete Profile snapshot refresh on the next PHP sync?
-- If no, what independent revision/conditional mechanism carries digest changes without creating a competing synchronization architecture?
-
-### Current recommendation
-
-Use one outward revision concept that reflects both the canonically distributed Article state and the currently active digest state. A newly activated digest changes the Profile response revision/ETag, causing the existing PHP synchronization path to receive the updated complete snapshot.
+**Status:** LOCKED — owner-approved 2026-08-28
 
 ### Answer
 
-_TBD_
+The active digest is part of the Profile's outward complete-snapshot state and participates in the existing outward `snapshotRevision`/ETag used by the permanent v1 distribution API and PHP synchronization path.
+
+Activating a new valid digest, replacing the active digest, suppressing/removing an active digest, or otherwise changing digest state that is visible to downstream consumers changes the outward Profile revision. The next ordinary PHP synchronization therefore receives a fresh complete Profile snapshot rather than `304 Not Modified`, even when the governed Article set itself has not changed.
+
+Phase 1 does not introduce a second digest endpoint, digest ETag, customer-side digest cron, or competing synchronization protocol. Digest delivery remains part of the same Profile complete-snapshot lifecycle as Articles.
+
+The digest's generation provenance uses a separate internal **`digestInputIdentity`** rather than the outward distribution revision. `digestInputIdentity` identifies the exact bounded governed Article input plus the relevant Profile AI configuration that determined that input/generation behavior. It is the identity used for scheduled regeneration comparison, provenance, idempotency, and lifecycle decisions.
+
+This separation avoids circularity:
+
+```text
+bounded canonical digest input + relevant AI configuration
+→ digestInputIdentity
+→ Gemini generation
+→ validated active digest
+→ outward Profile state (Articles + active digest)
+→ snapshotRevision / ETag
+```
+
+The outward `snapshotRevision` answers whether anything delivered to the integration changed; `digestInputIdentity` answers what governed input produced a digest. They must not be conflated.
+
+If digest activation changes the outward revision during a multi-page PHP traversal, the existing snapshot-change semantics remain authoritative: continuation under the old revision is rejected and the PHP synchronizer restarts the complete snapshot traversal within its existing bounded restart behavior. No special digest race protocol is required.
+
+A digest change must never weaken Article snapshot coherence or atomic PHP LKG activation. Conversely, failure to generate a new digest must not fabricate an outward revision change unless the previously active digest is intentionally suppressed/removed under the lifecycle rules decided later.
 
 ---
 
