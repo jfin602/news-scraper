@@ -366,19 +366,64 @@ The top-level `digest` participates in the outward `snapshotRevision`/ETag accor
 
 ## Decision 8 — PHP LKG and local-read representation
 
-**Status:** OPEN
-
-### Questions
-
-- How is the digest stored inside the complete synchronized local snapshot?
-- What validation bounds are required before activation?
-- Can invalid digest data be dropped while preserving otherwise valid Article LKG, or must the upstream response already guarantee a safe nullable digest?
-- What normalized PHP class/value-object should `LocalProfileReader` expose?
-- How should digest generation time/age be represented to customer code?
+**Status:** LOCKED — owner-approved 2026-08-28
 
 ### Answer
 
-_TBD_
+The digest is stored as part of the existing complete synchronized PHP Profile snapshot/LKG under the current `ns-private` state root. Phase 1 does not introduce a parallel digest cache, separate digest state directory, second synchronization file, or visitor-time upstream read.
+
+The upgraded PHP integration validates the additive digest independently from the required Profile/Publication/Article candidate state. News Scraper remains responsible for serving only validated outward digest data, but the customer integration maintains its own defensive validation boundary before local activation.
+
+If the Profile identity, Publication state, Article collection, snapshot revision, and other required candidate data are valid while the digest is malformed, inconsistent, or otherwise unsafe, the optional AI portion degrades independently:
+
+```text
+valid Profile + valid Articles + invalid digest
+→ activate the new valid Article snapshot normally
+→ normalize local digest to `null`
+→ retain bounded diagnostic facts where useful
+```
+
+The PHP synchronizer MUST NOT reject the complete Article candidate, preserve an older Article LKG, or make ordinary feed rendering unavailable solely because optional digest data is invalid. This is the local equivalent of Decision 7's fail-open Article behavior.
+
+A pre-Phase-1/pre-digest local snapshot containing no digest remains a valid upgrade starting point after replacing `ns-integration`; `ns-private` does not need to be cleared, migrated manually, or rebuilt merely to introduce digest support. The upgraded reader represents such state as `digest = null` until a synchronized snapshot contains a valid digest.
+
+For a multi-page candidate under one `snapshotRevision`, all pages must carry the same normalized digest value. A contradictory digest value across pages is invalid AI state for that candidate and must not be silently resolved by picking whichever page happened to be read first or last. Article traversal/activation may still succeed with the candidate digest degraded to `null` when the required Article state remains coherent.
+
+`LocalProfileReader` exposes normalized first-class digest value objects rather than requiring customer code to parse raw cache files or API-shaped associative arrays. The intended public local-read shape is conceptually:
+
+```text
+LocalReadResult
+├─ profile
+├─ publication
+├─ digest: LocalReadDigest | null
+├─ articles[]
+├─ staleAgeSeconds
+└─ health
+
+LocalReadDigest
+├─ generatedAt
+├─ inputArticleCount
+├─ provider
+├─ model
+├─ overview
+└─ highlights[]
+
+LocalReadDigestHighlight
+├─ title
+├─ text
+└─ supportingArticles[]
+
+LocalReadDigestArticle
+├─ articleId
+├─ headline
+└─ originalUrl
+```
+
+Exact PHP class names may be refined during implementation only if the same normalized boundary and semantics are preserved.
+
+The digest's `generatedAt` remains available directly on the normalized local digest and is semantically separate from the existing local Profile snapshot/LKG freshness classification. `LocalReadResult::$staleAgeSeconds` continues to describe the synchronized local Profile state rather than being redefined as AI-content age. Presentation code may derive digest age from `digest.generatedAt`, and Decision 10 governs how old/absent digest output is presented.
+
+Digest text and supporting references remain subject to the same application-owned bounds and exact stored `originalUrl` rules established in Decisions 4 and 7. PHP rendering treats all AI prose as untrusted plain text and escapes it for its output context.
 
 ---
 
