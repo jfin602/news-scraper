@@ -2,7 +2,7 @@
 
 ## Security model
 
-The highest-risk surfaces are administrative access, machine distribution credentials, local adapter cache integrity, server-side fetching of externally configured URLs, and—once 3.0 AI work is implemented—external AI-provider secrets, untrusted prompt/context content, interactive AI abuse/cost control, and model-output validation. Controls appear with the first implementation of each affected surface; historical Phase 19 hardened and operationalized the production deployment boundary rather than introducing those controls for the first time.
+The highest-risk surfaces are administrative access, machine distribution credentials, local adapter cache integrity, server-side fetching of externally configured URLs, and—once 3.0 AI work is implemented—external AI-provider secrets, governed provider URL retrieval, untrusted prompt/context content, interactive AI abuse/cost control, and model-output validation. Controls appear with the first implementation of each affected surface; historical Phase 19 hardened and operationalized the production deployment boundary rather than introducing those controls for the first time.
 
 Testing/validation for these controls is governed project-wide by `docs/contracts/testing-and-validation-contract.md`. AI-specific behavior is additionally governed by `docs/contracts/ai-assistance-contract.md`.
 
@@ -64,17 +64,19 @@ Gemini/provider secrets MUST remain server-side and MUST NOT appear in:
 - logs or telemetry;
 - persisted Article/Source metadata.
 
-Source-derived Article text, customer chat input, conversation history, and model output are all untrusted data.
+Source-derived Article text, publisher-page content retrieved through governed provider URL Context, customer chat input, conversation history, and model output are all untrusted data.
 
 AI orchestration MUST:
 
-- separate system/developer instructions from Source/user content;
-- treat Article text such as “ignore previous instructions” as data with no authority;
-- bound Article context, user input, conversation history, and output sizes;
+- separate system/developer instructions from Source/user/retrieved-page content;
+- treat Article or retrieved publisher-page text such as “ignore previous instructions” as data with no authority;
+- bound Article context, user input, conversation history, provider URL count, and output sizes;
+- permit provider URL Context only for a bounded application-selected set of exact stored `originalUrl` values belonging to the already-selected governed Profile Articles;
+- reject any attempt for Source text, user text, conversation history, retrieved page text, or model output to add arbitrary destinations or activate general web search;
 - validate structured model output before persistence/distribution/use;
 - validate model-proposed Article references against the actual Profile context;
 - resolve visible citation destinations from exact stored `originalUrl`, never from untrusted model-generated URLs;
-- avoid sending unrelated Profiles, private admin configuration, credentials, Raw bodies, Collection-run payloads, or internal persistence fields merely because they exist;
+- avoid sending unrelated Profiles, private admin configuration, credentials, Raw bodies, Collection-run payloads, internal persistence fields, or arbitrary URLs merely because they exist or appear in untrusted text;
 - log only bounded non-secret operational facts.
 
 An explicit customer chat action MAY make a live server-side upstream request. Ordinary Article rendering and synchronized digest display MUST NOT expose the provider key or require a live Gemini call.
@@ -99,7 +101,7 @@ Every redirect destination reruns scheme, domain, port, DNS, and resolved-addres
 
 After parsing/normalization, Article URLs are separately validated against Source/endpoint Article-domain policy before acceptance. Post-parse Article-link validation does not replace pre-fetch network safety.
 
-AI provider requests are not Source collection and do not authorize arbitrary URLs supplied by Source/user/model text. Provider endpoints/configuration must use a bounded application-owned transport/configuration path rather than a generic model-directed fetcher.
+AI provider requests are not Source collection and do not authorize arbitrary URLs supplied by Source/user/model text. The configured Gemini URL Context exception is narrow: application code may submit only a bounded set of exact stored `originalUrl` values from Articles already selected through canonical Profile semantics. Provider endpoints/configuration use a bounded application-owned path; News Scraper does not expose a generic model-directed fetcher, general web-search authority, or a Source/user-controlled URL retrieval surface.
 
 ## Content safety
 
@@ -117,7 +119,9 @@ Static HTML input remains untrusted under this same model. HTML selector/profile
 
 HTML parser errors, logs, run diagnostics, and preview responses MUST NOT retain or emit raw page bodies, script contents, secrets, or unbounded extracted content. Ordinary HTML endpoint fetches continue through the same approval, whitelist, DNS/address/port, redirect, rebinding, timeout, and response/decompression protections as other endpoint types.
 
-AI prompt context uses only bounded safe normalized outward Article metadata selected through canonical Profile semantics. It MUST NOT use unbounded Raw items/full feed bodies merely because they are stored. Open issue `N6WD` or an equivalent explicit input bound must be resolved before oversized Source descriptions can become unbounded AI prompt content.
+AI prompt context uses only bounded safe normalized outward Article metadata selected through canonical Profile semantics plus the bounded provider-retrieved publisher-page content explicitly allowed by `ai-assistance-contract.md`. It MUST NOT use unbounded Raw items/full feed bodies merely because they are stored. Normalized persisted `Article.summary` is governed by the owner-approved N6WD invariant: plain-text normalize first, then cap the final value at 4,000 characters with deterministic complete-word truncation plus `...`, or a 3,997-character hard fallback plus `...` when no usable word boundary exists. Larger Raw parser ceilings remain separate ingestion-safety bounds.
+
+Provider-retrieved publisher-page content is untrusted transient AI context. It is not persisted as Article metadata/body merely because URL Context retrieved it, and instructions embedded in that content have no authority over policy, secrets, URL selection, tools, or Profile scope.
 
 AI-generated text is untrusted output and must be escaped/sanitized for its rendering context. It must not be rendered as trusted executable HTML/markup unless a separately governed safe renderer is implemented.
 
@@ -141,6 +145,7 @@ For durable scheduling:
 AI failure isolation is additional:
 
 - Gemini/provider timeout, error, rate limit, malformed/invalid structured output, or safety rejection cannot interrupt Source collection, Article persistence, canonical Profile distribution, PHP Article LKG, or ordinary customer Article rendering;
+- failure to retrieve an individual governed `originalUrl`, including unavailable/paywalled/unsupported content, is bounded Article-context degradation and does not by itself fail the whole digest when sufficient normalized metadata/summary context remains;
 - a failed scheduled digest may preserve a prior valid digest with truthful age/freshness metadata or expose an explicit unavailable AI state;
 - a failed interactive chat request fails that chat action only and does not suppress feed/digest state;
 - AI disablement leaves the non-AI product independently operable.
@@ -174,7 +179,7 @@ Collection/operations telemetry remains sufficient to answer:
 - why a duplicate candidate was created, dismissed, or grouped;
 - what material administrative configuration/moderation change occurred and to which resource.
 
-AI telemetry, when implemented, MAY record bounded Profile key, provider/model, duration, safe token/usage facts when available, result/failure category, and non-secret correlation identifiers. It MUST NOT become reader profiling or unbounded prompt/response logging.
+AI telemetry, when implemented, MAY record bounded Profile key, provider/model, duration, safe token/usage facts when available, result/failure category, bounded URL-retrieval status/count facts, and non-secret correlation identifiers. It MUST NOT become reader profiling or unbounded prompt/response/retrieved-page logging.
 
 Foundations include structured logs with run/correlation identifiers, bounded Collection-run history, job/queue metrics, Web/API liveness/readiness, Worker startup/dependency checks, and alert-ready endpoint health.
 
@@ -183,7 +188,7 @@ Foundations include structured logs with run/correlation identifiers, bounded Co
 Logs MUST NOT contain:
 
 - passwords, access/session tokens, Gemini/API keys, bearer credential plaintext, or Authorization headers;
-- unbounded prompts, Article corpora, chat histories, model responses, response bodies, or sensitive distribution payloads;
+- unbounded prompts, Article corpora, retrieved publisher-page content, chat histories, model responses, response bodies, or sensitive distribution payloads;
 - sensitive environment values;
 - credential-bearing database connection strings.
 
@@ -236,12 +241,12 @@ Current operations maintain runbooks for:
 - legal/editorial Article takedown;
 - distribution authentication/Profile/PHP synchronization/LKG/local-read failures.
 
-3.0 implementation should add bounded operator guidance for Gemini digest/chat failure, key rotation/revocation, cost/rate-limit incidents, and multi-Profile customer integration only when those behaviors actually ship. Historical Phase 7 qualification procedures remain historical evidence/workflow rather than current roadmap routing.
+3.0 implementation should add bounded operator guidance for Gemini digest/chat failure, key rotation/revocation, cost/rate-limit incidents, governed URL-retrieval failures, and multi-Profile customer integration only when those behaviors actually ship. Historical Phase 7 qualification procedures remain historical evidence/workflow rather than current roadmap routing.
 
 ## Privacy and retention
 
 The Platform collects minimal reader data and the current product does not introduce visitor/click analytics. Cloudflare/admin access logs, application change records, IP logs, Source-provided author metadata, bounded Raw-item payloads, machine-credential audit metadata, distribution operational logs, and later bounded AI operational telemetry require bounded retention/access appropriate to the deployment.
 
-Interactive chat should send only the minimum bounded Profile/user context needed for the request. News Scraper documentation must not invent provider retention/privacy claims; operators remain responsible for provider terms/configuration appropriate to their deployment.
+Interactive chat should send only the minimum bounded Profile/user context and application-selected governed Article URLs needed for the request. News Scraper documentation must not invent provider retention/privacy claims; operators remain responsible for provider terms/configuration appropriate to their deployment.
 
 Native administrator account data remains deferred unless later promoted.
