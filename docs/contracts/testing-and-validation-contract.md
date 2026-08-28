@@ -13,13 +13,15 @@ This document is the project-wide authority for testing and validation. Narrow p
 This contract governs:
 
 - static and structural checks;
-- unit, component, integration, database, recovery, fixture, browser, live-Source, and deployment validation;
+- unit, component, integration, database, recovery, fixture, browser, live-Source, provider, and deployment validation;
 - focused and regression-test obligations;
+- change-aware test-necessity selection;
+- execution-environment classification and cross-environment evidence;
 - PostgreSQL and network isolation;
 - deterministic fixtures and controlled time/randomness;
 - local execution and final-tree validation expectations;
 - test command conventions;
-- flaky-test and skipped-test policy;
+- flaky-test, skipped-test, prerequisite-failure, and retry policy;
 - evidence levels and reporting language;
 - defect regression coverage;
 - implementation-roadmap phase and correction-stack completion evidence.
@@ -196,7 +198,7 @@ Permitted claim:
 
 ### Level 8 — Reference-deployment validation
 
-Covers the deployed Web/API, Worker, PostgreSQL, scheduler/jobs when present, public feed, Cloudflare Access/admin perimeter when present, backup/recovery, and approved live Sources as applicable.
+Covers the deployed Web/API, Worker, PostgreSQL, scheduler/jobs when present, public feed, Cloudflare Access/admin perimeter when present, backup/recovery, approved live Sources, and live provider integrations as applicable.
 
 This is the strongest integrated deployment evidence level.
 
@@ -217,9 +219,10 @@ Preferred verbs:
 - `Validated against deterministic collection fixtures`
 - `Observed in a browser`
 - `Observed against approved live Sources`
+- `Observed against the named live provider`
 - `Observed in the reference deployment`
 
-Do not report behavior as verified, working, passing, supported, production-ready, browser-tested, or database-safe without the corresponding executed evidence.
+Do not report behavior as verified, working, passing, supported, production-ready, browser-tested, provider-tested, or database-safe without the corresponding executed evidence.
 
 Durable validation records SHOULD identify:
 
@@ -287,18 +290,24 @@ npm run test:fixtures
 npm run test:security
 npm run test:recovery
 npm run test:browser
+npm run test:browser:php
+npm run test:php
 npm run test:live-sources
 ```
 
 A command is added only with its first substantive suite. Empty/no-op commands are prohibited.
 
-`npm test` MUST represent the ordinary deterministic development regression matrix suitable for local development and final-tree validation. Specialized environment-requiring suites MAY remain separate, but final implementation-phase/correction validation MUST explicitly run every specialized deterministic suite required by the behavior being accepted.
+`npm test` MUST represent the ordinary deterministic **portable development regression matrix** suitable for the normal local development environment and portable final-tree validation. `npm run check` MUST compose applicable portable static/type/format checks plus that portable ordinary regression matrix. Neither command may require a runtime that the repository classifies as VPS-required or live/external evidence.
+
+Specialized environment- or prerequisite-requiring suites remain separately invokable. Final implementation-phase/correction validation MUST explicitly execute every specialized deterministic suite required by the behavior being accepted, in the environment assigned by the validation selection rules below.
+
+PHP CLI/runtime tests are a separate specialized capability under `npm run test:php`. PHP-backed customer/server browser proof is separately addressable under `npm run test:browser:php`; the ordinary `npm run test:browser` command MUST remain usable for browser evidence that does not require the PHP runtime. The exact executable split is implemented by repository tooling and MUST preserve substantive existing coverage rather than silently dropping PHP or browser cases.
 
 Specialized suites MAY provide focused path/glob/filter invocations for iterative development. A focused database invocation, when introduced, MUST preserve the same `.env`/test-admin prerequisite handling, real-PostgreSQL requirement, selected-test zero-match failure, and isolation guarantees as the full database suite. Focused specialized execution is an iteration aid and does not replace the applicable full specialized final-tree regression suite.
 
 If a named/filtered test command is invoked and zero tests match, it MUST fail rather than report success, unless the command is explicitly a discovery/listing operation whose contract says otherwise.
 
-An explicitly invoked database, browser, collection-fixture, security, or other specialized suite MUST fail clearly when its required prerequisite is unavailable. It MUST NOT silently skip and report a passing result.
+An explicitly invoked database, browser, PHP, collection-fixture, security, live-provider, or other specialized suite MUST fail clearly when its required prerequisite is unavailable. It MUST NOT silently skip and report a passing result.
 
 ## Validation execution efficiency
 
@@ -319,6 +328,80 @@ During final-tree validation:
 - rerunning contained evidence is appropriate when diagnosing a failure, when an intervening source/configuration change invalidated the earlier evidence, or when the aggregate command did not actually include the required behavior;
 - command containment is determined from the current executable scripts/runner behavior, not from historical assumptions about what a command used to include.
 
+### Test Necessity Matrix
+
+Validation selection is change-aware. Planning MUST classify the actual changed behavior and important consumers before choosing commands. The following matrix defines the normal minimum evidence classes; narrower governing contracts or observed blast radius MAY require more, but prompt writers MUST NOT automatically add unrelated suites merely because they exist.
+
+| Change surface | Normal required evidence |
+| --- | --- |
+| Documentation/tasks only | documentation/structural validation and relevant grammar checks |
+| Isolated domain/utility behavior | focused unit/component proof plus portable final regression |
+| Shared domain/helper behavior | focused proof plus portable regression and affected important-consumer suites |
+| Collection/parser/normalization | focused unit/collection-fixture proof plus portable regression; security when trust/network behavior changes |
+| Web/API/admin | focused integration proof plus portable regression; security and/or browser when those boundaries change |
+| Persistence/repository/schema | focused real-PostgreSQL proof plus portable regression and full applicable DB suite |
+| Supported production migration/data representation | migration-from-zero plus real supported-production forward-upgrade/data-preservation evidence and applicable recovery proof |
+| Security/auth/network boundary | focused security/integration proof plus portable regression and any implicated DB/browser/fixture evidence |
+| PHP integration/runtime | portable Node-side producer/consumer evidence plus PHP runtime evidence in its assigned environment |
+| Browser/UI behavior | portable regression plus the browser suite owning the changed surface; PHP-backed browser proof only when that surface is implicated |
+| Recovery/concurrency/state-machine behavior | focused proof plus applicable DB/recovery/process evidence |
+| Approved live Source behavior | deterministic fixture/local orchestration first; live-Source evidence only when explicitly required by the gate |
+| Gemini/provider behavior | deterministic mocked/controlled orchestration locally; live provider proof only when the governing gate explicitly requires provider observation |
+| Deployment/reference behavior | deployment/reference-environment procedure only when the claim requires it |
+
+When one change crosses multiple rows, the required matrix is the **union** of those rows. Shared helpers inherit the validation obligations of important consumers whose behavior can reasonably change. This matrix is a minimum coverage model, not a filename-to-test shortcut and not permission to omit a suite whose governing contract or observed blast radius requires it.
+
+### Test Environment Matrix
+
+Necessity and execution environment are separate decisions. Required evidence MUST be classified into one of these execution classes before final prompt commands are written:
+
+| Environment class | Meaning |
+| --- | --- |
+| `LOCAL-PORTABLE` | Expected to run on the normal local Windows Codex development environment without project-external runtime prerequisites beyond the ordinary repository toolchain. |
+| `LOCAL-PREREQUISITE` | Valid locally when an established prerequisite is available, such as dedicated test PostgreSQL or Playwright/browser binaries. Absence is an environment limitation, not evidence that the behavior passed. |
+| `VPS-REQUIRED` | Intentionally executed on the project VPS/runtime validation environment rather than the normal Windows prompt environment. |
+| `LIVE/EXTERNAL` | Requires explicit public-network/provider credentials, approved live Sources, or another external integration and is never implied by deterministic local proof. |
+| `REFERENCE-DEPLOYMENT` | Requires the actual managed/reference deployment and its deployed dependencies/perimeter. |
+
+The current default classification is:
+
+| Evidence class | Default environment |
+| --- | --- |
+| format/lint/typecheck, unit, integration, deterministic collection | `LOCAL-PORTABLE` |
+| ordinary non-PHP browser | `LOCAL-PREREQUISITE` |
+| disposable PostgreSQL/database and recovery | `LOCAL-PREREQUISITE`; also valid on VPS when deliberately selected |
+| PHP CLI/runtime | `VPS-REQUIRED` for normal Codex prompt execution |
+| PHP-backed customer/server browser | `VPS-REQUIRED` |
+| approved live Sources | `LIVE/EXTERNAL` |
+| live Gemini/provider observation | `LIVE/EXTERNAL` unless a narrower deployment gate explicitly assigns it to the reference host |
+| reference-deployment procedures | `REFERENCE-DEPLOYMENT` |
+
+Do not infer that every database or browser test is VPS-only merely because some specialized evidence is. Historical and current capability evidence may establish that PostgreSQL or Playwright is valid on the Windows development environment. Classification follows the current supported setup and actual prerequisite, not a blanket operating-system label.
+
+### Validation manifest: `RUN` / `DEFER` / `N/A`
+
+Every implementation/closeout plan MUST resolve the union of required evidence into a validation manifest before prompt writing:
+
+- **`RUN`** — required by the change and executable in the prompt's assigned environment;
+- **`DEFER`** — required by the change or final gate, but intentionally assigned to another environment;
+- **`N/A`** — not required by the change/gate.
+
+`DEFER` MUST NOT be interpreted as skipped, passed, waived, optional, or permanently omitted. A deferred item records the exact evidence still owed, its assigned environment, and the gate by which it must be completed.
+
+A prompt running on Windows MUST NOT knowingly invoke a `VPS-REQUIRED` or `LIVE/EXTERNAL` suite merely to rediscover that its prerequisite is absent. Conversely, if a specialized suite is explicitly invoked in an environment where its prerequisite was expected and that prerequisite is unexpectedly unavailable, the command MUST fail once and report the mismatch.
+
+A deterministic prerequisite/environment mismatch MUST NOT be automatically retried. Re-execution is appropriate only after the prerequisite/environment is materially corrected or when diagnosing a different failure on a changed tree.
+
+### Cross-environment exact-tree evidence
+
+Evidence collected in different environments can combine only when it applies to the same accepted source tree/commit and compatible governed configuration. The handoff SHOULD be auditable as:
+
+`final candidate tree → local RUN evidence → deferred environment evidence → closeout acceptance`
+
+A normal implementation prompt MAY truthfully finish with **local validation green / deferred environment evidence pending** when all evidence assigned to that prompt environment passed and the governing implementation gate explicitly allows later specialized proof. That state is not RED merely because correctly deferred evidence was not attempted locally.
+
+A roadmap phase/correction closeout or other gate that requires the deferred evidence MUST NOT declare full GREEN until every gate-required `DEFER` item has actually run successfully against the exact accepted final tree in its assigned environment. Changing source/configuration after either environment's proof invalidates whichever evidence is no longer tied to the accepted tree and requires the applicable matrix to be rerun.
+
 Parallel execution MAY reduce wall-clock time when it preserves test semantics. Independently isolated test files SHOULD be allowed to execute concurrently where practical, subject to bounded resource limits. File/process scheduling order is not itself a deterministic product invariant: test selection, inputs, assertions, and outcomes must be deterministic, but independent test-process stdout completion order need not be.
 
 Concurrency limits are implementation/runtime tuning rather than durable fixed numbers in this contract. Database, browser, and other resource-heavy suites MUST use bounded concurrency appropriate to their connection/process/memory costs. Live-Source validation SHOULD remain conservative/serial unless a specific source-safe procedure explicitly permits concurrency.
@@ -329,18 +412,19 @@ News Scraper intentionally does not use npm package locks. `package.json` is the
 
 Final-tree validation MUST, as applicable:
 
-- perform a clean dependency installation from `package.json` using the repository npm configuration;
+- establish the prompt/closeout validation manifest from the Test Necessity and Test Environment matrices;
+- perform a clean dependency installation from `package.json` using the repository npm configuration when required by the governing gate;
 - run applicable static/type/lint/format checks;
-- run the complete deterministic test matrix required by the current implemented behavior;
+- run the complete portable deterministic test matrix required by the current implemented behavior;
 - use aggregate commands to satisfy contained subordinate checks/suites where doing so avoids duplicate execution without reducing coverage;
-- run every required specialized suite not contained by the chosen aggregate commands;
+- run every required specialized suite classified `RUN` for the current environment and record required `DEFER` evidence without attempting it in the wrong environment;
 - fail when a required selected suite contains zero tests;
 - validate the committed change range for whitespace/diff errors rather than relying on an empty clean-working-tree diff;
-- execute any required runtime/database/fixture/browser/recovery procedures at the evidence level needed for the acceptance claim;
-- avoid hidden automatic retries that mask flaky tests;
+- execute any required runtime/database/fixture/browser/recovery/provider procedures at the evidence level and environment needed for the acceptance claim;
+- avoid hidden automatic retries that mask flaky tests or deterministic prerequisite failures;
 - preserve terminal output or an accurate concise result summary sufficient to show the command/procedure actually executed and its result.
 
-Routine implementation review may use observed terminal output in the review session. Implementation-roadmap phase closeout MUST create a durable record under `docs/validation/` tied to the exact accepted source tree and listing the executed commands/procedures, relevant environment/tool versions, results, evidence levels, and limitations. The artifact records evidence; it does not redefine contracts.
+Routine implementation review may use observed terminal output in the review session. Implementation-roadmap phase closeout MUST create a durable record under `docs/validation/` tied to the exact accepted source tree and listing the executed commands/procedures, relevant environment/tool versions, results, evidence levels, deferred-environment handoffs, and limitations. The artifact records evidence; it does not redefine contracts.
 
 ### Production-upgrade validation
 
@@ -552,10 +636,11 @@ Likewise, a refactor is not proven better merely because it reduces line count, 
 A flaky test is a defect in the test or product until understood.
 
 - Do not automatically retry tests merely to obtain a passing result.
+- A deterministic missing-prerequisite or wrong-environment failure MUST NOT be automatically retried; correct the environment/prerequisite or defer the evidence according to a pre-resolved validation manifest.
 - Fix nondeterminism or document an explicit bounded environmental limitation.
 - `skip`, `todo`, quarantine, or temporary disablement MUST NOT satisfy an implementation-roadmap/correction exit gate for the behavior they would have proved.
-- Required specialized suites MUST fail clearly when prerequisites are missing rather than silently becoming green.
-- If the available local/reference environment cannot execute a required evidence level, report the limitation and keep the corresponding claim unverified.
+- Required specialized suites MUST fail clearly when explicitly invoked and prerequisites are missing rather than silently becoming green.
+- If the available local/reference environment cannot execute a required evidence level, classify it as deferred to the governed environment before invocation and keep the corresponding claim unverified until that evidence runs.
 
 ## Phase and prompt completion gate
 
@@ -566,13 +651,16 @@ A phase or correction cannot close until:
 - each implemented deliverable has appropriate focused tests;
 - relevant earlier regression suites pass against the final tree;
 - contract-critical negative/failure cases are covered at the correct level;
-- required database/browser/fixture/recovery evidence has actually been executed;
-- the complete required local final-tree validation matrix has been executed with terminal evidence for the accepted tree;
-- the required durable closeout validation artifact records the exact accepted commit/source tree, commands/procedures, results, evidence levels, and limitations;
+- required database/browser/fixture/recovery/provider evidence has actually been executed in its assigned environment;
+- every gate-required `DEFER` item has been completed successfully against the exact accepted final tree;
+- the complete required validation manifest has been satisfied with terminal evidence for the accepted tree;
+- the required durable closeout validation artifact records the exact accepted commit/source tree, commands/procedures, environments, results, evidence levels, deferred handoffs, and limitations;
 - known skipped/flaky tests do not hide exit-gate behavior;
 - validation limitations are reported explicitly.
 
-Every Codex implementation prompt MUST specify focused tests, broader regression tests, and any runtime/browser/database/fixture validation needed for acceptance. It MUST distinguish iterative focused validation from final-tree regression validation and SHOULD express the final commands as the smallest non-overlapping set that covers all required evidence. A prompt SHOULD NOT require subordinate commands immediately alongside an aggregate command that already executes them on the same unchanged final tree unless a diagnostic or other explicit reason makes the repeated execution meaningful.
+Every Codex implementation prompt MUST specify focused tests, broader regression tests, and any runtime/browser/database/fixture/provider validation needed for acceptance. It MUST distinguish iterative focused validation from final-tree regression validation, MUST include the resolved `RUN` / `DEFER` / `N/A` validation manifest, and SHOULD express `RUN` commands as the smallest non-overlapping set that covers all required evidence. A prompt SHOULD NOT require subordinate commands immediately alongside an aggregate command that already executes them on the same unchanged final tree unless a diagnostic or other explicit reason makes the repeated execution meaningful.
+
+A normal implementation prompt MAY complete with local validation green and explicitly deferred specialized evidence when its governing task boundary allows later environment proof. Such a result MUST list the exact deferred evidence/environment and MUST NOT be promoted to phase/correction GREEN until the gate-required deferred evidence is complete.
 
 When a prompt is a producer for a later explicitly planned consumer, its completion criteria MUST also identify and prove the complete downstream-required handoff surface under the consumer-readiness law above. A later thin adapter/controller/UI prompt is not evidence that the producer can defer its own service/query/command semantics until consumption time.
 
@@ -597,6 +685,6 @@ These expectations do not renumber or reinterpret historical evidence levels and
 
 Create `docs/testing/` plans only when a feature or phase has enough specialized validation detail to justify one.
 
-Do not create empty placeholders. Specialized plans may define concrete fixture matrices, browser viewport matrices, live-Source procedures, security attack cases, or release/reference-deployment checklists, but they remain subordinate to this contract.
+Do not create empty placeholders. Specialized plans may define concrete fixture matrices, browser viewport matrices, live-Source procedures, security attack cases, provider procedures, or release/reference-deployment checklists, but they remain subordinate to this contract.
 
 Durable observed evidence may be stored under `docs/validation/` when useful. Implementation-phase and gating correction closeout validation artifacts are required by the completion gates above. Validation artifacts record what was actually observed; they do not redefine contracts.
