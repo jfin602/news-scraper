@@ -1,0 +1,331 @@
+TASK: Phase 1 / P5 — PHP digest LKG and local-read propagation
+
+- Recommended configuration: `Terra High`.
+- Task-shape classification: `Bounded`.
+- Specification clarity: `Explicit`.
+- State coupling: `High`.
+- Integrity risk: `High`.
+- Concurrency: `Moderate`.
+- Security: `Sensitive`.
+- Novel inference: `Moderate`.
+- Model-family basis: P4 supplies the complete typed v1 producer. P5 is one downstream PHP synchronization/LKG/local-read extension, but it crosses parser validation, multi-page candidate coherence, atomic filesystem state, backward-read compatibility, and visitor safety.
+- Reasoning basis: Terra High is the minimum safe floor because optional AI corruption must fail open **without** weakening required Article candidate validation or exposing partial/mixed digest state, and the change must preserve existing local LKG/recovery behavior.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Luna High`; rejected because PHP candidate/LKG state transitions and backward-compatible local state are integrity-sensitive and easy to get subtly wrong despite an explicit schema.
+- Escalation trigger: current PHP persistence format cannot add optional digest data without breaking pre-digest state or immediately previous package readability, or required fail-open behavior would need changes to core Article activation semantics.
+- Escalation target: `Terra Ultra` for bounded LKG/rollback-format reconciliation; return `Planning needed` if the governing PHP contract would need amendment.
+- Estimate confidence: `High`.
+- Efficiency rationale: extend the existing complete-snapshot pipeline once; do not create a second digest cache, client, cron, or customer-facing renderer.
+
+The assigned project version is `2.1.5`.
+
+## Goal
+
+Propagate the P4 v1 `digest` object/null through the existing generic PHP complete-snapshot synchronization, atomic last-known-good state, and normalized `LocalProfileReader` boundary while preserving Article delivery even when optional AI data is missing, malformed, or inconsistent.
+
+Conceptually:
+
+```text
+P4 v1 pages: Articles + digest object/null
+-> DistributionClient core page parse + optional digest parse
+-> complete multi-page candidate
+-> optional digest coherence validation
+-> one atomic Profile LKG generation
+-> LocalProfileReader
+   articles + digest object/null
+```
+
+P5 owns only PHP client/sync/state/local-read support for digest data. It does **not** own Gemini, digest lifecycle/freshness calculation, customer markup, renderer cleanup, config/launcher redesign, or production package deployment.
+
+## Prerequisite and read first
+
+Require P1-P4 complete at package `2.1.4` (or `2.1.5` for a safe rerun).
+
+Read before editing:
+
+1. current `BOOT.md`, `AGENTS.md`, `README.md`;
+2. `docs/contracts/distribution-and-integration-contract.md`;
+3. `docs/contracts/distribution-api-contract.md`;
+4. `docs/contracts/ai-assistance-contract.md`;
+5. `docs/contracts/testing-and-validation-contract.md`;
+6. Phase 1 roadmap PHP/customer-presentation sections and the Phase 2 handoff boundary;
+7. P4 exact v1 digest serializer/types/tests;
+8. `integrations/php/src/Client.php`;
+9. `Synchronizer.php`;
+10. `FilesystemStateStore.php`;
+11. `LocalState.php` and `LocalRead.php`;
+12. `Runtime.php`, `bootstrap.php`, PHP tests/harness, package-generation tests/scripts, and `integrations/php/README.md`;
+13. current known Phase 2 issues only to avoid implementing them prematurely — especially T4QP/Q7HF/H3CJ/P9BW/C2RV/D4NZ/Y8FK/W5GH.
+
+P5 must not parse Node database state, call P3/P2 directly, or create another upstream request path. The only provider is the P4 permanent v1 page contract.
+
+## PHP normalized digest DTOs
+
+Add immutable typed PHP DTOs for the v1/local digest shape, including at minimum:
+
+- digest `generatedAt`;
+- `freshness` exactly `current | older`;
+- `inputArticleCount` 1..20;
+- bounded provider/model strings;
+- overview;
+- ordered highlights;
+- each highlight title/explanation;
+- ordered supporting Articles containing:
+  - `articleId`;
+  - headline;
+  - Source display name;
+  - `effectiveFeedDate`;
+  - exact stored `originalUrl`.
+
+Do not include internal digest UUID, `digestInputIdentity`, attempt/failure/config data, raw provider annotations, prompt, page bodies, or credentials.
+
+Use one shared PHP validation/mapping path for upstream page data and local state rehydration where practical so the two paths cannot silently accept different digest shapes.
+
+## Optional digest parser fail-open boundary
+
+Required Profile/Publication/Article fields retain the existing strict validation behavior. Optional AI is different.
+
+For a `200` page:
+
+- missing `digest`, explicit `digest: null`, or a malformed/oversized digest MUST NOT by itself make otherwise valid required Article/Profile data an `INVALID_RESPONSE`;
+- normalize optional AI for that page to a state capable of distinguishing a valid digest from absent/invalid AI while preserving core page success;
+- never expose a partially parsed digest;
+- do not truncate/repair arbitrary malformed provider text in PHP; invalid optional digest becomes null at the candidate boundary;
+- exact support `originalUrl` is accepted only as a bounded valid string carried by the validated server response; PHP does not replace it with provider citations or derive another destination.
+
+Keep parser bounds substantially tighter than the existing generic 65k string ceiling where the Phase 1 digest contract provides explicit smaller bounds. Validate array counts, timestamps, freshness enum, input count, and nested support shape.
+
+Unknown future additive fields may continue to be ignored where v1 compatibility permits; do not reject a valid digest solely because an additive unknown key exists unless current PHP policy explicitly rejects unknown keys elsewhere.
+
+## Multi-page candidate digest coherence
+
+The complete Profile snapshot contract says every page of one revision carries the same logical digest.
+
+Extend `ProfileCandidate` / traversal so:
+
+- the initial page establishes the candidate's optional digest state;
+- every continuation page's valid digest is compared structurally with the initial valid digest;
+- `null`/absent/invalid optional AI on any page or contradictory digest values across pages degrades the **candidate digest** to null;
+- required candidate identity still checks Profile, Publication, API version, and `snapshotRevision` exactly as before;
+- a real core identity/revision mismatch still fails/restarts the candidate under existing rules;
+- optional digest inconsistency does not discard valid Articles merely to preserve AI.
+
+After traversal:
+
+```text
+valid required complete candidate
++ all pages same valid digest -> activate Articles + digest
+
+valid required complete candidate
++ digest null/missing/malformed/conflicting -> activate Articles + digest null
+```
+
+Do not preserve a previous local digest when a newer valid Article snapshot explicitly normalizes its digest to null. The digest belongs to the new complete revision.
+
+## Atomic LKG state
+
+Extend the existing active Profile snapshot/local generation to carry one nullable digest inside the **same** committed Profile generation.
+
+Requirements:
+
+- no second digest state directory/file/manifest/lock;
+- no separate digest activation transaction;
+- Article + normalized digest state for one upstream `snapshotRevision` become visible atomically under the existing filesystem activation model;
+- previous active generation remains recoverable under existing failure behavior when core activation fails;
+- candidate with invalid optional digest still activates valid Articles with null digest;
+- candidate core corruption still fails and preserves prior LKG as before;
+- credentials and upstream request state remain outside cache payloads.
+
+### Pre-digest local-state compatibility
+
+Local state created before P5 that has no digest member remains valid and reads as `digest = null`. Do not require customers to delete/rebuild `ns-private` or active state merely because this feature is added.
+
+Write the new optional representation additively enough that Phase 2 can validate immediate package rollback. Do not intentionally redesign the state format or add incompatible version gates in P5.
+
+If current old-package parsing would reject the smallest additive digest field and that cannot be solved without a broader rollback/package decision, report the exact issue for Phase 2 rather than silently weakening current-state validation.
+
+## LocalProfileReader digest boundary
+
+Extend the existing normalized customer-facing local read result with nullable digest data.
+
+Requirements:
+
+- customer code reads `$result->digest` or the equivalent stable normalized property; it never parses cache JSON;
+- digest is present only when the Profile result is otherwise renderable under existing local usability semantics;
+- non-renderable `disabled`, `stale_cutoff`, `never_synced`, or `unavailable` states must not leak retained digest data merely because bytes exist;
+- valid empty Article result may still carry a digest only if the upstream complete snapshot validly did so; do not invent one locally;
+- preserve exact `generatedAt` and P3-provided `freshness`; PHP never recomputes semantic freshness;
+- existing `staleAgeSeconds` keeps meaning **local synchronized Profile/LKG age**, not digest age;
+- digest age is derivable from `digest.generatedAt` by customer code if desired but is not substituted for local stale-age policy;
+- support Article links remain exact stored `originalUrl` from normalized upstream data.
+
+Do not expose provider failure category or latest attempt through public/customer local read. Those are protected admin/operator concerns.
+
+## No visitor/provider/upstream call
+
+Ordinary local read/rendering remains filesystem/local-state only.
+
+P5 MUST NOT:
+
+- add a Gemini SDK/key to PHP;
+- call Gemini from PHP;
+- call News Scraper v1 synchronously during `LocalProfileReader::read()`;
+- create a browser fetch for digest content;
+- create a second customer digest cron;
+- require `NEWS_SCRAPER_BASE_URL` or bearer token for ordinary local read beyond the existing sync-only boundary.
+
+A source/static test should make the no-provider/no-upstream visitor dependency obvious.
+
+## Do not expand presentation authority
+
+The current `Renderer.php` and presentation cleanup are explicitly Phase 2 issue Q7HF.
+
+P5 must not:
+
+- teach the bundled renderer to own digest HTML/CSS;
+- add a new authoritative digest template;
+- create `top-tag.php` or the Phase 2 stable customer entry point yet;
+- remove Renderer.php as part of this prompt;
+- redesign local-read configuration loading/launcher/package layout.
+
+It is acceptable to add a minimal test/example demonstrating that normalized `$result->digest` is accessible **only if** it does not become a supported presentation layer. Prefer keeping actual customer markup changes entirely for Phase 2.
+
+## Implementation-truth README
+
+Because P5 changes the shipped PHP library behavior, update `integrations/php/README.md` narrowly to document:
+
+- digest is now nullable normalized local-read data synchronized as part of the complete Profile LKG;
+- malformed optional digest fails open to null while valid Articles may activate;
+- pre-digest state reads as null;
+- visitor reads remain local-only;
+- final presentation/package/launcher upgrade remains Phase 2 and current documented package mechanics outside digest remain unchanged.
+
+Do not edit governing contracts/roadmap through this implementation prompt.
+
+## Focused proof
+
+Add/extend deterministic PHP tests and portable package/static tests for at least:
+
+### Client parse
+
+- valid digest current/older with 0..3 highlights and support refs;
+- null digest;
+- missing digest compatibility -> normalized null;
+- malformed enum/count/timestamp/type/oversized text/nested support -> optional null while page core remains success;
+- model/provider/internal unknown data cannot become exposed digest fields;
+- exact support `originalUrl` preserved.
+
+### Candidate traversal
+
+- same digest across multiple pages preserved;
+- valid digest vs different digest across pages -> candidate digest null, Articles still activate;
+- valid digest vs null/missing/malformed page -> candidate digest null, Articles still activate;
+- snapshotRevision mismatch still uses existing snapshot_changed/failure behavior and is not downgraded to optional null;
+- retries/restarts preserve existing semantics.
+
+### LKG/state
+
+- valid Articles+digest activate atomically;
+- valid Articles+null activate atomically;
+- optional-digest parse failure does not preserve stale prior digest into the new Article revision;
+- core activation failure preserves prior active generation exactly as before;
+- pre-digest committed state with no digest rehydrates as null;
+- stored digest contains no credentials/provider raw response/prompt/attempt data;
+- no parallel digest cache/state files created.
+
+### Local read
+
+- usable/stale_usable expose normalized digest with exact order/values/freshness/generatedAt;
+- local stale age remains independent of digest generatedAt;
+- disabled/stale_cutoff/never_synced/unavailable suppress digest with Article payload according to existing rules;
+- ordinary read does not construct HTTP/Gemini clients or require sync credentials;
+- topic/content labels have no effect on mapping.
+
+### Package/static
+
+- package generation still includes the changed PHP library files;
+- no new secret/public config is introduced;
+- implementation README matches shipped behavior without claiming Phase 2 package hardening is done.
+
+## Producer-to-consumer handoff to P6 / Phase 2
+
+| Downstream-required capability | P5 owner/export | Focused proof |
+| --- | --- | --- |
+| normalized local digest object/null | `LocalProfileReader` result | local-read tests |
+| optional fail-open validation | client/candidate parser | malformed/null tests |
+| one complete Article+digest LKG | existing state store extended | activation tests |
+| pre-digest state compatibility | state rehydration | old fixture tests |
+| same digest per candidate revision | synchronizer traversal | multipage tests |
+| no visitor upstream/provider dependency | local-read boundary | dependency/static tests |
+
+P6 admin must not depend on PHP. Phase 2 package/presentation work may rely on P5's normalized digest but must not need to parse cache internals.
+
+## Preserved behavior and non-goals
+
+Preserve:
+
+- existing PHP retry/Retry-After/snapshot restart/locking/atomic core LKG behavior;
+- current Article DTO fields/order/nulls/exact `originalUrl`;
+- existing local usability/stale-cutoff/disabled semantics;
+- sync credential separation from visitor reads;
+- P1-P4 Node semantics;
+- current package layout/launcher/renderer until Phase 2.
+
+Do not implement Phase 2 issues T4QP/Q7HF/H3CJ/P9BW/C2RV/D4NZ/Y8FK/W5GH/M6SX, customer deployment, or chat.
+
+## Validation manifest
+
+### RUN — normal local development environment
+
+The ordinary Windows/local prompt environment must not intentionally run VPS-required PHP executables merely to rediscover a missing PHP prerequisite.
+
+Run the portable final matrix:
+
+```text
+npm run check
+git diff --check
+npm run codex:phase:validate -- p2-1
+```
+
+Use any existing portable Node package/fixture tests through `npm run check`. If PHP CLI is actually available in the executing environment, focused PHP tests MAY be run additionally and must be reported truthfully, but their absence does not become a fake retry loop.
+
+### DEFER — required later
+
+- `npm run test:php` — `VPS-REQUIRED`; mandatory at the Phase 2 package-hardening/customer qualification gate on the exact integrated candidate.
+- `npm run test:browser:php` — `VPS-REQUIRED`; Phase 2 when customer presentation/package path is qualified.
+- real customer package installation/rollback — `REFERENCE`; Phase 2.
+- live Gemini — `LIVE/EXTERNAL`; Phase 1 closeout, independent of PHP runtime proof.
+
+### N/A
+
+- database/recovery suite for this PHP-only prompt;
+- live Source tests;
+- public reference frontend browser tests.
+
+## Version and repository rules
+
+- Set top-level `package.json` to `2.1.5` before final validation.
+- Do not create `package-lock.json` or Composer vendor/lock state.
+- Do not modify Node migrations/persistence/provider/lifecycle code unless a producer defect is discovered; report Planning needed rather than compensating in PHP.
+- `integrations/php/README.md` may be updated narrowly as implementation-truth documentation; do not edit governing contracts/roadmap/worksheet/changelog/validation artifacts.
+- Do not implement Phase 2 package layout/presentation corrections early.
+- Do not manually commit; phase runner owns commits.
+
+## Acceptance
+
+P5 is complete only when:
+
+1. P4 digest object/null is parsed into bounded typed PHP data without weakening required Article validation;
+2. malformed/missing/conflicting optional digest data degrades the new candidate's digest to null while valid Articles can activate;
+3. all pages of one candidate are checked for digest coherence;
+4. digest is stored atomically inside the existing Profile LKG with no second cache/job/lock;
+5. pre-digest local state remains readable as digest null;
+6. `LocalProfileReader` exposes nullable digest with exact P3 freshness/generatedAt/support metadata and no internal/provider error state;
+7. non-renderable local states cannot leak retained digest bytes;
+8. ordinary visitor/local read makes no upstream/Gemini call and needs no provider secret;
+9. renderer/package/launcher cleanup remains deferred to Phase 2;
+10. portable RUN evidence passes and PHP/VPS evidence is explicitly deferred rather than falsely claimed;
+11. package version is exactly `2.1.5`.
+
+Finish with a concise report listing changed PHP/docs/test files, optional-parser and multipage coherence behavior, local-state format compatibility, LocalProfileReader shape, portable commands/results, any actual PHP runtime executed, deferred VPS/live evidence, and blockers for P6/Phase 2.
