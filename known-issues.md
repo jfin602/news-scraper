@@ -4,6 +4,17 @@ This file is the running issue log for problems reported in this chat.
 
 ## Open Issues
 
+### M6SX — 2026-08-28 — Source RSS/Atom admission filter cannot exclude unwanted items
+
+- **Status:** Open
+- **Target:** 3.0 Phase 2 / `2.2.x`
+- The current Source-level RSS/Atom item admission filter is include-only: configured phrases use deterministic case-insensitive `ANY` matching, and the governing collection contract explicitly provides no exclude-phrase list.
+- This makes broad approved feeds harder to tune when a Source contains a recurring class of unwanted items that cannot be cleanly removed with positive include phrases alone.
+- Phase 2 should add a bounded Source-level exclude phrase list at the existing pre-normalization RSS/Atom admission boundary. An item matching an exclude phrase must be rejected even if it also matches an existing include phrase; an empty exclude list preserves current behavior.
+- Existing Source include configuration and collect-all behavior must remain backward compatible. The change must stay topic independent, RSS/Atom-only, prospective for future collection attempts, and must not become a second Relevance engine or retroactively hide/delete already-persisted Articles.
+- The protected admin Source workflow should expose the exclude list alongside the existing admission phrases so operators can manage it without editing storage directly.
+- This promotes only the Source-level exclude capability from proposed feature idea `+R8VN` into the `2.2.x` correction scope. The broader proposed configurable `ANY`/`ALL` operator expansion remains unpromoted unless separately owner-approved.
+
 ### Q7HF — 2026-08-28 — PHP integration duplicates customer-owned presentation through bundled renderer
 
 - **Status:** Open
