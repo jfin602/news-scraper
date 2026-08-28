@@ -20,11 +20,13 @@ The accepted `1.0.0` customer launch established the first supported production 
 
 On 2026-08-19 the repository owner approved the headless aggregation/distribution product direction. On 2026-08-20 the owner locked the managed-first/self-hostable macro architecture, Distribution Profiles, machine distribution API, generic PHP/LKG integration direction, and customer presentation freedom.
 
-The seven-phase 2.0 roadmap is complete. Package `2.0.0` is the current release baseline, and the real customer PHP package is integrated into the customer's existing site. The permanent Profile API, generic PHP complete-snapshot synchronization/LKG, normalized local-read boundary, and customer server-rendered integration remain the foundation for later work.
+The seven-phase 2.0 roadmap is complete. Package `2.0.0` is the completed 2.0 release baseline, and the real customer PHP package is integrated into the customer's existing site. The permanent Profile API, generic PHP complete-snapshot synchronization/LKG, normalized local-read boundary, and customer server-rendered integration remain the foundation for later work.
 
 On 2026-08-27 the owner amended the singleton Publication model so one Publication represents one customer/editorial property rather than necessarily one narrow topic. The same customer installation may therefore expose materially different feeds—currently planned as publishing news, opportunities, and indie filmmaking—through Distribution Profiles without introducing multi-Publication tenancy.
 
-The owner-approved 3.0 roadmap is **pre-activation** at package `2.0.0`. Its immediate goals are Profile-grounded Gemini digests, an "Ask this feed" Gemini chatbot, real multiple-feed customer proof, and then admin/PHP integration tightening based on observed deployment friction. Before the roadmap can activate to `2.1.0`, the existing phase runner must receive a bounded unchanged-`2.0.0` compatibility correction so it can safely support the intended `2.x` development family without breaking historical task grammar.
+The owner-approved 3.0 roadmap is **active in Phase 1** at package `2.1.0`. The post-2.0 runner compatibility correction is accepted, so `p2-<phase>` task folders and `2.<phase>.<prompt>` versions are executable. The N6WD Article-summary correction is also accepted: normalized persisted `Article.summary` is already bounded to 4,000 Unicode code points through runtime normalization and additive production migration `0017`.
+
+Current Phase 1 adds Profile-grounded Gemini digests. Its first prompt version is `2.1.1` under task folder `p2-1`. Later roadmap goals remain an "Ask this feed" Gemini chatbot, real multiple-feed customer proof, and then admin/PHP integration tightening based on observed deployment friction.
 
 Current product authority is:
 
@@ -131,7 +133,7 @@ Start every repository-aware session with `BOOT.md`, which routes to the narrowe
 - `docs/operations/` — onboarding, security/reliability, backup/restore, deployment, rollback, and incidents.
 - `docs/roadmap/mvp-roadmap.md` — completed MVP phase history and exit gates through the `1.0.0` release.
 - `docs/roadmap/post-1.0-roadmap.md` — completed historical seven-phase 2.0 roadmap and version lifecycle.
-- `docs/roadmap/3.0-roadmap.md` — owner-approved pre-activation post-2.0 roadmap.
+- `docs/roadmap/3.0-roadmap.md` — owner-approved active post-2.0 roadmap; Phase 1 is current at `2.1.0`.
 - `docs/roadmap/2.0-planning-questions.md` — completed non-normative planning record that led to the governing 2.0 contracts.
 - `docs/decisions/single-publication-multi-vertical-editorial-property.md` — Accepted current interpretation of singleton Publication scope.
 - `docs/decisions/headless-distribution-product-boundary.md` — Accepted headless product/output boundary decision.
