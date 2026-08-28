@@ -1,0 +1,414 @@
+TASK: Correction 1 / P1 — Complete digest lifecycle producer handoff
+
+CORRECTION SCOPE
+This is the sole implementation prompt in correction `c1-digest-lifecycle-handoff`.
+
+Phase 1 roadmap prompts P1 (`2.1.1`) and P2 (`2.1.2`) are already implemented. Phase 1 P3 correctly stopped with `Planning needed` before changing files because the P1 digest repository did not expose the complete producer contract P3 was instructed to consume.
+
+The observed handoff gaps are bounded and already required by the governing Phase 1 contract:
+
+- P1 has database-enforced scheduled-slot idempotency and one-running-attempt-per-Profile protection, but no producer API to read the current running attempt;
+- P1 has stale-attempt recovery that requires a running attempt id, but no producer read seam that safely supplies that id;
+- P1 has no normal `running -> completed` attempt-finalization API, so a successful/failed/skipped execution cannot release its running claim through the repository boundary;
+- P1 exposes active-digest read/activation but no explicit active-reference suppression/clear primitive for disabled, zero-input, no-overlap, or canonical-invalidation cases;
+- later protected admin status requires a bounded latest-attempt read rather than direct AI-table SQL;
+- the current attempt terminal-outcome constraint has no truthful disabled-skip category even though Phase 1 P3 requires a disabled digest evaluation to finish as a bounded skip without calling Gemini.
+
+This correction completes that producer boundary at unchanged package version `2.1.2`. It does not implement P3 scheduling/generation/freshness behavior itself, does not call Gemini, and does not consume roadmap version `2.1.3`.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Task-shape classification: `Bounded`.
+- Specification clarity: `Explicit`.
+- State coupling: `High`.
+- Integrity risk: `High`.
+- Concurrency: `Cross-process`.
+- Security: `Sensitive`.
+- Novel inference: `Moderate`.
+- Model-family basis: this is a narrow repository/schema correction, but it repairs transaction ownership and cross-process attempt lifecycle semantics that P3 must trust without raw SQL. Terra is appropriate for the required persistence/concurrency reasoning.
+- Reasoning basis: High is required because attempt completion, stale recovery, active-reference mutation, per-Profile advisory locking, rollback, and one-running-attempt constraints must remain coherent under races and caller-owned transactions.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna High`; rejected because the defect is specifically an incomplete concurrency/transaction producer handoff and the correction must prove race-safe state transitions against real PostgreSQL.
+- Escalation trigger: completing the producer seam requires changing the owner-approved digest state machine, replacing migration `0018`, redesigning P3 scheduling semantics, or introducing a materially new persistence architecture rather than additive repository operations/constraints.
+- Escalation target: `Terra Ultra` for a bounded but unexpectedly difficult transaction/concurrency reconciliation; return `Planning needed` if a governing contract/ADR decision is actually required.
+- Estimate confidence: `High`.
+- Efficiency rationale: extend the existing `src/distribution/digests/repository.ts` and `distribution_profile_digest_attempts` representation rather than adding a generic job framework, P3-owned SQL, or another AI state store.
+
+VERSIONING
+- Required unchanged project version: `2.1.2`.
+- This correction MUST NOT change top-level `package.json` version.
+- It consumes no Phase 1 roadmap patch number; `2.1.3` remains reserved for the existing Phase 1 P3 prompt.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- Do not manually commit; the correction runner owns the implementation-prompt commit boundary.
+
+SEQUENCE / FRESHNESS PREFLIGHT
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, `README.md`, and `docs/README.md`;
+2. read `docs/codex-model-selection.md`;
+3. read `docs/contracts/project-contract.md`, `docs/contracts/ai-assistance-contract.md`, `docs/contracts/domain-and-data-contract.md`, `docs/contracts/testing-and-validation-contract.md`, and `docs/decisions/production-data-and-schema-compatibility.md`;
+4. read the active Phase 1 entry in `docs/roadmap/3.0-roadmap.md` and the completed Phase 1 worksheet only where they govern attempt/digest lifecycle;
+5. read `docs/tasks/p2-1/P1-profile-ai-data-and-digest-input-foundation.txt`, `P2-gemini-provider-and-structured-digest-boundary.txt`, and especially `P3-digest-lifecycle-and-worker-scheduling.txt`;
+6. inspect Git history and require the implemented Phase 1 P1 commit at `2.1.1` and P2 commit at `2.1.2` to be reachable, with P3 not implemented and top-level package version exactly `2.1.2`;
+7. inspect `migrations/0018_profile_ai_digest_foundation.sql` and require it to remain the already-applied P1 schema authority; do not rewrite it;
+8. inspect `src/distribution/digests/repository.ts`, `input.ts`, P2 `provider.ts`, database transaction helpers, and all current callers/consumers of the digest repository;
+9. inspect all P1 database/unit/recovery tests introduced by the `2.1.1` implementation and any later P2 regressions that touch the digest module;
+10. inspect the current package scripts and current migration ledger;
+11. stop and report planning drift if P3 has since been implemented, package version is no longer `2.1.2`, another correction already supplies the complete handoff, migration numbering has moved beyond the planned additive slot in a conflicting way, or current contracts no longer require these producer capabilities.
+
+Do not trust the earlier P1 final report as proof. Inspect the actual current tree.
+
+CORRECTION GOAL
+Leave one complete repository/application producer boundary that lets existing Phase 1 P3 implement its state machine without importing raw AI table names or writing repository-owned SQL.
+
+Conceptually:
+
+```text
+claim running attempt
+-> read current running attempt when recovery/status requires it
+-> resolve input / call provider outside DB transaction
+-> caller-owned bounded transaction
+     -> persist successful digest when applicable
+     -> activate or suppress active reference when applicable
+     -> complete the exact running attempt
+-> running claim released truthfully
+```
+
+The correction owns only the durable primitives and their validation. P3 still owns when to claim, when an attempt is stale, when to generate, how P2 failure categories map to bounded attempt diagnostics, semantic `current | older | null`, scheduler timing, canonical invalidation policy, and Worker integration.
+
+ADD MIGRATION `0019` — TRUTHFUL DISABLED-SKIP OUTCOME
+Add exactly one additive migration after `0018`, normally:
+
+`migrations/0019_digest_lifecycle_handoff.sql`
+
+Do not rewrite `0018` or any earlier migration.
+
+The migration's required schema behavior is narrow:
+
+- extend the `distribution_profile_digest_attempts` terminal-outcome constraint to allow `skipped_disabled` as a completed terminal outcome;
+- preserve every existing allowed state/outcome and all current rows;
+- preserve the one-running-attempt-per-Profile partial unique index;
+- preserve scheduled-slot uniqueness;
+- do not add another attempt table, another active-digest table, another state enum subsystem, or provider-specific columns;
+- do not mutate successful digest history or active references during migration.
+
+Use the existing constraint name when safely possible so schema intent remains obvious. The migration should drop/recreate only the required CHECK constraint or use an equivalently minimal additive migration mechanism supported by the repository.
+
+Why `skipped_disabled` is required: Phase 1 explicitly distinguishes a disabled digest evaluation from unchanged input and from no qualifying Articles. Recording disabled work as `skipped_unchanged`, `skipped_no_input`, or `failed` would make operator history untruthful.
+
+If current PostgreSQL schema inspection shows `skipped_disabled` can be represented truthfully without a migration because the current accepted tree already changed the constraint, do not add a redundant migration; report that freshness finding and implement only the remaining producer gaps. Otherwise `0019` is required.
+
+RUNNING-ATTEMPT READ BOUNDARY
+Add a validated repository read operation for the currently running attempt for one Profile, exact name implementation-owned, conceptually:
+
+```ts
+findRunningDigestAttempt(executor, profileKey)
+  -> PersistedDigestAttempt | undefined
+```
+
+Requirements:
+
+- resolve Profile ownership through the repository's existing config-key validation/lookup path;
+- return at most the one row protected by the database partial-unique invariant;
+- map through the same persisted-attempt validation as claim results;
+- return `undefined` only when there is no running attempt for that Profile;
+- never return another Profile's attempt;
+- do not expose raw row/table shape;
+- do not acquire/hold a long-lived transaction merely to read status;
+- do not infer stale status here. P3 owns the timeout/cutoff policy.
+
+This operation is the producer seam P3 uses to obtain the exact attempt id/start time before invoking stale recovery. The later recovery mutation must still revalidate state under transaction/lock; a prior read is never authority that the row is still running.
+
+LATEST-ATTEMPT STATUS READ
+Add a bounded repository read for the latest attempt for one Profile, conceptually:
+
+```ts
+findLatestDigestAttempt(executor, profileKey)
+  -> PersistedDigestAttempt | undefined
+```
+
+Requirements:
+
+- deterministic ordering, normally newest `started_at` first with a stable id tie-breaker;
+- validated typed result only;
+- no raw provider payload/prompt/body/error exposure;
+- no unbounded history load merely to find the newest attempt;
+- usable later by P3/P6 status surfaces without table SQL.
+
+Do not build the P6 admin route/UI in this correction.
+
+NORMAL ATTEMPT COMPLETION / FINALIZATION
+Add a validated terminal-completion mutation for a claimed running attempt, with both caller-owned-transaction and convenience transaction forms where useful.
+
+The core producer must support conceptually:
+
+```ts
+completeDigestAttemptInTransaction(executor, input)
+completeDigestAttempt(database, input)
+```
+
+Exact type/function names are implementation-owned, but downstream behavior is not.
+
+The completion input must identify at least:
+
+- Profile config key;
+- exact attempt id;
+- terminal outcome;
+- completion timestamp;
+- nullable/required `digestInputIdentity` and input Article count as appropriate to the terminal path;
+- nullable bounded failure category;
+- nullable bounded provider/model identity;
+- bounded URL Context success/failure counts already supported by P1.
+
+Required state transition:
+
+```text
+same Profile + same exact attempt + state=running
+-> one validated terminal update
+-> state=completed
+-> completed_at set
+-> one truthful terminal_outcome
+-> bounded metadata recorded
+```
+
+A completed/abandoned/nonexistent/wrong-Profile attempt MUST NOT be mutated by normal completion.
+
+The completion operation MUST NOT silently complete whichever running attempt happens to exist. The caller must supply the exact claimed attempt id.
+
+### Terminal-shape validation
+
+Enforce truthful application-level combinations before mutation rather than relying only on PostgreSQL checks.
+
+At minimum:
+
+- `success` is a normal generation-success terminal state and may record input identity/count plus provider/model and bounded URL Context facts;
+- `skipped_disabled` records no provider call and therefore cannot contain provider/model/failure/retrieval facts;
+- `skipped_no_input` records no provider call and input count must truthfully be zero;
+- `skipped_unchanged` records no provider call and cannot contain provider failure/retrieval facts;
+- `failed` may carry the bounded P1 failure category and available provider/model/retrieval facts, but never raw P2 exceptions/responses;
+- `abandoned` remains owned by stale-running recovery, not ordinary P3 completion;
+- all ids, timestamps, counts, provider/model strings, identity strings, and failure categories retain current bounds/validation;
+- no API key, prompt, response text, publisher-page body, stack trace, or arbitrary error string may enter the attempt row.
+
+Do not couple this repository to `@google/genai` or import P2 provider implementation merely to validate completion.
+
+The correction does not need to rename existing generic failure categories to P2's provider-result vocabulary. P3 may map P2's bounded provider-neutral categories into the repository's bounded diagnostic categories. Do not create provider-specific persistence coupling unless current governing source proves the existing categories cannot truthfully carry required outcomes.
+
+PER-PROFILE LIFECYCLE SERIALIZATION
+Use one obvious shared helper/primitive for the existing transaction-scoped per-Profile advisory lock rather than duplicating lock SQL across claim/completion/recovery/activation/suppression code.
+
+At minimum, mutations that can race over one Profile's digest lifecycle must serialize through the same transaction-scoped lock discipline:
+
+- claim;
+- stale-running recovery/reclaim;
+- normal attempt completion;
+- active digest activation/replacement;
+- active digest suppression/removal.
+
+Requirements:
+
+- never hold a DB transaction or advisory lock across Gemini/provider I/O;
+- different Profiles remain independently concurrent;
+- the advisory lock supplements, never replaces, the database unique constraints;
+- re-acquiring the same transaction-scoped advisory lock inside one caller-owned transaction must remain safe;
+- the lock key remains Profile-owned and topic/provider independent.
+
+Fix the existing stale-recovery sequence if necessary so it acquires the same Profile lifecycle lock **before** changing a running attempt to abandoned. It must not abandon a row concurrently with a legitimate normal completion without serialization.
+
+ACTIVE-DIGEST SUPPRESSION PRODUCER
+Add an explicit active-reference suppression/clear primitive, with caller-owned-transaction and convenience forms when useful, conceptually:
+
+```ts
+suppressActiveDigestInTransaction(executor, profileKey)
+suppressActiveDigest(database, profileKey)
+```
+
+Required behavior:
+
+- delete/suppress only the Profile's row in `distribution_profile_active_digests`;
+- preserve every immutable successful generation, input Article provenance, highlight, and support row;
+- preserve attempt history;
+- do not delete Articles or change canonical Profile state;
+- serialize under the same per-Profile lifecycle advisory lock;
+- be idempotent when the Profile already has no active digest;
+- never affect another Profile;
+- return a bounded typed result/boolean/useful status rather than exposing raw SQL rows.
+
+P3 owns the decision to call suppression for disabled/no-input/no-overlap/canonical-invalid cases. This correction only supplies the safe persistence operation.
+
+ACTIVE-DIGEST ACTIVATION ALIGNMENT
+Review the existing `activateSuccessfulDigestGeneration()` / `persistAndActivateSuccessfulDigest()` paths and align them to the same lifecycle-lock discipline without changing their external semantics.
+
+Preserve:
+
+- cross-Profile generation-pointer rejection;
+- complete immutable generation existence before activation;
+- caller-owned transaction composition;
+- old successful generation history;
+- no partial visible digest state.
+
+Do not turn activation into an automatic attempt completion. P3 needs transaction primitives it can compose explicitly so one success transaction can persist a generation, activate it, and complete the exact attempt atomically.
+
+P3 ATOMIC-COMPOSITION HANDOFF
+The final repository surface must make this possible using **only exported repository/application primitives and one caller-owned database transaction**:
+
+```text
+provider call already finished outside transaction
+-> database.transaction(tx =>
+     create complete immutable successful digest(tx, ...)
+     activate that exact digest for same Profile(tx, ...)
+     complete exact running attempt as success(tx, ...)
+   )
+```
+
+And these failure/skip paths must likewise require no raw AI-table SQL:
+
+```text
+complete exact attempt as skipped_disabled / skipped_no_input / skipped_unchanged
+complete exact attempt as failed
+suppress active digest + complete exact attempt in one transaction when required
+```
+
+Do not implement the P3 lifecycle service itself. Prove the producer can support it.
+
+CONCURRENCY / FAILURE SEMANTICS
+Focused real-PostgreSQL proof must include realistic races and rollback behavior.
+
+At minimum prove:
+
+1. one running attempt can be read for its correct Profile and not another Profile;
+2. latest-attempt read returns the deterministic newest validated row for running and completed histories;
+3. normal completion releases the one-running-attempt constraint so a later claim succeeds;
+4. a completed attempt cannot be completed again;
+5. a wrong Profile + attempt id cannot mutate the row;
+6. stale recovery and normal completion for the same attempt serialize so exactly one terminal transition wins; neither path corrupts history;
+7. a new claim cannot overlap a still-running normal attempt;
+8. different Profiles can complete/claim independently;
+9. scheduled-slot uniqueness remains intact after completion;
+10. `skipped_disabled`, `skipped_no_input`, `skipped_unchanged`, `success`, `failed`, and `abandoned` satisfy truthful state/metadata constraints;
+11. invalid terminal metadata combinations are rejected before/at persistence;
+12. active suppression is idempotent and preserves immutable generation history;
+13. activation and suppression cannot produce a cross-Profile pointer or affect another Profile;
+14. one caller-owned success transaction can persist generation + activate + complete, and a forced failure before commit rolls back all three effects;
+15. one caller-owned suppression + completion transaction rolls back coherently on failure;
+16. recovery still records the stale row as terminal `abandoned` history before a replacement claim and never creates two running rows;
+17. migration `0019` preserves existing `0018` state and clean migration-from-zero remains valid.
+
+Use real disposable PostgreSQL for constraint, advisory-lock, transaction, rollback, and race claims. Mocks are insufficient.
+
+PRODUCTION / RECOVERY COMPATIBILITY
+Because this correction adds/changes persisted schema/access behavior after the accepted production baseline:
+
+- preserve migrations `0001` through `0018` byte-for-byte;
+- run the repository's supported production-forward migration/data-preservation test through the new final migration;
+- preserve existing Articles, Sources/endpoints, observations, moderation, Categories, duplicates, Profiles/source associations, distribution credentials, jobs/audit, N6WD summaries, existing digest settings/generations/active references/attempts, and P2 provider configuration behavior;
+- migration from zero must still pass;
+- update recovery fixtures/assertions only as required to prove the current supported state survives backup/restore with the new migration/repository behavior;
+- do not invent rollback SQL or destructive downgrade behavior not governed by current operations policy.
+
+PRESERVED BEHAVIOR
+Preserve without semantic change:
+
+- P1 canonical digest input and `digestInputIdentity` algorithm;
+- P1 7-day/default and 1–30-day lookback plus default/hard max-20 Article settings;
+- immutable successful digest representation and Article/support provenance;
+- P2 Gemini adapter, model/API/tool configuration, structured validation, URL authority, timeout behavior, and live harness;
+- canonical Profile eligibility/order and all Source/Relevance/Category/moderation/duplicate/originalUrl authorities;
+- endpoint collection jobs/scheduler/leases/recovery;
+- current v1 API representation (P4 not yet implemented);
+- current PHP integration (P5 not yet implemented);
+- current admin behavior (P6 not yet implemented);
+- topic independence and singleton Publication architecture.
+
+NON-GOALS / FORBIDDEN SCOPE
+Do not implement:
+
+- Phase 1 P3 scheduler, evaluator, Worker loop, `current | older | null` read service, manual generation service, or provider invocation;
+- any `2.1.3` version change;
+- changes to P2 Gemini requests/prompts/model/tool/search behavior;
+- v1 digest serialization/ETag/cursors;
+- PHP digest parsing/LKG/local read;
+- Profile AI admin routes/UI;
+- customer rendering/package refresh/deployment;
+- chat, embeddings, Search grounding, Source exclude phrases, or Phase 2 work;
+- a generic durable AI job system;
+- docs/roadmap/contract rewrites merely to fit implementation.
+
+DOWNSTREAM HANDOFF TABLE
+Before P1 completes, prove this exact handoff:
+
+| Downstream-required capability | Correction owner/export | Focused proof |
+| --- | --- | --- |
+| exact running-attempt discovery | digest repository read | correct/wrong Profile + none tests |
+| latest bounded attempt status | digest repository read | deterministic newest-state tests |
+| scheduled/manual claim remains exclusive | existing/reused claim seam | concurrent real-DB tests |
+| normal exact-attempt finalization | completion repository API | success/skip/failure/double-complete tests |
+| stale recovery can obtain + safely abandon exact running attempt | running read + serialized recovery | completion-vs-recovery race test |
+| truthful disabled evaluation terminal state | additive `skipped_disabled` constraint/type | migration + completion tests |
+| active digest suppression without history deletion | suppression repository API | idempotency/history tests |
+| active replacement serialization | activation repository API | concurrent/cross-Profile tests |
+| atomic success composition | caller-owned transaction + create/activate/complete APIs | rollback/commit integration test |
+| atomic suppress+complete composition | caller-owned transaction + suppress/complete APIs | rollback/commit integration test |
+
+Existing Phase 1 P3 must be able to consume this table without raw AI-table SQL. If any row remains missing, the correction is incomplete even if its internal happy-path tests pass.
+
+VALIDATION MANIFEST
+Resolve validation using the current Testing Contract's necessity/environment matrices.
+
+### RUN — normal local development environment / established local PostgreSQL prerequisite
+
+During iteration, use the smallest focused unit/database selections that answer the current question.
+
+On the exact final implementation tree run the smallest non-overlapping required matrix:
+
+```text
+npm run check
+npm run test:db
+npm run test:recovery
+npm run codex:phase:validate -- c1-digest-lifecycle-handoff
+git diff --check
+```
+
+`npm run test:db` is required for real PostgreSQL constraints, transaction rollback, advisory-lock serialization, concurrency, migration-from-zero, and supported forward-upgrade behavior. `npm run test:recovery` is required because stale-attempt recovery primitives and supported persisted state are changed.
+
+Do not separately rerun subordinate unit/integration suites already contained by `npm run check` on the unchanged final tree merely to duplicate evidence.
+
+### DEFER
+
+- real Gemini / URL Context provider observation — `LIVE/EXTERNAL`; remains owned by Phase 1 closeout after P3-P6 are implemented;
+- PHP CLI/runtime and PHP-backed browser evidence — `VPS-REQUIRED`; remains owned by the mandatory Phase 2 package/release qualification gate;
+- production/reference customer deployment — `REFERENCE-DEPLOYMENT`; Phase 2.
+
+### N/A
+
+- live Source collection;
+- public reference frontend browser behavior;
+- v1 digest wire behavior;
+- PHP digest behavior;
+- Profile AI admin browser behavior.
+
+REPOSITORY RULES
+- Keep package version exactly `2.1.2`.
+- Do not create npm/composer lock/vendor state.
+- Do not rewrite migrations `0001`–`0018`.
+- Add only the next additive migration if required by current final schema.
+- Do not edit Phase 1 P1/P2/P3 task prompts, governing contracts, ADRs, roadmap, completed worksheet, changelog, known issues, or existing validation artifacts.
+- A dedicated correction validation artifact belongs to P2 closeout, not this implementation prompt.
+- Do not manually commit; runner owns the implementation commit.
+
+ACCEPTANCE
+P1 is complete only when:
+
+1. package remains exactly `2.1.2`;
+2. the current running attempt and latest attempt can be read through validated repository APIs;
+3. normal exact-attempt terminal completion exists and truthfully releases running ownership;
+4. `skipped_disabled` is supported additively without rewriting `0018`;
+5. stale recovery and normal completion serialize under the same per-Profile lifecycle lock;
+6. activation and suppression use the same lifecycle serialization discipline;
+7. active suppression preserves immutable history and is idempotent;
+8. P3 can compose success, failure, skip, suppress, and stale-recovery paths using only repository/application APIs and caller-owned bounded transactions;
+9. real-PostgreSQL focused tests prove races, rollback, wrong-Profile/double-complete rejection, migration, and production preservation;
+10. all RUN evidence passes on the final tree and DEFER items are reported honestly;
+11. no P3/roadmap/provider/v1/PHP/admin behavior is pulled forward.
+
+Finish with a concise report containing changed files, migration decision/number, new/changed repository exports, lifecycle-lock ownership, terminal-shape rules, focused concurrency/rollback evidence, final commands actually run/results, package version, deferred evidence, and whether existing Phase 1 P3 is now producer-ready.
