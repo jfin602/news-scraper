@@ -30,9 +30,11 @@ This file is the running issue log for problems reported in this chat.
 - **Status:** Open
 - The generated PHP integration package includes `bin/sync.php` plus `config/sync.env.example`, but `bin/sync.php` reads configuration from the process environment and does not load the supplied `sync.env` file itself.
 - On shared hosting such as HostGator, this forces the customer to hand-create a private wrapper such as `run-sync.php` merely to load the private sync configuration before invoking the packaged synchronization entrypoint.
-- The supported integration package should include a version-matched launcher/wrapper that safely loads the private `sync.env` configuration and invokes `bin/sync.php`, so the normal installation path does not require customers to write integration glue code.
-- The launcher must keep the bearer token out of `public_html`, public PHP/HTML, and the Cron Jobs command line; preserve the existing sync entrypoint semantics including CLI options such as `--force`; and remain generic rather than HostGator-specific.
-- Documentation and the customer integration worksheet should use the packaged launcher once implemented rather than instructing customers to create their own wrapper.
+- The current production customer already uses such a custom `run-sync.php`, and the customer's existing cron job calls that launcher. A future whole-folder replacement of `ns-integration` would therefore break scheduled synchronization if the replacement package omitted the launcher or moved its path.
+- The next Gemini-capable PHP package refresh must include a version-matched packaged `run-sync.php` at the stable `ns-integration/run-sync.php` path used by the supported customer layout. It must safely load the sibling private `ns-private/sync.env` configuration and delegate to the packaged `bin/sync.php` behavior while preserving supported CLI arguments such as `--force`.
+- Replacing `ns-integration` must leave the customer's existing cron target valid; the upgrade must not require editing or recreating the cron job merely because the launcher moved from customer-created glue into the supported package.
+- The launcher must keep the bearer token out of `public_html`, public PHP/HTML, and the Cron Jobs command line; preserve the existing sync entrypoint semantics; and remain generic to the supported package/private-directory model rather than embedding customer-specific credentials or presentation behavior.
+- Documentation, Decision 12 of the Phase 1 Gemini worksheet, and the customer integration worksheet should use the packaged launcher once implemented rather than instructing customers to create their own wrapper.
 
 ## Resolved Issues
 
