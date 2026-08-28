@@ -135,7 +135,8 @@ Persist separate bounded attempt/evaluation records containing only operational 
 - Profile identity;
 - trigger kind `scheduled | manual`;
 - nullable scheduled slot timestamp for scheduled work;
-- bounded outcome category;
+- explicit nonterminal/terminal state sufficient to distinguish a currently `running` attempt from a completed attempt;
+- bounded terminal outcome category;
 - started/completed timestamps;
 - nullable input identity and bounded input count;
 - nullable bounded failure category;
@@ -143,6 +144,10 @@ Persist separate bounded attempt/evaluation records containing only operational 
 - bounded URL Context outcome counts or an explicitly extensible safe place for them without raw page/provider payloads.
 
 Scheduled work needs a database-enforced idempotency seam so multiple Worker processes cannot execute the same Profile evaluation slot twice. A partial unique constraint/index over `(profile, scheduled_slot)` for scheduled attempts or an equally strong representation is appropriate. Manual attempts are not deduplicated by input identity.
+
+**Independently of scheduled-slot deduplication, at most one non-stale `running` digest attempt may exist for a Profile across both scheduled and manual triggers.** Enforce that at the shared persistence/transaction boundary with a database-enforced invariant where practical, such as a partial unique index over Profile identity for the running state, plus a repository claim operation that both P3 scheduled work and P6 manual generation can consume. Process-local flags are insufficient.
+
+The attempt repository must also expose a bounded stale-running recovery transition. It must be possible for P3 to atomically classify an old running attempt as abandoned/failed and then claim a later attempt without deleting history or allowing two simultaneous running claims. P1 does **not** choose the timeout duration or decide when recovery should occur; P3 owns that lifecycle policy. P1 owns only the durable state/invariant and transactional claim/recovery primitives.
 
 Attempts MUST NOT contain API keys, Authorization headers, full prompts, full Gemini responses, retrieved publisher-page bodies, arbitrary exceptions, or unbounded provider payloads.
 
@@ -155,6 +160,7 @@ Create a focused topic-independent AI/digest module boundary rather than scatter
 - successful immutable digest repository model;
 - active digest read/reference model;
 - attempt repository model;
+- database-enforced per-Profile running-attempt claim/recovery seam shared by scheduled and manual work;
 - transactional primitives needed by P3 for attempt claiming and atomic successful digest activation.
 
 Do not expose raw database row shapes as the public application contract where doing so forces later prompts to know table layout.
@@ -219,7 +225,10 @@ Add focused unit/database tests that prove at least:
 - Profile deletion/cascade behavior, if any supported draft deletion exists, cannot leave orphaned AI state;
 - immutable digest history cannot be rewritten through ordinary repository APIs;
 - active digest references cannot cross Profile ownership;
-- scheduled-slot uniqueness prevents two scheduled attempt claims for one Profile/slot while manual attempts remain allowed;
+- scheduled-slot uniqueness prevents two scheduled attempt claims for one Profile/slot while manual attempts remain allowed in later, non-concurrent operations;
+- concurrent scheduled/manual or manual/manual claim attempts for the **same Profile** cannot both enter running state or both acquire provider-call ownership;
+- different Profiles may hold independent running attempts concurrently;
+- stale-running recovery is atomic, preserves the old attempt as terminal/abandoned history, and permits a later claim without a window containing two running attempts;
 - attempt text/provider fields remain bounded and secret/raw-payload fields do not exist;
 - digest input uses canonical Profile order and filters exactly at the rolling cutoff;
 - 0, 1, 20, and >20 qualifying Article behavior;
@@ -228,7 +237,7 @@ Add focused unit/database tests that prove at least:
 - deterministic identity stability for equal inputs and change for Profile key/settings/ordered Article-ID changes;
 - materially different subject fixtures produce the same generic input shape with no topic branches.
 
-Use real disposable PostgreSQL for migration/constraint/transaction claims.
+Use real disposable PostgreSQL for migration/constraint/transaction/concurrent-claim claims.
 
 ## Producer-to-consumer handoff
 
@@ -243,6 +252,8 @@ Before P1 completes, leave this handoff auditable:
 | immutable successful digest storage | digest repository | immutability/ownership tests |
 | separate active digest lookup | active-reference repository | Profile ownership tests |
 | scheduled attempt claim/idempotency seam | attempt repository | concurrent/duplicate slot tests |
+| one-running-attempt-per-Profile claim | attempt repository | scheduled/manual/manual concurrency tests |
+| stale-running attempt recovery seam | attempt repository | atomic abandonment/reclaim test |
 | bounded attempt history | attempt repository | outcome/bounds/redaction tests |
 | atomic activation primitives for P3 | transaction/repository boundary | database transaction tests |
 
@@ -265,13 +276,15 @@ Do not implement in P1:
 
 - `@google/genai` or any provider call;
 - prompts, structured Gemini schema, URL Context, or Search;
-- digest evaluation/regeneration/freshness logic;
+- digest evaluation/regeneration/freshness policy;
 - Worker loops/timers;
 - v1 `digest` serialization or revision changes;
 - PHP digest parsing/LKG/local-read;
 - admin routes/UI/Generate now;
 - customer renderer/package refresh/deployment;
 - chat, embeddings, multi-feed rollout, Source exclude phrases, or Phase 2 issues.
+
+The persistence claim/recovery seam above is not generation orchestration: P1 owns only the durable invariant and atomic primitives. P3 decides claim timing, stale timeout policy, provider invocation, terminal outcome, freshness, suppression, and retry behavior.
 
 ## Validation manifest
 
@@ -289,7 +302,7 @@ git diff --check
 npm run codex:phase:validate -- p2-1
 ```
 
-`npm run test:db` owns the real-PostgreSQL migration/constraint/transaction matrix. `npm run test:recovery` is required because this prompt introduces supported production persisted state and a new forward migration. Do not redundantly rerun subordinate unit/integration commands after `npm run check` unless diagnosing a failure.
+`npm run test:db` owns the real-PostgreSQL migration/constraint/transaction/concurrent-claim matrix. `npm run test:recovery` is required because this prompt introduces supported production persisted state, stale-attempt recovery primitives, and a new forward migration. Do not redundantly rerun subordinate unit/integration commands after `npm run check` unless diagnosing a failure.
 
 ### DEFER
 
@@ -315,14 +328,15 @@ npm run codex:phase:validate -- p2-1
 
 P1 is complete only when:
 
-1. additive migration `0018` represents Profile AI settings, immutable successful digests, a separate active reference, bounded attempts, and scheduled-slot idempotency;
-2. supported production state upgrades safely and clean migration-from-zero also passes;
-3. existing/new Profiles have disabled 7-day/20-Article defaults with 1–30/1–20 enforced bounds;
-4. one canonical digest-input service consumes the existing Profile snapshot and applies only lookback/count narrowing;
-5. `digestInputIdentity` is deterministic, versioned, separate from `snapshotRevision`, and based on Profile/settings/ordered Article IDs;
-6. downstream repository/application APIs are complete enough that P2/P3/P4 do not need AI-table SQL or persistence inference;
-7. topic independence and all existing non-AI behavior remain intact;
-8. all current-gate RUN evidence passes on the final tree;
-9. package version is exactly `2.1.1`.
+1. additive migration `0018` represents Profile AI settings, immutable successful digests, a separate active reference, bounded attempts, scheduled-slot idempotency, and a database-enforced one-running-attempt-per-Profile invariant across scheduled/manual triggers;
+2. the attempt repository exposes atomic scheduled/manual claim plus stale-running recovery primitives that P3 can consume without raw SQL;
+3. supported production state upgrades safely and clean migration-from-zero also passes;
+4. existing/new Profiles have disabled 7-day/20-Article defaults with 1–30/1–20 enforced bounds;
+5. one canonical digest-input service consumes the existing Profile snapshot and applies only lookback/count narrowing;
+6. `digestInputIdentity` is deterministic, versioned, separate from `snapshotRevision`, and based on Profile/settings/ordered Article IDs;
+7. downstream repository/application APIs are complete enough that P2/P3/P4 do not need AI-table SQL or persistence inference;
+8. topic independence and all existing non-AI behavior remain intact;
+9. all current-gate RUN evidence passes on the final tree;
+10. package version is exactly `2.1.1`.
 
-Finish with a concise report listing changed files, migration/schema shape, exported producer APIs, identity definition, production-forward preservation evidence, validation commands actually run/results, deferred evidence, and any finding that should block P2.
+Finish with a concise report listing changed files, migration/schema shape, exported producer APIs, identity definition, scheduled/manual claim and stale-recovery guarantees, production-forward preservation evidence, validation commands actually run/results, deferred evidence, and any finding that should block P2.
