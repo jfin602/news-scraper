@@ -2,7 +2,7 @@
 
 ## Security model
 
-The highest-risk surfaces are administrative access, machine distribution credentials, local adapter cache integrity, server-side fetching of externally configured URLs, and—once 3.0 AI work is implemented—external AI-provider secrets, governed provider URL retrieval, untrusted prompt/context content, interactive AI abuse/cost control, and model-output validation. Controls appear with the first implementation of each affected surface; historical Phase 19 hardened and operationalized the production deployment boundary rather than introducing those controls for the first time.
+The highest-risk surfaces are administrative access, machine distribution credentials, local adapter cache integrity, server-side fetching of externally configured URLs, and the active 3.0 AI roadmap surfaces: external AI-provider secrets, governed provider URL retrieval, untrusted prompt/context content, model-output validation, durable digest lifecycle, and later interactive AI abuse/cost control. Controls appear with the first implementation of each affected surface; historical Phase 19 hardened and operationalized the production deployment boundary rather than introducing those controls for the first time.
 
 Testing/validation for these controls is governed project-wide by `docs/contracts/testing-and-validation-contract.md`. AI-specific behavior is additionally governed by `docs/contracts/ai-assistance-contract.md`.
 
@@ -49,11 +49,11 @@ The completed 2.0 baseline implemented the credential lifecycle, authenticator, 
 - production distribution requires HTTPS;
 - browser-direct use/permissive CORS is not part of the v1 requirement.
 
-`distribution:read` does **not** silently authorize unlimited billable interactive AI. The 3.0 AI contract requires a separately governed server-side authorization/capability, request-size, rate, and cost-abuse boundary before interactive chat ships. That AI capability must remain separate from human administrator authority.
+`distribution:read` does **not** silently authorize unlimited billable interactive AI. The 3.0 AI contract requires a separately governed server-side authorization/capability, request-size, rate, and cost-abuse boundary before roadmap Phase 3 interactive chat ships. That AI capability must remain separate from human administrator authority.
 
 ## AI provider and chat security
 
-The owner-approved 3.0 direction initially uses Google Gemini. Until implemented, these requirements are contract targets rather than observed runtime behavior.
+The owner-approved 3.0 roadmap initially uses Google Gemini. Phase 1 digest requirements are active contract/implementation targets at package `2.1.0`; until the corresponding code/evidence ships, they are not observed runtime claims. Interactive chat remains later roadmap Phase 3 work.
 
 Gemini/provider secrets MUST remain server-side and MUST NOT appear in:
 
@@ -75,11 +75,11 @@ AI orchestration MUST:
 - reject any attempt for Source text, user text, conversation history, retrieved page text, or model output to add arbitrary destinations or activate general web search;
 - validate structured model output before persistence/distribution/use;
 - validate model-proposed Article references against the actual Profile context;
-- resolve visible citation destinations from exact stored `originalUrl`, never from untrusted model-generated URLs;
+- resolve visible citation/support destinations from exact stored `originalUrl`, never from untrusted model-generated URLs;
 - avoid sending unrelated Profiles, private admin configuration, credentials, Raw bodies, Collection-run payloads, internal persistence fields, or arbitrary URLs merely because they exist or appear in untrusted text;
 - log only bounded non-secret operational facts.
 
-An explicit customer chat action MAY make a live server-side upstream request. Ordinary Article rendering and synchronized digest display MUST NOT expose the provider key or require a live Gemini call.
+Phase 1 scheduled digest display MUST NOT expose the provider key or require a live Gemini call from ordinary customer rendering. A later explicit customer chat action MAY make a live server-side upstream request under its separately governed Phase 3 authorization/rate/cost boundary.
 
 ## Fetching and SSRF defenses
 
@@ -119,7 +119,7 @@ Static HTML input remains untrusted under this same model. HTML selector/profile
 
 HTML parser errors, logs, run diagnostics, and preview responses MUST NOT retain or emit raw page bodies, script contents, secrets, or unbounded extracted content. Ordinary HTML endpoint fetches continue through the same approval, whitelist, DNS/address/port, redirect, rebinding, timeout, and response/decompression protections as other endpoint types.
 
-AI prompt context uses only bounded safe normalized outward Article metadata selected through canonical Profile semantics plus the bounded provider-retrieved publisher-page content explicitly allowed by `ai-assistance-contract.md`. It MUST NOT use unbounded Raw items/full feed bodies merely because they are stored. Normalized persisted `Article.summary` is governed by the owner-approved N6WD invariant: plain-text normalize first, then cap the final value at 4,000 characters with deterministic complete-word truncation plus `...`, or a 3,997-character hard fallback plus `...` when no usable word boundary exists. Larger Raw parser ceilings remain separate ingestion-safety bounds.
+AI prompt context uses only bounded safe normalized outward Article metadata selected through canonical Profile semantics plus the bounded provider-retrieved publisher-page content explicitly allowed by `ai-assistance-contract.md`. It MUST NOT use unbounded Raw items/full feed bodies merely because they are stored. Normalized persisted `Article.summary` is governed by the accepted N6WD invariant: plain-text normalize first, then cap the final value at 4,000 Unicode code points with deterministic complete-word truncation plus `...`, or a 3,997-code-point hard fallback plus `...` when no usable word boundary exists. Larger Raw parser ceilings remain separate ingestion-safety bounds.
 
 Provider-retrieved publisher-page content is untrusted transient AI context. It is not persisted as Article metadata/body merely because URL Context retrieved it, and instructions embedded in that content have no authority over policy, secrets, URL selection, tools, or Profile scope.
 
@@ -127,7 +127,7 @@ AI-generated text is untrusted output and must be escaped/sanitized for its rend
 
 ## Failure isolation
 
-The generic PHP adapter synchronizes complete Profile snapshots into independent per-Profile candidate state and atomically activates only a fully validated revision. Failed, invalid, partial, or mixed-revision candidates preserve active last-known-good state. Stale valid output remains usable by default without a hard cutoff; configured expiry uses a safe fallback and never a visitor-path live API call. Authenticated `409 profile_disabled` is authoritative and suppresses cached rendering until a later successful synchronization.
+The generic PHP adapter synchronizes complete Profile snapshots into independent per-Profile candidate state and atomically activates only a fully validated revision. Failed, invalid, partial, or mixed-revision required candidates preserve active last-known-good state. Stale valid local Profile output remains usable by default without a hard cutoff; configured expiry uses a safe fallback and never a visitor-path live API call. Authenticated `409 profile_disabled` is authoritative and suppresses cached rendering until a later successful synchronization.
 
 Each Profile has independent local candidate/active state. Publishing-news, opportunities, indie-filmmaking, or other Profiles on the same customer host must not share locks/manifests/failure state in a way that lets one failed/disabled/stale Profile corrupt another.
 
@@ -146,8 +146,13 @@ AI failure isolation is additional:
 
 - Gemini/provider timeout, error, rate limit, malformed/invalid structured output, or safety rejection cannot interrupt Source collection, Article persistence, canonical Profile distribution, PHP Article LKG, or ordinary customer Article rendering;
 - failure to retrieve an individual governed `originalUrl`, including unavailable/paywalled/unsupported content, is bounded Article-context degradation and does not by itself fail the whole digest when sufficient normalized metadata/summary context remains;
-- a failed scheduled digest may preserve a prior valid digest with truthful age/freshness metadata or expose an explicit unavailable AI state;
-- a failed interactive chat request fails that chat action only and does not suppress feed/digest state;
+- Phase 1 scheduled evaluations occur twice daily but unchanged governed input may skip Gemini entirely; evaluation failure/skip state is separate from the currently distributable digest;
+- a provider/generation failure may preserve the previous active digest only with its truthful original `generatedAt` and governed `current`/`older` semantics;
+- age alone does not make a digest stale: unchanged governed input may remain `current` regardless of simple wall-clock age;
+- when governed input changes and replacement fails/pends, a prior digest may be `older` only while it remains canonically valid and still meaningfully overlaps the current bounded input;
+- if no prior supporting input remains in the current bounded input, or a canonical invalidation makes support no longer permitted, suppress the digest to `null` until replacement succeeds;
+- invalid optional digest state must fail open relative to valid Article API/PHP snapshot state; it must not cause Article `503` behavior or prevent activation of otherwise coherent Article LKG state;
+- a later failed interactive chat request fails that chat action only and does not suppress feed/digest state;
 - AI disablement leaves the non-AI product independently operable.
 
 Failure-isolation claims require executed tests at the lowest evidence level capable of proving the actual boundary. A test that only asserts an exception occurred is insufficient when the contract requires unrelated work/state to remain intact.
@@ -163,7 +168,9 @@ Approval/trust, lifecycle, operational state, and health are emitted/reported se
 
 An archived or paused endpoint is not labeled unhealthy merely because it is intentionally not running.
 
-When AI is implemented, AI generation/chat health is a separate operational concern and must not be folded into Source health or canonical Article eligibility.
+Phase 1 digest generation health is a separate operational concern and MUST NOT be folded into Source health or canonical Article eligibility. Protected Profile AI administration distinguishes the active distributable digest from the latest evaluation/generation attempt. At minimum operator diagnostics should expose active digest existence, truthful generation time/freshness, bounded input count/provider/model where useful, latest evaluation/attempt time, and bounded latest outcome/failure category. Canonical-invalidation suppression should be distinguishable from ordinary provider failure. Public/customer presentation does not expose raw provider errors.
+
+Later chat health remains a separate explicit-request concern under Phase 3.
 
 ## Observability
 
@@ -179,7 +186,7 @@ Collection/operations telemetry remains sufficient to answer:
 - why a duplicate candidate was created, dismissed, or grouped;
 - what material administrative configuration/moderation change occurred and to which resource.
 
-AI telemetry, when implemented, MAY record bounded Profile key, provider/model, duration, safe token/usage facts when available, result/failure category, bounded URL-retrieval status/count facts, and non-secret correlation identifiers. It MUST NOT become reader profiling or unbounded prompt/response/retrieved-page logging.
+Phase 1 AI telemetry, when implemented, MAY record bounded Profile key, provider/model, duration, safe token/usage facts when available, evaluation/generation result category, whether unchanged input skipped provider invocation, bounded URL-retrieval status/count facts, and non-secret correlation identifiers. It MUST NOT become reader profiling or unbounded prompt/response/retrieved-page logging. These are contract targets until executed Phase 1 evidence exists.
 
 Foundations include structured logs with run/correlation identifiers, bounded Collection-run history, job/queue metrics, Web/API liveness/readiness, Worker startup/dependency checks, and alert-ready endpoint health.
 
@@ -204,11 +211,11 @@ Because Article identity is idempotent, safe replay is the preferred recovery me
 
 Recovery claims require observed or injected recovery validation under the testing contract. Documentation of a restore procedure alone is not restore proof.
 
-Any persisted AI digest/auth state introduced later must follow supported production migration/backup/restore requirements. AI output must not become the only copy of canonical Article facts.
+Persisted Phase 1 digest configuration, immutable digest records, active references, and attempt state inherit supported production migration/backup/restore requirements when implemented. AI output must not become the only copy of canonical Article facts. Later AI auth state inherits the same rule when introduced.
 
 ## Deployment configuration
 
-- Secrets and environment-specific settings, including database connection details and later Gemini/provider credentials, live outside committed source.
+- Secrets and environment-specific settings, including database connection details and Gemini/provider credentials when AI is enabled, live outside committed source.
 - Git-tracked migrations and migration infrastructure are authoritative for the supported database schema.
 - Web/API and Worker startup do not silently apply schema changes.
 - Web/API and Worker versions remain compatible with the active schema.
@@ -241,11 +248,11 @@ Current operations maintain runbooks for:
 - legal/editorial Article takedown;
 - distribution authentication/Profile/PHP synchronization/LKG/local-read failures.
 
-3.0 implementation should add bounded operator guidance for Gemini digest/chat failure, key rotation/revocation, cost/rate-limit incidents, governed URL-retrieval failures, and multi-Profile customer integration only when those behaviors actually ship. Historical Phase 7 qualification procedures remain historical evidence/workflow rather than current roadmap routing.
+Phase 1 implementation should add bounded operator guidance for digest evaluation/generation failure, provider key rotation/revocation, rate-limit incidents, governed URL-retrieval failures, canonical invalidation/suppression, and active-digest versus latest-attempt diagnosis when those behaviors actually ship. Phase 2 adds customer-package/preflight/upgrade/rollback operational guidance with the corrected integration package. Phase 3 later adds chat-specific cost/abuse incident guidance. Historical Phase 7 qualification procedures remain historical evidence/workflow rather than current roadmap routing.
 
 ## Privacy and retention
 
-The Platform collects minimal reader data and the current product does not introduce visitor/click analytics. Cloudflare/admin access logs, application change records, IP logs, Source-provided author metadata, bounded Raw-item payloads, machine-credential audit metadata, distribution operational logs, and later bounded AI operational telemetry require bounded retention/access appropriate to the deployment.
+The Platform collects minimal reader data and the current product does not introduce visitor/click analytics. Cloudflare/admin access logs, application change records, IP logs, Source-provided author metadata, bounded Raw-item payloads, machine-credential audit metadata, distribution operational logs, and bounded AI operational telemetry when implemented require bounded retention/access appropriate to the deployment.
 
 Interactive chat should send only the minimum bounded Profile/user context and application-selected governed Article URLs needed for the request. News Scraper documentation must not invent provider retention/privacy claims; operators remain responsible for provider terms/configuration appropriate to their deployment.
 
