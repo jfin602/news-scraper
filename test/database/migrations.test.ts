@@ -291,6 +291,7 @@ test('installs only the justified public-feed discovery indexes from zero', asyn
       '0015_distribution_profiles.sql',
       '0016_distribution_credentials.sql',
       '0017_article_summary_bound.sql',
+      '0018_profile_ai_digest_foundation.sql',
     ]);
     assert.deepEqual(
       await migrateDatabase({ connectionString: databaseUrl }),
@@ -490,6 +491,57 @@ test('current migrations install the isolated Distribution credential boundary',
         database.query(
           `INSERT INTO distribution_credentials (id, lookup_id, verifier, label, capability)
            VALUES ('00000000-0000-0000-0000-000000000001', 'invalid', decode(repeat('00', 32), 'hex'), 'Name', 'distribution:read')`,
+        ),
+      );
+    } finally {
+      await database.close();
+    }
+  });
+});
+
+test('current migrations install the Profile AI digest foundation with bounded state', async () => {
+  await withDisposableDatabase(async ({ databaseUrl }) => {
+    await migrateDatabase({ connectionString: databaseUrl });
+    const database = createDatabase({ connectionString: databaseUrl });
+    try {
+      const tables = await database.query<{ readonly table_name: string }>(
+        `SELECT table_name FROM information_schema.tables
+          WHERE table_schema = 'public' AND table_name = ANY($1::text[])
+          ORDER BY table_name`,
+        [
+          [
+            'distribution_profile_ai_settings',
+            'distribution_profile_digest_generations',
+            'distribution_profile_digest_inputs',
+            'distribution_profile_digest_highlights',
+            'distribution_profile_digest_highlight_supports',
+            'distribution_profile_active_digests',
+            'distribution_profile_digest_attempts',
+          ],
+        ],
+      );
+      assert.equal(tables.rows.length, 7);
+      await database.query(
+        `INSERT INTO distribution_profiles (id, config_key, display_name, lifecycle, result_limit)
+         VALUES ('00000000-0000-0000-0000-000000000018', 'ai_profile', 'AI Profile', 'draft', 20)`,
+      );
+      const settings = await database.query<{
+        readonly digest_enabled: boolean;
+        readonly digest_lookback_days: number;
+        readonly digest_max_article_count: number;
+      }>(
+        'SELECT digest_enabled, digest_lookback_days, digest_max_article_count FROM distribution_profile_ai_settings',
+      );
+      assert.deepEqual(settings.rows, [
+        {
+          digest_enabled: false,
+          digest_lookback_days: 7,
+          digest_max_article_count: 20,
+        },
+      ]);
+      await assert.rejects(
+        database.query(
+          'UPDATE distribution_profile_ai_settings SET digest_max_article_count = 21',
         ),
       );
     } finally {

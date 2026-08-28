@@ -20,6 +20,12 @@ import {
   findDistributionCredentialForAuthentication,
   issueDistributionCredential,
 } from '../../src/distribution/credentials/repository.ts';
+import {
+  activateSuccessfulDigestGeneration,
+  claimDigestAttempt,
+  createSuccessfulDigestGeneration,
+  findActiveDigest,
+} from '../../src/distribution/digests/repository.ts';
 import { reconcileExpiredEndpointCollectionJob } from '../../src/jobs/execute-endpoint-collection-job.ts';
 import {
   claimNextEndpointCollectionJob,
@@ -139,6 +145,12 @@ test('real PostgreSQL backup restores governed state and existing recovery seman
     '2027-01-02T03:04:05.006Z',
   );
   assert.equal(restoredCredential.revokedAt, null);
+  const restoredDigest = await findActiveDigest(
+    database,
+    seeded.profileConfigKey,
+  );
+  assert.deepEqual(restoredDigest?.inputArticleIds, [seeded.articleId]);
+  assert.equal(restoredDigest?.digestInputIdentity, seeded.digestInputIdentity);
   assert.equal(
     (await findEndpointCollectionJobById(database, seeded.queuedJobId))?.status,
     'queued',
@@ -256,6 +268,39 @@ async function seedRepresentativeState(databaseUrl: string) {
       `INSERT INTO articles (id,source_id,external_id,original_url,canonical_identity_url,display_title,normalized_title,summary,published_at_status,published_at,source_updated_at_status,first_seen_at,last_seen_at,display_title_override) VALUES ($1,$2,'external-1','https://recovery.example/a','https://recovery.example/a','Recovery headline','recovery headline','Preserved summary','parsed','2026-08-15T10:00:00Z','missing','2026-08-15T10:01:00Z','2026-08-15T10:02:00Z','Operator headline')`,
       [articleId, sourceId],
     );
+    const digestInputIdentity = 'd'.repeat(64);
+    const digest = await database.transaction((transaction) =>
+      createSuccessfulDigestGeneration(transaction, {
+        profileConfigKey: profile.configKey,
+        digestInputIdentity,
+        generatedAt: new Date('2026-08-15T10:03:00.000Z'),
+        provider: 'gemini',
+        model: 'model',
+        inputArticleIds: [articleId],
+        overview: 'Recovery digest',
+        highlights: [
+          {
+            title: 'Recovery highlight',
+            explanation: 'Recovery explanation',
+            supportingArticleIds: [articleId],
+          },
+        ],
+      }),
+    );
+    await database.transaction((transaction) =>
+      activateSuccessfulDigestGeneration(
+        transaction,
+        profile.configKey,
+        digest.id,
+        new Date('2026-08-15T10:04:00.000Z'),
+      ),
+    );
+    const digestAttempt = await claimDigestAttempt(database, {
+      profileConfigKey: profile.configKey,
+      triggerKind: 'manual',
+      startedAt: new Date('2026-08-15T10:05:00.000Z'),
+    });
+    assert.equal(digestAttempt.kind, 'claimed');
     await database.query(
       `INSERT INTO article_categories (article_id,category_id) VALUES ($1,$2)`,
       [articleId, categoryId],
@@ -334,6 +379,7 @@ async function seedRepresentativeState(databaseUrl: string) {
       profileUpdatedAt: profile.updatedAt,
       credentialLookupId: credential.credential.lookupId,
       credentialVerifier: Buffer.from(credentialAuthentication.verifier),
+      digestInputIdentity,
       runId: interruptedRunId,
       queuedJobId: queued.job.id,
       expiredJobId: expired.job.id,

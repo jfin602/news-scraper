@@ -24,7 +24,7 @@ const ACCEPTED_FILENAMES = Array.from(
   (_, index) => `${String(index + 1).padStart(4, '0')}_`,
 );
 
-test('the accepted production state upgrades additively through Profiles, credentials, and the Article summary bound', async () => {
+test('the accepted production state upgrades additively through Profiles, credentials, the Article summary bound, and Profile AI foundation', async () => {
   await withDisposableDatabase(async ({ databaseUrl }) => {
     const directory = await mkdtemp(
       path.join(tmpdir(), 'news-scraper-baseline-'),
@@ -48,7 +48,8 @@ test('the accepted production state upgrades additively through Profiles, creden
         current
           .filter(
             (migration) =>
-              migration.filename !== '0017_article_summary_bound.sql',
+              migration.filename !== '0017_article_summary_bound.sql' &&
+              migration.filename !== '0018_profile_ai_digest_foundation.sql',
           )
           .map(
             async (migration) =>
@@ -116,6 +117,11 @@ test('the accepted production state upgrades additively through Profiles, creden
           [seeded.exactBoundaryArticleId, `${'c'.repeat(3_997)}...`],
         ]),
       );
+      await addMigration('0018_profile_ai_digest_foundation.sql');
+      assert.deepEqual(
+        await governedSnapshot(databaseUrl, seeded.articleId),
+        after,
+      );
       await Promise.all(
         preservedBytes.map(async ([filename, bytes]) => {
           assert.equal(
@@ -133,6 +139,26 @@ test('the accepted production state upgrades additively through Profiles, creden
           lifecycle: 'draft',
           resultLimit: 77,
         });
+        assert.deepEqual(
+          (
+            await database.query<{
+              readonly digest_enabled: boolean;
+              readonly digest_lookback_days: number;
+              readonly digest_max_article_count: number;
+            }>(
+              `SELECT digest_enabled, digest_lookback_days, digest_max_article_count
+                 FROM distribution_profile_ai_settings WHERE profile_id = $1`,
+              [profile.id],
+            )
+          ).rows,
+          [
+            {
+              digest_enabled: false,
+              digest_lookback_days: 7,
+              digest_max_article_count: 20,
+            },
+          ],
+        );
         await database.transaction(async (transaction) => {
           await replaceDistributionProfileSourceAssociation(
             transaction,
