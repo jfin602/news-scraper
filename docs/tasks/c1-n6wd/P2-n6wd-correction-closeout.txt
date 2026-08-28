@@ -1,0 +1,397 @@
+TASK: Correction 1 / P2 — N6WD correction closeout
+
+CORRECTION CLOSEOUT SCOPE
+This is the sole final closeout prompt for correction `c1-n6wd`. P1 should have implemented the owner-approved 4,000-character normalized/persisted `Article.summary` invariant, deterministic complete-word truncation plus `...`, the additive post-production data migration, and focused Level-4 upgrade proof.
+
+This closeout independently reviews and proves that correction. It does not close or activate the 3.0 roadmap, does not implement Gemini, and must not change the package version.
+
+A GREEN correction means only that the N6WD executable/data blocker is cleared on the accepted `2.0.0` tree. Documentation cleanup that moves N6WD from Open to Resolved or removes now-completed N6WD implementation wording from the pre-activation Gemini roadmap remains a later `/docs-review` -> approval -> `/docs-apply` action after human acceptance of this correction.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Model-family basis: repository policy deliberately uses Sol Light for independent roadmap/correction closeout so the final code-reading, evidence review, and adversarial inspection are stronger than the implementation pass without automatically paying for deep implementation reasoning.
+- Reasoning basis: Light is appropriate because P1 should already have one explicit bounded normalization/data-migration contract; this prompt must perform the mandated three distinct review passes and stop/escalate if the final tree reveals a deeper production-migration or representation ambiguity.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna High`; not selected because `docs/codex-model-selection.md` deliberately makes `Sol Light` the normal independent correction-closeout baseline.
+- Escalation trigger: review finds a runtime/database summary-semantics mismatch, destructive or incomplete supported-production migration behavior, migration-history modification, a meaningful cross-module refactor requirement, or another data-integrity problem that cannot be repaired as one tiny unambiguous closeout fix.
+- Escalation target: `Terra High` for the mandatory behavior-preserving structural-refactor handoff; a genuinely new/ambiguous architecture or contract problem requires fresh planning and may justify stronger Sol reasoning.
+- Estimate confidence: `High`.
+- Efficiency rationale: inspect the narrow P1 diff, prove normalization/constraint/migration parity and the accepted `0014` production upgrade first, derive independent edge cases, then execute one non-overlapping final matrix and record exact-tree evidence.
+
+VERSIONING
+- Required unchanged project version: `2.0.0`.
+- This closeout MUST NOT change the top-level `package.json` version.
+- It consumes no 3.0 roadmap patch number and does not activate `2.1.0`.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- The correction remains HUMAN REVIEW REQUIRED even when invoked with the runner's optional `--closeout` flag.
+
+MANUAL / HUMAN REVIEW BOUNDARY
+A GREEN response is advisory until the repository owner reviews and accepts the final correction candidate and durable evidence.
+
+This P2 may write only:
+- one genuinely tiny, unambiguous N6WD-local source/test repair permitted by the bounded repair rule below;
+- the durable correction validation artifact after the exact final tree is genuinely green.
+
+Do not update `known-issues.md`, BOOT/AGENTS roadmap state, contracts, ADRs, `docs/roadmap/3.0-roadmap.md`, package version, or Gemini configuration in this closeout. Documentation state changes use the normal docs workflow after human acceptance.
+
+MANDATORY HANDOFF
+Before any substantive write:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/codex-model-selection.md`, `docs/contracts/project-contract.md`, `docs/contracts/domain-and-data-contract.md`, `docs/contracts/source-and-collection-contract.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/decisions/production-data-and-schema-compatibility.md`, and `docs/operations/security-reliability-and-operations.md`;
+2. read the current N6WD entry in `known-issues.md`, the current Phase 1 Gemini roadmap entry, and this correction's P1 prompt;
+3. read `docs/validation/phase-20-customer-launch-validation.md` and identify the accepted supported production baseline: executable baseline with migration ledger `0001` through `0014`;
+4. identify from Git history the exact correction base before P1 and the exact reachable runner-owned P1 implementation commit for `c1-n6wd/P1`;
+5. inspect P1's complete implementation diff and current source/tests rather than trusting P1's final report;
+6. inspect `src/collection/text/plain-text.ts`, `src/collection/normalization/article-candidate.ts`, `src/collection/normalization/normalizer.ts`, `src/articles/repository.ts`, every current `ARTICLE_CANDIDATE_LIMITS.summary` consumer, and new `migrations/0017_article_summary_bound.sql`;
+7. inspect current migrations `0001` through `0017`, especially the original `articles_summary_shape_check` in `0001` and the additive replacement in `0017`; verify migrations `0001`–`0016` are byte/checksum unchanged by the correction;
+8. inspect `test/unit/article-normalization.test.ts`, `test/database/migrations.test.ts`, `test/database/article-persistence.test.ts`, `test/database/distribution-profile-production-upgrade.test.ts` or any dedicated N6WD production-upgrade test, plus relevant database support;
+9. inspect current `package.json`, require exactly `2.0.0`, and confirm no npm lockfile was introduced;
+10. trace the actual Source-content path through Raw parse, Source admission, normalization, Relevance, persistence, canonical distribution, and PHP/v1 summary consumers so the closeout can prove the correction did not move or duplicate authority;
+11. stop and report sequence/scope drift if P1 did not implement the bounded correction, unrelated executable work landed after P1 without applicable evidence, current migration lineage differs materially, or governing authority changed.
+
+GREEN CORRECTION GOAL
+The correction is GREEN only if the exact accepted package-`2.0.0` tree proves all of the following:
+- normalized persisted `Article.summary` is nullable plain text with a maximum of 4,000 characters;
+- values at or below 4,000 characters are preserved after ordinary plain-text normalization;
+- oversized values truncate at the latest usable complete-word/whitespace boundary that permits literal `...` while keeping the final value <=4,000 characters;
+- if the 3,997-character content prefix already ends on a complete word, that complete word is retained rather than backing up unnecessarily;
+- if no usable boundary exists, the result is exactly the first 3,997 characters plus `...`;
+- truncation does not split a Unicode character and runtime/persistence/database character semantics are coherent;
+- oversized Source description/content does not cause an otherwise-valid Article to be rejected merely because of the summary bound;
+- the larger Raw RSS/Atom parser content limit remains a separate ingestion bound and Source admission ordering remains unchanged;
+- one additive `0017` migration transforms existing supported oversized summaries and tightens the database constraint without rewriting prior migrations;
+- the accepted `0001`–`0014` production baseline upgrades through real current `0015`/`0016`/`0017` migrations with governed state preserved except for the intentional oversized-summary transformation;
+- migration-from-zero is current and the final database enforces the new summary constraint;
+- Source identity, Article identity, provenance, original URLs, moderation, Categories, duplicates, audit/jobs, Profiles/credentials, outward schema, and PHP/LKG behavior remain intact;
+- no Gemini/URL Context/chat/digest/roadmap activation scope was introduced.
+
+PASS 1 — CONTRACT / EVIDENCE REVIEW
+Review P1 against current contracts, accepted production history, actual source, actual migrations, and executed evidence.
+
+A. NORMALIZATION OWNERSHIP
+Verify:
+- `collectionPlainText` still owns markup/executable-content stripping, entity decoding, whitespace collapse, and trim;
+- summary truncation occurs only after that existing plain-text normalization;
+- `ARTICLE_CANDIDATE_LIMITS.summary` is exactly 4,000;
+- empty/plain-markup-only content retains existing absent-summary semantics;
+- title/author/category/language/URL limits and normalization are not reinterpreted by this correction;
+- the implementation has one obvious summary truncation authority rather than duplicated subtly different runtime algorithms.
+
+B. EXACT TRUNCATION SEMANTICS
+Derive examples independently and compare them to the implementation.
+
+Require all of the following:
+- <=4,000 characters returns unchanged normalized text;
+- >4,000 reserves exactly three characters for `...`;
+- word-boundary selection uses deterministic whitespace separation rather than locale/NLP segmentation;
+- selected whitespace itself is not emitted before the suffix;
+- when the first 3,997 characters form complete content and the next character is whitespace, the implementation keeps that full 3,997-character prefix;
+- when the 3,997-character prefix cuts a word, the implementation backs up to the latest usable whitespace boundary;
+- when no usable boundary exists, it hard-falls back to 3,997 characters;
+- exactly one literal `...` is appended only when truncation actually happened;
+- the final human-character count is <=4,000;
+- non-BMP/emoji cases do not split surrogate pairs or create malformed text.
+
+C. PERSISTENCE BOUNDARY
+Trace `src/articles/repository.ts` validation and map/read behavior.
+
+Verify:
+- valid normalized summaries permitted by the database's new 4,000-character invariant are accepted;
+- out-of-contract direct candidates cannot bypass persistence validation;
+- persistence does not become a second truncation authority;
+- create/update/unchanged classification and first/last-seen behavior are unchanged except where the newly bounded summary is materially different input;
+- summary updates remain normal Source-derived metadata updates and do not affect identity/provenance.
+
+Explicitly examine the TypeScript vs PostgreSQL length semantics. The correction is not GREEN if an otherwise-valid 4,000-character Unicode summary is accepted by one boundary and rejected incorrectly by another because one counts UTF-16 code units while the governed persisted constraint counts PostgreSQL characters.
+
+D. RAW PARSER / SOURCE ADMISSION ORDER
+Verify actual pipeline ordering remains:
+
+`RSS/Atom parse -> Raw item -> optional Source admission filter -> Article normalization/summary bound -> Relevance -> persistence`
+
+Confirm:
+- the parser's larger raw `content` safety ceiling was not reduced to 4,000;
+- Source RSS/Atom item admission still sees its existing bounded Raw text and was not silently changed to match against truncated summary text;
+- N6WD did not add Article-page fetches, body crawling, or Gemini behavior;
+- `summary_contains` Relevance naturally sees only normalized bounded summary because normalization already precedes Relevance; no discarded suffix compatibility channel exists.
+
+E. ADDITIVE MIGRATION
+Inspect `migrations/0017_article_summary_bound.sql` directly.
+
+Require:
+- it is additive after `0016_distribution_credentials.sql`;
+- migrations `0001`–`0016` are unchanged;
+- only oversized non-null summary values are intentionally transformed;
+- <=4,000 summary bytes/text values are not rewritten unnecessarily;
+- oversized values use semantics matching runtime truncation for representative boundary/no-boundary/Unicode cases;
+- Article `updated_at` is not deliberately or accidentally rewritten as a side effect;
+- no Article row is deleted/reinserted;
+- IDs, Source ownership, URLs, timestamps, moderation, Categories, observations, duplicates, audit and related rows are untouched;
+- the old `articles_summary_shape_check` maximum 32,768 is replaced by 4,000 while retaining nullable/non-empty/trimmed semantics;
+- the data transformation occurs before the tighter constraint can reject existing rows;
+- migration failure remains transactional under the existing migration runner;
+- rerunning the current migration command after success produces no repeated effects because the ledger owns migration idempotency.
+
+F. MIGRATION FROM ZERO
+Require real disposable PostgreSQL evidence that the full current migration chain installs through `0017` in order and finishes current.
+
+Confirm the final database constraint enforces:
+- null allowed;
+- non-null summary trimmed/non-empty under existing shape semantics;
+- <=4,000 accepted;
+- >4,000 rejected.
+
+Do not accept source inspection of SQL as Level-4 proof.
+
+G. SUPPORTED PRODUCTION FORWARD UPGRADE
+Inspect the actual test setup, not just the filename.
+
+The test must really:
+1. construct the database from repository migrations `0001` through `0014` only;
+2. seed representative governed supported state before later migrations;
+3. include ordinary and oversized summaries before `0017` exists;
+4. apply the real current additive migration path including `0015`, `0016`, and `0017`;
+5. observe exact post-upgrade state.
+
+Require proof that:
+- one <=4,000 summary is exact unchanged;
+- one oversized multi-word summary transforms to the exact expected word-boundary + `...` result;
+- one oversized no-boundary value transforms to exact hard fallback;
+- transformed Article IDs and Source IDs are unchanged;
+- original/canonical URLs and other represented Article fields are unchanged;
+- Article observation/provenance still references the same Article;
+- represented visibility/moderation, Category/override, duplicate/Primary, audit/job, Profile/association, and distribution credential state survives;
+- Article `updated_at` preservation is explicitly observed for transformed rows;
+- accepted migration files/checksums remain unchanged;
+- the final ledger contains `0001` through `0017` in order.
+
+A fixture created from the already-current schema is not production-forward evidence.
+
+H. RECOVERY REGRESSION
+Require the existing native recovery suite to pass against the final correction tree. Do not demand speculative new recovery fixture fields because `summary` already existed and no storage format/field was added, but do not call recovery protected if the suite was not actually executed when its prerequisites are required by the correction plan.
+
+I. OUTWARD / COMPATIBILITY REVIEW
+Verify no wire contract was changed:
+- `/api/v1` still exposes nullable `summary` in the same field/schema;
+- public/reference read models retain the same summary shape;
+- PHP synchronization/local-read/LKG contracts remain compatible;
+- shorter summary content does not cause adapters to parse a new field or metadata version;
+- exact `originalUrl` destinations remain unchanged;
+- no browser runtime change is required solely for the bound.
+
+J. TOPIC INDEPENDENCE
+Search the complete correction diff for Source/customer/topic-specific exception logic. N6WD must apply generically to every normalized Article summary.
+
+PASS 2 — ERROR / EDGE-CASE ADVERSARIAL REVIEW
+Independently derive failure hypotheses from the final implementation and migration. Do not satisfy this pass by listing existing test names.
+
+At minimum challenge and disposition:
+- normalized summary lengths 3,996, 3,997, 3,998, 3,999, 4,000, and 4,001;
+- input >4,000 where character 3,998 is whitespace, so the first 3,997 characters are already complete;
+- input >4,000 where character 3,997/3,998 falls in the middle of a word;
+- final usable whitespace occurs very early in the string;
+- no whitespace exists anywhere before the hard cutoff;
+- multiple spaces/newlines/tabs exist in Source input but collapse before truncation;
+- markup removal changes an apparently >4,000 raw value into a <=4,000 normalized value;
+- markup/entity decoding changes boundary positions;
+- content contains literal existing `...` near the boundary;
+- punctuation appears without whitespace and is mistakenly treated as locale-specific word segmentation;
+- emoji/non-BMP characters straddle the content ceiling;
+- combining marks or unusual Unicode remain valid text after truncation;
+- runtime summary counting and PostgreSQL `char_length` disagree on non-BMP input;
+- persistence direct candidate of 4,001 characters is accidentally truncated again instead of rejected, creating two authorities;
+- migration truncation result differs by one character from runtime result for the same normalized text;
+- SQL selects an earlier word than necessary when the 3,997-character prefix already ends on a complete word;
+- migration appends `...` to a value that is exactly 4,000 and should remain unchanged;
+- migration leaves a >4,000 row that then causes constraint creation to fail;
+- migration updates `updated_at` or another audit/display field unintentionally;
+- migration reconstructs rows and breaks observation/duplicate/category FKs;
+- old migration `0001` is edited to 4,000, invalidating accepted checksums;
+- `0017` assumes `0015`/`0016` tables when the data transform only needs `articles`, making accepted-baseline upgrade unnecessarily brittle;
+- a clean-install-only test passes while the real `0014` upgrade path is broken;
+- test fixture seeds oversized summary only after `0017`, so it does not prove migration transformation;
+- Source admission behavior changes because truncation was moved before admission;
+- parser raw limit is reduced and starts rejecting feeds N6WD intended to safely truncate later;
+- Relevance behavior is given hidden access to discarded suffix text;
+- Article idempotency/`updated` classification loops because repeat normalization produces unstable summary output;
+- API/PHP consumers reject the shorter value due an unrelated schema change;
+- correction accidentally adds Gemini or Article-page retrieval code.
+
+For each plausible concern classify it as:
+- protected by source + meaningful executed evidence;
+- one small bounded closeout repair/test strengthening;
+- Terra High structural-refactor handoff required;
+- replanning/contract work required.
+
+Do not declare GREEN with unresolved migration/data-preservation, Unicode-boundary, or runtime/SQL parity concerns.
+
+PASS 3 — CODE QUALITY / STRUCTURAL REVIEW
+Inspect the complete P1 diff plus important producers/consumers for maintainability.
+
+Look specifically for:
+- duplicate truncation algorithms in multiple TypeScript production modules;
+- a generic truncation framework added for one narrow field without a real consumer need;
+- SQL helper functions left permanently in the production schema solely to run one migration when a migration-local expression/function could be bounded and removed;
+- rewriting `0001` or earlier supported migrations instead of additive `0017`;
+- changing Article repository SQL/table topology without need;
+- changing generic string length semantics for every Article field merely to solve summary Unicode handling;
+- parser/admission changes that broaden the correction boundary;
+- hidden Source/topic exceptions;
+- unbounded regex/backtracking or unnecessarily expensive per-character migration logic without justification;
+- data migration that updates every Article rather than only rows requiring transformation;
+- data migration that writes `updated_at` or other material state unnecessarily;
+- tests that reimplement the production truncation algorithm to generate expected values instead of asserting independently constructed outcomes;
+- enormous opaque fixtures where small generated boundary strings would be clearer;
+- production-upgrade fixture duplication rather than reuse of the existing accepted-baseline harness;
+- assertions that check only summary length while missing exact ellipsis/word preservation;
+- comments/docs claiming N6WD is resolved before correction acceptance;
+- unrelated cleanup or Gemini stubs mixed into the correction.
+
+Record concrete structural hypotheses and their dispositions. Green commands alone do not satisfy this pass.
+
+BOUNDED CLOSEOUT REPAIR RULE
+P2 may repair only a genuinely small, unambiguous N6WD-local defect or strengthen focused proof when:
+- governed behavior is already explicit;
+- the repair is local and does not redesign migration strategy or Article ownership;
+- no new product capability/API/schema family is introduced beyond the already-required `0017` correction;
+- every affected focused/broader suite is rerun.
+
+Examples allowed:
+- one off-by-one boundary bug in the summary helper;
+- one Unicode-safe slicing defect with an obvious local fix;
+- one migration CASE branch selects the previous word unnecessarily;
+- one missing assertion that `updated_at` is preserved;
+- one test fails to prove exact `...` suffix semantics;
+- one stale comment still says 32,768.
+
+The following are NOT bounded closeout repairs:
+- replacing the migration architecture;
+- changing Article persistence ownership;
+- introducing a new text-storage representation;
+- changing Source admission/Relevance semantics beyond the already-governed downstream effect;
+- adding Gemini/provider behavior;
+- rewriting supported migration history;
+- a multi-file structural refactor whose safety depends on broader producer/consumer reasoning.
+
+TERRA HIGH REFACTOR HANDOFF
+If PASS 2 or PASS 3 finds a meaningful behavior-preserving structural refactor, STOP before implementing it and output exactly one self-contained transient Terra High remediation prompt following `docs/codex-model-selection.md`.
+
+That remediation prompt MUST:
+- recommend exactly `Terra High`;
+- state the observed structural problem and concrete source/test evidence;
+- define the smallest behavior-preserving refactor boundary and important producers/consumers;
+- preserve package `2.0.0`, migrations `0001`–`0016`, the required additive `0017` semantics, accepted-production data preservation, Article identity/provenance, original URL destination, Relevance/Category ordering, duplicate/moderation state, distribution/PHP compatibility, topic independence, and non-AI operation;
+- forbid unrelated cleanup, product/contract/ADR changes, roadmap activation, Gemini work, Source-specific exceptions, and speculative abstractions;
+- consume no roadmap/correction prompt number;
+- require focused tests plus every broader evidence level invalidated by the refactor;
+- require an implementation report but MUST NOT declare this correction GREEN or finalize the durable validation artifact;
+- instruct Terra High to stop if source inspection reveals a product/contract decision, destructive production migration, or genuinely new architecture requirement rather than a behavior-preserving cleanup.
+
+After remediation is implemented and its implementation-level validation is green, rerun this P2 from the beginning. Only that rerun may certify the correction.
+
+DEEPER ESCALATION / REPLANNING RULE
+If review finds the P1 data migration or summary semantics are materially wrong or incomplete in a way that is not one bounded defect, do not hide the work inside closeout.
+
+Stop and report:
+- the exact broken invariant/data case;
+- affected runtime/migration/test files;
+- why existing evidence missed it;
+- whether the next correction is now explicit enough for Terra High or requires fresh `/prompt-ass` + `/prompt-plan`;
+- any contract ambiguity that must return to `/docs-review` rather than being guessed in code.
+
+Do not create the durable GREEN artifact while such a concern remains.
+
+FINAL-TREE VALIDATION
+Only after all three passes are complete and any bounded closeout fixes are applied, execute the smallest non-overlapping applicable matrix against the exact final correction candidate:
+
+`npm install`
+
+`npm run check`
+
+`npm run test:db`
+
+`npm run test:recovery`
+
+`npm run codex:phase:validate -- c1-n6wd`
+
+`git diff --check <pre-P1-correction-base>...HEAD`
+
+If P2 makes a bounded source/test repair that remains intentionally uncommitted for human review, also run `git diff --check` against that working-tree diff and clearly distinguish the runner-owned P1 commit from the final closeout candidate state.
+
+Do not separately rerun unit/integration/collection/PHP suites contained by `npm run check` solely to duplicate evidence.
+
+No browser, security, live-Source, deployed-customer, or live-Gemini suite is required unless the correction unexpectedly touched those boundaries. If it did, classify that as scope drift and determine the evidence needed before any GREEN claim.
+
+Required database/recovery prerequisites must fail honestly when absent. Do not accept a skip or zero selected tests as successful Level-4/recovery proof.
+
+DURABLE VALIDATION ARTIFACT
+When and only when the exact final correction tree is GREEN, create:
+
+`docs/validation/n6wd-article-summary-bound-correction.md`
+
+Record at minimum:
+- correction name/folder and N6WD purpose;
+- exact correction base SHA;
+- exact accepted source SHA or, if bounded closeout changes remain intentionally uncommitted, the exact P1 commit plus complete final closeout diff identity and acceptance rule;
+- unchanged package version `2.0.0`;
+- accepted supported production baseline identity/ledger (`0001`–`0014`);
+- current migration ledger through `0017` and confirmation older migrations were not modified;
+- Node/npm/PostgreSQL and native recovery environment facts actually observed;
+- production files and migrations reviewed;
+- exact runtime truncation semantics, including Unicode/word-boundary handling;
+- exact migration transformation/constraint semantics;
+- migration-from-zero procedure/result;
+- accepted-production `0014` -> current upgrade procedure, seeded oversized/unchanged summary cases, and observed preserved governed relationships;
+- Article `updated_at` preservation evidence for transformed rows;
+- recovery command/result actually executed;
+- commands/procedures actually run with pass/fail counts where available;
+- evidence levels, especially Level 4 PostgreSQL migration/data-preservation proof;
+- PASS 1 contract/evidence findings/dispositions;
+- PASS 2 adversarial hypotheses/dispositions;
+- PASS 3 structural hypotheses/dispositions;
+- bounded defects/tests added during closeout, if any;
+- whether a Terra High remediation handoff occurred before the final rerun;
+- limitations and evidence explicitly not executed because it was outside this correction;
+- explicit statement that correction GREEN clears N6WD executable/data behavior only and does not activate/close the Gemini roadmap or itself update N6WD documentation status.
+
+Do not rewrite historical Phase 20 or 2.0 validation evidence. This artifact records only what was observed against the N6WD correction tree.
+
+POST-CORRECTION DOCUMENTATION HANDOFF
+Before declaring GREEN, verify the evidence is sufficient for a subsequent docs workflow to truthfully:
+- move N6WD from Open to Resolved;
+- describe the implemented 4,000-character word-boundary + `...` behavior and production migration evidence;
+- update the Phase 1 Gemini roadmap so N6WD is treated as a preserved prerequisite already completed rather than work Phase 1 must newly implement, if current docs still say implementation is required;
+- update the 3.0 changelog only if the normal docs review judges accepted correction completion material enough for an entry.
+
+Do NOT make those documentation changes in this P2.
+
+ACCEPTANCE
+This correction is GREEN only when:
+- the final runtime summary behavior matches the owner-approved N6WD contract exactly;
+- TypeScript/persistence/PostgreSQL length and Unicode handling are coherent for the new summary bound;
+- raw parser/admission ordering is unchanged;
+- migration `0017_article_summary_bound.sql` transforms existing supported oversized summaries deterministically and tightens the constraint;
+- migrations `0001`–`0016` remain unchanged;
+- migration-from-zero is green;
+- real accepted-production `0001`–`0014` forward upgrade through current migrations is green with required data/relationship preservation;
+- Article `updated_at` and unrelated persisted state are not spuriously rewritten;
+- focused normalization/persistence/migration tests meaningfully protect exact edge semantics;
+- `npm run check`, `npm run test:db`, `npm run test:recovery`, correction grammar validation, and committed-range whitespace validation are green on the accepted candidate;
+- package remains exactly `2.0.0`, no lockfile exists, and no Gemini/roadmap/product expansion was introduced;
+- durable correction evidence is created and truthful;
+- no unresolved finding requires replanning, another correction, contract work, or structural remediation.
+
+FINAL REPORT
+Report:
+- correction result: GREEN or RED/BLOCKED;
+- exact correction base and accepted candidate SHA/state;
+- files changed by P1 and any bounded P2 repairs;
+- exact runtime truncation behavior;
+- `0017` migration/data/constraint behavior;
+- accepted-production upgrade cases and preserved state actually observed;
+- PASS 1, PASS 2, PASS 3 findings/dispositions;
+- exact validation commands actually run and results;
+- durable artifact path if GREEN;
+- confirmation package remains `2.0.0`, migrations `0001`–`0016` unchanged, no lockfile, no Gemini/roadmap activation scope;
+- whether a Terra High refactor/deeper escalation occurred;
+- explicit next step if GREEN: human review/acceptance, then `/docs-review` for N6WD resolution and Phase 1 roadmap cleanup; do not perform roadmap `/closeout` or activate `2.1.0`.
