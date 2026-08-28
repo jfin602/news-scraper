@@ -1,8 +1,8 @@
 # Product Scope and Users
 
-**Status:** Current post-2.0 product scope  
+**Status:** Current post-2.0 product scope; 3.0 roadmap active in Phase 1 at `2.1.0`  
 **Adopted:** 2026-08-19  
-**Updated:** 2026-08-28 for governed Gemini URL Context and the bounded Article-summary policy  
+**Updated:** 2026-08-28 for active Gemini Phase 1 worksheet alignment  
 **Historical MVP scope:** `docs/contracts/mvp-scope-and-users.md`
 
 ## Product objective
@@ -16,7 +16,7 @@ Its primary job is to:
 3. persist Articles idempotently with provenance;
 4. apply deterministic editorial/Relevance/Category rules;
 5. detect and suppress true duplicates without deleting Source instances;
-6. give operators an administrative control plane for Source, Article, duplicate, health, Publication, and Distribution Profile configuration; and
+6. give operators an administrative control plane for Source, Article, duplicate, health, Publication, Distribution Profile, and implemented Profile AI configuration; and
 7. expose governed normalized Article output to supported downstream consumers while preserving the original publisher destination.
 
 The bundled first-party public feed remains a supported reference/standalone consumer of the same outward read semantics. It is not the defining product boundary, and a client may instead integrate the Platform's distribution output into an existing website or other supported consumer.
@@ -39,7 +39,9 @@ An authorized operator controls the installation's collection and editorial stat
 - Source/endpoint health and Collection-run history;
 - implemented Distribution Profile configuration: persisted Profiles with immutable keys, mutable display names, lifecycle, bounded result/history limits, Source associations, bounded association filters, protected administration, and transactional change history;
 - implemented Distribution Credential administration: protected create/list/rotate/revoke controls with labels and lifecycle metadata, one-time plaintext issue/rotation behavior, and strict separation from human administrator authority; and
-- when 3.0 AI work is implemented, governed Profile-level AI configuration/health and any separately authorized interactive AI capability defined by `ai-assistance-contract.md`.
+- active Phase 1 Profile AI administration: digest enable/disable, bounded lookback, bounded maximum input Article count, digest cadence/status visibility, manual Generate now, active digest status/freshness, and latest bounded attempt diagnostics as governed by `ai-assistance-contract.md`.
+
+Gemini credentials/provider secrets remain deployment/operator secrets rather than Profile fields.
 
 The administrator surface is the instance-owned Platform control plane. Current managed/reference administrative routes remain protected by Cloudflare Access under the accepted admin-perimeter ADR. Future self-hosted deployments require a governed secure perimeter, but Cloudflare is not a universal runtime dependency.
 
@@ -58,13 +60,13 @@ The integrator should be able to rely on stable outward semantics for:
 - explicitly supported Profile filters/distribution selection;
 - bounded safe metadata made public by the relevant outward contract;
 - independent local state for multiple synchronized Profiles; and
-- when implemented, bounded Profile-scoped AI digest/chat surfaces without taking custody of Gemini secrets or reimplementing Profile grounding.
+- when AI is enabled, normalized Profile-scoped digest/chat surfaces without taking custody of Gemini secrets or reimplementing Profile grounding.
 
-The implemented 2.0 integration is the authenticated versioned distribution API plus scheduled generic PHP synchronization, validated last-known-good local data, normalized local-read access, and server-rendered customer output. Custom server applications may consume the same API. The owner-approved 3.0 roadmap builds on that path rather than replacing it.
+The implemented 2.0 integration is the authenticated versioned distribution API plus scheduled generic PHP synchronization, validated last-known-good local data, normalized local-read access, and server-rendered customer output. Phase 1 extends that path with a bounded nullable digest in the same complete Profile snapshot; it does not introduce a second customer synchronization protocol.
 
 ### Operator/developer
 
-An operator/developer needs telemetry to diagnose Source failures, parser changes, delayed collection, identity behavior, duplicate decisions, failed jobs, outward-delivery failures, Profile synchronization issues, and later AI generation/chat failures without manual database inspection or secret-bearing logs.
+An operator/developer needs telemetry to diagnose Source failures, parser changes, delayed collection, identity behavior, duplicate decisions, failed jobs, outward-delivery failures, Profile synchronization issues, and AI digest/chat failures without manual database inspection or secret-bearing logs.
 
 ### Reference-frontend reader
 
@@ -72,7 +74,7 @@ A public reader may still use the bundled first-party `/` feed when a deployment
 
 ### Customer-site AI user
 
-When 3.0 AI assistance is implemented, a customer-site user may read a synchronized AI-generated digest or explicitly invoke "Ask this feed" for one selected Distribution Profile. That user does not receive administrator authority, Gemini credentials, unrestricted database access, or cross-Profile context merely by using the public customer site.
+A customer-site user may read a synchronized AI-generated digest for one selected Distribution Profile after the Phase 1/Phase 2 integration path is shipped. Later, the user may explicitly invoke "Ask this feed" under the separately governed interactive AI phase. That user does not receive administrator authority, Gemini credentials, unrestricted database access, or cross-Profile context merely by using the public customer site.
 
 ## Core product capabilities
 
@@ -104,6 +106,7 @@ The Platform continues to provide:
 - Article visibility/display/category moderation;
 - Duplicate review/group/Primary controls;
 - Distribution Profile configuration;
+- Profile-level digest configuration/operations when Phase 1 implementation ships;
 - bounded change history;
 - operational collection visibility.
 
@@ -138,11 +141,15 @@ The completed 2.0 work implemented the Distribution Profile, canonical read-mode
 
 ### AI assistance boundary
 
-The owner-approved 3.0 direction adds AI only downstream of governed Profile output.
+The active 3.0 Phase 1 adds AI only downstream of governed Profile output.
 
-Scheduled Profile digests and interactive "Ask this feed" chat are governed by `ai-assistance-contract.md`. The same AI implementation must work across materially different Profile subjects without hard-coded topic prompts or shared-engine subject rules.
+Scheduled Profile digests and later interactive "Ask this feed" chat are governed by `ai-assistance-contract.md`. The same AI implementation must work across materially different Profile subjects without hard-coded topic prompts or shared-engine subject rules.
 
-AI grounding may use bounded normalized Profile Article metadata, including the bounded persisted summary, and may use the configured Gemini provider's URL Context capability only for a bounded application-selected set of exact stored `originalUrl` values from those already-governed Profile Articles. This is not a News Scraper-owned Article-body crawler and does not authorize Google Search grounding, arbitrary/model-selected web browsing, user-supplied URL expansion, persisted Article-body storage, or a route around canonical Profile selection.
+Phase 1 digest grounding uses a deterministic bounded narrowing of canonical Profile output. Defaults are a 7-day lookback and at most 20 Articles, preserving canonical Profile order. The accepted N6WD correction already bounds persisted Article summaries to 4,000 Unicode code points. Gemini URL Context may receive only the exact stored `originalUrl` values for the bounded governed input, with no Google Search grounding or arbitrary/model-selected browsing.
+
+The digest is durable Profile-owned AI state with immutable successful generations, a separate active reference, bounded attempt history, and internal `digestInputIdentity`. Visible active digest state is part of the same outward Profile snapshot/revision delivered by the permanent v1 API and existing PHP complete-snapshot/LKG/local-read path.
+
+Downstream digest data is normalized as `current`, `older`, or absent (`null`) under the lifecycle in `ai-assistance-contract.md`. Provider failure does not become a dependency for ordinary Articles, and canonical invalidation cannot be hidden by preserving a formerly valid digest.
 
 AI does not authorize or perform Source approval, collection, Relevance, Category, moderation, Article identity, duplicate decisions, ordering, or destination rewriting. Gemini failure or an inaccessible/paywalled publisher URL cannot become a dependency for ordinary non-AI collection, canonical distribution, PHP Article LKG, or customer Article rendering.
 
@@ -154,9 +161,9 @@ Deferring packaging does not permit a mandatory central News Scraper dependency 
 
 ### Presentation ownership
 
-News Scraper owns governed Article selection, normalized output, and `original_url` semantics. Customers may own and replace HTML, CSS, typography, layout, responsive behavior, placement, and custom UI. First-party PHP/WordPress-style templates are safe functional fallbacks, not mandatory presentation.
+News Scraper owns governed Article selection, normalized output, and `original_url` semantics. Customers own and may replace HTML, CSS, typography, layout, responsive behavior, placement, and custom UI. AI-generated output is also presentation input rather than publisher metadata.
 
-AI-generated output is also presentation input, not publisher metadata. Supported examples should make AI origin clear and must escape/sanitize model output as untrusted content.
+Phase 1 must expose normalized digest data safely but must not create a new authoritative customer-facing digest renderer or CSS system. Existing duplicated PHP renderer cleanup is assigned to Phase 2 / `2.2.x`; customer-specific digest markup remains customer-owned. Supported examples should make AI origin clear and must escape/sanitize model output as untrusted plain text.
 
 ## Current customer Publication configuration
 
@@ -176,20 +183,20 @@ That expansion is a configuration/use-case proof of the singleton multi-vertical
 
 `2.0.0` established the managed Profile → authenticated v1 API → generic PHP complete-snapshot sync → atomic last-known-good cache → normalized local-read → customer server-rendered integration path, together with the governing operational/security/data-compatibility boundaries.
 
-The historical seven-phase 2.0 roadmap is complete under `docs/roadmap/post-1.0-roadmap.md`. Package `2.0.0` is the current released baseline.
+The historical seven-phase 2.0 roadmap is complete under `docs/roadmap/post-1.0-roadmap.md`.
 
-## Owner-approved 3.0 direction
+## Active owner-approved 3.0 direction
 
-`docs/roadmap/3.0-roadmap.md` is owner-approved but **pre-activation** at package `2.0.0`.
+`docs/roadmap/3.0-roadmap.md` is **ACTIVE — PHASE 1** at package `2.1.0`. The post-2.0 runner compatibility correction and N6WD correction are GREEN/owner-accepted prerequisites. Current executable task family is `p2-1`, with Phase 1 prompt versions beginning at `2.1.1`.
 
-Its immediate sequence is:
+The current sequence is:
 
-1. a bounded unchanged-`2.0.0` runner compatibility correction so phase tooling can safely support `2.x` development versions;
-2. roadmap activation to the `2.1.0` baseline;
-3. Gemini Profile digest work;
-4. Profile-grounded "Ask this feed" chat;
-5. real three-feed publishing/opportunities/indie-filmmaking integration proof; and
-6. open-ended admin/PHP integration hardening based on observed real deployment friction.
+1. `2.1.x` — Gemini Profile digest foundation, including bounded generation, durable lifecycle, Profile AI administration, compatible v1 propagation, and controlled PHP/LKG/local-read proof without requiring the production customer package push;
+2. `2.2.x` — PHP integration correction/customer package refresh, including the packaged `run-sync.php`, presentation-boundary cleanup, package/version/upgrade workflow, and production customer deployment of the Gemini-capable package;
+3. `2.3.x` — Profile-grounded "Ask this feed" chat;
+4. `2.4.x` — real three-feed publishing/opportunities/indie-filmmaking integration proof;
+5. `2.5.x+` — remaining admin/PHP integration tightening based on observed deployment friction; and
+6. terminal `3.0.0` only after the owner explicitly locks and satisfies the final release gate.
 
 The final `3.0.0` exit gate remains intentionally owner-controlled/TBD until those capabilities have been exercised in the real customer integration.
 
