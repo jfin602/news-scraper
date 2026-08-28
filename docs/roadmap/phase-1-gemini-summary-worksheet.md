@@ -250,21 +250,71 @@ A digest change must never weaken Article snapshot coherence or atomic PHP LKG a
 
 ## Decision 6 — Persistence and previous-good-digest lifecycle
 
-**Status:** OPEN
-
-### Questions
-
-- What durable database entity owns a Profile digest?
-- Do we retain historical generations or only active + attempt metadata?
-- What identifies the canonical input snapshot used to generate it?
-- What happens on Gemini timeout, rate limit, malformed output, safety rejection, or URL Context degradation?
-- When is the previous valid digest retained?
-- How are absent, current, stale, and failed-generation states represented?
-- What digest health/status facts should appear in the Profile AI admin section?
+**Status:** LOCKED — owner-approved 2026-08-28
 
 ### Answer
 
-_TBD_
+Successful digest generations, the currently active digest, and generation/evaluation attempts are distinct durable concepts. The most recent attempt is not itself the digest state presented to downstream consumers.
+
+Every successfully validated digest generation is persisted as an **immutable durable digest record** owned by one Distribution Profile. A successful digest record carries enough bounded provenance and structured content to reconstruct what was activated, including at minimum:
+
+- digest identity;
+- Profile identity;
+- `digestInputIdentity`;
+- generation timestamp;
+- provider/model identity;
+- bounded input Article count;
+- the exact bounded input Article IDs in canonical input order or an equivalent immutable provenance representation;
+- overview text;
+- validated structured highlights;
+- validated supporting Article references resolved only from the governed generation input;
+- bounded safe provider/usage metadata where operationally useful.
+
+The Profile owns an **active digest pointer/reference** separate from the immutable digest history. A successful replacement follows an atomic lifecycle:
+
+```text
+generate
+→ validate complete structured output and references
+→ persist complete immutable digest
+→ atomically switch the Profile active-digest reference
+```
+
+Consumers must never observe a partially written digest. Replacing the active digest does not mutate or destroy the previous successful generation; previous successful digests remain available as bounded history for provenance/diagnostics unless a later retention policy prunes them deliberately.
+
+Generation/evaluation attempts are persisted separately with bounded operational metadata. Attempt state may represent scheduled or manual evaluation, skipped/no-new-content, success, provider failure, timeout, rate limit, malformed structured output, safety rejection, dependency failure, or another bounded diagnostic category. Attempt records must not persist secrets, unbounded prompts, retrieved publisher-page bodies, full failed provider payloads, or other unnecessary sensitive/unbounded content.
+
+Ordinary Gemini/provider failure **does not replace or invalidate an otherwise still-governed previous valid digest**. For example, the active digest may remain the valid morning generation while the latest evening attempt records a provider timeout. Downstream presentation continues to receive the prior digest with its truthful original generation timestamp; the Profile AI admin section separately exposes the failed latest attempt.
+
+Individual URL Context retrieval failure is context degradation rather than automatic digest-attempt failure when the bounded normalized Article metadata/summary still provides sufficient context. No successful page retrieval may be fabricated.
+
+Canonical invalidation is different from ordinary provider failure. If an Article or governed condition necessary to the active digest is no longer permitted by current canonical Profile state—such as moderation removal, Source trust/lifecycle change, duplicate/Primary change, Profile membership/filter change, or another canonical eligibility change—the active digest becomes **non-distributable** rather than being preserved merely because it was previously valid.
+
+The canonical-invalidation path is:
+
+```text
+active digest loses current canonical validity
+→ suppress/remove it from outward active digest state
+→ attempt replacement through the normal governed digest generation path when qualifying input exists
+→ success: atomically activate replacement
+→ failure/no qualifying input: no active digest is distributed; ordinary Articles remain fully available
+```
+
+Suppressing/removing the active digest under this correctness rule participates in the outward revision behavior from Decision 5.
+
+The Profile AI admin **Generate now** operation is a deliberate force-regeneration request. It uses exactly the same canonical input selection, URL restrictions, provider boundary, structured validation, persistence, and activation path as scheduled generation, but it may bypass the scheduled "unchanged input, skip Gemini" optimization so an administrator can intentionally regenerate unchanged governed input for testing or operations. It cannot expand the Article/URL set or weaken any safety boundary.
+
+The Profile AI admin section should distinguish the active digest from the latest attempt and expose bounded useful status such as:
+
+- whether an active distributable digest exists;
+- active digest generation time;
+- input Article count;
+- provider/model identity where useful;
+- latest evaluation/attempt time;
+- latest attempt outcome and bounded failure category;
+- whether the active digest was suppressed due to canonical invalidation;
+- manual Generate now control.
+
+Failure details exposed to administrators remain bounded and secret-safe. Public/customer digest presentation does not expose internal provider errors merely because an attempt failed.
 
 ---
 
