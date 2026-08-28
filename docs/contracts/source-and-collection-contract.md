@@ -339,9 +339,12 @@ Before Relevance, identity, duplicate, or public-feed logic, normalization MUST:
 - parse recognized credible Source dates to UTC while preserving confidence/reason/fallback metadata and the distinction from missing or invalid Source dates; normalization MUST NOT manufacture `first_seen_at` or substitute a Collection-run timestamp as a Source publication time;
 - sanitize/strip unsafe markup;
 - bound field lengths;
+- normalize Article summary/excerpt to plain text and enforce a final maximum of 4,000 characters. A summary at or below the limit is preserved after ordinary normalization. An oversized summary is truncated rather than rejected: use the last complete word boundary that permits exactly `...` to be appended while keeping the final value at or below 4,000 characters; if no usable word boundary exists, keep the first 3,997 characters and append `...`;
 - normalize title representation for matching while preserving display/source title;
 - attach Source, endpoint, and Collection-run provenance; Publication tenancy is not part of the candidate contract;
 - hand the absolute normalized Article URL to the separate Article-link domain-policy gate before acceptance.
+
+The 4,000-character Article-summary bound is the normalized/persisted metadata invariant. Larger Raw parser content/input ceilings remain separate ingestion-safety bounds and do not authorize larger stored summaries. Implementing this invariant after the supported production baseline requires the governed forward-upgrade/data-preservation path to bring existing oversized persisted summaries into the same deterministic bound; a clean database rebuild is not a substitute.
 
 The original discovered URL remains the future public destination unless a later explicit Source-derived canonical/public-destination field is governed separately; canonical identity cleanup exists for identity comparison and MUST NOT silently replace the preserved original destination.
 
