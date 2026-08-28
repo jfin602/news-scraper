@@ -324,6 +324,10 @@ Accepted Article processing may also produce zero or more **orthogonal effects**
 - visibility/moderation state;
 - normalization/Relevance reasons.
 
+Persisted `Article.summary` is nullable normalized plain text and has a hard maximum of 4,000 characters. Values at or below the limit are preserved after ordinary normalization. Oversized values are truncated rather than rejected, using the last complete word boundary that permits exactly `...` while keeping the final value at or below 4,000 characters; if no usable word boundary exists, the first 3,997 characters are retained and `...` appended. This is the persisted metadata invariant regardless of the larger Raw parser input/content safety ceilings.
+
+Because customer production data is supported state from the accepted production baseline forward, introducing the 4,000-character invariant requires a governed forward migration/data transformation that deterministically brings existing oversized persisted summaries into the same bound while preserving unrelated Article identity, provenance, moderation, Category, duplicate, timestamp, and destination state. Migration from zero alone is not sufficient evidence.
+
 `original_url` is the preserved absolute Source-provided Article destination and public headline destination. `canonical_identity_url` exists for identity comparison/cleanup and MUST NOT silently replace `original_url` as a public destination. A different Source-derived public/canonical destination field requires a separately governed future contract.
 
 Source-derived normalized values remain distinct from optional administrator display overrides. An active override takes precedence only for its explicitly governed human-facing display field. Later Source observations continue updating the underlying Source-derived value without overwriting or clearing the override, and clearing the override immediately reveals the latest Source-derived value rather than a snapshot captured when the override began.
