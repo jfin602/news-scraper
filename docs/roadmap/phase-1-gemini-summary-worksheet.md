@@ -506,19 +506,46 @@ This decision adds `freshness` to the downstream digest shape established by Dec
 
 ## Decision 11 — Supporting Article references and links
 
-**Status:** OPEN
-
-### Questions
-
-- Decision 4 establishes supporting Article references on each highlight; what exact downstream rendering behavior should those canonical references use?
-- Should customer rendering show the supporting/important Article links inline with each highlight, immediately below it, or in a consolidated important-articles section?
-- How should repeated Articles supporting multiple highlights be presented without unnecessary duplicate links?
-- Should Source name/date be displayed with each important Article link in the default/reference rendering?
-- All visible links must continue to resolve from the stored governed `originalUrl`, never model-generated URLs.
+**Status:** LOCKED — owner-approved 2026-08-28
 
 ### Answer
 
-_TBD_
+Supporting/important Article links remain attached to the specific highlight they support rather than being flattened into one global important-Articles list. This preserves the useful relationship between each AI-identified development and the governed underlying stories that support it.
+
+The intended downstream/reference presentation is conceptually:
+
+```text
+Key developments
+
+Highlight title
+Highlight explanation.
+
+Important articles:
+• Article headline
+  Source display name · effective feed date
+• Article headline
+  Source display name · effective feed date
+```
+
+The Article headline is the clickable text and links directly to the exact stored governed `originalUrl`. Source display name and `effectiveFeedDate` are available as secondary metadata so customer templates can provide useful context without asking Gemini to generate factual link metadata.
+
+The normalized supporting-Article representation therefore carries application-resolved governed fields including at minimum:
+
+- `articleId`;
+- headline;
+- exact stored `originalUrl`;
+- Source display name;
+- `effectiveFeedDate`.
+
+Gemini continues to identify support only through `articleId` values from the exact bounded generation input. News Scraper validates those IDs and resolves every outward headline, Source name, date, and URL from canonical governed Article data. Model-provided URLs, Source names, dates, or replacement headlines are never trusted as outward reference fields.
+
+Within one highlight, duplicate supporting Article IDs are removed during validation/normalization and the existing per-highlight bound from Decision 4 remains authoritative.
+
+The same Article may legitimately support more than one highlight. The core structured data must preserve that relationship rather than globally deleting the Article from later highlights. Customer-specific presentation may reduce visually noisy repetition when appropriate, but presentation deduplication must not rewrite the underlying support relationships or choose a different destination.
+
+Customer template work remains presentation-owned under Decision 9. The shared PHP/API boundary supplies the normalized fields needed to render these links, but does not impose a mandatory HTML list, CSS class system, or global important-Articles section.
+
+This decision extends the supporting-Article outward/local-read shape in Decisions 7 and 8 with Source display name and `effectiveFeedDate`; the final contract review must reconcile those already-locked sections so the v1 and PHP representations stay aligned.
 
 ---
 
