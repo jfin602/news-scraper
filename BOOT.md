@@ -21,24 +21,24 @@ It establishes project identity, authority, routing, workflow gates, task gramma
 - AI assistance contract: `docs/contracts/ai-assistance-contract.md`
 - Current roadmap: `docs/roadmap/3.0-roadmap.md`
 - Current roadmap changelog: `docs/roadmap/3.0-changelog.md`
-- Current roadmap state: **OWNER-APPROVED / PRE-ACTIVATION**
-- Current package baseline: **`2.0.0`**
-- Immediate implementation blocker: the phase runner currently supports roadmap major versions `0` and `1` only; a bounded unchanged-`2.0.0` runner compatibility correction must add the intended `2.x` roadmap family before Phase 1 prompts are written/executed
-- Planned roadmap activation baseline: **`2.1.0`**
-- Planned Phase 1: Gemini Profile digest foundation
+- Current roadmap state: **OWNER-APPROVED / ACTIVE — PHASE 1**
+- Current package baseline: **`2.1.0`**
+- Current implementation phase: **Phase 1 — Gemini Profile digest foundation**
+- Current roadmap grammar: `p2-<phase>` with target versions `2.<phase>.<prompt>`, implemented and owner-accepted
+- Next prompt version: **`2.1.1`**
 - Planned Phase 2: Profile-grounded "Ask this feed" chatbot
 - Planned Phase 3: multi-feed customer proof for publishing news, opportunities, and indie filmmaking from one singleton Publication/editorial property
 - Planned Phase 4: admin/PHP integration tightening based on real observed friction
 - Planned terminal release target: **`3.0.0`**, with terminal exit gate intentionally owner-controlled/TBD
 - Completed prior roadmap: `docs/roadmap/post-1.0-roadmap.md` reached `2.0.0` on 2026-08-27
 - Accepted production baseline: customer-launch `1.0.0`; supported customer data is durable
-- Former post-1.0 Phase 0 P1: server-rendered reference root shipped at `1.0.1`
+- Former post-1.0 Phase 0 P1: server-rendered root shipped at `1.0.1`
 - Former Phase 0 P2/`1.0.2`: retired unexecuted and never reserved
 - Initial customer Publication began with publishing-industry news relevant to indie authors; shared behavior remains topic independent and the same Publication may now contain related opportunities/filmmaking verticals through Profiles
 
 The owner-approved 2.0 roadmap is complete. Its historical task grammar and validation artifacts remain authoritative only for the trees/evidence they recorded. The terminal `2.0.0` transition was package-version-only and did not itself add new runtime behavior.
 
-The owner-approved 3.0 roadmap intentionally starts from `2.0.0`, but it is not activated yet. The current runner cannot safely parse the intended `p2-<phase>` / `2.<phase>.<prompt>` family. Do not fabricate that support or write Phase 1 prompts until the dedicated runner correction is implemented, tested, reviewed, and accepted at unchanged `2.0.0`.
+The owner-approved 3.0 roadmap is active at `2.1.0`. The post-2.0 runner compatibility correction is GREEN/owner-accepted and the `p2-<phase>` / `2.<phase>.<prompt>` family is executable. Correction `c1-n6wd` is likewise GREEN/owner-accepted, so Phase 1 must consume the existing 4,000-code-point persisted Article summary invariant rather than re-implementing it.
 
 Linux VPS/Docker Compose self-host packaging, autonomous self-host production support, native self-host administrator authentication, WordPress, RSS/Atom, browser widgets, click/referral analytics, advanced SEO tooling, delta sync, and additional adapters remain outside the current committed 3.0 scope unless a later owner-approved decision promotes them.
 
@@ -206,11 +206,11 @@ Historical sequence:
 
 The full planned Phase 7 prompt sequence was not executed. The owner explicitly accepted the live customer integration and waived the formal Phase 7 P1–P4 evidence sequence; `docs/validation/phase-7-managed-integration-and-2.0-release-qualification.md` records that exception. Do not report unexecuted tests/failure injection as observed.
 
-## Owner-approved 3.0 roadmap — pre-activation
+## Owner-approved 3.0 roadmap — active Phase 1
 
-`docs/roadmap/3.0-roadmap.md` is **OWNER-APPROVED / PRE-ACTIVATION**.
+`docs/roadmap/3.0-roadmap.md` is **OWNER-APPROVED / ACTIVE — PHASE 1**.
 
-Planned version sequence after the runner compatibility correction:
+Current/planned sequence:
 
 | Phase   | Baseline | Prompt versions | Goal                                                    |
 | ------- | -------- | --------------- | ------------------------------------------------------- |
@@ -220,13 +220,13 @@ Planned version sequence after the runner compatibility correction:
 | 4       | `2.4.0`  | `2.4.x+`        | Admin + PHP integration tightening                      |
 | Release | final accepted `2.x.x` | — | terminal `3.0.0` only after owner locks final exit gate |
 
-The current next executable implementation work is **not Phase 1**. It is the bounded runner compatibility correction at unchanged `2.0.0`. The existing parser currently has only `pre-1.0` major `0` and `post-1.0` major `1` roadmap families.
+The current next implementation work is **Phase 1** at baseline `2.1.0`. The accepted runner supports the `p2-<phase>` family and target versions `2.<phase>.<prompt>` while preserving the historical major-0, major-1, and correction grammars.
 
-The intended future phase family is `p2-<phase>` with target `2.<phase>.<prompt>`, but that grammar is merely planned until source/tests prove it. Do not create a `p2-1` stack before that correction closes.
+The first Phase 1 prompt target is `2.1.1` in task folder `p2-1`.
 
 ### Phase 1 direction
 
-Phase 1 generates scheduled Gemini digests from bounded canonical Profile Articles, resolves/bounds excessive Source summary input before AI use, validates structured output, preserves prior valid digest state on failure, propagates compatible digest state through API/PHP/LKG/local-read, and proves ordinary customer page rendering does not call Gemini.
+Phase 1 generates scheduled Gemini digests from bounded canonical Profile Articles, validates structured output, preserves prior valid digest state on failure, propagates compatible digest state through API/PHP/LKG/local-read, and proves ordinary customer page rendering does not call Gemini. The accepted `c1-n6wd` correction already owns the 4,000-code-point normalized/persisted Article summary bound and production migration; Phase 1 consumes that invariant rather than re-implementing it.
 
 ### Phase 2 direction
 
@@ -261,7 +261,7 @@ Distribution Profile persistence already required Level 4 production-forward mig
 - Every implementation/closeout prompt carries a `RUN` / `DEFER` / `N/A` validation manifest. `DEFER` is required later in its assigned environment, never a skip/pass/waiver.
 - Use the narrowest useful focused command during iteration and the smallest non-overlapping `RUN` command set covering the applicable evidence.
 - Do not knowingly run VPS-required/live-external evidence from a normal Windows prompt merely to rediscover a missing prerequisite. Explicitly invoked specialized suites remain fail-closed when their expected prerequisite is unavailable, and deterministic prerequisite/environment failures are not automatically retried.
-- Cross-environment evidence combines only for the exact same accepted tree. A local implementation prompt may truthfully report local validation green with deferred evidence pending when its task gate allows that handoff; a phase/correction closeout cannot claim full GREEN until all gate-required deferred evidence runs successfully.
+- Cross-environment exact-tree matching applies when multiple environments are combined for the same acceptance/qualification claim. Ordinary prompts and ordinary phase/correction closeouts may finish GREEN with correctly deferred VPS/live/reference evidence when that evidence belongs to the later full-system/project release qualification gate.
 - Evidence applies only to the exact tree/environment actually tested.
 - Source inspection is not runtime/browser/database/live proof.
 - Mocks do not prove PostgreSQL constraints, transactions, migrations, locks, races, or live Gemini behavior.
@@ -408,21 +408,17 @@ Do not skip stages.
 
 ### Current state
 
-The 3.0 roadmap is approved but pre-activation, and its intended phase grammar is not yet executable. Therefore `/prompt-ass Phase 1` may be used only after the bounded runner correction is accepted **and** the owner performs the explicit version-only `2.0.0` → `2.1.0` roadmap activation.
+The 3.0 roadmap is active at `2.1.0`, the post-2.0 task grammar is executable, and Phase 1 is the current implementation phase.
 
-The immediate implementation planning target is the runner compatibility correction, not a roadmap phase:
+The next planning sequence is:
 
 ```text
-unchanged package 2.0.0
-→ correction planning
-→ extend runner/parser for the post-2.0 major-2 roadmap family
-→ focused regression/compatibility proof
-→ human review / correction closeout
-→ explicit roadmap activation to 2.1.0
-→ /prompt-ass Phase 1
+/prompt-ass Phase 1
+→ /prompt-plan
+→ /prompt-write p2-1
 ```
 
-If requirements/docs/repository state materially conflict, return `Planning needed` rather than silently changing the roadmap.
+Phase 1 prompts target `2.1.1 ... 2.1.x`. If requirements/docs/repository state materially conflict, return `Planning needed` rather than silently changing the roadmap.
 
 ## `/prompt-ass`
 
@@ -432,9 +428,7 @@ Return target behavior, constraints, roadmap phase or correction scope, stack ty
 
 Explicitly assess producer→consumer boundaries. Split transactional/state-machine work from separately consumed read/API work when consumers, tests, or failure risks differ materially. Testing is part of task decomposition.
 
-For the immediate runner correction, preserve all historical `p<number>` and `p1-<phase>` grammar while adding only the deliberate major-2 roadmap family required by the approved 3.0 version lifecycle. Package remains `2.0.0`; no Gemini/product implementation belongs in that correction.
-
-For future Phase 1, the AI layer must consume bounded canonical Profile Articles and must not reconstruct or reinterpret Source trust, canonical eligibility, Profile selectors, Categories, moderation, duplicate semantics, ordering, `originalUrl`, cursor/revision semantics, synchronization, LKG activation, local usability, or presentation safety.
+For current Phase 1, the AI layer must consume bounded canonical Profile Articles and must not reconstruct or reinterpret Source trust, canonical eligibility, Profile selectors, Categories, moderation, duplicate semantics, ordering, `originalUrl`, cursor/revision semantics, synchronization, LKG activation, local usability, or presentation safety. The accepted N6WD summary bound/migration is an existing producer prerequisite and must not be duplicated.
 
 ## `/prompt-plan`
 
@@ -446,7 +440,7 @@ For every producer→consumer dependency record:
 
 If the consumer would need to invent producer-owned semantics, return `Planning needed`.
 
-Reassess model/effort using the minimum-cost-adequate rule. Resolve the testing contract's Test Necessity Matrix and Test Environment Matrix into an explicit prompt validation manifest with `RUN` / `DEFER` / `N/A`, assigned environments, exact-tree handoff requirements, and the smallest non-overlapping final `RUN` command set.
+Reassess model/effort using the minimum-cost-adequate rule. Resolve the testing contract's Test Necessity Matrix and Test Environment Matrix into an explicit prompt validation manifest with `RUN` / `DEFER` / `N/A`, assigned environments, exact-tree handoff requirements when evidence is combined for the same qualification claim, and the smallest non-overlapping final `RUN` command set.
 
 ## `/prompt-write <folder name>`
 
@@ -454,7 +448,7 @@ Requires an unblocked `/prompt-plan`. Revalidate current repo/docs and write ord
 
 For corrections, use the established correction grammar and current unchanged package version.
 
-For the future 3.0 roadmap, do not write `p2-*` folders until the runner correction has made that grammar executable and the roadmap has been explicitly activated to its required baseline.
+For the active 3.0 roadmap, use `p2-<phase>` folders with `2.<phase>.<prompt>` assigned versions. Phase 1 uses `p2-1` and starts at `2.1.1`.
 
 Each written prompt MUST inherit the finalized validation manifest rather than rediscovering or broadening the repository test matrix. Do not instruct the normal Windows prompt environment to execute `DEFER` items assigned to VPS/live/reference environments; keep explicit specialized-suite prerequisite failures fail-closed when those suites are actually invoked.
 
@@ -488,16 +482,14 @@ The shared parser is `scripts/codex-phase-core.mjs`.
 
 These semantics remain supported so historical task stacks and Git-proven prefix detection are not reinterpreted.
 
-## Planned post-2.0 / 3.0 roadmap family
-
-Intended after the runner correction:
+## Active post-2.0 / 3.0 roadmap family
 
 - folder: `p2-<phase>`;
 - header: `TASK: Phase <phase> / P<number> — <title>`;
 - target version: `2.<phase>.<prompt number>`;
 - no correction unchanged-version metadata.
 
-This section is a **planned contract target**, not a claim about current parser behavior. Until the source/tests correction is accepted, `p2-*` must fail closed rather than being used manually around the parser.
+This family is executable and protected by the accepted runner compatibility correction. Historical `p2` remains historical Phase 2; only `p2-<phase>` selects the post-2.0 family.
 
 ## Corrections
 
@@ -541,7 +533,7 @@ Fast path:
 
 The historical 2.0 successor baselines remain recorded in `docs/roadmap/post-1.0-roadmap.md` and are no longer current transition targets.
 
-The planned 3.0 successor baselines become executable only after roadmap activation and runner compatibility are complete:
+The active 3.0 successor baselines are:
 
 - Phase 1 → `2.2.0`
 - Phase 2 → `2.3.0`
@@ -573,11 +565,12 @@ Until `docs/roadmap/3.0-roadmap.md` is explicitly amended with that gate, `/clos
 # Versioning
 
 - `package.json` is the sole current-version authority.
-- Current version is `2.0.0`.
+- Current version is `2.1.0`.
 - The completed 2.0 roadmap used `1.<phase>.<prompt>` phase versions and terminated at `2.0.0`.
-- The intended 3.0 roadmap uses `2.<phase>.<prompt>` phase versions only after runner compatibility and explicit roadmap activation.
-- The immediate runner correction is non-versioned and keeps package `2.0.0`.
-- Planned roadmap activation is a version-only `2.0.0` → `2.1.0` transition after the runner correction is accepted.
+- The active 3.0 roadmap uses `2.<phase>.<prompt>` phase versions.
+- The runner compatibility correction and N6WD/test-topology corrections were accepted at unchanged package `2.0.0` before activation.
+- Roadmap activation was the version-only `2.0.0` → `2.1.0` transition on 2026-08-28.
+- Phase 1 prompts begin at `2.1.1`; a GREEN Phase 1 `/closeout` advances to `2.2.0`.
 - Final release target is `3.0.0`, but its terminal gate is not yet locked.
 - `1.0.2` remains retired/unassigned historical space and is not reused.
 - UI/docs/correction work is non-versioned unless explicitly authorized otherwise.
@@ -631,18 +624,11 @@ The bundled/reference frontend UI work does not govern customer-site integration
 
 ## Current next action
 
-The 2.0 roadmap is complete and the 3.0 roadmap is owner-approved but not activated.
+The 2.0 roadmap is complete and the 3.0 roadmap is active at package `2.1.0`.
 
-The next implementation work is the bounded **post-2.0 runner compatibility correction at unchanged `2.0.0`**. It must extend `scripts/codex-phase-core.mjs` and focused runner/parser tests to support the intended major-2 roadmap family while preserving every historical major-0, major-1, and correction behavior.
+The next implementation work is **Phase 1 — Gemini Profile digest foundation**. The accepted runner supports `p2-1` and the first prompt target is `2.1.1`. The accepted N6WD correction is an existing prerequisite rather than Phase 1 implementation scope.
 
-After that correction is reviewed and accepted, perform the explicit version-only roadmap activation:
-
-```text
-2.0.0
-→ 2.1.0
-```
-
-Then the normal planning sequence becomes:
+Normal planning sequence:
 
 ```text
 /prompt-ass Phase 1
@@ -650,4 +636,4 @@ Then the normal planning sequence becomes:
 → /prompt-write p2-1
 ```
 
-for the Gemini Profile digest foundation governed by `docs/contracts/ai-assistance-contract.md` and `docs/roadmap/3.0-roadmap.md`.
+Phase 1 is governed by `docs/contracts/ai-assistance-contract.md` and `docs/roadmap/3.0-roadmap.md`.
