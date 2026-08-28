@@ -47,6 +47,7 @@ test('migrates Source administration foundation from zero with canonical constra
       '0016_distribution_credentials.sql',
       '0017_article_summary_bound.sql',
       '0018_profile_ai_digest_foundation.sql',
+      '0019_digest_lifecycle_handoff.sql',
     ]);
     const database = createDatabase({ connectionString: databaseUrl });
     try {

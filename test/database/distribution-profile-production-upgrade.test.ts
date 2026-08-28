@@ -122,6 +122,48 @@ test('the accepted production state upgrades additively through Profiles, creden
         await governedSnapshot(databaseUrl, seeded.articleId),
         after,
       );
+      const digestDatabase = createDatabase({ connectionString: databaseUrl });
+      let digestAttemptId: string;
+      let digestProfileId: string;
+      try {
+        const digestProfile = await createDistributionProfile(digestDatabase, {
+          configKey: 'digest_upgrade_profile',
+          displayName: 'Digest upgrade Profile',
+          lifecycle: 'draft',
+          resultLimit: 20,
+        });
+        digestProfileId = digestProfile.id;
+        digestAttemptId = randomUUID();
+        await digestDatabase.query(
+          `INSERT INTO distribution_profile_digest_attempts
+             (id, profile_id, trigger_kind, state, started_at)
+           VALUES ($1, $2, 'manual', 'running', '2026-08-28T12:00:00.000Z')`,
+          [digestAttemptId, digestProfileId],
+        );
+      } finally {
+        await digestDatabase.close();
+      }
+      await addMigration('0019_digest_lifecycle_handoff.sql');
+      const migratedDigestDatabase = createDatabase({
+        connectionString: databaseUrl,
+      });
+      try {
+        assert.deepEqual(
+          (
+            await migratedDigestDatabase.query(
+              `SELECT state, terminal_outcome, digest_enabled
+                 FROM distribution_profile_digest_attempts attempt
+                 JOIN distribution_profile_ai_settings settings
+                   ON settings.profile_id = attempt.profile_id
+                WHERE attempt.id = $1 AND attempt.profile_id = $2`,
+              [digestAttemptId, digestProfileId],
+            )
+          ).rows,
+          [{ state: 'running', terminal_outcome: null, digest_enabled: false }],
+        );
+      } finally {
+        await migratedDigestDatabase.close();
+      }
       await Promise.all(
         preservedBytes.map(async ([filename, bytes]) => {
           assert.equal(

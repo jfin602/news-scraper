@@ -6,9 +6,15 @@ import { createDatabase } from '../../src/database/database.ts';
 import {
   activateSuccessfulDigestGeneration,
   claimDigestAttempt,
+  completeDigestAttempt,
+  completeDigestAttemptInTransaction,
   createSuccessfulDigestGeneration,
+  findActiveDigest,
+  findLatestDigestAttempt,
+  findRunningDigestAttempt,
   readProfileAiSettings,
   recoverStaleRunningAttemptAndClaim,
+  suppressActiveDigestInTransaction,
   updateProfileAiSettings,
 } from '../../src/distribution/digests/repository.ts';
 import { createDistributionProfile } from '../../src/distribution/profiles/repository.ts';
@@ -196,6 +202,336 @@ test('shared attempt claim and stale recovery enforce one running attempt per Pr
       ]);
     } finally {
       await Promise.all([firstDatabase.close(), secondDatabase.close()]);
+    }
+  });
+});
+
+test('digest lifecycle repository exposes bounded attempt reads and exact truthful completion', async () => {
+  await scope.use(async ({ databaseUrl }) => {
+    const database = createDatabase({ connectionString: databaseUrl });
+    try {
+      const first = await createProfile(database, 'lifecycle_first');
+      const second = await createProfile(database, 'lifecycle_second');
+      assert.equal(
+        await findRunningDigestAttempt(database, first.configKey),
+        undefined,
+      );
+      const claim = await claimDigestAttempt(database, {
+        profileConfigKey: first.configKey,
+        triggerKind: 'manual',
+        startedAt: new Date('2026-08-28T12:00:00.000Z'),
+      });
+      assert.equal(claim.kind, 'claimed');
+      if (claim.kind !== 'claimed') return;
+      assert.equal(
+        (await findRunningDigestAttempt(database, first.configKey))?.id,
+        claim.attempt.id,
+      );
+      assert.equal(
+        await findRunningDigestAttempt(database, second.configKey),
+        undefined,
+      );
+      await assert.rejects(() =>
+        completeDigestAttempt(database, {
+          profileConfigKey: second.configKey,
+          attemptId: claim.attempt.id,
+          terminalOutcome: 'skipped_disabled',
+          completedAt: new Date('2026-08-28T12:01:00.000Z'),
+        }),
+      );
+      await assert.rejects(() =>
+        completeDigestAttempt(database, {
+          profileConfigKey: first.configKey,
+          attemptId: claim.attempt.id,
+          terminalOutcome: 'skipped_disabled',
+          completedAt: new Date('2026-08-28T12:01:00.000Z'),
+          provider: 'gemini',
+        }),
+      );
+      const completed = await completeDigestAttempt(database, {
+        profileConfigKey: first.configKey,
+        attemptId: claim.attempt.id,
+        terminalOutcome: 'skipped_disabled',
+        completedAt: new Date('2026-08-28T12:01:00.000Z'),
+      });
+      assert.equal(completed.terminalOutcome, 'skipped_disabled');
+      assert.equal(
+        await findRunningDigestAttempt(database, first.configKey),
+        undefined,
+      );
+      await assert.rejects(() =>
+        completeDigestAttempt(database, {
+          profileConfigKey: first.configKey,
+          attemptId: claim.attempt.id,
+          terminalOutcome: 'skipped_disabled',
+          completedAt: new Date('2026-08-28T12:02:00.000Z'),
+        }),
+      );
+      const replacement = await claimDigestAttempt(database, {
+        profileConfigKey: first.configKey,
+        triggerKind: 'manual',
+        startedAt: new Date('2026-08-28T12:03:00.000Z'),
+      });
+      assert.equal(replacement.kind, 'claimed');
+      if (replacement.kind !== 'claimed') return;
+      const latest = await findLatestDigestAttempt(database, first.configKey);
+      assert.equal(latest?.id, replacement.attempt.id);
+      const terminalInputs = [
+        {
+          terminalOutcome: 'skipped_no_input' as const,
+          inputArticleCount: 0,
+        },
+        {
+          terminalOutcome: 'skipped_unchanged' as const,
+          digestInputIdentity: 'a'.repeat(64),
+          inputArticleCount: 1,
+        },
+        {
+          terminalOutcome: 'failed' as const,
+          failureCategory: 'timeout' as const,
+          provider: 'gemini',
+          model: 'model',
+          urlContextSucceededCount: 1,
+        },
+      ];
+      let runningAttempt = replacement.attempt;
+      for (const [index, input] of terminalInputs.entries()) {
+        await completeDigestAttempt(database, {
+          profileConfigKey: first.configKey,
+          attemptId: runningAttempt.id,
+          completedAt: new Date(
+            `2026-08-28T12:${String(4 + index * 10).padStart(2, '0')}:00.000Z`,
+          ),
+          ...input,
+        });
+        if (index < terminalInputs.length - 1) {
+          const next = await claimDigestAttempt(database, {
+            profileConfigKey: first.configKey,
+            triggerKind: 'manual',
+            startedAt: new Date(
+              `2026-08-28T12:${String(10 + index * 10).padStart(2, '0')}:00.000Z`,
+            ),
+          });
+          assert.equal(next.kind, 'claimed');
+          if (next.kind !== 'claimed') return;
+          runningAttempt = next.attempt;
+        }
+      }
+      assert.equal(
+        (await findLatestDigestAttempt(database, first.configKey))?.id,
+        runningAttempt.id,
+      );
+      const scheduledSlot = new Date('2026-08-28T14:00:00.000Z');
+      const scheduled = await claimDigestAttempt(database, {
+        profileConfigKey: first.configKey,
+        triggerKind: 'scheduled',
+        scheduledSlot,
+        startedAt: scheduledSlot,
+      });
+      assert.equal(scheduled.kind, 'claimed');
+      if (scheduled.kind !== 'claimed') return;
+      await completeDigestAttempt(database, {
+        profileConfigKey: first.configKey,
+        attemptId: scheduled.attempt.id,
+        terminalOutcome: 'failed',
+        completedAt: new Date('2026-08-28T14:01:00.000Z'),
+        failureCategory: 'dependency_failure',
+      });
+      assert.deepEqual(
+        await claimDigestAttempt(database, {
+          profileConfigKey: first.configKey,
+          triggerKind: 'scheduled',
+          scheduledSlot,
+          startedAt: new Date('2026-08-28T14:02:00.000Z'),
+        }),
+        { kind: 'scheduled_slot_claimed' },
+      );
+    } finally {
+      await database.close();
+    }
+  });
+});
+
+test('digest lifecycle transaction composition rolls back coherently and serializes recovery with completion', async () => {
+  await scope.use(async ({ databaseUrl }) => {
+    const primary = createDatabase({ connectionString: databaseUrl });
+    const contender = createDatabase({ connectionString: databaseUrl });
+    try {
+      const first = await createProfile(primary, 'composition_first');
+      const second = await createProfile(primary, 'composition_second');
+      const [article] = await seedArticles(primary, 'composition_source');
+      const firstClaim = await claimDigestAttempt(primary, {
+        profileConfigKey: first.configKey,
+        triggerKind: 'scheduled',
+        scheduledSlot: new Date('2026-08-28T12:00:00.000Z'),
+        startedAt: new Date('2026-08-28T12:00:00.000Z'),
+      });
+      assert.equal(firstClaim.kind, 'claimed');
+      if (firstClaim.kind !== 'claimed') return;
+      await assert.rejects(
+        primary.transaction(async (transaction) => {
+          const digest = await createSuccessfulDigestGeneration(transaction, {
+            profileConfigKey: first.configKey,
+            digestInputIdentity: 'b'.repeat(64),
+            generatedAt: new Date('2026-08-28T12:01:00.000Z'),
+            provider: 'gemini',
+            model: 'model',
+            inputArticleIds: [article],
+            overview: 'Overview',
+            highlights: [],
+          });
+          await activateSuccessfulDigestGeneration(
+            transaction,
+            first.configKey,
+            digest.id,
+            new Date('2026-08-28T12:01:00.000Z'),
+          );
+          await completeDigestAttemptInTransaction(transaction, {
+            profileConfigKey: first.configKey,
+            attemptId: firstClaim.attempt.id,
+            terminalOutcome: 'success',
+            completedAt: new Date('2026-08-28T12:01:00.000Z'),
+            digestInputIdentity: 'b'.repeat(64),
+            inputArticleCount: 1,
+            provider: 'gemini',
+            model: 'model',
+          });
+          throw new Error('force rollback');
+        }),
+      );
+      assert.equal(await findActiveDigest(primary, first.configKey), undefined);
+      assert.equal(
+        (await findRunningDigestAttempt(primary, first.configKey))?.id,
+        firstClaim.attempt.id,
+      );
+      await primary.transaction(async (transaction) => {
+        const digest = await createSuccessfulDigestGeneration(transaction, {
+          profileConfigKey: first.configKey,
+          digestInputIdentity: 'c'.repeat(64),
+          generatedAt: new Date('2026-08-28T12:02:00.000Z'),
+          provider: 'gemini',
+          model: 'model',
+          inputArticleIds: [article],
+          overview: 'Overview',
+          highlights: [],
+        });
+        await activateSuccessfulDigestGeneration(
+          transaction,
+          first.configKey,
+          digest.id,
+          new Date('2026-08-28T12:02:00.000Z'),
+        );
+        await completeDigestAttemptInTransaction(transaction, {
+          profileConfigKey: first.configKey,
+          attemptId: firstClaim.attempt.id,
+          terminalOutcome: 'success',
+          completedAt: new Date('2026-08-28T12:02:00.000Z'),
+          digestInputIdentity: 'c'.repeat(64),
+          inputArticleCount: 1,
+          provider: 'gemini',
+          model: 'model',
+        });
+      });
+      assert.ok(await findActiveDigest(primary, first.configKey));
+      const suppressionClaim = await claimDigestAttempt(primary, {
+        profileConfigKey: first.configKey,
+        triggerKind: 'manual',
+        startedAt: new Date('2026-08-28T12:03:00.000Z'),
+      });
+      assert.equal(suppressionClaim.kind, 'claimed');
+      if (suppressionClaim.kind !== 'claimed') return;
+      await assert.rejects(
+        primary.transaction(async (transaction) => {
+          assert.equal(
+            await suppressActiveDigestInTransaction(
+              transaction,
+              first.configKey,
+            ),
+            true,
+          );
+          await completeDigestAttemptInTransaction(transaction, {
+            profileConfigKey: first.configKey,
+            attemptId: suppressionClaim.attempt.id,
+            terminalOutcome: 'skipped_disabled',
+            completedAt: new Date('2026-08-28T12:04:00.000Z'),
+          });
+          throw new Error('force rollback');
+        }),
+      );
+      assert.ok(await findActiveDigest(primary, first.configKey));
+      assert.equal(
+        (await findRunningDigestAttempt(primary, first.configKey))?.id,
+        suppressionClaim.attempt.id,
+      );
+      await primary.transaction(async (transaction) => {
+        await suppressActiveDigestInTransaction(transaction, first.configKey);
+        await completeDigestAttemptInTransaction(transaction, {
+          profileConfigKey: first.configKey,
+          attemptId: suppressionClaim.attempt.id,
+          terminalOutcome: 'skipped_disabled',
+          completedAt: new Date('2026-08-28T12:04:00.000Z'),
+        });
+      });
+      assert.equal(await findActiveDigest(primary, first.configKey), undefined);
+      assert.equal(
+        await primary.transaction((transaction) =>
+          suppressActiveDigestInTransaction(transaction, first.configKey),
+        ),
+        false,
+      );
+
+      const raceClaim = await claimDigestAttempt(primary, {
+        profileConfigKey: first.configKey,
+        triggerKind: 'manual',
+        startedAt: new Date('2026-08-28T12:05:00.000Z'),
+      });
+      assert.equal(raceClaim.kind, 'claimed');
+      if (raceClaim.kind !== 'claimed') return;
+      const [recovery, completion] = await Promise.allSettled([
+        recoverStaleRunningAttemptAndClaim(contender, {
+          profileConfigKey: first.configKey,
+          triggerKind: 'manual',
+          startedAt: new Date('2026-08-28T13:00:00.000Z'),
+          staleAttemptId: raceClaim.attempt.id,
+          staleBefore: new Date('2026-08-28T12:30:00.000Z'),
+          recoveredAt: new Date('2026-08-28T13:00:00.000Z'),
+        }),
+        completeDigestAttempt(primary, {
+          profileConfigKey: first.configKey,
+          attemptId: raceClaim.attempt.id,
+          terminalOutcome: 'failed',
+          completedAt: new Date('2026-08-28T13:00:00.000Z'),
+          failureCategory: 'timeout',
+        }),
+      ]);
+      const recovered =
+        recovery.status === 'fulfilled' &&
+        recovery.value.kind === 'recovered_and_claimed';
+      assert.equal(recovered, completion.status === 'rejected');
+      const raceHistory = await primary.query<{
+        readonly state: string;
+        readonly terminal_outcome: string | null;
+      }>(
+        `SELECT state, terminal_outcome
+           FROM distribution_profile_digest_attempts
+          WHERE id = $1 OR profile_id = $2 AND state = 'running'
+          ORDER BY started_at ASC`,
+        [raceClaim.attempt.id, first.id],
+      );
+      assert.equal(raceHistory.rows[0]?.state, 'completed');
+      assert.ok(
+        raceHistory.rows[0]?.terminal_outcome === 'abandoned' ||
+          raceHistory.rows[0]?.terminal_outcome === 'failed',
+      );
+      assert.ok(raceHistory.rows.length <= 2);
+      const independent = await claimDigestAttempt(contender, {
+        profileConfigKey: second.configKey,
+        triggerKind: 'manual',
+        startedAt: new Date('2026-08-28T13:00:00.000Z'),
+      });
+      assert.equal(independent.kind, 'claimed');
+    } finally {
+      await Promise.all([primary.close(), contender.close()]);
     }
   });
 });

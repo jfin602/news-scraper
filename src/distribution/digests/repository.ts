@@ -56,7 +56,12 @@ export interface PersistedSuccessfulDigest {
 export type DigestAttemptTriggerKind = 'scheduled' | 'manual';
 export type DigestAttemptState = 'running' | 'completed';
 export type DigestAttemptTerminalOutcome =
-  'success' | 'skipped_no_input' | 'skipped_unchanged' | 'failed' | 'abandoned';
+  | 'success'
+  | 'skipped_disabled'
+  | 'skipped_no_input'
+  | 'skipped_unchanged'
+  | 'failed'
+  | 'abandoned';
 export type DigestAttemptFailureCategory =
   | 'provider_failure'
   | 'timeout'
@@ -90,6 +95,20 @@ export interface ClaimDigestAttemptInput {
   readonly triggerKind: DigestAttemptTriggerKind;
   readonly scheduledSlot?: Date;
   readonly startedAt: Date;
+}
+
+export interface CompleteDigestAttemptInput {
+  readonly profileConfigKey: string;
+  readonly attemptId: string;
+  readonly terminalOutcome: Exclude<DigestAttemptTerminalOutcome, 'abandoned'>;
+  readonly completedAt: Date;
+  readonly digestInputIdentity?: string;
+  readonly inputArticleCount?: number;
+  readonly failureCategory?: Exclude<DigestAttemptFailureCategory, 'abandoned'>;
+  readonly provider?: string;
+  readonly model?: string;
+  readonly urlContextSucceededCount?: number;
+  readonly urlContextFailedCount?: number;
 }
 
 export type DigestAttemptClaimOutcome =
@@ -323,6 +342,31 @@ export async function findActiveDigest(
     : requireDigestGeneration(executor, requiredUuid(row.generation_id));
 }
 
+export async function suppressActiveDigest(
+  database: Pick<Database, 'transaction'>,
+  profileConfigKey: unknown,
+): Promise<boolean> {
+  return database.transaction((transaction) =>
+    suppressActiveDigestInTransaction(transaction, profileConfigKey),
+  );
+}
+
+/** Caller owns the transaction when suppression is part of a lifecycle transition. */
+export async function suppressActiveDigestInTransaction(
+  executor: QueryExecutor,
+  profileConfigKey: unknown,
+): Promise<boolean> {
+  const profile = await requireProfile(executor, profileConfigKey);
+  await acquireDigestLifecycleLock(executor, profile.id);
+  const result = await executor.query<{ readonly profile_id: unknown }>(
+    `DELETE FROM distribution_profile_active_digests
+      WHERE profile_id = $1
+      RETURNING profile_id`,
+    [profile.id],
+  );
+  return result.rows[0] !== undefined;
+}
+
 /** Caller owns the transaction so P3 can compose completion and activation. */
 export async function activateSuccessfulDigestGeneration(
   executor: QueryExecutor,
@@ -331,6 +375,7 @@ export async function activateSuccessfulDigestGeneration(
   activatedAt: Date,
 ): Promise<PersistedSuccessfulDigest> {
   const profile = await requireProfile(executor, profileConfigKey);
+  await acquireDigestLifecycleLock(executor, profile.id);
   const digest = await requireDigestGeneration(
     executor,
     requiredUuid(generationId),
@@ -383,10 +428,7 @@ export async function claimDigestAttemptInTransaction(
   // This transaction-scoped lock turns the two partial-unique invariants into
   // deterministic claim outcomes instead of relying on a failed INSERT, which
   // would abort a caller-owned PostgreSQL transaction.
-  await executor.query(
-    `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`,
-    [profile.id],
-  );
+  await acquireDigestLifecycleLock(executor, profile.id);
   if (normalized.triggerKind === 'scheduled') {
     const scheduled = await executor.query<{ readonly id: unknown }>(
       `SELECT id FROM distribution_profile_digest_attempts
@@ -438,6 +480,7 @@ export async function recoverStaleRunningAttemptAndClaim(
       transaction,
       normalized.profileConfigKey,
     );
+    await acquireDigestLifecycleLock(transaction, profile.id);
     const recovered = await transaction.query<{ readonly id: unknown }>(
       `UPDATE distribution_profile_digest_attempts
           SET state = 'completed', terminal_outcome = 'abandoned',
@@ -465,6 +508,108 @@ export async function recoverStaleRunningAttemptAndClaim(
       });
     return claim;
   });
+}
+
+export async function findRunningDigestAttempt(
+  executor: QueryExecutor,
+  profileConfigKey: unknown,
+): Promise<PersistedDigestAttempt | undefined> {
+  const profile = await requireProfile(executor, profileConfigKey);
+  return findDigestAttempt(executor, profile, "state = 'running'");
+}
+
+export async function findLatestDigestAttempt(
+  executor: QueryExecutor,
+  profileConfigKey: unknown,
+): Promise<PersistedDigestAttempt | undefined> {
+  const profile = await requireProfile(executor, profileConfigKey);
+  return findDigestAttempt(executor, profile, 'TRUE');
+}
+
+export async function completeDigestAttempt(
+  database: Pick<Database, 'transaction'>,
+  input: CompleteDigestAttemptInput,
+): Promise<PersistedDigestAttempt> {
+  return database.transaction((transaction) =>
+    completeDigestAttemptInTransaction(transaction, input),
+  );
+}
+
+/** Caller owns the transaction so P3 can atomically activate/suppress and complete. */
+export async function completeDigestAttemptInTransaction(
+  executor: QueryExecutor,
+  input: CompleteDigestAttemptInput,
+): Promise<PersistedDigestAttempt> {
+  const completion = normalizeCompletionInput(input);
+  const profile = await requireProfile(executor, completion.profileConfigKey);
+  await acquireDigestLifecycleLock(executor, profile.id);
+  const result = await executor.query<AttemptRow>(
+    `UPDATE distribution_profile_digest_attempts
+        SET state = 'completed', terminal_outcome = $3, completed_at = $4,
+            digest_input_identity = $5, input_article_count = $6,
+            failure_category = $7, provider = $8, model = $9,
+            url_context_succeeded_count = $10, url_context_failed_count = $11
+      WHERE id = $1 AND profile_id = $2 AND state = 'running'
+      RETURNING id, profile_id, $12::text AS config_key, trigger_kind,
+                scheduled_slot, state, terminal_outcome, started_at,
+                completed_at, digest_input_identity, input_article_count,
+                failure_category, provider, model, url_context_succeeded_count,
+                url_context_failed_count, NULL::boolean AS digest_enabled,
+                1 AS digest_lookback_days, 1 AS digest_max_article_count,
+                started_at AS created_at, started_at AS updated_at`,
+    [
+      completion.attemptId,
+      profile.id,
+      completion.terminalOutcome,
+      completion.completedAt,
+      completion.digestInputIdentity,
+      completion.inputArticleCount,
+      completion.failureCategory,
+      completion.provider,
+      completion.model,
+      completion.urlContextSucceededCount,
+      completion.urlContextFailedCount,
+      profile.configKey,
+    ],
+  );
+  const row = result.rows[0];
+  if (row === undefined) throw configurationError('attempt_not_running');
+  return mapAttempt(row);
+}
+
+async function findDigestAttempt(
+  executor: QueryExecutor,
+  profile: Readonly<{ id: string; configKey: string }>,
+  predicate: string,
+): Promise<PersistedDigestAttempt | undefined> {
+  const result = await executor.query<AttemptRow>(
+    `SELECT attempt.id, attempt.profile_id, $2::text AS config_key,
+            attempt.trigger_kind, attempt.scheduled_slot, attempt.state,
+            attempt.terminal_outcome, attempt.started_at, attempt.completed_at,
+            attempt.digest_input_identity, attempt.input_article_count,
+            attempt.failure_category, attempt.provider, attempt.model,
+            attempt.url_context_succeeded_count,
+            attempt.url_context_failed_count, NULL::boolean AS digest_enabled,
+            1 AS digest_lookback_days, 1 AS digest_max_article_count,
+            attempt.started_at AS created_at, attempt.started_at AS updated_at
+       FROM distribution_profile_digest_attempts attempt
+      WHERE attempt.profile_id = $1 AND ${predicate}
+      ORDER BY attempt.started_at DESC, attempt.id ASC
+      LIMIT 1`,
+    [profile.id, profile.configKey],
+  );
+  const row = result.rows[0];
+  return row === undefined ? undefined : mapAttempt(row);
+}
+
+async function acquireDigestLifecycleLock(
+  executor: QueryExecutor,
+  profileId: string,
+): Promise<void> {
+  await executor.query(
+    `SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))`,
+    [profileId],
+  );
 }
 
 async function requireDigestGeneration(
@@ -630,6 +775,157 @@ function normalizeRecoveryInput(
   });
 }
 
+function normalizeCompletionInput(input: CompleteDigestAttemptInput): Readonly<{
+  profileConfigKey: string;
+  attemptId: string;
+  terminalOutcome: Exclude<DigestAttemptTerminalOutcome, 'abandoned'>;
+  completedAt: Date;
+  digestInputIdentity: string | null;
+  inputArticleCount: number | null;
+  failureCategory: Exclude<DigestAttemptFailureCategory, 'abandoned'> | null;
+  provider: string | null;
+  model: string | null;
+  urlContextSucceededCount: number;
+  urlContextFailedCount: number;
+}> {
+  const terminalOutcome = input.terminalOutcome;
+  if (
+    terminalOutcome !== 'success' &&
+    terminalOutcome !== 'skipped_disabled' &&
+    terminalOutcome !== 'skipped_no_input' &&
+    terminalOutcome !== 'skipped_unchanged' &&
+    terminalOutcome !== 'failed'
+  ) {
+    throw configurationError('attempt_outcome_invalid');
+  }
+  const normalized = Object.freeze({
+    profileConfigKey: normalizeConfigKey(input.profileConfigKey),
+    attemptId: requiredUuid(input.attemptId),
+    terminalOutcome,
+    completedAt: requiredDate(input.completedAt),
+    digestInputIdentity:
+      input.digestInputIdentity === undefined
+        ? null
+        : identity(input.digestInputIdentity),
+    inputArticleCount:
+      input.inputArticleCount === undefined
+        ? null
+        : requiredInteger(input.inputArticleCount, 0, 20),
+    failureCategory:
+      input.failureCategory === undefined
+        ? null
+        : completionFailureCategory(input.failureCategory),
+    provider:
+      input.provider === undefined ? null : boundedText(input.provider, 1, 100),
+    model: input.model === undefined ? null : boundedText(input.model, 1, 100),
+    urlContextSucceededCount:
+      input.urlContextSucceededCount === undefined
+        ? 0
+        : requiredInteger(input.urlContextSucceededCount, 0, 20),
+    urlContextFailedCount:
+      input.urlContextFailedCount === undefined
+        ? 0
+        : requiredInteger(input.urlContextFailedCount, 0, 20),
+  });
+  validateAttemptTerminalShape(normalized);
+  return normalized;
+}
+
+function completionFailureCategory(
+  value: unknown,
+): Exclude<DigestAttemptFailureCategory, 'abandoned'> {
+  if (
+    value === 'provider_failure' ||
+    value === 'timeout' ||
+    value === 'rate_limit' ||
+    value === 'malformed_output' ||
+    value === 'safety_rejection' ||
+    value === 'dependency_failure'
+  ) {
+    return value;
+  }
+  throw configurationError('attempt_failure_invalid');
+}
+
+function validateAttemptTerminalShape(
+  input: Readonly<{
+    terminalOutcome: DigestAttemptTerminalOutcome;
+    digestInputIdentity: string | null;
+    inputArticleCount: number | null;
+    failureCategory: DigestAttemptFailureCategory | null;
+    provider: string | null;
+    model: string | null;
+    urlContextSucceededCount: number;
+    urlContextFailedCount: number;
+  }>,
+): void {
+  const hasProviderFacts =
+    input.provider !== null ||
+    input.model !== null ||
+    input.urlContextSucceededCount !== 0 ||
+    input.urlContextFailedCount !== 0;
+  if (input.terminalOutcome === 'success') {
+    if (
+      input.digestInputIdentity === null ||
+      input.inputArticleCount === null ||
+      input.inputArticleCount === 0 ||
+      input.provider === null ||
+      input.model === null ||
+      input.failureCategory !== null
+    ) {
+      throw configurationError('attempt_terminal_metadata_invalid');
+    }
+    return;
+  }
+  if (input.terminalOutcome === 'skipped_disabled') {
+    if (
+      input.digestInputIdentity !== null ||
+      input.inputArticleCount !== null ||
+      input.failureCategory !== null ||
+      hasProviderFacts
+    ) {
+      throw configurationError('attempt_terminal_metadata_invalid');
+    }
+    return;
+  }
+  if (input.terminalOutcome === 'skipped_no_input') {
+    if (
+      input.inputArticleCount !== 0 ||
+      input.failureCategory !== null ||
+      hasProviderFacts
+    ) {
+      throw configurationError('attempt_terminal_metadata_invalid');
+    }
+    return;
+  }
+  if (input.terminalOutcome === 'skipped_unchanged') {
+    if (
+      input.digestInputIdentity === null ||
+      input.inputArticleCount === null ||
+      input.inputArticleCount === 0 ||
+      input.failureCategory !== null ||
+      hasProviderFacts
+    ) {
+      throw configurationError('attempt_terminal_metadata_invalid');
+    }
+    return;
+  }
+  if (input.terminalOutcome === 'failed') {
+    if (input.failureCategory === null) {
+      throw configurationError('attempt_terminal_metadata_invalid');
+    }
+    return;
+  }
+  if (
+    input.digestInputIdentity !== null ||
+    input.inputArticleCount !== null ||
+    input.failureCategory !== 'abandoned' ||
+    hasProviderFacts
+  ) {
+    throw new Error('Persisted digest attempt terminal metadata is invalid.');
+  }
+}
+
 function mapSettings(row: SettingsRow): ProfileAiSettings {
   try {
     if (typeof row.digest_enabled !== 'boolean') throw new Error();
@@ -684,6 +980,52 @@ function mapAttempt(row: AttemptRow): PersistedDigestAttempt {
     (terminalOutcome === null && completedAt === null)
   )
     throw new Error('Persisted digest attempt state is invalid.');
+  const digestInputIdentity =
+    row.digest_input_identity === null
+      ? null
+      : identity(row.digest_input_identity);
+  const inputArticleCount =
+    row.input_article_count === null
+      ? null
+      : requiredInteger(row.input_article_count, 0, 20);
+  const failureCategory = nullableFailureCategory(row.failure_category);
+  const provider =
+    row.provider === null ? null : boundedText(row.provider, 1, 100);
+  const model = row.model === null ? null : boundedText(row.model, 1, 100);
+  const urlContextSucceededCount = requiredInteger(
+    row.url_context_succeeded_count,
+    0,
+    20,
+  );
+  const urlContextFailedCount = requiredInteger(
+    row.url_context_failed_count,
+    0,
+    20,
+  );
+  if (state === 'running') {
+    if (
+      digestInputIdentity !== null ||
+      inputArticleCount !== null ||
+      failureCategory !== null ||
+      provider !== null ||
+      model !== null ||
+      urlContextSucceededCount !== 0 ||
+      urlContextFailedCount !== 0
+    ) {
+      throw new Error('Persisted digest attempt running metadata is invalid.');
+    }
+  } else {
+    validateAttemptTerminalShape({
+      terminalOutcome: terminalOutcome ?? fail(),
+      digestInputIdentity,
+      inputArticleCount,
+      failureCategory,
+      provider,
+      model,
+      urlContextSucceededCount,
+      urlContextFailedCount,
+    });
+  }
   return Object.freeze({
     id: requiredUuid(row.id),
     profileId: requiredUuid(row.profile_id),
@@ -694,23 +1036,13 @@ function mapAttempt(row: AttemptRow): PersistedDigestAttempt {
     terminalOutcome,
     startedAt: requiredDate(row.started_at),
     completedAt,
-    digestInputIdentity:
-      row.digest_input_identity === null
-        ? null
-        : identity(row.digest_input_identity),
-    inputArticleCount:
-      row.input_article_count === null
-        ? null
-        : requiredInteger(row.input_article_count, 0, 20),
-    failureCategory: nullableFailureCategory(row.failure_category),
-    provider: row.provider === null ? null : boundedText(row.provider, 1, 100),
-    model: row.model === null ? null : boundedText(row.model, 1, 100),
-    urlContextSucceededCount: requiredInteger(
-      row.url_context_succeeded_count,
-      0,
-      20,
-    ),
-    urlContextFailedCount: requiredInteger(row.url_context_failed_count, 0, 20),
+    digestInputIdentity,
+    inputArticleCount,
+    failureCategory,
+    provider,
+    model,
+    urlContextSucceededCount,
+    urlContextFailedCount,
   });
 }
 
@@ -801,6 +1133,7 @@ function nullableTerminalOutcome(
   if (value === null) return null;
   if (
     value === 'success' ||
+    value === 'skipped_disabled' ||
     value === 'skipped_no_input' ||
     value === 'skipped_unchanged' ||
     value === 'failed' ||
