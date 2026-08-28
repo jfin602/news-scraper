@@ -564,7 +564,99 @@ This decision extends the supporting-Article outward/local-read shape in Decisio
 
 ### Answer
 
-_TBD_
+The Phase 1 customer package remains one version-matched ZIP downloaded from the protected News Scraper admin surface. The archive filename may remain product/version descriptive, but extraction must produce the actual supported replaceable directory directly:
+
+```text
+news-scraper-php-integration-<version>.zip
+└── ns-integration/
+    ├── VERSION
+    ├── integration-package.json
+    ├── README.md
+    ├── UPGRADE.md
+    ├── run-sync.php
+    ├── bin/
+    │   └── sync.php
+    ├── src/
+    ├── config/
+    │   ├── sync.env.example
+    │   └── local-read.env.example
+    └── example/
+```
+
+The sibling `ns-private` directory is **never** part of the package and is never overwritten by extraction or package replacement. The supported installed layout remains:
+
+```text
+<customer home>/
+├── ns-integration/        # replaceable versioned package
+└── ns-private/            # durable customer-owned private state
+    ├── sync.env
+    ├── local-read.env
+    ├── state/
+    └── logs/
+```
+
+The existing production customer has an important compatibility constraint that must become part of the supported package rather than remain customer-created glue: the customer's cron currently calls `ns-integration/run-sync.php`. That custom launcher loads the private `ns-private/sync.env` configuration and then invokes the packaged synchronization entrypoint. The Gemini-capable package refresh must therefore include a supported `run-sync.php` at the same stable `ns-integration/run-sync.php` path.
+
+The packaged launcher must:
+
+- load the sibling private `ns-private/sync.env` for the supported installation layout without moving the bearer token into `ns-integration`, `public_html`, or the cron command line;
+- delegate to the package's canonical `bin/sync.php` behavior rather than duplicating synchronization logic;
+- preserve supported CLI arguments such as `--force`;
+- contain no customer-specific credentials, Profile hard-coding, presentation logic, or Gemini secret;
+- remain safe for direct CLI/cron use and must not create a public HTTP synchronization endpoint.
+
+Because the customer cron already points at `ns-integration/run-sync.php`, whole-folder replacement must leave that cron target valid. The Phase 1 upgrade must **not** require the customer to edit, delete, or recreate the existing cron job merely because the former hand-created launcher is becoming a first-class packaged file. This requirement is also tracked by known issue `T4QP` and should resolve that issue when implementation and validation prove the packaged launcher works.
+
+The intended remote upgrade procedure is deliberately mechanical:
+
+1. from the protected News Scraper admin panel, download the exact current PHP integration package and note its displayed version;
+2. in cPanel/File Manager, rename the existing `ns-integration` directory to a bounded backup name such as `ns-integration-backup`;
+3. upload and extract the downloaded ZIP beside `ns-private`; extraction creates the new `ns-integration` directory directly, without requiring the customer to rename an internal package folder or hand-move individual runtime files;
+4. leave `ns-private` completely untouched;
+5. confirm `ns-integration/VERSION` matches the package version shown in the News Scraper admin panel;
+6. confirm `ns-integration/run-sync.php` exists at the same path already used by the customer's cron;
+7. visit the existing customer page and confirm the normal Article feed still renders;
+8. leave the existing cron schedule, machine credential, private configuration, and state paths unchanged; the next normal scheduled sync uses the newly packaged launcher and may bring the additive digest into the existing LKG;
+9. during the later customer presentation integration step, make the small customer-owned PHP tag/template change required to display the normalized digest data from Decision 9.
+
+The package must include a concise `UPGRADE.md` written for cPanel/File Manager users and covering the backup, extraction, version check, `run-sync.php` presence check, unchanged `ns-private` rule, existing-page verification, and rollback procedure. It should not require SSH/Terminal competence merely to perform the supported upgrade.
+
+Rollback is directory-level and must preserve customer state:
+
+```text
+new ns-integration is unusable
+→ rename/remove the new ns-integration
+→ restore the previous ns-integration backup name
+→ leave ns-private untouched
+→ existing cron continues targeting ns-integration/run-sync.php
+```
+
+The upgraded local-state representation must be designed additively enough that the supported immediate previous package can be restored without requiring the customer to manually delete or rebuild `ns-private` merely because a digest-capable package synchronized additive state. Exact backward-read compatibility proof belongs in implementation planning/testing; the worksheet does not treat this as already observed runtime evidence.
+
+The protected admin download UI must visibly identify the exact integration package version being offered, and that display must derive from the same authoritative package metadata/version source used for the ZIP filename, `VERSION`, and `integration-package.json`. Do not maintain an independently typed UI version label.
+
+The supported no-shell customer verification chain is:
+
+```text
+admin download version
+= ns-integration/VERSION
+
+ns-integration/run-sync.php exists
+= existing cron path preserved
+
+existing public Article feed still renders
+= package replacement did not break ordinary delivery
+
+next normal sync succeeds
+= updated integration can consume the managed Profile snapshot
+
+later customer tag/template update displays digest
+= normalized AI data reached the local presentation boundary
+```
+
+Server-side digest existence/generation status remains observable in the protected Profile AI admin section. The customer public page must not expose provider errors, credentials, a diagnostic sync trigger, or a Gemini/network dependency merely for verification.
+
+The Phase 1 package upgrade therefore requires no new customer Gemini key, no new machine credential, no new database, no second synchronization system, no new cron schedule, and no hand-written sync wrapper. The previously custom `run-sync.php` becomes part of the supported versioned package while preserving the customer's existing cron wiring.
 
 ---
 
