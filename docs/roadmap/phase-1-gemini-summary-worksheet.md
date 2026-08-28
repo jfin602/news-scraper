@@ -83,19 +83,29 @@ Backward compatibility is part of this decision: swapping `ns-integration` must 
 
 ## Decision 2 — Digest generation trigger and cadence
 
-**Status:** OPEN
-
-### Questions
-
-- What server-side event/job generates the digest?
-- Should generation run once or twice daily by default?
-- Should it be tied to the existing collection/publication refresh schedule or be an independent scheduled job?
-- What prevents needless regeneration when the governed Profile input has not materially changed?
-- Should administrators be able to trigger a manual regeneration?
+**Status:** LOCKED — owner-approved 2026-08-28
 
 ### Answer
 
-_TBD_
+Digest generation is independent of endpoint collection timing. Collection remains desynchronized per endpoint: each endpoint follows its own due/runtime state, so Phase 1 must not attempt to identify or create a global "all Sources just finished" collection moment.
+
+The server performs **two scheduled digest evaluations per day** for each enabled Profile digest. A scheduled evaluation does not automatically call Gemini.
+
+At each evaluation:
+
+1. resolve the current bounded digest input through canonical governed Profile output;
+2. compare that current input with the input recorded for the latest successful valid digest;
+3. if no Article has newly entered the current bounded governed digest input, keep the existing digest and make no Gemini request;
+4. if at least one Article has newly entered that input, one new Article is sufficient to justify generating a new digest;
+5. multiple Article arrivals and independently timed Source collections accumulate naturally until the next scheduled evaluation, producing at most one scheduled regeneration for that evaluation rather than one Gemini call per collected Article.
+
+The regeneration threshold is based on Articles newly entering the **current bounded governed digest input**, not merely on any newly persisted Article anywhere in the database. An Article that is newly stored but outside the Profile or outside the bounded digest input does not by itself justify regeneration.
+
+Canonical eligibility changes are a correctness exception to the normal new-Article threshold. If an Article supporting the current digest is no longer allowed by the current governed Profile state because of moderation, duplicate/Primary changes, Profile membership/filter changes, Source lifecycle/trust changes, or another canonical eligibility change, the system must not continue treating that digest as valid merely because no new Article arrived. The exact regenerate-versus-suppress lifecycle for this condition will be resolved in later digest lifecycle/reference decisions.
+
+The twice-daily evaluation schedule is logically independent from collection execution and collection failure. Gemini failure cannot fail Source collection or ordinary Article distribution.
+
+An administrator MAY request manual digest generation/evaluation for testing or operations, but it must use the same governed generation path rather than a separate synchronous implementation. Exact manual-force semantics, including whether an operator may deliberately regenerate unchanged input, may be finalized with the admin/lifecycle design.
 
 ---
 
