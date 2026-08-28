@@ -1,11 +1,11 @@
 # Phase 1 Gemini Summary Worksheet
 
-**Status:** OPEN PLANNING WORKSHEET  
+**Status:** COMPLETE — OWNER-APPROVED 2026-08-28  
 **Roadmap:** 3.0 / Phase 1 — Gemini Profile digest foundation  
 **Current package baseline:** `2.1.0`  
 **Purpose:** Resolve the operational, distribution, PHP-upgrade, and presentation decisions for scheduled Gemini-powered Profile summaries before the formal `/prompt-ass` → `/prompt-plan` → `/prompt-write p2-1` workflow begins.
 
-This file is intentionally non-normative while items remain open. It records owner decisions as they are made so the later Phase 1 planning workflow can consume one coherent source instead of reconstructing decisions from chat history.
+This completed worksheet records the owner-approved Phase 1 planning decisions so the formal documentation and prompt workflows can consume one coherent source instead of reconstructing decisions from chat history.
 
 Governing behavior remains in the current contracts and roadmap. If a worksheet answer conflicts with a governing contract, the conflict must be resolved through the normal documentation/contract workflow before implementation prompts are written.
 
@@ -47,8 +47,6 @@ no new public upstream dependency
 preserve ns-private configuration/state
 replace ns-integration as one package operation
 ```
-
-This is a planning target, not yet a locked implementation contract except where a decision below is explicitly marked LOCKED.
 
 ## Cross-cutting Profile AI administration requirement
 
@@ -551,7 +549,7 @@ This decision extends the supporting-Article outward/local-read shape in Decisio
 
 ## Decision 12 — Customer upgrade package and remote install instructions
 
-**Status:** OPEN
+**Status:** LOCKED — owner-approved 2026-08-28
 
 ### Questions
 
