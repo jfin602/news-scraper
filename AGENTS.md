@@ -20,36 +20,33 @@ Follow `BOOT.md`.
 - Terminal MVP Phase 21 `/closeout` transitioned the final validated `0.21.x` tree to `1.0.0`.
 - Former post-1.0 Phase 0 P1 shipped the server-rendered root at `1.0.1`; its unexecuted P2/`1.0.2` closeout is permanently retired.
 - The seven-phase 2.0 roadmap is complete. Terminal `/closeout` changed only top-level `package.json` to `2.0.0`; the Phase 7 owner-approved evidence exception remains recorded in the durable validation artifact and is not rewritten as unobserved test evidence.
-- The owner-approved 3.0 roadmap is **pre-activation** at package `2.0.0`. Before roadmap activation, a bounded source/test correction must extend the phase runner to support the intended `2.x` roadmap family while preserving all historical grammar.
+- The owner-approved 3.0 roadmap is **active in Phase 1** at package `2.1.0`. The post-2.0 runner compatibility correction and N6WD Article-summary correction are GREEN/owner-accepted prerequisites.
 - Use `docs/codex-model-selection.md` for detailed minimum-cost-adequate model/reasoning/usage policy.
 
 ## Versioning and task-stack grammar
 
-`package.json` is the sole current-version authority and is currently `2.0.0`. Documentation, correction, and UI work is non-versioned unless an explicit owner-authorized roadmap activation/release transition says otherwise.
+`package.json` is the sole current-version authority and is currently `2.1.0`. Documentation, correction, and UI work is non-versioned unless an explicit owner-authorized roadmap activation/release transition says otherwise.
 
 ### Current executable roadmap grammar
 
-The machine parser `scripts/codex-phase-core.mjs` currently supports only:
+The machine parser `scripts/codex-phase-core.mjs` supports:
 
-- historical pre-1.0 phase folders `p<number>` with target versions `0.<phase>.<prompt>`; and
-- historical post-1.0/2.0 phase folders `p1-<phase>` with target versions `1.<phase>.<prompt>`.
+- historical pre-1.0 phase folders `p<number>` with target versions `0.<phase>.<prompt>`;
+- historical post-1.0/2.0 phase folders `p1-<phase>` with target versions `1.<phase>.<prompt>`; and
+- active post-2.0/3.0 phase folders `p2-<phase>` with target versions `2.<phase>.<prompt>`.
 
-Those historical semantics remain supported. The 2.0 roadmap's `p1-*` task stacks are completed history; they must not be reinterpreted as 3.0 task stacks.
+Those historical semantics remain supported. The 2.0 roadmap's `p1-*` task stacks are completed history; they must not be reinterpreted as 3.0 task stacks. Historical `p2` remains historical Phase 2; only `p2-<phase>` selects the post-2.0 family.
 
-### Planned 3.0 grammar
+### Active 3.0 grammar
 
-The owner-approved `docs/roadmap/3.0-roadmap.md` intends:
+The owner-approved `docs/roadmap/3.0-roadmap.md` uses:
 
 - Phase N folder: `p2-N`;
 - prompt target: `2.N.<prompt number>`;
-- initial Phase 1 folder: `p2-1`;
-- initial Phase 1 prompt space: `2.1.x`.
+- current Phase 1 folder: `p2-1`;
+- current Phase 1 prompt space: `2.1.x`, beginning at `2.1.1`.
 
-**This grammar is not executable yet.** Do not run `/prompt-write p2-1`, fabricate `2.1.x` runner compatibility, or create Phase 1 task prompts until the dedicated unchanged-`2.0.0` runner correction extends `scripts/codex-phase-core.mjs` and focused tests prove the new family without breaking historical families.
-
-The runner correction itself remains a non-versioned correction stack at `2.0.0` and does not activate the roadmap.
-
-After that correction is accepted, a separate owner-authorized roadmap activation may change only top-level `package.json` from `2.0.0` to `2.1.0` before Phase 1 implementation prompts begin.
+The runner correction remains historical non-versioned correction work completed at `2.0.0`; the separately authorized roadmap activation changed only top-level `package.json` from `2.0.0` to `2.1.0`.
 
 The machine parser is `scripts/codex-phase-core.mjs`; parser changes must update BOOT and focused parser tests. Before reporting `/prompt-write` complete, run `npm run codex:phase:validate -- <task-folder>` when local execution is available. `npm run codex:phase -- <task-folder>` executes implementation prompts and stops before the parsed final closeout prompt by default. `npm run codex:phase -- <task-folder> --closeout` may invoke that final prompt after the Git-proven implementation prefix completes, but its result remains HUMAN REVIEW REQUIRED and is never automatically accepted.
 
@@ -76,26 +73,29 @@ Targeted UI prompts under `docs/design/tasks/` are not a `codex:phase` grammar. 
 
 ### Completed 2.0 roadmap
 
-`docs/roadmap/post-1.0-roadmap.md` is COMPLETE. It produced the current `2.0.0` baseline through Distribution Profile persistence, canonical Profile/read-model authority, machine credentials/security, permanent v1 API, generic PHP synchronization/LKG, normalized local-read/customer SSR integration, and the owner-accepted real customer integration release transition.
+`docs/roadmap/post-1.0-roadmap.md` is COMPLETE. It produced the `2.0.0` baseline through Distribution Profile persistence, canonical Profile/read-model authority, machine credentials/security, permanent v1 API, generic PHP synchronization/LKG, normalized local-read/customer SSR integration, and the owner-accepted real customer integration release transition.
 
 Historical Phase 7 planned qualification items are not automatically current requirements or evidence. Use the durable Phase 7 artifact to distinguish observed/operator-accepted evidence from the unexecuted formal prompt sequence.
 
-### Owner-approved 3.0 roadmap — pre-activation
+### Owner-approved 3.0 roadmap — active Phase 1
 
-**Current package:** `2.0.0`  
+**Current package:** `2.1.0`  
 **Roadmap:** `docs/roadmap/3.0-roadmap.md`  
-**Status:** owner-approved / PRE-ACTIVATION  
-**Immediate blocker:** runner compatibility correction at unchanged `2.0.0`  
-**Planned activation baseline:** `2.1.0`  
+**Status:** owner-approved / ACTIVE — PHASE 1  
+**Current phase:** Gemini Profile digest foundation  
+**Current task family:** `p2-1`  
+**First prompt version:** `2.1.1`  
 **Planned terminal target:** `3.0.0`, with final exit gate intentionally owner-controlled/TBD
 
-Planned sequence after the runner correction and activation:
+Current/planned sequence:
 
 1. `2.1.x` — Gemini Profile digest foundation;
 2. `2.2.x` — Profile-grounded "Ask this feed" chatbot;
 3. `2.3.x` — real multi-feed customer integration proof for publishing news, opportunities, and indie filmmaking from one singleton Publication/editorial property;
 4. `2.4.x+` — admin and PHP integration tightening based on observed real deployment friction;
 5. terminal `3.0.0` only after the owner explicitly locks and satisfies the final gate.
+
+The accepted `c1-n6wd` correction already implements the governed 4,000-code-point normalized/persisted Article summary bound and production-forward migration. Phase 1 consumes that producer boundary and must not duplicate it.
 
 The 3.0 roadmap does not automatically promote previously post-2.0 ideas such as self-host packaging, WordPress, RSS/Atom output, analytics, advanced SEO tooling, delta sync, or additional adapters.
 
@@ -146,7 +146,7 @@ Distribution Profile persistence already established the requirement for both mi
 - Every implementation/closeout prompt carries a `RUN` / `DEFER` / `N/A` validation manifest. `DEFER` means required later in the assigned environment, not skipped, passed, waived, or optional.
 - Use narrow focused suites during iteration and the smallest non-overlapping `RUN` command set covering all required evidence; do not knowingly invoke VPS-required/live evidence from a normal Windows prompt merely to trigger a prerequisite failure.
 - Explicitly invoked specialized suites remain fail-closed when prerequisites are unexpectedly unavailable. Deterministic prerequisite/environment failures are not automatically retried.
-- Cross-environment evidence combines only for the exact same accepted tree. A local implementation prompt may report local validation green with deferred evidence pending when allowed, but a phase/correction gate cannot claim full GREEN until all gate-required deferred evidence has run successfully.
+- Cross-environment exact-tree matching applies when multiple environments are combined for the same acceptance/qualification claim. Ordinary implementation and ordinary phase/correction closeout gates may finish GREEN with correctly deferred VPS/live/reference evidence when those items belong to the later full-system/project release qualification gate.
 - Producer prompts with downstream consumers must map every required capability to the owning implementation/export and focused proof; consumers must not invent producer-owned SQL, cursor, state, transaction, validation, or topology semantics.
 - Evidence applies only to the exact final tree tested. Source inspection is not runtime proof; mocks do not prove PostgreSQL guarantees; HTTP integration is not browser proof; fixtures are not live-Source or live-Gemini proof.
 - Explicitly required suites fail when prerequisites are absent, skipped, flaky, or select zero tests.
