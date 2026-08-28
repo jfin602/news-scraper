@@ -1,8 +1,8 @@
 # c1-n6wd validation
 
 **Correction:** `c1-n6wd`, Correction 1  
-**Disposition:** **GREEN — HUMAN REVIEW REQUIRED**  
-**Package:** `2.0.0`  
+**Disposition:** **GREEN — OWNER ACCEPTED**  
+**Package:** `2.0.0` at correction closeout  
 **Correction base:** `8cdedd4a10c00058aa075a14cbb0f32afa58b9bf`  
 **Implementation commit:** `aa69e3238919d23896a42429bbfcd3ef8ec054a2`  
 **Closeout/test-strengthening commit:** `606322fd40d72945518580a1d07ff6d4882dc745`
@@ -109,5 +109,7 @@ The correction's required evidence is satisfied by:
 `c1-n6wd` is **GREEN** for its governed correction scope.
 
 The durable 4,000-character normalized/persisted Article summary invariant is implemented, supported production data is transformed additively through migration `0017`, and focused plus full PostgreSQL/recovery evidence protects the change. The former RED/BLOCKED status was caused only by a validation-topology prerequisite that has since been corrected without changing N6WD behavior.
+
+The repository owner explicitly accepted this correction as GREEN during the consolidated `/closeout` on 2026-08-28. The later roadmap activation to `2.1.0` is a separate version-only transition and does not alter the correction evidence recorded here.
 
 This artifact records existing observed evidence plus repository drift inspection; it does not claim new PHP, live-Source, browser, deployed-customer, or Gemini runtime evidence.
