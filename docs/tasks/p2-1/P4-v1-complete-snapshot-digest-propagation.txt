@@ -1,0 +1,339 @@
+TASK: Phase 1 / P4 — v1 complete-snapshot digest propagation
+
+- Recommended configuration: `Terra High`.
+- Task-shape classification: `Bounded`.
+- Specification clarity: `Explicit`.
+- State coupling: `High`.
+- Integrity risk: `High`.
+- Concurrency: `Moderate`.
+- Security: `Sensitive`.
+- Novel inference: `Moderate`.
+- Model-family basis: P1-P3 own Article input, persisted digest state, and semantic freshness. P4 is the additive permanent-v1 representation/snapshot integration, but cursor/revision/ETag coherence makes it more than a serializer edit.
+- Reasoning basis: Terra High is required because digest state must participate in one coherent outward snapshot without creating a circular dependency back into the Article-only Profile snapshot used by AI input, and invalid optional AI state must fail open without weakening Article snapshot consistency.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Luna High`; rejected because a subtle revision/race/cursor mistake could mix digest generations across pages or cause AI failure to turn into Article API failure.
+- Escalation trigger: P3 cannot classify/read a digest against an already captured canonical Profile input without re-entering the outward representation path, or one-transaction snapshot coherence cannot be achieved through existing transaction-aware producers.
+- Escalation target: `Terra Ultra` for a bounded snapshot/transaction refactor; return `Planning needed` rather than duplicating P1/P3 semantics in the API layer.
+- Estimate confidence: `High`.
+- Efficiency rationale: extend the one permanent distribution snapshot once, keeping HTTP/PHP consumers simple and avoiding a second digest endpoint, cache, cursor, or ETag.
+
+The assigned project version is `2.1.4`.
+
+## Goal
+
+Add the Phase 1 digest to the permanent `/api/v1/distribution/{profile_key}` **complete Profile snapshot** so every successful page contains one top-level `digest` field whose value is either the P3-normalized active digest or `null`.
+
+Conceptually:
+
+```text
+P1 canonical Article Profile snapshot
++ P3 semantic active digest/null
+-> one coherent outward distribution representation snapshot
+-> snapshotRevision / ETag
+-> every paginated v1 page
+```
+
+P4 owns the Node outward representation, revision participation, page consistency, and HTTP serialization. It does not own digest generation/freshness, provider calls, PHP persistence, or admin UI.
+
+## Prerequisite and read first
+
+Require P1-P3 complete at package `2.1.3` (or `2.1.4` for a safe rerun).
+
+Read before editing:
+
+1. current `BOOT.md`, `AGENTS.md`, `README.md`;
+2. `docs/contracts/distribution-api-contract.md`;
+3. `docs/contracts/distribution-and-integration-contract.md`;
+4. `docs/contracts/ai-assistance-contract.md`;
+5. `docs/contracts/testing-and-validation-contract.md`;
+6. Phase 1 roadmap v1/PHP sections;
+7. P1 `profile-snapshot.ts` / canonical outward Article producer and P1 digest-input service;
+8. P3 normalized `current | older | null` digest read authority and active-digest repositories;
+9. `src/distribution/profile-page.ts`, `snapshot-revision.ts`, `cursor.ts`;
+10. `src/app/web/distribution-api-router.ts` and distribution runtime wiring;
+11. current distribution unit/integration/database/security tests.
+
+Do not let the v1 controller query AI tables, compare Article IDs, calculate freshness, inspect attempt failures, or import provider code.
+
+## Preserve the Article-only AI input producer
+
+The existing/P1 canonical Profile Article snapshot is also the producer used to construct Gemini input. **Do not simply add the active digest into that same conceptual input and then have P3 call it recursively.**
+
+Create or preserve a clear distinction between:
+
+1. **canonical Profile Article snapshot/input producer** — Profile + Publication + ordered governed Articles; no active digest dependency; used by P1/P3;
+2. **outward distribution representation snapshot** — the same captured Profile/Publication/Articles plus normalized P3 active digest/null; used by v1 page/revision consumers.
+
+Exact type/file names are implementation-owned, but dependency direction must remain acyclic:
+
+```text
+canonical Article/Profile producer
+-> P1 digest input
+-> P3 digest lifecycle/read authority
+
+canonical Article/Profile producer + P3 normalized digest state
+-> outward v1 representation snapshot
+```
+
+P4 may refactor P1/P3 internals narrowly to expose a transaction-aware or caller-snapshot-aware read seam needed for coherence, but MUST NOT change their business rules.
+
+## One coherent revision
+
+The outward `snapshotRevision` must identify **Articles + active digest representation together**.
+
+Requirements:
+
+- digest object -> replacement digest changes revision even when Articles are unchanged;
+- digest object -> `null` suppression changes revision;
+- `null` -> digest object activation changes revision;
+- semantic `current` -> `older` change changes revision even if digest prose is unchanged;
+- unchanged Articles + unchanged normalized digest produce the same deterministic revision;
+- no internal attempt/provider error/config/secret field participates merely because it exists;
+- no request-time `generatedAt` value participates in the revision.
+
+Use deterministic serialization/hashing of the normalized digest representation, including ordered highlights/supporting Article references and the exact governed outward support metadata that the API exposes.
+
+Do not use `digestInputIdentity` as the outward revision. It is internal provenance only.
+
+## Snapshot transaction/race behavior
+
+Avoid a response that captures Articles from one logical state and a digest classified against a different current Profile state.
+
+Use the smallest coherent approach that captures the Article snapshot and active digest classification under one stable database view or an equivalent P1/P3 snapshot-aware composition. Prefer one read-only `REPEATABLE READ` transaction for the outward representation if the existing database abstraction supports it.
+
+Important constraints:
+
+- fix the application clock once for the representation read where lookback/freshness classification needs `now`;
+- P3 remains the authority for `current | older | null`;
+- do not hold transactions over Gemini/provider calls — P4 performs no provider call;
+- invalid/malformed persisted optional AI state must degrade to `digest: null` while a valid Article snapshot still returns;
+- a database/dependency failure that prevents reading the required Article/Profile snapshot remains the existing service failure path;
+- do not catch arbitrary Article/database failure and pretend it is only an AI-null condition.
+
+If the active digest switches after the captured representation is complete, that is simply a later revision. Existing continuation revision checks handle it.
+
+## Normalized v1 digest shape
+
+Every successful active Profile page MUST contain `digest` as a top-level key. It is never omitted.
+
+When present, serialize only:
+
+```text
+digest.generatedAt
+digest.freshness              # current | older
+digest.inputArticleCount      # 1..20
+digest.provider
+digest.model
+digest.overview
+digest.highlights[]
+  .title
+  .explanation
+  .supportingArticles[]
+    .articleId
+    .headline
+    .source.displayName
+    .effectiveFeedDate
+    .originalUrl
+```
+
+Use the exact field naming locked by the current distribution/AI contracts; if the current contract names differ slightly, follow the contract rather than this illustrative indentation.
+
+Supporting metadata must be application-resolved governed data. Do not expose:
+
+- `digestInputIdentity`;
+- internal digest UUIDs;
+- attempt IDs/outcomes/failure categories;
+- Profile AI settings;
+- prompts/system instructions;
+- URL Context statuses unless specifically contract-exposed (they are operator diagnostics, not v1 digest data);
+- token counts/raw usage;
+- Gemini key;
+- raw provider URLs/citations/errors;
+- stored historical digest list.
+
+Provider/model are bounded operational provenance and are safe outward fields per the contract; no credentials or request details accompany them.
+
+## Supporting Article resolution
+
+Visible support destinations always use exact stored governed `originalUrl` from the generation's validated input/canonical Article authority, never model-generated URLs.
+
+P4 must consume P3/P1 normalized support data rather than asking the model/provider again.
+
+If a persisted support reference cannot be validated/resolved through the P3 read authority, treat the optional digest as invalid/null. Do not emit a partially trusted support object while retaining the prose as “valid.”
+
+Preserve supporting-Article order and highlight order.
+
+## Page consistency
+
+The same normalized `digest` value must appear on **every page** traversed under one `snapshotRevision`, including pages with zero items if such a page shape is possible under current pagination behavior.
+
+Requirements:
+
+- initial and continuation pages for one revision serialize byte-equivalent logical digest data;
+- cursor still binds to the same `snapshotRevision`;
+- if digest changes between continuation requests, existing `409 snapshot_changed` behavior applies;
+- do not put digest state into the cursor separately;
+- do not invent a second digest cursor/revision/ETag;
+- `304` on an unchanged initial request includes digest state through the shared revision identity — if digest changes, old ETag must no longer yield 304.
+
+## HTTP serialization and compatibility
+
+Update `DistributionProfilePageOutcome` / router serialization so the active outcome carries the normalized digest/null from the outward representation snapshot.
+
+The response remains:
+
+```json
+{
+  "apiVersion": "v1",
+  "generatedAt": "...request time...",
+  "snapshotRevision": "...",
+  "profile": { ... },
+  "publication": { ... },
+  "digest": null,
+  "items": [ ... ],
+  "nextCursor": null
+}
+```
+
+or the same with a structured digest object.
+
+Existing required Article fields/semantics, authentication, rate limiting, error classes, CORS stance, cache headers, and direct publisher destinations remain unchanged.
+
+`distribution:read` still authorizes only distribution reads. This additive digest output does **not** grant interactive AI spending authority.
+
+## Failure isolation
+
+Required fail-open behavior:
+
+```text
+valid Profile + Publication + Articles
++ absent/disabled/invalid optional digest
+-> HTTP 200 normal Article snapshot
+-> digest: null
+```
+
+Do not convert a provider failure or invalid optional digest into `503` after P3 has already determined that Articles are valid.
+
+Do not swallow genuine database failure required to establish canonical Profile/Article state.
+
+The v1 route must never call Gemini or trigger generation. It is a read-only consumer of persisted normalized digest state.
+
+## Focused proof
+
+Extend unit/integration/database/security coverage to prove at minimum:
+
+### Revision and pagination
+
+- article-identical null->digest, digest->replacement, digest->null, current->older each change revision;
+- identical normalized outward state gives stable revision;
+- request-time `generatedAt`, attempt state, failure category, and internal input identity do not affect revision;
+- every continuation page carries the same digest for one revision;
+- digest change between page requests yields `snapshot_changed` rather than a mixed traversal;
+- ETag/304 changes exactly with the shared revision.
+
+### Serialization
+
+- `digest` always exists on successful active pages;
+- null is represented as JSON null;
+- valid current/older objects contain only allowed bounded fields;
+- generatedAt is exact digest generation time;
+- support Article metadata/order/exact `originalUrl` are preserved;
+- internal IDs/config/attempt/errors/prompts/provider raw state are absent;
+- invalid optional digest becomes null while Articles remain 200.
+
+### Transaction/producer boundary
+
+- outward representation uses P1/P3 producers rather than direct duplicate Article/freshness SQL;
+- canonical Article-only snapshot remains usable by P1/P3 without recursive digest dependency;
+- a race/activation change cannot create one page with a digest classified against another Article revision;
+- Article read failures still fail as existing dependency failures and are not mislabeled as optional-AI null.
+
+### Regression/topic independence
+
+- existing draft/disabled/not-found/auth/rate/error behavior is unchanged;
+- Article-only consumers/tests preserve order and exact fields;
+- at least two materially different Profile fixtures serialize the same generic digest schema with no topic logic.
+
+Use real PostgreSQL where the coherent-read/race claim depends on actual transaction isolation.
+
+## Producer-to-consumer handoff to P5
+
+| Downstream-required capability | P4 owner/export | Focused proof |
+| --- | --- | --- |
+| top-level digest always object/null | v1 page/router | response schema tests |
+| one digest per revision | representation snapshot | pagination/race tests |
+| digest participates in snapshotRevision/ETag | revision producer | transition/304 tests |
+| bounded support Article shape | v1 serializer | exact fields/redaction tests |
+| AI invalidity fails open to valid Articles | representation/page service | null+200 tests |
+| no visitor/provider call | read-only v1 path | dependency/source test |
+
+P5 must be able to validate/synchronize digest data from typed v1 pages without reconstructing P3 freshness or inspecting Node persistence.
+
+## Preserved behavior and non-goals
+
+Preserve all P1-P3 semantics, existing v1 machine auth/rate/error/cursor behavior, canonical Article order/fields, and all collection/editorial behavior.
+
+Do not implement:
+
+- provider/generation calls in Web/API;
+- digest endpoint/ETag/cache/job separate from Profile snapshot;
+- PHP changes;
+- admin UI;
+- renderer/customer deployment;
+- interactive chat/search.
+
+## Validation manifest
+
+### RUN — normal local development environment
+
+During iteration use focused profile-page/revision/router tests.
+
+Final-tree matrix:
+
+```text
+npm run check
+npm run test:db
+npm run test:security
+git diff --check
+npm run codex:phase:validate -- p2-1
+```
+
+Do not add browser/PHP/live-provider commands merely because digest data is now serialized.
+
+### DEFER
+
+- real Gemini execution — `LIVE/EXTERNAL`; Phase 1 closeout.
+- PHP runtime/PHP-backed browser — `VPS-REQUIRED`; Phase 2 package qualification after P5 implements PHP compatibility.
+- real customer package deployment — `REFERENCE`; Phase 2.
+
+### N/A
+
+- recovery suite unless P4 changes P1-P3 persistence/lifecycle rather than only reading it;
+- live Source tests;
+- public reference frontend browser tests.
+
+## Version and repository rules
+
+- Set top-level `package.json` to `2.1.4` before final validation.
+- Do not create `package-lock.json`.
+- Do not add/modify migrations unless a genuine P1/P3 producer defect is found; report Planning needed instead of embedding new lifecycle semantics in P4.
+- Do not edit governing docs, roadmap, worksheet, validation artifacts, `.codex/docs-prompt.txt`, or prior prompts.
+- Do not manually commit; phase runner owns commits.
+
+## Acceptance
+
+P4 is complete only when:
+
+1. one acyclic outward representation snapshot composes canonical Articles with P3 normalized digest/null;
+2. every successful v1 page always contains `digest` object/null;
+3. digest state participates in the same deterministic snapshotRevision/ETag and is identical across continuation pages;
+4. invalid optional AI state fails open to digest null without weakening Article consistency;
+5. no internal AI state or model-generated destination leaks into v1;
+6. no v1 request calls Gemini or creates generation work;
+7. the Article-only Profile snapshot remains the canonical P1/P3 producer and no competing SQL/state machine is introduced;
+8. P5 receives a complete typed wire producer;
+9. all RUN evidence passes;
+10. package version is exactly `2.1.4`.
+
+Finish with a concise report listing changed files, representation/snapshot dependency direction, revision changes, v1 digest shape, race/fail-open tests, commands/results, deferred evidence, and any blocker for P5.
