@@ -4,6 +4,16 @@ This file is the running issue log for problems reported in this chat.
 
 ## Open Issues
 
+### Q7HF — 2026-08-28 — PHP integration duplicates customer-owned presentation through bundled renderer
+
+- **Status:** Open
+- The current customer integration uses the bundled PHP renderer path but then overrides that presentation in the customer's top PHP tag, leaving two presentation layers for the same feed output.
+- This is unnecessarily indirect and cuts against the integration contract boundary that the customer owns feed presentation, CSS/classes, surrounding markup, and site composition while News Scraper supplies governed normalized Profile data.
+- The intended correction is to remove the bundled/local renderer as a supported presentation layer and keep the PHP package focused on synchronization, last-known-good state, and normalized local-read access.
+- The default/example customer PHP tag should instead demonstrate a minimal server-rendered table directly from normalized local-read data. That example is instructional rather than authoritative presentation, so the customer can clearly see and modify the exact markup used on their site without overriding an internal renderer.
+- The replacement must preserve the existing normalized Profile results, canonical Article ordering/eligibility, exact stored publisher `originalUrl` destinations, local-only rendering, safe empty/unavailable handling, and all sync/LKG behavior. Customer markup must not become a new filtering, reranking, or editorial-interpretation layer.
+- Do not fold this correction into the current Gemini Phase 1 / `2.1.x` work. Address it when the PHP integration package is next revised, preferably alongside the later Gemini-capable package refresh so the customer receives one coherent updated package.
+
 ### T4QP — 2026-08-26 — PHP integration package requires a hand-created sync launcher
 
 - **Status:** Open
