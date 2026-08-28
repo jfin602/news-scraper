@@ -17,9 +17,11 @@ This file is the running issue log for problems reported in this chat.
 
 - **Status:** Open
 - Some RSS/Atom feeds provide the full article body, or a substantial portion of it, in the item description/content field rather than a short summary.
-- Persisting these oversized values without a bound can waste database storage and increase downstream payload, processing, and indexing costs without providing proportional value to the product.
-- The correction should define an explicit safe length policy for stored Article descriptions, likely including a character limit or equivalent bounded normalization behavior, while preserving ordinary feed summaries and avoiding source-specific or topic-specific aggregation logic.
-- The exact limit and truncation semantics should be decided against the governing collection/data/distribution contracts before implementation.
+- Normalized persisted `Article.summary` is now intended to have a hard maximum of **4,000 characters** after plain-text normalization. Values at or below that limit are preserved unchanged.
+- Oversized summaries should be truncated rather than causing the Article to be rejected. Truncation should use the last complete word boundary that allows exactly `...` to be appended while keeping the final stored value at or below 4,000 characters. If no usable word boundary exists, truncate to 3,997 characters and append `...`.
+- The existing larger Raw RSS/Atom parser content limit remains a separate ingestion-safety bound and must not be treated as the persisted-summary limit.
+- The implementation must apply the same deterministic bound to existing supported production summaries through the governed forward-upgrade/data-preservation path, not only to newly collected Articles.
+- Until implementation and regression evidence exist, this issue remains open.
 
 ## Resolved Issues
 
