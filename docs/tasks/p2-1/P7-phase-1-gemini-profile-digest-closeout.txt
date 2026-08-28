@@ -1,0 +1,433 @@
+TASK: Phase 1 / P7 — Phase 1 Gemini Profile digest closeout
+
+- Recommended configuration: `Sol Light`.
+- Task-shape classification: `Investigative`.
+- Specification clarity: `Explicit`.
+- State coupling: `Very high`.
+- Integrity risk: `Very high`.
+- Concurrency: `High`.
+- Security: `High`.
+- Novel inference: `Moderate`.
+- Model-family basis: repository policy uses Sol for independent roadmap closeout. Phase 1 now spans production persistence/migration, canonical Profile input, external Gemini/URL Context, a durable generation state machine, multi-Worker scheduling, permanent v1 snapshot semantics, PHP LKG/local-read propagation, and protected admin controls.
+- Reasoning basis: Light is the closeout-policy baseline because governing contracts are explicit and the required three-pass review forces independent verification. Escalate only when observed defects require deeper state/refactor/architecture reasoning.
+- Complexity / quality floor: `Critical`.
+- Estimated usage: `Very high`.
+- Lower-cost alternative considered: none under the current roadmap closeout policy.
+- Escalation trigger: unresolved duplicate provider-call risk, data/migration loss, canonical-selection bypass, invalid digest retention, secret/tool-authority leak, snapshot/PHP corruption, admin authorization defect, live-provider evidence gap, or meaningful structural duplication across P1-P6.
+- Escalation target: `Terra High` / `Terra Ultra` for bounded state/integration/refactor remediation, or higher-effort Sol only for genuine ambiguous contract/architecture reconciliation.
+- Estimate confidence: `High`.
+- Efficiency rationale: perform one independent integrated audit over P1-P6, repair only bounded unambiguous Phase 1 defects, run one non-overlapping exact-tree evidence matrix, require real Gemini evidence before provider claims, and preserve PHP/VPS/customer package qualification for the mandatory Phase 2 gate.
+
+The assigned project version is `2.1.7`.
+
+## Goal
+
+Independently review and close Phase 1 against the exact integrated P1-P6 tree, make only bounded unambiguous repairs/tests already inside Phase 1 scope, execute the applicable final evidence matrix, obtain truthful live Gemini evidence for the provider claim, and write the durable Phase 1 validation artifact.
+
+This is not a new feature prompt. Do not implement Phase 2 package hardening/issues, production customer deployment, chatbot, multi-feed rollout, Source-exclude M6SX, or unrelated cleanup.
+
+The final result remains **HUMAN REVIEW REQUIRED**. Do not perform conversational `/closeout` and do not advance to `2.2.0`; the owner performs that package-only transition after accepting this closeout.
+
+## Prerequisite and exact identity
+
+P1-P6 must be reachable as the runner-recognizable Phase 1 implementation prefix, ending at package `2.1.6`, before this prompt begins.
+
+Establish from Git rather than conversation text:
+
+- exact pre-P1 base commit at the active `2.1.0` baseline;
+- P1 through P6 implementation commits and versions `2.1.1` through `2.1.6`;
+- current HEAD/package version;
+- complete Phase 1 source/task diff;
+- no unexpected implementation work interleaved into the Phase 1 prefix.
+
+If Git/package history does not prove the expected prefix, stop before accepting behavior.
+
+## Read first
+
+Read:
+
+1. current `BOOT.md`, `AGENTS.md`, `README.md`, `docs/README.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/product-scope-and-users.md`;
+4. `docs/contracts/ai-assistance-contract.md`;
+5. `docs/contracts/distribution-and-integration-contract.md`;
+6. `docs/contracts/distribution-api-contract.md`;
+7. `docs/contracts/domain-and-data-contract.md` where production persistence/Article summary semantics matter;
+8. `docs/contracts/testing-and-validation-contract.md`;
+9. `docs/operations/security-reliability-and-operations.md`;
+10. `docs/decisions/production-data-and-schema-compatibility.md`;
+11. current Phase 1 and Phase 2 entries in `docs/roadmap/3.0-roadmap.md`;
+12. completed `docs/roadmap/phase-1-gemini-summary-worksheet.md` as planning history subordinate to promoted contracts;
+13. accepted N6WD/runner/test-topology validation artifacts where their producer/evidence limits matter;
+14. every prompt in `docs/tasks/p2-1/`;
+15. complete P1-P6 implementation diff plus all important producers/consumers/tests.
+
+Do not treat prompts or implementation as higher authority than current contracts.
+
+# Pass 1 — Contract and evidence review
+
+Trace the full Phase 1 chain, not only individual prompt acceptance.
+
+## P1 — Production-safe AI persistence and canonical input
+
+Verify:
+
+- additive supported migration history remains intact; no rewrite of `0001`–`0017`;
+- existing production data/relationships survive forward upgrade and clean migration still works;
+- existing/new Profiles have disabled AI defaults, 7-day default lookback, max 20, and the implementation-selected 1–30 / 1–20 bounds;
+- AI settings are Profile configuration and contain no provider secret/topic logic;
+- successful digests are immutable history; active reference is separate; attempts are separate/bounded;
+- scheduled slot and in-progress claim/concurrency guarantees exist at the persistence/application boundary rather than only in one process;
+- no secret/raw provider/prompt/page body is persistable through ordinary attempt/digest APIs;
+- canonical digest input consumes the existing Profile Article snapshot/read authority rather than its own SQL;
+- input preserves canonical order, applies rolling lookback then bounded prefix, consumes accepted N6WD summaries, and exposes only allowed safe fields;
+- `digestInputIdentity` is deterministic/versioned, separate from `snapshotRevision`, and changes exactly according to the chosen Profile/settings/ordered-input identity contract.
+
+## P2 — Gemini provider/tool/output boundary
+
+Verify against current official provider behavior actually used by source:
+
+- official `@google/genai` SDK and Gemini Developer API Interactions path;
+- `gemini-3.7-flash` default;
+- `store=false`;
+- low thinking;
+- current structured `response_format` JSON schema;
+- URL Context only over exact P1-provided stored `originalUrl` values, max 20;
+- no Google Search grounding or arbitrary/model/user/Source URL expansion;
+- prompt is topic independent and explicitly treats Source/retrieved content as untrusted reference data;
+- provider annotations/URLs do not become canonical destinations;
+- application validator enforces overview/highlight/support/aggregate bounds and exact input `articleId` membership;
+- provider failures/retrieval statuses are bounded/secret-safe;
+- no hidden automatic provider retry can create duplicate spend;
+- ordinary non-AI startup does not require a Gemini key.
+
+## P3 — Digest lifecycle, concurrency, and scheduling
+
+Verify:
+
+- exactly two deterministic UTC half-day scheduled evaluation slots/day;
+- no Source-collection completion barrier or endpoint-job-table abuse;
+- multi-Worker polling can claim each Profile/slot at most once;
+- scheduled and manual execution cannot make concurrent provider calls for one Profile;
+- stale running/crashed attempts recover boundedly without permanent lock or tight uncertain retry;
+- provider call occurs outside long-lived DB transaction/row lock;
+- zero input skips and suppresses active digest;
+- no active + non-empty generates;
+- unchanged input/config skips provider;
+- one newly entering bounded Article triggers;
+- config changes trigger reevaluation without waiting for unrelated new content;
+- natural lookback aging alone does not create unnecessary provider calls;
+- manual force reuses the same path and only bypasses unchanged-input skip;
+- canonical invalidation suppresses unsafe old digest before provider success;
+- successful validated digest is persisted completely then atomically activated;
+- failed replacement preserves previous digest only under the exact `current | older` validity/overlap rules;
+- no overlap or canonical invalidation yields null;
+- age alone never makes a current digest stale;
+- provider failure cannot break collection, canonical Article distribution, Worker endpoint loops, or another Profile.
+
+## P4 — Permanent v1 complete snapshot
+
+Verify:
+
+- the Article-only canonical Profile snapshot remains upstream of AI and no circular representation dependency exists;
+- a distinct outward representation composes canonical Articles + P3 digest state coherently;
+- every successful active v1 page contains `digest` as object or null;
+- same logical digest repeats on every continuation page of one revision;
+- digest activation/replacement/suppression/current->older participates in the same `snapshotRevision`/ETag;
+- continuation race produces existing `snapshot_changed`, never mixed digest pages;
+- invalid optional digest fails open to null while valid Articles still return normally;
+- real canonical Article/Profile dependency failure still uses the existing failure path;
+- only allowed digest/support fields are exposed; internal input/attempt/config/provider raw state is absent;
+- visible support URLs are exact governed stored `originalUrl` values;
+- v1 read requests never call Gemini or create generation work;
+- `distribution:read` did not silently become interactive/billable AI mutation authority.
+
+## P5 — PHP complete LKG/local-read propagation
+
+Inspect both code and deterministic evidence even when PHP runtime is assigned to Phase 2 qualification.
+
+Verify:
+
+- core Profile/Publication/Article page validation remains strict;
+- missing/malformed/oversized optional digest fails open to null rather than poisoning valid Articles;
+- no partial digest is exposed;
+- contradictory/missing/invalid digest across continuation pages degrades candidate digest to null while core revision mismatch still fails/restarts normally;
+- one normalized digest/null lives inside the same Profile LKG generation — no second digest cache/state/job/lock;
+- pre-digest local state rehydrates as null;
+- a newer valid Article revision with null digest does not accidentally retain an older digest;
+- LocalProfileReader exposes only normalized generatedAt/freshness/input count/provider/model/overview/highlights/support Articles;
+- local `staleAgeSeconds` is still LKG freshness, not digest semantic freshness;
+- disabled/cutoff/never-synced/unavailable local states cannot leak retained digest;
+- ordinary visitor/local read makes no News Scraper/Gemini request and needs no Gemini key;
+- P5 did not implement Phase 2 renderer/launcher/config/package issues early.
+
+Do not claim actual PHP CLI/browser behavior unless it was actually executed in an appropriate environment.
+
+## P6 — Protected Profile AI administration
+
+Verify:
+
+- dedicated Profile AI controls expose enable, 1–30 lookback, 1–20 max, cadence, active digest status, latest bounded attempt, Generate now;
+- no Gemini key/provider secret field exists in Profile config/UI;
+- settings mutations validate/audit boundedly and do not alter Profile lifecycle/Article/collection state;
+- disabling immediately yields normalized outward null without deleting immutable history;
+- config change does not directly call provider merely because it was saved;
+- Generate now invokes exactly the P3 manual force path and cannot accept arbitrary prompt/URL input;
+- Web startup/non-AI routes work with no Gemini key;
+- provider failure/unconfigured/in-progress/no-input states are bounded admin results, not raw errors;
+- Cloudflare/admin/request-integrity perimeter is reused;
+- machine distribution credentials cannot invoke generation/admin mutation;
+- browser Profile switching cannot cross-paint AI state between Profiles;
+- admin is topic independent.
+
+## End-to-end topic-independence and preserved laws
+
+Trace shared helpers/consumers and verify no Phase 1 code contains indie-author/publishing/opportunity/filmmaking/customer-specific branching.
+
+Preserve:
+
+- approved Source/network safety boundaries;
+- Source-scoped identity/idempotency/provenance;
+- Relevance/Categories/moderation/duplicate authority;
+- exact original publisher destination law;
+- singleton Publication/multi-Profile architecture;
+- machine/admin authority separation;
+- ordinary non-AI operation;
+- existing `/`, `/api/feed`, collection Worker, endpoint scheduler/jobs, and current PHP Article behavior.
+
+# Pass 2 — Adversarial error/edge-case review
+
+Independently derive realistic failures from source/contracts rather than trusting test names.
+
+At minimum challenge:
+
+### Persistence/migration
+
+- old supported production Profile rows missing AI defaults after upgrade;
+- cross-Profile active digest pointer/support references;
+- mutable “historical” digest rows;
+- scheduled slot uniqueness only process-local;
+- manual + scheduled double provider call;
+- stale running attempt permanently blocking Profile;
+- malformed persisted AI state breaking ordinary Article reads;
+- migration rollback/restore assumptions not reflected in recovery tests.
+
+### Input/provider security
+
+- cutoff off-by-one and clock nondeterminism;
+- Profile `resultLimit`/filters bypassed by AI query;
+- N6WD duplicated/retruncated differently;
+- Source summary/page says “ignore instructions,” requests another URL, asks for key/system prompt;
+- model returns out-of-input IDs, duplicate IDs, fake URLs, HTML/script, oversized Unicode text, deeply nested/malformed JSON;
+- URL Context returns paywall/error/unsafe or a redirect/annotation URL different from stored destination;
+- raw provider exception/key/prompt/body enters logs/attempt rows.
+
+### Lifecycle/concurrency
+
+- two Workers hit slot boundary simultaneously;
+- manual click races scheduled claim;
+- Worker dies after claim before provider call, during provider call, or after provider success before activation;
+- provider succeeds twice due uncertain retry;
+- config changes during in-flight generation;
+- digest disabled during in-flight generation;
+- canonical Article disappears during in-flight generation;
+- newly arriving Article outside top 20 triggers incorrectly;
+- oldest Article ages out with no replacement and causes unnecessary call;
+- no-overlap old digest remains indefinitely;
+- failed replacement rewrites `generatedAt` or pretends freshness.
+
+### v1/PHP
+
+- digest changes between page 1/page 2;
+- `304` returned after digest-only change;
+- invalid digest turns Article API into 503;
+- valid digest carries internal attempt/error/config fields;
+- PHP initial page valid digest, continuation malformed/different digest;
+- PHP optional invalidity preserves stale prior digest into new Article revision;
+- pre-digest local state falsely treated corrupt;
+- visitor code reaches upstream/provider because digest absent.
+
+### Admin
+
+- Profile A response paints Profile B panel;
+- double-click Generate now causes two calls;
+- machine token reaches admin AI route;
+- missing Gemini key crashes Web startup;
+- browser sends arbitrary URL/prompt/model/key field;
+- provider failure response leaks raw exception;
+- disabled AI still exposes old digest publicly.
+
+Classify each plausible failure as protected, requiring a bounded repair/test, requiring Terra refactor handoff, or requiring normal replanning/contract change.
+
+Bounded unambiguous defects already inside Phase 1 may be fixed here, followed by every invalidated focused/broader test. Do not add new product behavior.
+
+# Pass 3 — Structural/code-quality review
+
+Review the complete Phase 1 diff plus important producers/consumers for:
+
+- duplicate canonical Profile selection/query logic outside the established producer;
+- duplicate `current | older | null` logic outside P3;
+- provider SDK/request knowledge outside P2;
+- raw AI table knowledge in v1/admin/PHP consumers;
+- circular `Profile snapshot -> digest -> Profile snapshot` dependency;
+- endpoint job abstraction stretched to represent Profile AI work;
+- database transaction held across provider I/O;
+- duplicated validators between provider/v1/PHP where a stable shared boundary should exist without crossing language/runtime ownership;
+- overlarge generic AI abstraction or speculative provider/plugin framework beyond the narrow Gemini boundary;
+- topic/customer-specific prompt branches;
+- dead compatibility bridges/test-only production APIs;
+- logging/telemetry helpers that can accidentally accept unbounded secret/provider content;
+- package/dependency drift including accidental lockfile;
+- missing producer-to-consumer tests or public exports;
+- meaningful behavior-preserving refactor needed before Phase 2 builds on the tree.
+
+Small local cleanup is allowed only when obviously bounded. A meaningful structural refactor triggers the special handoff below.
+
+## Terra High refactor handoff
+
+If any pass discovers a meaningful behavior-preserving refactor — moving responsibility across modules/layers, consolidating duplicated shared lifecycle/query logic, replacing/collapsing an abstraction, reorganizing shared state/transaction/provider flow, or another multi-file structural simplification whose safety requires producer/consumer tracing — STOP before implementing that refactor and output exactly one self-contained **Terra High refactor remediation prompt**.
+
+That prompt must:
+
+- recommend exactly `Terra High`;
+- state the observed quality problem and concrete evidence;
+- define the smallest behavior-preserving refactor boundary and affected producers/consumers;
+- preserve all Phase 1 canonical selection, migration/data, provider-security, scheduling/concurrency, digest lifecycle, v1 snapshot, PHP fail-open, admin authority, topic-independence, and non-AI invariants;
+- forbid unrelated cleanup, new behavior, contract/ADR/roadmap expansion, Phase 2 work, and speculative abstractions;
+- preserve package version required by the interrupted closeout and consume no roadmap/correction prompt number;
+- require focused tests plus every broader evidence surface invalidated by the refactor;
+- require a concise implementation report but MUST NOT declare Phase 1 green or finalize its validation artifact;
+- instruct Terra High to stop/report if the work actually requires product/contract/ADR change or deeper architecture redesign.
+
+After remediation is applied and implementation-level validation is green, rerun this closeout from the beginning. Only the rerun may accept the final Phase 1 tree.
+
+If the issue is a product/contract/ADR change rather than a behavior-preserving refactor, stop for normal planning/docs workflow.
+
+# Final validation manifest
+
+Resolve the Test Necessity Matrix against the **final** P1-P6/closeout diff. Do not mechanically run every repository suite.
+
+## RUN — normal local development environment
+
+Unless final source inspection changes applicability, execute the smallest non-overlapping matrix:
+
+```text
+npm run check
+npm run test:db
+npm run test:recovery
+npm run test:security
+npm run test:browser
+npm run codex:phase:validate -- p2-1
+git diff --check <exact-pre-P1-base>...HEAD
+```
+
+Do not redundantly rerun subordinate unit/integration commands already contained by `npm run check` unless diagnosing a failure. Record actual Node/npm/PostgreSQL/browser/OS facts available from the environment.
+
+If the final tree introduced another specialized local deterministic suite not contained above and required for a Phase 1 claim, run it explicitly and explain why.
+
+## RUN BEFORE PHASE 1 MAY CLAIM PROVIDER INTEGRATION — LIVE/EXTERNAL
+
+The roadmap explicitly requires an executed real Gemini integration proof before Phase 1 claims the provider works. This is **not optional mock coverage**.
+
+Use safely provisioned non-production credentials and the final exact source tree. Prefer the P2 opt-in live command plus one real managed Profile manual/scheduled generation through the P3/P6 integrated path.
+
+At minimum observe and record without secrets:
+
+1. actual `gemini-3.7-flash` request executed through the official Interactions adapter;
+2. `store=false`, low-thinking, structured-output, URL Context path is the production path under test;
+3. at least one exact application-selected governed public `originalUrl` is submitted for URL Context when the chosen managed Profile has an accessible current Article;
+4. provider returns a response that passes the same production structured validator;
+5. provider URL retrieval outcome facts are truthful/bounded; inaccessible/paywalled URL handling is observed when available or remains a deterministic-test-only limitation — do not fabricate it;
+6. the integrated application persists/activates the valid digest and records a bounded successful attempt;
+7. protected admin status reflects the success;
+8. v1 exposes the digest with exact stored supporting Article destinations and a digest-participating revision;
+9. no API key, full prompt, model raw response, or retrieved page body appears in logs/evidence;
+10. ordinary Article distribution remains usable if a subsequent controlled provider-failure/unconfigured path is exercised deterministically.
+
+The live proof may use an owner-operated managed/non-production deployment or equivalent environment capable of reaching Google and the real managed Profile/database. Record the exact tested commit. If the live environment uses a different tree, do **not** combine that evidence with local final-tree claims until exact-tree matching is established.
+
+If no real Gemini call is actually observed on the exact accepted candidate, the closeout MUST report **BLOCKED / LIVE GEMINI EVIDENCE REQUIRED** rather than GREEN. Do not call mocks, SDK construction, source inspection, or a prior commit's live call provider proof.
+
+## DEFER — mandatory Phase 2 qualification
+
+The testing contract and active roadmap assign PHP/VPS/customer package qualification to the mandatory Phase 2 release-hardening gate. Phase 1 may still inspect/write deterministic PHP tests, but do not knowingly retry VPS-required suites on a Windows environment that lacks PHP.
+
+Record as DEFER, not pass/skip/waiver:
+
+- `npm run test:php` — `VPS-REQUIRED`, Phase 2 exact integrated package candidate;
+- `npm run test:browser:php` — `VPS-REQUIRED`, Phase 2;
+- whole-folder `ns-integration` upgrade/rollback/preflight/version/config/renderer/customer presentation proof — `VPS-REQUIRED`/`REFERENCE`, Phase 2;
+- actual production customer Gemini-capable package installation — `REFERENCE`, Phase 2.
+
+Because those are deferred, the Phase 1 artifact must phrase P5 results as **implementation + deterministic/portable compatibility evidence**, not as observed PHP runtime/customer behavior unless such evidence was genuinely executed.
+
+## N/A unless final diff unexpectedly touches them
+
+- live Source collection proof;
+- public reference `/` browser behavior unrelated to shared admin shell;
+- chatbot authorization/rate/cost controls;
+- multi-feed production rollout.
+
+# Durable validation artifact
+
+Create/update exactly:
+
+```text
+docs/validation/phase-1-gemini-profile-digest-foundation.md
+```
+
+It must identify:
+
+- exact pre-P1 base SHA;
+- P1-P6 implementation SHAs and final closeout source SHA;
+- package versions through `2.1.7`;
+- changed migrations and supported-production forward-upgrade evidence;
+- commands/procedures actually run and results;
+- environment/tool versions and evidence levels actually achieved;
+- P1 canonical input/data handoff;
+- P2 provider request/security/structured-validation handoff;
+- P3 scheduling/concurrency/lifecycle/failure-isolation evidence;
+- P4 v1 revision/pagination/fail-open evidence;
+- P5 PHP implementation/portable evidence **plus explicit VPS-runtime DEFER**;
+- P6 admin/manual/status/security/browser evidence;
+- multi-subject/topic-independence evidence;
+- exact live Gemini procedure/result and tested commit, or explicit blocker if not observed;
+- secret/redaction inspection;
+- Pass 2 adversarial findings/disposition;
+- Pass 3 structural findings/disposition;
+- whether a Terra High refactor handoff interrupted an earlier closeout run;
+- all DEFER/N/A items with their owning later gate;
+- no production customer package/deployment claim unless separately observed;
+- unresolved findings/replanning needs.
+
+The artifact records evidence only; it does not rewrite contracts or mark roadmap state itself.
+
+# Version and repository rules
+
+- Set only top-level `package.json` to `2.1.7` for this closeout prompt before final validation if runner flow has not already done so.
+- Do not advance to `2.2.0`; conversational `/closeout` owns that later package-version-only transition after human acceptance.
+- Do not create `package-lock.json`, Composer vendor/lock state, or unrelated lockfiles.
+- Do not edit governing contracts/ADRs/roadmap/worksheet/changelog merely to make implementation appear compliant.
+- Do not implement Phase 2 issues during closeout.
+- Do not manually commit; phase runner owns the closeout implementation commit boundary.
+
+# Acceptance
+
+Phase 1 closeout may report **GREEN — HUMAN REVIEW REQUIRED** only when:
+
+1. exact Git prefix/tree identity is established;
+2. P1 production migration/data/input identity/producer guarantees are intact;
+3. P2 provider boundary uses the locked Interactions/3.7 Flash/stateless/low-thinking/URL Context/structured-output/no-Search design with secret-safe validation;
+4. P3 twice-daily evaluation, concurrency/recovery, unchanged-skip/manual-force, canonical invalidation, atomic activation, failure retention, and current/older/null lifecycle are correct;
+5. P4 emits one coherent digest object/null in every v1 page and includes digest state in the shared revision/ETag without provider calls;
+6. P5 implements complete-snapshot PHP digest fail-open/LKG/local-read compatibility with pre-digest state and no visitor provider/upstream path, while VPS runtime proof is honestly DEFERRED to Phase 2 unless actually observed;
+7. P6 protected Profile AI configuration/status/manual generation works and leaks no secret or machine authority;
+8. shared implementation remains topic independent and preserves all existing non-AI laws/behavior;
+9. final local RUN matrix passes on the exact candidate;
+10. a **real Gemini request on the exact accepted candidate** has actually been executed and validated through the production provider/integrated digest path; if not, status is BLOCKED;
+11. all PHP/VPS/reference Phase 2 evidence is explicitly deferred to its assigned gate rather than falsely claimed;
+12. Pass 2/Pass 3 findings are fully dispositioned with no unresolved correctness/security/structural blocker;
+13. durable validation artifact is complete/honest;
+14. package version is exactly `2.1.7`.
+
+Finish with a concise report containing GREEN or BLOCKED, exact candidate SHA, package version, local evidence actually executed, live Gemini evidence actually observed, P1-P6 contract findings, bounded repairs if any, adversarial/structural findings, explicit Phase 2 deferrals, artifact path, and whether conversational `/closeout` may safely transition only top-level `package.json` to `2.2.0`.
