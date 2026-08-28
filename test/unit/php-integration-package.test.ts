@@ -50,16 +50,19 @@ const packageEntries = [
 ];
 
 test('produces the exact deterministic customer manifest and a consumer-ready result', async () => {
+  const { version } = JSON.parse(
+    await readFile(path.join(root, 'package.json'), 'utf8'),
+  ) as { version: string };
   const result = await createPhpIntegrationPackageProducer().build();
   const entries = readStoredZip(result.bytes);
 
   assert.deepEqual([...entries.keys()], packageEntries);
-  assert.equal(result.filename, 'news-scraper-php-integration-1.7.0.zip');
+  assert.equal(result.filename, `news-scraper-php-integration-${version}.zip`);
   assert.equal(result.contentType, 'application/zip');
-  assert.equal(result.version, '1.7.0');
+  assert.equal(result.version, version);
   assert.equal(
     entries.get('news-scraper-php-integration/VERSION')?.toString(),
-    '1.7.0\n',
+    `${version}\n`,
   );
   assert.deepEqual(
     JSON.parse(
@@ -70,7 +73,7 @@ test('produces the exact deterministic customer manifest and a consumer-ready re
     {
       name: 'news-scraper-php-integration',
       product: 'news-scraper',
-      version: '1.7.0',
+      version,
       apiVersion: 'v1',
     },
   );

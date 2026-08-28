@@ -1,7 +1,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { buildPlan } from './codex-phase-core.mjs';
+import { buildPlan, roadmapFamilyLabel } from './codex-phase-core.mjs';
 
 const folderName = process.argv[2];
 if (!folderName || process.argv.length !== 3) {
@@ -22,7 +22,7 @@ const plan = buildPlan(entries, folderName);
 console.log(
   plan.mode === 'correction'
     ? `Correction stack ${plan.folderName} (roadmap phase ${plan.phase}) prompt grammar: VALID`
-    : `${plan.roadmapFamily === 'post-1.0' ? 'Post-1.0' : 'Historical pre-1.0'} Phase ${plan.phase} prompt grammar: VALID`,
+    : `${roadmapFamilyLabel(plan.roadmapFamily)} Phase ${plan.phase} prompt grammar: VALID`,
 );
 if (plan.mode === 'correction') {
   console.log(`Required unchanged version: ${plan.unchangedVersion}`);

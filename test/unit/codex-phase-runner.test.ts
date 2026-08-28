@@ -41,6 +41,8 @@ const {
   renderFailureSummary,
   renderSuccessHandoff,
   resolveModelConfig,
+  roadmapFamilyLabel,
+  roadmapVersionFor,
   startElapsedRedraw,
   stripAnsi,
 } = core;
@@ -125,6 +127,21 @@ const post1Prompt = (
   {
     phase = 0,
     version = `1.${phase}.${number}`,
+    ...options
+  }: PromptOptions & { phase?: number } = {},
+) => {
+  const entry = prompt(number, { ...options, version });
+  return {
+    ...entry,
+    text: entry.text.replace('TASK: Phase 8', `TASK: Phase ${phase}`),
+  };
+};
+
+const post2Prompt = (
+  number: number,
+  {
+    phase = 1,
+    version = `2.${phase}.${number}`,
     ...options
   }: PromptOptions & { phase?: number } = {},
 ) => {
@@ -251,6 +268,42 @@ const createCorrectionRepository = async (implementationCount = 2) => {
   return rootDirectory;
 };
 
+const createPost2PhaseRepository = async (implementationCount = 1) => {
+  const rootDirectory = await mkdtemp(
+    path.join(tmpdir(), 'news-scraper-post-2-phase-git-test-'),
+  );
+  const folderName = 'p2-1';
+  await mkdir(path.join(rootDirectory, 'docs', 'tasks', folderName), {
+    recursive: true,
+  });
+  await writeFile(
+    path.join(rootDirectory, 'package.json'),
+    `${JSON.stringify({ name: 'post-2-phase-test', version: '2.1.0' }, null, 2)}\n`,
+  );
+  await writeFile(
+    path.join(rootDirectory, '.gitignore'),
+    '.codex-runs/\npackage-lock.json\n.env*\n',
+  );
+  for (let number = 1; number <= implementationCount; number += 1) {
+    const entry = post2Prompt(number);
+    await writeFile(
+      path.join(rootDirectory, 'docs', 'tasks', folderName, entry.filename),
+      entry.text,
+    );
+  }
+  const closeout = post2Prompt(implementationCount + 1, { closeout: true });
+  await writeFile(
+    path.join(rootDirectory, 'docs', 'tasks', folderName, closeout.filename),
+    closeout.text,
+  );
+  gitResult(rootDirectory, ['init', '--quiet']);
+  gitResult(rootDirectory, ['config', 'user.name', 'Runner Test']);
+  gitResult(rootDirectory, ['config', 'user.email', 'runner@example.invalid']);
+  gitResult(rootDirectory, ['add', '-A']);
+  gitResult(rootDirectory, ['commit', '--quiet', '-m', 'baseline']);
+  return rootDirectory;
+};
+
 const commitRoadmapCompletion = async (
   rootDirectory: string,
   number: number,
@@ -265,6 +318,23 @@ const commitRoadmapCompletion = async (
   );
   gitResult(rootDirectory, ['add', '-A']);
   gitResult(rootDirectory, ['commit', '--quiet', '-m', `0.8.${number}`]);
+  return gitResult(rootDirectory, ['rev-parse', 'HEAD']);
+};
+
+const commitPost2RoadmapCompletion = async (
+  rootDirectory: string,
+  number: number,
+) => {
+  await writeFile(
+    path.join(rootDirectory, 'package.json'),
+    `${JSON.stringify({ name: 'post-2-phase-test', version: `2.1.${number}` }, null, 2)}\n`,
+  );
+  await writeFile(
+    path.join(rootDirectory, `post-2-P${number}.txt`),
+    `completed ${number}\n`,
+  );
+  gitResult(rootDirectory, ['add', '-A']);
+  gitResult(rootDirectory, ['commit', '--quiet', '-m', `2.1.${number}`]);
   return gitResult(rootDirectory, ['rev-parse', 'HEAD']);
 };
 
@@ -1699,6 +1769,148 @@ test('post-1.0 resume uses the normalized roadmap family for baselines and prefi
   );
 });
 
+test('post-2.0 resume uses the shared roadmap version authority and fails closed', () => {
+  const plan = buildPlan(
+    [post2Prompt(1), post2Prompt(2), post2Prompt(3, { closeout: true })],
+    'p2-1',
+  );
+  assert.equal(plan.mode, 'phase');
+  if (plan.mode !== 'phase') throw new Error('Expected a phase plan.');
+  assert.equal(plan.roadmapFamily, 'post-2.0');
+  assert.equal(plan.roadmapMajor, 2);
+  assert.equal(roadmapFamilyLabel(plan.roadmapFamily), 'Post-2.0');
+  assert.equal(roadmapVersionFor(plan, 0), '2.1.0');
+  assert.equal(roadmapVersionFor(plan, 1), '2.1.1');
+
+  const initial = detectCompletedPromptPrefix(plan, [], '2.1.0');
+  assert.equal(initial.completedCount, 0);
+  assert.equal(initial.previousVersion, '2.1.0');
+
+  const resumed = detectCompletedPromptPrefix(
+    plan,
+    [
+      { sha: 'unrelated', subject: 'documentation update' },
+      { sha: 'one', subject: '2.1.1' },
+    ],
+    '2.1.1',
+  );
+  assert.equal(resumed.completedCount, 1);
+  assert.equal(resumed.previousVersion, '2.1.1');
+  assert.equal(resumed.nextPrompt?.mode, 'phase');
+  if (resumed.nextPrompt?.mode !== 'phase')
+    throw new Error('Expected a phase prompt.');
+  assert.equal(resumed.nextPrompt.targetVersion, '2.1.2');
+  assert.match(
+    renderDashboard({
+      plan,
+      states: new Map(),
+      current: undefined,
+      activity: '',
+      tracker: createEventTracker(),
+      startedAt: 0,
+    }),
+    /Roadmap:\s+Post-2\.0/,
+  );
+  assert.match(
+    renderSuccessHandoff(plan, '.codex-runs/p2-1/test'),
+    /POST-2\.0 PHASE 1 IMPLEMENTATION PROMPTS COMPLETE/,
+  );
+
+  assert.throws(
+    () =>
+      detectCompletedPromptPrefix(
+        plan,
+        [
+          { sha: 'one-a', subject: '2.1.1' },
+          { sha: 'one-b', subject: '2.1.1' },
+        ],
+        '2.1.1',
+      ),
+    /ambiguous for P1/,
+  );
+  assert.throws(
+    () =>
+      detectCompletedPromptPrefix(
+        plan,
+        [{ sha: 'two', subject: '2.1.2' }],
+        '2.1.0',
+      ),
+    /P2 is completed while P1 is missing/,
+  );
+  assert.throws(
+    () =>
+      detectCompletedPromptPrefix(
+        plan,
+        [{ sha: 'one', subject: '2.1.1' }],
+        '2.1.0',
+      ),
+    /expected 2\.1\.1/,
+  );
+});
+
+test('a synthetic post-2.0 repository resumes P1 by its exact semantic-version subject', async () => {
+  const rootDirectory = await createPost2PhaseRepository(1);
+  const validator = path.resolve('scripts', 'validate-codex-phase.mjs');
+  const output = testOutput(false);
+  try {
+    const baselinePlan = buildPlan(
+      [post2Prompt(1), post2Prompt(2, { closeout: true })],
+      'p2-1',
+    );
+    assert.equal(
+      detectCompletedPromptPrefix(baselinePlan, [], '2.1.0').previousVersion,
+      '2.1.0',
+    );
+    const validation = spawnSync(process.execPath, [validator, 'p2-1'], {
+      cwd: rootDirectory,
+      encoding: 'utf8',
+      shell: false,
+    });
+    assert.equal(validation.status, 0, String(validation.stderr));
+    assert.match(
+      String(validation.stdout),
+      /Post-2\.0 Phase 1 prompt grammar: VALID/,
+    );
+
+    const firstSha = await commitPost2RoadmapCompletion(rootDirectory, 1);
+    await commitUnrelated(rootDirectory, 'documentation-update');
+    assert.equal(
+      detectCompletedPromptPrefix(
+        baselinePlan,
+        [
+          { sha: 'unrelated', subject: 'documentation-update' },
+          { sha: firstSha, subject: '2.1.1' },
+        ],
+        '2.1.1',
+      ).previousVersion,
+      '2.1.1',
+    );
+    assert.equal(
+      await runCli(['p2-1'], {
+        rootDirectory,
+        stdout: output,
+        resolveLauncher: async () => ({
+          launcher: directTestLauncher,
+          version: compatibleCodexVersion,
+        }),
+        runCodexProcess: async () => {
+          throw new Error(
+            'The completed 2.x implementation prefix must resume.',
+          );
+        },
+      }),
+      0,
+    );
+    assert.match(output.read(), /P1 previously completed - commit/);
+    assert.equal(
+      gitResult(rootDirectory, ['log', '-2', '--format=%s']),
+      'documentation-update\n2.1.1',
+    );
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
 test('roadmap resume skips a proven prefix across unrelated commits and records historical SHAs', async () => {
   const rootDirectory = await createPhaseRepository(3);
   const codexCalls: number[] = [];
@@ -2577,6 +2789,76 @@ test('auto-run closeout resumes directly from an implementation-complete prefix'
       gitResult(rootDirectory, ['log', '-1', '--format=%s']),
       '0.8.1',
     );
+  } finally {
+    await rm(rootDirectory, { recursive: true, force: true });
+  }
+});
+
+test('a one-prompt correction closeout runs only with --closeout and remains review required', async () => {
+  const rootDirectory = await createCorrectionRepository(0);
+  const output = testOutput(false);
+  try {
+    const baselineHead = gitResult(rootDirectory, ['rev-parse', 'HEAD']);
+    const calls: number[] = [];
+    assert.equal(
+      await runCli(['c10-single-publication', '--closeout'], {
+        rootDirectory,
+        stdout: output,
+        resolveLauncher: async () => ({
+          launcher: directTestLauncher,
+          version: compatibleCodexVersion,
+        }),
+        runCodexProcess: async (parsedPrompt: {
+          number: number;
+          mode: string;
+        }) => {
+          calls.push(parsedPrompt.number);
+          assert.equal(parsedPrompt.mode, 'correction');
+          await writeFile(
+            path.join(rootDirectory, 'closeout-evidence.txt'),
+            'reviewed\n',
+          );
+          return {
+            code: 0,
+            signal: null,
+            finalResponse: 'HUMAN REVIEW REQUIRED',
+            stderr: '',
+            childArgs: [],
+          };
+        },
+      }),
+      0,
+    );
+    assert.deepEqual(calls, [1]);
+    assert.equal(gitResult(rootDirectory, ['rev-parse', 'HEAD']), baselineHead);
+    assert.equal(
+      gitResult(rootDirectory, ['log', '-1', '--format=%s']),
+      'baseline',
+    );
+    assert.equal(
+      gitResult(rootDirectory, ['status', '--porcelain=v1']).includes(
+        'package-lock.json',
+      ),
+      false,
+    );
+    const [runName] = await readdir(
+      path.join(rootDirectory, '.codex-runs', 'c10-single-publication'),
+    );
+    const runDirectory = path.join(
+      rootDirectory,
+      '.codex-runs',
+      'c10-single-publication',
+      runName!,
+    );
+    const run = JSON.parse(
+      await readFile(path.join(runDirectory, 'run.json'), 'utf8'),
+    );
+    assert.equal(run.status, 'closeout_executed_review_required');
+    assert.equal(run.prompts[0].status, 'review_required');
+    await assert.rejects(
+      access(path.join(runDirectory, 'P1.commit-message.txt')),
+    );
+    assert.ok(output.read().endsWith('HUMAN REVIEW REQUIRED'));
   } finally {
     await rm(rootDirectory, { recursive: true, force: true });
   }

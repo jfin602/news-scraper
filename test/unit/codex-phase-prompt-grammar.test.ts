@@ -275,6 +275,97 @@ test('post-1.0 folder collisions and non-canonical Phase 0 forms fail closed', (
   assert.throws(() => buildPlan([phase0P1, phase0P2], 'p1'), /TASK phase 0/);
 });
 
+test('post-2.0 folders are an explicit third family without colliding with historical p2', () => {
+  const historical = buildPlan(
+    [
+      prompt(1, { phase: 2, version: '0.2.1' }),
+      prompt(2, { closeout: true, phase: 2, version: '0.2.2' }),
+    ],
+    'p2',
+  );
+  assert.equal(historical.mode, 'phase');
+  if (historical.mode !== 'phase') throw new Error('Expected a phase plan.');
+  assert.equal(historical.roadmapFamily, 'pre-1.0');
+  assert.equal(historical.roadmapMajor, 0);
+  assert.equal(historical.phase, 2);
+  assert.equal(historical.prompts[0].targetVersion, '0.2.1');
+
+  const phase0P1 = prompt(1, { phase: 0, version: '2.0.1' });
+  const phase0P2 = prompt(2, {
+    closeout: true,
+    phase: 0,
+    version: '2.0.2',
+  });
+  const phase0 = buildPlan([phase0P2, phase0P1], 'p2-0');
+  assert.equal(phase0.mode, 'phase');
+  if (phase0.mode !== 'phase') throw new Error('Expected a phase plan.');
+  assert.equal(phase0.roadmapFamily, 'post-2.0');
+  assert.equal(phase0.roadmapMajor, 2);
+  assert.equal(phase0.phase, 0);
+  assert.deepEqual(
+    phase0.prompts.map(({ number, kind, targetVersion }) => ({
+      number,
+      kind,
+      targetVersion,
+    })),
+    [
+      { number: 1, kind: 'implementation', targetVersion: '2.0.1' },
+      { number: 2, kind: 'closeout', targetVersion: '2.0.2' },
+    ],
+  );
+
+  const phase1P1 = prompt(1, { phase: 1, version: '2.1.1' });
+  const phase1P2 = prompt(2, {
+    closeout: true,
+    phase: 1,
+    version: '2.1.2',
+  });
+  const phase1 = buildPlan([phase1P2, phase1P1], 'p2-1');
+  assert.equal(phase1.mode, 'phase');
+  if (phase1.mode !== 'phase') throw new Error('Expected a phase plan.');
+  assert.deepEqual(
+    {
+      roadmapFamily: phase1.roadmapFamily,
+      roadmapMajor: phase1.roadmapMajor,
+      phase: phase1.phase,
+    },
+    { roadmapFamily: 'post-2.0', roadmapMajor: 2, phase: 1 },
+  );
+
+  for (const version of ['0.1.1', '1.1.1', '2.1.0', '2.1.2']) {
+    assert.throws(
+      () => buildPlan([prompt(1, { phase: 1, version }), phase1P2], 'p2-1'),
+      /does not match 2\.1\.1/,
+    );
+  }
+  assert.throws(
+    () =>
+      buildPlan(
+        [
+          prompt(1, { phase: 1, version: '2.1.1' }),
+          prompt(2, { closeout: true, phase: 1, version: '1.1.2' }),
+        ],
+        'p1-1',
+      ),
+    /does not match 1\.1\.1/,
+  );
+
+  for (const folderName of [
+    'p2-00',
+    'p2-01',
+    'p02-1',
+    'P2-1',
+    'p2--1',
+    'p2-',
+    'p2-+1',
+  ]) {
+    assert.throws(
+      () => buildPlan([phase1P1, phase1P2], folderName),
+      /Task folder must have the form/,
+    );
+  }
+});
+
 test('valid correction stacks expose explicit fixed-version plan semantics', () => {
   const p1 = correctionPrompt(1);
   const p2 = correctionPrompt(2, { closeout: true });
