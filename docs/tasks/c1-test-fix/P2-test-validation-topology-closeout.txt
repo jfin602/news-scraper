@@ -1,0 +1,240 @@
+TASK: Correction 1 / P2 — Test validation topology closeout
+
+CORRECTION CLOSEOUT SCOPE
+This is the sole final closeout prompt for correction `c1-test-fix`. P1 should have made the ordinary local Node/check path portable, separated PHP-backed browser evidence from ordinary browser evidence, preserved fail-closed PHP suites, and added focused regression protection for command containment.
+
+This closeout independently reviews that exact P1 commit and combines local Windows evidence with the required VPS evidence handoff. It does not add product behavior, change package version, activate the 3.0 roadmap, resolve unrelated issues, or redesign test infrastructure.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Model-family basis: repository policy uses Sol Light for independent correction closeout so final source/evidence review gets stronger base code-reading capability than the implementation pass without paying for unnecessary deep implementation reasoning.
+- Reasoning basis: Light is appropriate because the intended correction is a narrow package/test-topology change; this prompt must perform the required three review passes and stop if source inspection exposes a deeper testing-architecture problem.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Terra High`; not selected because `docs/codex-model-selection.md` deliberately sets `Sol Light` as the normal independent correction-closeout floor.
+- Escalation trigger: coverage was silently dropped, portable/specialized ownership is still ambiguous, command containment requires shared-runner redesign, exact-tree VPS evidence cannot be established, or another defect cannot be resolved without changing the P1 executable tree.
+- Escalation target: `Terra High` for a behavior-preserving structural remediation handoff; genuinely ambiguous contract/architecture work requires fresh planning.
+- Estimate confidence: `High`.
+- Efficiency rationale: inspect one bounded P1 diff, consume exact-tree VPS evidence, run one non-overlapping portable regression set locally, and avoid repeating specialized suites on the wrong machine.
+
+VERSIONING
+- Required unchanged project version: `2.0.0`.
+- This closeout MUST NOT change `package.json` version.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- This correction consumes no 3.0 roadmap patch number and does not activate `2.1.0`.
+- The final result remains HUMAN REVIEW REQUIRED even when all evidence is green.
+
+WRITE BOUNDARY / EXACT-TREE RULE
+This closeout is review-only for executable/test topology.
+
+It MAY write only the durable validation artifact after the exact P1 source tree is genuinely green. It MUST NOT repair `package.json`, scripts, tests, production code, migrations, runtime config, contracts, roadmap state, or known issues in-place.
+
+Reason: the required VPS evidence must apply to the exact accepted P1 commit. Any executable/test edit during closeout would invalidate that evidence. If a defect is found, stop and issue the required remediation/replanning handoff; after repair, collect fresh local and VPS evidence against the new exact tree before rerunning this closeout.
+
+MANDATORY HANDOFF
+Before evaluating GREEN:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/codex-model-selection.md`, `known-issues.md` entry `V7MT`, and this correction's P1 prompt;
+2. identify the exact reachable runner-owned P1 implementation commit for `c1-test-fix/P1` and the correction base immediately before it;
+3. require top-level package exactly `2.0.0`, no npm lockfile, and no uncommitted executable/test changes before closeout validation begins;
+4. inspect P1's complete diff, current `package.json`, `scripts/run-tests.mjs`, `scripts/run-php-tests.mjs`, the focused command-contract unit test, ordinary browser directory, separate PHP-browser directory, and moved PHP customer browser test;
+5. confirm no substantive browser/PHP test was deleted, weakened, skipped, or converted to mocked evidence merely to make local validation green;
+6. locate the untracked/ignored VPS evidence receipt at `.codex-runs/c1-test-fix-vps-evidence.txt` or an explicitly supplied equivalent handoff;
+7. stop with `VPS EVIDENCE REQUIRED` rather than RED-for-code if the receipt is simply absent; do not attempt the VPS-only suites locally and do not invent/presume their results.
+
+VPS EVIDENCE RECEIPT CONTRACT
+The receipt must identify enough evidence to establish that the VPS actually tested the exact P1 commit. Require at minimum:
+- repository commit from `git rev-parse HEAD`;
+- clean relevant working-tree state or an explanation proving no executable/test drift;
+- Node version;
+- npm version;
+- PHP version;
+- `npm run test:php` command and PASS result;
+- `npm run test:browser:php` command and PASS result, including enough Playwright/browser result information to show the test actually ran;
+- any installation/browser-prerequisite step that materially affected the observed environment.
+
+The receipt's commit MUST equal the exact runner-owned P1 commit under review. A receipt for an earlier/later SHA, a dirty altered source tree, or an unidentified tree is not combinable evidence. Do not accept screenshots/prose that omit the source identity or command result.
+
+Do not require the VPS to rerun portable `npm run check` or ordinary browser tests solely to duplicate local evidence. The purpose of the VPS handoff is the specialized PHP/PHP-browser evidence assigned there by the governing manifest.
+
+GREEN CORRECTION GOAL
+The correction is GREEN only if the exact accepted P1 tree proves all of the following:
+- `npm test` is the ordinary portable deterministic unit/integration/collection regression aggregate and does not invoke PHP;
+- `npm run check` composes portable static checks plus `npm test` and succeeds on the normal local Windows environment without PHP;
+- `npm run test:php` remains a separately invokable substantive PHP CLI/runtime suite and retains fail-closed prerequisite behavior;
+- `npm run test:browser` owns ordinary non-PHP browser tests only;
+- `npm run test:browser:php` owns the PHP-backed customer/server browser test separately;
+- ordinary and PHP-backed browser selections are substantive and disjoint, with the pre-correction PHP browser behavior preserved;
+- no specialized suite was silently skipped, converted to pass-on-missing-prerequisite, or deleted;
+- no automatic retry path was added for deterministic prerequisite failures;
+- command containment has meaningful automated regression protection;
+- local and VPS evidence both apply to the exact same P1 commit;
+- package remains `2.0.0`, no lockfile exists, and no product/roadmap/database/Gemini behavior changed.
+
+PASS 1 — CONTRACT / EVIDENCE REVIEW
+Review the actual P1 diff and evidence rather than trusting its final report.
+
+A. PORTABLE AGGREGATES
+Verify from current executable scripts:
+- `npm test` selects the intended unit/integration/collection suites and contains no `test:php` invocation;
+- `npm run check` remains format-check + lint + typecheck + portable `npm test` (or an equivalent contract-compliant portable composition);
+- neither portable aggregate invokes PHP, PHP-backed browser, live Source, live Gemini, deployment, or another specialized environment suite;
+- the correction did not create a broad always-run `check:vps` replacement that defeats change-aware selection.
+
+B. PHP SPECIALIZED SUITE
+Verify:
+- `test:php` still invokes `scripts/run-php-tests.mjs` or an equivalent unchanged fail-closed PHP runner;
+- missing PHP still produces nonzero behavior by source/retained regression contract rather than skip/pass;
+- PHP syntax checks and `integrations/php/tests/run.php` behavior were not removed;
+- P1 had no reason to change PHP product code.
+
+C. BROWSER OWNERSHIP
+Verify:
+- the PHP customer example test was structurally moved rather than deleted/rewritten to evade the ordinary glob;
+- its real PHP server, scenario matrix, no-upstream-request assertions, publisher-link behavior, XSS/safety checks, and Playwright observation remain materially intact;
+- `test:browser` selects ordinary browser tests without selecting the PHP-backed file;
+- `test:browser:php` selects the PHP-backed file and fails zero-match if it disappears;
+- both selections remain bounded through the shared `run-tests.mjs` wrapper.
+
+D. FOCUSED REGRESSION
+Inspect the new command-contract unit test. It must protect durable ownership/containment rather than merely assert one giant literal package-script string.
+
+Require proof that:
+- portable `test` does not transitively invoke PHP;
+- `check` does not explicitly re-add VPS-only evidence;
+- PHP runner command remains present;
+- ordinary and PHP-backed browser selections are disjoint and nonempty;
+- the PHP customer browser test is owned only by the specialized browser command.
+
+E. SHARED RUNNER PRESERVATION
+If `scripts/run-tests.mjs` changed, require a concrete necessity and focused regression for every altered behavior. The planned solution needs no generic negative-glob/exclusion feature. Verify zero-match failure, deterministic de-duplication/order, global setup, concurrency parsing, and child-status propagation remain intact.
+
+F. EXACT-TREE CROSS-ENVIRONMENT EVIDENCE
+Verify:
+- local evidence is from the exact P1 commit;
+- VPS receipt SHA equals P1 commit;
+- the two VPS commands actually ran and passed;
+- no source/test/config drift separates the two evidence sets;
+- deferred evidence is not mislabeled as local, skipped, waived, or inferred.
+
+PASS 2 — ERROR / EDGE-CASE ADVERSARIAL REVIEW
+Independently challenge the final topology. At minimum disposition these hypotheses:
+- `npm test` still calls PHP indirectly through another script alias;
+- `check` explicitly adds `test:php` after `npm test`;
+- the PHP browser file remains under an ordinary browser glob despite the new command;
+- the PHP browser file is moved but its relative repository-root calculation breaks due directory depth;
+- `test:browser:php` points at a typo/empty glob and passes incorrectly;
+- the ordinary browser glob accidentally excludes one or more pre-existing non-PHP files;
+- a pre-existing non-PHP browser test was moved or deleted accidentally;
+- P1 weakened `run-php-tests.mjs` to return success when PHP is absent;
+- P1 added hidden retry/skip logic to make local checks green;
+- command-contract tests only inspect text loosely enough that PHP could leak back into portable aggregates unnoticed;
+- command-contract tests are so overfit to one exact script string that harmless future composition changes become unnecessarily brittle;
+- local `npm run check` passes only because unit/integration/collection membership was reduced;
+- VPS `test:php` passes but PHP-backed browser was never actually executed;
+- VPS receipt refers to a different SHA or dirty tree;
+- P2 attempts to repair a defect, invalidating the receipt and then still claims GREEN;
+- package version, roadmap state, or product files changed despite the correction being non-versioned test infrastructure.
+
+Classify every plausible concern as:
+- protected by source + executed evidence;
+- correction defect requiring remediation and fresh evidence;
+- Terra High structural-refactor handoff required;
+- replanning/contract work required.
+
+Do not declare GREEN with unresolved coverage-loss, fail-open prerequisite, zero-match, or exact-tree evidence concerns.
+
+PASS 3 — CODE QUALITY / STRUCTURAL REVIEW
+Inspect P1 for maintainability and unnecessary machinery.
+
+Look specifically for:
+- adding exclusion/negative-glob complexity to `run-tests.mjs` when moving one isolated file suffices;
+- duplicating the shared test runner for the PHP browser suite;
+- adding environment sniffing that silently changes what named commands mean;
+- broad `check:vps`/`check:all` aggregates that undermine prompt-specific necessity selection;
+- hard-coded Windows/VPS branching inside generic tests where command ownership alone is enough;
+- duplicated PHP prerequisite logic outside `run-php-tests.mjs`/the PHP-backed test's actual launch boundary;
+- brittle command-contract tests tied to irrelevant formatting rather than semantic containment;
+- stale directory/test naming that obscures which environment owns the suite.
+
+The intended final structure should be obvious to a future maintainer from `package.json` and test directories without a new framework.
+
+TERRA HIGH REFACTOR HANDOFF
+If Pass 3 finds a meaningful behavior-preserving structural refactor is required, do not implement it. Stop and output exactly one self-contained `Terra High` remediation prompt that:
+- identifies the observed structural defect and evidence;
+- defines the smallest behavior-preserving refactor boundary and consumers to trace;
+- preserves portable/specialized command semantics, fail-closed prerequisites, substantive coverage, exact-tree evidence requirements, package `2.0.0`, and unrelated product behavior;
+- forbids product/contract/roadmap expansion and speculative abstractions;
+- requires focused tests plus the invalidated local/VPS evidence;
+- states that fresh VPS evidence is mandatory after the remediation tree is finalized;
+- does not declare the correction GREEN.
+
+If the issue instead requires a product/contract decision or genuinely different architecture, stop for normal replanning rather than disguising it as a refactor.
+
+VALIDATION MANIFEST
+Closeout local execution environment: normal Windows Codex environment.
+
+RUN locally — final exact P1 tree:
+1. `npm run check`;
+2. `npm run test:browser`;
+3. `npm run codex:phase:validate -- c1-test-fix`;
+4. `git diff --check <correction-base>...<P1-commit>` or equivalent committed-range validation;
+5. working-tree `git diff --check` after writing only the final durable validation artifact.
+
+Containment:
+- do not separately rerun `npm test`, `test:unit`, `test:integration`, `test:collection`, or the focused unit test after successful `npm run check` solely to duplicate contained evidence.
+
+DEFER evidence that must already be satisfied by exact-tree VPS receipt before GREEN:
+- `npm run test:php` → VPS PASS;
+- `npm run test:browser:php` → VPS PASS.
+
+Do not execute or retry those commands locally merely because closeout is running on Windows.
+
+N/A:
+- database/recovery suites;
+- security suite;
+- live Sources;
+- live Gemini/provider;
+- reference deployment.
+
+DURABLE VALIDATION ARTIFACT
+Only after all three review passes are resolved and every local + VPS requirement is genuinely green, create:
+
+`docs/validation/c1-test-fix-validation.md`
+
+Record concisely:
+- correction purpose and exact correction base/P1 commit;
+- package `2.0.0` and no-lockfile state;
+- files/topology changed;
+- local environment versions and exact local commands/results;
+- VPS environment versions, exact tested SHA, specialized commands/results, and receipt provenance;
+- command containment and no-coverage-loss conclusions;
+- Pass 1/2/3 findings/dispositions;
+- limitations, if any;
+- explicit statement that the artifact records evidence and does not itself resolve `known-issues.md` or activate roadmap state.
+
+After adding the artifact, run working-tree `git diff --check`. Do not rerun the portable/runtime matrices solely because the artifact itself was added; documentation-only artifact creation does not invalidate executable-tree evidence.
+
+FINAL RESPONSE
+Return one of:
+
+GREEN — HUMAN REVIEW REQUIRED
+- exact P1 commit accepted;
+- local portable evidence summary;
+- exact-tree VPS PHP/PHP-browser evidence summary;
+- three-pass review disposition;
+- validation artifact path;
+- unchanged `2.0.0` / no lockfile / no product scope;
+- note that V7MT documentation status remains a later `/docs-review` → approval → `/docs-apply` action after human acceptance.
+
+VPS EVIDENCE REQUIRED — HUMAN ACTION
+- exact P1 commit that must be tested;
+- the two VPS commands still required;
+- required receipt fields/path;
+- confirmation that local review did not substitute for VPS evidence.
+
+RED / REMEDIATION REQUIRED — HUMAN REVIEW REQUIRED
+- concrete defect/risk;
+- whether bounded remediation, Terra High refactor handoff, or replanning is required;
+- which evidence becomes invalid and must be rerun.
+
+Never claim tests, PHP/browser behavior, or VPS state that was not actually observed.
