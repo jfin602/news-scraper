@@ -1,0 +1,418 @@
+TASK: Phase 1 / P3 — Digest lifecycle and Worker scheduling
+
+- Recommended configuration: `Terra Ultra`.
+- Task-shape classification: `Complex`.
+- Specification clarity: `Explicit`.
+- State coupling: `Very high`.
+- Integrity risk: `Very high`.
+- Concurrency: `High`.
+- Security: `Sensitive`.
+- Novel inference: `High`.
+- Model-family basis: the contracts define the state machine, but P3 must compose P1 durable state/input semantics with P2 provider behavior, multi-Worker scheduling, duplicate-call prevention, failure retention, canonical invalidation, and atomic activation without holding a transaction over network I/O.
+- Reasoning basis: Terra Ultra is the minimum safe floor because this is the Phase 1 transactional/concurrency center. A happy-path implementation that merely “calls Gemini twice a day” is insufficient; the task must remain correct under concurrent Workers/manual requests, provider failures, stale attempts, changing Profile input, disabled AI, restart/crash conditions, and preserved non-AI operation.
+- Complexity / quality floor: `Very high`.
+- Estimated usage: `Very high`.
+- Lower-cost alternative considered: `Terra High`; rejected because P3 combines a durable state machine, scheduler ownership, external side effects, crash/recovery behavior, and atomic active-state transitions.
+- Escalation trigger: P1 does not expose a safe per-Profile in-progress generation claim/recovery seam, atomic activation cannot be implemented without raw-table consumer logic, or the current Worker architecture cannot host an isolated digest loop without weakening endpoint-collection scheduling.
+- Escalation target: return `Planning needed` if P1 producer capability is incomplete; do not compensate with consumer-owned SQL. Use `Sol Medium` only for a genuine contract/architecture ambiguity rather than implementation difficulty.
+- Estimate confidence: `High`.
+- Efficiency rationale: centralize every generation/freshness/scheduling decision in one service so P4/P5/P6 become read/transport/admin consumers rather than parallel state machines.
+
+The assigned project version is `2.1.3`.
+
+## Goal
+
+Implement the complete Profile digest evaluation/generation lifecycle and host its twice-daily scheduled evaluations in the existing Worker process as a **separate Profile-owned work concern**, not as endpoint collection jobs.
+
+Conceptually:
+
+```text
+scheduled UTC half-day slot OR manual Generate now
+-> claim one Profile evaluation safely
+-> P1 current bounded digest input
+-> lifecycle decision
+   skip / suppress / generate
+-> P2 provider-neutral Gemini call when required
+-> validate candidate already guaranteed by P2
+-> persist immutable success + atomically activate
+-> complete bounded attempt
+-> expose current/older/null read state for later consumers
+```
+
+P3 is the sole application authority for:
+
+- when Gemini is called;
+- unchanged-input skip behavior;
+- manual force semantics;
+- canonical invalidation/suppression;
+- `current | older | null` determination;
+- provider failure retention;
+- one-in-flight-generation-per-Profile behavior;
+- scheduled evaluation slot ownership;
+- atomic successful activation;
+- digest scheduler integration with Worker runtime.
+
+P4/P5/P6 must consume this state; they must not reimplement it.
+
+## Prerequisite and read first
+
+Require P1 and P2 complete at package `2.1.2` (or `2.1.3` for a safe rerun).
+
+Read before editing:
+
+1. current `BOOT.md`, `AGENTS.md`, `README.md`;
+2. `docs/contracts/ai-assistance-contract.md`;
+3. `docs/contracts/distribution-and-integration-contract.md`;
+4. `docs/contracts/testing-and-validation-contract.md`;
+5. current Phase 1 roadmap entry/worksheet;
+6. all P1 exported settings/input/digest/active/attempt repository/application APIs and focused tests;
+7. all P2 provider-neutral interfaces/failure types and tests;
+8. `src/app/worker/runtime.ts`, `runtime-timing.ts`, `main.ts`, and worker runtime tests;
+9. `src/collection/scheduler/*` only to preserve endpoint scheduling and learn existing clock/test patterns;
+10. `src/jobs/*` only to preserve endpoint collection job ownership — do not reuse endpoint job tables for digest work;
+11. database transaction helpers and recovery tests;
+12. current observability/logging conventions.
+
+If P3 must import raw AI table names/SQL outside P1 repositories, import `@google/genai`, reconstruct canonical Profile SQL, or use endpoint collection job records for Profile digests, stop with `Planning needed`.
+
+## Scheduling policy
+
+Implement exactly two scheduled evaluation opportunities per UTC day using deterministic **12-hour UTC slots**:
+
+```text
+00:00:00Z <= time < 12:00:00Z -> slot beginning 00:00:00Z
+12:00:00Z <= time < next 00:00:00Z -> slot beginning 12:00:00Z
+```
+
+The scheduled-slot timestamp is the idempotency identity already anticipated by P1. Do not create customer/local-time scheduler semantics, a Publication timezone dependency, or Source-collection synchronization.
+
+Requirements:
+
+- one Profile may execute at most one scheduled attempt for one UTC slot across all Worker processes;
+- a Worker starting late in a slot may evaluate the **current** slot once; do not replay every historical missed slot after downtime;
+- scheduled attempts are independent per Profile;
+- a disabled Profile digest does not call Gemini;
+- no global “all Sources have finished” barrier exists;
+- a failing Profile/provider call must not fail endpoint scheduler/dispatcher/recovery loops or another Profile's evaluation;
+- ordinary endpoint collection scheduling remains unchanged.
+
+Use a separate digest scheduler/evaluation loop in `startWorkerRuntime()` or an equivalently isolated Worker-owned loop. Do not make a slow Gemini call block the existing endpoint scheduler loop. Keep digest execution concurrency deliberately small/bounded; Phase 1 does not need speculative high-throughput AI execution.
+
+Extend Worker timing/config only as needed for a bounded periodic check of the current UTC slot. The interval is operational timing, not an editorial rule. It should be short enough to notice a new slot/restart reasonably (for example around one minute) without polling the provider; the provider is called only after the lifecycle decision says generation is required.
+
+## In-progress generation concurrency and crash recovery
+
+P1 must expose a durable per-Profile claim that prevents two scheduled/manual executions from making concurrent Gemini calls for the same Profile. Use that producer seam; do not hold a PostgreSQL transaction or row lock open while awaiting Gemini.
+
+Required behavior:
+
+1. transactionally create/claim one `running` attempt for the Profile and trigger;
+2. commit the claim before external provider I/O;
+3. perform P1 input resolution and, only when required, the P2 provider call outside a long-lived DB transaction;
+4. finalize the attempt and any activation in a later bounded transaction;
+5. reject/defer another manual/scheduled execution while one non-stale running attempt exists.
+
+A crashed process must not leave a Profile permanently locked. Use P1's bounded stale-running-attempt recovery seam. A running attempt older than the application-owned provider-attempt timeout plus a small recovery margin may be atomically classified as abandoned/failed before a later evaluation claims the Profile. Do not blindly retry an uncertain request in a tight loop. Recovery must be observable and bounded.
+
+If P1 lacks a database-enforced one-running-attempt-per-Profile invariant plus stale recovery capability, **stop and return Planning needed** rather than adding consumer SQL in P3.
+
+## Scheduled lifecycle decision
+
+For each successfully claimed scheduled evaluation:
+
+1. read current Profile AI settings and current P1 bounded input;
+2. read the current active digest plus its immutable generation settings/input Article IDs/supporting references;
+3. if digest AI is disabled:
+   - do not call Gemini;
+   - suppress/remove any active digest through the P1 active-reference transaction boundary;
+   - complete attempt as a bounded disabled/skip outcome;
+4. if current bounded input has zero Articles:
+   - do not call Gemini;
+   - suppress any active digest because there is no current digestable Profile input;
+   - record a bounded no-input outcome;
+5. if no active digest exists and input is non-empty: generate;
+6. otherwise evaluate canonical validity, overlap, settings change, and newly entering Article IDs as below.
+
+### Canonical invalidation
+
+An old digest must be suppressed before/independent of provider success when its supporting Article state is no longer permitted by the current canonical Profile result.
+
+Use P1/current canonical Profile producer data to validate the active digest's governed support/input membership. Do not query moderation/duplicate/Source tables independently.
+
+Canonical invalidation includes the contract cases such as moderation, duplicate/Primary change, Profile Source/filter change, Source trust/lifecycle change, or another canonical eligibility change that removes governed support. When detected:
+
+```text
+suppress active digest atomically
+-> if current bounded input is non-empty, attempt replacement through the same evaluator
+-> replacement failure leaves digest null
+```
+
+Do not preserve an invalid digest merely as `older`.
+
+### New-content threshold
+
+If the active digest remains canonically valid:
+
+- compare current bounded ordered Article IDs with the active generation's input Article IDs;
+- if at least one current bounded Article ID was not in the prior input, generation is required;
+- if relevant AI settings differ from the settings snapshot used by the active digest, generation is required;
+- otherwise a scheduled evaluation does **not** call Gemini merely because time passed or an old Article naturally aged out of the lookback.
+
+This preserves the worksheet rule that no newly entering Article means no routine Gemini call while still allowing the digest's semantic freshness to change from `current` to `older` when the bounded set drifts through natural aging.
+
+Do not treat any newly persisted Article elsewhere in the database as a trigger unless it actually enters this current bounded Profile input.
+
+## Manual force generation
+
+Expose a server-side application operation for P6 such as conceptually:
+
+```text
+forceGenerate(profileKey)
+```
+
+or equivalent.
+
+Manual force:
+
+- is protected-admin application behavior; P6 owns HTTP/UI authorization routing;
+- uses the same per-Profile in-progress claim, P1 input service, P2 provider, output validation, persistence, activation, failure handling, and redaction path;
+- may bypass the scheduled unchanged-input/new-entry skip optimization;
+- still requires digest enabled and at least one current bounded Article unless the contract clearly says manual generation may override enablement (it does not);
+- cannot expand lookback/count/URL set;
+- cannot use arbitrary prompt/user text;
+- cannot create concurrent duplicate provider calls for the Profile.
+
+Manual calls receive a bounded typed result suitable for admin status, not raw provider output/errors.
+
+## Provider call and atomic success
+
+When generation is required:
+
+- call exactly one P2 provider operation for the claimed attempt;
+- do not add transparent automatic provider retries in P3;
+- do not hold a DB transaction open across the provider call;
+- if P2 returns a validated candidate, open a bounded transaction that:
+  1. persists the complete immutable digest generation and ordered input/support provenance;
+  2. switches the Profile active-digest reference to that complete digest;
+  3. completes the attempt as success with bounded provider/retrieval facts;
+- consumers must never observe the new active reference before its complete immutable content exists;
+- if persistence/activation transaction fails, the previous valid active digest remains unless it had already been canonically suppressed for safety; do not fabricate success.
+
+The successful generation timestamp is the actual generation/validation time from an injected clock. A later failed attempt never rewrites it.
+
+## Failure and retained prior digest behavior
+
+Provider unconfigured/timeout/rate/safety/transport/invalid-output failures:
+
+- complete the attempt with the bounded P2 category;
+- never break collection, Web/API, ordinary Profile Article reads, Worker endpoint job loops, or another Profile;
+- never create/activate a partial digest;
+- preserve the previous active digest only if it remains canonically valid under current state;
+- if current bounded input changed but still overlaps the previous digest input, the read state becomes `older`;
+- if no previous input Article remains in current bounded input, the active digest must be suppressed to `null`;
+- if canonical invalidation already required suppression, failure leaves `null`.
+
+An individual URL Context paywall/error/unsafe result is not itself a failed generation when P2 returns a valid structured candidate using bounded fallback context.
+
+## `current | older | null` read authority
+
+Expose one provider-neutral application read operation for P4/P6 that returns either:
+
+- validated active digest + `freshness: current`;
+- validated active digest + `freshness: older`;
+- `null`.
+
+This operation owns semantic freshness. P4/P5/P6 must not recompute it.
+
+Rules:
+
+### `current`
+
+Return `current` when the active digest remains canonically valid and its `digestInputIdentity` matches the currently resolved bounded input/settings identity.
+
+### `older`
+
+Return `older` when:
+
+- the active digest remains canonically valid;
+- current identity differs;
+- at least one Article from the active digest input remains in the current bounded input; and
+- no canonical invalidation rule requires suppression.
+
+Age alone is irrelevant. Preserve original `generatedAt`.
+
+### `null`
+
+Return/sustain null when:
+
+- digest disabled;
+- no valid active digest;
+- zero current input requires suppression;
+- canonical invalidation makes old support unsafe;
+- no Article from the previous digest input overlaps the current bounded input;
+- persisted active AI state fails validation.
+
+Do not expose provider failure categories in this outward read model.
+
+## Worker integration
+
+Extend `WorkerRuntimeDependencies` with a narrow digest scheduler/evaluation dependency so unit tests can control it without constructing Gemini or PostgreSQL internals.
+
+Production dependency wiring should compose:
+
+- current database;
+- P1 repositories/input service;
+- P2 Gemini provider configured from server-side environment;
+- digest evaluation/scheduler service.
+
+Worker startup must remain possible with no Gemini key when AI is unused. A missing key for an enabled generation becomes a bounded attempt failure; it must not make the entire Worker fail readiness or stop endpoint collection.
+
+Add distinct bounded diagnostics such as digest scheduler pass completed/failed and digest attempt success/failure/skip counts. Do not log prompts, response text, page bodies, API keys, Article corpora, or raw provider errors.
+
+Worker shutdown must stop the digest scheduler loop and wait for any owned in-flight digest evaluation according to the same truthful resource-ownership principles used elsewhere. Do not abandon unresolved local promises silently.
+
+## Focused proof
+
+Add deterministic unit/database/recovery tests covering at minimum:
+
+### Scheduling/concurrency
+
+- UTC slot calculation at boundaries and exactly two slots/day;
+- multiple scheduler polls in one slot claim at most one scheduled attempt/Profile;
+- two Worker/process-like concurrent claims cannot both call provider for the same Profile/slot;
+- scheduled and manual attempts cannot concurrently call provider for one Profile;
+- different Profiles remain independent;
+- stale running attempt recovery releases a permanently stuck Profile without tight automatic provider retry;
+- one digest/provider failure does not break endpoint scheduler/dispatcher/recovery loops.
+
+### Generation threshold
+
+- no active + 1 current Article generates;
+- zero current Articles skips provider and suppresses active state;
+- unchanged input/config skips provider;
+- one newly entering current bounded Article generates;
+- multiple new Articles in one slot produce one provider call;
+- new Article outside Profile/lookback/max-20 input does not trigger;
+- config lookback/count change triggers at the next evaluation even without new Article;
+- natural age-out with remaining overlap does not itself force a scheduled provider call;
+- manual force generates unchanged non-empty enabled input.
+
+### Lifecycle
+
+- successful candidate persists immutable generation before active switch;
+- previous generation remains immutable/history after replacement;
+- activation transaction failure cannot expose partial new digest;
+- provider failure preserves prior valid overlapping digest as `older`;
+- provider failure with unchanged identity leaves prior digest `current`;
+- provider failure after canonical invalidation leaves null;
+- no-overlap current input suppresses old digest/null;
+- age alone never changes `current` to `older`;
+- original `generatedAt` survives failed attempts;
+- invalid persisted active state fails closed to null without breaking Articles.
+
+### Canonical invalidation/topic independence
+
+- a supporting Article removed by canonical Profile state suppresses active digest even with no newly entering Article;
+- Source/Profile/duplicate/moderation changes are observed only through canonical Profile producer output, not direct P3 table logic;
+- materially different subject fixtures follow the same lifecycle and prompt-provider path with no topic branch.
+
+### Security/telemetry
+
+- missing Gemini key for enabled generation records bounded `provider_unconfigured` and endpoint collection remains operable;
+- attempts/Worker diagnostics exclude key, prompt, response/page bodies, and raw provider error text.
+
+Use real PostgreSQL for claim uniqueness, atomic activation, migration interaction, concurrency, and recovery claims.
+
+## Producer-to-consumer handoff
+
+| Downstream-required capability | P3 owner/export | Focused proof |
+| --- | --- | --- |
+| semantic outward active digest/null | digest read service | current/older/null tests |
+| exact generatedAt/freshness | digest read model | failure/aging tests |
+| atomic successful activation | lifecycle service + P1 transaction seam | DB transaction tests |
+| safe canonical suppression | lifecycle service | invalidation/no-overlap tests |
+| manual force operation | digest application service | same-path/force tests |
+| latest bounded attempt/status | lifecycle/read service | outcome/redaction tests |
+| twice-daily scheduled evaluation | digest scheduler/Worker loop | UTC slot/idempotency tests |
+| provider failure isolation | evaluator | Worker/Article-path regression tests |
+
+P4 must be able to obtain a normalized active digest/null without implementing freshness or querying AI tables. P6 must be able to call manual force and read status without importing Worker or provider internals.
+
+## Preserved behavior and non-goals
+
+Preserve:
+
+- all endpoint collection job tables/policies/retries/leases/scheduler semantics;
+- canonical Profile Article selection and P1 input semantics;
+- P2 exact provider/tool/schema security boundary;
+- ordinary Web/API readiness and non-AI operation;
+- current v1 representation until P4;
+- PHP integration until P5;
+- topic independence, Source trust, idempotency/provenance/deduplication, exact `originalUrl`.
+
+Do not implement:
+
+- a generic AI job platform;
+- endpoint job reuse for digest work;
+- customer/public cron for AI;
+- transparent provider retries;
+- v1/PHP/admin UI changes;
+- production customer package update;
+- chat/search grounding/vector storage.
+
+## Validation manifest
+
+### RUN — normal local development environment
+
+During iteration use focused lifecycle/Worker tests and focused real-DB tests.
+
+Final-tree matrix:
+
+```text
+npm run check
+npm run test:db
+npm run test:recovery
+npm run test:security
+git diff --check
+npm run codex:phase:validate -- p2-1
+```
+
+`test:security` is included because P3 wires optional provider secrets/failure diagnostics into the long-running Worker. Do not invoke the live Gemini suite during ordinary local validation unless its explicit prerequisites are intentionally provisioned.
+
+### DEFER
+
+- real Gemini + URL Context execution — `LIVE/EXTERNAL`; Phase 1 closeout owns this provider claim.
+- PHP runtime/PHP browser — `VPS-REQUIRED`; Phase 2 package qualification.
+- production customer deployment — `REFERENCE`; Phase 2.
+
+### N/A
+
+- live Source tests;
+- public reference frontend browser proof;
+- chatbot authorization/rate limits.
+
+## Version and repository rules
+
+- Set top-level `package.json` to `2.1.3` before final validation.
+- Do not create `package-lock.json`.
+- Do not rewrite P1 migration `0018` or earlier migrations. If P1 lacks a required producer guarantee, return Planning needed rather than adding ad hoc P3 persistence.
+- Do not edit governing docs, roadmap, worksheet, validation artifacts, `.codex/docs-prompt.txt`, or earlier prompts.
+- Do not manually commit; phase runner owns commits.
+
+## Acceptance
+
+P3 is complete only when:
+
+1. one application service owns scheduled/manual generation and `current | older | null` semantics;
+2. scheduled evaluations use exactly two deterministic UTC half-day slots and are DB-idempotent across Workers;
+3. one Profile cannot have concurrent provider calls and stale running attempts recover boundedly;
+4. unchanged input skips Gemini, one newly entering bounded Article triggers, config change reevaluates, and natural age-out alone does not create unnecessary provider calls;
+5. canonical invalidation/no-overlap suppress invalid old digests truthfully;
+6. successful generation is persisted completely then atomically activated, with immutable history and separate attempts;
+7. provider failure cannot break endpoint collection or ordinary Article distribution and never fabricates freshness;
+8. Worker integration is isolated from endpoint job semantics and starts without a Gemini key when non-AI operation is sufficient;
+9. P4/P6 receive complete normalized read/manual/status APIs and need no provider/raw-SQL logic;
+10. all RUN evidence passes;
+11. package version is exactly `2.1.3`.
+
+Finish with a concise report listing changed files, scheduler slot policy, concurrency/recovery mechanism, lifecycle transition behavior, Worker wiring, tests/results, live evidence actually executed or deferred, and any blocker for P4.
