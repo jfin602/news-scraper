@@ -1,0 +1,359 @@
+TASK: Phase 1 / P6 — Profile AI admin controls and manual generation
+
+- Recommended configuration: `Terra High`.
+- Task-shape classification: `Bounded`.
+- Specification clarity: `Explicit`.
+- State coupling: `High`.
+- Integrity risk: `High`.
+- Concurrency: `Moderate`.
+- Security: `High`.
+- Novel inference: `Moderate`.
+- Model-family basis: P1-P5 already own configuration persistence, generation lifecycle, v1, and PHP. P6 is the protected administrator application/API/browser surface over those producers, not another AI state machine.
+- Reasoning basis: Terra High is warranted because manual Generate now creates an external side effect from the Web/Admin process, AI settings alter outward digest state, and status/error rendering must expose useful bounded diagnostics without leaking Gemini credentials/provider payloads or granting machine credentials admin authority.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Luna High`; rejected because the task spans protected admin service/router, Web provider wiring, browser state, manual side effects, concurrency conflict handling, audit/change history, and security tests.
+- Escalation trigger: P3 manual generation/status cannot be safely composed in the Web process without duplicating Worker/provider logic, or P1 settings changes cannot participate in existing admin audit/transaction rules without a producer change.
+- Escalation target: `Terra Ultra` for bounded Web/Worker service-composition or transactional admin ambiguity; return `Planning needed` rather than embedding lifecycle logic in browser/routes.
+- Estimate confidence: `High`.
+- Efficiency rationale: make the admin a thin consumer of P1/P3 services and keep provider/lifecycle semantics centralized, while giving operators exactly the controls/status needed to operate Phase 1.
+
+The assigned project version is `2.1.6`.
+
+## Goal
+
+Add a dedicated **AI** section to each Distribution Profile in the protected admin control plane with:
+
+- digest enable/disable;
+- lookback days;
+- maximum input Article count;
+- visible twice-daily cadence/status;
+- manual **Generate now**;
+- current active digest status;
+- latest evaluation/generation attempt status.
+
+All admin behavior must consume P1 settings and P3 lifecycle/status/manual-generation services. Browser/router code must never import Gemini SDK details, inspect AI tables, calculate freshness, or build prompts.
+
+## Prerequisite and read first
+
+Require P1-P5 complete at package `2.1.5` (or `2.1.6` for a safe rerun).
+
+Read before editing:
+
+1. current `BOOT.md`, `AGENTS.md`, `README.md`;
+2. `docs/contracts/ai-assistance-contract.md`;
+3. `docs/contracts/product-scope-and-users.md`;
+4. `docs/contracts/public-feed-and-admin-contract.md` only for current protected admin UX/security conventions;
+5. `docs/contracts/testing-and-validation-contract.md`;
+6. Phase 1 roadmap admin/validation/exit-gate sections;
+7. P1 Profile AI settings repository/application service;
+8. P3 normalized digest read/status/manual force service and Worker/Web-safe composition seams;
+9. `src/admin/distribution-profile-administration.ts` and existing audit/change-history patterns;
+10. `src/app/web/distribution-profile-administration-router.ts`, `admin-router.ts`, Web runtime/main dependency construction;
+11. `src/app/web/admin-page.ts`, `admin/profiles.js`, `admin/core.js`, CSS, and current admin browser tests;
+12. security/request-integrity tests and database-backed admin integration tests.
+
+Do not use P5 PHP/local-read as the admin data source. Admin operates on server-side Profile AI application state.
+
+## Dedicated server-side admin application boundary
+
+Prefer a focused Profile AI administration service rather than adding provider/lifecycle logic directly to the existing generic Profile configuration service.
+
+Conceptual operations:
+
+```text
+getProfileAi(profileKey)
+updateProfileAiConfiguration(profileKey, input)
+forceGenerateProfileDigest(profileKey)
+```
+
+Exact names may differ, but each operation must use P1/P3 producer APIs.
+
+### Read model
+
+Expose only bounded protected-admin data needed by the UI:
+
+```text
+profileKey
+configuration:
+  digestEnabled
+  lookbackDays
+  maxArticles
+cadence:
+  kind = twice_daily
+  slots = 00:00Z / 12:00Z (or equivalent bounded display fact)
+activeDigest: null OR
+  generatedAt
+  freshness = current | older
+  inputArticleCount
+  provider
+  model
+latestAttempt: null OR
+  triggerKind
+  outcome
+  startedAt
+  completedAt/null while legitimately running
+  bounded failureCategory/null
+  bounded URL Context outcome counts when available
+```
+
+The admin status does not need raw digest prose to satisfy Phase 1; showing it is optional only if it reuses the normalized P3 digest and remains bounded/escaped. Prefer operational status over duplicating the customer presentation surface.
+
+Never expose:
+
+- Gemini API key;
+- Authorization headers;
+- prompt/system instructions;
+- raw model response;
+- retrieved publisher-page bodies;
+- arbitrary provider exception strings;
+- database/internal digest UUIDs unless genuinely necessary for operator diagnostics (they are not required by the contract);
+- customer PHP secrets/state paths;
+- unrelated Profile context.
+
+## Configuration mutation
+
+Accept only explicit bounded JSON fields:
+
+- `digestEnabled: boolean`;
+- `lookbackDays: integer 1..30`;
+- `maxArticles: integer 1..20`.
+
+Reject unknown/wrong-type/out-of-range input under current admin validation conventions. Do not coerce strings such as `"20"` into integers if current admin APIs fail closed on type mismatches.
+
+Changing these values:
+
+- is Profile configuration, not Publication/topic configuration;
+- does not alter Profile lifecycle/source associations/result limit;
+- does not enable/disable collection;
+- does not modify Articles;
+- does not call Gemini synchronously merely because a setting changed;
+- is observed by P3 at the next scheduled evaluation;
+- immediately affects P3 outward digest classification: disabling means outward digest is null even if immutable historical generations remain; lookback/count change may make the retained digest `older`/null according to P3;
+- does not rewrite prior successful digest records.
+
+Use the existing audit/change-history mechanism or an equivalent current admin audit boundary to record successful material Profile AI configuration changes with bounded prior/new state and reason/action identity. Failed validation/mutation must not emit a successful audit event.
+
+Do not store provider/model/key in Profile settings.
+
+## Manual `Generate now`
+
+Add a protected admin command route invoking **only** P3's manual force service.
+
+Recommended HTTP shape:
+
+```text
+POST /admin/api/distribution-profiles/:profileKey/ai/generate
+```
+
+or a consistent equivalent under the existing protected admin router.
+
+The route performs one bounded server-side operation and may await the P3 provider attempt. It must not make the browser call Gemini directly and must not pass arbitrary prompt/URL/user text.
+
+Map P3 results into a small stable admin response. Suggested semantics:
+
+- successful generation -> `200`, refreshed AI admin read model with latest attempt/active state;
+- provider generation failure -> `200` or a bounded non-5xx application result that clearly says the attempt completed unsuccessfully and includes only the protected bounded failure category; provider outage is not an admin-Web dependency crash;
+- digest disabled / no current input -> `409` with bounded application error such as `digest_disabled` / `digest_no_input`, or another consistent typed conflict mapping;
+- another non-stale generation already running -> `409 digest_generation_in_progress`;
+- Profile missing -> `404`;
+- malformed request -> `400`;
+- genuine unexpected application/database dependency failure -> existing bounded `503`/admin error pattern.
+
+Choose one exact mapping and lock it in tests. Do not expose raw provider status/body/error merely to make the UI informative.
+
+Manual generation must use the same P3 claim/provider/validation/persistence/activation path as scheduled generation and may bypass only the unchanged-input skip rule. No separate manual Gemini client is allowed.
+
+## Web process composition and optional key
+
+The Web/Admin process now needs to be able to execute the same P3 manual generation application service that the Worker uses.
+
+Compose it from shared P1/P2/P3 production factories/dependencies rather than duplicating provider construction in the router.
+
+Requirements:
+
+- Gemini key remains optional at Web startup;
+- ordinary admin/Profile reads and all non-AI Web/API routes remain available without a key;
+- clicking Generate now without a configured key yields the bounded P3 `provider_unconfigured` attempt/result, not startup failure or key exposure;
+- the public `/api/v1` read route still never invokes this generation service;
+- machine `distribution:read` routes cannot call admin generation endpoints;
+- Cloudflare Access/admin perimeter and current request-integrity/CSRF rules remain unchanged and must cover the new mutation routes through the same protected router.
+
+## Admin API routes
+
+Add a focused route family such as:
+
+```text
+GET  /admin/api/distribution-profiles/:profileKey/ai
+PUT  /admin/api/distribution-profiles/:profileKey/ai/configuration
+POST /admin/api/distribution-profiles/:profileKey/ai/generate
+```
+
+Use the existing admin router registration/auth perimeter. Do not create a public AI admin route or reuse `/api/v1/distribution` machine credentials for mutation.
+
+The GET/read route is operator diagnostics and may expose bounded failure categories that P4/P5 intentionally do not expose publicly.
+
+## Profiles UI
+
+Extend the existing Profiles editor with a clearly separated **AI** fieldset/section for the selected Profile.
+
+Required controls/status:
+
+- checkbox/toggle: digest enabled;
+- integer/lookback control: days, min 1, max 30, default 7 from server state;
+- integer/max Articles control: min 1, max 20, default 20 from server state;
+- text explaining evaluations occur twice daily and the current implementation uses 00:00/12:00 UTC slots;
+- Save AI settings action;
+- **Generate now** action;
+- active digest status: no digest/current/older, generated time, input count, provider/model when present;
+- latest attempt: scheduled/manual, outcome, attempt/completion time, bounded failure category;
+- clear loading/saving/generating/error states using existing admin accessibility/status patterns.
+
+Do not show or request the Gemini API key in Profile UI. Provider secret configuration remains deployment/operator environment configuration.
+
+Do not render fetched Article bodies, prompts, raw model output, or customer-facing digest layout in this admin section.
+
+### Browser behavior
+
+- selecting/changing Profiles loads the corresponding AI state only;
+- stale responses from a previously selected Profile must not overwrite the new Profile's AI panel;
+- Save controls disable/busy appropriately during mutation;
+- Generate now cannot be double-submitted accidentally from one browser interaction;
+- server remains the real concurrency authority — UI disablement does not replace P3 claim protection;
+- bounded failure text is human-readable without exposing internals;
+- the section works generically for any Profile subject.
+
+## Audit/change history
+
+Record successful AI configuration changes through the existing append-only audit mechanism with a bounded generic action such as Profile AI configuration update. Do not log API keys (they are not part of input), provider responses, prompts, or attempt bodies.
+
+Manual generation attempts already belong to P3 attempt history. Do not duplicate a full provider response into audit events. A small admin-command audit entry is optional only if current admin mutation policy requires it; avoid duplicating operational attempt state unnecessarily.
+
+## Focused proof
+
+Add focused service/router/database/security/browser tests covering at minimum:
+
+### Admin service/API
+
+- GET returns default disabled 7/20 configuration and no digest/attempt for a new/legacy Profile;
+- PUT accepts valid enable/lookback/count and persists/audits exactly once;
+- wrong types, 0/31 lookback, 0/21 count, unknown Profile fail boundedly with no mutation/audit;
+- disabling immediately makes normalized active digest outward status null through P3 without deleting immutable history;
+- config change does not synchronously call provider;
+- GET exposes current/older/null and latest bounded attempt correctly;
+- secret/raw provider/prompt fields cannot appear in JSON.
+
+### Manual generation
+
+- Generate now uses P3 manual force exactly once;
+- successful fake provider attempt activates digest and refreshes status;
+- unchanged input can regenerate manually;
+- disabled/no-input/in-progress map to the chosen bounded conflicts;
+- provider_unconfigured/provider failure is shown as bounded attempt result and does not crash Web/Admin;
+- no browser-supplied URL/prompt can reach provider;
+- public v1 and `distribution:read` credentials cannot invoke the admin command.
+
+### Browser
+
+- AI section renders/selects Profile-specific state;
+- edit/save values round-trip;
+- Generate now busy/result states;
+- current/older/no-digest status presentation;
+- latest attempt failure displayed boundedly;
+- switch-Profile race does not paint old AI state into new Profile;
+- keyboard/form labels/status behavior follows current accessibility conventions;
+- no Gemini key field or secret appears in DOM/network fixture payloads.
+
+### Regression/topic independence
+
+- existing Profile configuration/source/lifecycle UI remains functional;
+- admin Source/Publication/Credential/Article workspaces unaffected;
+- materially different Profile subjects use identical AI controls and routes.
+
+Use real PostgreSQL for admin persistence/audit/manual activation integration where applicable. Browser tests must use fake/local provider dependencies; never call live Gemini from Playwright.
+
+## Phase 1 producer completion handoff to P7
+
+Before P6 completes, P7 must have all of these observable capabilities:
+
+| Capability | Owner | Proof |
+| --- | --- | --- |
+| Profile AI config 1..30 / 1..20 | P1 + P6 admin | DB/API/browser tests |
+| twice-daily cadence visibility | P3 + P6 | UI/API tests |
+| manual Generate now same path | P3 + P6 | service/router tests |
+| active current/older/null status | P3 + P6 | read/browser tests |
+| latest bounded attempt status | P3 + P6 | failure/status tests |
+| secret-safe admin | P2/P3/P6 | security/browser tests |
+| no change to machine AI authority | existing auth + P6 | negative route/security tests |
+
+P7 closeout must not need to implement any missing feature. If one of these is absent, P6 is incomplete.
+
+## Preserved behavior and non-goals
+
+Preserve all P1-P5 behavior, current protected admin perimeter, Profile lifecycle/source configuration, machine credential separation, Article collection/distribution/PHP behavior, and topic independence.
+
+Do not implement:
+
+- customer PHP presentation/package hardening issues;
+- public/customer digest renderer;
+- Gemini key entry/storage in browser/Profile DB;
+- interactive chat or chat authorization;
+- Source excludes M6SX;
+- production customer deployment;
+- arbitrary manual prompts/URLs/search.
+
+## Validation manifest
+
+### RUN — normal local development environment
+
+During iteration use focused admin service/router/browser tests.
+
+Final-tree matrix:
+
+```text
+npm run check
+npm run test:db
+npm run test:security
+npm run test:browser
+git diff --check
+npm run codex:phase:validate -- p2-1
+```
+
+Browser proof uses fake/local provider behavior only. Do not run live Gemini from browser tests.
+
+### DEFER
+
+- real Gemini/URL Context execution through the actual integrated server path — `LIVE/EXTERNAL`; Phase 1 closeout.
+- PHP runtime / customer PHP browser qualification — `VPS-REQUIRED`; Phase 2 package-hardening gate.
+- real customer installation — `REFERENCE`; Phase 2.
+
+### N/A
+
+- live Source tests;
+- public reference frontend browser behavior unless P6 accidentally touches shared admin/public shell code and the Test Necessity Matrix promotes it.
+
+## Version and repository rules
+
+- Set top-level `package.json` to `2.1.6` before final validation.
+- Do not create `package-lock.json`.
+- Do not edit migrations/P1-P5 business logic to compensate for a missing producer capability; return Planning needed.
+- Do not edit governing contracts, roadmap, worksheet, changelog, validation artifacts, `.codex/docs-prompt.txt`, or earlier prompts.
+- Do not implement Phase 2 package/presentation issues early.
+- Do not manually commit; phase runner owns commits.
+
+## Acceptance
+
+P6 is complete only when:
+
+1. every Profile has a protected AI admin section backed by P1/P3 services;
+2. enable/lookback 1..30/max Articles 1..20 configure and audit correctly;
+3. cadence, active current/older/null status, and latest attempt status are visible without secrets/raw provider data;
+4. Generate now invokes exactly the P3 manual force path and handles disabled/no-input/in-progress/provider-failure states boundedly;
+5. Web startup and non-AI admin/API behavior remain usable without a Gemini key;
+6. machine distribution credentials do not gain admin/generation authority;
+7. browser behavior is Profile-isolated, accessible, race-safe, and topic-independent;
+8. no provider/persistence/freshness logic is duplicated in browser/router code;
+9. all current-gate RUN evidence passes;
+10. package version is exactly `2.1.6`.
+
+Finish with a concise report listing changed admin/service/router/browser files, final endpoint/result shapes, configuration/audit behavior, Generate now behavior, Web provider composition, validation commands/results, live/PHP evidence deferred, and any blocker for P7 closeout.
