@@ -461,18 +461,46 @@ This decision is intentionally aligned with open issue Q7HF: the later Gemini-ca
 
 ## Decision 10 — Stale, absent, and failed summary presentation
 
-**Status:** OPEN
-
-### Questions
-
-- If there has never been a valid digest, should the summary block disappear entirely or show an unavailable message?
-- How old can a valid digest be before the customer should label it stale/older?
-- Should a failed regeneration keep showing the prior digest with its original generation timestamp?
-- Should failure details ever be exposed publicly, or only in admin/operator diagnostics?
+**Status:** LOCKED — owner-approved 2026-08-28
 
 ### Answer
 
-_TBD_
+Digest freshness is semantic rather than based on an arbitrary wall-clock age cutoff. A digest may be several days old and still be current when the bounded governed Profile input has not changed, because scheduled evaluations deliberately skip unnecessary Gemini calls on unchanged input.
+
+The distributable digest exposes a small normalized freshness classification with two values:
+
+- **`current`** — the active digest still corresponds to the current bounded governed digest input/configuration;
+- **`older`** — the current bounded governed input has changed and a replacement has not yet been successfully activated, but the previous digest is still canonically safe enough to retain temporarily under the rules below.
+
+That normalized freshness value belongs in the additive digest data exposed through the v1/PHP/local-read boundary so customer templates do not need to reconstruct server-side input-identity or lifecycle logic.
+
+Public/customer presentation semantics are:
+
+1. **No distributable digest:** `digest = null`; the default customer template omits the summary block rather than displaying an AI error/unavailable placeholder.
+2. **Current digest:** render normally with its truthful `generatedAt` value.
+3. **Older retained digest:** the customer may continue rendering the prior digest, but its normalized freshness must permit the template to identify it honestly as an older AI summary and preserve the original generation timestamp. A failed/pending replacement never rewrites `generatedAt` or pretends the previous digest is newly generated.
+
+A provider timeout, rate limit, malformed output, safety rejection, or other generation failure does not itself become public diagnostic text. Bounded failure categories and attempt details remain available only in the protected Profile AI admin/operator plane.
+
+There is no standalone rule such as "48 hours old means stale." Age alone does not make an otherwise still-current digest stale.
+
+An `older` digest may be retained only while it still has meaningful overlap with the **current bounded governed digest input** and remains canonically valid. Once none of the Articles from the previous digest input remain in the current bounded input, the old digest is no longer a reasonable summary of the current window and must be suppressed to `digest = null` until a replacement succeeds. Any canonical invalidation condition from Decision 6 also suppresses the digest immediately rather than allowing an `older` label to preserve disallowed support.
+
+This produces the intended lifecycle:
+
+```text
+unchanged governed input
+→ current digest remains current regardless of simple age
+
+changed governed input
+→ replacement succeeds → new current digest
+→ replacement pending/fails + prior digest still overlaps and is canonically valid → older digest
+→ prior digest no longer overlaps current bounded input or loses canonical validity → digest = null
+```
+
+The exact customer wording/styling for `current` versus `older` remains customer-owned presentation work under Decision 9. The application owns only the truthful normalized state and timestamps.
+
+This decision adds `freshness` to the downstream digest shape established by Decisions 7 and 8; the final contract review must reconcile those already-locked sections so v1 and PHP expose the same normalized `current | older` semantics.
 
 ---
 
