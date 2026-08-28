@@ -234,7 +234,24 @@ function excerpt(value: string | undefined): string | undefined {
   if (value === undefined) return undefined;
   const normalized = collectionPlainText(value);
   if (normalized.length === 0) return undefined;
-  return normalized.slice(0, ARTICLE_CANDIDATE_LIMITS.summary).trimEnd();
+  return truncateSummary(normalized);
+}
+
+function truncateSummary(value: string): string {
+  const characters = Array.from(value);
+  const limit = ARTICLE_CANDIDATE_LIMITS.summary;
+  if (characters.length <= limit) return value;
+
+  const contentLimit = limit - 3;
+  const prefix = characters.slice(0, contentLimit);
+  const nextCharacter = characters[contentLimit];
+  if (prefix.at(-1) === ' ') return `${prefix.slice(0, -1).join('')}...`;
+  if (nextCharacter === ' ') return `${prefix.join('')}...`;
+
+  const boundary = prefix.lastIndexOf(' ');
+  return boundary === -1
+    ? `${prefix.join('')}...`
+    : `${prefix.slice(0, boundary).join('')}...`;
 }
 
 function normalizeCategories(

@@ -988,10 +988,7 @@ function validateCandidate(candidate: ArticleCandidate): ValidatedCandidate {
         candidate.author,
         ARTICLE_CANDIDATE_LIMITS.author,
       ),
-      summary: optionalTrimmedString(
-        candidate.summary,
-        ARTICLE_CANDIDATE_LIMITS.summary,
-      ),
+      summary: optionalSummary(candidate.summary),
       imageUrl:
         candidate.imageUrl === undefined
           ? undefined
@@ -1219,6 +1216,14 @@ function optionalTrimmedString(
   limit: number,
 ): string | undefined {
   return value === undefined ? undefined : requiredTrimmedString(value, limit);
+}
+
+function optionalSummary(value: unknown): string | undefined {
+  if (value === undefined) return undefined;
+  const summary = requiredTrimmedString(value, Number.POSITIVE_INFINITY);
+  if (Array.from(summary).length > ARTICLE_CANDIDATE_LIMITS.summary)
+    throw new Error();
+  return summary;
 }
 
 function requiredHttpUrl(value: unknown, limit: number): string {

@@ -89,7 +89,7 @@ test('article metadata shape and length constraints remain database-enforced', a
       display_title: 'd'.repeat(2_048),
       normalized_title: 'n'.repeat(2_048),
       author: 'a'.repeat(1_024),
-      summary: 's'.repeat(32_768),
+      summary: 's'.repeat(4_000),
       image_url: 'i'.repeat(8_192),
       language: 'l'.repeat(128),
     } as const;
@@ -138,7 +138,7 @@ test('article metadata shape and length constraints remain database-enforced', a
       ['display_title', 2_048],
       ['normalized_title', 2_048],
       ['author', 1_024],
-      ['summary', 32_768],
+      ['summary', 4_000],
       ['image_url', 8_192],
       ['language', 128],
     ] as const;

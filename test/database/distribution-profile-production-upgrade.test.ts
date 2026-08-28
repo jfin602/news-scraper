@@ -17,6 +17,7 @@ import {
 } from '../../src/distribution/profiles/repository.ts';
 import { issueDistributionCredential } from '../../src/distribution/credentials/repository.ts';
 import { enqueueEndpointCollectionJob } from '../../src/jobs/endpoint-collection-job-repository.ts';
+import { normalizeArticleCandidate } from '../../src/collection/normalization/normalizer.ts';
 import { withDisposableDatabase } from '../support/database/disposable-database.ts';
 
 const ACCEPTED_FILENAMES = Array.from(
@@ -24,7 +25,7 @@ const ACCEPTED_FILENAMES = Array.from(
   (_, index) => `${String(index + 1).padStart(4, '0')}_`,
 );
 
-test('the accepted production state upgrades additively through Profiles to Distribution credentials', async () => {
+test('the accepted production state upgrades additively through Profiles, credentials, and the Article summary bound', async () => {
   await withDisposableDatabase(async ({ databaseUrl }) => {
     const directory = await mkdtemp(
       path.join(tmpdir(), 'news-scraper-baseline-'),
@@ -44,46 +45,82 @@ test('the accepted production state upgrades additively through Profiles to Dist
           'utf8',
         );
       }
-      const acceptedBytes = await Promise.all(
-        accepted.map(
-          async (migration) =>
-            [
-              migration.filename,
-              await readFile(
-                path.join('migrations', migration.filename),
-                'utf8',
-              ),
-            ] as const,
-        ),
+      const preservedBytes = await Promise.all(
+        current
+          .filter(
+            (migration) =>
+              migration.filename !== '0017_article_summary_bound.sql',
+          )
+          .map(
+            async (migration) =>
+              [
+                migration.filename,
+                await readFile(
+                  path.join('migrations', migration.filename),
+                  'utf8',
+                ),
+              ] as const,
+          ),
       );
       assert.deepEqual(
         await migrateDatabase({ connectionString: databaseUrl }, directory),
         accepted.map((migration) => migration.filename),
       );
       const seeded = await seedAcceptedBaseline(databaseUrl);
-      const profileMigration = current.find(
-        (migration) => migration.filename === '0015_distribution_profiles.sql',
-      );
-      assert.ok(profileMigration !== undefined);
-      await writeFile(
-        path.join(directory, profileMigration.filename),
-        profileMigration.sql,
-        'utf8',
-      );
-      assert.deepEqual(
-        await migrateDatabase({ connectionString: databaseUrl }, directory),
-        ['0015_distribution_profiles.sql'],
-      );
+      const addMigration = async (filename: string) => {
+        const migration = current.find(
+          (candidate) => candidate.filename === filename,
+        );
+        assert.ok(migration !== undefined);
+        await writeFile(
+          path.join(directory, migration.filename),
+          migration.sql,
+          'utf8',
+        );
+        assert.deepEqual(
+          await migrateDatabase({ connectionString: databaseUrl }, directory),
+          [filename],
+        );
+      };
+      await addMigration('0015_distribution_profiles.sql');
       const before = await governedSnapshot(databaseUrl, seeded.articleId);
-
+      await addMigration('0016_distribution_credentials.sql');
       assert.deepEqual(
-        await migrateDatabase({ connectionString: databaseUrl }),
-        ['0016_distribution_credentials.sql'],
+        await governedSnapshot(databaseUrl, seeded.articleId),
+        before,
       );
+      await addMigration('0017_article_summary_bound.sql');
       const after = await governedSnapshot(databaseUrl, seeded.articleId);
-      assert.deepEqual(after, before);
+      assert.deepEqual(
+        after.governedRelationships,
+        before.governedRelationships,
+      );
+      assert.deepEqual(after.jobs, before.jobs);
+      assert.deepEqual(
+        after.articleState.map((article) => ({
+          ...article,
+          summary: undefined,
+        })),
+        before.articleState.map((article) => ({
+          ...article,
+          summary: undefined,
+        })),
+      );
+      assert.deepEqual(
+        new Map(
+          after.articleState.map((article) => [article.id, article.summary]),
+        ),
+        new Map([
+          [seeded.articleId, runtimeSummary(seeded.multiWordSummary)],
+          [seeded.unchangedArticleId, seeded.unchangedSummary],
+          [
+            seeded.noBoundaryArticleId,
+            runtimeSummary(seeded.noBoundarySummary),
+          ],
+        ]),
+      );
       await Promise.all(
-        acceptedBytes.map(async ([filename, bytes]) => {
+        preservedBytes.map(async ([filename, bytes]) => {
           assert.equal(
             await readFile(path.join('migrations', filename), 'utf8'),
             bytes,
@@ -157,9 +194,14 @@ async function seedAcceptedBaseline(databaseUrl: string) {
   const sourceId = randomUUID();
   const endpointId = randomUUID();
   const articleId = randomUUID();
+  const unchangedArticleId = randomUUID();
+  const noBoundaryArticleId = randomUUID();
   const categoryId = randomUUID();
   const runId = randomUUID();
   const groupId = randomUUID();
+  const unchangedSummary = 'Preserved summary';
+  const multiWordSummary = `${'a'.repeat(3_990)} ${'b'.repeat(20)}`;
+  const noBoundarySummary = '🙂'.repeat(4_001);
   try {
     await database.query(
       `INSERT INTO publication_settings (name, active_for_collection, public_status, description, accent_color, presentation_timezone)
@@ -192,8 +234,20 @@ async function seedAcceptedBaseline(databaseUrl: string) {
     );
     await database.query(
       `INSERT INTO articles (id, source_id, external_id, original_url, canonical_identity_url, display_title, normalized_title, summary, published_at_status, published_at, source_updated_at_status, first_seen_at, last_seen_at, display_title_override)
-       VALUES ($1, $2, 'external-upgrade', 'https://upgrade.example/a', 'https://upgrade.example/a', 'Upgrade headline', 'upgrade headline', 'Preserved summary', 'parsed', '2026-08-15T10:00:00Z', 'missing', '2026-08-15T10:01:00Z', '2026-08-15T10:02:00Z', 'Operator headline')`,
-      [articleId, sourceId],
+       VALUES ($1, $2, 'external-upgrade', 'https://upgrade.example/a', 'https://upgrade.example/a', 'Upgrade headline', 'upgrade headline', $3, 'parsed', '2026-08-15T10:00:00Z', 'missing', '2026-08-15T10:01:00Z', '2026-08-15T10:02:00Z', 'Operator headline')`,
+      [articleId, sourceId, multiWordSummary],
+    );
+    await database.query(
+      `INSERT INTO articles (id, source_id, external_id, original_url, canonical_identity_url, display_title, normalized_title, summary, published_at_status, source_updated_at_status, first_seen_at, last_seen_at)
+       VALUES ($1, $2, 'external-unchanged', 'https://upgrade.example/unchanged', 'https://upgrade.example/unchanged', 'Unchanged headline', 'unchanged headline', $3, 'missing', 'missing', '2026-08-15T10:01:00Z', '2026-08-15T10:02:00Z'),
+              ($4, $2, 'external-no-boundary', 'https://upgrade.example/no-boundary', 'https://upgrade.example/no-boundary', 'No boundary headline', 'no boundary headline', $5, 'missing', 'missing', '2026-08-15T10:01:00Z', '2026-08-15T10:02:00Z')`,
+      [
+        unchangedArticleId,
+        sourceId,
+        unchangedSummary,
+        noBoundaryArticleId,
+        noBoundarySummary,
+      ],
     );
     await database.query(
       'INSERT INTO article_categories (article_id, category_id) VALUES ($1, $2)',
@@ -242,7 +296,15 @@ async function seedAcceptedBaseline(databaseUrl: string) {
       availableAt: new Date('2026-08-15T12:00:00Z'),
       attemptNumber: 1,
     });
-    return { sourceId, articleId };
+    return {
+      sourceId,
+      articleId,
+      unchangedArticleId,
+      noBoundaryArticleId,
+      unchangedSummary,
+      multiWordSummary,
+      noBoundarySummary,
+    };
   } finally {
     await database.close();
   }
@@ -273,8 +335,54 @@ async function governedSnapshot(databaseUrl: string, articleId: string) {
          FROM endpoint_collection_jobs
         ORDER BY enqueued_at ASC`,
     );
-    return { governedRelationships: result.rows, jobs: jobs.rows };
+    const articles = await database.query<{
+      readonly id: string;
+      readonly source_id: string;
+      readonly original_url: string;
+      readonly canonical_identity_url: string;
+      readonly display_title: string;
+      readonly normalized_title: string;
+      readonly summary: string | null;
+      readonly display_title_override: string | null;
+      readonly visibility_state: string;
+      readonly published_at: Date | null;
+      readonly first_seen_at: Date;
+      readonly last_seen_at: Date;
+      readonly created_at: Date;
+      readonly updated_at: Date;
+    }>(
+      `SELECT id, source_id, original_url, canonical_identity_url, display_title,
+              normalized_title, summary, display_title_override, visibility_state,
+              published_at, first_seen_at, last_seen_at, created_at, updated_at
+         FROM articles
+        ORDER BY id`,
+    );
+    return {
+      governedRelationships: result.rows,
+      jobs: jobs.rows,
+      articleState: articles.rows,
+    };
   } finally {
     await database.close();
   }
+}
+
+function runtimeSummary(summary: string): string {
+  const result = normalizeArticleCandidate(
+    {
+      title: 'Summary migration proof',
+      url: 'https://upgrade.example/summary-proof',
+      content: summary,
+    },
+    {
+      sourceId: 'source-summary-proof',
+      sourceEndpointId: 'endpoint-summary-proof',
+      collectionRunId: 'run-summary-proof',
+      terminalFeedUrl: 'https://upgrade.example/feed',
+    },
+  );
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error('summary normalizer unexpectedly rejected');
+  assert.ok(result.candidate.summary !== undefined);
+  return result.candidate.summary;
 }

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -289,6 +290,7 @@ test('installs only the justified public-feed discovery indexes from zero', asyn
       '0014_html_endpoint_profile_and_run_diagnostics.sql',
       '0015_distribution_profiles.sql',
       '0016_distribution_credentials.sql',
+      '0017_article_summary_bound.sql',
     ]);
     assert.deepEqual(
       await migrateDatabase({ connectionString: databaseUrl }),
@@ -392,6 +394,37 @@ test('installs only the justified public-feed discovery indexes from zero', asyn
            )`,
       );
       assert.deepEqual(fullTextOrTrigramIndexes.rows, []);
+    } finally {
+      await database.close();
+    }
+  });
+});
+
+test('current migrations enforce the Article summary character bound', async () => {
+  await withDisposableDatabase(async ({ databaseUrl }) => {
+    await migrateDatabase({ connectionString: databaseUrl });
+    const database = createDatabase({ connectionString: databaseUrl });
+    try {
+      const sourceId = '00000000-0000-0000-0000-000000000001';
+      await database.query(
+        `INSERT INTO sources (id, config_key, display_name, site_url, approval_state, lifecycle_state, operational_state)
+         VALUES ($1, 'summary_source', 'Summary Source', 'https://summary.example', 'approved', 'active', 'enabled')`,
+        [sourceId],
+      );
+      const article = (summary: string) =>
+        database.query(
+          `INSERT INTO articles (id, source_id, original_url, canonical_identity_url, display_title, normalized_title, summary, published_at_status, source_updated_at_status, first_seen_at, last_seen_at)
+           VALUES ($1, $2, $3, $4, 'Summary', 'summary', $5, 'missing', 'missing', now(), now())`,
+          [
+            randomUUID(),
+            sourceId,
+            `https://summary.example/a/${randomUUID()}`,
+            `https://summary.example/c/${randomUUID()}`,
+            summary,
+          ],
+        );
+      await article('🙂'.repeat(4_000));
+      await assert.rejects(article('🙂'.repeat(4_001)));
     } finally {
       await database.close();
     }

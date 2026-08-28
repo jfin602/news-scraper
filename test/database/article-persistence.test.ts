@@ -518,9 +518,35 @@ test('invalid observation time and malformed candidate fail predictably before m
         return true;
       },
     );
+    const emojiSummary = '🙂'.repeat(4_000);
+    const persisted = await persistIncludedArticle(
+      database,
+      candidate(fixture, { summary: emojiSummary }),
+      OBSERVED_AT,
+    );
+    assertSuccess(persisted, 'created');
+    assert.equal(persisted.article.summary, emojiSummary);
+    await assert.rejects(
+      persistIncludedArticle(
+        database,
+        candidate(fixture, {
+          externalId: 'summary-out-of-contract',
+          originalUrl: 'https://one.example/articles/summary-out-of-contract',
+          canonicalIdentityUrl:
+            'https://one.example/articles/summary-out-of-contract',
+          summary: '🙂'.repeat(4_001),
+        }),
+        OBSERVED_AT,
+      ),
+      (error: unknown) => {
+        assert.ok(error instanceof ArticlePersistenceError);
+        assert.equal(error.reason, 'invalid_candidate');
+        return true;
+      },
+    );
     assert.deepEqual(await cardinality(inspector), {
-      articles: 0,
-      observations: 0,
+      articles: 1,
+      observations: 1,
     });
   });
 });

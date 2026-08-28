@@ -45,6 +45,7 @@ test('migrates Source administration foundation from zero with canonical constra
       '0014_html_endpoint_profile_and_run_diagnostics.sql',
       '0015_distribution_profiles.sql',
       '0016_distribution_credentials.sql',
+      '0017_article_summary_bound.sql',
     ]);
     const database = createDatabase({ connectionString: databaseUrl });
     try {

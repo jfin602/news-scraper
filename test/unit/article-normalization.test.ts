@@ -222,24 +222,77 @@ describe('normalizeArticleCandidate', () => {
       language: 'x'.repeat(ARTICLE_CANDIDATE_LIMITS.language + 1),
     });
     assert.equal(result.externalId, undefined);
-    assert.equal(result.summary?.length, ARTICLE_CANDIDATE_LIMITS.summary);
+    assert.equal(
+      summaryLength(result.summary),
+      ARTICLE_CANDIDATE_LIMITS.summary,
+    );
+    assert.equal(result.summary?.endsWith('...'), true);
     assert.equal(result.imageUrl, undefined);
     assert.equal(result.language, undefined);
     assert.equal(result.sourceCategories, undefined);
   });
 
-  it('preserves category and summary behavior below and at their bounds', () => {
-    for (const length of [
-      ARTICLE_CANDIDATE_LIMITS.summary - 1,
-      ARTICLE_CANDIDATE_LIMITS.summary,
-      ARTICLE_CANDIDATE_LIMITS.summary + 1,
-    ]) {
-      assert.equal(
-        candidate({ title: 'A', url: '/a', content: 's'.repeat(length) })
-          .summary?.length,
-        Math.min(length, ARTICLE_CANDIDATE_LIMITS.summary),
-      );
-    }
+  it('applies the governed summary bound after deterministic plain-text normalization', () => {
+    const limit = ARTICLE_CANDIDATE_LIMITS.summary;
+    const unchanged3999 = 's'.repeat(limit - 1);
+    const unchanged4000 = 's'.repeat(limit);
+    assert.equal(
+      candidate({ title: 'A', url: '/a', content: unchanged3999 }).summary,
+      unchanged3999,
+    );
+    assert.equal(
+      candidate({ title: 'A', url: '/a', content: unchanged4000 }).summary,
+      unchanged4000,
+    );
+
+    const wordBoundary = `${'a'.repeat(3_990)} ${'b'.repeat(20)}`;
+    assert.equal(
+      candidate({ title: 'A', url: '/a', content: wordBoundary }).summary,
+      `${'a'.repeat(3_990)}...`,
+    );
+
+    const exactWord = `${'a'.repeat(3_997)} ${'b'.repeat(20)}`;
+    assert.equal(
+      candidate({ title: 'A', url: '/a', content: exactWord }).summary,
+      `${'a'.repeat(3_997)}...`,
+    );
+
+    const noBoundary = 'x'.repeat(limit + 1);
+    assert.equal(
+      candidate({ title: 'A', url: '/a', content: noBoundary }).summary,
+      `${'x'.repeat(limit - 3)}...`,
+    );
+
+    const markup = `<p>${'a'.repeat(3_995)}</p>\n<div>${'b'.repeat(20)}</div>`;
+    const normalized = candidate({
+      title: 'A',
+      url: '/a',
+      content: markup,
+    }).summary;
+    assert.equal(normalized, `${'a'.repeat(3_995)}...`);
+    assert.equal(normalized?.includes(' ...'), false);
+    assert.ok(summaryLength(normalized) <= limit);
+
+    const emoji = `${'🙂'.repeat(3_997)}more`;
+    const emojiSummary = candidate({
+      title: 'A',
+      url: '/a',
+      content: emoji,
+    }).summary;
+    assert.equal(emojiSummary, `${'🙂'.repeat(3_997)}...`);
+    assert.equal(summaryLength(emojiSummary), limit);
+    assert.equal(Array.from(emojiSummary ?? '').at(-4), '🙂');
+    assert.deepEqual(
+      candidate({ title: 'A', url: '/a', content: wordBoundary }),
+      candidate({ title: 'A', url: '/a', content: wordBoundary }),
+    );
+
+    const oversized = normalizeArticleCandidate(
+      { title: 'A', url: '/a', content: noBoundary },
+      context,
+    );
+    assert.equal(oversized.ok, true);
+
     const categories = Array.from(
       { length: ARTICLE_CANDIDATE_LIMITS.sourceCategories },
       (_, index) =>
@@ -286,6 +339,10 @@ describe('normalizeArticleCandidate', () => {
       assert.ok(result.detail.length <= ARTICLE_CANDIDATE_LIMITS.failureDetail);
   });
 });
+
+function summaryLength(value: string | undefined): number {
+  return value === undefined ? 0 : Array.from(value).length;
+}
 
 function candidate(
   raw: RawItem,

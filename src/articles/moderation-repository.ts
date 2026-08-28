@@ -638,7 +638,7 @@ function mapArticle(
     originalUrl: requiredText(row.original_url, 8192),
     canonicalIdentityUrl: requiredText(row.canonical_identity_url, 8192),
     author: nullableText(row.author, 1024),
-    summary: nullableText(row.summary, 32768),
+    summary: nullableSummary(row.summary),
     imageUrl: nullableText(row.image_url, 8192),
     language: nullableText(row.language, 128),
     publishedAtStatus: requiredDateStatus(row.published_at_status),
@@ -948,6 +948,19 @@ function requiredText(value: unknown, max: number): string {
 
 function nullableText(value: unknown, max: number): string | null {
   return value === null ? null : requiredText(value, max);
+}
+
+function nullableSummary(value: unknown): string | null {
+  if (value === null) return null;
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    Array.from(value).length > 4_000 ||
+    value !== value.trim()
+  ) {
+    throw new Error();
+  }
+  return value;
 }
 
 function requiredDate(value: unknown): Date {

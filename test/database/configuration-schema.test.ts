@@ -35,6 +35,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
       '0014_html_endpoint_profile_and_run_diagnostics.sql',
       '0015_distribution_profiles.sql',
       '0016_distribution_credentials.sql',
+      '0017_article_summary_bound.sql',
     ]);
     assert.deepEqual(
       await migrateDatabase({ connectionString: databaseUrl }),
@@ -106,6 +107,7 @@ test('canonical production schema migrates from zero and reruns safely', async (
         { filename: '0014_html_endpoint_profile_and_run_diagnostics.sql' },
         { filename: '0015_distribution_profiles.sql' },
         { filename: '0016_distribution_credentials.sql' },
+        { filename: '0017_article_summary_bound.sql' },
       ]);
 
       const removedTenancy = await client.query<{

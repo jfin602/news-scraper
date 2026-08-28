@@ -3,7 +3,7 @@ export const ARTICLE_CANDIDATE_LIMITS = Object.freeze({
   title: 2_048,
   url: 8_192,
   author: 1_024,
-  summary: 32_768,
+  summary: 4_000,
   imageUrl: 8_192,
   language: 128,
   sourceCategories: 64,
