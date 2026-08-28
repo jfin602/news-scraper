@@ -17,7 +17,6 @@ import {
 } from '../../src/distribution/profiles/repository.ts';
 import { issueDistributionCredential } from '../../src/distribution/credentials/repository.ts';
 import { enqueueEndpointCollectionJob } from '../../src/jobs/endpoint-collection-job-repository.ts';
-import { normalizeArticleCandidate } from '../../src/collection/normalization/normalizer.ts';
 import { withDisposableDatabase } from '../support/database/disposable-database.ts';
 
 const ACCEPTED_FILENAMES = Array.from(
@@ -111,12 +110,10 @@ test('the accepted production state upgrades additively through Profiles, creden
           after.articleState.map((article) => [article.id, article.summary]),
         ),
         new Map([
-          [seeded.articleId, runtimeSummary(seeded.multiWordSummary)],
+          [seeded.articleId, `${'a'.repeat(3_990)}...`],
           [seeded.unchangedArticleId, seeded.unchangedSummary],
-          [
-            seeded.noBoundaryArticleId,
-            runtimeSummary(seeded.noBoundarySummary),
-          ],
+          [seeded.noBoundaryArticleId, `${'🙂'.repeat(3_997)}...`],
+          [seeded.exactBoundaryArticleId, `${'c'.repeat(3_997)}...`],
         ]),
       );
       await Promise.all(
@@ -196,12 +193,14 @@ async function seedAcceptedBaseline(databaseUrl: string) {
   const articleId = randomUUID();
   const unchangedArticleId = randomUUID();
   const noBoundaryArticleId = randomUUID();
+  const exactBoundaryArticleId = randomUUID();
   const categoryId = randomUUID();
   const runId = randomUUID();
   const groupId = randomUUID();
   const unchangedSummary = 'Preserved summary';
   const multiWordSummary = `${'a'.repeat(3_990)} ${'b'.repeat(20)}`;
   const noBoundarySummary = '🙂'.repeat(4_001);
+  const exactBoundarySummary = `${'c'.repeat(3_997)} ${'d'.repeat(20)}`;
   try {
     await database.query(
       `INSERT INTO publication_settings (name, active_for_collection, public_status, description, accent_color, presentation_timezone)
@@ -248,6 +247,11 @@ async function seedAcceptedBaseline(databaseUrl: string) {
         noBoundaryArticleId,
         noBoundarySummary,
       ],
+    );
+    await database.query(
+      `INSERT INTO articles (id, source_id, external_id, original_url, canonical_identity_url, display_title, normalized_title, summary, published_at_status, source_updated_at_status, first_seen_at, last_seen_at)
+       VALUES ($1, $2, 'external-exact-boundary', 'https://upgrade.example/exact-boundary', 'https://upgrade.example/exact-boundary', 'Exact boundary headline', 'exact boundary headline', $3, 'missing', 'missing', '2026-08-15T10:01:00Z', '2026-08-15T10:02:00Z')`,
+      [exactBoundaryArticleId, sourceId, exactBoundarySummary],
     );
     await database.query(
       'INSERT INTO article_categories (article_id, category_id) VALUES ($1, $2)',
@@ -301,9 +305,11 @@ async function seedAcceptedBaseline(databaseUrl: string) {
       articleId,
       unchangedArticleId,
       noBoundaryArticleId,
+      exactBoundaryArticleId,
       unchangedSummary,
       multiWordSummary,
       noBoundarySummary,
+      exactBoundarySummary,
     };
   } finally {
     await database.close();
@@ -365,24 +371,4 @@ async function governedSnapshot(databaseUrl: string, articleId: string) {
   } finally {
     await database.close();
   }
-}
-
-function runtimeSummary(summary: string): string {
-  const result = normalizeArticleCandidate(
-    {
-      title: 'Summary migration proof',
-      url: 'https://upgrade.example/summary-proof',
-      content: summary,
-    },
-    {
-      sourceId: 'source-summary-proof',
-      sourceEndpointId: 'endpoint-summary-proof',
-      collectionRunId: 'run-summary-proof',
-      terminalFeedUrl: 'https://upgrade.example/feed',
-    },
-  );
-  assert.equal(result.ok, true);
-  if (!result.ok) throw new Error('summary normalizer unexpectedly rejected');
-  assert.ok(result.candidate.summary !== undefined);
-  return result.candidate.summary;
 }
