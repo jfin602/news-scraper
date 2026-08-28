@@ -140,7 +140,7 @@ Keep these distinctions explicit: Publication vs subject vertical vs Profile; So
 | Collection / safety / normalization / Relevance / identity                | `docs/contracts/source-and-collection-contract.md`                        |
 | Article visibility / duplicates / Primary                                 | `docs/contracts/article-lifecycle-and-deduplication.md`                   |
 | Existing `/api/feed`, `/`, current admin UX                               | `docs/contracts/public-feed-and-admin-contract.md`                        |
-| Testing / evidence / DB/browser/live/deployment proof                     | `docs/contracts/testing-and-validation-contract.md`                       |
+| Testing / necessity / environments / evidence / completion gates          | `docs/contracts/testing-and-validation-contract.md`                       |
 | Process/module architecture                                               | `docs/architecture/system-architecture.md`                                |
 | Security / reliability / observability                                    | `docs/operations/security-reliability-and-operations.md`                  |
 | Backup / restore                                                          | `docs/operations/database-backup-and-restore.md`                          |
@@ -155,7 +155,7 @@ Keep these distinctions explicit: Publication vs subject vertical vs Profile; So
 | Production data/schema compatibility                                      | `docs/decisions/production-data-and-schema-compatibility.md`              |
 | Admin perimeter                                                           | `docs/decisions/cloudflare-access-admin-perimeter.md`                     |
 | UI workflow                                                               | `docs/design/README.md`, then `docs/design/ui-workflow.md`                |
-| Codex model selection                                                     | `docs/codex-model-selection.md`                                           |
+| Codex model selection / prompt validation manifest                        | `docs/codex-model-selection.md`                                           |
 | Documentation index                                                       | `docs/README.md`                                                          |
 
 If a path does not exist, search for its current equivalent before assuming intentional deletion.
@@ -257,12 +257,15 @@ Distribution Profile persistence already required Level 4 production-forward mig
 ## Validation honesty
 
 - Every implementation prompt owns focused tests and appropriate broader regression coverage.
-- Producer boundaries must prove every capability later consumers require; consumers must not invent producer-owned SQL/query/cursor/state/transaction/validation/topology semantics.
-- Use the narrowest useful focused command during iteration and the smallest non-overlapping final command set covering the applicable evidence.
+- Validation selection is change-aware and environment-aware: resolve the testing contract's Test Necessity Matrix and Test Environment Matrix before writing commands; crossing multiple surfaces takes the union and shared helpers inherit important-consumer obligations.
+- Every implementation/closeout prompt carries a `RUN` / `DEFER` / `N/A` validation manifest. `DEFER` is required later in its assigned environment, never a skip/pass/waiver.
+- Use the narrowest useful focused command during iteration and the smallest non-overlapping `RUN` command set covering the applicable evidence.
+- Do not knowingly run VPS-required/live-external evidence from a normal Windows prompt merely to rediscover a missing prerequisite. Explicitly invoked specialized suites remain fail-closed when their expected prerequisite is unavailable, and deterministic prerequisite/environment failures are not automatically retried.
+- Cross-environment evidence combines only for the exact same accepted tree. A local implementation prompt may truthfully report local validation green with deferred evidence pending when its task gate allows that handoff; a phase/correction closeout cannot claim full GREEN until all gate-required deferred evidence runs successfully.
 - Evidence applies only to the exact tree/environment actually tested.
 - Source inspection is not runtime/browser/database/live proof.
 - Mocks do not prove PostgreSQL constraints, transactions, migrations, locks, races, or live Gemini behavior.
-- Required specialized suites fail clearly when prerequisites are unavailable; skips/zero-match/flakiness do not satisfy an exit gate.
+- Required specialized suites fail clearly when explicitly invoked and prerequisites are unavailable; skips/zero-match/flakiness do not satisfy an exit gate.
 - Phase/correction closeout requires a durable validation artifact tied to the accepted source tree when the governing roadmap/test contract requires it.
 - Live-provider AI claims require an actually executed Gemini request against the relevant tree/environment; mocked provider behavior is not provider proof.
 
@@ -443,7 +446,7 @@ For every producer→consumer dependency record:
 
 If the consumer would need to invent producer-owned semantics, return `Planning needed`.
 
-Reassess model/effort using the minimum-cost-adequate rule and produce the smallest non-overlapping final validation command set.
+Reassess model/effort using the minimum-cost-adequate rule. Resolve the testing contract's Test Necessity Matrix and Test Environment Matrix into an explicit prompt validation manifest with `RUN` / `DEFER` / `N/A`, assigned environments, exact-tree handoff requirements, and the smallest non-overlapping final `RUN` command set.
 
 ## `/prompt-write <folder name>`
 
@@ -452,6 +455,8 @@ Requires an unblocked `/prompt-plan`. Revalidate current repo/docs and write ord
 For corrections, use the established correction grammar and current unchanged package version.
 
 For the future 3.0 roadmap, do not write `p2-*` folders until the runner correction has made that grammar executable and the roadmap has been explicitly activated to its required baseline.
+
+Each written prompt MUST inherit the finalized validation manifest rather than rediscovering or broadening the repository test matrix. Do not instruct the normal Windows prompt environment to execute `DEFER` items assigned to VPS/live/reference environments; keep explicit specialized-suite prerequisite failures fail-closed when those suites are actually invoked.
 
 Before reporting a stack ready, run `npm run codex:phase:validate -- <folder>` when local execution is available.
 
@@ -609,7 +614,8 @@ The bundled/reference frontend UI work does not govern customer-site integration
 - Treat database constraints/transactions, idempotency, provenance, security, failure behavior, AI failure isolation, and backward compatibility as first-class review concerns.
 - Do not substitute stronger models for oversized task boundaries.
 - Keep adapters and AI consumers thin; do not let later consumers invent producer-owned SQL/query/state/cursor/selection semantics.
-- Use focused iteration and non-overlapping final validation.
+- Use focused iteration, change-aware/environment-aware validation manifests, and non-overlapping final `RUN` commands.
+- Do not execute deferred VPS/live/reference evidence in the wrong environment merely to collect a prerequisite failure.
 - Do not claim tests/runtime/browser/database/live-Source/live-Gemini behavior unless actually observed.
 - Never invent repository state, Source behavior, provider behavior, or validation results.
 
@@ -617,7 +623,7 @@ The bundled/reference frontend UI work does not govern customer-site integration
 
 - `/review <commit, PR, task, implementation>` — review against contracts/architecture/tests, not only happy path
 - `/prove <behavior>` — identify/execute appropriate evidence when tools/environment allow
-- `/test-matrix <feature>` — map behavior to focused/regression/evidence levels
+- `/test-matrix <feature>` — resolve affected validation surfaces, required evidence, execution environments, and `RUN` / `DEFER` / `N/A`
 - `/lock <decision>` — treat decision as authoritative and identify docs that must reflect it; no write unless instructed
 - `/recommend` — choose best option using current contracts/roadmap/value/risk
 - `/status` — return Completed / Current / Blocked / Next
