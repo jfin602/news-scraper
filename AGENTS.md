@@ -142,8 +142,12 @@ Distribution Profile persistence already established the requirement for both mi
 ## Validation honesty
 
 - Every implementation change needs focused automated coverage plus relevant broader regression coverage for its blast radius.
+- Validation planning MUST resolve the testing contract's Test Necessity Matrix and Test Environment Matrix before prompt writing; crossing multiple surfaces takes the union and shared helpers inherit important-consumer obligations.
+- Every implementation/closeout prompt carries a `RUN` / `DEFER` / `N/A` validation manifest. `DEFER` means required later in the assigned environment, not skipped, passed, waived, or optional.
+- Use narrow focused suites during iteration and the smallest non-overlapping `RUN` command set covering all required evidence; do not knowingly invoke VPS-required/live evidence from a normal Windows prompt merely to trigger a prerequisite failure.
+- Explicitly invoked specialized suites remain fail-closed when prerequisites are unexpectedly unavailable. Deterministic prerequisite/environment failures are not automatically retried.
+- Cross-environment evidence combines only for the exact same accepted tree. A local implementation prompt may report local validation green with deferred evidence pending when allowed, but a phase/correction gate cannot claim full GREEN until all gate-required deferred evidence has run successfully.
 - Producer prompts with downstream consumers must map every required capability to the owning implementation/export and focused proof; consumers must not invent producer-owned SQL, cursor, state, transaction, validation, or topology semantics.
-- Use narrow focused suites during iteration and the smallest non-overlapping final command set covering all required evidence.
 - Evidence applies only to the exact final tree tested. Source inspection is not runtime proof; mocks do not prove PostgreSQL guarantees; HTTP integration is not browser proof; fixtures are not live-Source or live-Gemini proof.
 - Explicitly required suites fail when prerequisites are absent, skipped, flaky, or select zero tests.
 - Persistence/concurrency/migration claims require real disposable PostgreSQL where applicable.
