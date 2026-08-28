@@ -4,6 +4,18 @@ This file is the running issue log for problems reported in this chat.
 
 ## Open Issues
 
+### V7MT — 2026-08-28 — Local validation runs environment-incompatible suites
+
+- **Status:** Open
+- Normal Codex implementation and closeout prompts execute on the local Windows development machine, but the current aggregate validation commands can invoke suites whose required runtime belongs on the VPS or another specialized environment.
+- `npm run check` currently includes the PHP runtime suite through `npm test`, so an otherwise-green local Node validation run becomes nonzero when PHP CLI is unavailable. The browser aggregate likewise mixes ordinary Playwright coverage with PHP-backed customer/server browser coverage.
+- This causes deterministic prerequisite failures, wasted retries, and misleading RED/BLOCKED prompt outcomes even when all locally executable required evidence has passed.
+- Validation planning needs two explicit dimensions: a change-aware Test Necessity Matrix and a Test Environment Matrix. Required evidence should resolve to `RUN`, `DEFER`, or `N/A` before execution; `DEFER` means required later in the correct environment, not skipped, passed, waived, or optional.
+- Explicitly invoked specialized suites must remain fail-closed when their prerequisite is unexpectedly unavailable, and deterministic prerequisite/environment failures must not be automatically retried.
+- The ordinary local `npm test` / `npm run check` path should become genuinely portable, while PHP runtime and PHP-backed browser evidence remain separately invokable for VPS validation. Database/browser/live-provider/deployment evidence should be classified by actual current prerequisites rather than globally assumed to be VPS-only.
+- Cross-environment completion must preserve exact-tree evidence: a local prompt may report local validation green with required VPS evidence deferred, but a phase/correction gate cannot claim full GREEN until every gate-required deferred item has actually run against the same final commit/source tree.
+- Planned correction stack: `c1-test-fix` at unchanged package version.
+
 ### T4QP — 2026-08-26 — PHP integration package requires a hand-created sync launcher
 
 - **Status:** Open
