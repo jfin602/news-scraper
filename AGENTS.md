@@ -4,9 +4,9 @@
 
 News Scraper is a reusable, topic-independent **headless news aggregation and distribution Platform**. Each installation hosts exactly one singleton Publication representing one customer/editorial property and governed content universe; that Publication may contain multiple related subject verticals or feed sections exposed through Distribution Profiles. Publication is singleton editorial/configuration state, not a relational tenant key. The administrator surface is the control plane. Current implemented outward consumers are authenticated `GET /api/v1/distribution/{profile_key}`, `GET /api/feed`, and the bundled/reference `GET /` frontend; neither reference consumer requires a reader-selectable Publication.
 
-Read `BOOT.md` first and route through `docs/README.md` to the narrowest authority. `docs/contracts/project-contract.md` owns locked laws and top-level invariants; `docs/contracts/product-scope-and-users.md` owns current product scope; `docs/contracts/distribution-and-integration-contract.md` owns Distribution Profile/PHP behavior; `docs/contracts/distribution-api-contract.md` owns the permanent machine interface; `docs/contracts/ai-assistance-contract.md` owns the owner-approved 3.0 AI behavior; Accepted ADRs own architecture; the testing contract owns proof; the current roadmap owns phase/version sequencing.
+Read `BOOT.md` first and route through `docs/README.md` to the narrowest authority. `docs/contracts/project-contract.md` owns locked laws and top-level invariants; `docs/contracts/product-scope-and-users.md` owns current product scope; `docs/contracts/distribution-and-integration-contract.md` owns Distribution Profile/PHP behavior; `docs/contracts/distribution-api-contract.md` owns the permanent machine interface; `docs/contracts/ai-assistance-contract.md` owns active Phase 1 Gemini digest behavior and later AI boundaries; Accepted ADRs own architecture; the testing contract owns proof; the current roadmap owns phase/version sequencing. The completed `docs/roadmap/phase-1-gemini-summary-worksheet.md` is the owner-approved planning record whose locked decisions have been promoted into those governing contracts/roadmap.
 
-If work conflicts with a locked law, report the conflict. Do not silently treat code, a summary, or historical evidence as higher authority.
+If work conflicts with a locked law, report the conflict. Do not silently treat code, a summary, historical evidence, or the worksheet as higher authority than the contracts after promotion.
 
 ## Documentation workflow
 
@@ -21,6 +21,7 @@ Follow `BOOT.md`.
 - Former post-1.0 Phase 0 P1 shipped the server-rendered root at `1.0.1`; its unexecuted P2/`1.0.2` closeout is permanently retired.
 - The seven-phase 2.0 roadmap is complete. Terminal `/closeout` changed only top-level `package.json` to `2.0.0`; the Phase 7 owner-approved evidence exception remains recorded in the durable validation artifact and is not rewritten as unobserved test evidence.
 - The owner-approved 3.0 roadmap is **active in Phase 1** at package `2.1.0`. The post-2.0 runner compatibility correction and N6WD Article-summary correction are GREEN/owner-accepted prerequisites.
+- The completed Phase 1 Gemini worksheet is consumed planning input; prompt planning must use the promoted contract/roadmap semantics rather than reopen or reinterpret its 12 owner-approved decisions.
 - Use `docs/codex-model-selection.md` for detailed minimum-cost-adequate model/reasoning/usage policy.
 
 ## Versioning and task-stack grammar
@@ -90,12 +91,15 @@ Historical Phase 7 planned qualification items are not automatically current req
 Current/planned sequence:
 
 1. `2.1.x` — Gemini Profile digest foundation;
-2. `2.2.x` — Profile-grounded "Ask this feed" chatbot;
-3. `2.3.x` — real multi-feed customer integration proof for publishing news, opportunities, and indie filmmaking from one singleton Publication/editorial property;
-4. `2.4.x+` — admin and PHP integration tightening based on observed real deployment friction;
-5. terminal `3.0.0` only after the owner explicitly locks and satisfies the final gate.
+2. `2.2.x` — PHP integration correction + Gemini-capable customer package refresh/deployment;
+3. `2.3.x` — Profile-grounded "Ask this feed" chatbot;
+4. `2.4.x` — real multi-feed customer integration proof for publishing news, opportunities, and indie filmmaking from one singleton Publication/editorial property;
+5. `2.5.x+` — remaining admin and PHP integration tightening based on observed real deployment friction;
+6. terminal `3.0.0` only after the owner explicitly locks and satisfies the final gate.
 
 The accepted `c1-n6wd` correction already implements the governed 4,000-code-point normalized/persisted Article summary bound and production-forward migration. Phase 1 consumes that producer boundary and must not duplicate it.
+
+The completed Phase 1 worksheet locks the implementation planning assumptions: two scheduled evaluations/day, default 7-day lookback, configurable/hard-ceiling 1–20 Article input with default 20, canonical Profile order, governed URL Context, structured overview/highlights/support references, internal `digestInputIdentity`, immutable successful digest records plus separate active pointer/attempt state, `current | older | null` lifecycle, additive v1 digest snapshot state, PHP optional-AI fail-open normalization, Profile AI admin controls, and customer-owned final presentation.
 
 The 3.0 roadmap does not automatically promote previously post-2.0 ideas such as self-host packaging, WordPress, RSS/Atom output, analytics, advanced SEO tooling, delta sync, or additional adapters.
 
@@ -112,7 +116,14 @@ Always preserve these boundaries and read the routed contract for detail:
 - Collection trust and distribution selection are distinct. Source approval authorizes governed collection; Profile membership determines which already-eligible Source Articles can enter one distribution output.
 - The transport-independent canonical distribution Article eligibility/Profile read-model producer owns effective outward Categories, bounded results/history, keyset continuation positions, and deterministic snapshot revisions. Later API/AI/adapters must reuse it.
 - The governed v1 machine HTTP interface composes the canonical read model and machine credential/authentication/request-guard foundations. Generic PHP synchronization/LKG consumes that stable API.
-- Normalized local Profile/Article access uses the customer-facing `LocalProfileReader` / `LocalReadResult` boundary, fallback SSR, safe escaping/null handling, local availability states, direct publisher anchors, and local-only ordinary visitor rendering. New multi-feed or AI digest work must not bypass these boundaries by parsing cache files or making ordinary visitor-path upstream calls.
+- Phase 1 digest input must be a deterministic bounded narrowing of canonical Profile output, preserving canonical order; AI cannot introduce another selector/ranker.
+- Phase 1 active digest state is part of the same outward Profile snapshot/revision and PHP LKG/local-read path. Do not invent a second digest endpoint, digest ETag, customer digest cron, or visitor-time upstream read.
+- `digestInputIdentity` is internal generation provenance/idempotency state and must not be conflated with outward `snapshotRevision`.
+- Persisted digest lifecycle must keep immutable successful generations, a separate active reference, and separate bounded attempt state; consumers never observe partial digest state.
+- Downstream digest freshness is exactly `current | older` when a digest exists, otherwise `null`; age alone does not define staleness and canonical invalidation overrides old-digest retention.
+- Optional invalid digest state fails open relative to valid Article API/PHP snapshot state.
+- Normalized local Profile/Article/digest access uses the customer-facing `LocalProfileReader` / `LocalReadResult` boundary; new work must not bypass it by parsing cache files or making ordinary visitor-path upstream calls.
+- Customer final Article/digest HTML/CSS/layout is customer-owned. Phase 1 must not expand the current fallback renderer into an authoritative digest presentation layer; Phase 2 owns renderer-boundary cleanup/package refresh.
 - Source is the approved publisher/trust boundary; endpoint is its concrete feed/API/HTML location. Approval, lifecycle, operational state, and derived health are distinct.
 - Only approved, active, enabled Sources/endpoints are collectable while singleton Publication collection is active. Bootstrap never auto-approves or silently widens trust.
 - Every request and redirect hop passes approval plus DNS/address/port/SSRF checks before contact. Article links pass their separate post-normalization Source/domain policy gate.
@@ -126,8 +137,8 @@ Always preserve these boundaries and read the routed contract for detail:
 - Machine credentials are separate from human admin access and never imply administrator authority.
 - The current managed/reference admin uses Cloudflare Access with direct-origin protection, request integrity, and real relationship validation.
 - AI assistance is downstream of one Profile's canonical governed Articles. It cannot approve Sources, change Relevance/Categories, moderate, deduplicate, rerank canonical output, manufacture destinations, or become an ordinary feed-delivery dependency.
-- Gemini keys remain server-side. Source text, user chat input, and model output are untrusted. Model-proposed citations must be validated and visible Article links resolved from stored `originalUrl`.
-- Existing `distribution:read` authority must not silently become unlimited billable interactive AI authority; Phase 2 owns the separately governed AI capability/rate/cost boundary.
+- Gemini keys remain server-side. Source text, user chat input, retrieved publisher-page text, and model output are untrusted. Model-proposed citations/support references must be validated and visible Article links resolved from stored `originalUrl`.
+- Existing `distribution:read` authority must not silently become unlimited billable interactive AI authority; roadmap Phase 3 owns the separately governed AI capability/rate/cost boundary.
 
 The thirteen locked laws remain authoritative in `docs/contracts/project-contract.md`; this guardrail list does not replace them.
 
@@ -170,7 +181,7 @@ Normal path: `/ui-plan` → `/ui-write`. If durable design guidance is missing, 
 - Prefer the smallest file-scoped, regression-safe change; state non-goals and preserved behavior.
 - Split complex transactional/state-machine work from separately consumed read/API work when consumers, tests, or failure risks differ materially.
 - For collection changes, trace endpoint type/profile → approval/state → lock/network safety → fetch/redirect → parser/admission → normalization/link policy/Relevance/identity/persistence/duplicates → run/health/admin consumers.
-- For outward/distribution/AI work, trace canonical Article selection → Profile → read model/API → AI/adapters/site → security/cache/link implications → tests.
+- For outward/distribution/AI work, trace canonical Article selection → Profile → digest input identity/state machine → provider → v1 snapshot → PHP/LKG/local-read → customer presentation → security/cache/link implications → tests.
 - For existing reference-frontend work, trace singleton settings → canonical read model → `/api/feed` → `/` → unavailable/errors/external links → browser coverage.
 - Search all references before renames. Never invent repository state, test results, Source behavior, provider behavior, or history.
 
