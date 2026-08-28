@@ -11,6 +11,8 @@ News Scraper may use generative AI to help readers understand and interrogate th
 
 The initial 3.0 implementation uses Google Gemini to satisfy the immediate product/hackathon requirement. Provider-specific request/response handling MAY live behind a narrow provider boundary, but subject/editorial behavior remains provider-independent and topic independent.
 
+The initial Gemini provider profile is the Gemini Developer API using the Interactions API through the official `@google/genai` SDK, with stable `gemini-3.7-flash` as the initial configured model. Scheduled digest generation uses low thinking, structured JSON output validated against an application-owned schema, `store=false`, Gemini URL Context over application-selected governed Article URLs, and no Google Search grounding. These provider choices are implementation configuration rather than subject/editorial behavior and may change later only through deliberate compatible configuration/contract review.
+
 The two initial AI capabilities are:
 
 1. scheduled Profile news/trend digests generated from recent governed Profile Articles; and
@@ -28,18 +30,21 @@ The AI layer MUST NOT:
 - restore Articles excluded by Source trust, visibility, moderation, duplicate suppression, or Profile selection;
 - reinterpret Relevance, Category, Source admission, Profile filters, or duplicate state;
 - manufacture or replace Article `originalUrl` destinations;
-- crawl arbitrary Article pages merely to obtain more AI context;
+- perform arbitrary web browsing/search or allow Source text, user text, conversation history, or model output to expand the set of URLs the provider may retrieve;
+- operate a News Scraper-owned Article-body crawler or persist fetched Article bodies merely to obtain more AI context;
 - use unbounded Raw items, HTML bodies, parser payloads, or internal persistence/provenance records as prompt context.
 
-Initial grounding may use only bounded safe normalized outward metadata needed for the feature, such as Article identifier, headline, Source, effective date, author, bounded summary, Categories, and exact stored `originalUrl` when needed for validated citation output.
+Initial grounding uses bounded safe normalized outward metadata needed for the feature, such as Article identifier, headline, Source, effective date, author, bounded summary, Categories, and exact stored `originalUrl`. For configured Gemini URL Context, application code MAY additionally provide a bounded subset of those exact stored `originalUrl` values so the provider can retrieve the corresponding public publisher pages. The URL set is derived only from the already-selected governed Profile Articles; arbitrary or model-selected destinations are prohibited.
 
-Open issue `N6WD` must be resolved or an equivalent explicit AI-input bound must be proven before oversized Source descriptions/content can be admitted to Gemini prompts. Full-article RSS payloads must not create unbounded prompt/storage behavior.
+The normalized Article summary remains part of the supplied context when present even when URL Context is attempted. This provides bounded fallback material when a publisher page is paywalled, unavailable, unsupported, or otherwise not successfully retrieved. URL retrieval failure for one Article is a context-degradation condition rather than an automatic digest failure; the model must not be instructed or allowed to imply that inaccessible content was successfully read.
+
+Open issue `N6WD` has an owner-approved target invariant: persisted normalized `Article.summary` is bounded to 4,000 characters after plain-text normalization, with deterministic word-boundary truncation and `...` when needed. Until that behavior is implemented and validated, Phase 1 must either implement N6WD or otherwise prove that oversized existing summaries cannot enter unbounded Gemini prompts.
 
 ## Untrusted content and prompt injection
 
-All Source-derived Article text is untrusted data.
+All Source-derived Article text and all publisher-page content retrieved through provider URL Context are untrusted data.
 
-AI orchestration MUST clearly separate system/developer instructions from Article content and user content. Source titles, summaries, category labels, authors, and other feed text MUST be treated as quoted/reference data, never executable instructions. A Source item that contains text such as "ignore previous instructions" must have no authority over model policy, tool selection, secrets, Profile selection, or system behavior.
+AI orchestration MUST clearly separate system/developer instructions from Article content and user content. Source titles, summaries, category labels, authors, retrieved page text, and other feed/provider-retrieved text MUST be treated as quoted/reference data, never executable instructions. A Source item or retrieved page that contains text such as "ignore previous instructions" must have no authority over model policy, tool selection, secrets, Profile selection, URL selection, or system behavior.
 
 The implementation SHOULD use structured delimiters/typed request construction and the provider's structured-output facilities where practical. Model output must be validated before persistence or response use.
 
@@ -67,6 +72,8 @@ The exact persistence schema is implementation work, but active digest replaceme
 ### Digest failure behavior
 
 Gemini/provider failure, timeout, invalid structured output, safety rejection, rate limit, or dependency outage MUST NOT interrupt Source collection, Article persistence, canonical distribution, v1 Article output, PHP Article synchronization/LKG, or ordinary customer Article rendering.
+
+Individual URL Context retrieval failures, including unavailable or paywalled publisher pages, do not by themselves invalidate a digest attempt when bounded normalized metadata/summary context remains sufficient. Retrieval status and provider failure handling must remain truthful and bounded; no successful retrieval may be fabricated.
 
 A failed digest attempt may preserve the previous valid digest with truthful generation/freshness metadata. If no valid digest exists, consumers receive an explicit absent/unavailable AI state while Articles remain fully usable. The system must never fabricate a successful fresh digest merely because generation failed.
 
@@ -99,6 +106,8 @@ The generic behavior is "Ask this feed," not "indie publishing chatbot." Profile
 
 Each chat request must be grounded in a bounded current Profile context selected through canonical Profile semantics. Initial 3.0 scope SHOULD prefer the smallest architecture that works with the Profile's bounded recent Article set rather than introducing embeddings/vector infrastructure prematurely.
 
+When provider URL Context is enabled for chat, the same URL-selection rule applies: only bounded exact stored `originalUrl` values from the current governed Profile context may be supplied. User questions, prior conversation text, retrieved content, and model output cannot add arbitrary destinations or activate general web search.
+
 If semantic retrieval/embeddings are added later, retrieval must remain downstream of canonical Profile eligibility and must never become a route around Source trust, moderation, duplicate suppression, or Profile membership.
 
 Conversation history is untrusted input and MUST be bounded by count/size/time or equivalent policy before sending it to the model.
@@ -130,11 +139,11 @@ The exact endpoint path and credential representation are Phase 2 interface-desi
 AI secrets and customer request content follow the existing secret/redaction rules plus these requirements:
 
 - never log Gemini keys, Authorization headers, machine token plaintext, or secret environment values;
-- do not log unbounded prompts, Article corpora, full chat histories, or full model responses by default;
-- operational telemetry may record bounded Profile key, model/provider, duration, token/usage facts when safely available, result/failure category, and non-secret request correlation identifiers;
-- do not send private administrator configuration, credentials, internal database fields, Collection-run bodies, or unrelated Profiles to Gemini merely because they exist in the instance;
-- send only the minimum bounded Profile/article/user context required for the requested AI capability;
-- customer/operator documentation must identify that the feature sends bounded content/user prompts to the configured external AI provider.
+- do not log unbounded prompts, Article corpora, retrieved publisher-page content, full chat histories, or full model responses by default;
+- operational telemetry may record bounded Profile key, model/provider, duration, token/usage facts when safely available, result/failure category, bounded URL-retrieval status facts, and non-secret request correlation identifiers;
+- do not send private administrator configuration, credentials, internal database fields, Collection-run bodies, unrelated Profiles, or arbitrary URLs to Gemini merely because they exist in the instance or appear in Source/user/model text;
+- send only the minimum bounded Profile/article/user context and exact application-selected governed URLs required for the requested AI capability;
+- customer/operator documentation must identify that the feature sends bounded content/user prompts and, when URL Context is enabled, governed publisher Article URLs to the configured external AI provider.
 
 Provider data-handling/retention claims must not be invented by News Scraper documentation; deployment operators remain responsible for provider terms/configuration appropriate to their use.
 
@@ -172,7 +181,9 @@ Disabling or failing AI must leave the non-AI product independently operable, pr
 Implementation evidence must cover the narrowest applicable levels from `testing-and-validation-contract.md`, including at minimum:
 
 - deterministic input bounding and Profile grounding;
-- prompt-injection treatment of Source/user content as untrusted data;
+- exact governed URL selection for URL Context and rejection of arbitrary/model/user/Source-selected destinations;
+- graceful bounded fallback when URL Context cannot retrieve an Article page;
+- prompt-injection treatment of Source/user/retrieved-page content as untrusted data;
 - structured-output/schema rejection;
 - provider timeout/error/rate-limit failure isolation;
 - atomic/preserved prior digest behavior;
@@ -184,7 +195,7 @@ Implementation evidence must cover the narrowest applicable levels from `testing
 - multi-Profile topic independence using materially different Profile subjects;
 - an executed Gemini integration proof using non-production/safely provisioned credentials before claiming the provider integration works.
 
-Mocks may prove orchestration but do not prove live Gemini/provider behavior. Live-provider evidence must be clearly distinguished from deterministic local tests.
+Mocks may prove orchestration but do not prove live Gemini/provider behavior or live URL Context retrieval. Live-provider evidence must be clearly distinguished from deterministic local tests.
 
 ## Out of initial scope
 
@@ -193,7 +204,8 @@ Unless later promoted, the initial 3.0 AI work does not require:
 - autonomous Source discovery or approval;
 - AI-written Relevance/Profile rules;
 - AI moderation or duplicate decisions;
-- Article-body crawling for RAG;
+- a News Scraper-owned Article-body crawler or persisted Article-body RAG corpus;
+- arbitrary web browsing/search or model-selected URL retrieval beyond application-selected governed `originalUrl` URL Context;
 - embeddings/vector databases when bounded Profile context is sufficient;
 - autonomous tool use over the admin control plane;
 - personalized reader profiling;
