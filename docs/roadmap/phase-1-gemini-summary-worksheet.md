@@ -179,20 +179,39 @@ The configured lookback/count values define the current bounded digest input use
 
 ## Decision 4 — Gemini digest output shape and size
 
-**Status:** OPEN
-
-### Questions
-
-- What should the visible digest contain: one summary paragraph, multiple paragraphs, themes, bullets/highlights, or a combination?
-- What hard length bounds should apply to generated text and each structured subfield?
-- Should Gemini return supporting Article IDs for themes/highlights?
-- What wording/tone is generic enough to work for every Profile subject without topic-specific code?
-- How should AI-generated origin be labeled?
-- Which safe output/presentation preferences, if any, should be configurable from the Profile AI admin section?
+**Status:** LOCKED — owner-approved 2026-08-28
 
 ### Answer
 
-_TBD_
+The Phase 1 digest uses validated structured output rather than one unrestricted freeform response.
+
+The visible digest contains:
+
+1. **Overview** — one concise plain-text summary of the overall recent developments represented by the bounded governed Profile input. Target length is approximately 100–200 words, with an application-enforced hard maximum of **2,000 characters**.
+2. **Highlights / key developments** — up to **3** structured highlights. Each highlight contains a short plain-text title and a concise 1–2 sentence explanation, with an application-enforced maximum of **500 characters** for the explanatory text.
+3. **Supporting / important Articles** — each highlight carries a bounded list of supporting Article references so the rendered digest can surface the most important underlying stories associated with that development.
+
+Gemini must identify supporting Articles only by `articleId` values from the exact bounded digest input. Gemini/model output is never trusted to supply Article URLs. News Scraper validates every returned Article ID against the generation input and resolves accepted references through canonical governed Article data.
+
+For each validated supporting Article reference, the application may materialize the safe outward reference fields needed by downstream consumers, including at minimum:
+
+- `articleId`;
+- headline;
+- exact stored `originalUrl`.
+
+This produces the desired "most important articles" effect beneath/within each highlight while preserving the rule that all visible destinations come from News Scraper's stored governed Article data rather than model-generated URLs. Invalid, unknown, out-of-input, or duplicate model references are rejected or safely normalized before persistence/serving.
+
+Supporting references remain bounded. The initial target is up to **3 supporting Articles per highlight**, subject to the overall maximum of 20 input Articles. A single Article may support more than one highlight when genuinely applicable, but customer presentation should avoid noisy duplicate link lists where practical.
+
+All generated text is treated as untrusted **plain text**. Phase 1 does not accept model-provided executable HTML or trusted Markdown. Escaping/sanitization remains owned by the application/PHP rendering layer.
+
+The complete generated textual portion of one digest is hard-bounded to approximately **4,000 characters total** across overview and highlights, with the field-level limits above enforced as part of structured-output validation. Supporting Article metadata/URLs are application-resolved references and are not counted as Gemini-generated prose.
+
+The AI-origin label is application-owned rather than model-authored. First-party/integration presentation should clearly identify the block with wording such as **"AI News Summary"** or **"AI-generated news summary"** so it is distinguishable from publisher-supplied Article metadata.
+
+The shared prompt/output role remains topic-independent: summarize the most important recent developments, patterns, and changes represented by the supplied governed Profile Articles. No shared prompt or schema may assume indie publishing, filmmaking, opportunities, or another specific subject.
+
+Phase 1 does not expose arbitrary raw prompt editing or freeform output-size controls in the Profile AI admin section. The structured output shape and safety bounds remain application-owned. A later bounded presentation preset such as brief/standard/detailed may be considered separately if real usage justifies it.
 
 ---
 
@@ -316,10 +335,10 @@ _TBD_
 
 ### Questions
 
-- Should the digest contain explicit supporting Article references?
-- If highlights/themes reference Articles, how many references are allowed per item?
-- Should customer rendering show links inline, below the digest, or not at all initially?
-- How are model-returned Article IDs validated against the exact Profile context?
+- Decision 4 establishes supporting Article references on each highlight; what exact downstream rendering behavior should those canonical references use?
+- Should customer rendering show the supporting/important Article links inline with each highlight, immediately below it, or in a consolidated important-articles section?
+- How should repeated Articles supporting multiple highlights be presented without unnecessary duplicate links?
+- Should Source name/date be displayed with each important Article link in the default/reference rendering?
 - All visible links must continue to resolve from the stored governed `originalUrl`, never model-generated URLs.
 
 ### Answer
