@@ -2,7 +2,7 @@
 
 **Status:** Current post-2.0 product scope  
 **Adopted:** 2026-08-19  
-**Updated:** 2026-08-27 for the multi-vertical Publication model and owner-approved 3.0 direction  
+**Updated:** 2026-08-28 for governed Gemini URL Context and the bounded Article-summary policy  
 **Historical MVP scope:** `docs/contracts/mvp-scope-and-users.md`
 
 ## Product objective
@@ -142,7 +142,9 @@ The owner-approved 3.0 direction adds AI only downstream of governed Profile out
 
 Scheduled Profile digests and interactive "Ask this feed" chat are governed by `ai-assistance-contract.md`. The same AI implementation must work across materially different Profile subjects without hard-coded topic prompts or shared-engine subject rules.
 
-AI does not authorize or perform Source approval, collection, Relevance, Category, moderation, Article identity, duplicate decisions, ordering, or destination rewriting. Gemini failure cannot become a dependency for ordinary non-AI collection, canonical distribution, PHP Article LKG, or customer Article rendering.
+AI grounding may use bounded normalized Profile Article metadata, including the bounded persisted summary, and may use the configured Gemini provider's URL Context capability only for a bounded application-selected set of exact stored `originalUrl` values from those already-governed Profile Articles. This is not a News Scraper-owned Article-body crawler and does not authorize Google Search grounding, arbitrary/model-selected web browsing, user-supplied URL expansion, persisted Article-body storage, or a route around canonical Profile selection.
+
+AI does not authorize or perform Source approval, collection, Relevance, Category, moderation, Article identity, duplicate decisions, ordering, or destination rewriting. Gemini failure or an inaccessible/paywalled publisher URL cannot become a dependency for ordinary non-AI collection, canonical distribution, PHP Article LKG, or customer Article rendering.
 
 ### Deployment architecture
 
@@ -191,7 +193,7 @@ Its immediate sequence is:
 
 The final `3.0.0` exit gate remains intentionally owner-controlled/TBD until those capabilities have been exercised in the real customer integration.
 
-WordPress-specific productization, public RSS/Atom output, Linux VPS/Docker Compose self-host packaging, native/default self-host administrator authentication, production-grade autonomous public self-hosting, SSO/multi-admin identity, visitor/click/referral/backlink analytics, advanced SEO tooling, browser widgets, Kubernetes/multi-node deployment, delta synchronization, autonomous AI editorial decisions, Article-body AI crawling, and additional adapter families remain outside the current commitment unless explicitly promoted.
+WordPress-specific productization, public RSS/Atom output, Linux VPS/Docker Compose self-host packaging, native/default self-host administrator authentication, production-grade autonomous public self-hosting, SSO/multi-admin identity, visitor/click/referral/backlink analytics, advanced SEO tooling, browser widgets, Kubernetes/multi-node deployment, delta synchronization, autonomous AI editorial decisions, a News Scraper-owned Article-body crawler/persisted Article-body RAG corpus, arbitrary web browsing/search or model-selected URL retrieval beyond application-selected governed `originalUrl` URL Context, and additional adapter families remain outside the current commitment unless explicitly promoted.
 
 ## Quality targets
 
