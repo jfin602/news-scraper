@@ -1,0 +1,157 @@
+TASK: Correction 1 / P1 — Separate portable and VPS validation
+
+CORRECTION SCOPE
+Implement the executable half of accepted issue `V7MT` and the testing contract's change-aware/environment-aware validation model. This is the sole implementation prompt in correction `c1-test-fix`.
+
+The defect is test topology, not product behavior: the normal Windows Codex path currently runs PHP through `npm test`/`npm run check`, and `npm run test:browser` mixes ordinary Playwright evidence with a PHP-backed customer/server test. Make the portable aggregates genuinely portable while preserving all existing substantive PHP and browser coverage as separately invokable VPS evidence.
+
+Do not add roadmap capability, Gemini behavior, deployment automation, remote-command execution, prerequisite auto-detection/skipping, retries, database changes, or product/runtime changes.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Model-family basis: owner-selected elevated implementation configuration for a bounded but repository-wide test-command contract change whose correctness depends on preserving coverage, command containment, fail-closed specialized behavior, and cross-environment closeout handoff semantics.
+- Reasoning basis: High should independently trace package scripts, runner semantics, browser test ownership, correction-runner behavior, and regression coverage so optimization does not silently remove evidence.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Moderate`.
+- Lower-cost alternative considered: `Luna Medium`; source inspection showed the mechanical code boundary could fit it, but the owner explicitly selected `Terra High` for P1.
+- Escalation trigger: source inspection reveals that separating PHP from the portable aggregates requires changing production behavior, adding a generic exclusion language to the shared test runner, or redesigning cross-environment execution rather than the bounded topology described here.
+- Escalation target: `Sol High` only if a genuinely ambiguous cross-system architecture problem is discovered; otherwise stop and report planning drift.
+- Estimate confidence: `High`.
+- Efficiency rationale: keep `scripts/run-tests.mjs` simple, move the already-isolated PHP-backed browser file to a separate suite, change only package/test topology plus focused contract coverage, and execute one non-overlapping portable final matrix.
+
+VERSIONING
+- Required unchanged project version: `2.0.0`.
+- This correction MUST NOT change `package.json` version.
+- Do not create `package-lock.json` or `npm-shrinkwrap.json`.
+- This prompt consumes no 3.0 roadmap patch number and does not activate `2.1.0`.
+- Do not manually commit; the correction runner owns the implementation-prompt commit boundary.
+
+MANDATORY HANDOFF
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/codex-model-selection.md`, `known-issues.md` entry `V7MT`, and the latest 3.0 changelog entry;
+2. inspect current `package.json`, `scripts/run-tests.mjs`, `scripts/run-php-tests.mjs`, `test/unit/run-tests.test.ts`, all files under `test/browser/`, and the current correction-runner grammar in `scripts/codex-phase-core.mjs`;
+3. confirm package remains exactly `2.0.0`, no npm lockfile exists, and this stack is still a correction at unchanged version;
+4. confirm the PHP-backed browser behavior is currently isolated in `test/browser/php-customer-example.test.ts` and ordinary browser tests do not otherwise require PHP;
+5. inspect recent validation evidence showing the observed failure mode: local Node evidence passes but PHP absence turns aggregate validation red;
+6. stop and report planning drift if current source has already materially separated these suites, if another browser file also requires PHP, or if governing testing policy changed.
+
+GOVERNING INVARIANTS
+Preserve these rules exactly:
+- `npm test` is the ordinary deterministic portable development regression matrix.
+- `npm run check` is portable static/type/format validation plus `npm test`; it MUST NOT transitively require PHP, live Sources, live Gemini, reference deployment, or another VPS-only runtime.
+- explicitly invoked specialized suites remain fail-closed when their expected prerequisite is unavailable; do not weaken `scripts/run-php-tests.mjs` into a skip/pass path.
+- `npm run test:browser` owns ordinary non-PHP Playwright coverage.
+- PHP-backed customer/server browser evidence is separately addressable as `npm run test:browser:php` and remains substantive evidence, not deleted or converted to mocks.
+- test selection with zero matches continues to fail.
+- validation remains coverage-set based: avoid aggregate/subordinate duplicate execution.
+- deterministic prerequisite/environment failures are not automatically retried.
+- package version and all product behavior remain unchanged.
+
+IMPLEMENTATION BOUNDARY
+Use the smallest structural split. Expected changes are:
+
+1. `package.json`
+   - remove `&& npm run test:php` from the ordinary `test` aggregate;
+   - keep `test` covering the current unit, integration, and collection Node suites with existing bounded concurrency;
+   - keep `check` as format-check + lint + typecheck + portable `npm test`;
+   - preserve `test:php` as the existing PHP CLI/runtime entrypoint;
+   - keep `test:browser` selecting only ordinary non-PHP browser tests;
+   - add `test:browser:php` selecting the PHP-backed browser suite separately with conservative bounded concurrency.
+
+2. Browser test ownership
+   - move `test/browser/php-customer-example.test.ts` intact to a separate clear test directory such as `test/browser-php/php-customer-example.test.ts`;
+   - preserve its behavior, real PHP server usage, Playwright assertions, no-upstream-request proof, scenarios, and fail-closed PHP prerequisite behavior;
+   - keep ordinary browser tests under `test/browser/` so the existing recursive browser glob remains simple and future ordinary browser files remain automatically included;
+   - do not add negative-glob/exclusion syntax to `scripts/run-tests.mjs` merely to avoid moving one already-isolated file.
+
+3. Focused regression coverage
+   - add one focused unit test owned by the test-command contract, with a clear name such as `test/unit/test-command-contract.test.ts`;
+   - read/inspect the current package scripts and test ownership rather than duplicating production logic;
+   - prove at minimum:
+     - `npm test` contains the ordinary unit/integration/collection suites and does not transitively invoke `test:php`;
+     - `check` composes portable checks plus `npm test` and does not explicitly add PHP/VPS-only evidence;
+     - `test:php` still invokes the PHP runner;
+     - `test:browser` and `test:browser:php` select disjoint substantive file sets;
+     - the moved PHP customer browser test is owned by `test:browser:php`, not the ordinary browser selection;
+     - neither browser command is a no-op/zero-match configuration on the current tree.
+   - prefer durable containment/ownership assertions over hard-coding unrelated complete script strings.
+
+Do not modify `scripts/run-tests.mjs` unless source inspection proves a real requirement that cannot be met by the structural split above. If it remains unchanged, retain the existing zero-match, deterministic glob ordering, concurrency, global-setup, and child-status semantics protected by `test/unit/run-tests.test.ts`.
+
+PRESERVED BEHAVIOR / NON-GOALS
+Do not change:
+- PHP integration implementation or PHP test assertions;
+- customer renderer/synchronizer behavior;
+- browser UI behavior or assertions;
+- Node unit/integration/collection test membership other than removing the separate PHP invocation from their aggregate;
+- database, recovery, security, live-Source, Gemini, deployment, or phase-runner semantics;
+- test concurrency values unless necessary for the new isolated PHP browser command;
+- source, migrations, config, docs contracts, known-issue status, roadmap state, or package version.
+
+Do not add an all-purpose `check:vps` that always runs every specialized suite. The testing contract requires prompt-specific necessity/environment selection, not a new universal expensive aggregate.
+
+VALIDATION MANIFEST
+Execution environment for this implementation prompt: normal local Windows Codex environment.
+
+Affected validation surfaces:
+- test command topology / aggregate containment;
+- ordinary Node regression selection;
+- browser test ownership;
+- PHP specialized-suite preservation;
+- correction task grammar.
+
+RUN locally — iterative:
+- run the new focused command-contract unit test after script/topology edits;
+- run `test/unit/run-tests.test.ts` only if `scripts/run-tests.mjs` changes or focused evidence indicates runner regression;
+- use the smallest relevant command after each edit; do not rerun the whole suite repeatedly.
+
+RUN locally — final tree, smallest non-overlapping set:
+1. focused command-contract unit test;
+2. `npm run check` — this must now pass without invoking PHP in the normal local environment;
+3. `npm run test:browser` — proves the ordinary browser suite remains substantive and no longer launches the PHP-backed case;
+4. `npm run codex:phase:validate -- c1-test-fix`;
+5. committed-range/working-tree `git diff --check` as applicable to the runner-owned commit boundary.
+
+Containment:
+- do NOT separately run `npm test`, `test:unit`, `test:integration`, or `test:collection` after successful `npm run check` solely to duplicate contained evidence.
+
+DEFER — required before correction closeout GREEN:
+- `npm run test:php` → `VPS-REQUIRED`;
+- `npm run test:browser:php` → `VPS-REQUIRED`.
+
+The runner stops before P2. After the runner commits this P1, the exact P1 commit must be checked out/pulled on the VPS and both deferred commands must pass there. Record the exact commit SHA, command, result, PHP version, Node/npm version, and any browser prerequisite information in an untracked/ignored handoff receipt suitable for the P2 closeout, recommended path:
+
+`.codex-runs/c1-test-fix-vps-evidence.txt`
+
+The receipt is evidence handoff only; do not commit it. Do not create remote-execution tooling in this correction. If the local prompt cannot access the VPS, report the two items as correctly deferred rather than attempting/retrying them locally.
+
+N/A for this correction:
+- `npm run test:db`;
+- `npm run test:recovery`;
+- `npm run test:security`;
+- `npm run test:live-sources`;
+- live Gemini/provider validation;
+- reference deployment validation.
+
+IMPLEMENTATION ACCEPTANCE
+P1 is implementation-green when:
+- the portable `npm test`/`npm run check` path contains no PHP runtime dependency;
+- ordinary browser tests and PHP-backed browser tests are separately addressable and substantive;
+- no existing PHP/browser case was deleted or weakened;
+- explicit PHP test execution remains fail-closed when its prerequisite is absent;
+- the focused regression protects the new command containment/ownership contract;
+- all local `RUN` evidence passes on the final P1 tree;
+- the two VPS items are truthfully reported as `DEFER`, not passed/skipped/waived;
+- package remains `2.0.0`, no lockfile appears, and no product behavior changes.
+
+FINAL REPORT
+Report concisely:
+- files changed and structural test split;
+- focused and final local commands actually run with results/counts where available;
+- confirmation that `npm run check` completed without invoking PHP;
+- exact P1 candidate/commit context available at report time;
+- `DEFER → VPS` commands still owed;
+- any environment limitation or unexpected drift;
+- confirmation of unchanged package `2.0.0`, no lockfile, and no product/roadmap scope.
+
+Do not claim the correction fully GREEN. P2 owns independent closeout after exact-tree VPS evidence exists.
