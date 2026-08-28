@@ -1,0 +1,328 @@
+TASK: Phase 1 / P1 — Profile AI data and digest input foundation
+
+- Recommended configuration: `Terra High`.
+- Task-shape classification: `Bounded`.
+- Specification clarity: `Explicit`.
+- State coupling: `High`.
+- Integrity risk: `High`.
+- Concurrency: `Moderate`.
+- Security: `Sensitive`.
+- Novel inference: `Moderate`.
+- Model-family basis: the governing Phase 1 contracts now explicitly define Profile AI configuration, digest input selection, immutable successful generations, a separate active reference, and separate attempt history. P1 is persistence/read-model foundation work with a supported-production forward migration, not open-ended AI behavior design.
+- Reasoning basis: Terra High is the minimum safe floor because this prompt establishes durable customer data, migration compatibility, downstream repository contracts, and the exact canonical input/identity producer that every later Gemini, lifecycle, API, PHP, and admin task consumes.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Luna High`; rejected because migration/data-integrity mistakes or an incomplete producer contract would force later prompts to invent persistence or canonical-selection semantics.
+- Escalation trigger: current Profile persistence cannot support the required AI state without changing a locked law, the canonical Profile snapshot cannot supply a required governed input field, or a production-safe migration requires an architectural choice not resolved by the contracts.
+- Escalation target: `Terra Ultra` for a bounded persistence/concurrency ambiguity; return `Planning needed` if a contract/ADR change is required.
+- Estimate confidence: `High`.
+- Efficiency rationale: establish one complete durable AI state/input producer first so later prompts can remain thin consumers and avoid repeated database/query work.
+
+The assigned project version is `2.1.1`.
+
+## Goal
+
+Implement the durable, topic-independent Profile AI data foundation and deterministic digest-input producer required by Phase 1, without calling Gemini or exposing digest data through the v1/PHP/admin surfaces yet.
+
+Conceptually:
+
+```text
+existing active Distribution Profile
++ canonical Profile snapshot Articles
++ Profile AI settings
+-> bounded deterministic digest input
+-> digestInputIdentity
+
+Profile AI settings
++ immutable successful digest records
++ separate active-digest reference
++ separate bounded evaluation/attempt history
+-> durable producer contracts for P2-P6
+```
+
+P1 owns the database representation, application/repository contracts, validation for Profile AI settings, canonical digest-input narrowing, digest input identity, and complete downstream-ready persistence APIs. It must not implement provider transport, generation orchestration, scheduling loops, v1 serialization, PHP parsing, or browser/admin UI.
+
+## Prerequisite and read first
+
+Require current `main`, package `2.1.0` (or `2.1.1` for a safe P1 rerun), accepted `c1-n6wd`, and no completed Phase 1 implementation prompt before P1.
+
+Read before editing:
+
+1. current `BOOT.md`, `AGENTS.md`, `README.md`, and `docs/README.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/product-scope-and-users.md`;
+4. `docs/contracts/ai-assistance-contract.md`;
+5. `docs/contracts/distribution-and-integration-contract.md`;
+6. `docs/contracts/distribution-api-contract.md` for downstream handoff only;
+7. `docs/contracts/domain-and-data-contract.md`;
+8. `docs/contracts/testing-and-validation-contract.md`;
+9. `docs/decisions/production-data-and-schema-compatibility.md`;
+10. current Phase 1 entry in `docs/roadmap/3.0-roadmap.md` and the completed Phase 1 worksheet;
+11. `migrations/0015_distribution_profiles.sql`, `0016_distribution_credentials.sql`, `0017_article_summary_bound.sql`, and migration tooling/tests;
+12. `src/distribution/profile-snapshot.ts`, `canonical-outward-articles.ts`, `profile-page.ts`, and Profile configuration/repository code;
+13. `src/admin/distribution-profile-administration.ts` only to understand Profile creation/transaction ownership;
+14. relevant unit/database/recovery test infrastructure and `package.json`.
+
+If a later consumer would need to query AI tables directly, reconstruct the canonical Profile Article query, derive freshness from arbitrary timestamps, or infer state from raw JSON, P1 is incomplete.
+
+## Implementation decisions locked by this prompt
+
+These are implementation-level choices explicitly left open by the contracts and are now fixed for Phase 1 unless current source makes one unsafe:
+
+- Profile digest lookback is integer days in the bounded range **1–30**, default **7**.
+- Maximum digest input Article count is **1–20**, default and hard Phase 1 ceiling **20**.
+- Rolling-window inclusion is `effectiveFeedDate >= now - lookbackDays * 24 hours`, using an injected/explicit clock for deterministic tests.
+- `digestInputIdentity` is a versioned SHA-256 identity over the Profile key, relevant AI settings, and the exact ordered bounded Article-ID set. Do not use or include outward `snapshotRevision`; do not use model output or provider state. The representation must be deterministic and documented in code/tests so equivalent inputs hash identically.
+- Same Article IDs in a different canonical order are a different input identity.
+- Zero qualifying Articles is a valid resolved input with zero Articles but is not a successful digest generation.
+- Successful digest generations may repeat the same input identity because manual force generation is explicitly allowed later; therefore do **not** make `(profile, digestInputIdentity)` unique.
+
+## Additive supported-production migration
+
+Add the next migration as `migrations/0018_profile_ai_digest_foundation.sql`. Do not rewrite migrations `0001`–`0017`.
+
+Use the smallest normalized schema that directly represents the contract. Exact SQL names may vary only if the resulting ownership is clearer, but the logical state must include:
+
+### Profile AI settings
+
+One Profile-owned settings row with at least:
+
+- Profile foreign key/primary ownership;
+- digest enabled boolean, default `false`;
+- lookback days, default `7`, database-constrained to `1..30`;
+- maximum Article count, default `20`, database-constrained to `1..20`;
+- useful created/updated timestamps.
+
+Existing Profiles must receive safe disabled defaults during forward migration. New Profile creation must establish the same default settings transactionally or otherwise guarantee the row exists before any AI operation. AI settings are Profile configuration, not Publication/topic configuration and not provider-secret storage.
+
+### Immutable successful digest generations
+
+Persist one immutable Profile-owned generation record per successfully validated digest with at least:
+
+- stable UUID identity;
+- Profile identity;
+- bounded `digestInputIdentity`;
+- generation timestamp;
+- bounded provider and model identifiers;
+- input Article count constrained to `1..20`;
+- overview text constrained to the Phase 1 2,000-character limit;
+- timestamps useful for provenance.
+
+Represent the exact ordered input Article IDs with real Article foreign keys and deterministic positions rather than an unbounded opaque corpus. Preserve enough immutable provenance to determine overlap/current-input membership later.
+
+Represent highlights and their supporting Article references in a bounded relational or equivalently integrity-safe form. Prefer explicit child rows with deterministic positions over large opaque JSON when doing so gives clearer foreign-key, count, ordering, and Article-reference integrity. At minimum the schema/application boundary must be able to guarantee:
+
+- no more than 3 highlights;
+- no more than 3 supporting Articles per highlight;
+- supporting Articles belong to the generation input;
+- no duplicate supporting Article within one highlight;
+- deterministic ordering;
+- title/explanation bounds required by the AI contract.
+
+Do not persist provider-generated URLs as Article destinations.
+
+### Active digest reference
+
+Persist one separate Profile-owned active-digest reference pointing to one successful digest belonging to that same Profile. Activation/replacement semantics are implemented in P3, but the database representation must make cross-Profile pointers impossible or transactionally rejectable.
+
+Do not mutate the successful digest record to mean “active.” Historical successful generations remain immutable records.
+
+### Evaluation/generation attempts
+
+Persist separate bounded attempt/evaluation records containing only operational state needed by the contract, including at least:
+
+- stable identity;
+- Profile identity;
+- trigger kind `scheduled | manual`;
+- nullable scheduled slot timestamp for scheduled work;
+- bounded outcome category;
+- started/completed timestamps;
+- nullable input identity and bounded input count;
+- nullable bounded failure category;
+- nullable bounded provider/model identity;
+- bounded URL Context outcome counts or an explicitly extensible safe place for them without raw page/provider payloads.
+
+Scheduled work needs a database-enforced idempotency seam so multiple Worker processes cannot execute the same Profile evaluation slot twice. A partial unique constraint/index over `(profile, scheduled_slot)` for scheduled attempts or an equally strong representation is appropriate. Manual attempts are not deduplicated by input identity.
+
+Attempts MUST NOT contain API keys, Authorization headers, full prompts, full Gemini responses, retrieved publisher-page bodies, arbitrary exceptions, or unbounded provider payloads.
+
+## Repository/application ownership
+
+Create a focused topic-independent AI/digest module boundary rather than scattering SQL through Web/API/Worker controllers. Exact directories are implementation-owned, but the boundary should make these concepts explicit:
+
+- validated Profile AI settings read/update model;
+- digest input read model;
+- successful immutable digest repository model;
+- active digest read/reference model;
+- attempt repository model;
+- transactional primitives needed by P3 for attempt claiming and atomic successful digest activation.
+
+Do not expose raw database row shapes as the public application contract where doing so forces later prompts to know table layout.
+
+The repository layer must validate returned database state fail closed. An invalid/cross-Profile active pointer or malformed persisted AI structure must not be silently accepted as valid digest state.
+
+## Canonical digest input producer
+
+Create one deterministic service that consumes the **existing canonical Profile snapshot/read-model authority** from `src/distribution/profile-snapshot.ts`. It MUST NOT reconstruct Profile eligibility or issue its own Article-selection SQL.
+
+For one active Profile and an explicit clock:
+
+1. obtain the current canonical Profile snapshot;
+2. read the Profile AI settings;
+3. preserve the snapshot's canonical Article order;
+4. filter by the configured rolling lookback using `effectiveFeedDate`;
+5. take at most the configured maximum Article count from the front;
+6. project only the Phase 1 safe AI fields:
+   - `articleId`;
+   - headline;
+   - Source display name;
+   - `effectiveFeedDate`;
+   - nullable `publishedAt`;
+   - nullable author;
+   - accepted bounded persisted summary;
+   - effective outward Categories;
+   - exact stored `originalUrl`;
+7. calculate the versioned `digestInputIdentity` from Profile key + relevant AI settings + ordered Article IDs.
+
+Do not include image URLs, Source/endpoint configuration, Collection-run state, duplicate internals, moderation/Relevance internals, persistence IDs other than the governed outward `articleId`, credentials, unrelated Profiles, or outward `snapshotRevision`.
+
+N6WD is already authoritative for persisted summary bounds. Do not add a second summary truncator in the AI module.
+
+Expose enough explicit input/provenance information for P3 to determine:
+
+- current ordered Article IDs;
+- whether any Article newly entered relative to a previous successful digest input;
+- overlap with a previous digest input;
+- current input identity;
+- zero-input behavior;
+- whether configuration changed because the identity contains relevant settings.
+
+Do not decide `current | older | null` in this input producer; P3 owns lifecycle semantics.
+
+## Profile creation/settings compatibility
+
+Existing Profile creation and reads must remain backward compatible for non-AI consumers. If the Profile repository/service must establish default AI settings when creating a Profile, keep that transaction coherent and do not add provider/model/secrets to ordinary Profile configuration.
+
+Do not make AI enabled by default for existing or new Profiles.
+
+A disabled AI setting must not disable the Distribution Profile itself, suppress Articles, or change canonical Profile selection.
+
+## Focused proof
+
+Add focused unit/database tests that prove at least:
+
+- migration from zero creates the new AI schema and constraints;
+- supported production-forward upgrade from the accepted production baseline through `0015`–`0018` preserves existing Articles, Sources/endpoints, observations, moderation, Categories, duplicates, Profiles/source associations, credentials, jobs/audit state, and the N6WD summary invariant;
+- existing Profiles receive disabled 7-day/20-Article settings without altering Profile lifecycle/result/filter behavior;
+- new Profiles receive the same defaults transactionally;
+- invalid lookback/count values are rejected by application validation and database constraints;
+- Profile deletion/cascade behavior, if any supported draft deletion exists, cannot leave orphaned AI state;
+- immutable digest history cannot be rewritten through ordinary repository APIs;
+- active digest references cannot cross Profile ownership;
+- scheduled-slot uniqueness prevents two scheduled attempt claims for one Profile/slot while manual attempts remain allowed;
+- attempt text/provider fields remain bounded and secret/raw-payload fields do not exist;
+- digest input uses canonical Profile order and filters exactly at the rolling cutoff;
+- 0, 1, 20, and >20 qualifying Article behavior;
+- result-limit and Profile/source/category filters continue to be inherited from canonical Profile output rather than bypassed;
+- summaries are consumed as already-bounded values without an AI-specific alternate truncator;
+- deterministic identity stability for equal inputs and change for Profile key/settings/ordered Article-ID changes;
+- materially different subject fixtures produce the same generic input shape with no topic branches.
+
+Use real disposable PostgreSQL for migration/constraint/transaction claims.
+
+## Producer-to-consumer handoff
+
+Before P1 completes, leave this handoff auditable:
+
+| Downstream-required capability | P1 owner/export | Focused proof |
+| --- | --- | --- |
+| validated Profile AI settings | settings application/repository boundary | defaults/range/round-trip tests |
+| canonical bounded current input | digest input service | lookback/count/order/filter tests |
+| deterministic input identity | identity helper/service | stability/change tests |
+| prior input Article membership/overlap data | digest repository read model | ordered input provenance tests |
+| immutable successful digest storage | digest repository | immutability/ownership tests |
+| separate active digest lookup | active-reference repository | Profile ownership tests |
+| scheduled attempt claim/idempotency seam | attempt repository | concurrent/duplicate slot tests |
+| bounded attempt history | attempt repository | outcome/bounds/redaction tests |
+| atomic activation primitives for P3 | transaction/repository boundary | database transaction tests |
+
+P2/P3 must not need raw SQL/table knowledge to perform provider/orchestration work. P4 must later be able to read one validated active digest through a service boundary without knowing persistence topology.
+
+## Preserved behavior and non-goals
+
+Preserve without semantic change:
+
+- canonical Profile eligibility, filters, ordering, pagination inputs, and current Article-only snapshot behavior;
+- Source trust/network safety, collection, Relevance/Categories, moderation, duplicates, Article identity/provenance;
+- exact stored `originalUrl` destination semantics;
+- machine credential/admin separation;
+- endpoint collection job/scheduler tables and semantics;
+- PHP integration and v1 wire representation for now;
+- accepted N6WD implementation/migration;
+- topic independence and singleton Publication architecture.
+
+Do not implement in P1:
+
+- `@google/genai` or any provider call;
+- prompts, structured Gemini schema, URL Context, or Search;
+- digest evaluation/regeneration/freshness logic;
+- Worker loops/timers;
+- v1 `digest` serialization or revision changes;
+- PHP digest parsing/LKG/local-read;
+- admin routes/UI/Generate now;
+- customer renderer/package refresh/deployment;
+- chat, embeddings, multi-feed rollout, Source exclude phrases, or Phase 2 issues.
+
+## Validation manifest
+
+### RUN — normal local development environment
+
+During iteration use the smallest focused unit/database selections that answer the current question.
+
+Final-tree required coverage:
+
+```text
+npm run check
+npm run test:db
+npm run test:recovery
+git diff --check
+npm run codex:phase:validate -- p2-1
+```
+
+`npm run test:db` owns the real-PostgreSQL migration/constraint/transaction matrix. `npm run test:recovery` is required because this prompt introduces supported production persisted state and a new forward migration. Do not redundantly rerun subordinate unit/integration commands after `npm run check` unless diagnosing a failure.
+
+### DEFER
+
+- Live Gemini/provider behavior — `LIVE/EXTERNAL`; owned by Phase 1 closeout after P2/P3 provide the provider/generation path.
+- PHP runtime / PHP-backed browser evidence — `VPS-REQUIRED`; owned by the mandatory Phase 2 package-hardening/customer qualification gate.
+- Reference customer deployment — `REFERENCE`; Phase 2, not P1.
+
+### N/A
+
+- live Source collection behavior;
+- public/reference frontend browser behavior;
+- customer package installation/rollback.
+
+## Version and repository rules
+
+- Set only top-level `package.json` version to `2.1.1` before final validation.
+- Do not create `package-lock.json`; this repository intentionally has no npm lockfile.
+- Do not rewrite migrations `0001`–`0017`.
+- Do not edit governing contracts, ADRs, roadmap entries, completed worksheet, changelog, validation artifacts, `.codex/docs-prompt.txt`, or existing task prompts.
+- Do not manually commit; the phase runner owns the implementation commit boundary.
+
+## Acceptance
+
+P1 is complete only when:
+
+1. additive migration `0018` represents Profile AI settings, immutable successful digests, a separate active reference, bounded attempts, and scheduled-slot idempotency;
+2. supported production state upgrades safely and clean migration-from-zero also passes;
+3. existing/new Profiles have disabled 7-day/20-Article defaults with 1–30/1–20 enforced bounds;
+4. one canonical digest-input service consumes the existing Profile snapshot and applies only lookback/count narrowing;
+5. `digestInputIdentity` is deterministic, versioned, separate from `snapshotRevision`, and based on Profile/settings/ordered Article IDs;
+6. downstream repository/application APIs are complete enough that P2/P3/P4 do not need AI-table SQL or persistence inference;
+7. topic independence and all existing non-AI behavior remain intact;
+8. all current-gate RUN evidence passes on the final tree;
+9. package version is exactly `2.1.1`.
+
+Finish with a concise report listing changed files, migration/schema shape, exported producer APIs, identity definition, production-forward preservation evidence, validation commands actually run/results, deferred evidence, and any finding that should block P2.
