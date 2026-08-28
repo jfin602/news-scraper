@@ -8,14 +8,14 @@ The owner-approved contract is already locked: normalized persisted `Article.sum
 This correction owns the normalizer/persistence bound, additive production migration/data transformation, and focused/regression proof. It does not implement Gemini, URL Context, digest/chat behavior, roadmap activation, Source admission changes, public presentation changes, or unrelated cleanup.
 
 MODEL / REASONING / USAGE
-- Recommended configuration: `Luna High`.
-- Model-family basis: this is a bounded explicit correction with an already-established normalization path, migration framework, PostgreSQL constraint, accepted-production upgrade harness, and precise owner-approved truncation semantics; no new architecture or transaction topology is required.
+- Recommended configuration: `Terra High`.
+- Model-family basis: this is a bounded and explicit correction, but it transforms supported production data and must keep runtime normalization, persistence validation, PostgreSQL constraint semantics, migration behavior, and production-upgrade preservation coherent across several files; Terra provides the preferred additional data-integrity and cross-file reasoning margin.
 - Reasoning basis: High is warranted because the implementation must keep runtime normalization, persistence validation, PostgreSQL character/boundary semantics, additive production migration, and supported-data preservation coherent across exact boundary cases.
 - Complexity / quality floor: `High`.
 - Estimated usage: `Moderate`.
-- Lower-cost alternative considered: `Luna Medium`; rejected because a data-transforming post-production migration plus exact runtime/SQL truncation parity and boundary regression coverage create enough integrity risk to justify deeper reasoning within the economical Luna family.
+- Lower-cost alternative considered: `Luna High`; not selected because the supported-production data transformation plus exact runtime/SQL truncation parity and boundary regression coverage justify the stronger balanced engineering tier for this correction.
 - Escalation trigger: source inspection shows the 4,000-character invariant cannot be introduced additively from the accepted `0001`–`0014` production baseline without rewriting supported migration history, changing Article identity/provenance semantics, or making an unresolved contract decision about persisted summary representation.
-- Escalation target: `Terra High`.
+- Escalation target: `Sol Medium`.
 - Estimate confidence: `High`.
 - Efficiency rationale: reuse the existing `Article.summary` field, `collectionPlainText`, `ARTICLE_CANDIDATE_LIMITS`, Article repository validation, additive migration framework, and existing production-upgrade test harness; do not invent a second description field, generic text-policy subsystem, or Gemini-specific workaround.
 
