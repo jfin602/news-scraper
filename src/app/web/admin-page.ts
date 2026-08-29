@@ -252,12 +252,17 @@ const adminPage = `<!doctype html>
             </fieldset>
 
             <fieldset>
-              <legend>RSS/Atom item admission phrases</legend>
-              <p class="field-help" data-admission-explanation>
-                These phrases apply only to RSS/Atom endpoints. No phrases means all otherwise-valid RSS/Atom items are admitted; with phrases, any phrase may match the title, summary/content, or Source category labels. HTML listing selectors decide which HTML rows become Raw items. This is not an HTML keyword filter or Relevance rule.
-              </p>
-              <div class="repeatable-list" data-admission-phrases></div>
-              <button type="button" class="button quiet compact" data-add-admission-phrase>Add include phrase</button>
+              <legend>RSS/Atom Include phrases</legend>
+              <p class="field-help" data-admission-explanation>Optional. Empty means all otherwise-valid RSS/Atom items pass the Include side. Any phrase may match title, summary/content, or Source Category labels. HTML listing selectors decide which HTML rows become Raw items; this is not an HTML keyword filter or Relevance rule.</p>
+              <div class="repeatable-list" data-admission-include-phrases></div>
+              <button type="button" class="button quiet compact" data-add-admission-include-phrase>Add Include phrase</button>
+            </fieldset>
+
+            <fieldset>
+              <legend>RSS/Atom Exclude phrases</legend>
+              <p class="field-help">Optional. Any matching phrase rejects an RSS/Atom item, even if it passes Include. This is not an HTML keyword filter, Relevance rule, public search, or Profile filter.</p>
+              <div class="repeatable-list" data-admission-exclude-phrases></div>
+              <button type="button" class="button quiet compact" data-add-admission-exclude-phrase>Add Exclude phrase</button>
             </fieldset>
 
             <fieldset data-source-create-state>

@@ -1,4 +1,5 @@
 import type { QueryResultRow } from 'pg';
+import { randomUUID } from 'node:crypto';
 
 import { validateAdminInputRecord } from './input-validation.ts';
 import { type Database, type QueryExecutor } from '../database/database.ts';
@@ -72,7 +73,8 @@ export interface AdminSourceReadModel {
   readonly priority: number;
   readonly approvedDomains: readonly DomainRule[];
   readonly defaultCategory: AdminCategoryChoice | null;
-  readonly rssAtomAdmissionPhrases: readonly string[];
+  readonly rssAtomAdmissionIncludePhrases: readonly string[];
+  readonly rssAtomAdmissionExcludePhrases: readonly string[];
   readonly endpointCount: number;
 }
 
@@ -104,7 +106,8 @@ interface NormalizedMutableSourceConfiguration {
   readonly approvedDomains: readonly DomainRule[];
   readonly priority: number;
   readonly defaultCategoryConfigKey?: string;
-  readonly rssAtomAdmissionPhrases: readonly string[];
+  readonly rssAtomAdmissionIncludePhrases?: readonly string[];
+  readonly rssAtomAdmissionExcludePhrases?: readonly string[];
 }
 
 interface NormalizedSourceCreate extends NormalizedMutableSourceConfiguration {
@@ -155,7 +158,12 @@ const MUTABLE_CONFIGURATION_KEYS = [
   'approvedDomains',
   'priority',
   'defaultCategoryConfigKey',
+] as const;
+
+const ADMISSION_POLICY_KEYS = [
   'rssAtomAdmissionPhrases',
+  'rssAtomAdmissionIncludePhrases',
+  'rssAtomAdmissionExcludePhrases',
 ] as const;
 
 export function createSourceAdministrationService(
@@ -185,12 +193,10 @@ export function createSourceAdministrationService(
             operationalState: command.operationalState,
             domainRules: command.approvedDomains,
             priority: command.priority,
-            ...(command.rssAtomAdmissionPhrases.length === 0
-              ? {}
-              : {
-                  rssAtomAdmissionIncludePhrases:
-                    command.rssAtomAdmissionPhrases,
-                }),
+            rssAtomAdmissionIncludePhrases:
+              command.rssAtomAdmissionIncludePhrases ?? [],
+            rssAtomAdmissionExcludePhrases:
+              command.rssAtomAdmissionExcludePhrases ?? [],
           });
           await setSourceDefaultCategory(
             transaction,
@@ -240,11 +246,25 @@ export function createSourceAdministrationService(
           transaction,
           sourceId,
         );
-        await replaceSourceRssAtomAdmissionPolicy(transaction, sourceId, {
-          rssAtomAdmissionIncludePhrases: command.rssAtomAdmissionPhrases,
+        const nextAdmissionPolicy = {
+          rssAtomAdmissionIncludePhrases:
+            command.rssAtomAdmissionIncludePhrases ??
+            currentAdmissionPolicy.rssAtomAdmissionIncludePhrases,
           rssAtomAdmissionExcludePhrases:
+            command.rssAtomAdmissionExcludePhrases ??
             currentAdmissionPolicy.rssAtomAdmissionExcludePhrases,
-        });
+        };
+        await replaceSourceRssAtomAdmissionPolicy(
+          transaction,
+          sourceId,
+          nextAdmissionPolicy,
+        );
+        await writeSourceAdmissionPolicyAudit(
+          transaction,
+          sourceId,
+          currentAdmissionPolicy,
+          nextAdmissionPolicy,
+        );
         await setSourceDefaultCategory(
           transaction,
           sourceId,
@@ -558,6 +578,35 @@ async function replaceSourceDomainRules(
   }
 }
 
+async function writeSourceAdmissionPolicyAudit(
+  executor: QueryExecutor,
+  sourceId: string,
+  priorPolicy: {
+    readonly rssAtomAdmissionIncludePhrases: readonly string[];
+    readonly rssAtomAdmissionExcludePhrases: readonly string[];
+  },
+  nextPolicy: {
+    readonly rssAtomAdmissionIncludePhrases: readonly string[];
+    readonly rssAtomAdmissionExcludePhrases: readonly string[];
+  },
+): Promise<void> {
+  if (JSON.stringify(priorPolicy) === JSON.stringify(nextPolicy)) {
+    return;
+  }
+  await executor.query(
+    `INSERT INTO audit_events
+       (id, action, target_type, target_id, prior_state, new_state)
+     VALUES ($1, 'source_rss_atom_admission_policy_updated', 'source', $2,
+             $3::jsonb, $4::jsonb)`,
+    [
+      randomUUID(),
+      sourceId,
+      JSON.stringify(priorPolicy),
+      JSON.stringify(nextPolicy),
+    ],
+  );
+}
+
 async function requireCategory(
   executor: QueryExecutor,
   configKey: string | undefined,
@@ -612,7 +661,7 @@ async function readSources(
   );
   if (result.rows.length === 0) return Object.freeze([]);
   const sourceIds = result.rows.map((row) => requiredString(row.id));
-  const [domainResult, phraseResult] = await Promise.all([
+  const [domainResult, includeResult, excludeResult] = await Promise.all([
     executor.query<DomainRuleRow>(
       `SELECT source_id AS owner_id, hostname, include_subdomains
        FROM source_approved_domain_rules
@@ -627,15 +676,24 @@ async function readSources(
        ORDER BY source_id ASC, position ASC`,
       [sourceIds],
     ),
+    executor.query<AdmissionPhraseRow>(
+      `SELECT source_id, position, phrase
+       FROM source_rss_atom_admission_exclude_phrases
+       WHERE source_id = ANY($1::uuid[])
+       ORDER BY source_id ASC, position ASC`,
+      [sourceIds],
+    ),
   ]);
   const domains = groupDomainRules(domainResult.rows);
-  const phrases = groupAdmissionPhrases(phraseResult.rows);
+  const includePhrases = groupAdmissionPhrases(includeResult.rows);
+  const excludePhrases = groupAdmissionPhrases(excludeResult.rows);
   return Object.freeze(
     result.rows.map((row) =>
       mapSourceReadRow(
         row,
         domains.get(requiredString(row.id)) ?? [],
-        phrases.get(requiredString(row.id)) ?? [],
+        includePhrases.get(requiredString(row.id)) ?? [],
+        excludePhrases.get(requiredString(row.id)) ?? [],
       ),
     ),
   );
@@ -644,7 +702,8 @@ async function readSources(
 function mapSourceReadRow(
   row: SourceReadRow,
   approvedDomains: readonly DomainRule[],
-  rssAtomAdmissionPhrases: readonly string[],
+  rssAtomAdmissionIncludePhrases: readonly string[],
+  rssAtomAdmissionExcludePhrases: readonly string[],
 ): AdminSourceReadModel {
   try {
     const categoryKey = nullableString(row.default_category_config_key);
@@ -668,7 +727,12 @@ function mapSourceReadRow(
               configKey: categoryKey,
               displayName: categoryName,
             }),
-      rssAtomAdmissionPhrases: Object.freeze([...rssAtomAdmissionPhrases]),
+      rssAtomAdmissionIncludePhrases: Object.freeze([
+        ...rssAtomAdmissionIncludePhrases,
+      ]),
+      rssAtomAdmissionExcludePhrases: Object.freeze([
+        ...rssAtomAdmissionExcludePhrases,
+      ]),
       endpointCount: requiredNonnegativeInteger(row.endpoint_count),
     });
   } catch {
@@ -716,12 +780,16 @@ function groupAdmissionPhrases(
 }
 
 function normalizeSourceCreate(input: unknown): NormalizedSourceCreate {
-  const record = exactRecord(input, [
-    'configKey',
-    ...MUTABLE_CONFIGURATION_KEYS,
-    'approvalState',
-    'operationalState',
-  ]);
+  const record = exactRecord(
+    input,
+    [
+      'configKey',
+      ...MUTABLE_CONFIGURATION_KEYS,
+      'approvalState',
+      'operationalState',
+    ],
+    ADMISSION_POLICY_KEYS,
+  );
   const mutable = normalizeMutableSourceRecord(record);
   return Object.freeze({
     configKey: normalizeAdminValue(() => normalizeConfigKey(record.configKey)),
@@ -739,15 +807,17 @@ function normalizeMutableSourceConfiguration(
   input: unknown,
 ): NormalizedMutableSourceConfiguration {
   return normalizeMutableSourceRecord(
-    exactRecord(input, MUTABLE_CONFIGURATION_KEYS),
+    exactRecord(input, MUTABLE_CONFIGURATION_KEYS, ADMISSION_POLICY_KEYS),
+    true,
   );
 }
 
 function normalizeMutableSourceRecord(
   record: Record<string, unknown>,
+  isUpdate = false,
 ): NormalizedMutableSourceConfiguration {
   return normalizeAdminValue(() => {
-    const phrases = normalizeAdminPhraseList(record.rssAtomAdmissionPhrases);
+    const admissionPolicy = normalizeAdminAdmissionPolicy(record, isUpdate);
     const source = normalizeSourceConfiguration({
       configKey: 'admin_validation',
       displayName: record.displayName,
@@ -757,9 +827,18 @@ function normalizeMutableSourceRecord(
       operationalState: 'disabled',
       domainRules: record.approvedDomains,
       priority: record.priority,
-      ...(phrases.length === 0
+      ...(admissionPolicy.rssAtomAdmissionIncludePhrases === undefined
         ? {}
-        : { rssAtomAdmissionIncludePhrases: phrases }),
+        : {
+            rssAtomAdmissionIncludePhrases:
+              admissionPolicy.rssAtomAdmissionIncludePhrases,
+          }),
+      ...(admissionPolicy.rssAtomAdmissionExcludePhrases === undefined
+        ? {}
+        : {
+            rssAtomAdmissionExcludePhrases:
+              admissionPolicy.rssAtomAdmissionExcludePhrases,
+          }),
     });
     const defaultCategoryConfigKey = normalizeDefaultCategoryKey(
       record.defaultCategoryConfigKey,
@@ -772,17 +851,57 @@ function normalizeMutableSourceRecord(
       ...(defaultCategoryConfigKey === undefined
         ? {}
         : { defaultCategoryConfigKey }),
-      rssAtomAdmissionPhrases: phrases,
+      ...admissionPolicy,
     });
   });
 }
 
-function normalizeAdminPhraseList(value: unknown): readonly string[] {
+function normalizeAdminAdmissionPolicy(
+  record: Record<string, unknown>,
+  isUpdate: boolean,
+): Pick<
+  NormalizedMutableSourceConfiguration,
+  'rssAtomAdmissionIncludePhrases' | 'rssAtomAdmissionExcludePhrases'
+> {
+  const hasLegacyInclude = record.rssAtomAdmissionPhrases !== undefined;
+  const hasInclude = record.rssAtomAdmissionIncludePhrases !== undefined;
+  const hasExclude = record.rssAtomAdmissionExcludePhrases !== undefined;
+  if (hasLegacyInclude && hasInclude) {
+    throw new ConfigurationValidationError(
+      'source.rssAtomAdmissionIncludePhrases',
+      'must not be supplied under both names',
+    );
+  }
+  if (!isUpdate && !hasLegacyInclude && !hasInclude && !hasExclude) {
+    return Object.freeze({
+      rssAtomAdmissionIncludePhrases: Object.freeze([]),
+      rssAtomAdmissionExcludePhrases: Object.freeze([]),
+    });
+  }
+  return Object.freeze({
+    ...((hasLegacyInclude || hasInclude) && {
+      rssAtomAdmissionIncludePhrases: normalizeAdminPhraseList(
+        hasInclude
+          ? record.rssAtomAdmissionIncludePhrases
+          : record.rssAtomAdmissionPhrases,
+        'source.rssAtomAdmissionIncludePhrases',
+      ),
+    }),
+    ...(hasExclude && {
+      rssAtomAdmissionExcludePhrases: normalizeAdminPhraseList(
+        record.rssAtomAdmissionExcludePhrases,
+        'source.rssAtomAdmissionExcludePhrases',
+      ),
+    }),
+  });
+}
+
+function normalizeAdminPhraseList(
+  value: unknown,
+  field: string,
+): readonly string[] {
   if (Array.isArray(value) && value.length === 0) return Object.freeze([]);
-  return normalizeRssAtomAdmissionPhraseList(
-    value,
-    'source.rssAtomAdmissionIncludePhrases',
-  );
+  return normalizeRssAtomAdmissionPhraseList(value, field);
 }
 
 function normalizeDefaultCategoryKey(value: unknown): string | undefined {
@@ -808,8 +927,9 @@ function normalizeAdminValue<T>(operation: () => T): T {
 function exactRecord(
   input: unknown,
   requiredKeys: readonly string[],
+  optionalKeys: readonly string[] = [],
 ): Record<string, unknown> {
-  const record = validateAdminInputRecord(input, requiredKeys);
+  const record = validateAdminInputRecord(input, requiredKeys, optionalKeys);
   if (record === undefined) {
     throw new SourceAdministrationError('invalid_request');
   }

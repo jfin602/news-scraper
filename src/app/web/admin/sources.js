@@ -27,6 +27,7 @@ const state = {
   sourceMode: 'none',
   endpointMode: 'none',
   previewInFlight: false,
+  sourceSelectionSequence: 0,
   endpointSelectionSequence: 0,
   previewSequence: 0,
 };
@@ -44,12 +45,14 @@ const elements = {
   sourceOperationalActions: required('[data-source-operational-actions]'),
   sourceLifecycleActions: required('[data-source-lifecycle-actions]'),
   sourceDomains: required('[data-source-domains]'),
-  admissionPhrases: required('[data-admission-phrases]'),
+  admissionIncludePhrases: required('[data-admission-include-phrases]'),
+  admissionExcludePhrases: required('[data-admission-exclude-phrases]'),
   sourceSubmit: required('[data-source-submit]'),
   newSource: required('[data-new-source]'),
   sourceCancel: required('[data-source-cancel]'),
   addSourceDomain: required('[data-add-source-domain]'),
-  addAdmissionPhrase: required('[data-add-admission-phrase]'),
+  addAdmissionIncludePhrase: required('[data-add-admission-include-phrase]'),
+  addAdmissionExcludePhrase: required('[data-add-admission-exclude-phrase]'),
   endpointSection: required('[data-endpoint-section]'),
   endpointList: required('[data-endpoint-list]'),
   endpointListState: required('[data-endpoint-list-state]'),
@@ -199,6 +202,7 @@ function renderSourceList() {
 
 async function selectSource(sourceKey) {
   if (typeof sourceKey !== 'string' || sourceKey.length === 0) return;
+  const selectionSequence = ++state.sourceSelectionSequence;
   state.endpointSelectionSequence += 1;
   resetHtmlPreview();
   setGlobalStatus('loading', `Loading Source ${sourceKey}…`);
@@ -209,6 +213,7 @@ async function selectSource(sourceKey) {
       api(`/admin/api/sources/${encodeURIComponent(sourceKey)}`),
       api(`/admin/api/sources/${encodeURIComponent(sourceKey)}/endpoints`),
     ]);
+    if (selectionSequence !== state.sourceSelectionSequence) return;
     state.selectedSource = sourceResult.source;
     state.endpoints = endpointResult.endpoints ?? [];
     state.sourceMode = 'edit';
@@ -221,6 +226,7 @@ async function selectSource(sourceKey) {
     showNoEndpoint();
     setGlobalStatus('ready', `${state.selectedSource.displayName} selected.`);
   } catch (error) {
+    if (selectionSequence !== state.sourceSelectionSequence) return;
     setGlobalStatus('error', messageForError(error));
     setListState(
       elements.endpointListState,
@@ -231,6 +237,7 @@ async function selectSource(sourceKey) {
 }
 
 function beginSourceCreate() {
+  state.sourceSelectionSequence += 1;
   state.sourceMode = 'create';
   state.selectedEndpoint = null;
   state.endpointMode = 'none';
@@ -240,8 +247,8 @@ function beginSourceCreate() {
   input(elements.sourceForm, 'operationalState').value = 'disabled';
   elements.sourceDomains.replaceChildren();
   addDomainRow(elements.sourceDomains);
-  elements.admissionPhrases.replaceChildren();
-  renderPhraseEmptyState();
+  renderPhraseRows(elements.admissionIncludePhrases, [], 'Include');
+  renderPhraseRows(elements.admissionExcludePhrases, [], 'Exclude');
   elements.sourceEditorHeading.textContent = 'Create Source';
   elements.sourceEditorHelp.textContent =
     'Create an operator-approved publisher record. No endpoint is discovered or created automatically.';
@@ -292,7 +299,16 @@ function renderSourceEditor() {
   input(form, 'defaultCategoryConfigKey').value =
     source.defaultCategory?.configKey ?? '';
   renderDomainRows(elements.sourceDomains, source.approvedDomains);
-  renderPhraseRows(source.rssAtomAdmissionPhrases);
+  renderPhraseRows(
+    elements.admissionIncludePhrases,
+    source.rssAtomAdmissionIncludePhrases,
+    'Include',
+  );
+  renderPhraseRows(
+    elements.admissionExcludePhrases,
+    source.rssAtomAdmissionExcludePhrases,
+    'Exclude',
+  );
   elements.sourceSubmit.textContent = 'Save Source configuration';
   hideMessage(elements.sourceFormError);
   renderSourceStateActions();
@@ -321,7 +337,12 @@ async function submitSource(event) {
     priority: Number(input(form, 'priority').value),
     defaultCategoryConfigKey:
       input(form, 'defaultCategoryConfigKey').value || null,
-    rssAtomAdmissionPhrases: readPhraseRows(),
+    rssAtomAdmissionIncludePhrases: readPhraseRows(
+      elements.admissionIncludePhrases,
+    ),
+    rssAtomAdmissionExcludePhrases: readPhraseRows(
+      elements.admissionExcludePhrases,
+    ),
   };
   const creating = state.sourceMode === 'create';
   const body = creating
@@ -333,6 +354,7 @@ async function submitSource(event) {
       }
     : configuration;
   const sourceKey = creating ? '' : (state.selectedSource?.configKey ?? '');
+  const selectionSequence = state.sourceSelectionSequence;
   const path = creating
     ? '/admin/api/sources'
     : `/admin/api/sources/${encodeURIComponent(sourceKey)}/configuration`;
@@ -341,6 +363,8 @@ async function submitSource(event) {
       api(path, { method: creating ? 'POST' : 'PUT', body }),
     );
     const saved = result.source;
+    if (!creating && selectionSequence !== state.sourceSelectionSequence)
+      return;
     state.selectedSource = saved;
     state.sourceMode = 'edit';
     mergeSource(saved);
@@ -1237,19 +1261,19 @@ function readDomainRows(container) {
   }));
 }
 
-function renderPhraseRows(phrases) {
-  elements.admissionPhrases.replaceChildren();
-  for (const phrase of phrases) addPhraseRow(phrase);
-  renderPhraseEmptyState();
+function renderPhraseRows(container, phrases, side) {
+  container.replaceChildren();
+  for (const phrase of phrases) addPhraseRow(container, phrase, side);
+  renderPhraseEmptyState(container, side);
 }
 
-function addPhraseRow(value) {
-  const empty = elements.admissionPhrases.querySelector('[data-phrase-empty]');
+function addPhraseRow(container, value, side) {
+  const empty = container.querySelector('[data-phrase-empty]');
   empty?.remove();
   const row = document.createElement('div');
   row.className = 'repeatable-row phrase-row';
   const label = document.createElement('label');
-  label.textContent = 'Include phrase';
+  label.textContent = `${side} phrase`;
   const phrase = document.createElement('input');
   phrase.type = 'text';
   phrase.value = value;
@@ -1261,28 +1285,31 @@ function addPhraseRow(value) {
     'Remove phrase',
     () => {
       row.remove();
-      renderPhraseEmptyState();
+      renderPhraseEmptyState(container, side);
     },
     false,
     'quiet',
   );
   remove.classList.add('compact');
   row.append(label, remove);
-  elements.admissionPhrases.append(row);
+  container.append(row);
 }
 
-function renderPhraseEmptyState() {
-  if (elements.admissionPhrases.querySelector('.phrase-row') !== null) return;
+function renderPhraseEmptyState(container, side) {
+  if (container.querySelector('.phrase-row') !== null) return;
   const empty = document.createElement('p');
   empty.className = 'empty-inline';
   empty.dataset.phraseEmpty = '';
-  empty.textContent = 'Collect all: no admission phrases are configured.';
-  elements.admissionPhrases.append(empty);
+  empty.textContent =
+    side === 'Include'
+      ? 'All RSS/Atom items pass Include: no phrases are configured.'
+      : 'No RSS/Atom items are excluded by phrase.';
+  container.append(empty);
 }
 
-function readPhraseRows() {
+function readPhraseRows(container) {
   return Array.from(
-    elements.admissionPhrases.querySelectorAll('[data-admission-phrase]'),
+    container.querySelectorAll('[data-admission-phrase]'),
     (entry) => entry.value,
   );
 }
@@ -1305,7 +1332,12 @@ function wireSources() {
   elements.addSourceDomain.addEventListener('click', () =>
     addDomainRow(elements.sourceDomains),
   );
-  elements.addAdmissionPhrase.addEventListener('click', () => addPhraseRow(''));
+  elements.addAdmissionIncludePhrase.addEventListener('click', () =>
+    addPhraseRow(elements.admissionIncludePhrases, '', 'Include'),
+  );
+  elements.addAdmissionExcludePhrase.addEventListener('click', () =>
+    addPhraseRow(elements.admissionExcludePhrases, '', 'Exclude'),
+  );
   elements.sourceForm.addEventListener('submit', (event) => {
     event.preventDefault();
     void submitSource(event);

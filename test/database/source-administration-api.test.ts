@@ -64,7 +64,8 @@ describe('Source administration database service', () => {
           configKey: 'industry',
           displayName: 'Industry',
         },
-        rssAtomAdmissionPhrases: ['Books', 'Publishing'],
+        rssAtomAdmissionIncludePhrases: ['Books', 'Publishing'],
+        rssAtomAdmissionExcludePhrases: [],
         endpointCount: 0,
       });
       assert.deepEqual(await service.listSources(), [created]);
@@ -95,7 +96,7 @@ describe('Source administration database service', () => {
           approvedDomains: [{ hostname: 'https://journal.example' }],
         },
         { ...sourceCreateInput(), priority: -1 },
-        { ...sourceCreateInput(), rssAtomAdmissionPhrases: [' '] },
+        { ...sourceCreateInput(), rssAtomAdmissionIncludePhrases: [' '] },
       ];
       for (const input of invalidInputs) {
         await assertAdminError(service.createSource(input), 'invalid_request');
@@ -107,6 +108,59 @@ describe('Source administration database service', () => {
         'category_not_found',
       );
       assert.deepEqual(await service.listSources(), []);
+    });
+  });
+
+  it('consumes separate admission lists with compatible omission, explicit clears, and bounded audit state', async () => {
+    await withSourceAdministration(async ({ database, service }) => {
+      const legacy = sourceCreateInput();
+      delete legacy.rssAtomAdmissionIncludePhrases;
+      delete legacy.rssAtomAdmissionExcludePhrases;
+      legacy.rssAtomAdmissionPhrases = ['Legacy include'];
+      const created = await service.createSource(legacy);
+      assert.deepEqual(created.rssAtomAdmissionIncludePhrases, [
+        'Legacy include',
+      ]);
+      assert.deepEqual(created.rssAtomAdmissionExcludePhrases, []);
+
+      const base = sourceConfigurationInput();
+      delete base.rssAtomAdmissionIncludePhrases;
+      delete base.rssAtomAdmissionExcludePhrases;
+      const includeOnly = await service.replaceSourceConfiguration('journal', {
+        ...base,
+        rssAtomAdmissionIncludePhrases: ['Books only'],
+      });
+      assert.deepEqual(includeOnly.rssAtomAdmissionIncludePhrases, [
+        'Books only',
+      ]);
+      assert.deepEqual(includeOnly.rssAtomAdmissionExcludePhrases, []);
+
+      const excludeOnly = await service.replaceSourceConfiguration('journal', {
+        ...base,
+        rssAtomAdmissionExcludePhrases: ['Gossip'],
+      });
+      assert.deepEqual(excludeOnly.rssAtomAdmissionIncludePhrases, [
+        'Books only',
+      ]);
+      assert.deepEqual(excludeOnly.rssAtomAdmissionExcludePhrases, ['Gossip']);
+
+      const cleared = await service.replaceSourceConfiguration('journal', {
+        ...base,
+        rssAtomAdmissionExcludePhrases: [],
+      });
+      assert.deepEqual(cleared.rssAtomAdmissionIncludePhrases, ['Books only']);
+      assert.deepEqual(cleared.rssAtomAdmissionExcludePhrases, []);
+      const audit = await database.query<{
+        readonly prior_state: unknown;
+        readonly new_state: unknown;
+      }>(
+        `SELECT prior_state, new_state FROM audit_events
+         WHERE action = 'source_rss_atom_admission_policy_updated'
+         ORDER BY occurred_at ASC`,
+      );
+      assert.equal(audit.rows.length, 3);
+      assert.match(JSON.stringify(audit.rows), /Gossip/u);
+      assert.doesNotMatch(JSON.stringify(audit.rows), /configKey|siteUrl/u);
     });
   });
 
@@ -159,7 +213,8 @@ describe('Source administration database service', () => {
           approvedDomains: [{ hostname: 'feeds.example.com' }],
           priority: 99,
           defaultCategoryConfigKey: 'new_category',
-          rssAtomAdmissionPhrases: [],
+          rssAtomAdmissionIncludePhrases: [],
+          rssAtomAdmissionExcludePhrases: [],
         }),
         'source_domain_policy_conflict',
       );
@@ -174,12 +229,13 @@ describe('Source administration database service', () => {
         ],
         priority: 12,
         defaultCategoryConfigKey: null,
-        rssAtomAdmissionPhrases: [],
+        rssAtomAdmissionIncludePhrases: [],
+        rssAtomAdmissionExcludePhrases: [],
       });
       assert.equal(updated.displayName, 'Journal Updated');
       assert.equal(updated.priority, 12);
       assert.equal(updated.defaultCategory, null);
-      assert.deepEqual(updated.rssAtomAdmissionPhrases, []);
+      assert.deepEqual(updated.rssAtomAdmissionIncludePhrases, []);
       assert.deepEqual(
         await loadSourceApprovedDomainRules(database, source.id),
         updated.approvedDomains,
@@ -374,7 +430,8 @@ describe('Source administration HTTP API', () => {
                 ...sourceConfigurationInput(),
                 displayName: 'HTTP Updated Journal',
                 defaultCategoryConfigKey: null,
-                rssAtomAdmissionPhrases: [],
+                rssAtomAdmissionIncludePhrases: [],
+                rssAtomAdmissionExcludePhrases: [],
               }),
             },
           );
@@ -475,7 +532,8 @@ function sourceConfigurationInput(): Record<string, unknown> {
     approvedDomains: [{ hostname: 'journal.example', includeSubdomains: true }],
     priority: 8,
     defaultCategoryConfigKey: null,
-    rssAtomAdmissionPhrases: ['Books', 'Publishing'],
+    rssAtomAdmissionIncludePhrases: ['Books', 'Publishing'],
+    rssAtomAdmissionExcludePhrases: [],
   };
 }
 

@@ -46,7 +46,8 @@ const sources: readonly AdminSourceReadModel[] = Object.freeze([
     priority: 10,
     approvedDomains: Object.freeze([]),
     defaultCategory: categories[0]!,
-    rssAtomAdmissionPhrases: Object.freeze([]),
+    rssAtomAdmissionIncludePhrases: Object.freeze([]),
+    rssAtomAdmissionExcludePhrases: Object.freeze([]),
     endpointCount: 0,
   }),
   Object.freeze({
@@ -59,7 +60,8 @@ const sources: readonly AdminSourceReadModel[] = Object.freeze([
     priority: 5,
     approvedDomains: Object.freeze([]),
     defaultCategory: null,
-    rssAtomAdmissionPhrases: Object.freeze([]),
+    rssAtomAdmissionIncludePhrases: Object.freeze([]),
+    rssAtomAdmissionExcludePhrases: Object.freeze([]),
     endpointCount: 0,
   }),
 ]);
