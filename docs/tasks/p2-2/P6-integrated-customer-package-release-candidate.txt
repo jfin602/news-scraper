@@ -1,0 +1,203 @@
+TASK: Phase 2 / P6 — Integrated customer package release candidate
+
+- Recommended configuration: `Sol Medium`.
+- Task-shape classification: `Investigative`.
+- Specification clarity: `Explicit`.
+- State coupling: `High` across P1/P2 Source admission, P3-P5 PHP runtime/package/admin download, deterministic customer-style upgrade fixtures, and the final qualification handoff.
+- Integrity risk: `High` because this prompt is the last implementation/hardening task before the environment-specific customer qualification gate.
+- Concurrency: preserve existing collection, Profile sync lock, atomic LKG, and no-overlay package replacement semantics.
+- Security: `Sensitive` across Source trust, machine credentials, private configuration, package diagnostics, and customer visitor isolation.
+- Novel inference: `Moderate` because the task must discover cross-prompt integration gaps rather than implement a new subsystem.
+- Model-family basis: Sol is justified for a broad independent integration reading across two otherwise separate producer chains; Medium reasoning is enough because contracts are explicit and deep architecture change is forbidden.
+- Reasoning basis: inspect and harden the integrated tree, make only bounded Phase 2 fixes/tests, and leave one exact deterministic handoff to P7.
+- Complexity / quality floor: `Critical`.
+- Estimated usage: `Very High`.
+- Lower-cost alternative considered: `Terra High`; rejected because this task deliberately performs independent cross-system inference across the entire Phase 2 implementation before customer qualification.
+- Escalation trigger: a defect requires changing locked contracts, redesigning state/cache/migration architecture, or a meaningful behavior-preserving refactor spanning multiple ownership layers.
+- Escalation target: stop and return one `Terra High` refactor remediation prompt for meaningful behavior-preserving restructuring; return `Planning needed` for product/contract change.
+- Estimate confidence: `High`.
+
+The assigned project version is `2.2.6`.
+
+## Goal
+
+Create the final **implementation-complete deterministic release candidate** from P1-P5 before any real VPS/reference-customer cutover.
+
+P6 adds no planned product feature. Its job is to independently trace the integrated Phase 2 tree, close bounded integration defects, strengthen missing deterministic regressions, prove every local/prerequisite evidence class that should not wait for the VPS, and leave P7 with environment-specific qualification only.
+
+P7 will advance the package to `2.2.7` **before** generating/deploying the final customer package and collecting exact-version cross-environment evidence. Therefore P6 must not claim that package `2.2.6` is the finally qualified customer artifact.
+
+## Prerequisite/version
+
+Require runner-recognizable P1-P5 implementation prefix ending at package `2.2.5`. Advance to `2.2.6` before final P6 validation.
+
+Establish exact Git history and inspect the complete P1-P5 diff; do not rely on implementation reports alone.
+
+## Read first
+
+Read current BOOT/root summaries, Project/Product contracts, Source/collection/data/admin/distribution/testing/security/operations contracts, production-data compatibility ADR, Phase 2 roadmap, all P1-P5 prompts, all nine Phase 2 known-issue entries, and complete changed implementation/tests.
+
+Inspect important preserved consumers outside the direct diff:
+
+- collection executor and run accounting;
+- Source bootstrap/admin/public consumers;
+- Distribution Profile/v1 API producer;
+- PHP snapshot validator/synchronizer/state store/local reader;
+- protected admin package download;
+- package producer;
+- browser/source admin/package tests;
+- recovery/migration fixtures;
+- reference customer integration assumptions documented by the package contract.
+
+## Integrated contract pass
+
+Verify all nine issue outcomes are implemented in one coherent tree:
+
+### M6SX
+- Include legacy behavior preserved;
+- Exclude fixed `ANY`, Exclude wins;
+- production-forward migration additive and data-preserving;
+- RSS/Atom-only pre-normalization behavior;
+- protected Source admin controls consume one P1 producer;
+- no `ANY/ALL` operator expansion.
+
+### T4QP / H3CJ / P9BW / C2RV
+- root packaged `run-sync.php` exists in package source;
+- `local-read.env` is authoritative shared non-secret config;
+- `sync.env` is synchronization-only;
+- matching legacy aliases are validation-only, mismatch fails;
+- visitor path reads no bearer/upstream secrets;
+- stable customer local-read entrypoint hides `src/bootstrap.php` and cache internals;
+- sync/LKG/local-read behavior remains canonical and local-only for visitors.
+
+### Q7HF
+- renderer abstraction is no longer supported/packaged when consumer tracing permits removal;
+- root editable `top-tag.php` uses normalized local-read;
+- markup is line-readable, escaped, server rendered, canonical-order preserving, and links exact `originalUrl`;
+- customer presentation cannot filter/rerank/reinterpret editorial state.
+
+### Y8FK / W5GH / D4NZ
+- one exact package version authority crosses ZIP/VERSION/manifest/admin/installed diagnostics;
+- bounded secret-safe non-destructive preflight exists;
+- staged whole-directory replacement avoids mixed old/new files;
+- `ns-private`, credentials, state/LKG, cron target, and customer markup are preserved;
+- deterministic rollback to immediately previous supported package is proven.
+
+## Cross-prompt adversarial review
+
+Derive and disposition at least these integration failures:
+
+1. admin saves Exclude but Worker still reads legacy Include-only field;
+2. migration preserves phrases but changes their order/case semantics;
+3. HTML listing accidentally consumes Exclude;
+4. Source edit partially replaces Include but not Exclude on transaction failure;
+5. visitor stable entry loads `sync.env` indirectly through bootstrap;
+6. matching legacy shared aliases become hidden second authority after one file changes;
+7. `run-sync.php --force` bypasses canonical cadence/lock/synchronizer differently from `bin/sync.php`;
+8. top-tag exposes raw HTML/model text or changes Article ordering/destination;
+9. removing Renderer breaks an internal fallback used by browser-PHP tests;
+10. ZIP filename says one version while installed diagnostic/admin label says another;
+11. preflight prints a bearer value in a failure path;
+12. preflight mutates LKG/state while probing writability;
+13. new package reads old state but rollback old package cannot read state after one new sync;
+14. staged upgrade instructions actually overlay old files;
+15. package accidentally contains `ns-private`, tests, real env files, or fixture secrets;
+16. customer cron path changes despite packaged launcher goal;
+17. digest-capable local state is lost/poisoned by package refresh;
+18. ordinary Article rendering becomes dependent on Gemini/digest existence;
+19. Source migration/package changes disturb unrelated canonical Profile/v1 behavior;
+20. a known major integration defect remains open because implementation exists only in docs/tests but not runtime.
+
+For each classify: protected / bounded P6 repair / Terra High refactor handoff / Planning needed.
+
+## Bounded repair authority
+
+P6 may repair a concrete unambiguous Phase 2 defect and add/strengthen focused tests when:
+
+- behavior is already fixed by current contracts;
+- repair remains inside P1-P5 intended ownership;
+- no new feature/architecture is introduced;
+- all invalidated broader evidence can be rerun.
+
+Do not use P6 for broad cleanup.
+
+### Meaningful refactor handoff
+
+If a safe fix requires moving responsibility across modules, consolidating multiple competing config/filter/version authorities, changing transaction/state ownership, replacing package/state architecture, or comparable multi-file restructuring, STOP and output exactly one self-contained `Terra High` refactor remediation prompt. It must preserve assigned version `2.2.6`, consume no new roadmap prompt number, forbid new behavior/docs scope, list producers/consumers/invariants, require focused + invalidated regressions, and not declare P6/Phase 2 green. After remediation, rerun P6 from the beginning.
+
+## Deterministic customer-package proof
+
+Before P6 completes, prove locally with fixtures/test harnesses as applicable:
+
+```text
+canonical v1 fixture including digest
+-> PHP candidate synchronization/validation model
+-> LKG/local-read expected normalized result
+-> top-tag/customer SSR contract expectations
+```
+
+and:
+
+```text
+pre-Phase-2 package/private-state fixture
+-> staged new package
+-> preflight
+-> cutover simulation
+-> unchanged private state/credential/cron assumptions
+-> rollback simulation
+```
+
+Do not claim real PHP execution from Node-only fixtures. The purpose is to catch package/state/protocol mistakes before VPS work.
+
+## Documentation truth
+
+Ensure `integrations/php/README.md` and packaged `UPGRADE.md` describe behavior actually implemented by P3-P5. Do not update roadmap/changelog or mark customer deployment complete.
+
+Known issue entries may remain Open pending P7 qualification; do not falsely mark them resolved before environment evidence where required.
+
+## Final P6 validation manifest
+
+Resolve the union from the actual final tree, avoiding duplicate contained suites.
+
+### RUN — LOCAL-PORTABLE
+```text
+npm run check
+npm run codex:phase:validate -- p2-2
+git diff --check
+```
+
+### RUN — LOCAL-PREREQUISITE
+```text
+npm run test:db
+npm run test:recovery
+npm run test:browser
+```
+
+These are justified by the integrated Phase 2 migration/admin/package-download surfaces. Run `npm run test:security` only if actual Phase 2 edits touched shared security/auth/request-integrity code or P6 finds such a regression risk.
+
+### DEFER — P7 exact final candidate
+
+`VPS-REQUIRED`:
+```text
+npm run test:php
+npm run test:browser:php
+```
+
+`REFERENCE-DEPLOYMENT` / customer qualification:
+- build/download exact `2.2.7` package after P7 version advancement;
+- VPS preflight/fresh install/existing-state upgrade/rollback;
+- supported sync through real v1 endpoint into LKG/local-read;
+- customer page SSR with existing customer-owned markup/direct publisher links;
+- preserved cron, credential value, private state/LKG;
+- digest traversal.
+
+`LIVE/EXTERNAL`:
+- live Gemini configured-style proof only if P7 determines it is needed to close the correction's explicit deferred provider/tone release claim; do not mechanically spend provider calls otherwise.
+
+## Non-goals
+
+Do not deploy to the real customer, collect VPS/PHP evidence, add new product behavior, promote G7PK unless correctness risk is discovered, implement chat/multi-feed/self-hosting/WordPress/RSS output, or advance beyond `2.2.6`.
+
+## Completion
+
+Return a release-candidate implementation report with exact P1-P6 history/tree, package `2.2.6`, all nine issue implementation dispositions, adversarial findings/repairs, deterministic package/upgrade fixtures, final local validation, and a precise P7 deferred-evidence checklist. Do not declare Phase 2 GREEN.
