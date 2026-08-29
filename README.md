@@ -24,18 +24,21 @@ The seven-phase 2.0 roadmap is complete. Package `2.0.0` is the completed 2.0 re
 
 On 2026-08-27 the owner amended the singleton Publication model so one Publication represents one customer/editorial property rather than necessarily one narrow topic. The same customer installation may therefore expose materially different feeds—currently planned as publishing news, opportunities, and indie filmmaking—through Distribution Profiles without introducing multi-Publication tenancy.
 
-The owner-approved 3.0 roadmap is **active in Phase 1** at package `2.1.0`. The post-2.0 runner compatibility correction is accepted, so `p2-<phase>` task folders and `2.<phase>.<prompt>` versions are executable. The N6WD Article-summary correction is also accepted: normalized persisted `Article.summary` is already bounded to 4,000 Unicode code points through runtime normalization and additive production migration `0017`.
+The owner-approved 3.0 roadmap is **active in Phase 2** at package `2.2.0`. The post-2.0 runner compatibility correction is accepted, so `p2-<phase>` task folders and `2.<phase>.<prompt>` versions are executable. The N6WD Article-summary correction is also accepted: normalized persisted `Article.summary` is already bounded to 4,000 Unicode code points through runtime normalization and additive production migration `0017`.
 
-The completed Phase 1 Gemini worksheet is now incorporated into the governing AI/distribution contracts and roadmap. Phase 1 uses twice-daily change-aware digest evaluations, a default 7-day / maximum-20-Article canonical Profile input, structured bounded output, durable digest/attempt lifecycle, `current | older | null` freshness semantics, one additive v1 `digest` value per Profile snapshot revision, and normalized PHP local-read propagation. Its first prompt version is `2.1.1` under task folder `p2-1`.
+Phase 1 Gemini Profile digest foundation is GREEN/owner-accepted after live qualification on 2026-08-29. It implemented twice-daily change-aware digest evaluations, a default 7-day / maximum-20-Article canonical Profile input, structured bounded output, durable digest/attempt lifecycle, `current | older | null` freshness semantics, one additive v1 `digest` value per Profile snapshot revision, normalized PHP local-read propagation, and production-default `gemini-3.6-flash`. The durable live qualification record is `docs/validation/phase-1-gemini-live-qualification.md`.
+
+Before normal Phase 2 prompts begin, owner-approved correction `c1-digest-style` keeps package `2.2.0` unchanged while adding optional bounded Profile digest writing-style guidance. The setting is server-side Profile AI configuration only: it may influence tone/voice/audience, remains subordinate to fixed grounding/security/schema/URL rules, participates in `digestInputIdentity`, and is not added to the public v1/PHP digest payload.
 
 The active 3.0 sequence is:
 
-1. `2.1.x` — Gemini Profile digest foundation;
-2. `2.2.x` — PHP integration correction and Gemini-capable customer package refresh/deployment;
-3. `2.3.x` — Profile-grounded "Ask this feed" chatbot;
-4. `2.4.x` — real publishing-news/opportunities/indie-filmmaking multi-feed customer proof;
-5. `2.5.x+` — remaining admin/PHP hardening from observed deployment friction;
-6. terminal `3.0.0` only after the owner explicitly locks and satisfies the final release gate.
+1. `2.1.x` — Gemini Profile digest foundation — COMPLETE / OWNER-ACCEPTED;
+2. `c1-digest-style` — bounded Profile digest writing-style correction at unchanged `2.2.0`;
+3. `2.2.x` — PHP integration correction and Gemini-capable customer package refresh/deployment;
+4. `2.3.x` — Profile-grounded "Ask this feed" chatbot;
+5. `2.4.x` — real publishing-news/opportunities/indie-filmmaking multi-feed customer proof;
+6. `2.5.x+` — remaining admin/PHP hardening from observed deployment friction;
+7. terminal `3.0.0` only after the owner explicitly locks and satisfies the final release gate.
 
 Current product authority is:
 
@@ -44,7 +47,7 @@ Current product authority is:
 - `docs/contracts/domain-and-data-contract.md`;
 - `docs/contracts/distribution-and-integration-contract.md`;
 - `docs/contracts/distribution-api-contract.md`;
-- `docs/contracts/ai-assistance-contract.md` for owner-approved 3.0 AI behavior;
+- `docs/contracts/ai-assistance-contract.md` for owner-approved 3.0 AI behavior and bounded Profile digest writing-style guidance;
 - `docs/decisions/single-publication-multi-vertical-editorial-property.md`;
 - `docs/decisions/headless-distribution-product-boundary.md`;
 - `docs/decisions/managed-first-self-hostable-distribution-architecture.md`;
@@ -90,7 +93,7 @@ The reader destination is stored Article `original_url`; canonicalized URLs rema
 
 The implemented distribution path is canonical eligibility → administrator-owned Profile → authenticated v1 API → scheduled generic PHP complete-snapshot synchronization → local last-known-good data → customer server-rendered output.
 
-Phase 1 AI remains downstream of that Profile authority. The active digest is planned as part of the same outward Profile snapshot/revision and PHP LKG/local-read path; ordinary visitor rendering must not call Gemini. The later explicit interactive chat action may make a live server-side request but must use a separately governed AI authorization/rate/cost boundary and never expose the Gemini key to browser code.
+The accepted Phase 1 AI layer remains downstream of that Profile authority. The active digest is part of the same outward Profile snapshot/revision and PHP LKG/local-read path; ordinary visitor rendering does not call Gemini. `c1-digest-style` adds only bounded server-side Profile writing guidance through the same AI/provider/lifecycle boundary and does not alter outward digest schema. The later explicit interactive chat action may make a live server-side request but must use a separately governed AI authorization/rate/cost boundary and never expose the Gemini key to browser code.
 
 See `docs/architecture/system-architecture.md` and the contracts/ADRs for authoritative detail.
 
@@ -136,14 +139,14 @@ Start every repository-aware session with `BOOT.md`, which routes to the narrowe
 - `docs/contracts/distribution-and-integration-contract.md` — Distribution Profiles, PHP/LKG behavior, adapter/presentation/link boundaries, multi-Profile integration, and telemetry.
 - `integrations/php/README.md` — implemented PHP synchronization/LKG, normalized local-read, and customer-integration package; it remains implementation-truth documentation and changes when the package implementation changes.
 - `docs/contracts/distribution-api-contract.md` — permanent v1 Profile API, schema, snapshot/cursor behavior, machine credentials, errors, limits, and the owner-approved additive Phase 1 digest field.
-- `docs/contracts/ai-assistance-contract.md` — active Phase 1 Gemini digest plus later chat grounding, lifecycle, security, failure-isolation, citation, and topic-independence contract.
+- `docs/contracts/ai-assistance-contract.md` — accepted Gemini digest behavior, bounded Profile digest writing-style guidance, later chat grounding, lifecycle, security, failure-isolation, citation, and topic-independence contract.
 - `docs/contracts/testing-and-validation-contract.md` — regression and evidence requirements.
 - `docs/architecture/system-architecture.md` — process, module, pipeline, scheduling, transaction, and distribution ownership for the implemented system and planned downstream AI boundary.
 - `docs/operations/` — onboarding, security/reliability, backup/restore, deployment, rollback, and incidents.
 - `docs/roadmap/mvp-roadmap.md` — completed MVP phase history and exit gates through the `1.0.0` release.
 - `docs/roadmap/post-1.0-roadmap.md` — completed historical seven-phase 2.0 roadmap and version lifecycle.
-- `docs/roadmap/3.0-roadmap.md` — owner-approved active post-2.0 roadmap; Phase 1 is current at `2.1.0`.
-- `docs/roadmap/phase-1-gemini-summary-worksheet.md` — completed owner-approved Phase 1 decision record consumed by the governing contracts/roadmap before prompt planning.
+- `docs/roadmap/3.0-roadmap.md` — owner-approved active post-2.0 roadmap; Phase 2 is current at `2.2.0`, with `c1-digest-style` immediately before normal `2.2.1` work.
+- `docs/roadmap/phase-1-gemini-summary-worksheet.md` — completed owner-approved Phase 1 decision record retained as historical planning input rather than rewritten for later amendments.
 - `docs/roadmap/2.0-planning-questions.md` — completed non-normative planning record that led to the governing 2.0 contracts.
 - `docs/decisions/single-publication-multi-vertical-editorial-property.md` — Accepted current interpretation of singleton Publication scope.
 - `docs/decisions/headless-distribution-product-boundary.md` — Accepted headless product/output boundary decision.
