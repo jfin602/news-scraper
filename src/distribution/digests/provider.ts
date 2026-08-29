@@ -334,11 +334,35 @@ function createSdkClient(
     apiKey,
     httpOptions: { timeout: timeoutMilliseconds },
   });
+  return createGeminiInteractionsClient(client, timeoutMilliseconds);
+}
+
+/** Keeps the SDK request-options boundary explicit so the abort signal cannot be dropped. */
+export function createGeminiInteractionsClient(
+  client: Readonly<{
+    interactions: Readonly<{
+      create(
+        request: never,
+        options?: Readonly<{
+          fetchOptions?: Readonly<{ signal?: AbortSignal }>;
+          maxRetries?: number;
+          timeout?: number;
+        }>,
+      ): Promise<GeminiInteractionResponse>;
+    }>;
+  }>,
+  timeoutMilliseconds: number,
+): GeminiInteractionsClient {
   return Object.freeze({
     async create(
       request: GeminiInteractionsRequest,
+      signal: AbortSignal,
     ): Promise<GeminiInteractionResponse> {
-      return client.interactions.create(request as never);
+      return client.interactions.create(request as never, {
+        fetchOptions: { signal },
+        maxRetries: 0,
+        timeout: timeoutMilliseconds,
+      });
     },
   });
 }

@@ -6,6 +6,7 @@ import { ApiError } from '@google/genai';
 import {
   buildGeminiDigestRequest,
   createGeminiDigestProvider,
+  createGeminiInteractionsClient,
   DIGEST_GENERATED_PROSE_MAXIMUM_CODE_POINTS,
   DIGEST_RESPONSE_SCHEMA,
   validateGeminiDigestResponse,
@@ -19,6 +20,31 @@ import {
   parseGeminiProviderRuntimeConfig,
   RuntimeConfigError,
 } from '../../src/shared/runtime-config.ts';
+
+test('production Interactions adapter forwards the provider abort signal', async () => {
+  const controller = new AbortController();
+  let observedSignal: AbortSignal | undefined;
+  let observedMaxRetries: number | undefined;
+  let observedTimeout: number | undefined;
+  const client = createGeminiInteractionsClient({
+    interactions: {
+      async create(_request, options) {
+        observedSignal = options?.fetchOptions?.signal;
+        observedMaxRetries = options?.maxRetries;
+        observedTimeout = options?.timeout;
+        return { output_text: '{"overview":"ok","highlights":[]}' };
+      },
+    },
+  }, 30_000);
+
+  await client.create(
+    buildGeminiDigestRequest(input(), { model: DEFAULT_GEMINI_MODEL }),
+    controller.signal,
+  );
+  assert.equal(observedSignal, controller.signal);
+  assert.equal(observedMaxRetries, 0);
+  assert.equal(observedTimeout, 30_000);
+});
 
 test('Gemini configuration is namespaced, optional until generation, and key-safe', async () => {
   assert.deepEqual(parseGeminiProviderRuntimeConfig({}), {
