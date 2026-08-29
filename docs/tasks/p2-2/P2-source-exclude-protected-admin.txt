@@ -1,0 +1,168 @@
+TASK: Phase 2 / P2 — Source Exclude protected administration
+
+- Recommended configuration: `Terra Medium`.
+- Task-shape classification: `Bounded`.
+- Specification clarity: `Explicit`.
+- State coupling: `Moderate` across Source administration service/router, protected admin page/client, audit, and the P1 Source-policy producer.
+- Integrity risk: `Moderate`; the main risk is duplicating Source validation or allowing browser state to diverge from canonical persisted configuration.
+- Concurrency: `Local` browser stale-response/mutation behavior only; reuse existing protections.
+- Security: `Sensitive` protected-admin mutation boundary, but no new authentication architecture.
+- Novel inference: `Low` to `Moderate`.
+- Model-family basis: the producer semantics are fixed by P1; this prompt should be a thin admin consumer with meaningful browser/security regression coverage.
+- Reasoning basis: Terra Medium is adequate because no migration or collection predicate should be invented here.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High` because browser and admin integration tracing are broader than the implementation itself.
+- Lower-cost alternative considered: `Luna High`; rejected because protected mutation/audit/browser state handling spans several existing admin layers.
+- Escalation trigger: P1 did not leave a complete Source Include/Exclude mutation/read boundary, or current admin architecture requires raw SQL/duplicate normalization to expose Exclude.
+- Escalation target: return `Planning needed` for incomplete producer boundary; `Terra High` only for a bounded admin transaction/security ambiguity.
+- Estimate confidence: `High`.
+
+The assigned project version is `2.2.2`.
+
+## Goal
+
+Complete issue `M6SX` at the protected administrator surface by exposing the P1 Source RSS/Atom Include and Exclude lists through the existing Source administration read/create/update flows and browser UI.
+
+This is an admin **consumer** task. Do not change the P1 admission predicate, migration representation, or collection accounting unless a concrete P1 defect is discovered and reported before editing.
+
+## Prerequisite and version
+
+Require runner-recognizable P1 at package `2.2.1`. Accept a safe rerun only when the current tree already contains the exact P2 behavior and package is `2.2.2`.
+
+Advance normal package version metadata to `2.2.2` before final validation. Do not create a lockfile.
+
+## Read first
+
+Read current:
+
+1. `BOOT.md`, root summaries, and Phase 2 roadmap entry;
+2. `docs/contracts/source-and-collection-contract.md`;
+3. `docs/contracts/public-feed-and-admin-contract.md`;
+4. `docs/contracts/testing-and-validation-contract.md`;
+5. `known-issues.md` M6SX and `feature-ideas.md` +R8VN;
+6. P1 prompt, P1 implementation diff, Source normalized/repository exports and focused tests;
+7. `src/admin/source-administration.ts` and its router/controller wiring;
+8. `src/app/web/admin-page.ts` plus Source-specific admin client script(s);
+9. existing Source admin integration/browser/database tests, request-integrity/audit helpers, and package scripts.
+
+Trace all Source create/edit/read consumers before altering shared DTOs.
+
+## Admin service/API behavior
+
+Expose canonical Source state as separate bounded lists with unambiguous names such as:
+
+- `rssAtomAdmissionIncludePhrases`;
+- `rssAtomAdmissionExcludePhrases`.
+
+Use the exact P1 normalized application boundary. The admin service/controller must not duplicate phrase trimming, count/length rules, or Include/Exclude precedence.
+
+For create/update:
+
+- omitted Exclude on legacy-compatible input means empty only where creation semantics require it;
+- update semantics must distinguish omission from explicit empty according to the existing Source update contract so old clients do not accidentally erase managed lists;
+- explicit empty list is the supported way to clear that side when the current admin mutation shape permits replacement;
+- invalid list input returns the existing bounded validation response class without SQL/internal detail;
+- Source audit/change history should truthfully capture Include/Exclude changes using the current bounded admin audit conventions, without storing unrelated secrets/raw request bodies.
+
+Do not add an enabled toggle or `ANY/ALL` operator field.
+
+## Protected browser UI
+
+The Source create/edit experience must show clearly separated controls:
+
+- **RSS/Atom Include phrases** — optional; empty means all items pass the Include side;
+- **RSS/Atom Exclude phrases** — optional; any match rejects and Exclude wins.
+
+Use the existing phrase-list interaction style if one exists. Keep the UI topic independent and concise. The browser should not implement filtering logic beyond shaping operator input; canonical validation remains server-side.
+
+Requirements:
+
+- load persisted Include and Exclude state correctly when switching/editing Sources;
+- save both lists through the existing protected mutation route;
+- clear either list intentionally;
+- preserve the other list when only one is changed;
+- prevent delayed Source A reads/mutations from painting Source B if current admin client already guards stale async state;
+- preserve mobile/layout/accessibility conventions;
+- do not expose operator selectors for `ANY/ALL`;
+- do not imply this filter applies to HTML endpoints, Relevance, public search, or Profile filtering.
+
+## Producer-to-consumer handoff
+
+P2 must consume:
+
+```text
+P1 normalized Source admission policy
+-> Source administration service/read model
+-> protected JSON/API shape
+-> admin browser controls
+```
+
+No layer after P1 may reconstruct SQL, phrase bounds, matching semantics, or precedence.
+
+## Focused proof
+
+Add/adjust tests for at least:
+
+- Source admin read returns both lists in deterministic order;
+- creation with legacy/no Exclude state defaults correctly;
+- update Include only preserves Exclude when omission semantics require preservation;
+- update Exclude only preserves Include;
+- explicit clear works;
+- invalid count/type/phrase receives bounded validation behavior;
+- audit records meaningful list change without raw/internal leakage;
+- protected request-integrity/auth boundary remains unchanged;
+- browser loads/saves/clears both lists;
+- Source switching does not cross-paint values;
+- mobile/accessibility labels identify Include vs Exclude;
+- no `ANY/ALL` selector exists;
+- existing Source priority/domain/default-category/approval/operational/endpoint workflows regress cleanly;
+- HTML endpoint administration does not acquire a second keyword policy.
+
+If database tests are needed only to confirm the P1 repository producer is consumed correctly, use focused DB selections rather than reimplementing persistence tests.
+
+## Validation manifest
+
+Final exact-tree `RUN`:
+
+### LOCAL-PORTABLE
+```text
+npm run check
+npm run codex:phase:validate -- p2-2
+git diff --check
+```
+
+### LOCAL-PREREQUISITE
+```text
+npm run test:browser
+npm run test:db
+```
+
+`test:db` is required because the protected admin Source mutation ultimately persists the production Source configuration and must prove the P1 handoff against real PostgreSQL. Do not redundantly rerun unit/integration suites already contained by successful `npm run check`.
+
+Run `npm run test:security` only if actual edits touch shared auth/request-integrity/security code rather than merely reusing it.
+
+### DEFER → Phase 2 final qualification/closeout
+
+- PHP runtime/browser-PHP;
+- reference-customer package deployment.
+
+### N/A unless actual scope expands
+
+- live Gemini;
+- live Sources.
+
+## Non-goals
+
+Do not:
+
+- modify the P1 migration/predicate merely to fit the UI;
+- implement `ANY/ALL` operators;
+- add endpoint-specific admission lists;
+- alter Relevance/Profile/public-feed filtering;
+- begin PHP package work;
+- resolve unrelated known issues;
+- rewrite broad docs; implementation-truth admin/onboarding text may be updated only if the repository convention requires it and only to match behavior actually shipped.
+
+## Completion
+
+Return exact commit/tree identity, package `2.2.2`, admin DTO/mutation/UI changes, focused/browser/DB evidence, security disposition, and deferred qualification items. Confirm M6SX is functionally implemented end to end but leave final phase issue-resolution/roadmap bookkeeping for closeout.
