@@ -36,6 +36,7 @@ const {
   isAscii,
   parsePrompt,
   printableAscii,
+  promptCommitSubject,
   renderCloseoutFinalResponse,
   renderDashboard,
   renderFailureSummary,
@@ -1633,7 +1634,7 @@ test('phase loop commits each prompt before the next starts with exact multiline
   }
 });
 
-test('resume planning rejects gaps, duplicates, and package versions inconsistent with history', () => {
+test('resume planning selects the newest exact phase marker while preserving prefix and version safety', () => {
   const plan = buildPlan(
     [prompt(1), prompt(2), prompt(3), prompt(4, { closeout: true })],
     'p8',
@@ -1654,18 +1655,18 @@ test('resume planning rejects gaps, duplicates, and package versions inconsisten
       ),
     /P3 is completed while P2 is missing/,
   );
-  assert.throws(
-    () =>
-      detectCompletedPromptPrefix(
-        plan,
-        [
-          { sha: 'one-a', subject: '0.8.1' },
-          { sha: 'one-b', subject: '0.8.1' },
-        ],
-        '0.8.1',
-      ),
-    /ambiguous for P1/,
+  const duplicateResume = detectCompletedPromptPrefix(
+    plan,
+    [
+      { sha: 'one-newest', subject: '0.8.1' },
+      { sha: 'unrelated', subject: 'documentation update' },
+      { sha: 'one-older', subject: '0.8.1' },
+    ],
+    '0.8.1',
   );
+  assert.equal(duplicateResume.completedCount, 1);
+  assert.equal(duplicateResume.completed[0]?.commitSha, 'one-newest');
+  assert.equal(duplicateResume.nextPrompt?.number, 2);
   assert.throws(
     () =>
       detectCompletedPromptPrefix(
@@ -1745,19 +1746,17 @@ test('post-1.0 resume uses the normalized roadmap family for baselines and prefi
       ),
     /expected 1\.0\.2/,
   );
-  assert.throws(
-    () =>
-      detectCompletedPromptPrefix(
-        plan,
-        [
-          { sha: 'one', subject: '1.0.1' },
-          { sha: 'two', subject: '1.0.2' },
-          { sha: 'duplicate', subject: '1.0.1' },
-        ],
-        '1.0.2',
-      ),
-    /ambiguous for P1/,
+  const duplicateResume = detectCompletedPromptPrefix(
+    plan,
+    [
+      { sha: 'one-newest', subject: '1.0.1' },
+      { sha: 'two', subject: '1.0.2' },
+      { sha: 'one-older', subject: '1.0.1' },
+    ],
+    '1.0.2',
   );
+  assert.equal(duplicateResume.completedCount, 2);
+  assert.equal(duplicateResume.completed[0]?.commitSha, 'one-newest');
   assert.throws(
     () =>
       detectCompletedPromptPrefix(
@@ -1816,18 +1815,18 @@ test('post-2.0 resume uses the shared roadmap version authority and fails closed
     /POST-2\.0 PHASE 1 IMPLEMENTATION PROMPTS COMPLETE/,
   );
 
-  assert.throws(
-    () =>
-      detectCompletedPromptPrefix(
-        plan,
-        [
-          { sha: 'one-a', subject: '2.1.1' },
-          { sha: 'one-b', subject: '2.1.1' },
-        ],
-        '2.1.1',
-      ),
-    /ambiguous for P1/,
+  const threeMarkerResume = detectCompletedPromptPrefix(
+    plan,
+    [
+      { sha: 'one-newest', subject: '2.1.1' },
+      { sha: 'one-middle', subject: '2.1.1' },
+      { sha: 'one-oldest', subject: '2.1.1' },
+    ],
+    '2.1.1',
   );
+  assert.equal(threeMarkerResume.completedCount, 1);
+  assert.equal(threeMarkerResume.completed[0]?.commitSha, 'one-newest');
+  assert.equal(threeMarkerResume.nextPrompt?.number, 2);
   assert.throws(
     () =>
       detectCompletedPromptPrefix(
@@ -1845,6 +1844,27 @@ test('post-2.0 resume uses the shared roadmap version authority and fails closed
         '2.1.0',
       ),
     /expected 2\.1\.1/,
+  );
+});
+
+test('correction resume keeps duplicate exact-subject markers fail-closed', () => {
+  const plan = buildPlan(
+    [correctionPrompt(1), correctionPrompt(2, { closeout: true })],
+    'c10-single-publication',
+  );
+  const subject = promptCommitSubject(plan, plan.implementations[0]!);
+
+  assert.throws(
+    () =>
+      detectCompletedPromptPrefix(
+        plan,
+        [
+          { sha: 'newest', subject },
+          { sha: 'older', subject },
+        ],
+        '0.10.0',
+      ),
+    /ambiguous for P1/,
   );
 });
 

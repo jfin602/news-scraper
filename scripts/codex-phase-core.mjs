@@ -299,11 +299,13 @@ export function detectCompletedPromptPrefix(plan, history, packageVersion) {
   const matches = plan.implementations.map((prompt) => {
     const subject = promptCommitSubject(plan, prompt);
     const commits = history.filter((commit) => commit.subject === subject);
-    if (commits.length > 1) {
+    if (plan.mode === 'correction' && commits.length > 1) {
       throw new Error(
         `Git history is ambiguous for P${prompt.number}: found ${commits.length} reachable commits with subject ${subject}.`,
       );
     }
+    // Phase history comes from `git log`, newest-first. When an exact version
+    // subject appears more than once, the newest reachable match is the marker.
     return commits[0];
   });
 
