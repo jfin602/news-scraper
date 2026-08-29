@@ -21,13 +21,14 @@ It establishes project identity, authority, routing, workflow gates, task gramma
 - AI assistance contract: `docs/contracts/ai-assistance-contract.md`
 - Current roadmap: `docs/roadmap/3.0-roadmap.md`
 - Current roadmap changelog: `docs/roadmap/3.0-changelog.md`
-- Current Phase 1 planning record: `docs/roadmap/phase-1-gemini-summary-worksheet.md` — COMPLETE / OWNER-APPROVED
-- Current roadmap state: **OWNER-APPROVED / ACTIVE — PHASE 1**
-- Current package baseline: **`2.1.0`**
-- Current implementation phase: **Phase 1 — Gemini Profile digest foundation**
+- Phase 1 planning record: `docs/roadmap/phase-1-gemini-summary-worksheet.md` — COMPLETE / OWNER-APPROVED
+- Phase 1 live qualification: `docs/validation/phase-1-gemini-live-qualification.md` — GREEN / OWNER-ACCEPTED
+- Current roadmap state: **OWNER-APPROVED / ACTIVE — PHASE 2**
+- Current package baseline: **`2.2.0`**
+- Current implementation phase: **Phase 2 — PHP integration release hardening and customer package refresh**
+- Immediate implementation stack: **`c1-digest-style` at unchanged `2.2.0` before normal Phase 2 prompts**
 - Current roadmap grammar: `p2-<phase>` with target versions `2.<phase>.<prompt>`, implemented and owner-accepted
-- Next prompt version: **`2.1.1`**
-- Planned Phase 2: PHP integration correction and Gemini-capable customer package refresh/deployment
+- Next roadmap prompt version after the correction: **`2.2.1`**
 - Planned Phase 3: Profile-grounded "Ask this feed" chatbot
 - Planned Phase 4: multi-feed customer proof for publishing news, opportunities, and indie filmmaking from one singleton Publication/editorial property
 - Planned Phase 5: admin/PHP integration tightening based on real observed friction
@@ -40,9 +41,9 @@ It establishes project identity, authority, routing, workflow gates, task gramma
 
 The owner-approved 2.0 roadmap is complete. Its historical task grammar and validation artifacts remain authoritative only for the trees/evidence they recorded. The terminal `2.0.0` transition was package-version-only and did not itself add new runtime behavior.
 
-The owner-approved 3.0 roadmap is active at `2.1.0`. The post-2.0 runner compatibility correction is GREEN/owner-accepted and the `p2-<phase>` / `2.<phase>.<prompt>` family is executable. Correction `c1-n6wd` is likewise GREEN/owner-accepted, so Phase 1 consumes the existing 4,000-code-point persisted Article summary invariant rather than re-implementing it.
+The owner-approved 3.0 roadmap is active in Phase 2 at `2.2.0`. Phase 1 Gemini Profile digest foundation is GREEN/owner-accepted after live qualification on 2026-08-29. The post-2.0 runner compatibility correction and `c1-n6wd` remain accepted historical prerequisites. Before normal `p2-2` / `2.2.x` implementation begins, owner-approved correction `c1-digest-style` adds bounded Profile digest writing-style guidance while preserving package `2.2.0`.
 
-The completed Phase 1 Gemini worksheet has been incorporated into the governing AI/distribution contracts and roadmap. Phase 1 planning must use its locked cadence, input bounds, output schema, digest identity/lifecycle, v1/PHP propagation, admin-control, freshness, supporting-link, and presentation-boundary decisions rather than inventing alternatives.
+The completed Phase 1 Gemini worksheet remains the planning history for the accepted Phase 1 foundation. Current AI behavior is governed by `docs/contracts/ai-assistance-contract.md`, including the later owner-approved digest writing-style amendment; do not rewrite the historical worksheet to imply that amendment was part of the original Phase 1 implementation.
 
 Linux VPS/Docker Compose self-host packaging, autonomous self-host production support, native self-host administrator authentication, WordPress, RSS/Atom, browser widgets, click/referral analytics, advanced SEO tooling, delta sync, and additional adapters remain outside the current committed 3.0 scope unless a later owner-approved decision promotes them.
 
@@ -109,7 +110,8 @@ Report authoritative conflicts rather than choosing silently.
 - `integration adapter` — thin transport/sync/cache/rendering layer, never an editorial/query authority
 - `AI assistance` — optional downstream Profile-grounded digest/chat behavior; never an editorial/eligibility authority
 - `Profile digest` — optional durable AI summary state for one Profile, generated only from bounded canonical Profile input and distributed as part of the complete Profile snapshot
-- `digestInputIdentity` — internal identity of exact bounded governed digest input plus relevant Profile AI configuration; distinct from outward `snapshotRevision`
+- `digestStyleGuidance` — optional bounded Profile AI writing-style configuration; influences digest tone/voice/audience only and is subordinate to fixed News Scraper AI instructions
+- `digestInputIdentity` — internal identity of exact bounded governed digest input plus relevant Profile AI configuration, including validated digest writing-style guidance/no-guidance state; distinct from outward `snapshotRevision`
 - `canonical outward Article semantics` — shared trust/visibility/duplicate/order/destination authority used by outward consumers
 - `reference frontend` — bundled `GET /` consumer; supported but not the primary product identity
 - `Source` — configured publisher/outlet; approval determines collection trust
@@ -191,8 +193,10 @@ If a path does not exist, search for its current equivalent before assuming inte
 - Current managed administrator access remains protected by Cloudflare Access plus direct-origin/request-integrity/resource-validation controls.
 - Supported production customer data is durable from the accepted `1.0.0` baseline. Clean migration from zero does not prove production upgrade safety.
 - AI is optional. Gemini failure/disablement cannot break ordinary collection, administration, persistence, canonical distribution, PHP Article LKG, or non-AI rendering.
-- Phase 1 digest input is a deterministic bounded narrowing of canonical Profile output; no AI-owned selector/ranker may replace Profile order.
-- Phase 1 defaults are 7-day lookback and at most 20 Articles, with two scheduled evaluations/day and unchanged-input skip behavior.
+- The accepted Phase 1 digest input is a deterministic bounded narrowing of canonical Profile output; no AI-owned selector/ranker may replace Profile order.
+- Phase 1 defaults remain 7-day lookback and at most 20 Articles, with two scheduled evaluations/day and unchanged-input skip behavior.
+- Bounded Profile `digestStyleGuidance` may influence writing style only; fixed News Scraper grounding/security/schema/URL/reference instructions remain authoritative.
+- Validated digest writing-style guidance/no-guidance state is relevant Profile AI configuration and participates in `digestInputIdentity`; changing it requires reevaluation without synchronously calling Gemini from the admin save path.
 - Active digest state participates in outward `snapshotRevision`; `digestInputIdentity` remains a separate internal provenance/idempotency identity.
 - Digest persistence uses immutable successful records plus a separate active reference and bounded attempt history; partial digest state is never outward-visible.
 - Digest downstream state is `current`, `older`, or absent (`null`) under the governed overlap/canonical-validity lifecycle; age alone does not make a digest stale.
@@ -221,28 +225,30 @@ Historical sequence:
 
 The full planned Phase 7 prompt sequence was not executed. The owner explicitly accepted the live customer integration and waived the formal Phase 7 P1–P4 evidence sequence; `docs/validation/phase-7-managed-integration-and-2.0-release-qualification.md` records that exception. Do not report unexecuted tests/failure injection as observed.
 
-## Owner-approved 3.0 roadmap — active Phase 1
+## Owner-approved 3.0 roadmap — active Phase 2
 
-`docs/roadmap/3.0-roadmap.md` is **OWNER-APPROVED / ACTIVE — PHASE 1**.
+`docs/roadmap/3.0-roadmap.md` is **OWNER-APPROVED / ACTIVE — PHASE 2** at package `2.2.0`.
 
 Current/planned sequence:
 
 | Phase   | Baseline | Prompt versions | Goal                                                    |
 | ------- | -------- | --------------- | ------------------------------------------------------- |
-| 1       | `2.1.0`  | `2.1.x`         | Gemini Profile digest foundation                        |
+| 1       | `2.1.0`  | `2.1.x`         | Gemini Profile digest foundation — COMPLETE             |
 | 2       | `2.2.0`  | `2.2.x`         | PHP integration correction + customer package refresh  |
 | 3       | `2.3.0`  | `2.3.x`         | Profile-grounded "Ask this feed" chatbot              |
 | 4       | `2.4.0`  | `2.4.x`         | Multi-feed customer integration proof                   |
 | 5       | `2.5.0`  | `2.5.x+`        | Remaining admin + PHP integration tightening            |
 | Release | final accepted `2.x.x` | — | terminal `3.0.0` only after owner locks final exit gate |
 
-The current next implementation work is **Phase 1** at baseline `2.1.0`. The accepted runner supports the `p2-<phase>` family and target versions `2.<phase>.<prompt>` while preserving the historical major-0, major-1, and correction grammars.
-
-The first Phase 1 prompt target is `2.1.1` in task folder `p2-1`.
+Phase 1 is GREEN/owner-accepted and closed to `2.2.0`. The immediate implementation work is correction stack `c1-digest-style` at unchanged `2.2.0`. After that correction closes, normal Phase 2 roadmap prompts use task folder `p2-2` beginning at `2.2.1`.
 
 ### Phase 1 direction
 
-Phase 1 implements the completed worksheet decisions: two scheduled evaluations/day, change-aware Gemini invocation, default 7-day/max-20 canonical Profile input, governed URL Context, bounded structured output/support references, internal `digestInputIdentity`, immutable digest history plus separate active pointer/attempt history, `current | older | null` lifecycle, Profile AI admin controls, one additive v1 digest field per complete Profile snapshot, and PHP/LKG/local-read fail-open digest propagation. Production customer package replacement remains deferred to Phase 2.
+Phase 1 implemented the completed worksheet decisions: two scheduled evaluations/day, change-aware Gemini invocation, default 7-day/max-20 canonical Profile input, governed URL Context, bounded structured output/support references, internal `digestInputIdentity`, immutable digest history plus separate active pointer/attempt history, `current | older | null` lifecycle, Profile AI admin controls, one additive v1 digest field per complete Profile snapshot, and PHP/LKG/local-read fail-open digest propagation. Production customer package replacement remains deferred to Phase 2.
+
+### Pre-Phase-2 digest-style correction direction
+
+`c1-digest-style` adds optional plain-text Profile `digestStyleGuidance` bounded to 500 Unicode code points. Blank means default behavior. The value is subordinate to fixed News Scraper AI rules, participates in `digestInputIdentity`, remains server-side, and must not alter the public v1/PHP digest shape. The correction preserves package `2.2.0` and returns control to Phase 2 planning.
 
 ### Phase 2 direction
 
@@ -428,19 +434,19 @@ Do not skip stages.
 
 ### Current state
 
-The 3.0 roadmap is active at `2.1.0`, the post-2.0 task grammar is executable, and Phase 1 is the current implementation phase.
+The 3.0 roadmap is active in Phase 2 at `2.2.0`. Phase 1 is GREEN/owner-accepted. The immediate implementation stack is owner-approved correction `c1-digest-style`, which must preserve `2.2.0`; normal Phase 2 roadmap prompts begin afterward at `2.2.1` in `p2-2`.
 
-The completed Phase 1 worksheet is already promoted into governing contracts/roadmap. Prompt planning must consume those decisions rather than reopen them.
+The completed Phase 1 worksheet remains historical planning input. Current digest behavior, including bounded Profile writing-style guidance, is governed by the promoted AI contract and roadmap rather than by rewriting that worksheet.
 
 The next planning sequence is:
 
 ```text
-/prompt-ass Phase 1
+/prompt-ass
 → /prompt-plan
-→ /prompt-write p2-1
+→ /prompt-write c1-digest-style
 ```
 
-Phase 1 prompts target `2.1.1 ... 2.1.x`. If requirements/docs/repository state materially conflict, return `Planning needed` rather than silently changing the roadmap.
+After that correction closes GREEN at unchanged `2.2.0`, use `/prompt-ass Phase 2` → `/prompt-plan` → `/prompt-write p2-2`. If requirements/docs/repository state materially conflict, return `Planning needed` rather than silently changing the roadmap.
 
 ## `/prompt-ass`
 
@@ -450,7 +456,7 @@ Return target behavior, constraints, roadmap phase or correction scope, stack ty
 
 Explicitly assess producer→consumer boundaries. Split transactional/state-machine work from separately consumed read/API work when consumers, tests, or failure risks differ materially. Testing is part of task decomposition.
 
-For current Phase 1, the AI layer must consume bounded canonical Profile Articles and must not reconstruct or reinterpret Source trust, canonical eligibility, Profile selectors, Categories, moderation, duplicate semantics, ordering, `originalUrl`, cursor/revision semantics, synchronization, LKG activation, local usability, or presentation safety. The accepted N6WD summary bound/migration is an existing producer prerequisite and must not be duplicated. Phase 1 prompt decomposition must preserve the worksheet-owned contracts for evaluation cadence, input bounds, output shape, digest state machine, v1 snapshot participation, PHP fail-open behavior, Profile AI admin controls, and customer-presentation boundary.
+For current `c1-digest-style`, reuse the accepted Phase 1 Profile AI settings/input/lifecycle/provider/admin seams rather than reconstructing them. The correction must preserve canonical Profile selection, Article/URL scope, fixed Gemini security/schema instructions, public v1/PHP digest shapes, and package `2.2.0`. The bounded style value participates in `digestInputIdentity`; admin save remains configuration-only rather than a synchronous Gemini call.
 
 ## `/prompt-plan`
 
@@ -470,7 +476,7 @@ Requires an unblocked `/prompt-plan`. Revalidate current repo/docs and write ord
 
 For corrections, use the established correction grammar and current unchanged package version.
 
-For the active 3.0 roadmap, use `p2-<phase>` folders with `2.<phase>.<prompt>` assigned versions. Phase 1 uses `p2-1` and starts at `2.1.1`.
+For the active 3.0 roadmap, use `p2-<phase>` folders with `2.<phase>.<prompt>` assigned versions. Phase 2 uses `p2-2` and starts at `2.2.1` after `c1-digest-style` closes.
 
 Each written prompt MUST inherit the finalized validation manifest rather than rediscovering or broadening the repository test matrix. Do not instruct the normal Windows prompt environment to execute `DEFER` items assigned to VPS/live/reference environments; keep explicit specialized-suite prerequisite failures fail-closed when those suites are actually invoked.
 
@@ -521,7 +527,7 @@ This family is executable and protected by the accepted runner compatibility cor
 - no assigned-version phrase;
 - correction closeout does not advance roadmap version.
 
-Corrections are only for genuine bounded regressions/repairs and must not smuggle roadmap product capability.
+Corrections are only for genuine bounded regressions/repairs and must not smuggle roadmap product capability. Owner-approved `c1-digest-style` is a deliberately bounded post-Phase-1 AI configuration correction/amendment at unchanged `2.2.0`; its scope is explicitly governed by the current roadmap and AI contract.
 
 # Phase handoff and `/closeout`
 
@@ -588,12 +594,13 @@ Until `docs/roadmap/3.0-roadmap.md` is explicitly amended with that gate, `/clos
 # Versioning
 
 - `package.json` is the sole current-version authority.
-- Current version is `2.1.0`.
+- Current version is `2.2.0`.
 - The completed 2.0 roadmap used `1.<phase>.<prompt>` phase versions and terminated at `2.0.0`.
 - The active 3.0 roadmap uses `2.<phase>.<prompt>` phase versions.
 - The runner compatibility correction and N6WD/test-topology corrections were accepted at unchanged package `2.0.0` before activation.
 - Roadmap activation was the version-only `2.0.0` → `2.1.0` transition on 2026-08-28.
-- Phase 1 prompts begin at `2.1.1`; a GREEN Phase 1 `/closeout` advances to `2.2.0`.
+- Phase 1 prompts ran through `2.1.7`; owner-accepted live qualification cleared the GREEN Phase 1 `/closeout` to `2.2.0` on 2026-08-29.
+- `c1-digest-style` is authorized at unchanged `2.2.0`; normal Phase 2 prompts begin at `2.2.1` after the correction closes.
 - Final release target is `3.0.0`, but its terminal gate is not yet locked.
 - `1.0.2` remains retired/unassigned historical space and is not reused.
 - UI/docs/correction work is non-versioned unless explicitly authorized otherwise.
@@ -647,16 +654,18 @@ The bundled/reference frontend UI work does not govern customer-site integration
 
 ## Current next action
 
-The 2.0 roadmap is complete and the 3.0 roadmap is active at package `2.1.0`.
+The 2.0 roadmap is complete and the 3.0 roadmap is active in Phase 2 at package `2.2.0`. Phase 1 Gemini Profile digest foundation is GREEN/owner-accepted.
 
-The next implementation work is **Phase 1 — Gemini Profile digest foundation**. The accepted runner supports `p2-1` and the first prompt target is `2.1.1`. The accepted N6WD correction is an existing prerequisite rather than Phase 1 implementation scope. The completed Phase 1 worksheet has already been consumed into the governing docs.
+The immediate implementation work is **`c1-digest-style`**, preserving `2.2.0`: add bounded optional Profile digest writing-style guidance through the existing Profile AI/provider/lifecycle/admin seams. After that correction closes, normal Phase 2 work begins in `p2-2` at target `2.2.1`.
 
-Normal planning sequence:
+Immediate planning sequence:
 
 ```text
-/prompt-ass Phase 1
+/prompt-ass
 → /prompt-plan
-→ /prompt-write p2-1
+→ /prompt-write c1-digest-style
 ```
 
-Phase 1 is governed by `docs/contracts/ai-assistance-contract.md`, `docs/contracts/distribution-api-contract.md`, `docs/contracts/distribution-and-integration-contract.md`, and `docs/roadmap/3.0-roadmap.md`.
+Then resume Phase 2 with `/prompt-ass Phase 2` → `/prompt-plan` → `/prompt-write p2-2`.
+
+The correction is governed primarily by `docs/contracts/ai-assistance-contract.md` and `docs/roadmap/3.0-roadmap.md`; Phase 2 remains governed additionally by `docs/contracts/distribution-api-contract.md`, `docs/contracts/distribution-and-integration-contract.md`, known issues, and the testing/production-compatibility contracts.
