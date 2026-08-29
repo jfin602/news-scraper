@@ -1,6 +1,6 @@
 # Phase 1 Gemini Live Qualification
 
-**Status:** IN PROGRESS - LIVE PROVIDER AND INTEGRATED DB GENERATION GREEN / FRESH-PROCESS V1 READBACK PENDING  
+**Status:** GREEN - TECHNICAL EVIDENCE COMPLETE / OWNER REVIEW AND TEST-PROFILE CLEANUP PENDING  
 **Qualification date:** 2026-08-29  
 **Package candidate:** `2.1.7`  
 **Exact VPS qualification candidate:** `05f091980bf8bb0ec70749e94b9fe5b3c53f0edd`  
@@ -11,7 +11,7 @@
 
 This artifact continues the blocked Phase 1 closeout recorded in `docs/validation/phase-1-gemini-profile-digest-foundation.md`.
 
-The prior closeout completed the deterministic Phase 1 review but could not close because live Gemini/provider and integrated application evidence were missing. This qualification records the owner-run VPS evidence used to clear that remaining gate. It does not rewrite the earlier blocked artifact or claim Phase 1 GREEN before the final fresh-process persistence/v1 readback is complete.
+The prior closeout completed the deterministic Phase 1 review but could not close because live Gemini/provider and integrated application evidence were missing. This qualification records the owner-run VPS evidence that cleared those remaining technical gates. It does not rewrite the earlier blocked artifact. Final owner acceptance and the package-only transition to `2.2.0` remain owner-controlled.
 
 ## Exact candidate and model correction
 
@@ -115,7 +115,7 @@ The 10 observed headlines, in canonical order, were:
 9. `When and How to Nudge Agents`;
 10. `Writing, Publishing & Authorship : 8-11-26`.
 
-The read emitted a `pg` deprecation warning about calling `client.query()` while a query was already executing. The command still returned the complete canonical result and no database or application error. The same warning later recurred during integrated lifecycle generation, again without command or persistence failure. It is retained as a separate compatibility/implementation observation rather than treated as proof failure.
+The read emitted a `pg` deprecation warning about calling `client.query()` while a query was already executing. The command still returned the complete canonical result and no database or application error. The same warning later recurred during integrated lifecycle generation and fresh-process readback, again without command or persistence failure. It is retained as a separate compatibility/implementation observation rather than treated as proof failure.
 
 This proves the integrated generation starts from the existing canonical Profile snapshot producer and its bounded 7-day/max-20 projection rather than a test fixture, raw Article query, or AI-owned selector.
 
@@ -172,13 +172,67 @@ This run materially proves the chain:
 
 No production customer PHP package deployment is claimed by this evidence; that remains Phase 2.
 
-## Evidence still required before Phase 1 closeout
+## Fresh-process durability + permanent v1 representation proof
 
-1. Re-read the active digest and admin state from a fresh Node process to prove persistence independently of the generation process.
-2. Read the permanent v1 distribution representation for `php_integration_test` from a fresh process and verify the same active digest is included with a snapshot revision and exact governed supporting destinations.
-3. After qualification evidence is captured, disable the test Profile digest again unless the owner deliberately wants scheduled Gemini spending enabled on this Profile.
-4. Record final qualification disposition and owner acceptance before advancing package version to `2.2.0`.
+The owner then started a separate Node process after generation and independently reconstructed the production database, digest lifecycle, protected Profile AI administration service, and permanent Distribution Profile page service. No generation command ran in this process.
 
-## Current disposition
+Fresh-process admin readback observed:
 
-**IN PROGRESS.** Live Gemini provider validation is GREEN and the integrated production lifecycle/database generation is GREEN on exact VPS candidate `05f091980bf8bb0ec70749e94b9fe5b3c53f0edd`. A real active Profile generated and activated a current 10-Article `gemini-3.6-flash` digest with a bounded successful manual attempt and application-resolved support destinations. Final fresh-process persistence and v1 representation readback remain before Phase 1 is marked GREEN.
+- `digestEnabled=true`, `lookbackDays=7`, `maxArticles=20`;
+- active digest generated at `2026-08-29T16:28:42.247Z`;
+- freshness `current`;
+- input Article count 10;
+- provider `google-gemini`;
+- model `gemini-3.6-flash`;
+- latest attempt remained `manual` / `success` with the same start/completion timestamps and `failureCategory=null`.
+
+This independently proves the generation and attempt state were durably persisted rather than being process-local results.
+
+The same fresh process then read the permanent v1 Distribution Profile representation for `php_integration_test`.
+
+Observed representation:
+
+- outcome kind: `active`;
+- snapshot revision: `02c5597d2e57c411e6cce24c2e0abc1cc93d60dde7ac0988c9ac2e9cfe32fc8f`;
+- Profile: `php_integration_test` / `PHP Integration Test`;
+- Publication: `Indie Author & Publishing News`;
+- Article count on the page: 30;
+- `nextCursor=null`;
+- digest present with the same generated timestamp, `current` freshness, 10-Article input count, `google-gemini` provider, `gemini-3.6-flash` model, overview, and three highlights observed immediately after generation.
+
+The v1 digest support objects retained the same application-resolved canonical Article identities and exact stored publisher destinations previously observed, including Jane Friedman, The Creative Penn, Author Media, and The Episodic Podcast URLs. Normal Article output remained present on the same representation page alongside the digest.
+
+This fresh-process proof closes the remaining persistence/representation gap from the original blocked Phase 1 closeout: the successful digest survives process boundaries, remains visible through the protected admin read model, participates in a concrete outward `snapshotRevision`, and is distributed as part of the permanent v1 complete Profile representation without replacing or corrupting ordinary Article output.
+
+A JSON capture of this exact News Scraper v1 representation was also isolated for owner inspection as `gemini-response.json`; that convenience export is not itself repository evidence and does not replace the observed VPS readback above.
+
+## Remaining operational cleanup
+
+The technical Phase 1 qualification gates are complete. One qualification-only operational cleanup remains:
+
+1. Disable the digest again on test Profile `php_integration_test` unless the owner deliberately wants twice-daily scheduled Gemini spending enabled there.
+2. Optionally verify the disabled Profile outwardly normalizes digest state to `null` while preserving successful historical generation/attempt records; this is useful cleanup confirmation but is not needed to re-prove the already established Phase 1 implementation contract.
+3. Owner acceptance may then perform the package-only transition from `2.1.7` to `2.2.0` under the normal closeout workflow.
+
+The recurring `pg` deprecation warning observed during these qualification reads should be tracked separately for pg 9 compatibility/cleanup. It did not cause a failed query, incorrect state, persistence loss, or representation failure during this evidence run and is not a Phase 1 closeout blocker.
+
+## Final technical disposition
+
+**GREEN - TECHNICAL EVIDENCE COMPLETE / HUMAN REVIEW REQUIRED.**
+
+The original live-provider blocker is cleared on exact VPS candidate `05f091980bf8bb0ec70749e94b9fe5b3c53f0edd`. The combined evidence demonstrates:
+
+- real Gemini Developer API / Interactions connectivity from the VPS;
+- production default `gemini-3.6-flash` success with no model override;
+- governed URL Context capability with a real successful publisher-page retrieval;
+- application-owned structured-output validation and bounded support IDs;
+- real canonical Profile input from the production PostgreSQL database;
+- supported admin enablement and manual generation through the production lifecycle;
+- successful immutable digest generation and bounded attempt persistence;
+- active digest activation with `current` freshness;
+- fresh-process durable readback through the protected admin model;
+- permanent v1 representation containing the same digest and a real snapshot revision;
+- application-resolved supporting Article destinations using exact stored `originalUrl` values;
+- ordinary Article representation preserved alongside optional digest state.
+
+No additional broad deterministic matrix rerun was performed during this qualification because the prior Phase 1 closeout artifact already records the full deterministic review/matrix and the remaining blocker was specifically live/integrated provider evidence. Phase 2 PHP/customer-package qualification remains separately deferred as previously documented.
