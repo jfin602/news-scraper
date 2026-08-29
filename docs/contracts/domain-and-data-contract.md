@@ -126,7 +126,8 @@ Required concepts:
 - operational state while active: `enabled`, `paused`, or `disabled`;
 - Source priority within the installation;
 - approved public-domain policy.
-- optional Source RSS/Atom item admission phrase configuration.
+- optional Source RSS/Atom item admission Include phrase configuration;
+- optional Source RSS/Atom item admission Exclude phrase configuration.
 
 Approval authorizes trust. Lifecycle controls whether configuration is current/retired. Operational state controls whether active approved configuration currently runs.
 
@@ -215,10 +216,11 @@ The concrete table name is an implementation detail. The schema MUST enforce sin
 - installation-wide Source priority;
 - optional default Category reference;
 - optional Source-scoped Relevance settings;
-- optional bounded Source RSS/Atom item admission phrases;
+- optional bounded Source RSS/Atom item admission Include phrases;
+- optional bounded Source RSS/Atom item admission Exclude phrases;
 - created/updated timestamps.
 
-The optional Source RSS/Atom item admission filter is Source configuration, not endpoint configuration or Publication tenancy. No configured phrases means collect all otherwise-valid parsed RSS/Atom Raw items. One or more phrases use deterministic case-insensitive literal any-match semantics over existing parsed title, summary/content text, and Source-provided category labels. The logical contract does not require a particular SQL representation.
+The optional Source RSS/Atom item admission filter is Source configuration, not endpoint configuration or Publication tenancy. The Include and Exclude phrase groups both use fixed deterministic case-insensitive literal `ANY` semantics over existing parsed title, summary/content text, and Source-provided category labels. The admission rule is `(Include empty OR any Include match) AND NOT(any Exclude match)`: both lists empty collect all otherwise-valid Raw items, an empty Exclude list preserves existing Include-only behavior, and Exclude wins when both sides match. Existing supported Include configuration MUST survive forward upgrade unchanged and new Exclude state defaults empty. The logical contract does not require a particular SQL representation or introduce configurable `ANY`/`ALL` operators.
 
 ### `source_endpoints`
 
@@ -253,7 +255,7 @@ The generic HTML listing adapter MUST NOT synthesize `RawItem.externalId` from l
 Configuration inheritance:
 
 - Source approved domains define the maximum permitted destination boundary;
-- Source RSS/Atom item admission phrases apply consistently to supported RSS/Atom endpoints owned by that Source; endpoint configuration does not override them;
+- Source RSS/Atom item admission Include and Exclude phrases apply consistently to supported RSS/Atom endpoints owned by that Source; endpoint configuration does not override them;
 - endpoint redirect/Article-domain configuration may only narrow the Source boundary unless Source policy itself is explicitly expanded/approved;
 - endpoint default Category overrides Source default for that endpoint; Source default is fallback.
 
@@ -276,7 +278,7 @@ A Collection run begins with the first real fetch phase and records only stages/
 
 Pre-normalization accounting uses the stage vocabulary defined by the Source/collection contract:
 
-- `source_item_filtered_count` counts successfully parsed Raw items rejected by the configured Source RSS/Atom item admission filter before Article-candidate normalization;
+- `source_item_filtered_count` counts successfully parsed Raw items rejected by the configured Source RSS/Atom item admission filter before Article-candidate normalization, whether because the Include side did not pass or an Exclude phrase matched;
 - normalization status is `not_run`, `succeeded`, or `failed`;
 - `normalized_candidate_count` counts Raw items that complete normalization into an Article candidate before the separate Article-link policy decision;
 - `normalization_failure_count` counts Raw items that cannot produce an Article candidate because normalization fails or required candidate data is malformed, invalid, or out of bounds;
@@ -302,7 +304,7 @@ Therefore:
 
 Normalization failures remain pre-candidate stage failures and do not receive a post-normalization processing outcome. An Article-link-policy rejection is retained in `article_link_rejection_count` and maps that same candidate to processing outcome `rejected`; the values describe different accounting dimensions rather than two candidates. Before configurable Relevance rules exist, safe link-accepted candidates pass the empty-rule boundary and `excluded` is zero.
 
-Source-item filter mismatches are also pre-candidate outcomes. They count only in `source_item_filtered_count`, not in `normalization_failure_count`, `excluded`, or any Article-observation outcome. Accounting remains truthful when every parsed Raw item is filtered.
+Source-item filter rejections are also pre-candidate outcomes. They count only in `source_item_filtered_count`, not in `normalization_failure_count`, `excluded`, or any Article-observation outcome. Accounting remains truthful when every parsed Raw item is filtered.
 
 Accepted Article processing may also produce zero or more **orthogonal effects**, which do not replace the processing outcome:
 
