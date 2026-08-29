@@ -36,15 +36,16 @@ This file is the running feature idea log for ideas proposed in this chat.
 
 ### +R8VN — 2026-08-19 — Source RSS/Atom admission include/exclude operators
 
-- **Status:** Proposed
-- Expand the existing Source-owned RSS/Atom item admission filter from include-only `ANY` matching into a bounded structured policy with separate Include and Exclude phrase groups.
-- Each group may use `ANY` (`OR`) or `ALL` (`AND`) matching. The final admission rule is fixed as `include_passes AND NOT exclude_matches`, with Exclude winning when both sides match.
-- Empty Include means all otherwise-valid RSS/Atom Raw items pass the include side; empty Exclude means nothing is excluded. Existing Sources with legacy include phrases must preserve their current behavior as Include + `ANY` after upgrade.
+- **Status:** Proposed — Exclude-list subset promoted separately as `M6SX`; configurable operators remain proposed
+- The owner has promoted only the bounded **Exclude phrase list** subset into 3.0 Phase 2 issue `M6SX`. Phase 2 therefore uses separate Include/Exclude phrase lists with both groups fixed to existing `ANY` semantics and Exclude winning. That promoted subset is no longer waiting on this broader feature idea.
+- The remaining proposal is to add configurable `ANY` (`OR`) or `ALL` (`AND`) matching independently to the Include and Exclude groups. No `ANY`/`ALL` selector is authorized by `M6SX` or the current Phase 2 contract.
+- Under the remaining proposal, the final admission rule would stay `include_passes AND NOT exclude_matches`, with Exclude winning when both sides match.
+- Empty Include means all otherwise-valid RSS/Atom Raw items pass the include side; empty Exclude means nothing is excluded. Existing Sources with legacy include phrases preserve their current behavior as Include + `ANY` after upgrade.
 - Preserve the existing deterministic case-insensitive literal substring matching, plain-text preparation, and bounded RSS/Atom editorial fields: title, summary/content text, and Source-provided category labels. Do not introduce regex, glob, fuzzy, semantic/AI, arbitrary-expression, or Article-page-fetch behavior.
 - Keep this filter RSS/Atom-only and pre-normalization. HTML listing endpoints continue to bypass it. Filtered Raw items continue to count only in `source_item_filtered_count`, not as Relevance `excluded`, normalization failures, Articles, or Article observations.
-- Treat this as topic-independent base-engine behavior with Source-level configuration. The admin UI should expose separate Include/Exclude phrase lists and clear `Any (OR)` / `All (AND)` selectors rather than a free-form query language.
-- Because the existing phrase persistence is part of the supported `1.0.0` production baseline, implementation must use a forward-compatible migration that preserves existing customer configuration rather than rewriting supported migration history.
-- **Required documentation work when implemented:** revise the governing Source/collection, domain/data, architecture, admin/onboarding, testing, and routing summaries that currently define the filter as include-only/ANY-match; historical Phase 14 roadmap and validation evidence must remain unchanged.
+- If the operator expansion is later promoted, the admin UI may expose clear `Any (OR)` / `All (AND)` selectors rather than a free-form query language. Until then the Phase 2 admin surface exposes only the fixed-ANY Include/Exclude lists.
+- Because the existing phrase persistence is part of the supported `1.0.0` production baseline, any implementation must use a forward-compatible migration that preserves existing customer configuration rather than rewriting supported migration history.
+- **Required documentation work if the remaining operator expansion is implemented:** revise the governing Source/collection, domain/data, architecture, admin/onboarding, testing, and routing summaries to add the new operator semantics; historical Phase 14 roadmap and validation evidence must remain unchanged.
 
 ## Shipped Ideas
 
@@ -60,5 +61,5 @@ This file is the running feature idea log for ideas proposed in this chat.
 - Move shipped feature ideas to **Shipped Ideas** with the implementation summary and shipped date.
 - Every feature idea title must begin with a plus symbol followed by a unique 4-character ID, followed by the date and title: `### +ID — YYYY-MM-DD — Feature title`.
 - Feature idea IDs use this restricted Base32 alphabet after the plus symbol: `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`. The characters I, O, 0, and 1 are excluded to reduce confusion.
-- Assign IDs pseudo-randomly rather than sequentially. IDs are permanent and are never changed or reused, including after a feature idea is shipped.
+- Assign IDs pseudo-randomly rather than sequentially. IDs are permanent and are never changed or reused, including after an idea is shipped.
 - Include enough detail that the idea can be converted into an implementation prompt later.
