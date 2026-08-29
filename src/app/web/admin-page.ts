@@ -588,6 +588,12 @@ const adminPage = `<!doctype html>
                         <span class="field-help">One to 20 governed Articles; default 20.</span>
                       </label>
                     </div>
+                    <div class="form-grid">
+                      <label class="wide-field">Digest writing style
+                        <textarea name="digestStyleGuidance" rows="4" aria-describedby="profile-ai-style-help"></textarea>
+                        <span class="field-help" id="profile-ai-style-help">Optional; blank uses the normal/default digest writing style. Up to 500 Unicode code points.</span>
+                      </label>
+                    </div>
                   </fieldset>
                   <div class="form-message" role="alert" tabindex="-1" data-profile-ai-configuration-error hidden></div>
                   <div class="form-actions">

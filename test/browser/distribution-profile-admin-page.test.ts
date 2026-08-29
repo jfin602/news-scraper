@@ -13,9 +13,10 @@ import {
   type AdminDistributionProfileReadModel,
   type DistributionProfileAdministrationService,
 } from '../../src/admin/distribution-profile-administration.ts';
-import type {
-  AdminProfileAiReadModel,
-  ProfileAiAdministrationService,
+import {
+  ProfileAiAdministrationError,
+  type AdminProfileAiReadModel,
+  type ProfileAiAdministrationService,
 } from '../../src/admin/profile-ai-administration.ts';
 import type { EndpointAdministrationService } from '../../src/admin/endpoint-administration.ts';
 import type {
@@ -272,24 +273,86 @@ describe('Distribution Profile administration page browser behavior', () => {
     const harness = new ProfileHarness();
     harness.addProfile(activeProfile());
     await withPage(browser, harness, {}, async (page, _context, ai) => {
+      const configurationHeaders: string[] = [];
+      page.on('request', (request) => {
+        if (
+          request.url().includes('/ai/configuration') &&
+          request.method() === 'PUT'
+        ) {
+          configurationHeaders.push(
+            request.headers()['x-news-scraper-admin-request'] ?? '',
+          );
+        }
+      });
       await page.getByRole('tab', { name: /^Profiles/u }).click();
       await page.getByRole('button', { name: /Publisher news/u }).click();
       await page
         .locator('[data-profile-ai-state][data-profile-ai-state="ready"]')
         .waitFor();
       const form = page.locator('[data-profile-ai-configuration-form]');
+      const style = form.locator('[name="digestStyleGuidance"]');
+      assert.deepEqual(
+        await form
+          .locator('input, select, textarea')
+          .evaluateAll((controls) =>
+            controls
+              .map((control) => control.getAttribute('name') ?? '')
+              .filter((name) => /gemini|model|tool|key|prompt/iu.test(name)),
+          ),
+        [],
+      );
+      assert.equal(await style.inputValue(), '');
+      assert.match(
+        await form.innerText(),
+        /Optional; blank uses the normal\/default digest writing style\. Up to 500 Unicode code points\./u,
+      );
       await form
         .getByRole('checkbox', { name: /Enable this Profile/u })
         .check();
       await form.locator('[name="lookbackDays"]').fill('14');
       await form.locator('[name="maxArticles"]').fill('10');
+      await style.fill('  Friendly and conversational. Avoid hype.  ');
       await page.getByRole('button', { name: 'Save AI settings' }).click();
       assert.deepEqual(ai.configuration('publisher_news'), {
         digestEnabled: true,
         lookbackDays: 14,
         maxArticles: 10,
-        digestStyleGuidance: null,
+        digestStyleGuidance: 'Friendly and conversational. Avoid hype.',
       });
+      assert.deepEqual(ai.configurationRequests.at(-1), {
+        digestEnabled: true,
+        lookbackDays: 14,
+        maxArticles: 10,
+        digestStyleGuidance: '  Friendly and conversational. Avoid hype.  ',
+      });
+      assert.deepEqual(configurationHeaders, ['1']);
+      await page.waitForFunction(
+        () =>
+          document.querySelector<HTMLTextAreaElement>(
+            '[name="digestStyleGuidance"]',
+          )?.value === 'Friendly and conversational. Avoid hype.',
+      );
+      assert.equal(ai.generateCalls, 0);
+      await style.fill('   ');
+      await page.getByRole('button', { name: 'Save AI settings' }).click();
+      assert.equal(
+        ai.configuration('publisher_news').digestStyleGuidance,
+        null,
+      );
+      await page.waitForFunction(
+        () =>
+          document.querySelector<HTMLTextAreaElement>(
+            '[name="digestStyleGuidance"]',
+          )?.value === '',
+      );
+      await style.fill('🙂'.repeat(501));
+      await page.getByRole('button', { name: 'Save AI settings' }).click();
+      await page
+        .locator('[data-profile-ai-configuration-error]')
+        .filter({ hasText: /values are invalid/u })
+        .waitFor();
+      assert.equal(await style.inputValue(), '🙂'.repeat(501));
+      assert.equal(ai.generateCalls, 0);
       await page.getByRole('button', { name: 'Generate now' }).click();
       await page
         .locator('[data-profile-ai-generation-result]')
@@ -320,7 +383,13 @@ describe('Distribution Profile administration page browser behavior', () => {
         digestEnabled: true,
         lookbackDays: 30,
         maxArticles: 20,
-        digestStyleGuidance: null,
+        digestStyleGuidance: 'Publisher style',
+      });
+      ai.setConfiguration('opportunities', {
+        digestEnabled: false,
+        lookbackDays: 7,
+        maxArticles: 20,
+        digestStyleGuidance: 'Opportunity style',
       });
       ai.delayProfileRead('publisher_news');
       await page.getByRole('tab', { name: /^Profiles/u }).click();
@@ -330,13 +399,38 @@ describe('Distribution Profile administration page browser behavior', () => {
       await page
         .locator('[data-profile-ai-state][data-profile-ai-state="ready"]')
         .waitFor();
-      ai.releaseSlowRead();
-      await page.waitForTimeout(100);
       assert.equal(
         await page
-          .locator('[data-profile-ai-configuration-form] [name="lookbackDays"]')
+          .locator(
+            '[data-profile-ai-configuration-form] [name="digestStyleGuidance"]',
+          )
           .inputValue(),
-        '7',
+        'Opportunity style',
+      );
+      ai.releaseSlowRead();
+      await page.getByRole('button', { name: 'Publisher news' }).click();
+      await page
+        .locator('[data-profile-ai-state][data-profile-ai-state="ready"]')
+        .waitFor();
+      assert.equal(
+        await page
+          .locator(
+            '[data-profile-ai-configuration-form] [name="digestStyleGuidance"]',
+          )
+          .inputValue(),
+        'Publisher style',
+      );
+      await page.getByRole('button', { name: 'Opportunities' }).click();
+      await page
+        .locator('[data-profile-ai-state][data-profile-ai-state="ready"]')
+        .waitFor();
+      assert.equal(
+        await page
+          .locator(
+            '[data-profile-ai-configuration-form] [name="digestStyleGuidance"]',
+          )
+          .inputValue(),
+        'Opportunity style',
       );
     });
   });
@@ -451,6 +545,7 @@ class ProfileHarness {
 
 class ProfileAiHarness {
   readonly states = new Map<string, AdminProfileAiReadModel>();
+  readonly configurationRequests: unknown[] = [];
   generateCalls = 0;
   #slowProfileKey: string | undefined;
   #slowReadStarted: Promise<void> | undefined;
@@ -501,13 +596,15 @@ class ProfileAiHarness {
       updateProfileAiConfiguration: async (key, input) => {
         const current = this.state(String(key));
         const value = record(input);
+        this.configurationRequests.push(value);
+        const digestStyleGuidance = fixtureStyle(value.digestStyleGuidance);
         const next = Object.freeze({
           ...current,
           configuration: Object.freeze({
             digestEnabled: Boolean(value.digestEnabled),
             lookbackDays: Number(value.lookbackDays),
             maxArticles: Number(value.maxArticles),
-            digestStyleGuidance: current.configuration.digestStyleGuidance,
+            digestStyleGuidance,
           }),
         });
         this.states.set(next.profileKey, next);
@@ -565,6 +662,16 @@ class ProfileAiHarness {
     this.states.set(key, created);
     return created;
   }
+}
+
+function fixtureStyle(value: unknown): string | null {
+  if (typeof value !== 'string')
+    throw new ProfileAiAdministrationError('invalid_request');
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+  if (Array.from(trimmed).length > 500)
+    throw new ProfileAiAdministrationError('invalid_request');
+  return trimmed;
 }
 
 function activeProfile(): AdminDistributionProfileReadModel {

@@ -197,6 +197,8 @@ function renderAi(profile) {
   input(elements.aiConfigurationForm, 'maxArticles').value = String(
     ai.configuration.maxArticles,
   );
+  input(elements.aiConfigurationForm, 'digestStyleGuidance').value =
+    ai.configuration.digestStyleGuidance ?? '';
   elements.aiConfigurationForm.hidden = false;
   if (ai.activeDigest === null) {
     definitionList(elements.aiActiveDigest, [['Active digest', 'No digest']]);
@@ -258,6 +260,10 @@ function aiConfigurationBody() {
     maxArticles: Number(
       input(elements.aiConfigurationForm, 'maxArticles').value,
     ),
+    digestStyleGuidance: input(
+      elements.aiConfigurationForm,
+      'digestStyleGuidance',
+    ).value,
   };
 }
 
