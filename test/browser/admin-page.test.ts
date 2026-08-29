@@ -53,7 +53,8 @@ const initialSource: AdminSourceReadModel = Object.freeze({
     Object.freeze({ hostname: 'journal.example.com', includeSubdomains: true }),
   ]),
   defaultCategory: category,
-  rssAtomAdmissionPhrases: Object.freeze(['publishing', 'indie author']),
+  rssAtomAdmissionIncludePhrases: Object.freeze(['publishing', 'indie author']),
+  rssAtomAdmissionExcludePhrases: Object.freeze(['gossip']),
   endpointCount: 1,
 });
 
@@ -432,8 +433,12 @@ describe('Source administration page browser behavior', () => {
           .fill('news.example.test');
         await page.getByRole('button', { name: 'Add include phrase' }).click();
         await sourceForm
-          .locator('[data-admission-phrase]')
+          .locator('[data-admission-include-phrases] [data-admission-phrase]')
           .fill('independent publishing');
+        await page.getByRole('button', { name: 'Add Exclude phrase' }).click();
+        await sourceForm
+          .locator('[data-admission-exclude-phrases] [data-admission-phrase]')
+          .fill('gossip');
         await sourceForm
           .locator('[name="approvalState"]')
           .selectOption('unapproved');
@@ -449,16 +454,30 @@ describe('Source administration page browser behavior', () => {
           .filter({ hasText: 'Source created.' })
           .waitFor();
         await waitForSource(page, 'new_source');
-        assert.deepEqual(harness.source('new_source').rssAtomAdmissionPhrases, [
-          'independent publishing',
-        ]);
+        assert.deepEqual(
+          harness.source('new_source').rssAtomAdmissionIncludePhrases,
+          ['independent publishing'],
+        );
+        assert.deepEqual(
+          harness.source('new_source').rssAtomAdmissionExcludePhrases,
+          ['gossip'],
+        );
         assert.equal(harness.source('new_source').priority, 7);
 
         await sourceForm.locator('[name="displayName"]').fill('Renamed Source');
-        await page.getByRole('button', { name: 'Remove phrase' }).click();
+        await sourceForm
+          .locator('[data-admission-include-phrases]')
+          .getByRole('button', { name: 'Remove phrase' })
+          .click();
+        await sourceForm
+          .locator('[data-admission-exclude-phrases]')
+          .getByRole('button', { name: 'Remove phrase' })
+          .click();
         assert.match(
-          await sourceForm.locator('[data-phrase-empty]').innerText(),
-          /Collect all/u,
+          await sourceForm
+            .locator('[data-admission-include-phrases] [data-phrase-empty]')
+            .innerText(),
+          /All RSS\/Atom items pass Include/u,
         );
         await page
           .getByRole('button', { name: 'Save Source configuration' })
@@ -472,7 +491,11 @@ describe('Source administration page browser behavior', () => {
           'Renamed Source',
         );
         assert.deepEqual(
-          harness.source('new_source').rssAtomAdmissionPhrases,
+          harness.source('new_source').rssAtomAdmissionIncludePhrases,
+          [],
+        );
+        assert.deepEqual(
+          harness.source('new_source').rssAtomAdmissionExcludePhrases,
           [],
         );
 
@@ -1589,8 +1612,10 @@ function sourceConfigurationFromBody(body: Record<string, unknown>) {
     approvedDomains:
       body.approvedDomains as AdminSourceReadModel['approvedDomains'],
     defaultCategory: categoryKey === null ? null : category,
-    rssAtomAdmissionPhrases:
-      body.rssAtomAdmissionPhrases as AdminSourceReadModel['rssAtomAdmissionPhrases'],
+    rssAtomAdmissionIncludePhrases:
+      body.rssAtomAdmissionIncludePhrases as AdminSourceReadModel['rssAtomAdmissionIncludePhrases'],
+    rssAtomAdmissionExcludePhrases:
+      body.rssAtomAdmissionExcludePhrases as AdminSourceReadModel['rssAtomAdmissionExcludePhrases'],
   };
 }
 
