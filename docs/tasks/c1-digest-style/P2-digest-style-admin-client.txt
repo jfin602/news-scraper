@@ -3,24 +3,24 @@ TASK: Correction 1 / P2 — Digest style admin client
 CORRECTION SCOPE
 This is the second and final implementation prompt in correction `c1-digest-style`.
 
-P1 must already provide the complete server-side producer: additive persisted `digestStyleGuidance`, canonical null/trim/500-Unicode-code-point validation, protected Profile AI read/update representation, v2 digest identity participation, and safe subordinate Gemini request composition. P2 must consume that boundary as a thin bundled administrator browser client. It must not duplicate database, identity, provider, URL, audit, or lifecycle semantics.
+P1 must already provide the complete server-side producer: additive persisted `digestStyleGuidance`, canonical null/trim/500-Unicode-code-point validation, protected Profile AI read/update representation, backward-compatible digest identity participation, and safe subordinate Gemini request composition. P2 consumes that boundary as a thin bundled administrator browser client. It must not duplicate database, identity, provider, URL, audit, or lifecycle semantics.
 
 MODEL / REASONING / USAGE
 - Recommended configuration: `Luna High`.
 - Task-shape classification: `Bounded`.
 - Specification clarity: `Explicit`.
-- State coupling: `Moderate` because the existing Profile selection/async AI state client must not paint stale data across Profiles.
-- Integrity risk: `Moderate`; server-side persistence/provider integrity is already owned by P1.
-- Concurrency: `Local` asynchronous browser request ordering only; no database/process concurrency changes.
-- Security: `Sensitive` only insofar as the UI must remain inside the existing protected admin surface and must not expose Gemini credentials or treat guidance as system authority.
+- State coupling: `Moderate` because the selected-Profile async AI state client must not paint stale data across Profiles.
+- Integrity risk: `Moderate`; server persistence/provider integrity is P1-owned.
+- Concurrency: `Local` asynchronous browser request ordering only.
+- Security: `Sensitive` only because the UI remains inside the protected admin surface and must not imply arbitrary prompt/system authority or expose credentials.
 - Novel inference: `Low`.
-- Model-family basis: the server contract is explicit and P2 is a small existing-pattern HTML/JavaScript/browser adaptation, so Luna is adequate.
-- Reasoning basis: High is appropriate to preserve stale-response isolation, accessibility/form behavior, Unicode-limit UX accuracy, and the thin-client boundary without reimplementing producer rules.
+- Model-family basis: the server contract is explicit and P2 is an existing-pattern HTML/JavaScript/browser adaptation, so Luna is adequate.
+- Reasoning basis: High is appropriate for stale-response isolation, accessibility/form behavior, Unicode-limit UX accuracy, and keeping the browser thin.
 - Complexity / quality floor: `Moderate`.
 - Estimated usage: `High`.
-- Usage basis: admin HTML/client tracing, focused browser adaptation, Playwright execution, portable regression, and enough headroom to diagnose a browser-state regression without rerunning the whole task.
-- Lower-cost alternative considered: `Luna Medium`; rejected because the existing selected-Profile async state and browser regression surface make a shallow mechanical pass too risky.
-- Escalation trigger: the P1 protected admin API does not expose a stable nullable `digestStyleGuidance`, saving style requires new backend semantics, or the admin client would need to know provider/identity/database rules.
+- Usage basis: admin HTML/client tracing, focused Playwright adaptation/execution, portable regression, and enough headroom to diagnose one browser-state regression without restarting discovery.
+- Lower-cost alternative considered: `Luna Medium`; rejected because selected-Profile async state plus browser validation makes a shallow mechanical pass too risky.
+- Escalation trigger: P1 does not expose stable nullable `digestStyleGuidance`, saving style requires new backend semantics, or browser code would need provider/identity/database knowledge.
 - Escalation target: `Terra Medium`; return `Planning needed` rather than inventing missing producer behavior.
 - Estimate confidence: `High`.
 
@@ -28,23 +28,21 @@ VERSIONING
 - Required unchanged project version: `2.2.0`.
 - Do not change top-level `package.json` version.
 - This correction consumes no Phase 2 patch number.
-- Do not create dependency lockfiles or unrelated generated state.
+- Do not create lockfiles/unrelated generated state.
 - Do not manually commit; the correction runner owns the implementation-prompt commit boundary.
 
 SEQUENCE / FRESHNESS PREFLIGHT
 Before editing:
 1. read current `BOOT.md`, `AGENTS.md`, `docs/contracts/ai-assistance-contract.md`, `docs/contracts/testing-and-validation-contract.md`, and `docs/roadmap/3.0-roadmap.md`;
-2. read P1 of this correction and inspect Git history; require the P1 implementation commit to be present and package to remain exactly `2.2.0`;
-3. inspect the actual P1 producer in `src/admin/profile-ai-administration.ts` and its HTTP representation/tests; verify configuration exposes `digestStyleGuidance: string | null`, omission is safely backward-compatible, and server validation remains authoritative;
+2. read P1 and inspect Git history; require P1 implementation present and package exactly `2.2.0`;
+3. inspect P1's `AdminProfileAiReadModel` and protected configuration HTTP behavior; require nullable style, safe omission compatibility, server-authoritative validation, and no synchronous generation;
 4. inspect `src/app/web/admin-page.ts`, `src/app/web/admin/profiles.js`, shared admin client helpers/styles, and `test/browser/distribution-profile-admin-page.test.ts`;
-5. inspect all browser/client fixtures adapted by P1 so P2 does not accidentally preserve a fake shape that differs from the real server producer;
-6. inspect the Test Necessity / Test Environment matrices and current package scripts;
-7. stop and report planning drift if P1 is missing/incomplete, server configuration naming differs from the locked contract, or another change already implements the browser field.
-
-Do not reinterpret the server contract from browser convenience.
+5. inspect browser/test fixture type adaptations made by P1 so P2 matches the real producer;
+6. inspect the Test Necessity/Test Environment matrices and package scripts;
+7. stop/report planning drift if P1 is incomplete, server naming differs from the contract, or the browser field is already implemented.
 
 CORRECTION GOAL
-The existing Profile **AI digest** admin section must expose one simple optional writing-style field backed directly by P1's protected configuration representation:
+The existing Profile AI digest admin form exposes:
 
 ```text
 Digest writing style
@@ -53,112 +51,108 @@ Optional; blank uses the default digest writing style.
 Up to 500 Unicode code points.
 ```
 
-An administrator should be able to load a Profile, see its current guidance, edit/save it alongside the existing digest settings, switch Profiles without stale AI state leaking across selections, and use Generate now separately through the unchanged generation action.
+An administrator can load one Profile, see its current canonical guidance, edit/save/clear it alongside existing digest settings, switch Profiles without stale state leakage, and invoke Generate now separately through the unchanged action.
 
 ADMIN HTML
-In the existing Profile AI digest configuration form in `src/app/web/admin-page.ts`:
-- add an accessible label exactly/clearly identifying **Digest writing style**;
-- use a plain `<textarea name="digestStyleGuidance">` suitable for a short instruction, preferably reusing existing wide-field/form styling rather than introducing a new presentation system;
-- helper text must communicate that the field is optional, blank uses normal/default digest writing style, and the server limit is 500 Unicode code points;
-- do not describe it as a system prompt, developer prompt, arbitrary instructions, or URL input;
-- do not expose Gemini keys, model selectors, tool controls, raw prompts, or provider diagnostics;
-- preserve the current AI cadence/status/Generate-now UI and existing admin presentation conventions.
+In `src/app/web/admin-page.ts`:
+- add an accessible **Digest writing style** label and `<textarea name="digestStyleGuidance">` in the existing AI digest configuration form;
+- reuse existing wide-field/form styling rather than creating a new presentation system;
+- helper text says optional, blank uses normal/default digest writing style, and server limit is 500 Unicode code points;
+- do not call it a system/developer prompt, arbitrary instructions, URL field, or provider control;
+- preserve current cadence/status/Generate-now UI and all existing admin presentation behavior;
+- expose no Gemini key/model/tool/raw-prompt/provider-body control.
 
-Do **not** use HTML `maxlength="500"` unless you also prove it counts the contract's Unicode code points correctly. Browser maxlength semantics are based on UTF-16 code units and can incorrectly reject a valid 500-code-point astral/emoji value. Prefer server-authoritative validation and clear helper text over a subtly wrong native limit. Do not build a duplicate client normalization framework merely to enforce the server rule.
+Do **not** use native `maxlength="500"` unless you prove it matches the contract's Unicode code-point count. HTML/browser length semantics use UTF-16 code units and can incorrectly reject 500 valid astral/emoji code points. Prefer accurate helper text plus server-authoritative validation over a subtly incorrect client limit. Do not create a duplicate client normalization framework merely to mirror P1.
 
 ADMIN CLIENT DATA FLOW
 In `src/app/web/admin/profiles.js`:
-- when AI state loads, populate the textarea from `ai.configuration.digestStyleGuidance ?? ''`;
-- when saving AI configuration, send `digestStyleGuidance` explicitly with the existing `digestEnabled`, `lookbackDays`, and `maxArticles` body;
-- blank textarea input is sent as blank text; P1's server normalizer owns blank→null canonicalization;
-- after a successful save, render the returned canonical server state rather than assuming the typed value is canonical;
-- preserve the existing status message that the next scheduled evaluation uses saved settings; saving still does not call Generate now automatically;
-- preserve separate manual **Generate now** behavior;
-- preserve stale-response protection: a delayed AI response/save for Profile A must not repaint Profile B after the operator switches selection;
-- do not copy prompt composition, URL neutralization, identity hashing, or 500-code-point normalization into browser code;
-- never place guidance in URLs/query strings/local storage or public page state; it travels only through the existing protected JSON admin request.
+- populate textarea from `ai.configuration.digestStyleGuidance ?? ''` whenever the selected Profile AI state is rendered;
+- include `digestStyleGuidance` explicitly in the existing protected configuration PUT body with enabled/lookback/max;
+- send blank as blank; P1 owns blank→null normalization;
+- after successful save, render returned canonical server state rather than assuming typed text is canonical;
+- preserve the existing message/behavior that saved settings take effect through later scheduled evaluation unless Generate now is explicitly clicked;
+- preserve manual Generate now as a separate request;
+- preserve selected-Profile stale-response guards: delayed Profile A AI reads/saves must not repaint Profile B;
+- do not copy identity hashing, prompt composition, URL neutralization, DB rules, audit rules, or code-point normalization into browser code;
+- do not put style in query strings, localStorage, public feed state, or URLs.
 
-ERROR / BOUNDARY BEHAVIOR
-- existing bounded `invalid_request` handling remains the error surface for invalid/over-limit guidance;
-- a rejected save leaves the selected Profile/editor state usable and does not trigger generation;
-- a successful clear displays an empty textarea after the canonical response returns null;
-- saving one Profile must not mutate another Profile's guidance;
-- ordinary Profile configuration, Source associations, lifecycle controls, and AI status continue to work unchanged;
-- the browser must not render guidance as HTML/Markdown; it is only a textarea value.
+ERROR / STATE BEHAVIOR
+- existing bounded `invalid_request` behavior remains the invalid/over-limit save surface;
+- a rejected save leaves the selected Profile editor usable and triggers no generation;
+- successful clear re-renders an empty textarea from returned `null`;
+- each Profile retains independent style state;
+- ordinary Profile config/Source association/lifecycle/AI status behavior stays unchanged;
+- guidance is textarea text only, never rendered as HTML/Markdown.
 
-FOCUSED BROWSER REGRESSION COVERAGE
-Extend `test/browser/distribution-profile-admin-page.test.ts` and its `ProfileAiHarness` only as necessary to model the already-governed P1 producer.
+FOCUSED BROWSER PROOF
+Extend `test/browser/distribution-profile-admin-page.test.ts` and `ProfileAiHarness` only enough to model P1's protected read model.
 
 At minimum prove:
-1. the existing AI settings browser flow loads `null` guidance as an empty textarea;
-2. entering a representative style such as `Friendly and conversational. Avoid hype.` sends it through the existing protected save request and the returned configuration displays/persists it;
-3. saving guidance does not invoke Generate now; the manual generation call count remains unchanged until the button is explicitly used;
-4. clearing the field results in canonical null/empty display after the server response;
-5. switching between at least two Profiles preserves independent style values;
-6. the existing delayed/stale Profile AI read test also protects the style textarea, not only lookback/max fields;
-7. the request-integrity header remains present on the save mutation through existing shared client behavior;
-8. no Gemini API key/model/tool control or secret value appears in the page;
-9. the existing mobile/no-horizontal-overflow behavior remains intact with the new textarea.
+1. null guidance loads as an empty textarea;
+2. entering representative style such as `Friendly and conversational. Avoid hype.` is sent through the protected save path and returned/displayed canonically;
+3. save does not call Generate now; generation count changes only after explicit button use;
+4. clearing produces canonical null/empty display;
+5. two Profiles retain independent style values;
+6. the existing delayed/stale Profile AI read test also verifies the style textarea is not painted from the old Profile;
+7. the mutation-integrity request header remains present on save through existing shared client behavior;
+8. page contains no Gemini key/model/tool secret controls;
+9. existing mobile/no-horizontal-overflow behavior remains intact.
 
-The browser harness may canonicalize fixture return values enough to emulate P1's public admin read model, but tests must not create a second production validation policy or assert private provider implementation details.
+The browser harness can canonicalize fixture return values enough to emulate P1, but must not define a second production validation/identity policy.
 
-IMPORTANT PRODUCER → CONSUMER BOUNDARY
-P2 must consume only:
+PRODUCER → CONSUMER BOUNDARY
+P2 consumes only:
 
 `AdminProfileAiReadModel.configuration.digestStyleGuidance`
 
-and the existing protected configuration PUT response.
+plus the existing protected configuration PUT response.
 
-If browser code needs raw database state, digest identity, provider request text, Gemini credentials, or a new endpoint to work, stop: P1's producer handoff is incomplete.
+If the browser needs raw DB state, digest identity, provider request text, Gemini credentials, or a new endpoint, stop: P1's producer handoff is incomplete.
 
 PRESERVED BEHAVIOR / NON-GOALS
 Do not change:
-- migrations, Profile AI repository normalization, `digestInputIdentity`, lifecycle, provider prompt/tool logic, or server audit semantics from P1;
+- migrations, Profile AI repository normalizer, digest identity, lifecycle, provider prompt/tool logic, or server audit semantics from P1;
 - public v1/PHP/local-read/customer digest shape;
-- Profile Source associations/filters/lifecycle behavior;
+- Profile Source associations/filters/lifecycle;
 - Source/Article/Relevance/Category/duplicate behavior;
 - admin authentication/request-integrity architecture;
 - Gemini model/configuration/secrets;
 - Phase 2 PHP package implementation;
-- governing documentation or prior validation artifacts.
+- governing docs or prior validation artifacts.
 
-Do not add rich text, Markdown preview, prompt templates/presets, per-provider prompt settings, topic-specific default copy, character-count libraries, or new dependencies.
+Do not add rich text, Markdown preview, style presets/templates, provider prompt controls, topic-specific defaults, character-count dependencies, or new dependencies.
 
 VALIDATION MANIFEST
-Resolve against the actual P2 diff.
-
 RUN — `LOCAL-PORTABLE`:
 - final `npm run check`;
 - `npm run codex:phase:validate -- c1-digest-style`;
-- correction-range/current-diff `git diff --check` as appropriate.
+- complete correction/current-diff `git diff --check` as appropriate.
 
 RUN — `LOCAL-PREREQUISITE`:
 - focused browser file during iteration when useful;
-- final `npm run test:browser`, because the changed surface is the bundled protected admin UI.
+- final `npm run test:browser` because this prompt changes the bundled protected admin UI/client.
 
-N/A for P2 unless the actual diff unexpectedly expands:
-- `npm run test:db` and `npm run test:recovery` — P2 must not change the P1 persistence/migration producer;
-- `npm run test:security` — preserve the existing request-integrity boundary; run it only if P2 actually changes security code rather than using it;
-- `npm run test:php` / `npm run test:browser:php` — no PHP/public customer change;
-- live Gemini, live Sources, collection-specific, and reference-deployment evidence.
+N/A for P2 unless actual diff expands:
+- `npm run test:db` / `npm run test:recovery` — P2 must not change P1 persistence/migration;
+- `npm run test:security` unless P2 actually changes security code rather than consuming it;
+- PHP/browser-PHP, live Gemini, live Sources, collection-specific, and reference deployment evidence.
 
-Do not rerun broad database/provider suites solely because P1 ran them. P3 will independently validate the final integrated correction according to the final-tree blast radius.
+Do not rerun broad DB/provider suites solely because P1 ran them. P3 independently validates the complete correction union.
 
-REPOSITORY / DOCUMENTATION RULES
+REPOSITORY RULES
 - Do not edit contracts/ADRs/roadmap/changelog/BOOT/AGENTS/README or historical Phase 1 records.
-- Do not write the final validation artifact; P3 owns closeout evidence.
-- Do not change package version or dependencies.
-- Do not manually commit.
+- Do not write final validation artifact; P3 owns it.
+- Do not change package version/dependencies or manually commit.
 
 ACCEPTANCE
 P2 is complete only when:
-1. the Profile AI form exposes the optional **Digest writing style** textarea with accurate guidance;
-2. load/save/clear use the P1 nullable server configuration field directly;
-3. saving style remains separate from Generate now and uses the existing protected mutation path;
-4. stale async Profile responses cannot paint another Profile's style;
-5. browser tests protect per-Profile state, clearing, mutation headers, secret absence, and layout;
-6. P1 backend/identity/provider/public/PHP semantics are unchanged;
-7. required portable/browser evidence passes on the final P2 tree;
-8. package remains exactly `2.2.0` and no Phase 2 PHP work was pulled forward.
+1. Profile AI form exposes accurate optional **Digest writing style** textarea/help;
+2. load/save/clear use P1's nullable server field directly;
+3. save remains separate from Generate now and uses existing protected mutation path;
+4. stale Profile responses cannot paint another Profile's style;
+5. browser tests protect per-Profile state, clear, header, secret absence, and layout;
+6. P1 backend/identity/provider/public/PHP semantics remain unchanged;
+7. required portable/browser evidence passes;
+8. package remains exactly `2.2.0` and no Phase 2 PHP work is pulled forward.
 
-Finish with a concise implementation report: exact pre/post source identity, changed UI/client/test files, observable admin behavior, tests actually executed/results, package confirmation, and any concern P3 should challenge. Do not declare the correction GREEN; P3 owns final closeout.
+Finish with exact pre/post source identity, changed UI/client/test files, observable admin behavior, tests/results, package confirmation, and concerns for P3. Do not declare correction GREEN; P3 owns final closeout.
