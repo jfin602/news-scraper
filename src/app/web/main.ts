@@ -70,10 +70,11 @@ async function main(): Promise<void> {
       registerDistributionCredentialAdministrationRoutes(
         createDistributionCredentialAdministrationService(applicationDatabase),
       );
+    const phpIntegrationPackageProducer = createPhpIntegrationPackageProducer();
+    const phpIntegrationPackageDescription =
+      await phpIntegrationPackageProducer.describe();
     const registerPhpIntegrationDownloadRoute =
-      registerPhpIntegrationDownloadRoutes(
-        createPhpIntegrationPackageProducer(),
-      );
+      registerPhpIntegrationDownloadRoutes(phpIntegrationPackageProducer);
     const registerModerationRoutes = registerModerationAdministrationRoutes(
       applicationDatabase,
       createArticleAdministrationService(applicationDatabase),
@@ -92,6 +93,8 @@ async function main(): Promise<void> {
         },
         {
           adminEnabled: config.adminEnabled,
+          phpIntegrationPackageVersion:
+            phpIntegrationPackageDescription.version,
           distributionApiRouter: distributionApi.router,
           registerAdminApiRoutes: (router) => {
             registerSourceRoutes(router);

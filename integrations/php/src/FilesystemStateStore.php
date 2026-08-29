@@ -50,7 +50,7 @@ final class FilesystemProfileStateStore implements ProfileSynchronizationStore
     private const SCHEMA_VERSION = 1;
     private ProfileStatePaths $paths;
 
-    public function __construct(string $stateRoot, private readonly LocalFilesystem $filesystem = new NativeLocalFilesystem())
+    public function __construct(string $stateRoot, private readonly LocalFilesystem $filesystem = new NativeLocalFilesystem(), private readonly ?string $installedPackageVersion = null)
     {
         $this->paths = new ProfileStatePaths($stateRoot);
     }
@@ -67,8 +67,9 @@ final class FilesystemProfileStateStore implements ProfileSynchronizationStore
     public function health(string $profileKey): LocalProfileHealth
     {
         $manifest = $this->readManifest($profileKey, false);
-        if ($manifest === null) return new LocalProfileHealth($profileKey, null, null, null, null, null, null, false, null, null, null, false, 'news-scraper-php');
-        return new LocalProfileHealth($profileKey, $this->dateOrNull($manifest['lastAttemptAt']), $this->dateOrNull($manifest['lastSuccessfulSyncAt']), $manifest['syncResult'], $manifest['durationSeconds'], $manifest['itemCount'], $manifest['pageCount'], $manifest['unchanged'], $manifest['snapshotRevision'], $manifest['etag'], $manifest['failureCategory'], $manifest['disabled'], $manifest['adapterVersion']);
+        $version = $this->installedPackageVersion ?? 'news-scraper-php';
+        if ($manifest === null) return new LocalProfileHealth($profileKey, null, null, null, null, null, null, false, null, null, null, false, $version);
+        return new LocalProfileHealth($profileKey, $this->dateOrNull($manifest['lastAttemptAt']), $this->dateOrNull($manifest['lastSuccessfulSyncAt']), $manifest['syncResult'], $manifest['durationSeconds'], $manifest['itemCount'], $manifest['pageCount'], $manifest['unchanged'], $manifest['snapshotRevision'], $manifest['etag'], $manifest['failureCategory'], $manifest['disabled'], $this->installedPackageVersion ?? $manifest['adapterVersion']);
     }
 
     public function readForPhase6(string $profileKey, LocalProfileUsabilityResolver $resolver, SynchronizationClock $clock): LocalProfileRead
@@ -77,7 +78,7 @@ final class FilesystemProfileStateStore implements ProfileSynchronizationStore
             $state = $this->load($profileKey);
             return new LocalProfileRead($state->active, $resolver->resolve($state, $clock->now()), $this->health($profileKey));
         } catch (LocalStateException) {
-            return new LocalProfileRead(null, new LocalProfileUsability(LocalProfileUsability::UNAVAILABLE, null), new LocalProfileHealth($profileKey, null, null, 'local_unavailable', null, null, null, false, null, null, 'local_state_invalid', false, 'news-scraper-php'));
+            return new LocalProfileRead(null, new LocalProfileUsability(LocalProfileUsability::UNAVAILABLE, null), new LocalProfileHealth($profileKey, null, null, 'local_unavailable', null, null, null, false, null, null, 'local_state_invalid', false, $this->installedPackageVersion ?? 'news-scraper-php'));
         }
     }
 

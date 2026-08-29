@@ -677,7 +677,7 @@ const adminPage = `<!doctype html>
                 <h2 id="credentials-heading" tabindex="-1">Distribution Credentials</h2>
               </div>
               <div class="panel-actions">
-                <a class="button primary" href="/admin/api/php-integration/download">Download PHP Integration</a>
+                <a class="button primary" href="/admin/api/php-integration/download">Download PHP Integration __PHP_INTEGRATION_VERSION__</a>
                 <button type="button" class="button secondary" data-refresh-credentials>Refresh Credentials</button>
               </div>
             </div>
@@ -945,9 +945,20 @@ const adminAssets = new Map<
  * Asset names are manifest keys rather than filesystem paths so future browser
  * modules can be added here without changing API security middleware.
  */
-export function registerAdminPageRoutes(router: Router): void {
+export function registerAdminPageRoutes(
+  router: Router,
+  phpIntegrationPackageVersion: string,
+): void {
   router.get('/', (_request, response) => {
-    response.status(200).type('html').send(adminPage);
+    response
+      .status(200)
+      .type('html')
+      .send(
+        adminPage.replace(
+          '__PHP_INTEGRATION_VERSION__',
+          escapeHtml(phpIntegrationPackageVersion),
+        ),
+      );
   });
   router.get('/assets/:assetName', (request, response) => {
     const asset = adminAssets.get(request.params.assetName);
@@ -957,4 +968,18 @@ export function registerAdminPageRoutes(router: Router): void {
     }
     response.status(200).type(asset.type).send(asset.content);
   });
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(
+    /[&<>"']/gu,
+    (character) =>
+      ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+      })[character]!,
+  );
 }

@@ -20,12 +20,16 @@ import {
 const root = path.resolve(import.meta.dirname, '../..');
 const sourceManifest = [
   ['README.md', 'integrations/php/README.md'],
+  ['UPGRADE.md', 'integrations/php/UPGRADE.md'],
   ['run-sync.php', 'integrations/php/run-sync.php'],
+  ['preflight.php', 'integrations/php/preflight.php'],
   ['local-read.php', 'integrations/php/local-read.php'],
   ['top-tag.php', 'integrations/php/top-tag.php'],
   ['bin/sync.php', 'integrations/php/bin/sync.php'],
   ['src/Http.php', 'integrations/php/src/Http.php'],
   ['src/Configuration.php', 'integrations/php/src/Configuration.php'],
+  ['src/PackageMetadata.php', 'integrations/php/src/PackageMetadata.php'],
+  ['src/Preflight.php', 'integrations/php/src/Preflight.php'],
   ['src/Digest.php', 'integrations/php/src/Digest.php'],
   ['src/Client.php', 'integrations/php/src/Client.php'],
   ['src/Synchronizer.php', 'integrations/php/src/Synchronizer.php'],
@@ -80,7 +84,7 @@ test('produces the exact deterministic customer manifest and a consumer-ready re
       .get('ns-integration/src/bootstrap.php')
       ?.toString()
       .match(/require_once __DIR__ \. '\/([^']+)'/gu)?.length,
-    9,
+    11,
   );
   assert.equal(
     [...entries.keys()].some(
@@ -105,6 +109,14 @@ test('produces the exact deterministic customer manifest and a consumer-ready re
     /src\/bootstrap\.php|sync\.env|NEWS_SCRAPER_BEARER_TOKEN|NEWS_SCRAPER_BASE_URL/u,
   );
   assert.doesNotMatch(topTag, /FallbackHtmlRenderer|LocalProfileRenderer/u);
+  assert.match(
+    entries.get('ns-integration/UPGRADE.md')!.toString(),
+    /preflight\.php/u,
+  );
+  assert.match(
+    entries.get('ns-integration/preflight.php')!.toString(),
+    /PackagePreflight/u,
+  );
 });
 
 test('keeps configuration defaults and visitor/synchronization secrets separate', async () => {

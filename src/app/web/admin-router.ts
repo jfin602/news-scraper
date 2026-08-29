@@ -9,10 +9,12 @@ import { registerAdminPageRoutes } from './admin-page.ts';
 
 export type AdminApiRouteRegistrar = (router: Router) => void;
 
-export function createAdminPageRouter(): Router {
+export function createAdminPageRouter(
+  phpIntegrationPackageVersion = 'unavailable',
+): Router {
   const router = express.Router();
   router.use(setAdminSecurityHeaders);
-  registerAdminPageRoutes(router);
+  registerAdminPageRoutes(router, phpIntegrationPackageVersion);
   return router;
 }
 

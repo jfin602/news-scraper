@@ -53,6 +53,7 @@ export interface WebOptions {
   readonly adminEnabled?: boolean;
   readonly registerAdminApiRoutes?: AdminApiRouteRegistrar;
   readonly distributionApiRouter?: Router;
+  readonly phpIntegrationPackageVersion?: string;
 }
 
 export function createWebApp(
@@ -84,7 +85,10 @@ export function createWebApp(
   });
 
   if (options.adminEnabled === true) {
-    app.use('/admin', createAdminPageRouter());
+    app.use(
+      '/admin',
+      createAdminPageRouter(options.phpIntegrationPackageVersion),
+    );
     app.use('/admin/api', createAdminApiRouter(options.registerAdminApiRoutes));
   }
 

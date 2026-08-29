@@ -70,6 +70,7 @@ upstream request, Gemini key, or digest cron. Digest text is rendered as escaped
 plain text and its supporting destinations are application-resolved stored
 Article URLs; final customer styling and layout remain customer-owned.
 
-Package upgrade and preflight procedures are documented with the package
-release workflow when available; this reference intentionally does not define
-those future mechanics.
+For a supported staged package replacement, preflight, and directory rollback,
+follow the packaged [UPGRADE.md](UPGRADE.md). Those procedures preserve the
+sibling `ns-private` directory, stable cron path, local state, and
+customer-owned markup.

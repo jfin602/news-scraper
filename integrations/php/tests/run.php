@@ -53,6 +53,9 @@ use NewsScraper\Integration\Php\LocalReadSource;
 use NewsScraper\Integration\Php\LocalReadHealth;
 use NewsScraper\Integration\Php\EnvironmentFileLoader;
 use NewsScraper\Integration\Php\IntegrationConfigurationLoader;
+use NewsScraper\Integration\Php\PackageMetadataException;
+use NewsScraper\Integration\Php\PackageMetadataReader;
+use NewsScraper\Integration\Php\PackagePreflight;
 
 $tests = [];
 
@@ -1074,6 +1077,123 @@ testCase('package-owned env files keep local-read authority and sync secrets iso
         trueValue(str_contains($error->getMessage(), 'does not match local-read.env'), 'legacy mismatch fails clearly');
         trueValue(!str_contains($error->getMessage(), 'sync-secret-value'), 'legacy mismatch does not expose a bearer value');
     }
+});
+
+function packageFixture(string $version = '2.2.5'): string
+{
+    $root = filesystemRoot();
+    mkdir($root . DIRECTORY_SEPARATOR . 'src', 0700, true);
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'VERSION', $version . "\n");
+    file_put_contents($root . DIRECTORY_SEPARATOR . 'integration-package.json', json_encode([
+        'name' => 'news-scraper-php-integration',
+        'product' => 'news-scraper',
+        'version' => $version,
+        'apiVersion' => 'v1',
+    ], JSON_THROW_ON_ERROR));
+    foreach (['run-sync.php', 'local-read.php', 'top-tag.php', 'preflight.php', 'src/bootstrap.php'] as $file) {
+        $path = $root . DIRECTORY_SEPARATOR . $file;
+        $parent = dirname($path);
+        if (!is_dir($parent)) mkdir($parent, 0700, true);
+        file_put_contents($path, "<?php\n");
+    }
+    return $root;
+}
+
+function preflightLocalConfig(string $privateRoot, string $stateRoot): void
+{
+    if (!is_dir($privateRoot)) mkdir($privateRoot, 0700, true);
+    file_put_contents(
+        $privateRoot . DIRECTORY_SEPARATOR . 'local-read.env',
+        "NEWS_SCRAPER_PROFILE_KEY=weekly-desk\nNEWS_SCRAPER_STATE_ROOT={$stateRoot}\nNEWS_SCRAPER_SYNC_CADENCE_SECONDS=900\n",
+    );
+}
+
+function preflightCategory(callable $operation): string
+{
+    try {
+        $operation();
+    } catch (InvalidArgumentException $error) {
+        return $error->getMessage();
+    }
+    failTest('preflight accepted invalid input');
+}
+
+testCase('package metadata and preflight are coherent, non-destructive, and secret-safe', static function (): void {
+    $package = packageFixture();
+    $private = filesystemRoot();
+    $state = filesystemRoot();
+    preflightLocalConfig($private, $state);
+    $store = new FilesystemProfileStateStore($state);
+    $store->activate(filesystemActivation('preflight-lkg'));
+    file_put_contents(
+        $private . DIRECTORY_SEPARATOR . 'sync.env',
+        "NEWS_SCRAPER_BASE_URL=https://api.example.test\nNEWS_SCRAPER_BEARER_TOKEN=preflight-secret-value\nNEWS_SCRAPER_TIMEOUT_SECONDS=20\nNEWS_SCRAPER_MAX_RESPONSE_BYTES=2048\nNEWS_SCRAPER_PROFILE_KEY=weekly-desk\n",
+    );
+    $profileDirectory = $state . DIRECTORY_SEPARATOR . 'profiles' . DIRECTORY_SEPARATOR . hash('sha256', 'weekly-desk');
+    $manifest = $profileDirectory . DIRECTORY_SEPARATOR . 'manifest.json';
+    $generation = $profileDirectory . DIRECTORY_SEPARATOR . 'generations' . DIRECTORY_SEPARATOR . json_decode((string) file_get_contents($manifest), true, 32, JSON_THROW_ON_ERROR)['activeGeneration'];
+    $before = [
+        hash_file('sha256', $private . DIRECTORY_SEPARATOR . 'local-read.env'),
+        hash_file('sha256', $private . DIRECTORY_SEPARATOR . 'sync.env'),
+        hash_file('sha256', $manifest),
+        hash_file('sha256', $generation),
+    ];
+
+    same('2.2.5', PackageMetadataReader::read($package)->version, 'package metadata resolves the installed version');
+    $result = PackagePreflight::run($package, $private, true);
+    same('2.2.5', $result['version'], 'preflight reports package-owned version');
+    same(['package', 'runtime', 'local_config', 'sync_config', 'state'], $result['checks'], 'preflight reports bounded checks');
+    same($before, [
+        hash_file('sha256', $private . DIRECTORY_SEPARATOR . 'local-read.env'),
+        hash_file('sha256', $private . DIRECTORY_SEPARATOR . 'sync.env'),
+        hash_file('sha256', $manifest),
+        hash_file('sha256', $generation),
+    ], 'preflight does not mutate private configuration or LKG');
+    same('preflight-lkg', $store->load('weekly-desk')->active->items[0]->articleId, 'existing customer Article LKG remains readable');
+    trueValue(!str_contains((string) file_get_contents($manifest), '2.2.5'), 'installed package version is not durable state authority');
+    trueValue(!str_contains(serialize($result), 'preflight-secret-value'), 'preflight output omits synchronization credentials');
+});
+
+testCase('package metadata and preflight fail in stable bounded categories', static function (): void {
+    $package = packageFixture();
+    $private = filesystemRoot();
+    $state = filesystemRoot();
+    preflightLocalConfig($private, $state);
+    file_put_contents($package . DIRECTORY_SEPARATOR . 'integration-package.json', '{');
+    try {
+        PackageMetadataReader::read($package);
+        failTest('malformed package metadata was accepted');
+    } catch (PackageMetadataException $error) {
+        trueValue(!str_contains($error->getMessage(), $package), 'metadata failure omits filesystem detail');
+    }
+    same('package_metadata_invalid', preflightCategory(static fn (): array => PackagePreflight::run($package, $private, false)), 'invalid metadata category');
+
+    $package = packageFixture();
+    unlink($package . DIRECTORY_SEPARATOR . 'top-tag.php');
+    same('package_files_missing', preflightCategory(static fn (): array => PackagePreflight::run($package, $private, false)), 'missing required package file category');
+
+    $package = packageFixture();
+    file_put_contents($private . DIRECTORY_SEPARATOR . 'local-read.env', "NEWS_SCRAPER_PROFILE_KEY=weekly-desk\nNEWS_SCRAPER_STATE_ROOT=relative\n");
+    same('local_config_invalid', preflightCategory(static fn (): array => PackagePreflight::run($package, $private, false)), 'invalid local configuration category');
+
+    preflightLocalConfig($private, $state);
+    file_put_contents($private . DIRECTORY_SEPARATOR . 'sync.env', "NEWS_SCRAPER_BASE_URL=https://api.example.test\nNEWS_SCRAPER_BEARER_TOKEN=preflight-secret-value\nNEWS_SCRAPER_PROFILE_KEY=wrong-profile\n");
+    $category = preflightCategory(static fn (): array => PackagePreflight::run($package, $private, true));
+    same('sync_config_invalid', $category, 'invalid sync configuration category');
+    trueValue(!str_contains($category, 'preflight-secret-value'), 'preflight category omits bearer value');
+
+    $unusable = filesystemRoot() . DIRECTORY_SEPARATOR . 'missing';
+    preflightLocalConfig($private, $unusable);
+    same('state_root_unusable', preflightCategory(static fn (): array => PackagePreflight::run($package, $private, false)), 'missing state root category');
+});
+
+testCase('fresh state-root preflight remains non-mutating and does not attempt upstream access', static function (): void {
+    $package = packageFixture();
+    $private = filesystemRoot();
+    $state = filesystemRoot();
+    preflightLocalConfig($private, $state);
+    same(['package', 'runtime', 'local_config', 'state'], PackagePreflight::run($package, $private, false)['checks'], 'offline preflight accepts an empty usable state root');
+    same([], array_values(array_filter(scandir($state) ?: [], static fn (string $entry): bool => !in_array($entry, ['.', '..'], true))), 'offline preflight creates no state files');
 });
 
 testCase('env parser fails boundedly and treats interpolation-like values as literal data', static function (): void {

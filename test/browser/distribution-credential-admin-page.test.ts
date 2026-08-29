@@ -173,7 +173,7 @@ describe('Distribution credential administration page browser behavior', () => {
         .waitFor();
 
       const downloadLink = page.getByRole('link', {
-        name: 'Download PHP Integration',
+        name: 'Download PHP Integration 1.7.0',
       });
       await downloadLink.waitFor();
       assert.equal(
@@ -219,6 +219,7 @@ class CredentialHarness {
   packageBuilds = 0;
   packageProducer(): PhpIntegrationPackageProducer {
     return {
+      describe: async () => ({ version: '1.7.0' }),
       build: async () => {
         this.packageBuilds += 1;
         return {
@@ -315,6 +316,7 @@ async function startHarnessServer(
       },
       {
         adminEnabled: true,
+        phpIntegrationPackageVersion: '1.7.0',
         registerAdminApiRoutes: (router) => {
           registerDistributionCredentialAdministrationRoutes(harness.service())(
             router,

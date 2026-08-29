@@ -87,10 +87,10 @@ final class ProfileSyncRuntime
 
 final class IntegrationRuntimeFactory
 {
-    public static function create(IntegrationRuntimeConfiguration $configuration): ProfileSyncRuntime
+    public static function create(IntegrationRuntimeConfiguration $configuration, ?string $installedPackageVersion = null): ProfileSyncRuntime
     {
         $clock = new SystemSynchronizationClock();
-        $store = new FilesystemProfileStateStore($configuration->stateRoot);
+        $store = new FilesystemProfileStateStore($configuration->stateRoot, new NativeLocalFilesystem(), $installedPackageVersion);
         return new ProfileSyncRuntime(
             $store,
             new ProfileSynchronizer(
@@ -105,7 +105,7 @@ final class IntegrationRuntimeFactory
 final class SynchronizationCommand
 {
     /** @param array<int, string> $arguments */
-    public static function run(IntegrationRuntimeConfiguration $configuration, array $arguments): int
+    public static function run(IntegrationRuntimeConfiguration $configuration, array $arguments, ?string $installedPackageVersion = null): int
     {
         $force = in_array('--force', $arguments, true);
         if (count(array_filter($arguments, static fn (string $argument): bool => $argument !== '--force')) > 0) {
@@ -113,7 +113,7 @@ final class SynchronizationCommand
             return 2;
         }
         try {
-            $result = IntegrationRuntimeFactory::create($configuration)->run($configuration->profileKey, $force);
+            $result = IntegrationRuntimeFactory::create($configuration, $installedPackageVersion)->run($configuration->profileKey, $force);
             if ($result instanceof CadenceDecision) {
                 fwrite(STDOUT, "not_due profile=" . $configuration->profileKey . "\n");
                 return 0;

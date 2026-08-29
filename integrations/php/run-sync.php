@@ -13,7 +13,8 @@ try {
         $privateRoot . DIRECTORY_SEPARATOR . 'local-read.env',
         $privateRoot . DIRECTORY_SEPARATOR . 'sync.env',
     );
-    exit(SynchronizationCommand::run($configuration, array_slice($argv, 1)));
+    $metadata = PackageMetadataReader::read(__DIR__);
+    exit(SynchronizationCommand::run($configuration, array_slice($argv, 1), $metadata->version));
 } catch (\InvalidArgumentException $error) {
     fwrite(STDERR, "configuration_error " . $error->getMessage() . "\n");
     exit(2);

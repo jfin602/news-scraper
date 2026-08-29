@@ -158,6 +158,9 @@ describe('Distribution credential administration HTTP API', () => {
     const packageBytes = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x00, 0xff]);
     let packageBuilds = 0;
     const producer: PhpIntegrationPackageProducer = {
+      async describe() {
+        return { version: '1.7.0' };
+      },
       async build() {
         packageBuilds += 1;
         return {
@@ -209,6 +212,9 @@ describe('Distribution credential administration HTTP API', () => {
     const internalPath = 'C:\\private\\sentinel\\package.zip';
     const internalError = 'zip failure secret sentinel';
     const producer: PhpIntegrationPackageProducer = {
+      async describe() {
+        return { version: '1.7.0' };
+      },
       async build() {
         const error = new PhpIntegrationPackageError('missing_file');
         error.message = `${internalPath}: ${internalError}`;

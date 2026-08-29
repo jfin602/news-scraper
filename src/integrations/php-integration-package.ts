@@ -19,12 +19,16 @@ const ABSOLUTE_MAX_ARCHIVE_BYTES = 70_000_000;
 
 const MANIFEST = [
   ['README.md', 'integrations/php/README.md'],
+  ['UPGRADE.md', 'integrations/php/UPGRADE.md'],
   ['run-sync.php', 'integrations/php/run-sync.php'],
+  ['preflight.php', 'integrations/php/preflight.php'],
   ['local-read.php', 'integrations/php/local-read.php'],
   ['top-tag.php', 'integrations/php/top-tag.php'],
   ['bin/sync.php', 'integrations/php/bin/sync.php'],
   ['src/Http.php', 'integrations/php/src/Http.php'],
   ['src/Configuration.php', 'integrations/php/src/Configuration.php'],
+  ['src/PackageMetadata.php', 'integrations/php/src/PackageMetadata.php'],
+  ['src/Preflight.php', 'integrations/php/src/Preflight.php'],
   ['src/Digest.php', 'integrations/php/src/Digest.php'],
   ['src/Client.php', 'integrations/php/src/Client.php'],
   ['src/Synchronizer.php', 'integrations/php/src/Synchronizer.php'],
@@ -56,8 +60,13 @@ export interface PhpIntegrationPackage {
   readonly bytes: Buffer;
 }
 
+export interface PhpIntegrationPackageDescription {
+  readonly version: string;
+}
+
 export interface PhpIntegrationPackageProducer {
   build(): Promise<PhpIntegrationPackage>;
+  describe(): Promise<PhpIntegrationPackageDescription>;
 }
 
 export interface PhpIntegrationPackageLimits {
@@ -98,6 +107,11 @@ export function createPhpIntegrationPackageProducer(
   const boundedLimits = validateLimits(limits);
 
   return {
+    async describe(): Promise<PhpIntegrationPackageDescription> {
+      await assertDirectory(root);
+      const metadata = await readProjectMetadata(root);
+      return { version: metadata.version };
+    },
     async build(): Promise<PhpIntegrationPackage> {
       await assertDirectory(root);
       const packageMetadata = await readProjectMetadata(root);
