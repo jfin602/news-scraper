@@ -49,6 +49,7 @@ const {
 } = core;
 const {
   buildCodexArguments,
+  buildCodexExecutionPrompt,
   assertCodexVersionCompatible,
   checkCodexLauncher,
   compareNumericVersions,
@@ -788,6 +789,19 @@ test('a malformed final partial JSONL event fails before completion', async () =
   await assert.rejects(processor.finish(), /Unusable structured Codex output/);
 });
 
+test('execution contract decorates normal roadmap and correction task text', () => {
+  for (const taskText of [
+    'TASK: Phase 8 / P1 — normal implementation',
+    'TASK: Correction 8 / P1 — bounded repair',
+  ]) {
+    const executionPrompt = buildCodexExecutionPrompt(taskText);
+    assert.match(executionPrompt, /^PHASE RUNNER EXECUTION CONTRACT\r?\n/);
+    assert.match(executionPrompt, /Do not create Git commits\./);
+    assert.match(executionPrompt, /runner-owned Git commit boundary\./);
+    assert.ok(executionPrompt.endsWith(taskText));
+  }
+});
+
 test('runCodex sends the preflight snapshot and uses native final-response capture', async () => {
   const temporaryDirectory = await mkdtemp(
     path.join(tmpdir(), 'news-scraper-runner-test-'),
@@ -867,7 +881,11 @@ test('runCodex sends the preflight snapshot and uses native final-response captu
       resolution.launcher.prefixArguments[0],
     );
     assert.equal(shell, false);
-    assert.equal(stdinText, originalText);
+    assert.match(stdinText, /^PHASE RUNNER EXECUTION CONTRACT\r?\n/);
+    assert.match(stdinText, /Do not create Git commits\./);
+    assert.match(stdinText, /The phase runner exclusively owns:/);
+    assert.ok(stdinText.endsWith(originalText));
+    assert.equal(stdinText, buildCodexExecutionPrompt(originalText));
     assert.notEqual(stdinText, await readFile(taskFile, 'utf8'));
     assert.equal(result.finalResponse, 'native final');
     assert.equal(seen.length, 1);

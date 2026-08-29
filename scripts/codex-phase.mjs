@@ -340,6 +340,40 @@ export function buildCodexArguments(prompt, rootDirectory, finalFile) {
   ];
 }
 
+const PHASE_RUNNER_EXECUTION_CONTRACT = `PHASE RUNNER EXECUTION CONTRACT
+
+You are being executed by the News Scraper phase runner.
+
+Do not create Git commits.
+
+Do not run git commit, git commit --amend, git reset, git rebase,
+git merge, git checkout, git switch, or otherwise move or rewrite HEAD.
+
+Read-only Git inspection commands are allowed.
+
+Make the requested implementation changes and run the requested
+validation, but leave all implementation changes uncommitted in the
+working tree.
+
+The phase runner exclusively owns:
+- staging;
+- the implementation commit;
+- the commit subject;
+- the commit body;
+- verification of the resulting commit.
+
+If the task asks you to report a commit or tree identity, do not create
+a commit yourself. Report the pre-task HEAD and implementation result.
+The runner will create the authoritative implementation commit after
+your turn completes.
+
+The task instructions remain authoritative except where they conflict
+with this runner-owned Git commit boundary.`;
+
+export function buildCodexExecutionPrompt(taskText) {
+  return `${PHASE_RUNNER_EXECUTION_CONTRACT}\n\n${taskText}`;
+}
+
 export async function runCodex(
   prompt,
   runDirectory,
@@ -380,7 +414,7 @@ export async function runCodex(
     if (verbose) process.stderr.write(chunk);
   });
 
-  child.stdin.end(prompt.text);
+  child.stdin.end(buildCodexExecutionPrompt(prompt.text));
   let processFailure;
   const result = await new Promise((resolve) => {
     child.once('error', (error) => {
