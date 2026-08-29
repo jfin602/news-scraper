@@ -86,16 +86,48 @@ Observed:
 
 This preflight proves the production schema is current and gives a clean baseline for the integrated lifecycle proof: an active real Profile exists, AI is disabled by default, no prior active digest can be mistaken for the qualification result, and the scheduler has already persisted the disabled-path outcome without invoking Gemini.
 
+## Real canonical digest input proof
+
+The owner then called the production `createDigestInputService()` against `php_integration_test` with the real VPS PostgreSQL state and current clock. This was a read-only canonical-input inspection before enabling AI.
+
+Observed bounded input:
+
+- Profile: `php_integration_test` / `PHP Integration Test`;
+- settings at read time: `digestEnabled=false`, lookback 7 days, max 20 Articles;
+- deterministic `digestInputIdentity`: `f7e8a8d87bcf5dbcbc906d6880a462975b21f60f3366a1876201316f2fc4c783`;
+- qualifying Article count: 10;
+- all 10 Articles had persisted summaries available;
+- newest qualifying `effectiveFeedDate`: `2026-08-27T10:15:37.000Z`;
+- oldest qualifying `effectiveFeedDate`: `2026-08-24T10:45:00.000Z`;
+- the input spans the Profile's real canonical content from Based Book Sale, Jane Friedman, Author Media, The Creative Penn, and The Episodic Podcast;
+- exact stored `originalUrl` values were present for every Article and therefore available to the governed URL Context boundary.
+
+The 10 observed headlines, in canonical order, were:
+
+1. `Call for Authors: 2026 BasedCon Based Book Sale`;
+2. `Why Top Literary Magazines Charge Writers Who Submit: Q&A with Benjamin Davis of Chill Subs`;
+3. `Bindery Books launches a new fiction imprint`;
+4. `Harper Collins launches manga imprint`;
+5. `Insight Editions launches Naga Archives`;
+6. `Will Your Back Matter Get Your Book Banned on Amazon?`;
+7. `From Page One To Done: Fast Drafting Your Novel With Jessica Brody`;
+8. `AI Read Aristotle That’s Why It Writes Better Than You`;
+9. `When and How to Nudge Agents`;
+10. `Writing, Publishing & Authorship : 8-11-26`.
+
+The read emitted a `pg` deprecation warning about calling `client.query()` while a query was already executing. The command still returned the complete canonical result and no database or application error. This warning is recorded as incidental qualification evidence and does not by itself invalidate the canonical-input proof; if it recurs in the mutation/lifecycle proof or indicates an actual concurrency defect, it must be handled separately rather than ignored.
+
+This proves the integrated generation will start from the existing canonical Profile snapshot producer and its bounded 7-day/max-20 projection rather than a test fixture, raw Article query, or AI-owned selector.
+
 ## Evidence still required before Phase 1 closeout
 
-1. Inspect the bounded canonical digest input for `php_integration_test` from the real VPS database without mutation.
-2. Enable the Profile digest through the supported administration service while preserving the existing 7-day / 20-Article bounds.
-3. Execute one manual generation through the production digest lifecycle and real Gemini provider.
-4. Prove a successful generation is durably persisted and activated, with `gemini-3.6-flash` recorded as the model and a bounded successful attempt state.
-5. Re-read the active digest from a fresh process to prove durability rather than in-memory state.
-6. Inspect the protected admin read model and permanent v1 distribution representation for the same active digest where practical, including exact governed supporting-Article destinations and digest participation in the outward snapshot.
-7. Keep ordinary Article distribution and non-AI operation unaffected throughout qualification.
+1. Enable the Profile digest through the supported administration service while preserving the existing 7-day / 20-Article bounds.
+2. Execute one manual generation through the production digest lifecycle and real Gemini provider.
+3. Prove a successful generation is durably persisted and activated, with `gemini-3.6-flash` recorded as the model and a bounded successful attempt state.
+4. Re-read the active digest from a fresh process to prove durability rather than in-memory state.
+5. Inspect the protected admin read model and permanent v1 distribution representation for the same active digest where practical, including exact governed supporting-Article destinations and digest participation in the outward snapshot.
+6. Keep ordinary Article distribution and non-AI operation unaffected throughout qualification.
 
 ## Current disposition
 
-**IN PROGRESS.** The live provider gate is GREEN and the exact VPS candidate/database baseline is now established with a current schema and clean no-active-digest Profile state. Phase 1 is not yet marked GREEN because the final integrated PostgreSQL generation/persistence/activation/readback proof remains to be executed and recorded.
+**IN PROGRESS.** The live provider gate is GREEN; the exact VPS candidate/database baseline is current; and the real canonical digest input has been observed as 10 bounded, summary-bearing Profile Articles across five Sources. Phase 1 is not yet marked GREEN because the final integrated PostgreSQL generation/persistence/activation/readback proof remains to be executed and recorded.
