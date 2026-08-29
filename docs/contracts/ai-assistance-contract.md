@@ -12,7 +12,7 @@ News Scraper may use generative AI to help readers understand and interrogate th
 
 The initial 3.0 implementation uses Google Gemini. Provider-specific request/response handling MAY live behind a narrow provider boundary, but subject/editorial behavior remains provider-independent and topic independent.
 
-The initial Gemini provider profile is the Gemini Developer API using the Interactions API through the official `@google/genai` SDK, with stable `gemini-3.7-flash` as the initial configured model. Scheduled digest generation uses low thinking, structured JSON output validated against an application-owned schema, `store=false`, Gemini URL Context over application-selected governed Article URLs, and no Google Search grounding. These provider choices are implementation configuration rather than subject/editorial behavior and may change later only through deliberate compatible configuration/contract review.
+The initial Gemini provider profile is the Gemini Developer API using the Interactions API through the official `@google/genai` SDK, with stable `gemini-3.6-flash` as the initial configured model. Scheduled digest generation uses low thinking, structured JSON output validated against an application-owned schema, `store=false`, Gemini URL Context over application-selected governed Article URLs, and no Google Search grounding. These provider choices are implementation configuration rather than subject/editorial behavior and may change later only through deliberate compatible configuration/contract review.
 
 The two initial AI capabilities are:
 

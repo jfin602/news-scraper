@@ -92,6 +92,7 @@ test('provider uses the exact five-minute default for its client and abort signa
 });
 
 test('Gemini configuration is namespaced, optional until generation, and key-safe', async () => {
+  assert.equal(DEFAULT_GEMINI_MODEL, 'gemini-3.6-flash');
   assert.deepEqual(parseGeminiProviderRuntimeConfig({}), {
     apiKey: undefined,
     model: DEFAULT_GEMINI_MODEL,
@@ -102,6 +103,12 @@ test('Gemini configuration is namespaced, optional until generation, and key-saf
       GOOGLE_API_KEY: 'also-wrong',
     }),
     { apiKey: undefined, model: DEFAULT_GEMINI_MODEL },
+  );
+  assert.deepEqual(
+    parseGeminiProviderRuntimeConfig({
+      NEWS_SCRAPER_GEMINI_MODEL: 'explicit-test-model',
+    }),
+    { apiKey: undefined, model: 'explicit-test-model' },
   );
   assert.throws(
     () =>
@@ -228,7 +235,7 @@ test('Gemini adapter makes one call and reduces valid output, usage, and retriev
   const provider = createGeminiDigestProvider({
     environment: {
       NEWS_SCRAPER_GEMINI_API_KEY: 'private-key',
-      NEWS_SCRAPER_GEMINI_MODEL: 'gemini-3.7-flash',
+      NEWS_SCRAPER_GEMINI_MODEL: 'explicit-test-model',
     },
     createClient: () => fake,
   });

@@ -33,7 +33,6 @@ test('live Gemini Interactions URL Context proof returns a validated bounded can
   const result = await createGeminiDigestProvider({
     environment: {
       NEWS_SCRAPER_GEMINI_API_KEY: apiKey,
-      NEWS_SCRAPER_GEMINI_MODEL: 'gemini-3.7-flash',
     },
   }).generate(liveInput(parsedUrl.toString()));
   assert.equal(
