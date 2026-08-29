@@ -4,6 +4,7 @@ import {
   mkdir,
   mkdtemp,
   readFile,
+  rename,
   rm,
   symlink,
   writeFile,
@@ -163,6 +164,11 @@ test('keeps configuration defaults and visitor/synchronization secrets separate'
   assert.match(launcher, /ns-private.*local-read\.env/su);
   assert.match(launcher, /ns-private.*sync\.env/su);
   assert.match(launcher, /SynchronizationCommand::run/u);
+  assert.match(
+    launcher,
+    /use NewsScraper\\Integration\\Php\\PackageMetadataReader;/u,
+  );
+  assert.match(launcher, /PackageMetadataReader::read\(__DIR__\)/u);
   assert.doesNotMatch(launcher, /NEWS_SCRAPER_BEARER_TOKEN/u);
   const customerEntry = entries
     .get('ns-integration/local-read.php')!
@@ -194,6 +200,137 @@ test('derives metadata from the same fixture tree and remains stable without sec
     );
   } finally {
     await rm(fixture, { recursive: true, force: true });
+  }
+});
+
+test('staged whole-directory replacement and rollback preserve customer-owned private state and paths', async () => {
+  const deployment = await mkdtemp(
+    path.join(os.tmpdir(), 'news-scraper-php-upgrade-'),
+  );
+  const previousFixture = await createFixture('2.2.0');
+  try {
+    const live = path.join(deployment, 'ns-integration');
+    const stage = path.join(deployment, 'ns-integration-stage');
+    const backup = path.join(deployment, 'ns-integration-backup-2.2.0');
+    const failed = path.join(deployment, 'ns-integration-failed');
+    const privateRoot = path.join(deployment, 'ns-private');
+    const customerRoot = path.join(deployment, 'public_html');
+    const stateRoot = path.join(privateRoot, 'state');
+    const generationRoot = path.join(
+      stateRoot,
+      'profiles',
+      'weekly-desk',
+      'generations',
+    );
+
+    await extractPackage(
+      (await createPhpIntegrationPackageProducer(previousFixture).build())
+        .bytes,
+      live,
+    );
+    await writeFile(path.join(live, 'old-package-only.php'), 'old package');
+    await mkdir(generationRoot, { recursive: true });
+    await mkdir(customerRoot, { recursive: true });
+    const localConfiguration =
+      'NEWS_SCRAPER_PROFILE_KEY=weekly-desk\n' +
+      `NEWS_SCRAPER_STATE_ROOT=${stateRoot}\n` +
+      'NEWS_SCRAPER_SYNC_CADENCE_SECONDS=900\n';
+    const synchronizationConfiguration =
+      'NEWS_SCRAPER_BASE_URL=https://api.example.test\n' +
+      'NEWS_SCRAPER_BEARER_TOKEN=private-upgrade-sentinel\n';
+    const initialGeneration = JSON.stringify({
+      profileKey: 'weekly-desk',
+      snapshotRevision: 'revision-before-upgrade',
+      items: [
+        {
+          articleId: 'article-1',
+          originalUrl: 'https://publisher.example/one',
+        },
+      ],
+      digest: null,
+    });
+    const customerMarkup = "<?php require '../ns-integration/local-read.php';";
+    const cronTarget = '/usr/bin/php /customer/ns-integration/run-sync.php';
+    await writeFile(
+      path.join(privateRoot, 'local-read.env'),
+      localConfiguration,
+    );
+    await writeFile(
+      path.join(privateRoot, 'sync.env'),
+      synchronizationConfiguration,
+    );
+    await writeFile(
+      path.join(generationRoot, 'g-before.json'),
+      initialGeneration,
+    );
+    await writeFile(path.join(customerRoot, 'top-tag.php'), customerMarkup);
+    await writeFile(path.join(deployment, 'cron.txt'), cronTarget);
+
+    const privateBefore = await readCustomerState(deployment);
+    const candidate = await createPhpIntegrationPackageProducer().build();
+    await extractPackage(candidate.bytes, stage);
+    assert.equal(
+      (await readFile(path.join(stage, 'VERSION'), 'utf8')).trim(),
+      candidate.version,
+    );
+    await assert.rejects(() =>
+      readFile(path.join(stage, 'old-package-only.php')),
+    );
+    assert.deepEqual(await readCustomerState(deployment), privateBefore);
+
+    await rename(live, backup);
+    await rename(stage, live);
+    assert.equal(
+      (await readFile(path.join(live, 'VERSION'), 'utf8')).trim(),
+      candidate.version,
+    );
+    assert.deepEqual(await readCustomerState(deployment), privateBefore);
+
+    const digestGeneration = JSON.stringify({
+      profileKey: 'weekly-desk',
+      snapshotRevision: 'revision-after-upgrade',
+      items: [
+        {
+          articleId: 'article-1',
+          originalUrl: 'https://publisher.example/one',
+        },
+      ],
+      digest: {
+        freshness: 'current',
+        overview: 'Digest survives package rollback.',
+        highlights: [],
+      },
+    });
+    await writeFile(
+      path.join(generationRoot, 'g-after.json'),
+      digestGeneration,
+    );
+    await rename(live, failed);
+    await rename(backup, live);
+
+    assert.equal(
+      (await readFile(path.join(live, 'VERSION'), 'utf8')).trim(),
+      '2.2.0',
+    );
+    assert.equal(
+      await readFile(path.join(generationRoot, 'g-after.json'), 'utf8'),
+      digestGeneration,
+    );
+    assert.equal(
+      await readFile(path.join(privateRoot, 'sync.env'), 'utf8'),
+      synchronizationConfiguration,
+    );
+    assert.equal(
+      await readFile(path.join(customerRoot, 'top-tag.php'), 'utf8'),
+      customerMarkup,
+    );
+    assert.equal(
+      await readFile(path.join(deployment, 'cron.txt'), 'utf8'),
+      cronTarget,
+    );
+  } finally {
+    await rm(previousFixture, { recursive: true, force: true });
+    await rm(deployment, { recursive: true, force: true });
   }
 });
 
@@ -390,6 +527,34 @@ function isUnsupportedSymlinkError(error: unknown): boolean {
 
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
+}
+
+async function extractPackage(bytes: Buffer, target: string): Promise<void> {
+  const entries = readStoredZip(bytes);
+  for (const [name, data] of entries) {
+    assert.match(name, /^ns-integration\//u);
+    const relative = name.slice('ns-integration/'.length);
+    const destination = path.join(target, ...relative.split('/'));
+    await mkdir(path.dirname(destination), { recursive: true });
+    await writeFile(destination, data);
+  }
+}
+
+async function readCustomerState(
+  deployment: string,
+): Promise<readonly string[]> {
+  return Promise.all(
+    [
+      'ns-private/local-read.env',
+      'ns-private/sync.env',
+      'ns-private/state/profiles/weekly-desk/generations/g-before.json',
+      'public_html/top-tag.php',
+      'cron.txt',
+    ].map(
+      async (relative) =>
+        await readFile(path.join(deployment, ...relative.split('/')), 'utf8'),
+    ),
+  );
 }
 
 function readStoredZip(bytes: Buffer): Map<string, Buffer> {

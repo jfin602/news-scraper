@@ -5,6 +5,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/src/bootstrap.php';
 
 use NewsScraper\Integration\Php\IntegrationConfigurationLoader;
+use NewsScraper\Integration\Php\PackageMetadataReader;
 use NewsScraper\Integration\Php\SynchronizationCommand;
 
 try {
