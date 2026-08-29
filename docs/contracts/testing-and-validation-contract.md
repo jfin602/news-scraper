@@ -394,6 +394,21 @@ A normal phase/correction closeout MAY therefore declare GREEN when all evidence
 
 The later full-system/project release qualification gate MUST build its own final Test Necessity Matrix from the integrated candidate and promote every applicable deferred VPS/live/reference item required for the release claim to `RUN`.
 
+#### Phase 2 / `2.2.x` customer-package qualification exception
+
+The owner-approved 3.0 roadmap explicitly designates the **final integrated Phase 2 candidate** as an earlier exceptional qualification gate because Phase 2 is the last development/hardening gate before replacing the live customer PHP package. This exception applies to the final integrated Phase 2 qualification/closeout candidate, not to every intermediate `2.2.x` implementation prompt.
+
+For that exact candidate, validation planning MUST promote to `RUN` every applicable previously deferred environment-specific item required to support the Phase 2 customer-package claim, including as implicated by the final tree:
+
+- PHP CLI/runtime regression evidence in the assigned VPS environment;
+- PHP-backed customer/server browser evidence;
+- fresh-package and existing-customer-style replacement qualification;
+- stable launcher, authoritative shared/local configuration, synchronization-secret isolation, local-read customer entrypoint, `top-tag.php`, package-version coherence, diagnostics/preflight, LKG/state compatibility, and directory rollback behavior;
+- supported production migration/data-preservation evidence for Phase 2 persistence changes such as Source RSS/Atom Exclude configuration;
+- reference-customer verification that the corrected package preserves customer-owned markup, direct stored publisher destinations, cron target, credential value, private state/LKG, and ordinary Article delivery while the digest traverses the supported API → PHP sync/LKG → local-read → customer SSR path.
+
+The Phase 2 qualification artifact MUST identify the exact integrated candidate and distinguish local, VPS, and reference-customer procedures. Applicable PHP/VPS/customer evidence MUST NOT be deferred past Phase 2 merely to satisfy the default later-major-line policy. Conversely, this exception does not require intermediate Phase 2 prompts running on Windows to invoke VPS-only suites; they continue to mark those items `DEFER` to the final Phase 2 qualification gate until the integrated candidate exists.
+
 ### Validation manifest: `RUN` / `DEFER` / `N/A`
 
 Every implementation/closeout plan MUST resolve the union of required evidence into a validation manifest before prompt writing:
@@ -420,7 +435,7 @@ Intermediate implementation/phase/correction evidence remains historically usefu
 
 A normal implementation prompt or ordinary phase/correction closeout MAY truthfully finish GREEN with deferred environment evidence pending when all evidence assigned `RUN` at that gate passed. The report MUST identify the deferred evidence and later owning qualification gate, and MUST NOT imply that deferred behavior was observed.
 
-When the designated full-system/project release qualification gate combines local and VPS/live/reference evidence, every required result MUST apply to the exact integrated candidate/source tree being accepted. Changing executable source/configuration after that qualification evidence invalidates the affected evidence and requires the applicable qualification matrix to be rerun.
+When the designated full-system/project release qualification gate or the explicitly designated Phase 2 customer-package qualification gate combines local and VPS/live/reference evidence, every required result MUST apply to the exact integrated candidate/source tree being accepted. Changing executable source/configuration after that qualification evidence invalidates the affected evidence and requires the applicable qualification matrix to be rerun.
 
 Parallel execution MAY reduce wall-clock time when it preserves test semantics. Independently isolated test files SHOULD be allowed to execute concurrently where practical, subject to bounded resource limits. File/process scheduling order is not itself a deterministic product invariant: test selection, inputs, assertions, and outcomes must be deterministic, but independent test-process stdout completion order need not be.
 
@@ -677,9 +692,9 @@ An ordinary phase or correction can close when:
 - known skipped/flaky tests do not hide current-gate behavior;
 - validation limitations and deferred qualification evidence are reported explicitly.
 
-VPS/live/reference `DEFER` items do **not** block an ordinary phase/correction GREEN unless the roadmap/task/owner explicitly designates that closeout as the gate that owns them.
+VPS/live/reference `DEFER` items do **not** block an ordinary phase/correction GREEN unless the roadmap/task/owner explicitly designates that closeout as the gate that owns them. The final integrated Phase 2 customer-package qualification/closeout is such an explicitly designated exception and therefore cannot defer its applicable PHP/VPS/reference-customer evidence to a later major-line gate.
 
-A full-system/project release qualification gate cannot close until every applicable deferred item promoted to `RUN` for that release candidate has executed successfully against the exact integrated candidate and the resulting durable qualification evidence records the environments/results honestly.
+A full-system/project release qualification gate cannot close until every applicable deferred item promoted to `RUN` for that release candidate has executed successfully against the exact integrated candidate and the resulting durable qualification evidence records the environments/results honestly. The same exact-tree rule applies to the Phase 2 exceptional customer-package qualification gate.
 
 Every Codex implementation prompt MUST specify focused tests, broader regression tests, and any runtime/browser/database/fixture/provider validation needed for acceptance. It MUST distinguish iterative focused validation from final-tree regression validation, MUST include the resolved `RUN` / `DEFER` / `N/A` validation manifest plus later owning gates, and SHOULD express `RUN` commands as the smallest non-overlapping set that covers all required evidence. A prompt SHOULD NOT require subordinate commands immediately alongside an aggregate command that already executes them on the same unchanged final tree unless a diagnostic or other explicit reason makes the repeated execution meaningful.
 
