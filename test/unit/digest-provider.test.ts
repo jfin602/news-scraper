@@ -7,6 +7,7 @@ import {
   buildGeminiDigestRequest,
   createGeminiDigestProvider,
   createGeminiInteractionsClient,
+  GEMINI_DIGEST_TIMEOUT_MILLISECONDS,
   DIGEST_GENERATED_PROSE_MAXIMUM_CODE_POINTS,
   DIGEST_RESPONSE_SCHEMA,
   validateGeminiDigestResponse,
@@ -26,16 +27,19 @@ test('production Interactions adapter forwards the provider abort signal', async
   let observedSignal: AbortSignal | undefined;
   let observedMaxRetries: number | undefined;
   let observedTimeout: number | undefined;
-  const client = createGeminiInteractionsClient({
-    interactions: {
-      async create(_request, options) {
-        observedSignal = options?.fetchOptions?.signal;
-        observedMaxRetries = options?.maxRetries;
-        observedTimeout = options?.timeout;
-        return { output_text: '{"overview":"ok","highlights":[]}' };
+  const client = createGeminiInteractionsClient(
+    {
+      interactions: {
+        async create(_request, options) {
+          observedSignal = options?.fetchOptions?.signal;
+          observedMaxRetries = options?.maxRetries;
+          observedTimeout = options?.timeout;
+          return { output_text: '{"overview":"ok","highlights":[]}' };
+        },
       },
     },
-  }, 30_000);
+    GEMINI_DIGEST_TIMEOUT_MILLISECONDS,
+  );
 
   await client.create(
     buildGeminiDigestRequest(input(), { model: DEFAULT_GEMINI_MODEL }),
@@ -43,7 +47,48 @@ test('production Interactions adapter forwards the provider abort signal', async
   );
   assert.equal(observedSignal, controller.signal);
   assert.equal(observedMaxRetries, 0);
-  assert.equal(observedTimeout, 30_000);
+  assert.equal(observedTimeout, GEMINI_DIGEST_TIMEOUT_MILLISECONDS);
+});
+
+test('provider uses the exact five-minute default for its client and abort signal', async () => {
+  const originalTimeout = AbortSignal.timeout;
+  let observedAbortTimeout: number | undefined;
+  let observedClientTimeout: number | undefined;
+  let observedSignal: AbortSignal | undefined;
+  Object.defineProperty(AbortSignal, 'timeout', {
+    configurable: true,
+    writable: true,
+    value: (milliseconds: number) => {
+      observedAbortTimeout = milliseconds;
+      return new AbortController().signal;
+    },
+  });
+  try {
+    const provider = createGeminiDigestProvider({
+      environment: { NEWS_SCRAPER_GEMINI_API_KEY: 'do-not-log' },
+      createClient: (_apiKey, timeoutMilliseconds) => {
+        observedClientTimeout = timeoutMilliseconds;
+        return {
+          async create(_request, signal) {
+            observedSignal = signal;
+            return { output_text: '{"overview":"ok","highlights":[]}' };
+          },
+        };
+      },
+    });
+    assert.equal((await provider.generate(input())).kind, 'success');
+  } finally {
+    Object.defineProperty(AbortSignal, 'timeout', {
+      configurable: true,
+      writable: true,
+      value: originalTimeout,
+    });
+  }
+  assert.equal(GEMINI_DIGEST_TIMEOUT_MILLISECONDS, 300_000);
+  assert.equal(observedClientTimeout, 300_000);
+  assert.equal(observedAbortTimeout, 300_000);
+  assert.ok(observedSignal instanceof AbortSignal);
+  assert.equal(observedSignal?.aborted, false);
 });
 
 test('Gemini configuration is namespaced, optional until generation, and key-safe', async () => {
@@ -319,6 +364,32 @@ test('provider timeout uses the controlled abort seam and remains one bounded fa
     category: 'provider_timeout',
   });
   assert.equal(calls, 1);
+});
+
+test('timeout injection accepts the production ceiling but remains bounded', async () => {
+  let observedTimeout: number | undefined;
+  const provider = createGeminiDigestProvider({
+    environment: { NEWS_SCRAPER_GEMINI_API_KEY: 'do-not-log' },
+    timeoutMilliseconds: 300_000,
+    createClient: (_apiKey, timeoutMilliseconds) => {
+      observedTimeout = timeoutMilliseconds;
+      return {
+        async create() {
+          return { output_text: '{"overview":"ok","highlights":[]}' };
+        },
+      };
+    },
+  });
+  assert.equal((await provider.generate(input())).kind, 'success');
+  assert.equal(observedTimeout, 300_000);
+  assert.throws(
+    () => createGeminiDigestProvider({ timeoutMilliseconds: 99 }),
+    /100 through 300000 milliseconds/u,
+  );
+  assert.throws(
+    () => createGeminiDigestProvider({ timeoutMilliseconds: 300_001 }),
+    /100 through 300000 milliseconds/u,
+  );
 });
 
 class RecordingClient implements GeminiInteractionsClient {

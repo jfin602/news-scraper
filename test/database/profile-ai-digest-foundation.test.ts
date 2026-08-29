@@ -3,6 +3,9 @@ import { randomUUID } from 'node:crypto';
 import { after, test } from 'node:test';
 
 import { createDatabase } from '../../src/database/database.ts';
+import { createDigestLifecycleService } from '../../src/distribution/digests/lifecycle.ts';
+import type { DigestInputService } from '../../src/distribution/digests/input.ts';
+import type { DigestGenerationResult } from '../../src/distribution/digests/provider.ts';
 import {
   activateSuccessfulDigestGeneration,
   claimDigestAttempt,
@@ -202,6 +205,76 @@ test('shared attempt claim and stale recovery enforce one running attempt per Pr
       ]);
     } finally {
       await Promise.all([firstDatabase.close(), secondDatabase.close()]);
+    }
+  });
+});
+
+test('digest lifecycle keeps a running default-budget attempt owned until its stale margin expires', async () => {
+  await scope.use(async ({ databaseUrl }) => {
+    const database = createDatabase({ connectionString: databaseUrl });
+    try {
+      const profile = await createProfile(database, 'lifecycle_timeout_budget');
+      const startedAt = new Date('2026-08-28T12:00:00.000Z');
+      let now = new Date(startedAt.getTime());
+      const input = lifecycleInput(profile.id, profile.configKey, startedAt);
+      const inputService: DigestInputService = {
+        async read() {
+          return { kind: 'active' as const, input };
+        },
+        async readForLifecycle() {
+          return {
+            kind: 'active' as const,
+            input,
+            canonicalArticles: [],
+          };
+        },
+      };
+      const firstProviderStarted = deferred<void>();
+      const firstProviderResult = deferred<DigestGenerationResult>();
+      const failure: DigestGenerationResult = Object.freeze({
+        kind: 'failure',
+        category: 'provider_transport_failure',
+      });
+      let providerCalls = 0;
+      const lifecycle = createDigestLifecycleService({
+        database,
+        input: inputService,
+        now: () => new Date(now.getTime()),
+        provider: {
+          async generate() {
+            providerCalls += 1;
+            if (providerCalls === 1) {
+              firstProviderStarted.resolve();
+              return firstProviderResult.promise;
+            }
+            return failure;
+          },
+        },
+      });
+
+      const firstEvaluation = lifecycle.forceGenerate(profile.configKey);
+      await firstProviderStarted.promise;
+
+      now = new Date(startedAt.getTime() + 30_001);
+      const stillOwned = await lifecycle.forceGenerate(profile.configKey);
+      assert.equal(stillOwned.kind, 'already_running');
+      assert.equal(stillOwned.recoveredStaleAttempt, false);
+
+      now = new Date(startedAt.getTime() + 305_001);
+      const recovered = await lifecycle.forceGenerate(profile.configKey);
+      assert.equal(recovered.kind, 'failed');
+      if (recovered.kind !== 'failed') return;
+      assert.equal(recovered.failureCategory, 'provider_transport_failure');
+      assert.equal(recovered.claimed, true);
+      assert.equal(recovered.recoveredStaleAttempt, true);
+      assert.match(recovered.attemptId ?? '', /^[0-9a-f-]{36}$/u);
+
+      firstProviderResult.resolve(failure);
+      const firstResult = await firstEvaluation;
+      assert.equal(firstResult.kind, 'failed');
+      assert.equal(providerCalls, 2);
+    } finally {
+      await database.close();
     }
   });
 });
@@ -636,4 +709,52 @@ async function seedArticles(
     [first, second, sourceId],
   );
   return [first, second];
+}
+
+function lifecycleInput(
+  profileId: string,
+  profileConfigKey: string,
+  resolvedAt: Date,
+) {
+  return Object.freeze({
+    profile: Object.freeze({
+      configKey: profileConfigKey,
+      displayName: profileConfigKey,
+    }),
+    settings: Object.freeze({
+      profileId,
+      profileConfigKey,
+      digestEnabled: true,
+      digestLookbackDays: 7,
+      digestMaxArticleCount: 20,
+      createdAt: new Date(resolvedAt.getTime()),
+      updatedAt: new Date(resolvedAt.getTime()),
+    }),
+    resolvedAt: new Date(resolvedAt.getTime()),
+    articles: Object.freeze([
+      Object.freeze({
+        articleId: 'lifecycle-timeout-article',
+        headline: 'Lifecycle timeout test',
+        sourceDisplayName: 'Lifecycle test source',
+        effectiveFeedDate: new Date(resolvedAt.getTime()),
+        publishedAt: null,
+        author: null,
+        summary: 'Bounded test summary.',
+        categories: Object.freeze([]),
+        originalUrl: 'https://lifecycle.example/article',
+      }),
+    ]),
+    digestInputIdentity: 'a'.repeat(64),
+  });
+}
+
+function deferred<T>(): {
+  readonly promise: Promise<T>;
+  resolve(value: T): void;
+} {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
 }

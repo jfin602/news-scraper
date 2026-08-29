@@ -7,13 +7,16 @@ import {
 } from '../../shared/runtime-config.ts';
 
 export const GEMINI_PROVIDER_NAME = 'google-gemini';
-export const GEMINI_DIGEST_TIMEOUT_MILLISECONDS = 30_000;
+export const GEMINI_DIGEST_TIMEOUT_MILLISECONDS = 300_000;
 export const DIGEST_OVERVIEW_MAXIMUM_CODE_POINTS = 2_000;
 export const DIGEST_HIGHLIGHT_TITLE_MAXIMUM_CODE_POINTS = 200;
 export const DIGEST_HIGHLIGHT_EXPLANATION_MAXIMUM_CODE_POINTS = 500;
 export const DIGEST_GENERATED_PROSE_MAXIMUM_CODE_POINTS = 4_000;
 const MAXIMUM_PROVIDER_OUTPUT_CODE_POINTS = 30_000;
 const MAXIMUM_JSON_DEPTH = 20;
+const MINIMUM_GEMINI_DIGEST_TIMEOUT_MILLISECONDS = 100;
+const MAXIMUM_GEMINI_DIGEST_TIMEOUT_MILLISECONDS =
+  GEMINI_DIGEST_TIMEOUT_MILLISECONDS;
 
 export type DigestProviderFailureCategory =
   | 'provider_unconfigured'
@@ -549,8 +552,14 @@ function classifyProviderFailure(
 
 function validTimeout(value: number | undefined): number {
   if (value === undefined) return GEMINI_DIGEST_TIMEOUT_MILLISECONDS;
-  if (!Number.isInteger(value) || value < 100 || value > 120_000)
-    throw new Error('Gemini timeout must be 100 through 120000 milliseconds.');
+  if (
+    !Number.isInteger(value) ||
+    value < MINIMUM_GEMINI_DIGEST_TIMEOUT_MILLISECONDS ||
+    value > MAXIMUM_GEMINI_DIGEST_TIMEOUT_MILLISECONDS
+  )
+    throw new Error(
+      `Gemini timeout must be ${MINIMUM_GEMINI_DIGEST_TIMEOUT_MILLISECONDS} through ${MAXIMUM_GEMINI_DIGEST_TIMEOUT_MILLISECONDS} milliseconds.`,
+    );
   return value;
 }
 
