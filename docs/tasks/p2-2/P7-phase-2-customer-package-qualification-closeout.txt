@@ -19,6 +19,12 @@ TASK: Phase 2 / P7 — Phase 2 customer package qualification closeout
 
 The assigned project version is `2.2.7`.
 
+## Test command execution policy
+
+Do not impose an artificial wall-clock timeout on repository test/validation/qualification commands selected by this prompt. In particular, do not wrap commands in a 2-minute/120-second timeout merely to keep the closeout moving. Let each selected command run to its natural completion or fail from its own test/runtime limits. If an execution/observation tool stops displaying output while the underlying process is still running, continue observing/polling that same process rather than killing and rerunning it solely because the observation window expired.
+
+This applies equally to local, PostgreSQL, browser, PHP, VPS, preflight, sync, and reference-customer qualification commands. Do not convert a slow but still-running required command into repeated retries. This rule applies only to prompt/test-command orchestration; do not remove or weaken legitimate product/runtime/network/provider timeouts implemented by the system itself.
+
 ## Goal
 
 Independently review and close Phase 2 against the exact integrated P1-P6 tree, advance the package to `2.2.7` **before** generating the qualification package, execute all required local/VPS/reference-customer evidence on one exact executable candidate, perform the supported staged customer package replacement and rollback proof, and write the durable Phase 2 validation artifact.
@@ -128,6 +134,7 @@ Verify:
 - no `ns-private`, tests, `.env`, secrets, runtime state/logs, repository internals, or unrelated files;
 - obsolete renderer authority is absent from supported package/runtime;
 - `top-tag.php` uses the stable customer entry, actual readable HTML lines, correct escaping, canonical order, exact `originalUrl`, safe unavailable/empty/null-digest states;
+- `top-tag.php` preserves the P4 single-file presentation boundary: one local-read setup, a removable/copyable optional AI Digest block, then an independent Article Feed block, with no required second digest template/runtime file;
 - customer markup cannot filter/rerank/reinterpret trust/Relevance/Categories/duplicates;
 - visitor rendering requires no upstream/Gemini request.
 
@@ -189,20 +196,21 @@ Independently derive/disposition realistic failures, including at least:
 9. cron `--force` path bypasses normal synchronization lock/state;
 10. top-tag XSS through headline/source/digest/support text;
 11. top-tag destination uses model/provider URL rather than stored originalUrl;
-12. package still contains old Renderer or competing example API;
-13. ZIP/admin/installed version mismatch;
-14. preflight error prints bearer/raw env/LKG;
-15. state-root writability probe damages LKG;
-16. cutover produces mixed files or a long missing-package window avoidably;
-17. rollback old package cannot read retained state after new sync;
-18. customer cron target breaks after directory replacement;
-19. customer-owned existing markup is overwritten by package update;
-20. digest missing/provider unavailable breaks ordinary Article rendering;
-21. customer page starts making live News Scraper/Gemini visitor request;
-22. direct publisher headline URLs change to redirect/tracking/internal links;
-23. wrong Profile/state root selected because shared config drift survives;
-24. Source/package changes regress unrelated canonical v1/Profile output;
-25. a newly discovered major integration defect is merely documented/deferred despite Phase 2 release-gate law.
+12. top-tag digest removal/customization breaks Article rendering or causes a second local-read/config authority;
+13. package still contains old Renderer, competing example API, or second digest template runtime file;
+14. ZIP/admin/installed version mismatch;
+15. preflight error prints bearer/raw env/LKG;
+16. state-root writability probe damages LKG;
+17. cutover produces mixed files or a long missing-package window avoidably;
+18. rollback old package cannot read retained state after new sync;
+19. customer cron target breaks after directory replacement;
+20. customer-owned existing markup is overwritten by package update;
+21. digest missing/provider unavailable breaks ordinary Article rendering;
+22. customer page starts making live News Scraper/Gemini visitor request;
+23. direct publisher headline URLs change to redirect/tracking/internal links;
+24. wrong Profile/state root selected because shared config drift survives;
+25. Source/package changes regress unrelated canonical v1/Profile output;
+26. a newly discovered major integration defect is merely documented/deferred despite Phase 2 release-gate law.
 
 Classify each as protected / tiny bounded repair / Terra High refactor handoff / new Phase 2 prompt required.
 
@@ -217,7 +225,7 @@ Inspect for:
 - visitor/sync configuration responsibilities leaking across boundaries;
 - duplicated synchronization logic in launcher;
 - stable customer entrypoint merely forwarding raw internals with no real boundary;
-- renderer abstraction replaced by another equivalent abstraction;
+- renderer abstraction replaced by another equivalent abstraction or digest-template partial;
 - package version constants duplicated across Node/PHP/UI;
 - preflight/diagnostic code mixed into visitor hot path;
 - state-format changes that make rollback fragile;
