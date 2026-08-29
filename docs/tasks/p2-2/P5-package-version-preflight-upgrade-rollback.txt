@@ -1,0 +1,189 @@
+TASK: Phase 2 / P5 — Package version, preflight, upgrade, and rollback hardening
+
+- Recommended configuration: `Terra High`.
+- Task-shape classification: `Cross-cutting`.
+- Specification clarity: `Explicit`.
+- State coupling: `High` across package metadata, protected admin download, installed diagnostics, preflight, durable `ns-private` compatibility, and directory replacement/rollback.
+- Integrity risk: `High` because the next package replaces a live customer integration and must preserve credentials, cron target, LKG/state, and customer-owned presentation.
+- Concurrency: existing synchronization/visitor file semantics must remain safe during supported directory replacement; do not invent a live overlay/update protocol.
+- Security: `Sensitive` diagnostics/preflight and credential-isolation boundary.
+- Novel inference: `Moderate`.
+- Model-family basis: this is bounded but high-risk release-engineering behavior with several producer/consumer coherence requirements.
+- Reasoning basis: Terra High is the minimum safe floor for exact-version authority, secret-safe diagnostics, and rollback-compatible state without speculative installer machinery.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because silent version/config drift or destructive upgrade assumptions would surface only on the customer host.
+- Escalation trigger: immediately previous package cannot read state produced by the new package, or exact version cannot be derived from one authoritative metadata source without changing package architecture.
+- Escalation target: `Terra Ultra` for bounded state/backward-read ambiguity; `Planning needed` for contract/ADR/product change.
+- Estimate confidence: `High`.
+
+The assigned project version is `2.2.5`.
+
+## Goal
+
+Resolve `Y8FK`, `W5GH`, and `D4NZ` over the P3/P4 package:
+
+- one exact installed/offered package version authority;
+- bounded secret-safe diagnostics/preflight;
+- explicit cPanel/File Manager-friendly staged upgrade and directory rollback;
+- preservation of sibling `ns-private` configuration/state, existing cron target, machine credential value, LKG, and customer markup.
+
+## Prerequisite/version
+
+Require P1-P4 through package `2.2.4`. Advance to `2.2.5` before final validation.
+
+## Read first
+
+Read governing integration/testing/security contracts, P3/P4 implementations, and inspect:
+
+- `src/integrations/php-integration-package.ts` and unit tests;
+- protected admin PHP package download route/service/UI and its browser/integration tests;
+- packaged `VERSION`, `integration-package.json` producer semantics;
+- PHP runtime health/diagnostic models including current generic adapter version;
+- P3 config loader/stable entries and P4 package manifest;
+- Filesystem state/LKG read/write/backward compatibility code;
+- deployment/incident and PHP implementation README where upgrade procedure belongs;
+- existing customer/package validation fixtures;
+- issues Y8FK/W5GH/D4NZ.
+
+## Exact version authority
+
+Use the top-level project/package metadata already used by the package producer as the single build-time authority. Ensure all of these agree exactly for one generated package:
+
+- ZIP filename;
+- packaged `ns-integration/VERSION`;
+- `ns-integration/integration-package.json` version;
+- protected admin package-download display/control;
+- supported installed diagnostic/preflight output;
+- any runtime health adapter/package version field that claims the installed package version.
+
+Do not add a separately hand-maintained PHP version constant that can drift.
+
+The protected admin control must show the exact offered version directly in or immediately adjacent to the download action, e.g. equivalent to `Download PHP Integration 2.2.5`, using the same package metadata result rather than typed UI text.
+
+## Installed version reading
+
+Implement a package-owned, bounded installed-metadata reader that resolves package version from the package's own `VERSION` / `integration-package.json` relationship and fails clearly when missing, malformed, contradictory, oversized, or unsafe. Do not expose arbitrary filesystem details.
+
+If both files are retained as authoritative package artifacts, diagnostics must verify they agree rather than silently preferring one corrupted value.
+
+Use that reader for runtime/diagnostic version reporting where practical so `LocalReadHealth`/sync diagnostics no longer claim only a generic `news-scraper-php` adapter identity when exact version is available.
+
+## Preflight
+
+Provide one supported package-owned non-destructive preflight entrypoint suitable for command-line/manual hosting checks.
+
+It must verify at least:
+
+1. package identity/version metadata is present, valid, and internally coherent;
+2. current PHP/runtime prerequisites used by the package are supported;
+3. expected sibling `ns-private/local-read.env` is readable and valid;
+4. `sync.env` is readable/valid when synchronization checks are requested;
+5. P3 shared/sync authority and legacy alias consistency are valid;
+6. configured state root is safely usable/readable/writable as required without deleting or replacing existing state;
+7. current LKG/state can be inspected enough to confirm structural usability without dumping raw payloads;
+8. stable launcher/customer entry/top-tag required package files are present.
+
+Preflight must not:
+
+- print bearer tokens, Authorization headers, raw secret env contents, raw LKG payloads, private prompts, or unnecessary absolute-path detail;
+- mutate state, synchronize, rotate credentials, clear caches, or call Gemini as part of ordinary local preflight;
+- confuse setup success with successful sync/customer rendering.
+
+An optional upstream connectivity/authentication diagnostic may exist only as an explicit separate flag/path. It must remain secret-safe and must not be required for ordinary offline preflight.
+
+Use stable machine-readable categories/exit status plus concise human-readable output if consistent with existing PHP CLI patterns.
+
+## Upgrade and rollback contract implementation
+
+Ship root `UPGRADE.md` and align `integrations/php/README.md` with the implemented process.
+
+The preferred supported sequence is:
+
+```text
+existing ns-integration/ + durable ns-private/
+-> extract new package completely to sibling staging directory
+-> run staged package metadata/preflight against existing ns-private
+-> rename live ns-integration to bounded backup
+-> rename staged directory to ns-integration
+-> verify unchanged cron target + customer page
+```
+
+Requirements:
+
+- never overlay a new package on top of old package files;
+- package extraction never writes `ns-private`;
+- no credential regeneration for normal upgrade;
+- no cron command rewrite because root `run-sync.php` path remains stable;
+- no state-root/LKG deletion/rebuild merely for code upgrade;
+- customer-owned markup outside package remains untouched; packaged `top-tag.php` is an example to copy/adapt, not authority over existing customer markup;
+- legacy private-config normalization, if needed, preserves effective values and is explicit/non-secret;
+- rollback restores prior `ns-integration` directory while leaving `ns-private` intact;
+- immediately previous supported package must remain able to consume preserved state after rollback or the incompatibility must be resolved before P5 completes.
+
+Do not build a remote self-updater, background installer, package overlay mechanism, or central management service.
+
+## Backward-read compatibility proof
+
+Construct deterministic fixtures representing the current pre-Phase-2 customer package/state and the new package state. Prove:
+
+- new package can read/use prior valid `ns-private` state and LKG;
+- running preflight does not alter hashes/content of private config/LKG except intentionally documented harmless metadata if any (prefer no mutation);
+- new sync/local-read may operate after upgrade without new credentials;
+- immediately prior supported package can be restored and read the retained state required for rollback;
+- digest-capable complete snapshot does not make rollback require deleting customer Article LKG;
+- package metadata/version state stays package-owned, not written into durable customer state as a competing authority.
+
+If actual state format introduced by Phase 1 is not backward-readable by the immediately previous package, stop and resolve that contract risk rather than documenting destructive rollback.
+
+## Focused proof
+
+Add/adjust tests for:
+
+- exact package/admin/installed version coherence;
+- malformed/missing/contradictory metadata failure;
+- admin download control version label from producer result;
+- preflight valid and each bounded failure category;
+- secret values absent from stdout/stderr/errors;
+- optional upstream check not run by default;
+- state-root checks non-destructive;
+- required package-file checks;
+- fresh-package fixture;
+- existing-customer-style upgrade fixture;
+- staged cutover fixture does not mix package files or touch private state;
+- rollback fixture restores old package against same private state;
+- cron target string/path remains `ns-integration/run-sync.php` across package generations;
+- config aliases/mismatches integrate P3 rules;
+- package README/UPGRADE instructions match executable paths.
+
+## Validation manifest
+
+### RUN — LOCAL-PORTABLE
+```text
+npm run check
+npm run codex:phase:validate -- p2-2
+git diff --check
+```
+
+Run focused package/admin/preflight fixtures during iteration. If protected admin UI changes, also `RUN` `npm run test:browser` in `LOCAL-PREREQUISITE` on final tree.
+
+### DEFER → P7 final qualification (`VPS-REQUIRED` / `REFERENCE-DEPLOYMENT`)
+
+- `npm run test:php`;
+- `npm run test:browser:php`;
+- actual VPS staged install/preflight/rollback;
+- actual reference-customer cutover verification.
+
+### N/A unless scope expands
+
+- DB/recovery;
+- live Sources;
+- live Gemini except configured-style/provider proof later selected by P7.
+
+## Non-goals
+
+Do not perform the real customer replacement in P5. Do not add self-update, remote file-manager automation, new credentials, new sync protocol, second state root, DB changes, chat, or unrelated deployment platform work.
+
+## Completion
+
+Report exact tree/package `2.2.5`, version-authority chain, diagnostic/preflight commands and secret-safety behavior, upgrade/rollback fixture results, browser evidence if applicable, and all P7-deferred environment qualification.
