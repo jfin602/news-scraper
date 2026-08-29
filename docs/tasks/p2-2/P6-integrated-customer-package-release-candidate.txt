@@ -19,6 +19,12 @@ TASK: Phase 2 / P6 — Integrated customer package release candidate
 
 The assigned project version is `2.2.6`.
 
+## Test command execution policy
+
+Do not impose an artificial wall-clock timeout on repository test/validation commands selected by this prompt. In particular, do not wrap commands in a 2-minute/120-second timeout merely to keep the prompt moving. Let each selected command run to its natural completion or fail from its own test/runtime limits. If an execution/observation tool stops displaying output while the underlying process is still running, continue observing/polling that same process rather than killing and rerunning it solely because the observation window expired.
+
+This rule applies only to prompt/test-command orchestration. Do not remove or weaken legitimate product/runtime/network timeouts implemented by the application, PHP sync client, preflight, browser harness, or external-service boundaries.
+
 ## Goal
 
 Create the final **implementation-complete deterministic release candidate** from P1-P5 before any real VPS/reference-customer cutover.
@@ -74,6 +80,8 @@ Verify all nine issue outcomes are implemented in one coherent tree:
 - renderer abstraction is no longer supported/packaged when consumer tracing permits removal;
 - root editable `top-tag.php` uses normalized local-read;
 - markup is line-readable, escaped, server rendered, canonical-order preserving, and links exact `originalUrl`;
+- the optional AI Digest block and independent Article Feed block preserve the P4 single-file template boundary;
+- no second digest template/runtime include is introduced;
 - customer presentation cannot filter/rerank/reinterpret editorial state.
 
 ### Y8FK / W5GH / D4NZ
@@ -95,18 +103,19 @@ Derive and disposition at least these integration failures:
 6. matching legacy shared aliases become hidden second authority after one file changes;
 7. `run-sync.php --force` bypasses canonical cadence/lock/synchronizer differently from `bin/sync.php`;
 8. top-tag exposes raw HTML/model text or changes Article ordering/destination;
-9. removing Renderer breaks an internal fallback used by browser-PHP tests;
-10. ZIP filename says one version while installed diagnostic/admin label says another;
-11. preflight prints a bearer value in a failure path;
-12. preflight mutates LKG/state while probing writability;
-13. new package reads old state but rollback old package cannot read state after one new sync;
-14. staged upgrade instructions actually overlay old files;
-15. package accidentally contains `ns-private`, tests, real env files, or fixture secrets;
-16. customer cron path changes despite packaged launcher goal;
-17. digest-capable local state is lost/poisoned by package refresh;
-18. ordinary Article rendering becomes dependent on Gemini/digest existence;
-19. Source migration/package changes disturb unrelated canonical Profile/v1 behavior;
-20. a known major integration defect remains open because implementation exists only in docs/tests but not runtime.
+9. top-tag digest block removal/copying would break ordinary Article rendering or require a second local-read initialization;
+10. removing Renderer breaks an internal fallback used by browser-PHP tests;
+11. ZIP filename says one version while installed diagnostic/admin label says another;
+12. preflight prints a bearer value in a failure path;
+13. preflight mutates LKG/state while probing writability;
+14. new package reads old state but rollback old package cannot read state after one new sync;
+15. staged upgrade instructions actually overlay old files;
+16. package accidentally contains `ns-private`, tests, real env files, fixture secrets, or a second digest template file;
+17. customer cron path changes despite packaged launcher goal;
+18. digest-capable local state is lost/poisoned by package refresh;
+19. ordinary Article rendering becomes dependent on Gemini/digest existence;
+20. Source migration/package changes disturb unrelated canonical Profile/v1 behavior;
+21. a known major integration defect remains open because implementation exists only in docs/tests but not runtime.
 
 For each classify: protected / bounded P6 repair / Terra High refactor handoff / Planning needed.
 
