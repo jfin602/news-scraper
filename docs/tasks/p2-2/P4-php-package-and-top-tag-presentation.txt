@@ -1,0 +1,176 @@
+TASK: Phase 2 / P4 — PHP package shape and customer top-tag presentation
+
+- Recommended configuration: `Terra Medium`.
+- Task-shape classification: `Bounded`.
+- Specification clarity: `Explicit`.
+- State coupling: `Moderate` across package manifest, stable P3 customer entrypoint, default SSR example, and PHP implementation-truth documentation.
+- Integrity risk: `Moderate`; presentation must remain a consumer and must not become a second editorial/selection authority.
+- Concurrency: `None`; preserve existing sync/LKG locking untouched.
+- Security: `Sensitive` only for safe HTML escaping and prevention of secret-bearing visitor dependencies.
+- Novel inference: `Low` to `Moderate`.
+- Model-family basis: P3 supplies the hard runtime/config boundary; P4 is a package/presentation consumer with clear contracts.
+- Reasoning basis: Terra Medium is sufficient if the task remains presentation/package focused and deletes obsolete renderer authority cleanly.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High` because package tests plus PHP/browser-PHP deferred coverage and documentation truth must all be traced.
+- Lower-cost alternative considered: `Luna High`; rejected because removal of an old supported abstraction requires tracing all consumers before deletion.
+- Escalation trigger: `Renderer.php` has an important non-presentation consumer or deleting it would require changing normalized local-read/LKG semantics.
+- Escalation target: `Terra High` for bounded consumer/refactor ambiguity; `Planning needed` for contract change.
+- Estimate confidence: `High`.
+
+The assigned project version is `2.2.4`.
+
+## Goal
+
+Resolve `Q7HF` and establish the second-generation customer-facing package/presentation boundary on top of P3:
+
+```text
+normalized LocalReadResult
+-> customer-editable root top-tag.php
+-> direct server-rendered HTML
+```
+
+The package must no longer present `LocalProfileRenderer` / `FallbackHtmlRenderer` as a supported authoritative presentation API.
+
+## Prerequisite/version
+
+Require P1-P3 through package `2.2.3`. Advance to `2.2.4` before final validation.
+
+## Read first
+
+Read current distribution/integration and project presentation laws, P3 implementation/handoff, then inspect:
+
+- `src/integrations/php-integration-package.ts` and package tests;
+- `integrations/php/src/Renderer.php` and every consumer;
+- `integrations/php/example/index.php`;
+- `integrations/php/src/bootstrap.php`;
+- P3 stable customer local-read entrypoint and root launcher source;
+- `integrations/php/README.md`;
+- PHP test harness and browser-PHP tests;
+- admin package-download code only enough to avoid conflicting with P5 version/preflight work.
+
+Do not delete Renderer merely because the contract says it is no longer supported; first prove no required internal consumer needs it. If it is presentation-only as expected, remove the obsolete abstraction/source/tests rather than retaining dead compatibility code.
+
+## Package extraction shape
+
+Update the package producer/manifest so the generated ZIP extracts as the governed replaceable directory:
+
+```text
+news-scraper-php-integration-<version>.zip
+└── ns-integration/
+    ├── VERSION
+    ├── integration-package.json
+    ├── README.md
+    ├── run-sync.php
+    ├── top-tag.php
+    ├── bin/
+    │   └── sync.php
+    ├── src/
+    ├── config/
+    │   ├── sync.env.example
+    │   └── local-read.env.example
+    └── example/   # only if still useful and not a competing presentation authority
+```
+
+`UPGRADE.md` and final preflight artifacts are owned by P5, but P4 must leave a manifest that P5 can extend without restructuring it again.
+
+Do not package `ns-private`, credentials, runtime state, logs, tests, `.env`, repository metadata, or unrelated files.
+
+## `top-tag.php`
+
+Add root-level customer-editable `top-tag.php` as the first-party fallback/reference presentation required by Project Contract Law 13.
+
+Requirements:
+
+- consume only the P3 stable customer local-read entrypoint;
+- never require `src/bootstrap.php`, cache/manifests, `sync.env`, upstream URL, bearer token, or internal state-store classes;
+- render useful server-side output when local state is usable/stale-usable;
+- preserve canonical Article order exactly;
+- headline anchors use exact stored normalized `originalUrl` values;
+- escape all untrusted Publication/Profile/Article/Source/Category/digest generated text for HTML context;
+- treat digest generated text as untrusted plain text, not trusted HTML/Markdown;
+- handle empty Articles and unavailable/never-synced/disabled/stale-cutoff states safely and simply;
+- when digest exists, render a small useful digest section with truthful generation/freshness information and application-resolved support links; when digest is null, Article rendering remains normal;
+- do not filter, rerank, deduplicate, regroup, recategorize, reinterpret Source trust, or change destinations;
+- no JavaScript required for the core content;
+- no News Scraper/Gemini request on visitor render.
+
+Keep the source intentionally editable: PHP and actual HTML elements should be laid out on separate readable lines. Do not build the entire table/page as one concatenated HTML string.
+
+The file is instructional/customer-owned markup. Avoid framework-specific classes or customer-specific wording that makes it look authoritative.
+
+## Renderer cleanup
+
+If consumer tracing confirms `Renderer.php` and `example/index.php` exist only for the superseded bundled renderer path:
+
+- remove `Renderer.php` from bootstrap/package/runtime;
+- delete obsolete renderer classes and tests rather than leaving them as a second supported presentation path;
+- either remove `example/index.php` or convert any retained example to demonstrate the stable customer entrypoint without defining another presentation authority;
+- ensure package README describes `top-tag.php` as editable example/reference, not a required visual template.
+
+Do not create a replacement renderer abstraction.
+
+## Config examples
+
+Align shipped config examples with P3 authority:
+
+- `local-read.env.example` contains shared non-secret Profile/state/freshness values;
+- `sync.env.example` contains only sync-specific upstream/credential/transport values;
+- no canonical duplicated shared keys in sync example;
+- examples use placeholders, never real customer credentials/paths.
+
+## Focused proof
+
+Update Node package tests and PHP/browser tests as applicable to prove:
+
+- ZIP root is exactly `ns-integration/`;
+- required P3 launcher/stable entry files are present;
+- `top-tag.php` is present at root;
+- obsolete renderer package entry is absent when removed;
+- no tests/private state/secrets/unrelated files enter ZIP;
+- deterministic archive/version metadata behavior remains intact;
+- top-tag consumes stable entrypoint rather than internal bootstrap/files;
+- HTML is escaped against malicious headline/source/digest text;
+- exact `originalUrl` anchors are preserved;
+- canonical order preserved;
+- unavailable/empty/null-digest states are safe;
+- visitor rendering makes no upstream request;
+- line-readable source requirement is protected by a focused structural test only if it can be asserted without brittle formatting trivia; prefer behavior plus a bounded check that top-tag is not one opaque renderer string;
+- retained examples do not resurrect renderer authority.
+
+## Implementation-truth documentation
+
+Now that package behavior actually changes, update `integrations/php/README.md` to describe the shipped P3/P4 configuration, launcher, stable local-read entrypoint, `top-tag.php`, package/private directory separation, and removal of renderer authority. Keep upgrade/preflight procedure details reserved for P5 if not yet implemented.
+
+Do not rewrite governing contracts/roadmap in an implementation prompt.
+
+## Validation manifest
+
+### RUN — LOCAL-PORTABLE
+```text
+npm run check
+npm run codex:phase:validate -- p2-2
+git diff --check
+```
+
+Run focused package tests during iteration. Do not redundantly rerun contained unit coverage after successful `npm run check`.
+
+### DEFER → P7 final qualification (`VPS-REQUIRED`)
+```text
+npm run test:php
+npm run test:browser:php
+```
+
+### N/A unless scope expands
+
+- DB/recovery;
+- live Source;
+- live Gemini;
+- reference deployment.
+
+## Non-goals
+
+Do not implement P5 version diagnostic/preflight/UPGRADE mechanics except the minimum manifest seams needed for later extension. Do not redesign customer CSS/site layout, add analytics/SEO promises, change v1/PHP normalized data, add a second sync/cache, or implement customer-specific markup.
+
+## Completion
+
+Report exact tree/package `2.2.4`, final ZIP shape, renderer disposition, top-tag behavior/security, README truth changes, package/portable validation, and deferred PHP/browser-PHP evidence.
