@@ -15,7 +15,7 @@ import {
   normalizeDomainRules,
   normalizeLifecycleState,
   normalizeOperationalState,
-  normalizeRssAtomAdmissionPhrases,
+  normalizeRssAtomAdmissionPhraseList,
   normalizeSourceConfiguration,
   parseEndpointUrl,
   type ApprovalState,
@@ -23,7 +23,11 @@ import {
   type LifecycleState,
   type OperationalState,
 } from '../sources/configuration.ts';
-import { insertSource } from '../sources/repository.ts';
+import {
+  insertSource,
+  loadSourceRssAtomAdmissionPolicy,
+  replaceSourceRssAtomAdmissionPolicy,
+} from '../sources/repository.ts';
 import {
   lockActiveDistributionProfilesReferencingSource,
   lockDistributionProfileSourcesForProfiles,
@@ -184,7 +188,8 @@ export function createSourceAdministrationService(
             ...(command.rssAtomAdmissionPhrases.length === 0
               ? {}
               : {
-                  rssAtomAdmissionPhrases: command.rssAtomAdmissionPhrases,
+                  rssAtomAdmissionIncludePhrases:
+                    command.rssAtomAdmissionPhrases,
                 }),
           });
           await setSourceDefaultCategory(
@@ -231,11 +236,15 @@ export function createSourceAdministrationService(
           sourceId,
           command.approvedDomains,
         );
-        await replaceAdmissionPhrases(
+        const currentAdmissionPolicy = await loadSourceRssAtomAdmissionPolicy(
           transaction,
           sourceId,
-          command.rssAtomAdmissionPhrases,
         );
+        await replaceSourceRssAtomAdmissionPolicy(transaction, sourceId, {
+          rssAtomAdmissionIncludePhrases: command.rssAtomAdmissionPhrases,
+          rssAtomAdmissionExcludePhrases:
+            currentAdmissionPolicy.rssAtomAdmissionExcludePhrases,
+        });
         await setSourceDefaultCategory(
           transaction,
           sourceId,
@@ -549,25 +558,6 @@ async function replaceSourceDomainRules(
   }
 }
 
-async function replaceAdmissionPhrases(
-  executor: QueryExecutor,
-  sourceId: string,
-  phrases: readonly string[],
-): Promise<void> {
-  await executor.query(
-    'DELETE FROM source_rss_atom_admission_phrases WHERE source_id = $1',
-    [sourceId],
-  );
-  for (const [position, phrase] of phrases.entries()) {
-    await executor.query(
-      `INSERT INTO source_rss_atom_admission_phrases (
-         source_id, position, phrase
-       ) VALUES ($1, $2, $3)`,
-      [sourceId, position, phrase],
-    );
-  }
-}
-
 async function requireCategory(
   executor: QueryExecutor,
   configKey: string | undefined,
@@ -767,7 +757,9 @@ function normalizeMutableSourceRecord(
       operationalState: 'disabled',
       domainRules: record.approvedDomains,
       priority: record.priority,
-      ...(phrases.length === 0 ? {} : { rssAtomAdmissionPhrases: phrases }),
+      ...(phrases.length === 0
+        ? {}
+        : { rssAtomAdmissionIncludePhrases: phrases }),
     });
     const defaultCategoryConfigKey = normalizeDefaultCategoryKey(
       record.defaultCategoryConfigKey,
@@ -787,7 +779,10 @@ function normalizeMutableSourceRecord(
 
 function normalizeAdminPhraseList(value: unknown): readonly string[] {
   if (Array.isArray(value) && value.length === 0) return Object.freeze([]);
-  return normalizeRssAtomAdmissionPhrases(value);
+  return normalizeRssAtomAdmissionPhraseList(
+    value,
+    'source.rssAtomAdmissionIncludePhrases',
+  );
 }
 
 function normalizeDefaultCategoryKey(value: unknown): string | undefined {

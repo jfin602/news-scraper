@@ -88,12 +88,32 @@ export function normalizeBootstrapDocument(
         'endpoints',
       ],
       sourceField,
-      ['priority', 'rssAtomAdmissionPhrases'],
+      [
+        'priority',
+        'rssAtomAdmissionPhrases',
+        'rssAtomAdmissionIncludePhrases',
+        'rssAtomAdmissionExcludePhrases',
+      ],
     );
     if (!Array.isArray(sourceRecord.endpoints)) {
       throw new BootstrapDocumentError('source_endpoints_must_be_an_array');
     }
-    const source = normalizeSourceConfiguration(sourceRecord);
+    if (
+      sourceRecord.rssAtomAdmissionPhrases !== undefined &&
+      sourceRecord.rssAtomAdmissionIncludePhrases !== undefined
+    ) {
+      throw new BootstrapDocumentError('duplicate_source_admission_include');
+    }
+    const source = normalizeSourceConfiguration({
+      ...sourceRecord,
+      ...(sourceRecord.rssAtomAdmissionIncludePhrases === undefined &&
+      sourceRecord.rssAtomAdmissionPhrases !== undefined
+        ? {
+            rssAtomAdmissionIncludePhrases:
+              sourceRecord.rssAtomAdmissionPhrases,
+          }
+        : {}),
+    });
     if (sourceKeys.has(source.configKey)) {
       throw new BootstrapDocumentError('duplicate_source_config_key');
     }
@@ -193,9 +213,16 @@ function sourcePersistenceInput(source: BootstrapSourceConfiguration) {
     operationalState: source.operationalState,
     domainRules: source.domainRules,
     priority: source.priority,
-    ...(source.rssAtomAdmissionPhrases.length === 0
+    ...(source.rssAtomAdmissionIncludePhrases.length === 0
       ? {}
-      : { rssAtomAdmissionPhrases: source.rssAtomAdmissionPhrases }),
+      : {
+          rssAtomAdmissionIncludePhrases: source.rssAtomAdmissionIncludePhrases,
+        }),
+    ...(source.rssAtomAdmissionExcludePhrases.length === 0
+      ? {}
+      : {
+          rssAtomAdmissionExcludePhrases: source.rssAtomAdmissionExcludePhrases,
+        }),
   };
 }
 

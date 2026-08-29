@@ -378,10 +378,7 @@ async function executeAttempt(
     for (const rawItem of rawItems) {
       if (
         configuration.endpoint.endpointType === 'rss_atom' &&
-        !isSourceRssAtomItemAdmitted(
-          rawItem,
-          configuration.source.rssAtomAdmissionPhrases,
-        )
+        !isSourceRssAtomItemAdmitted(rawItem, configuration.source)
       ) {
         sourceItemFilteredCount += 1;
         continue;

@@ -60,7 +60,13 @@ export interface SourceConfiguration {
   readonly operationalState: OperationalState;
   readonly domainRules: readonly DomainRule[];
   readonly priority: number;
-  readonly rssAtomAdmissionPhrases: readonly string[];
+  readonly rssAtomAdmissionIncludePhrases: readonly string[];
+  readonly rssAtomAdmissionExcludePhrases: readonly string[];
+}
+
+export interface SourceRssAtomAdmissionPolicy {
+  readonly rssAtomAdmissionIncludePhrases: readonly string[];
+  readonly rssAtomAdmissionExcludePhrases: readonly string[];
 }
 
 const CONFIG_KEY_MAX_LENGTH = 100;
@@ -68,8 +74,8 @@ const URL_MAX_LENGTH = 2048;
 export const MINIMUM_POLL_INTERVAL_SECONDS = 60;
 const POLL_INTERVAL_MAXIMUM_SECONDS = 2_592_000;
 const POSTGRES_INTEGER_MAXIMUM = 2_147_483_647;
-const RSS_ATOM_ADMISSION_PHRASE_MAXIMUM_COUNT = 64;
-const RSS_ATOM_ADMISSION_PHRASE_MAXIMUM_LENGTH = 512;
+export const RSS_ATOM_ADMISSION_PHRASE_MAXIMUM_COUNT = 64;
+export const RSS_ATOM_ADMISSION_PHRASE_MAXIMUM_LENGTH = 512;
 const CONFIG_KEY_PATTERN = /^[a-z0-9]+(?:_[a-z0-9]+)*$/u;
 const DNS_LABEL_PATTERN = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u;
 
@@ -263,29 +269,24 @@ export function normalizeSourcePriority(input: unknown): number {
   return input;
 }
 
-export function normalizeRssAtomAdmissionPhrases(
+export function normalizeRssAtomAdmissionPhraseList(
   input: unknown,
+  field: string,
 ): readonly string[] {
   if (!Array.isArray(input)) {
-    throw new ConfigurationValidationError(
-      'source.rssAtomAdmissionPhrases',
-      'must_be_an_array',
-    );
+    throw new ConfigurationValidationError(field, 'must_be_an_array');
   }
-  if (
-    input.length === 0 ||
-    input.length > RSS_ATOM_ADMISSION_PHRASE_MAXIMUM_COUNT
-  ) {
+  if (input.length > RSS_ATOM_ADMISSION_PHRASE_MAXIMUM_COUNT) {
     throw new ConfigurationValidationError(
-      'source.rssAtomAdmissionPhrases',
-      'must_contain_between_1_and_64_phrases',
+      field,
+      'must_contain_at_most_64_phrases',
     );
   }
   return Object.freeze(
     input.map((value) => {
       if (typeof value !== 'string') {
         throw new ConfigurationValidationError(
-          'source.rssAtomAdmissionPhrases',
+          field,
           'phrase_must_be_a_string',
         );
       }
@@ -295,14 +296,33 @@ export function normalizeRssAtomAdmissionPhrases(
         phrase.length > RSS_ATOM_ADMISSION_PHRASE_MAXIMUM_LENGTH ||
         /\p{Cc}/u.test(phrase)
       ) {
-        throw new ConfigurationValidationError(
-          'source.rssAtomAdmissionPhrases',
-          'invalid_phrase',
-        );
+        throw new ConfigurationValidationError(field, 'invalid_phrase');
       }
       return phrase;
     }),
   );
+}
+
+export function normalizeSourceRssAtomAdmissionPolicy(
+  input: unknown,
+): Readonly<SourceRssAtomAdmissionPolicy> {
+  const record = configurationRecord(input, 'source.rssAtomAdmissionPolicy');
+  return Object.freeze({
+    rssAtomAdmissionIncludePhrases:
+      record.rssAtomAdmissionIncludePhrases === undefined
+        ? Object.freeze([])
+        : normalizeRssAtomAdmissionPhraseList(
+            record.rssAtomAdmissionIncludePhrases,
+            'source.rssAtomAdmissionIncludePhrases',
+          ),
+    rssAtomAdmissionExcludePhrases:
+      record.rssAtomAdmissionExcludePhrases === undefined
+        ? Object.freeze([])
+        : normalizeRssAtomAdmissionPhraseList(
+            record.rssAtomAdmissionExcludePhrases,
+            'source.rssAtomAdmissionExcludePhrases',
+          ),
+  });
 }
 
 export function normalizeSourceEndpointConfiguration(
@@ -390,10 +410,7 @@ export function normalizeSourceConfiguration(
     operationalState: normalizeOperationalState(record.operationalState),
     domainRules: normalizeDomainRules(record.domainRules),
     priority: normalizeSourcePriority(record.priority ?? 0),
-    rssAtomAdmissionPhrases:
-      record.rssAtomAdmissionPhrases === undefined
-        ? Object.freeze([])
-        : normalizeRssAtomAdmissionPhrases(record.rssAtomAdmissionPhrases),
+    ...normalizeSourceRssAtomAdmissionPolicy(record),
   });
 }
 

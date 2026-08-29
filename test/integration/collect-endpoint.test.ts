@@ -340,6 +340,47 @@ describe('canonical endpoint collection service', () => {
     assert.equal(runs.finalizations[0]?.sourceItemFilteredCount, 1);
   });
 
+  it('counts Exclude-filtered RSS/Atom items before normalization', async () => {
+    const events: string[] = [];
+    const runs = runStore(events);
+    const result = await collectEndpoint(
+      aggregate({ admissionPhrases: ['admit'], exclusionPhrases: ['exclude'] }),
+      {
+        lockRunner: acquiredLock(events),
+        runs,
+        fetcher: fetcher(events, contentResult()),
+        rssAtomParser: parser(events, {
+          ok: true,
+          dialect: 'rss',
+          items: [
+            {
+              title: 'Admit this item',
+              url: 'https://feeds.example.test/admit',
+            },
+            {
+              title: 'Admit then exclude this item',
+              url: 'https://feeds.example.test/exclude',
+            },
+          ],
+        }),
+        ...phase6Dependencies,
+        ...phase7Dependencies,
+        executionId: () => EXECUTION_ID,
+      },
+    );
+    assert.equal(result.status, 'succeeded');
+    if (result.status !== 'succeeded') return;
+    assert.deepEqual(
+      [
+        result.rawItemCount,
+        result.sourceItemFilteredCount,
+        result.normalizedCandidateCount,
+      ],
+      [2, 1, 1],
+    );
+    assert.equal(result.createdCount, 1);
+  });
+
   it('treats an all-items-filtered batch as successful without candidate, Relevance, or persistence work', async () => {
     const events: string[] = [];
     const runs = runStore(events);
@@ -1883,6 +1924,7 @@ interface AggregateOverrides {
   readonly publicationActive?: boolean;
   readonly endpointId?: string;
   readonly admissionPhrases?: readonly string[];
+  readonly exclusionPhrases?: readonly string[];
 }
 
 function aggregate(
@@ -1910,7 +1952,8 @@ function aggregate(
       lifecycleState: 'active',
       operationalState: 'enabled',
       priority: 0,
-      rssAtomAdmissionPhrases: overrides.admissionPhrases ?? [],
+      rssAtomAdmissionIncludePhrases: overrides.admissionPhrases ?? [],
+      rssAtomAdmissionExcludePhrases: overrides.exclusionPhrases ?? [],
       createdAt: timestamp,
       updatedAt: timestamp,
     },

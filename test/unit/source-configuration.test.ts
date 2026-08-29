@@ -14,7 +14,7 @@ import {
   normalizeLifecycleState,
   normalizeOperationalState,
   normalizePollIntervalSeconds,
-  normalizeRssAtomAdmissionPhrases,
+  normalizeRssAtomAdmissionPhraseList,
   normalizeSourcePriority,
   normalizeSourceEndpointConfiguration,
   normalizeSourceEndpointConfigurationForSource,
@@ -251,7 +251,8 @@ test('normalizes Source writes and validates endpoint writes against supplied So
       operationalState: 'enabled',
       domainRules: [{ hostname: 'example.com', includeSubdomains: true }],
       priority: 0,
-      rssAtomAdmissionPhrases: [],
+      rssAtomAdmissionIncludePhrases: [],
+      rssAtomAdmissionExcludePhrases: [],
     },
   );
 
@@ -271,7 +272,7 @@ test('normalizes Source writes and validates endpoint writes against supplied So
   );
 });
 
-test('normalizes bounded Source priority and ordered RSS/Atom admission phrases', () => {
+test('normalizes bounded Source priority and ordered RSS/Atom admission phrase lists', () => {
   for (const priority of [0, 1, 2_147_483_647]) {
     assert.equal(normalizeSourcePriority(priority), priority);
   }
@@ -279,11 +280,34 @@ test('normalizes bounded Source priority and ordered RSS/Atom admission phrases'
     assertConfigurationFailure(() => normalizeSourcePriority(priority));
   }
 
-  const phrases = normalizeRssAtomAdmissionPhrases(['  Books  ', 'Publishing']);
+  const phrases = normalizeRssAtomAdmissionPhraseList(
+    ['  Books  ', 'Publishing'],
+    'source.rssAtomAdmissionIncludePhrases',
+  );
   assert.deepEqual(phrases, ['Books', 'Publishing']);
   assert.ok(Object.isFrozen(phrases));
-  for (const value of [
+  assert.deepEqual(
+    normalizeRssAtomAdmissionPhraseList(
+      [],
+      'source.rssAtomAdmissionExcludePhrases',
+    ),
     [],
+  );
+  assert.deepEqual(
+    normalizeRssAtomAdmissionPhraseList(
+      ['One'],
+      'source.rssAtomAdmissionExcludePhrases',
+    ),
+    ['One'],
+  );
+  assert.equal(
+    normalizeRssAtomAdmissionPhraseList(
+      Array.from({ length: 64 }, (_, index) => `phrase ${String(index)}`),
+      'source.rssAtomAdmissionExcludePhrases',
+    ).length,
+    64,
+  );
+  for (const value of [
     Array.from({ length: 65 }, () => 'phrase'),
     [' '],
     ['x'.repeat(513)],
@@ -291,7 +315,12 @@ test('normalizes bounded Source priority and ordered RSS/Atom admission phrases'
     [1],
     'Books',
   ]) {
-    assertConfigurationFailure(() => normalizeRssAtomAdmissionPhrases(value));
+    assertConfigurationFailure(() =>
+      normalizeRssAtomAdmissionPhraseList(
+        value,
+        'source.rssAtomAdmissionIncludePhrases',
+      ),
+    );
   }
 });
 

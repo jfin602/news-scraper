@@ -24,7 +24,7 @@ const ACCEPTED_FILENAMES = Array.from(
   (_, index) => `${String(index + 1).padStart(4, '0')}_`,
 );
 
-test('the accepted production state upgrades additively through Profiles, credentials, the Article summary bound, Profile AI foundation, and digest style guidance', async () => {
+test('the accepted production state upgrades additively through Profiles, credentials, AI state, and Source admission excludes', async () => {
   await withDisposableDatabase(async ({ databaseUrl }) => {
     const directory = await mkdtemp(
       path.join(tmpdir(), 'news-scraper-baseline-'),
@@ -192,6 +192,45 @@ test('the accepted production state upgrades additively through Profiles, creden
       } finally {
         await styleMigrationDatabase.close();
       }
+      const beforeExcludes = await governedSnapshot(
+        databaseUrl,
+        seeded.articleId,
+      );
+      await addMigration('0021_source_rss_atom_admission_excludes.sql');
+      assert.deepEqual(
+        await governedSnapshot(databaseUrl, seeded.articleId),
+        beforeExcludes,
+      );
+      const admissionDatabase = createDatabase({
+        connectionString: databaseUrl,
+      });
+      try {
+        assert.deepEqual(
+          (
+            await admissionDatabase.query(
+              `SELECT position, phrase FROM source_rss_atom_admission_phrases
+                WHERE source_id = $1 ORDER BY position ASC`,
+              [seeded.sourceId],
+            )
+          ).rows,
+          [
+            { position: 0, phrase: 'Upgrade include one' },
+            { position: 1, phrase: 'Upgrade include two' },
+          ],
+        );
+        assert.deepEqual(
+          (
+            await admissionDatabase.query(
+              `SELECT position, phrase FROM source_rss_atom_admission_exclude_phrases
+                WHERE source_id = $1`,
+              [seeded.sourceId],
+            )
+          ).rows,
+          [],
+        );
+      } finally {
+        await admissionDatabase.close();
+      }
       await Promise.all(
         preservedBytes.map(async ([filename, bytes]) => {
           assert.equal(
@@ -312,6 +351,11 @@ async function seedAcceptedBaseline(databaseUrl: string) {
     await database.query(
       `INSERT INTO source_approved_domain_rules (source_id, hostname, include_subdomains)
        VALUES ($1, 'upgrade.example', true)`,
+      [sourceId],
+    );
+    await database.query(
+      `INSERT INTO source_rss_atom_admission_phrases (source_id, position, phrase)
+       VALUES ($1, 0, 'Upgrade include one'), ($1, 1, 'Upgrade include two')`,
       [sourceId],
     );
     await database.query(

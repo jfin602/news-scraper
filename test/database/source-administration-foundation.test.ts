@@ -18,6 +18,7 @@ import {
   findSourceByConfigKey,
   insertSource,
   insertSourceEndpoint,
+  replaceSourceRssAtomAdmissionPolicy,
 } from '../../src/sources/repository.ts';
 import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 import { withDisposableDatabase } from '../support/database/disposable-database.ts';
@@ -49,17 +50,24 @@ test('migrates Source administration foundation from zero with canonical constra
       '0018_profile_ai_digest_foundation.sql',
       '0019_digest_lifecycle_handoff.sql',
       '0020_profile_digest_style_guidance.sql',
+      '0021_source_rss_atom_admission_excludes.sql',
     ]);
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       const source = await sourceWithEndpoint(database, {
         priority: 7,
-        rssAtomAdmissionPhrases: ['Books', 'Publishing'],
+        rssAtomAdmissionIncludePhrases: ['Books', 'Publishing'],
+        rssAtomAdmissionExcludePhrases: ['Gossip'],
       });
       const found = await findSourceByConfigKey(database, source.configKey);
       assert.equal(found?.priority, 7);
-      assert.deepEqual(found?.rssAtomAdmissionPhrases, ['Books', 'Publishing']);
-      assert.ok(Object.isFrozen(found?.rssAtomAdmissionPhrases));
+      assert.deepEqual(found?.rssAtomAdmissionIncludePhrases, [
+        'Books',
+        'Publishing',
+      ]);
+      assert.deepEqual(found?.rssAtomAdmissionExcludePhrases, ['Gossip']);
+      assert.ok(Object.isFrozen(found?.rssAtomAdmissionIncludePhrases));
+      assert.ok(Object.isFrozen(found?.rssAtomAdmissionExcludePhrases));
 
       const aggregate = await findEndpointConfigurationByKeys(
         database,
@@ -67,9 +75,12 @@ test('migrates Source administration foundation from zero with canonical constra
         'foundation_feed',
       );
       assert.equal(aggregate?.source.priority, 7);
-      assert.deepEqual(aggregate?.source.rssAtomAdmissionPhrases, [
+      assert.deepEqual(aggregate?.source.rssAtomAdmissionIncludePhrases, [
         'Books',
         'Publishing',
+      ]);
+      assert.deepEqual(aggregate?.source.rssAtomAdmissionExcludePhrases, [
+        'Gossip',
       ]);
 
       await assert.rejects(
@@ -84,6 +95,10 @@ test('migrates Source administration foundation from zero with canonical constra
          VALUES ($1, 3, ' padded ')`,
         `INSERT INTO source_rss_atom_admission_phrases (source_id, position, phrase)
          VALUES ($1, 0, 'x')`,
+        `INSERT INTO source_rss_atom_admission_exclude_phrases (source_id, position, phrase)
+         VALUES ($1, 64, 'too many')`,
+        `INSERT INTO source_rss_atom_admission_exclude_phrases (source_id, position, phrase)
+         VALUES ($1, 3, ' padded ')`,
       ]) {
         await assert.rejects(database.query(statement, [source.id]));
       }
@@ -107,7 +122,8 @@ test('bootstrap accepts P1 fields only on first Source creation and preserves la
   );
   const oldDocument = parseBootstrapDocument(existingFixture);
   assert.equal(oldDocument.sources[0]?.priority, 0);
-  assert.deepEqual(oldDocument.sources[0]?.rssAtomAdmissionPhrases, []);
+  assert.deepEqual(oldDocument.sources[0]?.rssAtomAdmissionIncludePhrases, []);
+  assert.deepEqual(oldDocument.sources[0]?.rssAtomAdmissionExcludePhrases, []);
 
   const raw = JSON.parse(existingFixture) as {
     publication: unknown;
@@ -123,16 +139,22 @@ test('bootstrap accepts P1 fields only on first Source creation and preserves la
     await bootstrapPublicationTree(database, document);
     const created = await findSourceByConfigKey(database, 'circuit_journal');
     assert.equal(created?.priority, 9);
-    assert.deepEqual(created?.rssAtomAdmissionPhrases, [
+    assert.deepEqual(created?.rssAtomAdmissionIncludePhrases, [
       'Technology',
       'Research',
     ]);
+    assert.deepEqual(created?.rssAtomAdmissionExcludePhrases, []);
 
     await database.query('UPDATE sources SET priority = 42 WHERE id = $1', [
       created?.id,
     ]);
     await database.query(
       'DELETE FROM source_rss_atom_admission_phrases WHERE source_id = $1',
+      [created?.id],
+    );
+    await database.query(
+      `INSERT INTO source_rss_atom_admission_exclude_phrases (source_id, position, phrase)
+       VALUES ($1, 0, 'Operator excluded')`,
       [created?.id],
     );
     await database.query(
@@ -144,7 +166,40 @@ test('bootstrap accepts P1 fields only on first Source creation and preserves la
     await bootstrapPublicationTree(database, document);
     const preserved = await findSourceByConfigKey(database, 'circuit_journal');
     assert.equal(preserved?.priority, 42);
-    assert.deepEqual(preserved?.rssAtomAdmissionPhrases, ['Operator managed']);
+    assert.deepEqual(preserved?.rssAtomAdmissionIncludePhrases, [
+      'Operator managed',
+    ]);
+    assert.deepEqual(preserved?.rssAtomAdmissionExcludePhrases, [
+      'Operator excluded',
+    ]);
+  });
+});
+
+test('Source admission policy defaults Exclude and rolls both lists back with a failed Source mutation', async () => {
+  await withMigratedDatabase(async (database) => {
+    const source = await sourceWithEndpoint(database, {
+      rssAtomAdmissionIncludePhrases: ['Existing include'],
+    });
+    const defaulted = await findSourceByConfigKey(database, source.configKey);
+    assert.deepEqual(defaulted?.rssAtomAdmissionExcludePhrases, []);
+
+    await assert.rejects(
+      database.transaction(async (transaction) => {
+        await replaceSourceRssAtomAdmissionPolicy(transaction, source.id, {
+          rssAtomAdmissionIncludePhrases: ['Replacement include'],
+          rssAtomAdmissionExcludePhrases: ['Replacement exclude'],
+        });
+        await transaction.query(
+          'UPDATE sources SET priority = -1 WHERE id = $1',
+          [source.id],
+        );
+      }),
+    );
+    const preserved = await findSourceByConfigKey(database, source.configKey);
+    assert.deepEqual(preserved?.rssAtomAdmissionIncludePhrases, [
+      'Existing include',
+    ]);
+    assert.deepEqual(preserved?.rssAtomAdmissionExcludePhrases, []);
   });
 });
 
@@ -236,7 +291,8 @@ async function sourceWithEndpoint(
   database: ReturnType<typeof createDatabase>,
   overrides: Readonly<{
     priority?: number;
-    rssAtomAdmissionPhrases?: readonly string[];
+    rssAtomAdmissionIncludePhrases?: readonly string[];
+    rssAtomAdmissionExcludePhrases?: readonly string[];
   }> = {},
 ) {
   await insertPublicationSettings(database, {
@@ -253,7 +309,8 @@ async function sourceWithEndpoint(
     operationalState: 'enabled',
     domainRules: [{ hostname: 'example', includeSubdomains: true }],
     priority: overrides.priority,
-    rssAtomAdmissionPhrases: overrides.rssAtomAdmissionPhrases,
+    rssAtomAdmissionIncludePhrases: overrides.rssAtomAdmissionIncludePhrases,
+    rssAtomAdmissionExcludePhrases: overrides.rssAtomAdmissionExcludePhrases,
   });
   await insertSourceEndpoint(database, source.id, {
     configKey: 'foundation_feed',

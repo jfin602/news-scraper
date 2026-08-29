@@ -23,6 +23,7 @@ import {
   normalizeOperationalState,
   normalizeSourceConfiguration,
   normalizeSourceEndpointConfigurationForSource,
+  normalizeSourceRssAtomAdmissionPolicy,
   parseEndpointUrl,
   parseSourceSiteUrl,
   type ApprovalState,
@@ -33,6 +34,7 @@ import {
   type ParsedConfiguredUrl,
   type SourceConfiguration,
   type SourceEndpointConfiguration,
+  type SourceRssAtomAdmissionPolicy,
 } from './configuration.ts';
 
 export interface PersistedSource {
@@ -44,7 +46,8 @@ export interface PersistedSource {
   readonly lifecycleState: LifecycleState;
   readonly operationalState: OperationalState;
   readonly priority: number;
-  readonly rssAtomAdmissionPhrases: readonly string[];
+  readonly rssAtomAdmissionIncludePhrases: readonly string[];
+  readonly rssAtomAdmissionExcludePhrases: readonly string[];
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -225,16 +228,9 @@ export async function createSourceIfAbsent(
   );
   const inserted = sourceResult.rows[0];
   if (inserted !== undefined) {
-    const value = withAdmissionPhrases(
-      mapSourceRow(inserted),
-      source.rssAtomAdmissionPhrases,
-    );
+    const value = withAdmissionPolicy(mapSourceRow(inserted), source);
     await insertSourceDomainRules(executor, value.id, source.domainRules);
-    await insertSourceRssAtomAdmissionPhrases(
-      executor,
-      value.id,
-      source.rssAtomAdmissionPhrases,
-    );
+    await insertSourceRssAtomAdmissionPolicy(executor, value.id, source);
     return Object.freeze({ value, created: true });
   }
   const existing = await findSourceByConfigKey(executor, source.configKey);
@@ -265,16 +261,12 @@ async function insertValidatedSource(
       source.priority,
     ],
   );
-  const persisted = withAdmissionPhrases(
+  const persisted = withAdmissionPolicy(
     mapSourceRow(requiredRow(sourceResult.rows, 'source insert')),
-    source.rssAtomAdmissionPhrases,
+    source,
   );
   await insertSourceDomainRules(executor, persisted.id, source.domainRules);
-  await insertSourceRssAtomAdmissionPhrases(
-    executor,
-    persisted.id,
-    source.rssAtomAdmissionPhrases,
-  );
+  await insertSourceRssAtomAdmissionPolicy(executor, persisted.id, source);
   return persisted;
 }
 
@@ -291,9 +283,9 @@ export async function findSourceByConfigKey(
   const row = result.rows[0];
   if (row === undefined) return undefined;
   const source = mapSourceRow(row);
-  return withAdmissionPhrases(
+  return withAdmissionPolicy(
     source,
-    await loadSourceRssAtomAdmissionPhrases(executor, source.id),
+    await loadSourceRssAtomAdmissionPolicy(executor, source.id),
   );
 }
 
@@ -311,18 +303,54 @@ export async function loadSourceApprovedDomainRules(
   return mapDomainRules(result.rows);
 }
 
-export async function loadSourceRssAtomAdmissionPhrases(
+export async function loadSourceRssAtomAdmissionPolicy(
   executor: QueryExecutor,
   sourceId: string,
-): Promise<readonly string[]> {
-  const result = await executor.query<AdmissionPhraseRow>(
-    `SELECT position, phrase
-     FROM source_rss_atom_admission_phrases
-     WHERE source_id = $1
-     ORDER BY position ASC`,
-    [sourceId],
-  );
-  return mapAdmissionPhrases(result.rows);
+): Promise<Readonly<SourceRssAtomAdmissionPolicy>> {
+  const [includeResult, excludeResult] = await Promise.all([
+    executor.query<AdmissionPhraseRow>(
+      `SELECT position, phrase
+       FROM source_rss_atom_admission_phrases
+       WHERE source_id = $1
+       ORDER BY position ASC`,
+      [sourceId],
+    ),
+    executor.query<AdmissionPhraseRow>(
+      `SELECT position, phrase
+       FROM source_rss_atom_admission_exclude_phrases
+       WHERE source_id = $1
+       ORDER BY position ASC`,
+      [sourceId],
+    ),
+  ]);
+  return Object.freeze({
+    rssAtomAdmissionIncludePhrases: mapAdmissionPhrases(includeResult.rows),
+    rssAtomAdmissionExcludePhrases: mapAdmissionPhrases(excludeResult.rows),
+  });
+}
+
+/**
+ * Replaces both managed admission lists inside the caller's Source mutation
+ * transaction. The caller owns the surrounding Source row/domain update lock.
+ */
+export async function replaceSourceRssAtomAdmissionPolicy(
+  executor: QueryExecutor,
+  sourceId: string,
+  input: unknown,
+): Promise<Readonly<SourceRssAtomAdmissionPolicy>> {
+  const policy = normalizeSourceRssAtomAdmissionPolicy(input);
+  await Promise.all([
+    executor.query(
+      'DELETE FROM source_rss_atom_admission_phrases WHERE source_id = $1',
+      [sourceId],
+    ),
+    executor.query(
+      'DELETE FROM source_rss_atom_admission_exclude_phrases WHERE source_id = $1',
+      [sourceId],
+    ),
+  ]);
+  await insertSourceRssAtomAdmissionPolicy(executor, sourceId, policy);
+  return policy;
 }
 
 export async function insertSourceEndpoint(
@@ -692,18 +720,15 @@ async function findEndpointConfiguration(
     created_at: row.publication_created_at,
     updated_at: row.publication_updated_at,
   });
-  const [
-    sourceDomainRules,
-    sourceRssAtomAdmissionPhrases,
-    endpointDomainRules,
-  ] = await Promise.all([
-    loadSourceApprovedDomainRules(executor, source.id),
-    loadSourceRssAtomAdmissionPhrases(executor, source.id),
-    loadEndpointDomainRules(executor, endpoint.id),
-  ]);
+  const [sourceDomainRules, sourceRssAtomAdmissionPolicy, endpointDomainRules] =
+    await Promise.all([
+      loadSourceApprovedDomainRules(executor, source.id),
+      loadSourceRssAtomAdmissionPolicy(executor, source.id),
+      loadEndpointDomainRules(executor, endpoint.id),
+    ]);
   return Object.freeze({
     publication,
-    source: withAdmissionPhrases(source, sourceRssAtomAdmissionPhrases),
+    source: withAdmissionPolicy(source, sourceRssAtomAdmissionPolicy),
     sourceDomainRules,
     endpoint,
     endpointDomainRules,
@@ -835,7 +860,8 @@ export function mapSourceRow(row: SourceRow): PersistedSource {
       lifecycleState: normalizeLifecycleState(row.lifecycle_state),
       operationalState: normalizeOperationalState(row.operational_state),
       priority: requiredNonnegativeInteger(row.priority),
-      rssAtomAdmissionPhrases: Object.freeze([]),
+      rssAtomAdmissionIncludePhrases: Object.freeze([]),
+      rssAtomAdmissionExcludePhrases: Object.freeze([]),
       createdAt: requiredTimestamp(row.created_at),
       updatedAt: requiredTimestamp(row.updated_at),
     });
@@ -844,13 +870,18 @@ export function mapSourceRow(row: SourceRow): PersistedSource {
   }
 }
 
-function withAdmissionPhrases(
+function withAdmissionPolicy(
   source: PersistedSource,
-  phrases: readonly string[],
+  policy: Readonly<SourceRssAtomAdmissionPolicy>,
 ): PersistedSource {
   return Object.freeze({
     ...source,
-    rssAtomAdmissionPhrases: Object.freeze([...phrases]),
+    rssAtomAdmissionIncludePhrases: Object.freeze([
+      ...policy.rssAtomAdmissionIncludePhrases,
+    ]),
+    rssAtomAdmissionExcludePhrases: Object.freeze([
+      ...policy.rssAtomAdmissionExcludePhrases,
+    ]),
   });
 }
 
@@ -931,16 +962,36 @@ async function insertSourceDomainRules(
   }
 }
 
-async function insertSourceRssAtomAdmissionPhrases(
+async function insertSourceRssAtomAdmissionPolicy(
   executor: QueryExecutor,
   sourceId: string,
+  policy: Readonly<SourceRssAtomAdmissionPolicy>,
+): Promise<void> {
+  await insertAdmissionPhraseList(
+    executor,
+    sourceId,
+    'source_rss_atom_admission_phrases',
+    policy.rssAtomAdmissionIncludePhrases,
+  );
+  await insertAdmissionPhraseList(
+    executor,
+    sourceId,
+    'source_rss_atom_admission_exclude_phrases',
+    policy.rssAtomAdmissionExcludePhrases,
+  );
+}
+
+async function insertAdmissionPhraseList(
+  executor: QueryExecutor,
+  sourceId: string,
+  table:
+    | 'source_rss_atom_admission_phrases'
+    | 'source_rss_atom_admission_exclude_phrases',
   phrases: readonly string[],
 ): Promise<void> {
   for (const [position, phrase] of phrases.entries()) {
     await executor.query(
-      `INSERT INTO source_rss_atom_admission_phrases (
-         source_id, position, phrase
-       ) VALUES ($1, $2, $3)`,
+      `INSERT INTO ${table} (source_id, position, phrase) VALUES ($1, $2, $3)`,
       [sourceId, position, phrase],
     );
   }

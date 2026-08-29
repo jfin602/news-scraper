@@ -5,11 +5,21 @@ import { isSourceRssAtomItemAdmitted } from '../../src/collection/admission/sour
 import { normalizeArticleCandidate } from '../../src/collection/normalization/normalizer.ts';
 import type { RawItem } from '../../src/collection/raw-item.ts';
 
+function policy(
+  include: readonly string[] = [],
+  exclude: readonly string[] = [],
+) {
+  return {
+    rssAtomAdmissionIncludePhrases: include,
+    rssAtomAdmissionExcludePhrases: exclude,
+  };
+}
+
 describe('Source RSS/Atom item admission filter', () => {
-  it('admits every item when no phrases are configured', () => {
-    assert.equal(isSourceRssAtomItemAdmitted({}, []), true);
+  it('admits every item when both lists are empty', () => {
+    assert.equal(isSourceRssAtomItemAdmitted({}, policy()), true);
     assert.equal(
-      isSourceRssAtomItemAdmitted({ title: 'Anything at all' }, []),
+      isSourceRssAtomItemAdmitted({ title: 'Anything at all' }, policy()),
       true,
     );
   });
@@ -21,23 +31,54 @@ describe('Source RSS/Atom item admission filter', () => {
       [{ categories: ['Business', 'Rights News'] }, 'rights'],
     ];
     for (const [rawItem, phrase] of fields) {
-      assert.equal(isSourceRssAtomItemAdmitted(rawItem, [phrase]), true);
+      assert.equal(
+        isSourceRssAtomItemAdmitted(rawItem, policy([phrase])),
+        true,
+      );
     }
     assert.equal(
-      isSourceRssAtomItemAdmitted({ title: 'A matching second phrase' }, [
-        'absent first phrase',
-        'SECOND PHRASE',
-        'absent third phrase',
-      ]),
+      isSourceRssAtomItemAdmitted(
+        { title: 'A matching second phrase' },
+        policy(['absent first phrase', 'SECOND PHRASE', 'absent third phrase']),
+      ),
       true,
+    );
+  });
+
+  it('applies Exclude against the same fields and gives it precedence', () => {
+    assert.equal(
+      isSourceRssAtomItemAdmitted(
+        { title: 'Excluded story' },
+        policy([], ['excluded']),
+      ),
+      false,
+    );
+    assert.equal(
+      isSourceRssAtomItemAdmitted(
+        { content: '<p>Included but excluded story</p>' },
+        policy(['included'], ['excluded']),
+      ),
+      false,
+    );
+    assert.equal(
+      isSourceRssAtomItemAdmitted(
+        { categories: ['Included'] },
+        policy(['included'], ['excluded']),
+      ),
+      true,
+    );
+    assert.equal(
+      isSourceRssAtomItemAdmitted({ title: 'Not included' }, policy(['other'])),
+      false,
     );
   });
 
   it('normalizes Unicode NFKC deterministically', () => {
     assert.equal(
-      isSourceRssAtomItemAdmitted({ title: 'Ｆｕｌｌ Width News' }, [
-        'full width',
-      ]),
+      isSourceRssAtomItemAdmitted(
+        { title: 'Ｆｕｌｌ Width News' },
+        policy(['full width']),
+      ),
       true,
     );
   });
@@ -53,23 +94,30 @@ describe('Source RSS/Atom item admission filter', () => {
       language: 'needle',
       diagnostics: { needle: 'needle' },
     };
-    assert.equal(isSourceRssAtomItemAdmitted(rawItem, ['needle']), false);
-    assert.equal(isSourceRssAtomItemAdmitted({}, ['needle']), false);
+    assert.equal(
+      isSourceRssAtomItemAdmitted(rawItem, policy(['needle'])),
+      false,
+    );
+    assert.equal(isSourceRssAtomItemAdmitted({}, policy(['needle'])), false);
   });
 
   it('treats regex and glob-looking phrase characters as ordinary literals', () => {
     assert.equal(
-      isSourceRssAtomItemAdmitted({ title: 'Literal .* and [draft] markers' }, [
-        '.*',
-      ]),
+      isSourceRssAtomItemAdmitted(
+        { title: 'Literal .* and [draft] markers' },
+        policy(['.*']),
+      ),
       true,
     );
     assert.equal(
-      isSourceRssAtomItemAdmitted({ title: 'AxxB story' }, ['A.*B']),
+      isSourceRssAtomItemAdmitted({ title: 'AxxB story' }, policy(['A.*B'])),
       false,
     );
     assert.equal(
-      isSourceRssAtomItemAdmitted({ title: 'published story' }, ['publish*']),
+      isSourceRssAtomItemAdmitted(
+        { title: 'published story' },
+        policy(['publish*']),
+      ),
       false,
     );
   });
@@ -88,13 +136,13 @@ describe('Source RSS/Atom item admission filter', () => {
       'amp',
     ]) {
       assert.equal(
-        isSourceRssAtomItemAdmitted(rawItem, [artificial]),
+        isSourceRssAtomItemAdmitted(rawItem, policy([artificial])),
         false,
         artificial,
       );
     }
     assert.equal(
-      isSourceRssAtomItemAdmitted(rawItem, ['visible & copy']),
+      isSourceRssAtomItemAdmitted(rawItem, policy(['visible & copy'])),
       true,
     );
   });
@@ -103,7 +151,10 @@ describe('Source RSS/Atom item admission filter', () => {
     const content =
       '<![CDATA[<p> Human&nbsp; editorial &#x74;ext </p>]]><script>ignored</script>';
     assert.equal(
-      isSourceRssAtomItemAdmitted({ content }, ['human editorial text']),
+      isSourceRssAtomItemAdmitted(
+        { content },
+        policy(['human editorial text']),
+      ),
       true,
     );
     const normalized = normalizeArticleCandidate(
@@ -116,8 +167,7 @@ describe('Source RSS/Atom item admission filter', () => {
       },
     );
     assert.equal(normalized.ok, true);
-    if (normalized.ok) {
+    if (normalized.ok)
       assert.equal(normalized.candidate.summary, 'Human editorial text');
-    }
   });
 });

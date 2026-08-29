@@ -457,7 +457,9 @@ test('Source admission persists filtered run accounting without Article observat
     const database = createDatabase({ connectionString: databaseUrl });
     try {
       const configuration = await createConfiguration(database, ['admit']);
-      assert.deepEqual(configuration.source.rssAtomAdmissionPhrases, ['admit']);
+      assert.deepEqual(configuration.source.rssAtomAdmissionIncludePhrases, [
+        'admit',
+      ]);
       let relevanceSnapshotLoads = 0;
       const admitted = await execute(
         database,
@@ -1053,7 +1055,7 @@ function contentFetcher(): HttpFetcher {
 
 async function createConfiguration(
   database: Database,
-  rssAtomAdmissionPhrases: readonly string[] = [],
+  rssAtomAdmissionIncludePhrases: readonly string[] = [],
 ) {
   await insertPublicationSettings(database, {
     name: 'Phase 7 processing',
@@ -1067,9 +1069,9 @@ async function createConfiguration(
     approvalState: 'approved',
     lifecycleState: 'active',
     operationalState: 'enabled',
-    ...(rssAtomAdmissionPhrases.length === 0
+    ...(rssAtomAdmissionIncludePhrases.length === 0
       ? {}
-      : { rssAtomAdmissionPhrases }),
+      : { rssAtomAdmissionIncludePhrases }),
     domainRules: [{ hostname: 'feeds.example.test', includeSubdomains: false }],
   });
   await insertSourceEndpoint(database, source.id, {
