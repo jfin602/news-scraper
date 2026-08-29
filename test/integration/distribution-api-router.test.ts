@@ -10,6 +10,7 @@ import {
 } from '../../src/app/web/distribution-api-router.ts';
 import { startWebServer, type WebServer } from '../../src/app/web/server.ts';
 import type { DistributionProfilePageOutcome } from '../../src/distribution/profile-page.ts';
+import type { ActiveProfileDigest } from '../../src/distribution/digests/lifecycle.ts';
 import type { MachineRequestGuardResult } from '../../src/distribution/credentials/machine-request-guard.ts';
 
 describe('Versioned distribution API router', () => {
@@ -83,6 +84,7 @@ describe('Versioned distribution API router', () => {
       snapshotRevision: 'revision-123',
       profile: { configKey: 'authors', displayName: 'Authors' },
       publication: { name: 'Publishing News' },
+      digest: null,
       items: [
         {
           articleId: 'article-1',
@@ -133,6 +135,38 @@ describe('Versioned distribution API router', () => {
       assert.deepEqual(await response.json(), { error: 'invalid_request' });
       assert.equal(pageCalls.length, calls);
     }
+  });
+
+  it('serializes only the bounded normalized digest wire shape', async () => {
+    outcome = activePage({ digest: digest() });
+    const response = await request('authors');
+    assert.equal(response.status, 200);
+    const body = await response.json();
+    assert.deepEqual(body.digest, {
+      generatedAt: '2026-08-20T09:08:07.006Z',
+      freshness: 'older',
+      inputArticleCount: 2,
+      provider: 'gemini',
+      model: 'gemini-2.5-flash',
+      overview: 'Bounded overview.',
+      highlights: [
+        {
+          title: 'One highlight',
+          explanation: 'Bounded explanation.',
+          supportingArticles: [
+            {
+              articleId: 'article-1',
+              headline: 'Resolved support',
+              source: { displayName: 'Resolved Publisher' },
+              effectiveFeedDate: '2026-08-19T00:00:00.000Z',
+              originalUrl: 'https://publisher.example/exact-support?keep=yes',
+            },
+          ],
+        },
+      ],
+    });
+    assert.equal(JSON.stringify(body.digest).includes('attempt'), false);
+    assert.equal(JSON.stringify(body.digest).includes('identity'), false);
   });
 
   it('maps authentication and rate outcomes without credential-state detail', async () => {
@@ -301,6 +335,7 @@ function activePage(
     snapshotRevision: 'revision-123',
     profile: { configKey: 'authors', displayName: 'Authors' },
     publication: { name: 'Publishing News' },
+    digest: null,
     items: [
       {
         articleId: 'article-1',
@@ -318,5 +353,31 @@ function activePage(
     ],
     nextCursor: 'next-cursor',
     ...overrides,
+  };
+}
+
+function digest(): ActiveProfileDigest {
+  return {
+    generatedAt: new Date('2026-08-20T09:08:07.006Z'),
+    freshness: 'older',
+    inputArticleCount: 2,
+    provider: 'gemini',
+    model: 'gemini-2.5-flash',
+    overview: 'Bounded overview.',
+    highlights: [
+      {
+        title: 'One highlight',
+        explanation: 'Bounded explanation.',
+        supportingArticles: [
+          {
+            articleId: 'article-1',
+            headline: 'Resolved support',
+            sourceDisplayName: 'Resolved Publisher',
+            effectiveFeedDate: new Date('2026-08-19T00:00:00.000Z'),
+            originalUrl: 'https://publisher.example/exact-support?keep=yes',
+          },
+        ],
+      },
+    ],
   };
 }

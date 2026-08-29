@@ -8,12 +8,15 @@ import {
   DISTRIBUTION_CURSOR_MAX_ENCODED_LENGTH,
 } from '../../src/distribution/cursor.ts';
 import { createDistributionProfilePageServiceFromSnapshotService } from '../../src/distribution/profile-page.ts';
+import { createDistributionProfilePageServiceFromRepresentationSnapshotService } from '../../src/distribution/profile-page.ts';
 import type {
   DistributionProfileSnapshot,
   DistributionProfileSnapshotService,
 } from '../../src/distribution/profile-snapshot.ts';
 import type { CanonicalOutwardOrderPosition } from '../../src/distribution/canonical-outward-articles.ts';
 import { distributionSnapshotRevision } from '../../src/distribution/snapshot-revision.ts';
+import type { ActiveProfileDigest } from '../../src/distribution/digests/lifecycle.ts';
+import type { DistributionProfileRepresentationSnapshotService } from '../../src/distribution/outward-representation-snapshot.ts';
 
 const POSITION = Object.freeze({
   effectiveFeedDate: '2026-08-12T10:11:12.123456Z',
@@ -62,6 +65,37 @@ test('distribution revisions are deterministic and include governed semantics on
         },
       }),
     ),
+  );
+});
+
+test('distribution revisions include only the normalized outward digest state', () => {
+  const noDigest = makeSnapshot();
+  const current = Object.freeze({ ...noDigest, digest: makeDigest() });
+  const same = Object.freeze({ ...noDigest, digest: makeDigest() });
+  const older = Object.freeze({
+    ...noDigest,
+    digest: makeDigest({ freshness: 'older' }),
+  });
+  const replacement = Object.freeze({
+    ...noDigest,
+    digest: makeDigest({ overview: 'Replacement overview.' }),
+  });
+
+  assert.notEqual(
+    distributionSnapshotRevision(noDigest),
+    distributionSnapshotRevision(current),
+  );
+  assert.equal(
+    distributionSnapshotRevision(current),
+    distributionSnapshotRevision(same),
+  );
+  assert.notEqual(
+    distributionSnapshotRevision(current),
+    distributionSnapshotRevision(older),
+  );
+  assert.notEqual(
+    distributionSnapshotRevision(current),
+    distributionSnapshotRevision(replacement),
   );
 });
 
@@ -147,6 +181,28 @@ test('empty and exact-page-boundary snapshots exhaust without a cursor', async (
     if (page.kind !== 'active') throw new Error();
     assert.equal(page.items.length, articleCount);
     assert.equal(page.nextCursor, null);
+  }
+});
+
+test('every representation page carries the same normalized digest', async () => {
+  const snapshot = Object.freeze({
+    ...makeSnapshot({ articleCount: 205 }),
+    digest: makeDigest(),
+  });
+  const service =
+    createDistributionProfilePageServiceFromRepresentationSnapshotService({
+      read: async () => Object.freeze({ kind: 'active' as const, snapshot }),
+    } satisfies DistributionProfileRepresentationSnapshotService);
+  let cursor: string | undefined;
+  let digest: ActiveProfileDigest | null | undefined;
+  for (;;) {
+    const page = await service.read('books', cursor);
+    assert.equal(page.kind, 'active');
+    if (page.kind !== 'active') throw new Error();
+    digest ??= page.digest;
+    assert.deepEqual(page.digest, digest);
+    if (page.nextCursor === null) break;
+    cursor = page.nextCursor;
   }
 });
 
@@ -295,6 +351,35 @@ function makeSnapshot(
         articles.map((article) => article.orderPosition),
       ),
     }),
+  });
+}
+
+function makeDigest(
+  overrides: Partial<ActiveProfileDigest> = {},
+): ActiveProfileDigest {
+  return Object.freeze({
+    generatedAt: new Date('2026-08-28T12:00:00.000Z'),
+    freshness: 'current',
+    inputArticleCount: 2,
+    provider: 'gemini',
+    model: 'gemini-2.5-flash',
+    overview: 'A bounded overview.',
+    highlights: Object.freeze([
+      Object.freeze({
+        title: 'Highlight',
+        explanation: 'Bounded explanation.',
+        supportingArticles: Object.freeze([
+          Object.freeze({
+            articleId: POSITION.articleId,
+            headline: 'Resolved headline',
+            sourceDisplayName: 'Resolved Source',
+            effectiveFeedDate: new Date('2026-08-12T10:11:12.123Z'),
+            originalUrl: 'https://reader.example/resolved?exact=yes',
+          }),
+        ]),
+      }),
+    ]),
+    ...overrides,
   });
 }
 

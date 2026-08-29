@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto';
 
 import type { DistributionProfileSnapshot } from './profile-snapshot.ts';
+import type { ActiveProfileDigest } from './digests/lifecycle.ts';
 
-export const DISTRIBUTION_SNAPSHOT_REVISION_VERSION = 1;
+export const DISTRIBUTION_SNAPSHOT_REVISION_VERSION = 2;
 export const DISTRIBUTION_SNAPSHOT_REVISION_DOMAIN =
   'news-scraper:distribution-profile-snapshot';
 
@@ -12,7 +13,9 @@ export const DISTRIBUTION_SNAPSHOT_REVISION_DOMAIN =
  * operational state which cannot change the governed output are excluded.
  */
 export function distributionSnapshotRevision(
-  snapshot: DistributionProfileSnapshot,
+  snapshot: DistributionProfileSnapshot & {
+    readonly digest?: ActiveProfileDigest | null;
+  },
 ): string {
   const profile = snapshot.internal.profile;
   const representation = {
@@ -41,6 +44,7 @@ export function distributionSnapshotRevision(
     publication: {
       name: snapshot.publication.name,
     },
+    digest: revisionDigest(snapshot.digest ?? null),
     articles: snapshot.articles.map((article) => ({
       articleId: article.articleId,
       headline: article.headline,
@@ -70,4 +74,27 @@ export function distributionSnapshotRevision(
   return createHash('sha256')
     .update(JSON.stringify(representation), 'utf8')
     .digest('hex');
+}
+
+function revisionDigest(digest: ActiveProfileDigest | null) {
+  if (digest === null) return null;
+  return {
+    generatedAt: digest.generatedAt.toISOString(),
+    freshness: digest.freshness,
+    inputArticleCount: digest.inputArticleCount,
+    provider: digest.provider,
+    model: digest.model,
+    overview: digest.overview,
+    highlights: digest.highlights.map((highlight) => ({
+      title: highlight.title,
+      explanation: highlight.explanation,
+      supportingArticles: highlight.supportingArticles.map((article) => ({
+        articleId: article.articleId,
+        headline: article.headline,
+        source: { displayName: article.sourceDisplayName },
+        effectiveFeedDate: article.effectiveFeedDate.toISOString(),
+        originalUrl: article.originalUrl,
+      })),
+    })),
+  };
 }

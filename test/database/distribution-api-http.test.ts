@@ -15,6 +15,10 @@ import {
   createDistributionProfile,
   replaceDistributionProfileSourceAssociation,
 } from '../../src/distribution/profiles/repository.ts';
+import {
+  persistAndActivateSuccessfulDigest,
+  updateProfileAiSettings,
+} from '../../src/distribution/digests/repository.ts';
 import { createDatabaseTestScope } from '../support/database/database-test-scope.ts';
 
 const scope = createDatabaseTestScope('migrated');
@@ -28,6 +32,31 @@ test('the process-lifetime distribution runtime authenticates persisted credenti
     try {
       await client.connect();
       const seeded = await seedProfile(client, database);
+      await updateProfileAiSettings(database, 'books', {
+        digestEnabled: true,
+        digestLookbackDays: 30,
+        digestMaxArticleCount: 20,
+      });
+      await persistAndActivateSuccessfulDigest(
+        database,
+        {
+          profileConfigKey: 'books',
+          digestInputIdentity: 'a'.repeat(64),
+          generatedAt: new Date('2026-08-20T09:08:07.006Z'),
+          provider: 'gemini',
+          model: 'gemini-2.5-flash',
+          inputArticleIds: seeded.articleIds.slice(0, 2),
+          overview: 'A bounded digest overview.',
+          highlights: [
+            {
+              title: 'One bounded highlight',
+              explanation: 'A bounded explanation.',
+              supportingArticleIds: [seeded.articleIds[0]!],
+            },
+          ],
+        },
+        new Date('2026-08-20T09:08:07.006Z'),
+      );
       const issued = await issueDistributionCredential(database, {
         label: 'HTTP traversal',
       });
@@ -61,6 +90,29 @@ test('the process-lifetime distribution runtime authenticates persisted credenti
         { configKey: 'books', displayName: 'Books' },
       ]);
       assert.equal(firstBody.items[0].feedDateSource, 'published_at');
+      assert.deepEqual(firstBody.digest, {
+        generatedAt: '2026-08-20T09:08:07.006Z',
+        freshness: 'older',
+        inputArticleCount: 2,
+        provider: 'gemini',
+        model: 'gemini-2.5-flash',
+        overview: 'A bounded digest overview.',
+        highlights: [
+          {
+            title: 'One bounded highlight',
+            explanation: 'A bounded explanation.',
+            supportingArticles: [
+              {
+                articleId: seeded.articleIds[0],
+                headline: 'Moderated headline',
+                source: { displayName: 'Alpha' },
+                effectiveFeedDate: '2026-08-12T10:10:09.000Z',
+                originalUrl: seeded.exactOriginalUrl,
+              },
+            ],
+          },
+        ],
+      });
       assert.equal(firstBody.nextCursor === null, false);
       assert.equal(first.headers.get('access-control-allow-origin'), null);
 
@@ -80,6 +132,7 @@ test('the process-lifetime distribution runtime authenticates persisted credenti
       assert.equal(second.status, 200);
       const secondBody = await second.json();
       assert.equal(secondBody.snapshotRevision, firstBody.snapshotRevision);
+      assert.deepEqual(secondBody.digest, firstBody.digest);
       assert.deepEqual(
         secondBody.items.map((item: { articleId: string }) => item.articleId),
         [seeded.articleIds[100]],
@@ -88,6 +141,75 @@ test('the process-lifetime distribution runtime authenticates persisted credenti
 
       const fresh = await distributionRequest(baseUrl, 'books', issued.token);
       const freshBody = await fresh.json();
+      await persistAndActivateSuccessfulDigest(
+        database,
+        {
+          profileConfigKey: 'books',
+          digestInputIdentity: 'b'.repeat(64),
+          generatedAt: new Date('2026-08-20T10:08:07.006Z'),
+          provider: 'gemini',
+          model: 'gemini-2.5-flash',
+          inputArticleIds: seeded.articleIds.slice(0, 2),
+          overview: 'A replacement digest overview.',
+          highlights: [],
+        },
+        new Date('2026-08-20T10:08:07.006Z'),
+      );
+      const digestChanged = await distributionRequest(
+        baseUrl,
+        `books?cursor=${encodeURIComponent(freshBody.nextCursor)}`,
+        issued.token,
+      );
+      assert.equal(digestChanged.status, 409);
+      const digestChangedInitial = await distributionRequest(
+        baseUrl,
+        'books',
+        issued.token,
+        { 'If-None-Match': fresh.headers.get('etag')! },
+      );
+      assert.equal(digestChangedInitial.status, 200);
+      const unselectedSourceId = randomUUID();
+      const unselectedArticleId = randomUUID();
+      await client.query(
+        "INSERT INTO sources (id, config_key, display_name, site_url, approval_state, lifecycle_state, operational_state) VALUES ($1, 'unselected', 'Unselected', 'https://unselected.example', 'approved', 'active', 'enabled')",
+        [unselectedSourceId],
+      );
+      await client.query(
+        "INSERT INTO articles (id, source_id, original_url, canonical_identity_url, display_title, normalized_title, published_at_status, source_updated_at_status, first_seen_at, last_seen_at, visibility_state) VALUES ($1, $2, 'https://unselected.example/article', 'https://unselected.example/identity', 'Unselected article', 'unselected article', 'missing', 'missing', '2026-08-12T10:10:09.000000Z', '2026-08-12T10:10:09.000000Z', 'visible')",
+        [unselectedArticleId, unselectedSourceId],
+      );
+      await persistAndActivateSuccessfulDigest(
+        database,
+        {
+          profileConfigKey: 'books',
+          digestInputIdentity: 'c'.repeat(64),
+          generatedAt: new Date('2026-08-20T11:08:07.006Z'),
+          provider: 'gemini',
+          model: 'gemini-2.5-flash',
+          inputArticleIds: [
+            ...seeded.articleIds.slice(0, 2),
+            unselectedArticleId,
+          ],
+          overview: 'Invalid outward digest.',
+          highlights: [
+            {
+              title: 'Invalid support',
+              explanation: 'The support is outside the Profile.',
+              supportingArticleIds: [unselectedArticleId],
+            },
+          ],
+        },
+        new Date('2026-08-20T11:08:07.006Z'),
+      );
+      const invalidDigest = await distributionRequest(
+        baseUrl,
+        'books',
+        issued.token,
+      );
+      assert.equal(invalidDigest.status, 200);
+      const invalidDigestBody = await invalidDigest.json();
+      assert.equal(invalidDigestBody.items.length, 100);
+      assert.equal(invalidDigestBody.digest, null);
       await client.query(
         "UPDATE articles SET author = 'revision change' WHERE id = $1",
         [seeded.articleIds[100]],

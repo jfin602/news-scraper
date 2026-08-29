@@ -1,7 +1,8 @@
-import type { Database } from '../../database/database.ts';
+import type { Database, QueryExecutor } from '../../database/database.ts';
 import { ConfigurationValidationError } from '../../publication/configuration.ts';
 import { normalizeConfigKey } from '../../sources/configuration.ts';
 import type { CanonicalOutwardArticle } from '../canonical-outward-articles.ts';
+import type { DistributionProfileSnapshot } from '../profile-snapshot.ts';
 import {
   activateSuccessfulDigestGeneration,
   claimDigestAttempt,
@@ -10,6 +11,7 @@ import {
   findActiveDigest,
   findLatestDigestAttempt,
   findRunningDigestAttempt,
+  readProfileAiSettings,
   recoverStaleRunningAttemptAndClaim,
   suppressActiveDigest,
   suppressActiveDigestInTransaction,
@@ -21,6 +23,7 @@ import {
 import {
   createDigestInputService,
   digestInputIdentity,
+  resolveDigestLifecycleInputFromSnapshot,
   type DigestInputArticle,
   type DigestInputService,
   type ResolvedDigestInput,
@@ -752,31 +755,66 @@ async function readActiveDigest(
     if (active === undefined) return null;
     const current = await inputService.readForLifecycle(profileConfigKey, now);
     if (current.kind !== 'active') return null;
-    const context = lifecycleContext(current.input, current.canonicalArticles);
-    if (
-      !context.input.settings.digestEnabled ||
-      context.input.articles.length === 0
-    )
-      return null;
-    if (
-      !isCanonicallyValid(active, context) ||
-      !hasInputOverlap(active, context.input)
-    )
-      return null;
-    const freshness: DigestFreshness =
-      active.digestInputIdentity === context.input.digestInputIdentity
-        ? 'current'
-        : 'older';
-    return materializeActiveDigest(
+    return normalizeActiveDigest(
       active,
-      context.canonicalArticles,
-      freshness,
+      current.input,
+      current.canonicalArticles,
     );
   } catch {
     // Optional malformed/unavailable AI state fails closed without affecting
     // ordinary canonical Article reads.
     return null;
   }
+}
+
+/**
+ * P3's normalized active-digest authority for an already captured canonical
+ * Profile snapshot. It makes no provider request and never opens another
+ * Article snapshot, allowing outward consumers to compose coherently.
+ */
+export async function readActiveProfileDigestInSnapshot(
+  executor: QueryExecutor,
+  snapshot: DistributionProfileSnapshot,
+  now: Date,
+): Promise<ActiveProfileDigest | null> {
+  try {
+    const settings = await readProfileAiSettings(
+      executor,
+      snapshot.profile.configKey,
+    );
+    if (settings === undefined) return null;
+    const context = resolveDigestLifecycleInputFromSnapshot(
+      snapshot,
+      settings,
+      now,
+    );
+    const active = await findActiveDigest(executor, snapshot.profile.configKey);
+    if (active === undefined) return null;
+    return normalizeActiveDigest(
+      active,
+      context.input,
+      context.canonicalArticles,
+    );
+  } catch {
+    // Optional malformed/unavailable AI state cannot break Article delivery.
+    return null;
+  }
+}
+
+function normalizeActiveDigest(
+  active: PersistedSuccessfulDigest,
+  input: ResolvedDigestInput,
+  canonicalArticles: readonly CanonicalOutwardArticle[],
+): ActiveProfileDigest | null {
+  const context = lifecycleContext(input, canonicalArticles);
+  if (!input.settings.digestEnabled || input.articles.length === 0) return null;
+  if (!isCanonicallyValid(active, context) || !hasInputOverlap(active, input))
+    return null;
+  const freshness: DigestFreshness =
+    active.digestInputIdentity === input.digestInputIdentity
+      ? 'current'
+      : 'older';
+  return materializeActiveDigest(active, canonicalArticles, freshness);
 }
 
 function lifecycleContext(

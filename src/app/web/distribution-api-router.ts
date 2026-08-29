@@ -5,6 +5,7 @@ import type {
   DistributionProfilePageOutcome,
   DistributionProfilePageService,
 } from '../../distribution/profile-page.ts';
+import type { ActiveProfileDigest } from '../../distribution/digests/lifecycle.ts';
 import type {
   MachineRequestGuardInput,
   MachineRequestGuardResult,
@@ -209,6 +210,7 @@ function respondPage(
       displayName: page.profile.displayName,
     },
     publication: { name: page.publication.name },
+    digest: serializeDigest(page.digest),
     items: page.items.map(serializeItem),
     nextCursor: page.nextCursor,
   });
@@ -216,6 +218,29 @@ function respondPage(
     itemCount: page.items.length,
     continuation: page.nextCursor !== null,
   });
+}
+
+function serializeDigest(digest: ActiveProfileDigest | null) {
+  if (digest === null) return null;
+  return {
+    generatedAt: isoDate(digest.generatedAt),
+    freshness: digest.freshness,
+    inputArticleCount: digest.inputArticleCount,
+    provider: digest.provider,
+    model: digest.model,
+    overview: digest.overview,
+    highlights: digest.highlights.map((highlight) => ({
+      title: highlight.title,
+      explanation: highlight.explanation,
+      supportingArticles: highlight.supportingArticles.map((article) => ({
+        articleId: article.articleId,
+        headline: article.headline,
+        source: { displayName: article.sourceDisplayName },
+        effectiveFeedDate: isoDate(article.effectiveFeedDate),
+        originalUrl: article.originalUrl,
+      })),
+    })),
+  };
 }
 
 function respondNonActive(

@@ -136,7 +136,6 @@ async function readForLifecycle(
   profileConfigKey: unknown,
   now: Date,
 ): Promise<DigestLifecycleInputReadOutcome> {
-  const resolvedAt = validNow(now);
   const snapshot = await dependencies.snapshots.read(profileConfigKey);
   if (snapshot.kind !== 'active') return snapshot;
   const settings = await dependencies.readSettings(
@@ -147,11 +146,36 @@ async function readForLifecycle(
     settings.profileId !== snapshot.snapshot.internal.profile.id
   )
     return Object.freeze({ kind: 'read_failed' });
+  return Object.freeze({
+    kind: 'active',
+    ...resolveDigestLifecycleInputFromSnapshot(
+      snapshot.snapshot,
+      settings,
+      now,
+    ),
+  });
+}
+
+/** P3's caller-snapshot seam; it never opens or changes a canonical snapshot. */
+export function resolveDigestLifecycleInputFromSnapshot(
+  snapshot: Extract<
+    DistributionProfileReadOutcome,
+    { kind: 'active' }
+  >['snapshot'],
+  settings: ProfileAiSettings,
+  now: Date,
+): Readonly<{
+  input: ResolvedDigestInput;
+  canonicalArticles: readonly CanonicalOutwardArticle[];
+}> {
+  const resolvedAt = validNow(now);
+  if (settings.profileId !== snapshot.internal.profile.id)
+    throw new Error('Profile AI settings do not match the canonical Profile.');
   const cutoff = new Date(
     resolvedAt.getTime() - settings.digestLookbackDays * 24 * 60 * 60 * 1000,
   );
   const articles = Object.freeze(
-    snapshot.snapshot.articles
+    snapshot.articles
       .filter(
         (article) => article.effectiveFeedDate.getTime() >= cutoff.getTime(),
       )
@@ -159,19 +183,18 @@ async function readForLifecycle(
       .map(projectArticle),
   );
   return Object.freeze({
-    kind: 'active',
     input: Object.freeze({
-      profile: Object.freeze({ ...snapshot.snapshot.profile }),
+      profile: Object.freeze({ ...snapshot.profile }),
       settings,
       resolvedAt,
       articles,
       digestInputIdentity: digestInputIdentity({
-        profileConfigKey: snapshot.snapshot.profile.configKey,
+        profileConfigKey: snapshot.profile.configKey,
         settings,
         orderedArticleIds: articles.map((article) => article.articleId),
       }),
     }),
-    canonicalArticles: snapshot.snapshot.articles,
+    canonicalArticles: snapshot.articles,
   });
 }
 

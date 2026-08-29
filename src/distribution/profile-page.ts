@@ -6,12 +6,14 @@ import {
   type DistributionCursor,
 } from './cursor.ts';
 import { distributionSnapshotRevision } from './snapshot-revision.ts';
-import {
-  createDistributionProfileSnapshotService,
-  type DistributionProfileReadOutcome,
-  type DistributionProfileSnapshotService,
-} from './profile-snapshot.ts';
+import { type DistributionProfileSnapshotService } from './profile-snapshot.ts';
 import type { Database } from '../database/database.ts';
+import {
+  createDistributionProfileRepresentationSnapshotService,
+  type DistributionProfileRepresentationReadOutcome,
+  type DistributionProfileRepresentationSnapshotService,
+} from './outward-representation-snapshot.ts';
+import type { ActiveProfileDigest } from './digests/lifecycle.ts';
 
 export const DISTRIBUTION_PAGE_SIZE = 100;
 
@@ -24,6 +26,7 @@ export type DistributionProfilePageOutcome =
       snapshotRevision: string;
       profile: Readonly<{ configKey: string; displayName: string }>;
       publication: Readonly<{ name: string }>;
+      digest: ActiveProfileDigest | null;
       items: readonly DistributionProfilePageItem[];
       nextCursor: string | null;
     }>
@@ -58,13 +61,36 @@ export interface DistributionProfilePageService {
 export function createDistributionProfilePageService(
   database: Database,
 ): DistributionProfilePageService {
-  return createDistributionProfilePageServiceFromSnapshotService(
-    createDistributionProfileSnapshotService(database),
+  return createDistributionProfilePageServiceFromRepresentationSnapshotService(
+    createDistributionProfileRepresentationSnapshotService(database),
   );
+}
+
+export function createDistributionProfilePageServiceFromRepresentationSnapshotService(
+  snapshots: DistributionProfileRepresentationSnapshotService,
+): DistributionProfilePageService {
+  return createPageService({
+    read: (profileConfigKey) => snapshots.read(profileConfigKey),
+  });
 }
 
 export function createDistributionProfilePageServiceFromSnapshotService(
   snapshots: DistributionProfileSnapshotService,
+): DistributionProfilePageService {
+  return createPageService({
+    async read(profileConfigKey: unknown) {
+      const outcome = await snapshots.read(profileConfigKey);
+      if (outcome.kind !== 'active') return outcome;
+      return Object.freeze({
+        kind: 'active' as const,
+        snapshot: Object.freeze({ ...outcome.snapshot, digest: null }),
+      });
+    },
+  });
+}
+
+function createPageService(
+  snapshots: Pick<DistributionProfileRepresentationSnapshotService, 'read'>,
 ): DistributionProfilePageService {
   return Object.freeze({
     async read(
@@ -78,7 +104,7 @@ export function createDistributionProfilePageServiceFromSnapshotService(
         return Object.freeze({ kind: 'invalid_input' });
       }
 
-      let outcome: DistributionProfileReadOutcome;
+      let outcome: DistributionProfileRepresentationReadOutcome;
       try {
         outcome = await snapshots.read(key);
       } catch {
@@ -138,6 +164,7 @@ export function createDistributionProfilePageServiceFromSnapshotService(
         snapshotRevision: revision,
         profile: Object.freeze({ ...outcome.snapshot.profile }),
         publication: Object.freeze({ ...outcome.snapshot.publication }),
+        digest: outcome.snapshot.digest,
         items: Object.freeze(articles.map(toPageItem)),
         nextCursor,
       });
@@ -146,7 +173,10 @@ export function createDistributionProfilePageServiceFromSnapshotService(
 }
 
 function mapNonActiveOutcome(
-  outcome: Exclude<DistributionProfileReadOutcome, { kind: 'active' }>,
+  outcome: Exclude<
+    DistributionProfileRepresentationReadOutcome,
+    { kind: 'active' }
+  >,
 ): Exclude<
   DistributionProfilePageOutcome,
   { kind: 'active' | 'invalid_input' | 'snapshot_changed' }

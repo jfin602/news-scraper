@@ -1,4 +1,8 @@
-import type { Database, RepeatableReadDatabase } from '../database/database.ts';
+import type {
+  Database,
+  QueryExecutor,
+  RepeatableReadDatabase,
+} from '../database/database.ts';
 import {
   readCanonicalOutwardArticlesForProfileSource,
   type CanonicalOutwardArticle,
@@ -55,54 +59,57 @@ export function createDistributionProfileSnapshotService(
           throw new Error('repeatable-read transaction is unavailable');
         }
         return await repeatableReadDatabase.readOnlyRepeatableReadTransaction(
-          async (transaction) => {
-            const profile = await findDistributionProfileByConfigKey(
-              transaction,
-              key,
-            );
-            if (profile === undefined)
-              return Object.freeze({ kind: 'not_found' } as const);
-            if (profile.lifecycle === 'draft')
-              return Object.freeze({ kind: 'draft' as const, profile });
-            if (profile.lifecycle === 'disabled')
-              return Object.freeze({ kind: 'disabled' as const, profile });
-            const publication = await readPublicationSettings(transaction);
-            if (publication === undefined)
-              throw new Error('missing publication');
-            const candidates = await Promise.all(
-              profile.sources.map((source) =>
-                readSource(transaction, source, profile.resultLimit),
-              ),
-            );
-            const articles = Object.freeze(
-              candidates
-                .flat()
-                .sort(compareArticles)
-                .slice(0, profile.resultLimit),
-            );
-            return Object.freeze({
-              kind: 'active' as const,
-              snapshot: Object.freeze({
-                profile: Object.freeze({
-                  configKey: profile.configKey,
-                  displayName: profile.displayName,
-                }),
-                publication: Object.freeze({ name: publication.name }),
-                articles,
-                internal: Object.freeze({
-                  profile,
-                  orderPositions: Object.freeze(
-                    articles.map((article) => article.orderPosition),
-                  ),
-                }),
-              }),
-            });
-          },
+          (transaction) =>
+            readDistributionProfileSnapshotInTransaction(transaction, key),
         );
       } catch {
         return Object.freeze({ kind: 'read_failed' });
       }
     },
+  });
+}
+
+/**
+ * The caller owns transaction scope. This keeps the P1 canonical Article
+ * producer independently reusable by digest generation and outward consumers.
+ */
+export async function readDistributionProfileSnapshotInTransaction(
+  transaction: QueryExecutor,
+  profileConfigKey: unknown,
+): Promise<DistributionProfileReadOutcome> {
+  const key = normalizeConfigKey(profileConfigKey);
+  const profile = await findDistributionProfileByConfigKey(transaction, key);
+  if (profile === undefined) return Object.freeze({ kind: 'not_found' });
+  if (profile.lifecycle === 'draft')
+    return Object.freeze({ kind: 'draft', profile });
+  if (profile.lifecycle === 'disabled')
+    return Object.freeze({ kind: 'disabled', profile });
+  const publication = await readPublicationSettings(transaction);
+  if (publication === undefined) throw new Error('missing publication');
+  const candidates = await Promise.all(
+    profile.sources.map((source) =>
+      readSource(transaction, source, profile.resultLimit),
+    ),
+  );
+  const articles = Object.freeze(
+    candidates.flat().sort(compareArticles).slice(0, profile.resultLimit),
+  );
+  return Object.freeze({
+    kind: 'active',
+    snapshot: Object.freeze({
+      profile: Object.freeze({
+        configKey: profile.configKey,
+        displayName: profile.displayName,
+      }),
+      publication: Object.freeze({ name: publication.name }),
+      articles,
+      internal: Object.freeze({
+        profile,
+        orderPositions: Object.freeze(
+          articles.map((article) => article.orderPosition),
+        ),
+      }),
+    }),
   });
 }
 
