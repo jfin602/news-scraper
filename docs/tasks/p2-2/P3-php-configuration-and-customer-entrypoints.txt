@@ -19,6 +19,12 @@ TASK: Phase 2 / P3 — PHP configuration and stable customer entrypoints
 
 The assigned project version is `2.2.3`.
 
+## Test command execution policy
+
+Do not impose an artificial wall-clock timeout on repository test/validation commands selected by this prompt. In particular, do not wrap commands in a 2-minute/120-second timeout merely to keep the prompt moving. Let each selected command run to its natural completion or fail from its own test/runtime limits. If an execution/observation tool stops displaying output while the underlying process is still running, continue observing/polling that same process rather than killing and rerunning it solely because the observation window expired.
+
+This rule applies only to prompt/test-command orchestration. Do not remove or weaken legitimate product/runtime/network timeouts implemented by the PHP integration or application itself.
+
 ## Goal
 
 Resolve the common foundation behind `T4QP`, `H3CJ`, `P9BW`, and `C2RV`:
