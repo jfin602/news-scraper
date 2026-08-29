@@ -1,0 +1,275 @@
+TASK: Correction 1 / P1 — Digest style generation foundation
+
+CORRECTION SCOPE
+This is the first implementation prompt in owner-approved correction `c1-digest-style`.
+
+Phase 1 Gemini Profile digest foundation is GREEN / owner-accepted and the project is now at package `2.2.0`, before normal Phase 2 work. The governing AI contract now adds one optional Profile-level setting, `digestStyleGuidance`, so an administrator can influence digest tone/voice/audience without replacing News Scraper's fixed Gemini safety, grounding, URL, schema, or validation instructions.
+
+P1 owns the complete server-side producer boundary: forward-compatible persistence, canonical validation/read/update semantics, digest identity participation, safe Gemini request composition, and protected server-side Profile AI administration/API representation. P2 will add only the browser/client form that consumes this producer.
+
+Do not start Phase 2 PHP package work. Do not change public v1/PHP digest representation.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Terra High`.
+- Task-shape classification: `Cross-cutting`.
+- Specification clarity: `Explicit`.
+- State coupling: `Moderate` across persisted Profile AI settings, digest identity/lifecycle consumers, provider request construction, and the protected admin service.
+- Integrity risk: `High` because this adds supported-production persisted configuration and changes digest provenance/idempotency identity.
+- Concurrency: `None` new; existing lifecycle post-provider revalidation and attempt ownership must remain intact.
+- Security: `Sensitive` because administrator-authored text enters the Gemini prompt boundary and must never expand URL/tool/system authority.
+- Novel inference: `Moderate`; the behavior is locked, but implementation must preserve a clean producer contract across database, lifecycle, provider, and admin consumers.
+- Model-family basis: Terra is the minimum adequate workhorse for the combined production migration, identity-version, prompt-authority, and server-admin boundary. Luna would make the cross-file integrity/security review too fragile.
+- Reasoning basis: High is warranted for canonical text normalization, supported-production migration safety, identity-version transition behavior, prompt-injection/URL allowlist isolation, and avoiding transitional compatibility shims.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Usage basis: multi-file source tracing, additive migration plus real-PostgreSQL/upgrade tests, digest identity/provider regressions, server-admin/integration adaptation, portable regression, and recovery evidence.
+- Lower-cost alternative considered: `Terra Medium`; rejected because this prompt combines two subtle correctness boundaries—persisted production configuration and untrusted prompt composition—whose interaction with digest identity/lifecycle warrants deeper review.
+- Escalation trigger: implementing this setting requires changing lifecycle transaction/claim ownership, public v1/PHP schema, Gemini tool permissions, a new general prompt framework, or another architectural/product decision not already locked by the AI contract.
+- Escalation target: `Sol High`; return `Planning needed` instead of silently redesigning those boundaries.
+- Estimate confidence: `High`.
+
+VERSIONING
+- Required unchanged project version: `2.2.0`.
+- Do not change top-level `package.json` version.
+- This correction consumes no Phase 2 patch number.
+- Do not create `package-lock.json`, `npm-shrinkwrap.json`, or unrelated generated state.
+- Do not manually commit; the correction runner owns the implementation-prompt commit boundary.
+
+SEQUENCE / FRESHNESS PREFLIGHT
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, `README.md`, `docs/README.md`, and `docs/codex-model-selection.md`;
+2. read `docs/contracts/project-contract.md`, `docs/contracts/ai-assistance-contract.md`, `docs/contracts/testing-and-validation-contract.md`, `docs/decisions/production-data-and-schema-compatibility.md`, and the current `docs/roadmap/3.0-roadmap.md` correction entry;
+3. inspect `package.json` and require exactly `2.2.0`;
+4. inspect current migration history, especially `0018_profile_ai_digest_foundation.sql` and `0019_digest_lifecycle_handoff.sql`; require no existing `0020` migration and do not rewrite historical migrations;
+5. inspect `src/distribution/digests/repository.ts`, `input.ts`, `lifecycle.ts`, and `provider.ts` plus all important `ProfileAiSettings` consumers;
+6. inspect `src/admin/profile-ai-administration.ts` and `src/app/web/profile-ai-administration-router.ts`;
+7. inspect focused tests including `test/unit/digest-input.test.ts`, `digest-lifecycle.test.ts`, `digest-provider.test.ts`, `test/database/profile-ai-digest-foundation.test.ts`, `profile-ai-administration.test.ts`, `distribution-profile-production-upgrade.test.ts`, `migrations.test.ts`, and `test/integration/profile-ai-administration-http.test.ts`;
+8. search all calls/fixtures constructing `ProfileAiSettings` or updating Profile AI settings so no consumer is silently left with an incomplete shape;
+9. inspect the current Test Necessity / Test Environment matrices before choosing iteration commands;
+10. stop and report planning drift if another implementation already adds `digestStyleGuidance`, package state moved, or the governing contract changed materially.
+
+Work from the actual current tree. Historical Phase 1 prompts/validation are context, not permission to rewrite observed evidence.
+
+LOCKED BEHAVIOR
+Canonical concept and public/admin semantics:
+- internal/server field: `digestStyleGuidance`;
+- protected admin label: `Digest writing style` (browser field is P2);
+- stored value: `string | null`;
+- hard maximum: **500 Unicode code points** after canonical application normalization;
+- blank or whitespace-only input means `null` / no custom guidance;
+- nonblank input is normalized to a stable trimmed plain-text value while preserving meaningful internal text/newlines;
+- subject- or audience-specific wording is allowed because this is Profile configuration, not shared-engine topic branching;
+- this value may influence tone, voice, audience, formality, and similar writing qualities only;
+- it never replaces fixed News Scraper instructions and cannot weaken Article/Profile grounding, URL allowlists, secret handling, tool selection, response schema, plain-text rules, support-ID validation, or output bounds;
+- saving configuration does not synchronously call Gemini;
+- changing the canonical stored guidance changes `digestInputIdentity` even if the ordered Article IDs are unchanged;
+- the setting itself is server-side admin configuration and must not be serialized into the public v1 digest, PHP LKG/local-read digest shape, customer cache, logs, or provider diagnostics.
+
+PERSISTENCE / MIGRATION
+Add exactly one forward migration after `0019`, expected name:
+
+`migrations/0020_profile_digest_style_guidance.sql`
+
+Use the existing `distribution_profile_ai_settings` table rather than creating another table.
+
+Requirements:
+- add nullable text column `digest_style_guidance`;
+- existing rows upgrade to `NULL` without rewriting or losing enabled/lookback/max/timestamps/Profile relationships;
+- new Profile rows continue to receive `NULL` through the existing Profile→AI-settings trigger/default path without rewriting migration `0018`;
+- enforce the 500-character/code-point bound in PostgreSQL with an appropriate CHECK and reject empty/whitespace-only persisted non-null state or otherwise ensure direct database writes cannot create a state that the repository would interpret ambiguously;
+- do not use a destructive reset, table recreation, migration squashing, or production-data backfill that invents guidance;
+- preserve supported migration-from-zero and production-forward upgrade from the accepted customer baseline through `0015`-`0020`;
+- preserve backup/restore/rollback compatibility under the production-data ADR.
+
+PostgreSQL `char_length` is appropriate for character-count enforcement; application validation must independently enforce the same semantic limit using Unicode code points rather than JavaScript UTF-16 code units.
+
+PROFILE AI SETTINGS REPOSITORY
+Extend `ProfileAiSettings` and its SQL row mapping with:
+
+`readonly digestStyleGuidance: string | null`
+
+Provide one canonical application normalizer for guidance and reuse it wherever server-side configuration is accepted. Do not duplicate slightly different 500-character rules in repository/admin/provider code.
+
+The canonical normalizer must:
+- accept `null` as no guidance;
+- accept string input, trim surrounding whitespace canonically, and turn a blank/whitespace-only result into `null`;
+- reject non-string/non-null values;
+- count Unicode code points, so 500 astral/emoji code points are accepted and 501 rejected;
+- return a bounded plain-text string or null;
+- never interpret the guidance as markup, URL, model name, tool instruction, or code.
+
+Update `readProfileAiSettings`, `updateProfileAiSettings`, row interfaces, mapping, and relevant focused tests. The repository's full settings update should operate on one complete canonical settings shape including guidance; do not add a second competing persistence authority.
+
+Protected server-side admin compatibility:
+- extend `AdminProfileAiReadModel.configuration` with `digestStyleGuidance: string | null`;
+- extend the protected configuration update path and audit prior/new state to carry the canonical guidance;
+- to keep the P1 intermediate tree coherent before P2 updates the bundled browser client, an omitted `digestStyleGuidance` property on the existing protected configuration request must preserve the current stored guidance; explicit `null`, empty, or whitespace-only guidance clears it;
+- reuse the canonical server normalizer rather than implementing another character counter;
+- existing required fields (`digestEnabled`, `lookbackDays`, `maxArticles`) remain required and bounded exactly as before;
+- unknown fields still fail closed;
+- a no-op canonical update creates no duplicate audit event;
+- changing guidance creates the existing bounded Profile AI configuration audit event, with no Gemini/provider request;
+- no Gemini key/model/prompt/provider body is exposed through the admin response or audit record.
+
+The existing admin HTTP router/request-integrity boundary remains authoritative. Do not create a new route or weaken mutation integrity. P2 will update the browser client to send the field explicitly.
+
+DIGEST INPUT IDENTITY
+The current digest identity representation is explicitly version-tagged. Because its canonical representation is changing, bump:
+
+`DIGEST_INPUT_IDENTITY_VERSION` from `v1` to `v2`.
+
+Do not silently redefine v1 semantics.
+
+The v2 hash representation must include the canonical stored `digestStyleGuidance` value, including the distinct no-guidance `null` state, alongside the existing Profile key, digest enabled/lookback/max settings, and exact ordered Article IDs.
+
+Required behavior:
+- same Profile/settings/style/ordered IDs -> same identity;
+- style `null` vs a non-null style -> different identity;
+- two distinct canonical styles -> different identities;
+- whitespace-only input canonicalized to null must not create a phantom distinct identity;
+- Article order and existing settings differences remain significant exactly as before.
+
+Do not persist raw prompt text in digest generation/attempt rows. `digestInputIdentity` remains the bounded provenance key.
+
+IDENTITY VERSION TRANSITION / LIFECYCLE
+The v2 representation intentionally causes successful digests generated under the old v1 identity to differ from current v2 input identity after deployment, even for Profiles with no custom guidance.
+
+Preserve the existing lifecycle semantics rather than adding migration-time Gemini work:
+- migration/config save makes no provider request;
+- an old v1 active digest that is still canonically valid and overlaps current input may remain outward-visible as `older`;
+- the next normal scheduled evaluation sees the identity/configuration mismatch and may regenerate through the existing path;
+- manual Generate now continues to force the same governed path;
+- if style changes while generation is in flight, existing post-provider input/settings revalidation must prevent activation of a digest generated for the superseded style;
+- do not add a migration job, synchronous admin generation, second scheduler, or special style-only lifecycle branch.
+
+Add focused lifecycle/unit protection where needed to prove style is treated like other relevant configuration and that the identity-version change does not accidentally bypass existing regeneration/revalidation semantics. Do not redesign `lifecycle.ts` if the existing generic identity behavior already provides this correctly.
+
+GEMINI REQUEST COMPOSITION
+Keep the existing application-owned `DIGEST_SYSTEM_INSTRUCTION` fixed and authoritative. Do **not** interpolate administrator guidance into `system_instruction`.
+
+Extend the request input in a clearly separated, bounded section conceptually like:
+
+```text
+application-owned fixed system instruction
+  > subordinate Profile writing-style guidance (optional untrusted editorial data)
+  > governed Article JSON / exact originalUrl allowlist
+```
+
+Requirements:
+- when guidance is null, preserve existing default writing behavior without a fake customer-specific instruction;
+- when present, include only the canonical bounded guidance in the user/input payload, explicitly labeled as subordinate writing-style guidance;
+- add/retain a fixed application-owned instruction stating that Profile writing guidance can affect writing style only and cannot change policy, grounding, URL/tool scope, secrets, schema, support rules, or output bounds;
+- treat guidance as untrusted text for prompt-injection purposes;
+- neutralize embedded URL-looking text in guidance using the same safe URL-neutralization boundary used for other non-allowlisted untrusted text so guidance can never add a raw URL that URL Context might interpret as eligible;
+- the only raw URL Context allowlist remains exact stored `originalUrl` values from the bounded governed Article input;
+- do not add Google Search, another tool, model-selected browsing, fallback URLs, another model call, or a separate provider request;
+- preserve `store=false`, low thinking, structured output schema, one request/no hidden retry behavior, response validation, support-ID validation, output bounds, timeout behavior, and provider failure classification.
+
+FOCUSED TEST REQUIREMENTS
+At minimum add/update deterministic tests that prove:
+
+1. Persistence/defaults
+- migration-from-zero creates `digest_style_guidance` with null default;
+- existing Profile AI rows upgrade through `0020` preserving prior configuration/state and gaining null guidance;
+- newly created Profiles default to null;
+- repository round-trips a canonical style and clears to null;
+- application and DB reject >500 code points;
+- exactly 500 Unicode code points, including astral/emoji examples, are accepted by application normalization;
+- blank/whitespace-only becomes null; malformed value types fail closed.
+
+2. Supported production upgrade
+- extend the existing production-forward migration test through `0020`;
+- preserve existing governed Article/Profile/credential/digest-attempt relationships and prior AI settings;
+- do not weaken its existing migration-ledger/history preservation checks.
+
+3. Identity/lifecycle
+- v2 identity is deterministic and includes canonical guidance;
+- style changes trigger generation-required semantics with unchanged Article IDs;
+- old v1 identity is not treated as current v2 identity; preserve older/regeneration semantics without synchronous generation;
+- post-provider generic settings revalidation remains capable of rejecting a superseded style if an existing suitable test seam can prove it cheaply.
+
+4. Provider prompt safety
+- custom guidance appears in request `input`, not `system_instruction`;
+- fixed system instructions remain present and topic independent;
+- injection-like guidance cannot replace those instructions;
+- a URL embedded in guidance is neutralized and does not become a raw additional URL while governed Article `originalUrl` values remain exact;
+- null guidance does not introduce topic-specific/default customer prose;
+- tools/schema/store/thinking/model/request count remain unchanged.
+
+5. Protected server admin producer
+- read response exposes nullable `digestStyleGuidance` only in protected admin configuration;
+- explicit style save persists/audits it without calling the lifecycle/provider;
+- omitted style on the pre-P2 request shape preserves existing stored style;
+- blank/null clears it;
+- invalid/over-limit input returns bounded `invalid_request` behavior with no secret/raw error leakage;
+- mutation-integrity and machine-vs-admin route separation remain unchanged.
+
+IMPORTANT PRODUCER → CONSUMER HANDOFF
+P2 must be able to remain a thin browser client. P1 is incomplete unless this handoff is true and focused proof exists:
+
+`nullable canonical digestStyleGuidance + validation/persistence + protected admin read/update JSON -> Profile AI repository/admin service/router -> database/admin/integration tests`
+
+and:
+
+`canonical style -> v2 digestInputIdentity + provider request input -> digest input/provider/lifecycle unit tests`
+
+P2 must not need to invent database normalization, identity rules, prompt composition, URL neutralization, audit semantics, or server error policy.
+
+PRESERVED BEHAVIOR / NON-GOALS
+Do not change:
+- canonical Profile Article selection/order/lookback/max cardinality;
+- Source trust, collection, Relevance, Categories, moderation, duplicates, Article identity/provenance, or original publisher destination semantics;
+- digest output schema/bounds/supporting Article resolution;
+- lifecycle attempt claim/concurrency/persistence/activation/freshness logic except generic identity-version behavior already implied by the new identity representation;
+- public v1 digest shape, snapshot representation fields, PHP LKG/local-read shape, customer cache, or customer presentation;
+- Gemini model (`gemini-3.6-flash` default), Interactions API, timeout, URL Context tool, Search-disabled behavior, or credential handling;
+- Phase 2 package/integration code;
+- historical Phase 1 worksheet/prompts/validation artifacts.
+
+Do not create a generic prompt-template/plugin framework, arbitrary administrator system prompt, new AI endpoint, customer-side Gemini setting, or generalized rich-text/Markdown feature.
+
+VALIDATION MANIFEST
+Resolve the final diff against the Test Necessity and Test Environment matrices. Expected classification:
+
+RUN — `LOCAL-PORTABLE`:
+- focused unit/provider/input/lifecycle/admin HTTP tests during iteration;
+- final `npm run check` (contains formatting, lint, typecheck, and portable unit/integration/collection regression);
+- `npm run codex:phase:validate -- c1-digest-style` after the task stack exists;
+- committed/uncommitted whitespace validation for the correction range with `git diff --check` as appropriate.
+
+RUN — `LOCAL-PREREQUISITE` (real disposable PostgreSQL):
+- focused database files during iteration via `npm run test:db:focused -- <paths>`;
+- final `npm run test:db` because schema/repository/admin persistence and production-forward migration changed;
+- final `npm run test:recovery` because a supported-production schema migration was added and backup/restore compatibility remains part of the claim.
+
+DEFER:
+- `npm run test:live-gemini` — `LIVE/EXTERNAL`; deterministic request construction is sufficient for this correction implementation. Actual provider behavior/tone remains owed only at the later Phase 2 integrated qualification if that gate chooses to exercise the feature. Do not spend live-provider calls here merely to observe subjective tone.
+
+N/A unless the actual diff expands:
+- `npm run test:browser` — P2 owns browser/client behavior;
+- `npm run test:php` / `npm run test:browser:php` — outward PHP representation is deliberately unchanged;
+- live Sources, collection fixtures beyond portable regression, and reference-deployment procedures;
+- separate security suite unless implementation changes an auth/trust boundary rather than merely preserving the existing protected admin router.
+
+Do not run overlapping subordinate suites again after an aggregate command on the same unchanged final tree solely to duplicate evidence. If a required local prerequisite is absent, report it once and do not fake the evidence.
+
+REPOSITORY / DOCUMENTATION RULES
+- Do not edit governing contracts, ADRs, roadmap, changelog, BOOT/AGENTS/README, Phase 1 worksheet, prior task prompts, or prior validation artifacts.
+- Do not write the final correction validation artifact; P3 owns it.
+- Do not add dependencies.
+- Do not change package version.
+- Do not implement P2 browser/client changes beyond the minimum unavoidable fixture/type adaptation needed to keep P1 tests compiling; if the real client must change for correctness, report planning drift instead of hiding P2 inside P1.
+
+ACCEPTANCE
+P1 is complete only when:
+1. additive `0020` safely adds nullable bounded style guidance and supported production upgrade evidence passes;
+2. one canonical server normalizer enforces null/trim/500-Unicode-code-point semantics;
+3. Profile AI repository and protected admin producer read/update/audit the field without synchronous Gemini work;
+4. digest identity is explicitly v2 and includes canonical style/no-style state;
+5. style/config changes flow through existing regeneration/revalidation semantics without a special lifecycle branch;
+6. Gemini receives bounded subordinate style guidance only in request input, with embedded URLs neutralized and fixed system/tool/schema authority preserved;
+7. public v1/PHP/customer state contains no style field;
+8. required local portable/database/recovery evidence passes on the final P1 tree;
+9. package remains exactly `2.2.0` and no Phase 2 package behavior changed.
+
+Finish with a concise implementation report: exact pre/post source identity, changed files, migration/normalization/identity/provider/admin behavior, tests actually run/results, deferred live evidence, package confirmation, and any residual risk P2/P3 should challenge. Do not declare the correction GREEN; P3 owns final closeout.
