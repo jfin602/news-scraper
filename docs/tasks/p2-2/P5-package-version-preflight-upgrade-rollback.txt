@@ -19,6 +19,12 @@ TASK: Phase 2 / P5 — Package version, preflight, upgrade, and rollback hardeni
 
 The assigned project version is `2.2.5`.
 
+## Test command execution policy
+
+Do not impose an artificial wall-clock timeout on repository test/validation commands selected by this prompt. In particular, do not wrap commands in a 2-minute/120-second timeout merely to keep the prompt moving. Let each selected command run to its natural completion or fail from its own test/runtime limits. If an execution/observation tool stops displaying output while the underlying process is still running, continue observing/polling that same process rather than killing and rerunning it solely because the observation window expired.
+
+This rule applies only to prompt/test-command orchestration. Do not remove or weaken legitimate product/runtime/network timeouts implemented by the package, preflight, sync client, or application itself.
+
 ## Goal
 
 Resolve `Y8FK`, `W5GH`, and `D4NZ` over the P3/P4 package:
