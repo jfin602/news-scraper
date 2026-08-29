@@ -1,0 +1,385 @@
+TASK: Phase 2 / P7 — Phase 2 customer package qualification closeout
+
+- Recommended configuration: `Sol Light`.
+- Task-shape classification: `Investigative`.
+- Specification clarity: `Explicit`.
+- State coupling: `Very high` across supported Source migration/collection/admin, PHP configuration/security, complete-snapshot/LKG/local-read, package generation, version/preflight, staged replacement/rollback, and the reference customer deployment.
+- Integrity risk: `Very high` because this is the exceptional gate immediately before/through replacement of the live customer package.
+- Concurrency: existing collection and PHP per-Profile synchronization/file-activation behavior must be reviewed; no new concurrency architecture is expected.
+- Security: `High` across Source trust, bearer credentials, private configuration, diagnostics, visitor isolation, admin download, and deployment handling.
+- Novel inference: `Moderate` during independent adversarial review.
+- Model-family basis: repository policy deliberately uses Sol Light for independent roadmap closeout; this prompt additionally owns the explicit Phase 2 VPS/reference-customer qualification exception.
+- Reasoning basis: Light is adequate because contracts are explicit and the prompt must stop/escalate rather than improvise architecture when a material defect is found.
+- Complexity / quality floor: `Critical`.
+- Estimated usage: `Very High`.
+- Lower-cost alternative considered: none under closeout policy.
+- Escalation trigger: unresolved production migration loss, Source-filter authority drift, secret leakage, mixed/unsafe package replacement, rollback incompatibility, PHP/LKG corruption, exact-version mismatch, reference-customer regression, or meaningful structural refactor need.
+- Escalation target: mandatory `Terra High` refactor handoff for meaningful behavior-preserving restructuring; additional normal Phase 2 prompt planning (`2.2.8+`) for a newly discovered major product/integration defect; higher-effort Sol only for genuinely ambiguous contract/architecture reconciliation.
+- Estimate confidence: `High`.
+
+The assigned project version is `2.2.7`.
+
+## Goal
+
+Independently review and close Phase 2 against the exact integrated P1-P6 tree, advance the package to `2.2.7` **before** generating the qualification package, execute all required local/VPS/reference-customer evidence on one exact executable candidate, perform the supported staged customer package replacement and rollback proof, and write the durable Phase 2 validation artifact.
+
+This is the explicit earlier qualification exception defined by `docs/contracts/testing-and-validation-contract.md`. Applicable PHP/VPS/reference-customer evidence MUST NOT be deferred past this prompt.
+
+The final result remains **GREEN — HUMAN REVIEW REQUIRED**. Do not perform conversational `/closeout` to `2.3.0`; the owner performs that package-only phase transition after accepting this closeout.
+
+## Prerequisite and version ordering
+
+Require runner-recognizable P1-P6 implementation prefix ending at package `2.2.6`.
+
+Before building any package or collecting qualification evidence:
+
+1. establish exact Git identity/history and complete Phase 2 diff;
+2. update the normal project version metadata from `2.2.6` to **`2.2.7`**;
+3. commit/establish the final executable candidate before cross-environment evidence;
+4. build the PHP integration package from that exact `2.2.7` candidate;
+5. use that exact candidate/package for VPS and reference-customer qualification.
+
+Do not collect package-version/customer evidence on `2.2.6` and then change version afterward. Cross-environment evidence combined for this acceptance claim must refer to the same executable source candidate. The later validation-artifact/issue-log documentation commit may follow only when it changes no executable/package source; record that distinction explicitly.
+
+Do not create `package-lock.json` if absent.
+
+## Read first
+
+Read:
+
+1. current `BOOT.md`, `AGENTS.md`, `README.md`, `docs/README.md`;
+2. Project/Product contracts and relevant Publication ADRs;
+3. `source-and-collection-contract.md`, `domain-and-data-contract.md`, `public-feed-and-admin-contract.md`;
+4. `distribution-and-integration-contract.md`, `distribution-api-contract.md`, AI contract where digest/customer propagation matters;
+5. `testing-and-validation-contract.md` including the Phase 2 exceptional qualification gate;
+6. security/reliability/operations, production data/schema compatibility, backup/restore, deployment/incident runbooks;
+7. current Phase 2 roadmap entry;
+8. all nine Phase 2 known-issue entries and `+R8VN` remaining feature boundary;
+9. all P1-P6 prompts and actual implementation diffs/commits;
+10. P6 integration/adversarial report only as a lead, never as proof;
+11. current PHP implementation-truth README/UPGRADE instructions;
+12. current real reference-customer deployment/integration notes/configuration paths available to the operator, without copying secret values into the validation artifact.
+
+# PASS 1 — CONTRACT / EVIDENCE REVIEW
+
+## A. Phase/version/history
+
+Verify:
+
+- P1-P6 form the expected Phase 2 prefix `2.2.1` through `2.2.6`;
+- final executable candidate is `2.2.7` before package generation;
+- no unrelated implementation is interleaved in a way that prevents evidence isolation;
+- topic independence and singleton Publication/Profile architecture are preserved;
+- no chat/multi-feed/self-host/WordPress/RSS-output/operator-ANY-ALL feature leakage.
+
+## B. M6SX — Source Exclude end-to-end
+
+Verify source, migration, database, Worker, admin, and tests:
+
+- additive next migration preserves all supported production customer state and legacy Include order/values;
+- normalized Source state has one clear Include and Exclude authority;
+- Include remains fixed ANY; Exclude fixed ANY; Exclude wins;
+- both empty = collect all; empty Exclude preserves pre-Phase-2 behavior;
+- same bounded title/summary-content/source-category text fields and literal case-insensitive match semantics;
+- RSS/Atom-only pre-normalization placement;
+- HTML listing bypass;
+- `source_item_filtered_count` remains one authoritative accounting value;
+- no Relevance/Article/observation/retroactive mutation for filtered Raw items;
+- admin create/edit/read/clear controls consume the same producer and do not expose ANY/ALL selectors;
+- Source bootstrap/config compatibility is preserved.
+
+## C. PHP configuration / launcher / stable customer entry
+
+Verify:
+
+- `local-read.env` is authoritative for shared non-secret Profile/state/freshness values;
+- `sync.env` contains sync-only base URL/bearer/transport values;
+- visitor local-read code does not read or need sync secrets;
+- legacy duplicated shared sync keys are validation aliases only and mismatch fails;
+- env parsing is bounded, non-evaluating, secret-safe;
+- root `ns-integration/run-sync.php` loads both through one canonical composition and reuses canonical synchronization including `--force`;
+- customer local-read entry loads only local-read config and hides `src/bootstrap.php`, internal file layout, cache paths, and state-store internals;
+- complete snapshot validation, lock, cadence, atomic LKG, stale classifications, digest fail-open behavior, and visitor-local-only operation remain unchanged.
+
+## D. Package / presentation
+
+Inspect the exact built `2.2.7` ZIP, not only source manifest.
+
+Require:
+
+```text
+ns-integration/
+  VERSION
+  integration-package.json
+  README.md
+  UPGRADE.md
+  run-sync.php
+  top-tag.php
+  bin/sync.php
+  src/...
+  config/sync.env.example
+  config/local-read.env.example
+```
+
+and any retained example directory only when it is non-authoritative and useful.
+
+Verify:
+
+- no `ns-private`, tests, `.env`, secrets, runtime state/logs, repository internals, or unrelated files;
+- obsolete renderer authority is absent from supported package/runtime;
+- `top-tag.php` uses the stable customer entry, actual readable HTML lines, correct escaping, canonical order, exact `originalUrl`, safe unavailable/empty/null-digest states;
+- customer markup cannot filter/rerank/reinterpret trust/Relevance/Categories/duplicates;
+- visitor rendering requires no upstream/Gemini request.
+
+## E. Version / diagnostics / preflight
+
+Require exact `2.2.7` coherence across:
+
+- admin download action/display;
+- downloaded ZIP filename;
+- ZIP `VERSION`;
+- `integration-package.json`;
+- installed preflight/diagnostic;
+- runtime health/package version when exposed.
+
+Preflight must prove package identity/runtime/config/state usability without mutation or secret leakage. Optional upstream auth/connectivity is explicit and secret-safe.
+
+## F. Upgrade / rollback
+
+Require supported whole-directory staged procedure:
+
+```text
+new complete package in sibling staging
+-> preflight against existing ns-private
+-> old ns-integration renamed to bounded backup
+-> staged package renamed to ns-integration
+-> unchanged cron/customer page verified
+```
+
+No overlay/mixed old-new package files. `ns-private` stays intact.
+
+Rollback must restore previous `ns-integration` against the same private config/LKG/state and unchanged cron target without credential reconstruction or destructive state reset.
+
+## G. Phase 1 digest/customer propagation
+
+The package refresh must preserve the completed Phase 1 complete-snapshot path:
+
+```text
+canonical Profile/v1 digest-capable snapshot
+-> PHP sync validation
+-> atomic LKG
+-> normalized LocalReadResult
+-> customer SSR
+```
+
+Valid Articles must remain usable when digest is null/invalid. Customer visitor rendering must never call Gemini.
+
+# PASS 2 — ADVERSARIAL ERROR / EDGE CASES
+
+Independently derive/disposition realistic failures, including at least:
+
+1. old Source Include rows lost/reordered by migration;
+2. Include+Exclude both match but item admitted;
+3. HTML listing wrongly filtered;
+4. admin omission clears operator-managed list;
+5. Source mutation failure leaves Include/Exclude half-updated;
+6. visitor config loader indirectly opens sync.env;
+7. legacy alias mismatch silently chooses one file;
+8. env parser evaluates interpolation/command-like content;
+9. cron `--force` path bypasses normal synchronization lock/state;
+10. top-tag XSS through headline/source/digest/support text;
+11. top-tag destination uses model/provider URL rather than stored originalUrl;
+12. package still contains old Renderer or competing example API;
+13. ZIP/admin/installed version mismatch;
+14. preflight error prints bearer/raw env/LKG;
+15. state-root writability probe damages LKG;
+16. cutover produces mixed files or a long missing-package window avoidably;
+17. rollback old package cannot read retained state after new sync;
+18. customer cron target breaks after directory replacement;
+19. customer-owned existing markup is overwritten by package update;
+20. digest missing/provider unavailable breaks ordinary Article rendering;
+21. customer page starts making live News Scraper/Gemini visitor request;
+22. direct publisher headline URLs change to redirect/tracking/internal links;
+23. wrong Profile/state root selected because shared config drift survives;
+24. Source/package changes regress unrelated canonical v1/Profile output;
+25. a newly discovered major integration defect is merely documented/deferred despite Phase 2 release-gate law.
+
+Classify each as protected / tiny bounded repair / Terra High refactor handoff / new Phase 2 prompt required.
+
+A newly discovered **major** integration/customer-package defect blocks GREEN and keeps Phase 2 open. Do not knowingly defer it to Phase 5. Minor non-blocking polish may be recorded for later only when it does not compromise the release claim.
+
+# PASS 3 — STRUCTURAL / CODE QUALITY
+
+Inspect for:
+
+- duplicate Include/Exclude normalizers/predicates;
+- compatibility aliases becoming permanent competing Source or config authorities;
+- visitor/sync configuration responsibilities leaking across boundaries;
+- duplicated synchronization logic in launcher;
+- stable customer entrypoint merely forwarding raw internals with no real boundary;
+- renderer abstraction replaced by another equivalent abstraction;
+- package version constants duplicated across Node/PHP/UI;
+- preflight/diagnostic code mixed into visitor hot path;
+- state-format changes that make rollback fragile;
+- brittle package tests that assert text while missing actual extraction/runtime behavior;
+- secret-safe logging gaps;
+- docs/package/runtime disagreement;
+- dead old examples/files/compatibility wrappers;
+- meaningful refactor needed before Phase 3 builds on this package.
+
+A tiny local defect may be repaired if behavior is unambiguous and all invalidated evidence can be rerun. Meaningful behavior-preserving refactor triggers the mandatory handoff below.
+
+## MANDATORY TERRA HIGH REFACTOR HANDOFF
+
+If meaningful behavior-preserving restructuring is required, STOP before implementing it and output exactly one self-contained **Terra High refactor remediation prompt**. It must:
+
+- recommend exactly `Terra High`;
+- preserve package version `2.2.7` and consume no new roadmap prompt number;
+- state concrete defect/evidence and smallest refactor boundary;
+- trace producers/consumers;
+- preserve Source migration/admission semantics, topic independence, security, secret isolation, sync/LKG/local-read behavior, package/version/preflight/rollback, direct publisher links, customer markup ownership, and non-AI operation;
+- forbid new features/contracts/ADR/roadmap expansion/speculative abstractions;
+- require focused + every invalidated regression suite;
+- not declare Phase 2 GREEN or deploy again automatically.
+
+After remediation, rerun P7 from the beginning and regenerate/requalify the exact `2.2.7` package.
+
+If a new major defect needs product implementation rather than refactor, stop and return `Planning needed` for an additional `p2-2` prompt/version `2.2.8+`; Phase 2 remains open.
+
+# FINAL VALIDATION / QUALIFICATION MANIFEST
+
+Resolve from the final actual tree; below is the minimum expected union.
+
+## RUN — LOCAL-PORTABLE on exact `2.2.7` executable candidate
+
+```text
+npm run check
+npm run codex:phase:validate -- p2-2
+git diff --check
+```
+
+## RUN — LOCAL-PREREQUISITE on exact candidate
+
+```text
+npm run test:db
+npm run test:recovery
+npm run test:browser
+```
+
+Run `npm run test:security` only when actual Phase 2 diff implicates shared security/auth/request-integrity code; otherwise document N/A rather than mechanically expanding the matrix.
+
+## RUN — VPS-REQUIRED on the SAME executable candidate
+
+```text
+npm run test:php
+npm run test:browser:php
+```
+
+Also execute package-owned preflight and the supported PHP sync/local-read paths in the VPS/customer-style directory layout. Record PHP/runtime versions and environment identity without secrets.
+
+Do not substitute a Windows PHP emulation or source inspection for this evidence.
+
+## RUN — production migration evidence
+
+The final integrated candidate must have real PostgreSQL supported-production forward-upgrade/data-preservation proof for the Source Exclude migration in addition to migration-from-zero. Reuse exact-tree P6 evidence only if no executable/migration change occurred except the P7 package-version metadata; otherwise rerun affected DB/recovery proof.
+
+## RUN — reference-customer qualification
+
+Against the actual managed customer installation and exact built `2.2.7` package:
+
+### Pre-cutover
+
+1. identify current live `ns-integration` version/package and sibling `ns-private` layout without exposing secret values;
+2. create/confirm a bounded rollback backup of current package directory;
+3. confirm current cron target/path and machine credential fingerprint/non-secret identity sufficient to prove it is unchanged later;
+4. confirm existing private config/state/LKG baseline and customer-owned public markup/page behavior;
+5. extract the exact new package into a sibling staging directory;
+6. verify staged `VERSION`/manifest = `2.2.7` and match protected admin download label/ZIP filename;
+7. run non-destructive staged preflight against existing `ns-private`;
+8. stop before cutover if any preflight/version/config/state mismatch exists.
+
+### Cutover
+
+1. rename old live `ns-integration` to backup;
+2. rename staged complete package to `ns-integration`;
+3. prove cron target needs no edit;
+4. run supported sync/preflight verification without printing the bearer token;
+5. verify current complete snapshot/LKG/local-read including digest-capable state;
+6. verify the real customer public page still renders existing customer-owned markup, normal Articles, direct exact publisher links, and no visitor upstream dependency;
+7. verify private config values, credential identity/value, state root, LKG/state, and cron schedule/path are preserved.
+
+### Rollback proof
+
+Before final acceptance, demonstrate the documented rollback procedure against the same durable `ns-private` state in a safe bounded maintenance/test window or equivalent reference-host procedure approved by the operator:
+
+1. restore the prior package directory as `ns-integration`;
+2. prove it can read the retained private state/LKG sufficiently to satisfy the rollback contract;
+3. restore the qualified `2.2.7` package again using the same staged directory-level procedure;
+4. reverify preflight/sync/customer page.
+
+Do not destroy valid LKG or regenerate credentials to make rollback pass.
+
+If executing an actual rollback on the live customer would create unacceptable service risk, stop and require the owner to explicitly approve an equivalent isolated copy of the exact reference-customer directory/private-state layout on the same PHP/VPS environment. Do not silently downgrade the proof to a toy fixture; P6 already owns fixture proof.
+
+## LIVE/EXTERNAL Gemini
+
+A fresh Gemini call is **not automatically required** merely because the customer package transports a digest. Phase 1 already has live provider qualification, and `c1-digest-style` explicitly deferred subjective tone adherence. For this Phase 2 package claim, prove digest propagation using valid governed digest state through v1 → PHP → LKG → local-read → customer SSR.
+
+Run `npm run test:live-gemini` or a configured-style live generation only if the final contract/release claim explicitly requires new provider observation or owner requests it. Otherwise classify it `N/A` for Phase 2 package qualification, not `DEFER` beyond this phase.
+
+# DURABLE VALIDATION ARTIFACT
+
+Only after all required evidence is green on the exact candidate, write:
+
+`docs/validation/phase-2-php-integration-customer-package.md`
+
+Record without secrets:
+
+- Phase 2 purpose and all nine issue IDs;
+- exact final executable candidate SHA and package `2.2.7`;
+- P1-P6 implementation commit identities;
+- Source Exclude migration/forward-upgrade facts;
+- final package filename/manifest/version coherence;
+- local/VPS/reference environments and commands/results;
+- PHP/preflight/sync/local-read/customer SSR evidence;
+- preserved cron/credential/private-state/LKG facts using non-secret fingerprints/descriptions only;
+- staged cutover and rollback evidence;
+- digest propagation result and explicit live-Gemini N/A/deferred-history explanation;
+- Pass 1 findings;
+- every Pass 2 hypothesis/disposition;
+- Pass 3 disposition/refactor history;
+- any bounded closeout repair and invalidated evidence reruns;
+- explicit statement that no known major Phase 2 customer integration/package defect remains unresolved.
+
+Do not rewrite Phase 1/correction validation history.
+
+## Known-issue bookkeeping
+
+After evidence is genuinely GREEN, move/mark these Phase 2 issues resolved in `known-issues.md` with concise resolution summaries and reference the Phase 2 validation artifact:
+
+`M6SX`, `T4QP`, `H3CJ`, `P9BW`, `Q7HF`, `C2RV`, `D4NZ`, `Y8FK`, `W5GH`.
+
+Keep `G7PK` open unless this phase independently proved and fixed an actual defect. Do not mark remaining `+R8VN` ANY/ALL proposal shipped.
+
+Do not add an accepted roadmap changelog entry yet; human acceptance and the later documentation/`/closeout` workflow own accepted-history transition bookkeeping.
+
+# FINAL ACCEPTANCE
+
+Return **GREEN — HUMAN REVIEW REQUIRED** only when:
+
+1. exact final executable candidate is package `2.2.7` and all cross-environment evidence maps to it;
+2. all nine Phase 2 issues are implemented and qualified;
+3. supported production migration preserves customer data;
+4. Source Include/Exclude behavior/admin are correct and topic independent;
+5. shared PHP config has one authority and visitor secret isolation is proven;
+6. stable launcher/customer local-read entrypoints work on actual PHP runtime;
+7. package shape/top-tag/version/preflight are coherent and secret-safe;
+8. staged upgrade and rollback preserve `ns-private`, credential value, cron, LKG/state, and customer markup;
+9. customer Articles/direct publisher links and digest propagation work after final reinstall;
+10. ordinary Article delivery remains independent of Gemini;
+11. all required local/PHP/VPS/reference evidence passes;
+12. no known major customer integration/package defect remains unresolved;
+13. no meaningful refactor/product decision remains outstanding;
+14. validation artifact and issue bookkeeping truthfully reflect evidence.
+
+Final response must include status, candidate SHA/package, package filename/version, concise nine-issue disposition, local/VPS/reference validation results, customer cutover/rollback result, validation-artifact path, any non-blocking remaining issue, and **HUMAN REVIEW REQUIRED**. Do not advance package to `2.3.0`.
