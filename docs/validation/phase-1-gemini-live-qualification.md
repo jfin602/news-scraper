@@ -69,14 +69,33 @@ No API key, raw SDK/provider response, retrieved publisher-page body, unbounded 
 
 The observed `totalTokens = 14281` for a one-Article proof is notable operational evidence for later cost/usage tuning, but it does not violate a Phase 1 correctness bound and does not alter the present acceptance criteria.
 
+## Real VPS PostgreSQL preflight
+
+The owner then inspected the exact deployed candidate before any AI configuration mutation.
+
+Observed:
+
+- `git rev-parse HEAD` -> `05f091980bf8bb0ec70749e94b9fe5b3c53f0edd`;
+- `npm run db:status` -> `{"state":"current"}`;
+- one managed Distribution Profile exists: `php_integration_test` / `PHP Integration Test`;
+- Profile lifecycle: `active`;
+- associated Sources: 5;
+- AI configuration before qualification mutation: `digestEnabled=false`, `lookbackDays=7`, `maxArticles=20`;
+- active digest before qualification: `null`;
+- latest persisted attempt before qualification: scheduled `skipped_disabled`, started `2026-08-29T15:07:32.613Z`, completed `2026-08-29T15:07:32.643Z`, no failure category, and zero URL Context success/failure counts.
+
+This preflight proves the production schema is current and gives a clean baseline for the integrated lifecycle proof: an active real Profile exists, AI is disabled by default, no prior active digest can be mistaken for the qualification result, and the scheduler has already persisted the disabled-path outcome without invoking Gemini.
+
 ## Evidence still required before Phase 1 closeout
 
-1. Execute a real VPS PostgreSQL proof through the production digest lifecycle using an existing managed Distribution Profile and real canonical Article data.
-2. Prove a successful generation is durably persisted and activated, with `gemini-3.6-flash` recorded as the model and a bounded successful attempt state.
-3. Re-read the active digest from a fresh process to prove durability rather than in-memory state.
-4. Inspect the protected admin read model and permanent v1 distribution representation for the same active digest where practical, including exact governed supporting-Article destinations and digest participation in the outward snapshot.
-5. Keep ordinary Article distribution and non-AI operation unaffected throughout qualification.
+1. Inspect the bounded canonical digest input for `php_integration_test` from the real VPS database without mutation.
+2. Enable the Profile digest through the supported administration service while preserving the existing 7-day / 20-Article bounds.
+3. Execute one manual generation through the production digest lifecycle and real Gemini provider.
+4. Prove a successful generation is durably persisted and activated, with `gemini-3.6-flash` recorded as the model and a bounded successful attempt state.
+5. Re-read the active digest from a fresh process to prove durability rather than in-memory state.
+6. Inspect the protected admin read model and permanent v1 distribution representation for the same active digest where practical, including exact governed supporting-Article destinations and digest participation in the outward snapshot.
+7. Keep ordinary Article distribution and non-AI operation unaffected throughout qualification.
 
 ## Current disposition
 
-**IN PROGRESS.** The live provider gate is now GREEN on the exact VPS qualification candidate: the production provider returned a validated bounded `gemini-3.6-flash` candidate, the governed URL Context retrieval succeeded, and support IDs remained confined to the supplied Article set. Phase 1 is not yet marked GREEN because the final integrated PostgreSQL persistence/activation/readback proof remains to be executed and recorded.
+**IN PROGRESS.** The live provider gate is GREEN and the exact VPS candidate/database baseline is now established with a current schema and clean no-active-digest Profile state. Phase 1 is not yet marked GREEN because the final integrated PostgreSQL generation/persistence/activation/readback proof remains to be executed and recorded.
