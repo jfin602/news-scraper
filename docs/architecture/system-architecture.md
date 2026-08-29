@@ -19,7 +19,7 @@ The implemented distribution architecture has four core layers:
 3. named Distribution Profiles that narrow canonically eligible Articles and may represent different customer-facing feeds/verticals; and
 4. the generic PHP+cron consumer and custom server applications consuming validated Profile output and local LKG state.
 
-The active 3.0 roadmap adds an optional fifth downstream assistance layer: Phase 1 Profile digest behavior followed later by Profile-grounded chat, governed by `docs/contracts/ai-assistance-contract.md`. AI is not an editorial, eligibility, identity, or persistence authority and cannot become a dependency for ordinary non-AI operation.
+Completed 3.0 Phase 1 adds an optional fifth downstream assistance layer: durable Profile digest behavior, with later Profile-grounded chat still planned, governed by `docs/contracts/ai-assistance-contract.md`. AI is not an editorial, eligibility, identity, or persistence authority and cannot become a dependency for ordinary non-AI operation. Active Phase 2 hardens the existing PHP/customer package boundary without changing that downstream ownership.
 
 ```mermaid
 flowchart LR
@@ -30,7 +30,7 @@ flowchart LR
     P --> B
     PHP --> LKG[Validated local LKG snapshot per Profile]
     SITE[Implemented customer local-read / SSR integration] --> LKG
-    AI[Active Phase 1 planned Profile digest / later chat] --> P
+    AI[Implemented Profile digest / later chat] --> P
     AI --> API
     A[Cloudflare Access-protected Admin UI/API] --> B
     B --> D[(PostgreSQL)]
@@ -55,7 +55,7 @@ flowchart LR
     B --> O
 ```
 
-The diagram combines current reference surfaces with the implemented 2.0 path and the active-roadmap downstream AI extension. The v1 API, PHP synchronization/LKG, and customer local consumption/server-rendered integration are implemented. The API, Profile, machine-authentication, and cache contracts are governed by the distribution contracts; no Web/API route performs Source collection inline. Phase 1 AI is current roadmap implementation work rather than already-observed runtime behavior, and it must remain downstream of the existing Profile authority.
+The diagram combines current reference surfaces with the implemented 2.0 distribution path and completed Phase 1 downstream digest extension. The v1 API, PHP synchronization/LKG, customer local consumption/server-rendered integration, and Profile digest foundation are implemented. The API, Profile, machine-authentication, cache, and AI contracts govern those boundaries; no Web/API route performs Source collection inline. Active Phase 2 is a package/configuration/integration hardening phase and does not authorize a new Article-selection or AI-grounding authority.
 
 ## Deployment boundary
 
@@ -139,13 +139,15 @@ src/
   shared/
 ```
 
-The Phase 1 AI module location is implementation-planning work. Regardless of path, it MUST consume the canonical Profile/read-model boundary rather than query Article/Profile persistence with competing semantics. Provider-specific Gemini transport must remain behind a narrow server-side boundary. Digest evaluation/orchestration owns only the bounded downstream AI input/state transitions governed by the AI contract; it does not become another canonical Profile selector.
+The implemented AI digest modules consume the canonical Profile/read-model boundary rather than query Article/Profile persistence with competing semantics. Provider-specific Gemini transport remains behind a narrow server-side boundary. Digest evaluation/orchestration owns only the bounded downstream AI input/state transitions governed by the AI contract; it does not become another canonical Profile selector. Later chat must reuse those authority boundaries rather than reopen Article selection.
 
 `src/distribution/profiles/` owns Profile configuration/persistence and transactional coordination of Profile/Source usability-reducing mutations; lifecycle/application validation remains the administration/application authority. It does not duplicate Source collection, Articles, identity, or provenance. Later consumers must not query Profile child tables or invent lifecycle/relationship semantics independently. The implemented canonical read model is the required path from canonical outward Article authority to both the public-feed/reference consumer and the Distribution Profile snapshot/page consumer. Later API/AI/controllers must remain thin and must not recreate Article eligibility SQL, Profile filters, Category semantics, ordering, continuation semantics, or snapshot-revision semantics.
 
 `src/distribution/credentials/` owns token generation/parsing and verifier derivation, credential persistence/authentication lookup, machine authentication, request guarding with bounded process-local rate limiting, and credential configuration/policy. The implemented Web/API distribution runtime/router consumes this boundary and the Profile page/snapshot/cursor/revision producer. It owns the thin permanent v1 HTTP transport, status/schema/header/conditional/telemetry/HTTPS/trust boundary and does not recreate credential/token SQL, verifier derivation, lifecycle interpretation, machine authorization semantics, authenticated-quota/invalid-auth limiter state, or Article/Profile query semantics.
 
-`integrations/php/` owns the implemented downstream client/synchronization/LKG/local-read/presentation boundary. Ordinary customer code consumes `LocalProfileReader` / `LocalReadResult`; `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead` are internal validated state-store handoff details, not a new external integration authority. Multiple synchronized Profiles must retain independent state/locks/usability. Phase 1 digest propagation must extend the normalized supported local-read surface rather than require customer cache parsing, while Phase 2 owns the later package/presentation hardening and real customer package refresh.
+`integrations/php/` owns the implemented downstream client/synchronization/LKG/local-read boundary. Ordinary customer code consumes normalized `LocalProfileReader` / `LocalReadResult` data; `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead` remain internal validated state-store handoff details, not a new external integration authority. Multiple synchronized Profiles must retain independent state/locks/usability. Completed Phase 1 digest propagation extends the normalized local-read surface without customer cache parsing.
+
+Active Phase 2 hardens this same integration family rather than creating another adapter. Its target package separates replaceable `ns-integration` code from durable `ns-private` state, makes `local-read.env` authoritative for shared non-secret Profile/state/freshness settings, confines upstream URL/bearer/transport secrets to sync-only configuration, provides a stable packaged sync launcher and customer local-read entry boundary, replaces the duplicated renderer abstraction with customer-editable `top-tag.php`, and adds coherent version/preflight/upgrade/rollback mechanics. Until those changes land, `integrations/php/README.md` continues to document the currently implemented package truth.
 
 The exact implementation may keep or rename an existing module only when that choice produces the smallest coherent canonical design. It MUST NOT retain plural/selector-oriented APIs solely as a compatibility bridge. Legacy-only source modules, wrappers, types, tests, fixtures, configuration paths, and other artifacts from superseded pre-production architecture MUST be deleted when the canonical implementation no longer has an independent use for them, subject to supported production compatibility requirements.
 
@@ -156,7 +158,7 @@ The layout above is a target ownership map, not a requirement to create empty di
 Rules:
 
 - Source-specific retrieval/parsing lives behind fetcher/parser adapter interfaces established with the first RSS/Atom implementation.
-- The optional Source RSS/Atom item admission filter is Source-owned include-only configuration evaluated over existing parsed RSS/Atom Raw-item text before Article-candidate normalization; it is distinct from downstream Relevance and from Distribution Profile filtering.
+- The optional Source RSS/Atom item admission filter is Source-owned bounded Include/Exclude configuration evaluated over existing parsed RSS/Atom Raw-item text before Article-candidate normalization. Both groups use fixed `ANY` matching, Exclude wins, and the filter remains distinct from downstream Relevance and Distribution Profile filtering.
 - A configurable static-HTML parser sits behind that same boundary. Endpoint type selects RSS/Atom or HTML parsing; both produce the same Raw-item contract, HTML bypasses the RSS/Atom-only admission filter, and all stages from normalization onward are shared.
 - Source-admin sample preview is a pure bounded parser/profile-validation path over operator-supplied HTML. It has no network, Collection run, endpoint lock, scheduler/health, or Article persistence edge and is not another collector.
 - Current public/outward code consumes normalized Article read models only. The server-rendered root page and `GET /api/feed` MUST share the same canonical public/outward application/read-model boundary; rendering and JSON shaping may differ, but eligibility, filtering, ordering, cursor semantics, and Article selection MUST NOT fork into competing query paths.
@@ -164,7 +166,7 @@ Rules:
 - Profile activation/reactivation, association removal, Source unapproval, and Source archival share transactional ownership for the active-Profile usable-Source invariant. Their concurrency coordination must use a consistent lock order; Source operational state remains a collection control, not a Profile-usability condition.
 - Collection trust and distribution selection are distinct. Distribution Profiles filter already-governed outward-eligible Articles; Source approval itself is not consumer membership.
 - Different subject verticals are represented through configuration and Profiles, not branches in collector/dedupe/eligibility code or vertical ownership fields on Articles.
-- Phase 1/later AI consumes only bounded safe normalized Profile context. Source/user/model/retrieved-page text is untrusted; AI cannot mutate or redefine canonical editorial/identity semantics.
+- Implemented Phase 1/later AI consumes only bounded safe normalized Profile context. Source/user/model/retrieved-page text is untrusted; AI cannot mutate or redefine canonical editorial/identity semantics.
 - Admin controllers do not perform collection inline; manual check-now requests the same governed endpoint execution/job path rather than a second collector.
 - Deduplication logic does not depend on topic-specific keywords.
 - Relevance/Categories enter through singleton Publication configuration interfaces and may use Source scope where defined.
@@ -240,7 +242,7 @@ Manual endpoint checks remain an operator path through the same Worker-owned eli
 - no scheduler/job design chooses among multiple Publications in one installation; subject verticals do not change collection routing;
 - push/webhook adapters require a later explicit contract and must reuse the normalized downstream pipeline.
 
-Phase 1 Gemini digest scheduling is a separate downstream Profile-owned job concern governed by the AI contract. It evaluates enabled Profile digests twice daily, may skip Gemini for unchanged governed input, and MUST NOT run synchronously in ordinary customer page rendering or be conflated with Source collection polling.
+The implemented Profile digest scheduler is a separate downstream Profile-owned job concern governed by the AI contract. It evaluates enabled Profile digests twice daily, may skip Gemini for unchanged governed input, and MUST NOT run synchronously in ordinary customer page rendering or be conflated with Source collection polling.
 
 ## Persistence and transactions
 
@@ -260,7 +262,7 @@ Phase 1 Gemini digest scheduling is a separate downstream Profile-owned job conc
 - Duplicate-review decisions persist independently from groups.
 - Database constraints are preferred over application-only assumptions for critical identity/uniqueness rules.
 
-Any persisted AI digest/auth/integration state introduced by 3.0 must be additive and production-safe, preserve existing customer data, and avoid turning AI output into Source Article metadata. Phase 1 digest persistence follows the AI contract's immutable-successful-generation plus separate active-reference/attempt-state lifecycle; activation must be coherent enough that consumers never observe a partially written structured result.
+Any persisted AI digest/auth/integration state introduced by 3.0 must be additive and production-safe, preserve existing customer data, and avoid turning AI output into Source Article metadata. Completed Phase 1 digest persistence follows the AI contract's immutable-successful-generation plus separate active-reference/attempt-state lifecycle; activation is coherent enough that consumers do not observe a partially written structured result.
 
 Phase 19 established and validated production backup/restore, deployment/rollback, and schema-upgrade procedures. Accepted Phase 20 established the first supported production schema/data baseline. From that baseline forward, `docs/decisions/production-data-and-schema-compatibility.md` governs upgrades: supported production state is preserved, supported migration history remains upgrade-capable, and clean migration-from-zero continues for new/disposable installations but is not sufficient evidence for production upgrade safety.
 
@@ -274,7 +276,8 @@ Managed administrative UI/API routes are protected by Cloudflare Access accordin
 - Admin commands validate real resource relationships and domain invariants regardless of external access control.
 - Admin navigation/commands operate on the installation's singleton Publication configuration and resources rather than exposing a multi-Publication selector.
 - Profile administration is the supported way to configure multiple outward feeds/verticals within that singleton Publication.
-- Phase 1 adds protected Profile AI digest configuration/status/manual-generation controls without placing Gemini credentials in Profile configuration.
+- Completed Phase 1 provides protected Profile AI digest configuration/status/manual-generation controls without placing Gemini credentials in Profile configuration.
+- Active Phase 2 adds protected Source Exclude configuration and version-coherent PHP package download/diagnostic administration while preserving the same admin perimeter.
 
 Machine distribution authentication is a separate boundary governed by `docs/contracts/distribution-api-contract.md`; `distribution:read` credentials never grant administrator authority. Roadmap Phase 3 interactive AI authority is another separately governed billable/abuse-sensitive boundary and must not be inferred from administrator or distribution credentials without explicit implementation.
 
@@ -290,11 +293,11 @@ Unless superseded by an Accepted ADR or later governing roadmap/contract require
 - `GET /api/feed` as the legacy/reference JSON/discovery endpoint using canonical outward semantics;
 - root `/` as the bundled reference/standalone frontend, server-rendered from those same semantics with JavaScript only as progressive enhancement;
 - authenticated `GET /api/v1/distribution/{profile_key}` as the implemented permanent machine interface;
-- generic PHP complete-snapshot synchronization, per-Profile LKG, and normalized local-read customer integration as the implemented downstream baseline;
+- generic PHP complete-snapshot synchronization, per-Profile LKG, and normalized local-read customer integration as the implemented downstream baseline, with Phase 2 package/configuration hardening currently active roadmap work;
 - manual Worker collection preserved as an operator path through the canonical endpoint execution unit;
 - durable scheduler/job mechanism suitable for retries and separate Workers;
 - environment/secrets configuration compatible with managed operation and later self-host packaging;
-- optional Gemini AI through server-side Profile-grounded behavior, with Phase 1 digest implementation currently active roadmap work and later chat separately phased.
+- optional Gemini AI through server-side Profile-grounded behavior, with the Phase 1 digest foundation implemented and later chat separately phased.
 
 The architecture contract matters more than a specific library choice.
 
