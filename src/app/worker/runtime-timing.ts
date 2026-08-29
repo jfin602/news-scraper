@@ -3,6 +3,7 @@ import { MINIMUM_POLL_INTERVAL_SECONDS } from '../../sources/configuration.ts';
 
 export const WORKER_RUNTIME_TIMING = Object.freeze({
   schedulerPassIntervalMilliseconds: 15_000,
+  digestSchedulerPassIntervalMilliseconds: 60_000,
   idleJobPollIntervalMilliseconds: 1_000,
   jobLeaseDurationMilliseconds: 120_000,
   leaseRenewalIntervalMilliseconds: 30_000,
@@ -13,6 +14,7 @@ export const WORKER_RUNTIME_TIMING = Object.freeze({
 
 export interface WorkerRuntimeTiming {
   readonly schedulerPassIntervalMilliseconds: number;
+  readonly digestSchedulerPassIntervalMilliseconds: number;
   readonly idleJobPollIntervalMilliseconds: number;
   readonly jobLeaseDurationMilliseconds: number;
   readonly leaseRenewalIntervalMilliseconds: number;

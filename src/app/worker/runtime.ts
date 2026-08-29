@@ -2,6 +2,12 @@ import { randomUUID } from 'node:crypto';
 
 import type { Database } from '../../database/database.ts';
 import { createDatabaseDependency } from '../../database/readiness.ts';
+import { createDigestLifecycleService } from '../../distribution/digests/lifecycle.ts';
+import { createGeminiDigestProvider } from '../../distribution/digests/provider.ts';
+import {
+  createDigestScheduler,
+  type DigestSchedulerPassResult,
+} from '../../distribution/digests/scheduler.ts';
 import {
   runSchedulerPass,
   type SchedulerPassResult,
@@ -37,6 +43,7 @@ export interface WorkerRuntimeDependencies {
   checkReady(): Promise<boolean>;
   close(): Promise<void>;
   schedulerPass(now: Date, random: () => number): Promise<SchedulerPassResult>;
+  digestSchedulerPass(now: Date): Promise<DigestSchedulerPassResult>;
   claimNext(input: {
     readonly workerId: string;
     readonly claimedAt: Date;
@@ -97,6 +104,7 @@ export interface WorkerRuntimeDependencyOptions {
   readonly wait?: WorkerRuntimeDependencies['wait'];
   readonly emit?: WorkerRuntimeDependencies['emit'];
   readonly serviceDependencies?: Partial<EndpointCollectionServiceDependencies>;
+  readonly digestSchedulerPass?: WorkerRuntimeDependencies['digestSchedulerPass'];
 }
 
 export function createWorkerRuntimeDependencies(
@@ -105,11 +113,15 @@ export function createWorkerRuntimeDependencies(
 ): WorkerRuntimeDependencies {
   const readiness = createDatabaseDependency(database);
   const random = options.random ?? Math.random;
+  const digestSchedulerPass =
+    options.digestSchedulerPass ??
+    createProductionDigestSchedulerPass(database);
   const dependencies: WorkerRuntimeDependencies = {
     checkReady: () => readiness.checkReady(),
     close: () => database.close(),
     schedulerPass: (now: Date, randomSource: () => number) =>
       runSchedulerPass(database, { now, random: randomSource }),
+    digestSchedulerPass,
     claimNext: (input) => claimNextEndpointCollectionJob(database, input),
     renewLease: (jobId, claimToken, renewedAt, leaseExpiresAt) =>
       renewEndpointCollectionJobLease(
@@ -175,6 +187,11 @@ export async function startWorkerRuntime(
 
   emit(dependencies, 'worker.ready');
   const schedulerLoop = runSchedulerLoop(dependencies, timing, stopping.signal);
+  const digestSchedulerLoop = runDigestSchedulerLoop(
+    dependencies,
+    timing,
+    stopping.signal,
+  );
   const dispatcherLoop = runDispatcherLoop(
     dependencies,
     timing,
@@ -197,6 +214,7 @@ export async function startWorkerRuntime(
         try {
           await Promise.allSettled([
             schedulerLoop,
+            digestSchedulerLoop,
             dispatcherLoop,
             recoveryLoop,
           ]);
@@ -211,6 +229,32 @@ export async function startWorkerRuntime(
       return shutdownPromise;
     },
   };
+}
+
+async function runDigestSchedulerLoop(
+  dependencies: WorkerRuntimeDependencies,
+  timing: Readonly<WorkerRuntimeTiming>,
+  signal: AbortSignal,
+): Promise<void> {
+  while (!signal.aborted) {
+    try {
+      const result = await dependencies.digestSchedulerPass(
+        requiredNow(dependencies),
+      );
+      emit(
+        dependencies,
+        'worker.digest_scheduler_pass_completed',
+        digestSchedulerPassFields(result),
+      );
+    } catch {
+      emit(dependencies, 'worker.digest_scheduler_pass_failed');
+    }
+    if (signal.aborted) return;
+    await dependencies.wait(
+      timing.digestSchedulerPassIntervalMilliseconds,
+      signal,
+    );
+  }
 }
 
 async function runSchedulerLoop(
@@ -455,6 +499,51 @@ function emitFinalizedJob(
   }
 }
 
+function createProductionDigestSchedulerPass(
+  database: Database,
+): WorkerRuntimeDependencies['digestSchedulerPass'] {
+  // P2 resolves optional Gemini configuration only when lifecycle generation is
+  // actually required, so Worker readiness remains independent of an AI key.
+  const lifecycle = createDigestLifecycleService({
+    database,
+    provider: createGeminiDigestProvider(),
+  });
+  const scheduler = createDigestScheduler({ database, lifecycle });
+  return (now) => scheduler.pass(now);
+}
+
+function digestSchedulerPassFields(
+  result: DigestSchedulerPassResult,
+): Readonly<Record<string, WorkerDiagnosticValue>> {
+  const scheduledSlot = requiredDiagnosticTimestamp(
+    result.scheduledSlot,
+    'digest scheduler slot',
+  );
+  return Object.freeze({
+    scheduledSlot: scheduledSlot.toISOString(),
+    profilesConsidered: requiredDiagnosticCount(
+      result.profilesConsidered,
+      'digest profiles considered',
+    ),
+    attemptsClaimed: requiredDiagnosticCount(
+      result.attemptsClaimed,
+      'digest attempts claimed',
+    ),
+    attemptsSucceeded: requiredDiagnosticCount(
+      result.attemptsSucceeded,
+      'digest attempts succeeded',
+    ),
+    attemptsFailed: requiredDiagnosticCount(
+      result.attemptsFailed,
+      'digest attempts failed',
+    ),
+    attemptsSkipped: requiredDiagnosticCount(
+      result.attemptsSkipped,
+      'digest attempts skipped',
+    ),
+  });
+}
+
 function jobFields(
   job: PersistedEndpointCollectionJob,
 ): Readonly<Record<string, WorkerDiagnosticValue>> {
@@ -487,6 +576,20 @@ function requiredNow(dependencies: WorkerRuntimeDependencies): Date {
     throw new TypeError('Worker runtime clock returned an invalid timestamp.');
   }
   return now;
+}
+
+function requiredDiagnosticTimestamp(value: unknown, field: string): Date {
+  if (!(value instanceof Date) || !Number.isFinite(value.getTime())) {
+    throw new TypeError(`Worker runtime ${field} was invalid.`);
+  }
+  return value;
+}
+
+function requiredDiagnosticCount(value: unknown, field: string): number {
+  if (!Number.isSafeInteger(value) || (value as number) < 0) {
+    throw new TypeError(`Worker runtime ${field} was invalid.`);
+  }
+  return value as number;
 }
 
 function addMilliseconds(value: Date, milliseconds: number): Date {

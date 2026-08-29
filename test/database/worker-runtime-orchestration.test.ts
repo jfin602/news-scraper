@@ -48,6 +48,7 @@ const databaseTestScope = createDatabaseTestScope('migrated');
 after(async () => databaseTestScope.dispose());
 const TEST_TIMING: WorkerRuntimeTiming = Object.freeze({
   schedulerPassIntervalMilliseconds: 50,
+  digestSchedulerPassIntervalMilliseconds: 60,
   idleJobPollIntervalMilliseconds: 5,
   jobLeaseDurationMilliseconds: 2_000,
   leaseRenewalIntervalMilliseconds: 500,

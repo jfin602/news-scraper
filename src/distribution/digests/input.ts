@@ -38,8 +38,26 @@ export type DigestInputReadOutcome =
   | Exclude<DistributionProfileReadOutcome, { kind: 'active' }>
   | Readonly<{ kind: 'active'; input: ResolvedDigestInput }>;
 
+/**
+ * Lifecycle-only view of one canonical Profile snapshot. The bounded `input`
+ * remains the provider-facing projection; `canonicalArticles` lets lifecycle
+ * code validate persisted digest provenance against the same governed snapshot
+ * without reconstructing Profile eligibility.
+ */
+export type DigestLifecycleInputReadOutcome =
+  | Exclude<DistributionProfileReadOutcome, { kind: 'active' }>
+  | Readonly<{
+      kind: 'active';
+      input: ResolvedDigestInput;
+      canonicalArticles: readonly CanonicalOutwardArticle[];
+    }>;
+
 export interface DigestInputService {
   read(profileConfigKey: unknown, now: Date): Promise<DigestInputReadOutcome>;
+  readForLifecycle(
+    profileConfigKey: unknown,
+    now: Date,
+  ): Promise<DigestLifecycleInputReadOutcome>;
 }
 
 interface DigestInputDependencies {
@@ -96,45 +114,64 @@ export function createDigestInputServiceFromDependencies(
       profileConfigKey: unknown,
       now: Date,
     ): Promise<DigestInputReadOutcome> {
-      const resolvedAt = validNow(now);
-      const snapshot = await dependencies.snapshots.read(profileConfigKey);
-      if (snapshot.kind !== 'active') return snapshot;
-      const settings = await dependencies.readSettings(
-        snapshot.snapshot.profile.configKey,
+      const lifecycle = await readForLifecycle(
+        dependencies,
+        profileConfigKey,
+        now,
       );
-      if (
-        settings === undefined ||
-        settings.profileId !== snapshot.snapshot.internal.profile.id
-      )
-        return Object.freeze({ kind: 'read_failed' });
-      const cutoff = new Date(
-        resolvedAt.getTime() -
-          settings.digestLookbackDays * 24 * 60 * 60 * 1000,
-      );
-      const articles = Object.freeze(
-        snapshot.snapshot.articles
-          .filter(
-            (article) =>
-              article.effectiveFeedDate.getTime() >= cutoff.getTime(),
-          )
-          .slice(0, settings.digestMaxArticleCount)
-          .map(projectArticle),
-      );
-      return Object.freeze({
-        kind: 'active',
-        input: Object.freeze({
-          profile: Object.freeze({ ...snapshot.snapshot.profile }),
-          settings,
-          resolvedAt,
-          articles,
-          digestInputIdentity: digestInputIdentity({
-            profileConfigKey: snapshot.snapshot.profile.configKey,
-            settings,
-            orderedArticleIds: articles.map((article) => article.articleId),
-          }),
-        }),
-      });
+      if (lifecycle.kind !== 'active') return lifecycle;
+      return Object.freeze({ kind: 'active', input: lifecycle.input });
     },
+    async readForLifecycle(
+      profileConfigKey: unknown,
+      now: Date,
+    ): Promise<DigestLifecycleInputReadOutcome> {
+      return readForLifecycle(dependencies, profileConfigKey, now);
+    },
+  });
+}
+
+async function readForLifecycle(
+  dependencies: DigestInputDependencies,
+  profileConfigKey: unknown,
+  now: Date,
+): Promise<DigestLifecycleInputReadOutcome> {
+  const resolvedAt = validNow(now);
+  const snapshot = await dependencies.snapshots.read(profileConfigKey);
+  if (snapshot.kind !== 'active') return snapshot;
+  const settings = await dependencies.readSettings(
+    snapshot.snapshot.profile.configKey,
+  );
+  if (
+    settings === undefined ||
+    settings.profileId !== snapshot.snapshot.internal.profile.id
+  )
+    return Object.freeze({ kind: 'read_failed' });
+  const cutoff = new Date(
+    resolvedAt.getTime() - settings.digestLookbackDays * 24 * 60 * 60 * 1000,
+  );
+  const articles = Object.freeze(
+    snapshot.snapshot.articles
+      .filter(
+        (article) => article.effectiveFeedDate.getTime() >= cutoff.getTime(),
+      )
+      .slice(0, settings.digestMaxArticleCount)
+      .map(projectArticle),
+  );
+  return Object.freeze({
+    kind: 'active',
+    input: Object.freeze({
+      profile: Object.freeze({ ...snapshot.snapshot.profile }),
+      settings,
+      resolvedAt,
+      articles,
+      digestInputIdentity: digestInputIdentity({
+        profileConfigKey: snapshot.snapshot.profile.configKey,
+        settings,
+        orderedArticleIds: articles.map((article) => article.articleId),
+      }),
+    }),
+    canonicalArticles: snapshot.snapshot.articles,
   });
 }
 

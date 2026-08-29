@@ -21,6 +21,7 @@ import { parseRuntimeConfig } from '../../src/shared/runtime-config.ts';
 const NOW = new Date('2026-08-11T10:00:00.000Z');
 const TIMING: WorkerRuntimeTiming = Object.freeze({
   schedulerPassIntervalMilliseconds: 10,
+  digestSchedulerPassIntervalMilliseconds: 15,
   idleJobPollIntervalMilliseconds: 20,
   jobLeaseDurationMilliseconds: 100,
   leaseRenewalIntervalMilliseconds: 30,
@@ -33,6 +34,7 @@ describe('Worker runtime orchestration', () => {
   it('keeps the selected timing policy inside scheduler, health, and lease safety margins', () => {
     assert.deepEqual(WORKER_RUNTIME_TIMING, {
       schedulerPassIntervalMilliseconds: 15_000,
+      digestSchedulerPassIntervalMilliseconds: 60_000,
       idleJobPollIntervalMilliseconds: 1_000,
       jobLeaseDurationMilliseconds: 120_000,
       leaseRenewalIntervalMilliseconds: 30_000,
@@ -72,6 +74,7 @@ describe('Worker runtime orchestration', () => {
 
     assert.equal(runtime.state, 'ready');
     assert.equal(harness.schedulerCalls, 1);
+    assert.equal(harness.digestSchedulerCalls, 1);
     assert.equal(harness.events[0]?.event, 'worker.ready');
     const first = runtime.shutdown();
     const second = runtime.shutdown();
@@ -122,6 +125,73 @@ describe('Worker runtime orchestration', () => {
     assert.equal(maximumActive, 1);
     assert.ok(
       eventNames(harness.events).includes('worker.scheduler_pass_failed'),
+    );
+    await runtime.shutdown();
+  });
+
+  it('runs digest scheduler passes independently at cadence without overlap, surviving a pass failure', async () => {
+    const harness = runtimeHarness();
+    const firstPass = deferred<void>();
+    let active = 0;
+    let maximumActive = 0;
+    harness.dependencies.digestSchedulerPass = async () => {
+      harness.digestSchedulerCalls += 1;
+      active += 1;
+      maximumActive = Math.max(maximumActive, active);
+      try {
+        if (harness.digestSchedulerCalls === 1) await firstPass.promise;
+        if (harness.digestSchedulerCalls === 2)
+          throw new Error('synthetic digest pass failure');
+        return digestSchedulerPassResult();
+      } finally {
+        active -= 1;
+      }
+    };
+    const runtime = await startWorkerRuntime(
+      parseRuntimeConfig({}),
+      harness.dependencies,
+      { timing: TIMING },
+    );
+
+    await until(() => harness.digestSchedulerCalls === 1);
+    assert.equal(harness.schedulerCalls, 1);
+    await tick();
+    assert.equal(harness.digestSchedulerCalls, 1);
+    firstPass.resolve();
+    await until(() => harness.waiter.count(15) === 1);
+    harness.waiter.release(15);
+    await until(() => harness.digestSchedulerCalls === 2);
+    await until(() => harness.waiter.count(15) === 1);
+    harness.waiter.release(15);
+    await until(() => harness.digestSchedulerCalls === 3);
+    await until(() =>
+      eventNames(harness.events).includes(
+        'worker.digest_scheduler_pass_completed',
+      ),
+    );
+    assert.equal(maximumActive, 1);
+    assert.ok(
+      eventNames(harness.events).includes(
+        'worker.digest_scheduler_pass_failed',
+      ),
+    );
+    assert.ok(
+      eventNames(harness.events).includes('worker.scheduler_pass_completed'),
+    );
+    assert.deepEqual(
+      harness.events.find(
+        (event) => event.event === 'worker.digest_scheduler_pass_completed',
+      ),
+      {
+        event: 'worker.digest_scheduler_pass_completed',
+        role: 'worker',
+        scheduledSlot: '2026-08-11T00:00:00.000Z',
+        profilesConsidered: 0,
+        attemptsClaimed: 0,
+        attemptsSucceeded: 0,
+        attemptsFailed: 0,
+        attemptsSkipped: 0,
+      },
     );
     await runtime.shutdown();
   });
@@ -312,6 +382,28 @@ describe('Worker runtime orchestration', () => {
     assert.equal(harness.closeCalls, 1);
   });
 
+  it('awaits an active digest scheduler pass before closing the database', async () => {
+    const harness = runtimeHarness();
+    const digestScheduler = deferred<void>();
+    harness.dependencies.digestSchedulerPass = async () => {
+      harness.digestSchedulerCalls += 1;
+      await digestScheduler.promise;
+      return digestSchedulerPassResult();
+    };
+    const runtime = await startWorkerRuntime(
+      parseRuntimeConfig({}),
+      harness.dependencies,
+      { timing: TIMING },
+    );
+    await until(() => harness.digestSchedulerCalls === 1);
+    const shutdown = runtime.shutdown();
+    await tick();
+    assert.equal(harness.closeCalls, 0);
+    digestScheduler.resolve();
+    await shutdown;
+    assert.equal(harness.closeCalls, 1);
+  });
+
   it('isolates stale recovery failures and continues later jobs in the same pass', async () => {
     const harness = runtimeHarness();
     const expired = [job(1), job(2)];
@@ -371,6 +463,7 @@ function runtimeHarness(ready = true) {
   const harness = {
     closeCalls: 0,
     schedulerCalls: 0,
+    digestSchedulerCalls: 0,
     claimCalls: 0,
     renewCalls: 0,
     executeCalls: 0,
@@ -390,6 +483,10 @@ function runtimeHarness(ready = true) {
     async schedulerPass() {
       harness.schedulerCalls += 1;
       return { considered: 0, enqueued: 0, alreadyOutstanding: 0 };
+    },
+    async digestSchedulerPass() {
+      harness.digestSchedulerCalls += 1;
+      return digestSchedulerPassResult();
     },
     async claimNext() {
       harness.claimCalls += 1;
@@ -539,6 +636,17 @@ function successfulExecution(
     category: 'blocked' as const,
     outcome: 'no_longer_due',
     reason: 'no_longer_due',
+  });
+}
+
+function digestSchedulerPassResult() {
+  return Object.freeze({
+    scheduledSlot: new Date('2026-08-11T00:00:00.000Z'),
+    profilesConsidered: 0,
+    attemptsClaimed: 0,
+    attemptsSucceeded: 0,
+    attemptsFailed: 0,
+    attemptsSkipped: 0,
   });
 }
 

@@ -53,6 +53,59 @@ test('digest input supports zero, one, twenty, and over-limit canonical Article 
   }
 });
 
+test('lifecycle input returns the bounded provider projection and all canonical Profile Articles from one snapshot', async () => {
+  let reads = 0;
+  const canonicalArticles = Object.freeze([
+    article('current', '2026-08-10T00:00:00.000Z'),
+    article('outside-input', '2026-08-09T00:00:00.000Z'),
+  ]);
+  const service = createDigestInputServiceFromDependencies({
+    snapshots: {
+      async read() {
+        reads += 1;
+        return Object.freeze({
+          kind: 'active' as const,
+          snapshot: Object.freeze({
+            profile: Object.freeze({
+              configKey: 'books',
+              displayName: 'Books',
+            }),
+            publication: Object.freeze({ name: 'Publication' }),
+            articles: canonicalArticles,
+            internal: Object.freeze({
+              profile: Object.freeze({ id: profileId }),
+              orderPositions: Object.freeze([]),
+            }),
+          }),
+        }) as never;
+      },
+    },
+    readSettings: async () => settings(1),
+  });
+
+  const result = await service.readForLifecycle(
+    'books',
+    new Date('2026-08-10T00:00:00.000Z'),
+  );
+
+  assert.equal(result.kind, 'active');
+  if (result.kind !== 'active') throw new Error();
+  assert.equal(reads, 1);
+  assert.deepEqual(
+    result.input.articles.map((item) => item.articleId),
+    ['current'],
+  );
+  assert.deepEqual(
+    result.canonicalArticles.map((item) => item.articleId),
+    ['current', 'outside-input'],
+  );
+  assert.equal(
+    result.canonicalArticles[1]?.imageUrl,
+    'https://example.test/image.jpg',
+  );
+  assert.equal('imageUrl' in result.input.articles[0]!, false);
+});
+
 test('digest input identity is stable and distinguishes Profile settings and ordered Article IDs', () => {
   const base = {
     profileConfigKey: 'books',

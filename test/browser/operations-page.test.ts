@@ -326,6 +326,7 @@ function endpointHealth() {
 function workerTiming() {
   return {
     schedulerPassIntervalMilliseconds: 15_000,
+    digestSchedulerPassIntervalMilliseconds: 60_000,
     idleJobPollIntervalMilliseconds: 1_000,
     jobLeaseDurationMilliseconds: 120_000,
     leaseRenewalIntervalMilliseconds: 30_000,
