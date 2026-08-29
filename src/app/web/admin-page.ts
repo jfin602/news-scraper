@@ -562,6 +562,44 @@ const adminPage = `<!doctype html>
                 <div class="state-actions" data-profile-lifecycle-actions hidden></div>
               </section>
 
+              <section class="panel" data-profile-ai hidden>
+                <div class="panel-heading">
+                  <div>
+                    <p class="section-kicker">Optional assistance</p>
+                    <h2>AI digest</h2>
+                  </div>
+                </div>
+                <p class="section-help">Digest evaluations run twice daily at 00:00 and 12:00 UTC. Gemini credentials are deployment configuration and are never entered here.</p>
+                <div class="workspace-state" data-profile-ai-state="idle" role="status" aria-live="polite">Select a Profile to load its AI digest state.</div>
+                <form data-profile-ai-configuration-form hidden>
+                  <fieldset>
+                    <legend>Digest configuration</legend>
+                    <label class="choice-row">
+                      <input name="digestEnabled" type="checkbox">
+                      Enable this Profile's digest
+                    </label>
+                    <div class="form-grid">
+                      <label>Lookback days
+                        <input name="lookbackDays" type="number" min="1" max="30" step="1" required>
+                        <span class="field-help">One to 30 days; default 7.</span>
+                      </label>
+                      <label>Maximum input Articles
+                        <input name="maxArticles" type="number" min="1" max="20" step="1" required>
+                        <span class="field-help">One to 20 governed Articles; default 20.</span>
+                      </label>
+                    </div>
+                  </fieldset>
+                  <div class="form-message" role="alert" tabindex="-1" data-profile-ai-configuration-error hidden></div>
+                  <div class="form-actions">
+                    <button type="submit" class="button primary">Save AI settings</button>
+                    <button type="button" class="button secondary" data-profile-ai-generate>Generate now</button>
+                  </div>
+                </form>
+                <div class="form-message" role="status" aria-live="polite" data-profile-ai-generation-result hidden></div>
+                <dl class="operations-facts" data-profile-ai-active-digest hidden></dl>
+                <dl class="operations-facts" data-profile-ai-latest-attempt hidden></dl>
+              </section>
+
               <section class="panel" data-profile-associations hidden>
                 <div class="panel-heading">
                   <div>

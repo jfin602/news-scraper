@@ -25,6 +25,9 @@ import { registerPhpIntegrationDownloadRoutes } from './php-integration-download
 import { parseWebConfig } from './web-config.ts';
 import { createDistributionApiRuntime } from './distribution-api-runtime.ts';
 import { createPhpIntegrationPackageProducer } from '../../integrations/php-integration-package.ts';
+import { createProfileAiAdministrationService } from '../../admin/profile-ai-administration.ts';
+import { createProductionDigestLifecycleService } from '../../distribution/digests/production.ts';
+import { registerProfileAiAdministrationRoutes } from './profile-ai-administration-router.ts';
 
 async function main(): Promise<void> {
   let database: ReturnType<typeof createDatabase> | undefined;
@@ -38,6 +41,14 @@ async function main(): Promise<void> {
       applicationDatabase,
       config,
       { telemetry: writeEvent },
+    );
+    const digestLifecycle =
+      createProductionDigestLifecycleService(applicationDatabase);
+    const registerProfileAiRoutes = registerProfileAiAdministrationRoutes(
+      createProfileAiAdministrationService(
+        applicationDatabase,
+        digestLifecycle,
+      ),
     );
     const registerSourceRoutes = registerSourceAdministrationRoutes(
       createSourceAdministrationService(applicationDatabase),
@@ -88,6 +99,7 @@ async function main(): Promise<void> {
             registerPublicationRoutes(router);
             registerEditorialRoutes(router);
             registerDistributionProfileRoutes(router);
+            registerProfileAiRoutes(router);
             registerDistributionCredentialRoutes(router);
             registerPhpIntegrationDownloadRoute(router);
             registerModerationRoutes(router);

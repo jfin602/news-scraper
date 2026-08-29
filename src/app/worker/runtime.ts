@@ -2,8 +2,7 @@ import { randomUUID } from 'node:crypto';
 
 import type { Database } from '../../database/database.ts';
 import { createDatabaseDependency } from '../../database/readiness.ts';
-import { createDigestLifecycleService } from '../../distribution/digests/lifecycle.ts';
-import { createGeminiDigestProvider } from '../../distribution/digests/provider.ts';
+import { createProductionDigestLifecycleService } from '../../distribution/digests/production.ts';
 import {
   createDigestScheduler,
   type DigestSchedulerPassResult,
@@ -504,10 +503,7 @@ function createProductionDigestSchedulerPass(
 ): WorkerRuntimeDependencies['digestSchedulerPass'] {
   // P2 resolves optional Gemini configuration only when lifecycle generation is
   // actually required, so Worker readiness remains independent of an AI key.
-  const lifecycle = createDigestLifecycleService({
-    database,
-    provider: createGeminiDigestProvider(),
-  });
+  const lifecycle = createProductionDigestLifecycleService(database);
   const scheduler = createDigestScheduler({ database, lifecycle });
   return (now) => scheduler.pass(now);
 }

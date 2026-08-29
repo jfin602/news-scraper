@@ -6,6 +6,7 @@ import {
   hideMessage,
   humanize,
   input,
+  dateTime,
   messageForError,
   mutate,
   required,
@@ -21,6 +22,9 @@ const state = {
   selectedProfile: null,
   mode: 'none',
   editingSourceKey: null,
+  aiProfileKey: null,
+  ai: null,
+  aiError: null,
 };
 
 const elements = {
@@ -46,6 +50,14 @@ const elements = {
   sourceSelect: required('[data-profile-source-select]'),
   categoryOptions: required('[data-profile-category-options]'),
   refresh: required('[data-refresh-profiles]'),
+  ai: required('[data-profile-ai]'),
+  aiState: required('[data-profile-ai-state]'),
+  aiConfigurationForm: required('[data-profile-ai-configuration-form]'),
+  aiConfigurationError: required('[data-profile-ai-configuration-error]'),
+  aiGenerate: required('[data-profile-ai-generate]'),
+  aiGenerationResult: required('[data-profile-ai-generation-result]'),
+  aiActiveDigest: required('[data-profile-ai-active-digest]'),
+  aiLatestAttempt: required('[data-profile-ai-latest-attempt]'),
 };
 
 function profileMessage(error) {
@@ -59,6 +71,9 @@ function profileMessage(error) {
       'profile_association_not_found',
       'profile_invalid_lifecycle_transition',
       'profile_requires_usable_source',
+      'digest_disabled',
+      'digest_no_input',
+      'digest_generation_in_progress',
     ]);
     if (known.has(error.code)) return messageForError(error);
     return 'The Profile service could not complete that request. Refresh and try again.';
@@ -132,9 +147,173 @@ function showNoProfile() {
   elements.configurationForm.hidden = true;
   elements.lifecycleActions.hidden = true;
   elements.associations.hidden = true;
+  elements.ai.hidden = true;
   hideMessage(elements.createError);
   hideMessage(elements.configurationError);
   hideMessage(elements.associationError);
+}
+
+function definitionList(element, facts) {
+  element.replaceChildren();
+  for (const [label, value] of facts) {
+    const term = document.createElement('dt');
+    const definition = document.createElement('dd');
+    term.textContent = label;
+    definition.textContent = value;
+    element.append(term, definition);
+  }
+  element.hidden = false;
+}
+
+function renderAi(profile) {
+  elements.ai.hidden = false;
+  hideMessage(elements.aiConfigurationError);
+  if (state.aiProfileKey !== profile.configKey) {
+    elements.aiState.dataset.profileAiState = 'loading';
+    elements.aiState.textContent = 'Loading AI digest state…';
+    elements.aiConfigurationForm.hidden = true;
+    elements.aiActiveDigest.hidden = true;
+    elements.aiLatestAttempt.hidden = true;
+    hideMessage(elements.aiGenerationResult);
+    return;
+  }
+  if (state.aiError) {
+    elements.aiState.dataset.profileAiState = 'error';
+    elements.aiState.textContent = state.aiError;
+    elements.aiConfigurationForm.hidden = true;
+    elements.aiActiveDigest.hidden = true;
+    elements.aiLatestAttempt.hidden = true;
+    return;
+  }
+  const ai = state.ai;
+  if (!ai) return;
+  elements.aiState.dataset.profileAiState = 'ready';
+  elements.aiState.textContent = 'AI digest state is ready.';
+  input(elements.aiConfigurationForm, 'digestEnabled').checked =
+    ai.configuration.digestEnabled;
+  input(elements.aiConfigurationForm, 'lookbackDays').value = String(
+    ai.configuration.lookbackDays,
+  );
+  input(elements.aiConfigurationForm, 'maxArticles').value = String(
+    ai.configuration.maxArticles,
+  );
+  elements.aiConfigurationForm.hidden = false;
+  if (ai.activeDigest === null) {
+    definitionList(elements.aiActiveDigest, [['Active digest', 'No digest']]);
+  } else {
+    definitionList(elements.aiActiveDigest, [
+      ['Active digest', humanize(ai.activeDigest.freshness)],
+      ['Generated', dateTime(ai.activeDigest.generatedAt)],
+      ['Input Articles', String(ai.activeDigest.inputArticleCount)],
+      ['Provider', ai.activeDigest.provider],
+      ['Model', ai.activeDigest.model],
+    ]);
+  }
+  if (ai.latestAttempt === null) {
+    definitionList(elements.aiLatestAttempt, [
+      ['Latest attempt', 'No attempts yet'],
+    ]);
+  } else {
+    definitionList(elements.aiLatestAttempt, [
+      [
+        'Latest attempt',
+        `${humanize(ai.latestAttempt.triggerKind)}: ${humanize(ai.latestAttempt.outcome)}`,
+      ],
+      ['Started', dateTime(ai.latestAttempt.startedAt)],
+      ['Completed', dateTime(ai.latestAttempt.completedAt)],
+      ['Failure category', humanize(ai.latestAttempt.failureCategory)],
+      [
+        'URL Context',
+        `${ai.latestAttempt.urlContextSucceededCount} succeeded, ${ai.latestAttempt.urlContextFailedCount} unavailable`,
+      ],
+    ]);
+  }
+}
+
+async function loadProfileAi(profileKey) {
+  state.aiProfileKey = profileKey;
+  state.ai = null;
+  state.aiError = null;
+  const requestProfileKey = profileKey;
+  try {
+    const result = await api(
+      `/admin/api/distribution-profiles/${encodeURIComponent(requestProfileKey)}/ai`,
+    );
+    if (state.selectedProfile?.configKey !== requestProfileKey) return;
+    state.ai = result.ai;
+  } catch (error) {
+    if (state.selectedProfile?.configKey !== requestProfileKey) return;
+    state.aiError = profileMessage(error);
+  }
+  if (state.selectedProfile?.configKey === requestProfileKey)
+    renderSelectedProfile();
+}
+
+function aiConfigurationBody() {
+  return {
+    digestEnabled: input(elements.aiConfigurationForm, 'digestEnabled').checked,
+    lookbackDays: Number(
+      input(elements.aiConfigurationForm, 'lookbackDays').value,
+    ),
+    maxArticles: Number(
+      input(elements.aiConfigurationForm, 'maxArticles').value,
+    ),
+  };
+}
+
+async function submitAiConfiguration(event) {
+  const profile = state.selectedProfile;
+  if (!profile) return;
+  hideMessage(elements.aiConfigurationError);
+  try {
+    const result = await mutate(event.submitter, () =>
+      api(
+        `/admin/api/distribution-profiles/${encodeURIComponent(profile.configKey)}/ai/configuration`,
+        { method: 'PUT', body: aiConfigurationBody() },
+      ),
+    );
+    if (state.selectedProfile?.configKey !== profile.configKey) return;
+    state.ai = result.ai;
+    state.aiProfileKey = profile.configKey;
+    state.aiError = null;
+    renderSelectedProfile();
+    setGlobalStatus(
+      'ready',
+      'Profile AI settings saved. The next scheduled evaluation uses them.',
+    );
+  } catch (error) {
+    showMessage(elements.aiConfigurationError, profileMessage(error), 'error');
+    elements.aiConfigurationError.focus();
+  }
+}
+
+async function generateAiDigest() {
+  const profile = state.selectedProfile;
+  if (!profile) return;
+  hideMessage(elements.aiGenerationResult);
+  try {
+    const result = await mutate(elements.aiGenerate, () =>
+      api(
+        `/admin/api/distribution-profiles/${encodeURIComponent(profile.configKey)}/ai/generate`,
+        { method: 'POST', body: {} },
+      ),
+    );
+    if (state.selectedProfile?.configKey !== profile.configKey) return;
+    state.ai = result.ai;
+    state.aiProfileKey = profile.configKey;
+    state.aiError = null;
+    renderSelectedProfile();
+    showMessage(
+      elements.aiGenerationResult,
+      result.result === 'generated'
+        ? 'Digest generation completed successfully.'
+        : 'Digest generation completed without a new active digest. See the latest bounded attempt status below.',
+      result.result === 'generated' ? 'success' : 'error',
+    );
+  } catch (error) {
+    showMessage(elements.aiGenerationResult, profileMessage(error), 'error');
+    elements.aiGenerationResult.focus();
+  }
 }
 
 function renderConfiguration(profile) {
@@ -318,6 +497,9 @@ function renderSelectedProfile() {
   renderSummary(profile);
   elements.createForm.hidden = true;
   renderConfiguration(profile);
+  renderAi(profile);
+  if (state.aiProfileKey !== profile.configKey)
+    void loadProfileAi(profile.configKey);
   renderLifecycleActions(profile);
   elements.associations.hidden = false;
   renderAssociations(profile);
@@ -339,6 +521,7 @@ function beginCreate() {
   elements.configurationForm.hidden = true;
   elements.lifecycleActions.hidden = true;
   elements.associations.hidden = true;
+  elements.ai.hidden = true;
   hideMessage(elements.createError);
   input(elements.createForm, 'configKey').focus();
   renderList();
@@ -357,6 +540,9 @@ function selectProfile(key) {
   state.selectedProfile = profile;
   state.mode = 'edit';
   state.editingSourceKey = null;
+  state.aiProfileKey = null;
+  state.ai = null;
+  state.aiError = null;
   renderList();
   renderSelectedProfile();
 }
@@ -475,6 +661,9 @@ function beginAssociationEdit(sourceKey) {
 
 function cancelAssociationEdit() {
   state.editingSourceKey = null;
+  state.aiProfileKey = null;
+  state.ai = null;
+  state.aiError = null;
   if (state.selectedProfile) renderSelectedProfile();
 }
 
@@ -569,6 +758,11 @@ function wireProfiles() {
     event.preventDefault();
     void submitAssociation(event);
   });
+  elements.aiConfigurationForm.addEventListener('submit', (event) => {
+    event.preventDefault();
+    void submitAiConfiguration(event);
+  });
+  elements.aiGenerate.addEventListener('click', () => void generateAiDigest());
   elements.associationCancel.addEventListener('click', cancelAssociationEdit);
   elements.refresh.addEventListener('click', () => void loadProfiles());
 }

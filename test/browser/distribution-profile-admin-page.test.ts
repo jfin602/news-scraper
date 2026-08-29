@@ -13,6 +13,10 @@ import {
   type AdminDistributionProfileReadModel,
   type DistributionProfileAdministrationService,
 } from '../../src/admin/distribution-profile-administration.ts';
+import type {
+  AdminProfileAiReadModel,
+  ProfileAiAdministrationService,
+} from '../../src/admin/profile-ai-administration.ts';
 import type { EndpointAdministrationService } from '../../src/admin/endpoint-administration.ts';
 import type {
   AdminSourceReadModel,
@@ -20,6 +24,7 @@ import type {
 } from '../../src/admin/source-administration.ts';
 import { createWebApp } from '../../src/app/web/create-app.ts';
 import { registerDistributionProfileAdministrationRoutes } from '../../src/app/web/distribution-profile-administration-router.ts';
+import { registerProfileAiAdministrationRoutes } from '../../src/app/web/profile-ai-administration-router.ts';
 import { registerEndpointAdministrationRoutes } from '../../src/app/web/endpoint-administration-router.ts';
 import { registerSourceAdministrationRoutes } from '../../src/app/web/source-administration-router.ts';
 import { startWebServer } from '../../src/app/web/server.ts';
@@ -262,6 +267,77 @@ describe('Distribution Profile administration page browser behavior', () => {
       );
     });
   });
+
+  it('edits Profile-scoped AI settings and shows bounded manual generation state', async () => {
+    const harness = new ProfileHarness();
+    harness.addProfile(activeProfile());
+    await withPage(browser, harness, {}, async (page, _context, ai) => {
+      await page.getByRole('tab', { name: /^Profiles/u }).click();
+      await page.getByRole('button', { name: /Publisher news/u }).click();
+      await page
+        .locator('[data-profile-ai-state][data-profile-ai-state="ready"]')
+        .waitFor();
+      const form = page.locator('[data-profile-ai-configuration-form]');
+      await form
+        .getByRole('checkbox', { name: /Enable this Profile/u })
+        .check();
+      await form.locator('[name="lookbackDays"]').fill('14');
+      await form.locator('[name="maxArticles"]').fill('10');
+      await page.getByRole('button', { name: 'Save AI settings' }).click();
+      assert.deepEqual(ai.configuration('publisher_news'), {
+        digestEnabled: true,
+        lookbackDays: 14,
+        maxArticles: 10,
+      });
+      await page.getByRole('button', { name: 'Generate now' }).click();
+      await page
+        .locator('[data-profile-ai-generation-result]')
+        .filter({ hasText: /completed successfully/u })
+        .waitFor();
+      assert.equal(ai.generateCalls, 1);
+      assert.match(
+        await page.locator('[data-profile-ai-active-digest]').innerText(),
+        /Current|google-gemini/u,
+      );
+      assert.doesNotMatch(
+        await page.content(),
+        /NEWS_SCRAPER_GEMINI_API_KEY|Gemini API key|secret value/u,
+      );
+    });
+  });
+
+  it('does not paint a stale Profile AI response after switching Profiles', async () => {
+    const harness = new ProfileHarness();
+    harness.addProfile(activeProfile());
+    harness.addProfile({
+      ...activeProfile(),
+      configKey: 'opportunities',
+      displayName: 'Opportunities',
+    });
+    await withPage(browser, harness, {}, async (page, _context, ai) => {
+      ai.setConfiguration('publisher_news', {
+        digestEnabled: true,
+        lookbackDays: 30,
+        maxArticles: 20,
+      });
+      ai.delayProfileRead('publisher_news');
+      await page.getByRole('tab', { name: /^Profiles/u }).click();
+      await page.getByRole('button', { name: /Publisher news/u }).click();
+      await ai.waitForSlowRead();
+      await page.getByRole('button', { name: 'Opportunities' }).click();
+      await page
+        .locator('[data-profile-ai-state][data-profile-ai-state="ready"]')
+        .waitFor();
+      ai.releaseSlowRead();
+      await page.waitForTimeout(100);
+      assert.equal(
+        await page
+          .locator('[data-profile-ai-configuration-form] [name="lookbackDays"]')
+          .inputValue(),
+        '7',
+      );
+    });
+  });
 });
 
 class ProfileHarness {
@@ -371,6 +447,122 @@ class ProfileHarness {
   }
 }
 
+class ProfileAiHarness {
+  readonly states = new Map<string, AdminProfileAiReadModel>();
+  generateCalls = 0;
+  #slowProfileKey: string | undefined;
+  #slowReadStarted: Promise<void> | undefined;
+  #markSlowReadStarted: (() => void) | undefined;
+  #slowReadRelease: (() => void) | undefined;
+  #slowRead: Promise<void> | undefined;
+
+  configuration(key: string): AdminProfileAiReadModel['configuration'] {
+    return this.state(key).configuration;
+  }
+
+  setConfiguration(
+    key: string,
+    configuration: AdminProfileAiReadModel['configuration'],
+  ): void {
+    const current = this.state(key);
+    this.states.set(key, Object.freeze({ ...current, configuration }));
+  }
+
+  delayProfileRead(key: string): void {
+    this.#slowProfileKey = key;
+    this.#slowReadStarted = new Promise((resolve) => {
+      this.#markSlowReadStarted = resolve;
+    });
+    this.#slowRead = new Promise((resolve) => {
+      this.#slowReadRelease = resolve;
+    });
+  }
+
+  async waitForSlowRead(): Promise<void> {
+    await this.#slowReadStarted;
+  }
+
+  releaseSlowRead(): void {
+    this.#slowReadRelease?.();
+  }
+
+  service(): ProfileAiAdministrationService {
+    return {
+      getProfileAi: async (key) => {
+        const profileKey = String(key);
+        if (profileKey === this.#slowProfileKey) {
+          this.#markSlowReadStarted?.();
+          await this.#slowRead;
+        }
+        return this.state(profileKey);
+      },
+      updateProfileAiConfiguration: async (key, input) => {
+        const current = this.state(String(key));
+        const value = record(input);
+        const next = Object.freeze({
+          ...current,
+          configuration: Object.freeze({
+            digestEnabled: Boolean(value.digestEnabled),
+            lookbackDays: Number(value.lookbackDays),
+            maxArticles: Number(value.maxArticles),
+          }),
+        });
+        this.states.set(next.profileKey, next);
+        return next;
+      },
+      forceGenerateProfileDigest: async (key) => {
+        this.generateCalls += 1;
+        const current = this.state(String(key));
+        const next = Object.freeze({
+          ...current,
+          activeDigest: Object.freeze({
+            generatedAt: new Date('2026-08-28T12:00:00.000Z'),
+            freshness: 'current' as const,
+            inputArticleCount: 2,
+            provider: 'google-gemini',
+            model: 'gemini-fixture',
+          }),
+          latestAttempt: Object.freeze({
+            triggerKind: 'manual' as const,
+            outcome: 'success' as const,
+            startedAt: new Date('2026-08-28T12:00:00.000Z'),
+            completedAt: new Date('2026-08-28T12:00:01.000Z'),
+            failureCategory: null,
+            urlContextSucceededCount: 2,
+            urlContextFailedCount: 0,
+          }),
+        });
+        this.states.set(next.profileKey, next);
+        return Object.freeze({ result: 'generated' as const, ai: next });
+      },
+    };
+  }
+
+  private state(key: string): AdminProfileAiReadModel {
+    const existing = this.states.get(key);
+    if (existing !== undefined) return existing;
+    const created = Object.freeze({
+      profileKey: key,
+      configuration: Object.freeze({
+        digestEnabled: false,
+        lookbackDays: 7,
+        maxArticles: 20,
+      }),
+      cadence: Object.freeze({
+        kind: 'twice_daily' as const,
+        slots: Object.freeze(['00:00Z', '12:00Z']) as readonly [
+          '00:00Z',
+          '12:00Z',
+        ],
+      }),
+      activeDigest: null,
+      latestAttempt: null,
+    });
+    this.states.set(key, created);
+    return created;
+  }
+}
+
 function activeProfile(): AdminDistributionProfileReadModel {
   return {
     configKey: 'publisher_news',
@@ -421,8 +613,13 @@ async function withPage(
   browser: Browser,
   harness: ProfileHarness,
   options: Parameters<Browser['newContext']>[0],
-  work: (page: Page, context: BrowserContext) => Promise<void>,
+  work: (
+    page: Page,
+    context: BrowserContext,
+    ai: ProfileAiHarness,
+  ) => Promise<void>,
 ): Promise<void> {
+  const ai = new ProfileAiHarness();
   const server = await startWebServer(
     createWebApp(
       {
@@ -440,6 +637,7 @@ async function withPage(
           registerDistributionProfileAdministrationRoutes(harness.service())(
             router,
           );
+          registerProfileAiAdministrationRoutes(ai.service())(router);
         },
       },
     ),
@@ -452,7 +650,7 @@ async function withPage(
       `http://${server.host}:${String(server.port)}/admin`,
     );
     assert.equal(response?.status(), 200);
-    await work(page, context);
+    await work(page, context, ai);
   } finally {
     await context.close();
     await server.close();

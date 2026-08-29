@@ -76,6 +76,11 @@ export function messageForError(error) {
       'That Profile lifecycle action is no longer valid. Refresh Profiles to reload current state.',
     profile_requires_usable_source:
       'An active Profile must retain at least one associated Source that is approved and active.',
+    digest_disabled: 'Enable the Profile digest before generating it.',
+    digest_no_input:
+      'There are no qualifying governed Articles in this Profile’s current digest input.',
+    digest_generation_in_progress:
+      'A digest generation is already running for this Profile. Wait for it to complete.',
     category_config_key_conflict:
       'That Category configuration key is already in use.',
     category_in_use: 'This Category is still in use and cannot be removed.',
