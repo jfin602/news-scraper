@@ -53,6 +53,7 @@ test('migration from zero creates and reruns the complete duplicate foundation',
       '0017_article_summary_bound.sql',
       '0018_profile_ai_digest_foundation.sql',
       '0019_digest_lifecycle_handoff.sql',
+      '0020_profile_digest_style_guidance.sql',
     ]);
     assert.deepEqual(
       await migrateDatabase({ connectionString: databaseUrl }),

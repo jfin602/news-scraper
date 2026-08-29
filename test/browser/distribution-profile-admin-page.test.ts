@@ -288,6 +288,7 @@ describe('Distribution Profile administration page browser behavior', () => {
         digestEnabled: true,
         lookbackDays: 14,
         maxArticles: 10,
+        digestStyleGuidance: null,
       });
       await page.getByRole('button', { name: 'Generate now' }).click();
       await page
@@ -319,6 +320,7 @@ describe('Distribution Profile administration page browser behavior', () => {
         digestEnabled: true,
         lookbackDays: 30,
         maxArticles: 20,
+        digestStyleGuidance: null,
       });
       ai.delayProfileRead('publisher_news');
       await page.getByRole('tab', { name: /^Profiles/u }).click();
@@ -505,6 +507,7 @@ class ProfileAiHarness {
             digestEnabled: Boolean(value.digestEnabled),
             lookbackDays: Number(value.lookbackDays),
             maxArticles: Number(value.maxArticles),
+            digestStyleGuidance: current.configuration.digestStyleGuidance,
           }),
         });
         this.states.set(next.profileKey, next);
@@ -547,6 +550,7 @@ class ProfileAiHarness {
         digestEnabled: false,
         lookbackDays: 7,
         maxArticles: 20,
+        digestStyleGuidance: null,
       }),
       cadence: Object.freeze({
         kind: 'twice_daily' as const,

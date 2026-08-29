@@ -59,6 +59,7 @@ function liveInput(originalUrl: string): ResolvedDigestInput {
       digestEnabled: true,
       digestLookbackDays: 7,
       digestMaxArticleCount: 1,
+      digestStyleGuidance: null,
       createdAt: new Date(0),
       updatedAt: new Date(0),
     },

@@ -24,7 +24,7 @@ const ACCEPTED_FILENAMES = Array.from(
   (_, index) => `${String(index + 1).padStart(4, '0')}_`,
 );
 
-test('the accepted production state upgrades additively through Profiles, credentials, the Article summary bound, and Profile AI foundation', async () => {
+test('the accepted production state upgrades additively through Profiles, credentials, the Article summary bound, Profile AI foundation, and digest style guidance', async () => {
   await withDisposableDatabase(async ({ databaseUrl }) => {
     const directory = await mkdtemp(
       path.join(tmpdir(), 'news-scraper-baseline-'),
@@ -164,6 +164,34 @@ test('the accepted production state upgrades additively through Profiles, creden
       } finally {
         await migratedDigestDatabase.close();
       }
+      await addMigration('0020_profile_digest_style_guidance.sql');
+      const styleMigrationDatabase = createDatabase({
+        connectionString: databaseUrl,
+      });
+      try {
+        assert.deepEqual(
+          (
+            await styleMigrationDatabase.query(
+              `SELECT state, terminal_outcome, digest_enabled, digest_style_guidance
+                 FROM distribution_profile_digest_attempts attempt
+                 JOIN distribution_profile_ai_settings settings
+                   ON settings.profile_id = attempt.profile_id
+                WHERE attempt.id = $1 AND attempt.profile_id = $2`,
+              [digestAttemptId, digestProfileId],
+            )
+          ).rows,
+          [
+            {
+              state: 'running',
+              terminal_outcome: null,
+              digest_enabled: false,
+              digest_style_guidance: null,
+            },
+          ],
+        );
+      } finally {
+        await styleMigrationDatabase.close();
+      }
       await Promise.all(
         preservedBytes.map(async ([filename, bytes]) => {
           assert.equal(
@@ -187,8 +215,9 @@ test('the accepted production state upgrades additively through Profiles, creden
               readonly digest_enabled: boolean;
               readonly digest_lookback_days: number;
               readonly digest_max_article_count: number;
+              readonly digest_style_guidance: string | null;
             }>(
-              `SELECT digest_enabled, digest_lookback_days, digest_max_article_count
+              `SELECT digest_enabled, digest_lookback_days, digest_max_article_count, digest_style_guidance
                  FROM distribution_profile_ai_settings WHERE profile_id = $1`,
               [profile.id],
             )
@@ -198,6 +227,7 @@ test('the accepted production state upgrades additively through Profiles, creden
               digest_enabled: false,
               digest_lookback_days: 7,
               digest_max_article_count: 20,
+              digest_style_guidance: null,
             },
           ],
         );

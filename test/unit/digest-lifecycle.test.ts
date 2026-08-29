@@ -21,11 +21,16 @@ test('scheduled generation requires a newly entering bounded Article or settings
     ...settings,
     digestLookbackDays: 14,
   });
+  const changedStyle = input(['article-a', 'article-b', 'article-c'], {
+    ...settings,
+    digestStyleGuidance: 'Use a concise industry tone.',
+  });
 
   assert.equal(generationRequired(active, unchanged, false), false);
   assert.equal(generationRequired(active, naturalAgeOut, false), false);
   assert.equal(generationRequired(active, newlyEntering, false), true);
   assert.equal(generationRequired(active, changedSettings, false), true);
+  assert.equal(generationRequired(active, changedStyle, false), true);
   assert.equal(generationRequired(active, unchanged, true), true);
 });
 
@@ -100,6 +105,7 @@ function profileSettings(): ProfileAiSettings {
     digestEnabled: true,
     digestLookbackDays: 7,
     digestMaxArticleCount: 20,
+    digestStyleGuidance: null,
     createdAt: new Date('2026-08-01T00:00:00.000Z'),
     updatedAt: new Date('2026-08-01T00:00:00.000Z'),
   });

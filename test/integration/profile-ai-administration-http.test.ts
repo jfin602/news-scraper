@@ -20,6 +20,7 @@ const ai: AdminProfileAiReadModel = Object.freeze({
     digestEnabled: true,
     lookbackDays: 7,
     maxArticles: 20,
+    digestStyleGuidance: null,
   }),
   cadence: Object.freeze({
     kind: 'twice_daily',

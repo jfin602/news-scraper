@@ -36,6 +36,7 @@ test('the process-lifetime distribution runtime authenticates persisted credenti
         digestEnabled: true,
         digestLookbackDays: 30,
         digestMaxArticleCount: 20,
+        digestStyleGuidance: null,
       });
       await persistAndActivateSuccessfulDigest(
         database,

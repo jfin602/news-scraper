@@ -7,6 +7,7 @@ import {
   type DigestLifecycleService,
 } from '../distribution/digests/lifecycle.ts';
 import {
+  normalizeDigestStyleGuidance,
   readProfileAiSettings,
   updateProfileAiSettings,
   type PersistedDigestAttempt,
@@ -39,6 +40,7 @@ export interface AdminProfileAiReadModel {
     digestEnabled: boolean;
     lookbackDays: number;
     maxArticles: number;
+    digestStyleGuidance: string | null;
   }>;
   readonly cadence: Readonly<{
     kind: 'twice_daily';
@@ -115,8 +117,15 @@ export function createProfileAiAdministrationService(
         if (profile === undefined)
           throw new ProfileAiAdministrationError('profile_not_found');
         const before = await requireSettings(transaction, key);
-        if (sameConfiguration(before, command)) return;
-        const after = await updateProfileAiSettings(transaction, key, command);
+        const complete = Object.freeze({
+          ...command,
+          digestStyleGuidance:
+            command.digestStyleGuidance === undefined
+              ? before.digestStyleGuidance
+              : command.digestStyleGuidance,
+        });
+        if (sameConfiguration(before, complete)) return;
+        const after = await updateProfileAiSettings(transaction, key, complete);
         await transaction.query(
           `INSERT INTO audit_events
              (id, action, target_type, target_id, prior_state, new_state)
@@ -183,12 +192,13 @@ function configurationCommand(input: unknown): Readonly<{
   digestEnabled: boolean;
   digestLookbackDays: number;
   digestMaxArticleCount: number;
+  digestStyleGuidance?: string | null;
 }> {
-  const record = validateAdminInputRecord(input, [
-    'digestEnabled',
-    'lookbackDays',
-    'maxArticles',
-  ]);
+  const record = validateAdminInputRecord(
+    input,
+    ['digestEnabled', 'lookbackDays', 'maxArticles'],
+    ['digestStyleGuidance'],
+  );
   if (
     record === undefined ||
     typeof record.digestEnabled !== 'boolean' ||
@@ -201,6 +211,9 @@ function configurationCommand(input: unknown): Readonly<{
     digestEnabled: record.digestEnabled,
     digestLookbackDays: record.lookbackDays,
     digestMaxArticleCount: record.maxArticles,
+    ...(Object.hasOwn(record, 'digestStyleGuidance')
+      ? { digestStyleGuidance: normalizeStyle(record.digestStyleGuidance) }
+      : {}),
   });
 }
 
@@ -251,11 +264,13 @@ function configurationState(settings: ProfileAiSettings): Readonly<{
   digestEnabled: boolean;
   lookbackDays: number;
   maxArticles: number;
+  digestStyleGuidance: string | null;
 }> {
   return Object.freeze({
     digestEnabled: settings.digestEnabled,
     lookbackDays: settings.digestLookbackDays,
     maxArticles: settings.digestMaxArticleCount,
+    digestStyleGuidance: settings.digestStyleGuidance,
   });
 }
 
@@ -265,13 +280,23 @@ function sameConfiguration(
     digestEnabled: boolean;
     digestLookbackDays: number;
     digestMaxArticleCount: number;
+    digestStyleGuidance: string | null;
   }>,
 ): boolean {
   return (
     settings.digestEnabled === input.digestEnabled &&
     settings.digestLookbackDays === input.digestLookbackDays &&
-    settings.digestMaxArticleCount === input.digestMaxArticleCount
+    settings.digestMaxArticleCount === input.digestMaxArticleCount &&
+    settings.digestStyleGuidance === input.digestStyleGuidance
   );
+}
+
+function normalizeStyle(value: unknown): string | null {
+  try {
+    return normalizeDigestStyleGuidance(value);
+  } catch {
+    throw new ProfileAiAdministrationError('invalid_request');
+  }
 }
 
 function mapDigest(

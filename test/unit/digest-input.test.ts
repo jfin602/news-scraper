@@ -6,7 +6,11 @@ import {
   digestInputIdentity,
 } from '../../src/distribution/digests/input.ts';
 import type { DistributionProfileSnapshotService } from '../../src/distribution/profile-snapshot.ts';
-import type { ProfileAiSettings } from '../../src/distribution/digests/repository.ts';
+import {
+  normalizeDigestStyleGuidance,
+  type ProfileAiSettings,
+} from '../../src/distribution/digests/repository.ts';
+import { createHash } from 'node:crypto';
 
 const profileId = '00000000-0000-0000-0000-000000000001';
 
@@ -106,7 +110,7 @@ test('lifecycle input returns the bounded provider projection and all canonical 
   assert.equal('imageUrl' in result.input.articles[0]!, false);
 });
 
-test('digest input identity is stable and distinguishes Profile settings and ordered Article IDs', () => {
+test('digest input identity is stable, preserves the legacy null-style v1 hash, and distinguishes Profile settings and ordered Article IDs', () => {
   const base = {
     profileConfigKey: 'books',
     settings: settings(20),
@@ -131,7 +135,72 @@ test('digest input identity is stable and distinguishes Profile settings and ord
       settings: { ...settings(20), digestLookbackDays: 8 },
     }),
   );
+  assert.equal(digestInputIdentity(base), legacyV1Identity(base));
+  const customStyle = {
+    ...base,
+    settings: { ...settings(20), digestStyleGuidance: 'Write for librarians.' },
+  };
+  assert.notEqual(digestInputIdentity(base), digestInputIdentity(customStyle));
+  assert.notEqual(
+    digestInputIdentity(customStyle),
+    digestInputIdentity({
+      ...customStyle,
+      settings: {
+        ...customStyle.settings,
+        digestStyleGuidance: 'Write for new authors.',
+      },
+    }),
+  );
+  assert.equal(
+    digestInputIdentity({
+      ...customStyle,
+      settings: { ...customStyle.settings, digestStyleGuidance: null },
+    }),
+    legacyV1Identity(base),
+  );
 });
+
+test('digest writing style normalization is Unicode code-point bounded and canonicalizes blank input', () => {
+  assert.equal(normalizeDigestStyleGuidance(null), null);
+  assert.equal(normalizeDigestStyleGuidance(' \n  '), null);
+  assert.equal(
+    normalizeDigestStyleGuidance('  Friendly\nfor readers  '),
+    'Friendly\nfor readers',
+  );
+  assert.equal(
+    normalizeDigestStyleGuidance('🙂'.repeat(500)),
+    '🙂'.repeat(500),
+  );
+  assert.throws(() => normalizeDigestStyleGuidance('🙂'.repeat(501)));
+  assert.throws(() => normalizeDigestStyleGuidance({ style: 'friendly' }));
+});
+
+function legacyV1Identity(
+  input: Readonly<{
+    profileConfigKey: string;
+    settings: Pick<
+      ProfileAiSettings,
+      'digestEnabled' | 'digestLookbackDays' | 'digestMaxArticleCount'
+    >;
+    orderedArticleIds: readonly string[];
+  }>,
+): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify({
+        version: 'v1',
+        profileKey: input.profileConfigKey,
+        settings: {
+          digestEnabled: input.settings.digestEnabled,
+          digestLookbackDays: input.settings.digestLookbackDays,
+          digestMaxArticleCount: input.settings.digestMaxArticleCount,
+        },
+        articleIds: [...input.orderedArticleIds],
+      }),
+      'utf8',
+    )
+    .digest('hex');
+}
 
 function settings(maximum: number): ProfileAiSettings {
   return Object.freeze({
@@ -140,6 +209,7 @@ function settings(maximum: number): ProfileAiSettings {
     digestEnabled: false,
     digestLookbackDays: 7,
     digestMaxArticleCount: maximum,
+    digestStyleGuidance: null,
     createdAt: new Date(0),
     updatedAt: new Date(0),
   });

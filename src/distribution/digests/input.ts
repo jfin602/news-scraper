@@ -77,19 +77,26 @@ export function digestInputIdentity(
     profileConfigKey: string;
     settings: Pick<
       ProfileAiSettings,
-      'digestEnabled' | 'digestLookbackDays' | 'digestMaxArticleCount'
+      | 'digestEnabled'
+      | 'digestLookbackDays'
+      | 'digestMaxArticleCount'
+      | 'digestStyleGuidance'
     >;
     orderedArticleIds: readonly string[];
   }>,
 ): string {
+  const settings = {
+    digestEnabled: input.settings.digestEnabled,
+    digestLookbackDays: input.settings.digestLookbackDays,
+    digestMaxArticleCount: input.settings.digestMaxArticleCount,
+    ...(input.settings.digestStyleGuidance === null
+      ? {}
+      : { digestStyleGuidance: input.settings.digestStyleGuidance }),
+  };
   const representation = JSON.stringify({
     version: DIGEST_INPUT_IDENTITY_VERSION,
     profileKey: input.profileConfigKey,
-    settings: {
-      digestEnabled: input.settings.digestEnabled,
-      digestLookbackDays: input.settings.digestLookbackDays,
-      digestMaxArticleCount: input.settings.digestMaxArticleCount,
-    },
+    settings,
     articleIds: [...input.orderedArticleIds],
   });
   return createHash('sha256').update(representation, 'utf8').digest('hex');

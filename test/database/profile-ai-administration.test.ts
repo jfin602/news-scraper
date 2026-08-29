@@ -44,6 +44,7 @@ test('Profile AI administration persists bounded configuration, audits once, and
           digestEnabled: false,
           lookbackDays: 7,
           maxArticles: 20,
+          digestStyleGuidance: null,
         },
         cadence: { kind: 'twice_daily', slots: ['00:00Z', '12:00Z'] },
         activeDigest: null,
@@ -53,11 +54,13 @@ test('Profile AI administration persists bounded configuration, audits once, and
         digestEnabled: true,
         lookbackDays: 14,
         maxArticles: 10,
+        digestStyleGuidance: '  Write for working filmmakers.  ',
       });
       assert.deepEqual(updated.configuration, {
         digestEnabled: true,
         lookbackDays: 14,
         maxArticles: 10,
+        digestStyleGuidance: 'Write for working filmmakers.',
       });
       assert.equal(forceCalls, 0);
       const audit = await database.query<{
@@ -75,8 +78,14 @@ test('Profile AI administration persists bounded configuration, audits once, and
             digestEnabled: false,
             lookbackDays: 7,
             maxArticles: 20,
+            digestStyleGuidance: null,
           },
-          new_state: { digestEnabled: true, lookbackDays: 14, maxArticles: 10 },
+          new_state: {
+            digestEnabled: true,
+            lookbackDays: 14,
+            maxArticles: 10,
+            digestStyleGuidance: 'Write for working filmmakers.',
+          },
         },
       ]);
 
@@ -94,6 +103,49 @@ test('Profile AI administration persists bounded configuration, audits once, and
           WHERE action = 'distribution_profile_ai_configuration_changed'`,
       );
       assert.equal(count.rows[0]?.count, '1');
+
+      const preserved = await service.updateProfileAiConfiguration(
+        'film_news',
+        {
+          digestEnabled: true,
+          lookbackDays: 14,
+          maxArticles: 10,
+        },
+      );
+      assert.equal(
+        preserved.configuration.digestStyleGuidance,
+        'Write for working filmmakers.',
+      );
+      assert.equal(
+        (
+          await database.query<{ readonly count: string }>(
+            `SELECT count(*)::text AS count FROM audit_events
+              WHERE action = 'distribution_profile_ai_configuration_changed'`,
+          )
+        ).rows[0]?.count,
+        '1',
+      );
+      await service.updateProfileAiConfiguration('film_news', {
+        digestEnabled: true,
+        lookbackDays: 14,
+        maxArticles: 10,
+        digestStyleGuidance: ' \n ',
+      });
+      assert.equal(
+        (await service.getProfileAi('film_news')).configuration
+          .digestStyleGuidance,
+        null,
+      );
+      await assertProfileAiError(
+        service.updateProfileAiConfiguration('film_news', {
+          digestEnabled: true,
+          lookbackDays: 14,
+          maxArticles: 10,
+          digestStyleGuidance: '🙂'.repeat(501),
+        }),
+        'invalid_request',
+      );
+      assert.equal(forceCalls, 0);
 
       const generated = await service.forceGenerateProfileDigest('film_news');
       assert.equal(generated.result, 'completed_unsuccessfully');

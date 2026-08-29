@@ -4,7 +4,10 @@ import { after, test } from 'node:test';
 
 import { createDatabase } from '../../src/database/database.ts';
 import { createDigestLifecycleService } from '../../src/distribution/digests/lifecycle.ts';
-import type { DigestInputService } from '../../src/distribution/digests/input.ts';
+import {
+  digestInputIdentity,
+  type DigestInputService,
+} from '../../src/distribution/digests/input.ts';
 import type { DigestGenerationResult } from '../../src/distribution/digests/provider.ts';
 import {
   activateSuccessfulDigestGeneration,
@@ -39,22 +42,67 @@ test('Profile AI settings default disabled, validate in application and database
           digestEnabled: false,
           digestLookbackDays: 7,
           digestMaxArticleCount: 20,
+          digestStyleGuidance: null,
           createdAt: (await readProfileAiSettings(database, profile.configKey))!
             .createdAt,
           updatedAt: (await readProfileAiSettings(database, profile.configKey))!
             .updatedAt,
         },
       );
+      assert.deepEqual(
+        await updateProfileAiSettings(database, profile.configKey, {
+          digestEnabled: true,
+          digestLookbackDays: 7,
+          digestMaxArticleCount: 20,
+          digestStyleGuidance: '  Write clearly\nfor readers.  ',
+        }),
+        {
+          profileId: profile.id,
+          profileConfigKey: profile.configKey,
+          digestEnabled: true,
+          digestLookbackDays: 7,
+          digestMaxArticleCount: 20,
+          digestStyleGuidance: 'Write clearly\nfor readers.',
+          createdAt: (await readProfileAiSettings(database, profile.configKey))!
+            .createdAt,
+          updatedAt: (await readProfileAiSettings(database, profile.configKey))!
+            .updatedAt,
+        },
+      );
+      assert.equal(
+        (
+          await updateProfileAiSettings(database, profile.configKey, {
+            digestEnabled: true,
+            digestLookbackDays: 7,
+            digestMaxArticleCount: 20,
+            digestStyleGuidance: null,
+          })
+        ).digestStyleGuidance,
+        null,
+      );
       await assert.rejects(() =>
         updateProfileAiSettings(database, profile.configKey, {
           digestEnabled: true,
           digestLookbackDays: 0,
           digestMaxArticleCount: 20,
+          digestStyleGuidance: null,
         }),
       );
       await assert.rejects(
         database.query(
           'UPDATE distribution_profile_ai_settings SET digest_lookback_days = 31 WHERE profile_id = $1',
+          [profile.id],
+        ),
+      );
+      await assert.rejects(
+        database.query(
+          "UPDATE distribution_profile_ai_settings SET digest_style_guidance = repeat('🙂', 501) WHERE profile_id = $1",
+          [profile.id],
+        ),
+      );
+      await assert.rejects(
+        database.query(
+          "UPDATE distribution_profile_ai_settings SET digest_style_guidance = E'\\n\\t ' WHERE profile_id = $1",
           [profile.id],
         ),
       );
@@ -273,6 +321,78 @@ test('digest lifecycle keeps a running default-budget attempt owned until its st
       const firstResult = await firstEvaluation;
       assert.equal(firstResult.kind, 'failed');
       assert.equal(providerCalls, 2);
+    } finally {
+      await database.close();
+    }
+  });
+});
+
+test('post-provider revalidation rejects activation for a superseded digest writing style', async () => {
+  await scope.use(async ({ databaseUrl }) => {
+    const database = createDatabase({ connectionString: databaseUrl });
+    try {
+      const profile = await createProfile(database, 'style_in_flight');
+      const [articleId] = await seedArticles(
+        database,
+        'style_in_flight_source',
+      );
+      const now = new Date('2026-08-28T12:00:00.000Z');
+      let current = lifecycleInput(
+        profile.id,
+        profile.configKey,
+        now,
+        articleId,
+      );
+      const providerStarted = deferred<void>();
+      const providerResult = deferred<DigestGenerationResult>();
+      const lifecycle = createDigestLifecycleService({
+        database,
+        input: {
+          async read() {
+            return { kind: 'active' as const, input: current };
+          },
+          async readForLifecycle() {
+            return {
+              kind: 'active' as const,
+              input: current,
+              canonicalArticles: current.articles as never,
+            };
+          },
+        },
+        now: () => new Date(now.getTime()),
+        provider: {
+          async generate() {
+            providerStarted.resolve();
+            return providerResult.promise;
+          },
+        },
+      });
+      const evaluation = lifecycle.forceGenerate(profile.configKey);
+      await providerStarted.promise;
+      current = lifecycleInput(
+        profile.id,
+        profile.configKey,
+        now,
+        articleId,
+        'Write for a policy audience.',
+      );
+      providerResult.resolve({
+        kind: 'success',
+        candidate: {
+          overview: 'A bounded digest overview.',
+          highlights: [],
+          provider: 'google-gemini',
+          model: 'fixture-model',
+        },
+      });
+      const result = await evaluation;
+      assert.equal(result.kind, 'failed');
+      if (result.kind !== 'failed') return;
+      assert.equal(result.failureCategory, 'lifecycle_state_changed');
+      assert.equal(
+        await findActiveDigest(database, profile.configKey),
+        undefined,
+      );
     } finally {
       await database.close();
     }
@@ -715,36 +835,45 @@ function lifecycleInput(
   profileId: string,
   profileConfigKey: string,
   resolvedAt: Date,
+  articleId = 'lifecycle-timeout-article',
+  digestStyleGuidance: string | null = null,
 ) {
+  const settings = Object.freeze({
+    profileId,
+    profileConfigKey,
+    digestEnabled: true,
+    digestLookbackDays: 7,
+    digestMaxArticleCount: 20,
+    digestStyleGuidance,
+    createdAt: new Date(resolvedAt.getTime()),
+    updatedAt: new Date(resolvedAt.getTime()),
+  });
+  const articles = Object.freeze([
+    Object.freeze({
+      articleId,
+      headline: 'Lifecycle timeout test',
+      sourceDisplayName: 'Lifecycle test source',
+      effectiveFeedDate: new Date(resolvedAt.getTime()),
+      publishedAt: null,
+      author: null,
+      summary: 'Bounded test summary.',
+      categories: Object.freeze([]),
+      originalUrl: 'https://lifecycle.example/article',
+    }),
+  ]);
   return Object.freeze({
     profile: Object.freeze({
       configKey: profileConfigKey,
       displayName: profileConfigKey,
     }),
-    settings: Object.freeze({
-      profileId,
-      profileConfigKey,
-      digestEnabled: true,
-      digestLookbackDays: 7,
-      digestMaxArticleCount: 20,
-      createdAt: new Date(resolvedAt.getTime()),
-      updatedAt: new Date(resolvedAt.getTime()),
-    }),
+    settings,
     resolvedAt: new Date(resolvedAt.getTime()),
-    articles: Object.freeze([
-      Object.freeze({
-        articleId: 'lifecycle-timeout-article',
-        headline: 'Lifecycle timeout test',
-        sourceDisplayName: 'Lifecycle test source',
-        effectiveFeedDate: new Date(resolvedAt.getTime()),
-        publishedAt: null,
-        author: null,
-        summary: 'Bounded test summary.',
-        categories: Object.freeze([]),
-        originalUrl: 'https://lifecycle.example/article',
-      }),
-    ]),
-    digestInputIdentity: 'a'.repeat(64),
+    articles,
+    digestInputIdentity: digestInputIdentity({
+      profileConfigKey,
+      settings,
+      orderedArticleIds: articles.map((article) => article.articleId),
+    }),
   });
 }
 

@@ -13,6 +13,7 @@ export interface ProfileAiSettings {
   readonly digestEnabled: boolean;
   readonly digestLookbackDays: number;
   readonly digestMaxArticleCount: number;
+  readonly digestStyleGuidance: string | null;
   readonly createdAt: Date;
   readonly updatedAt: Date;
 }
@@ -133,6 +134,7 @@ interface SettingsRow {
   readonly digest_enabled: unknown;
   readonly digest_lookback_days: unknown;
   readonly digest_max_article_count: unknown;
+  readonly digest_style_guidance: unknown;
   readonly created_at: unknown;
   readonly updated_at: unknown;
 }
@@ -191,6 +193,7 @@ export function normalizeProfileAiSettingsUpdate(input: unknown): Readonly<{
   digestEnabled: boolean;
   digestLookbackDays: number;
   digestMaxArticleCount: number;
+  digestStyleGuidance: string | null;
 }> {
   if (input === null || typeof input !== 'object' || Array.isArray(input))
     throw configurationError('settings_invalid');
@@ -206,7 +209,21 @@ export function normalizeProfileAiSettingsUpdate(input: unknown): Readonly<{
     digestEnabled: value.digestEnabled,
     digestLookbackDays: value.digestLookbackDays,
     digestMaxArticleCount: value.digestMaxArticleCount,
+    digestStyleGuidance: normalizeDigestStyleGuidance(
+      value.digestStyleGuidance,
+    ),
   });
+}
+
+/** Canonical bounded plain-text Profile writing-style configuration. */
+export function normalizeDigestStyleGuidance(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value !== 'string') throw configurationError('settings_invalid');
+  const normalized = value.normalize('NFKC').trim();
+  if (normalized.length === 0) return null;
+  if (codePointLength(normalized) > 500)
+    throw configurationError('settings_invalid');
+  return normalized;
 }
 
 export async function readProfileAiSettings(
@@ -216,6 +233,7 @@ export async function readProfileAiSettings(
   const result = await executor.query<SettingsRow>(
     `SELECT settings.profile_id, profile.config_key, settings.digest_enabled,
             settings.digest_lookback_days, settings.digest_max_article_count,
+            settings.digest_style_guidance,
             settings.created_at, settings.updated_at
        FROM distribution_profile_ai_settings settings
        JOIN distribution_profiles profile ON profile.id = settings.profile_id
@@ -235,17 +253,20 @@ export async function updateProfileAiSettings(
   const result = await executor.query<SettingsRow>(
     `UPDATE distribution_profile_ai_settings settings
         SET digest_enabled = $2, digest_lookback_days = $3,
-            digest_max_article_count = $4, updated_at = now()
+            digest_max_article_count = $4, digest_style_guidance = $5,
+            updated_at = now()
        FROM distribution_profiles profile
       WHERE settings.profile_id = profile.id AND profile.config_key = $1
-      RETURNING settings.profile_id, profile.config_key, settings.digest_enabled,
+       RETURNING settings.profile_id, profile.config_key, settings.digest_enabled,
                 settings.digest_lookback_days, settings.digest_max_article_count,
+                settings.digest_style_guidance,
                 settings.created_at, settings.updated_at`,
     [
       normalizeConfigKey(profileConfigKey),
       settings.digestEnabled,
       settings.digestLookbackDays,
       settings.digestMaxArticleCount,
+      settings.digestStyleGuidance,
     ],
   );
   const row = result.rows[0];
@@ -942,6 +963,9 @@ function mapSettings(row: SettingsRow): ProfileAiSettings {
         1,
         20,
       ),
+      digestStyleGuidance: normalizeDigestStyleGuidance(
+        row.digest_style_guidance,
+      ),
       createdAt: requiredDate(row.created_at),
       updatedAt: requiredDate(row.updated_at),
     });
@@ -1124,6 +1148,10 @@ function integerBetween(
     value >= minimum &&
     value <= maximum
   );
+}
+
+function codePointLength(value: string): number {
+  return [...value].length;
 }
 function requiredRow<T>(rows: readonly T[]): T {
   const row = rows[0];

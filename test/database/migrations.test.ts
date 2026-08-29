@@ -293,6 +293,7 @@ test('installs only the justified public-feed discovery indexes from zero', asyn
       '0017_article_summary_bound.sql',
       '0018_profile_ai_digest_foundation.sql',
       '0019_digest_lifecycle_handoff.sql',
+      '0020_profile_digest_style_guidance.sql',
     ]);
     assert.deepEqual(
       await migrateDatabase({ connectionString: databaseUrl }),
@@ -530,19 +531,31 @@ test('current migrations install the Profile AI digest foundation with bounded s
         readonly digest_enabled: boolean;
         readonly digest_lookback_days: number;
         readonly digest_max_article_count: number;
+        readonly digest_style_guidance: string | null;
       }>(
-        'SELECT digest_enabled, digest_lookback_days, digest_max_article_count FROM distribution_profile_ai_settings',
+        'SELECT digest_enabled, digest_lookback_days, digest_max_article_count, digest_style_guidance FROM distribution_profile_ai_settings',
       );
       assert.deepEqual(settings.rows, [
         {
           digest_enabled: false,
           digest_lookback_days: 7,
           digest_max_article_count: 20,
+          digest_style_guidance: null,
         },
       ]);
       await assert.rejects(
         database.query(
           'UPDATE distribution_profile_ai_settings SET digest_max_article_count = 21',
+        ),
+      );
+      await assert.rejects(
+        database.query(
+          "UPDATE distribution_profile_ai_settings SET digest_style_guidance = repeat('🙂', 501)",
+        ),
+      );
+      await assert.rejects(
+        database.query(
+          "UPDATE distribution_profile_ai_settings SET digest_style_guidance = E'\\n\\t  '",
         ),
       );
     } finally {
