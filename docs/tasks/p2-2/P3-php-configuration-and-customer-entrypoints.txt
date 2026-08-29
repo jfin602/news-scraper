@@ -1,0 +1,209 @@
+TASK: Phase 2 / P3 — PHP configuration and stable customer entrypoints
+
+- Recommended configuration: `Terra High`.
+- Task-shape classification: `Cross-cutting`.
+- Specification clarity: `Explicit`.
+- State coupling: `High` across PHP configuration loading, sync runtime, local-read runtime, stable launcher, and customer-facing local-read boundary.
+- Integrity risk: `High` because configuration drift or secret leakage can point sync/read paths at different Profile/state roots or expose synchronization authority to visitor code.
+- Concurrency: existing per-Profile sync lock/cadence behavior must remain unchanged.
+- Security: `Sensitive` credential/configuration boundary.
+- Novel inference: `Moderate`.
+- Model-family basis: several observed issues are one ownership defect and must be solved coherently rather than with compatibility wrappers.
+- Reasoning basis: Terra High is required to establish one shared non-secret authority while preserving sync-only secrets, existing LKG behavior, and a durable customer API boundary.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Terra Medium`; rejected because subtle config precedence/secret-readability mistakes would contaminate later package and customer work.
+- Escalation trigger: current PHP runtime requires changing LKG/cache format or v1 semantics to support file-backed config; stable customer entry cannot be created without redefining normalized local-read behavior.
+- Escalation target: `Terra Ultra` for bounded state/security ambiguity; `Planning needed` for contract change.
+- Estimate confidence: `High`.
+
+The assigned project version is `2.2.3`.
+
+## Goal
+
+Resolve the common foundation behind `T4QP`, `H3CJ`, `P9BW`, and `C2RV`:
+
+```text
+ns-private/local-read.env  -> authoritative shared non-secret settings
+ns-private/sync.env        -> sync-only upstream/credential/transport settings
+
+run-sync.php -> load both -> canonical sync runtime
+customer local-read entry -> load local-read.env only -> LocalProfileReader -> LocalReadResult
+```
+
+Do not implement presentation/package-preflight/upgrade behavior yet except the stable source files needed by P4/P5.
+
+## Prerequisite/version
+
+Require P1/P2 prefix through package `2.2.2`. Advance to `2.2.3` before final validation. Do not add a lockfile.
+
+## Read first
+
+Read current contracts/roadmap/testing plus:
+
+- `integrations/php/src/Configuration.php`;
+- `integrations/php/src/Runtime.php`;
+- `integrations/php/src/LocalRead.php`;
+- `integrations/php/src/bootstrap.php`;
+- `integrations/php/bin/sync.php`;
+- current env examples and `integrations/php/README.md` as implementation truth;
+- `FilesystemStateStore.php`, `LocalState.php`, synchronizer/lock/cadence consumers enough to preserve behavior;
+- `integrations/php/tests/run.php` and Node-side PHP package/consumer tests;
+- issues T4QP/H3CJ/P9BW/C2RV and governing distribution/integration contract.
+
+## One package-owned env-file loader
+
+Implement one bounded parser/loader owned by the PHP integration. It must support the documented simple `KEY=value` configuration shape needed by this package, reject malformed/ambiguous input clearly, avoid shell evaluation/interpolation, never execute PHP or expand commands, and not log secret values.
+
+Do not import a general dotenv framework unless current PHP constraints make a small local parser unsafe.
+
+The loader must distinguish:
+
+### `local-read.env` — authoritative shared non-secret values
+
+At minimum current shared values:
+
+- Profile key;
+- state root;
+- sync cadence/freshness settings needed by both sync and local-read.
+
+### `sync.env` — synchronization-only values
+
+At minimum:
+
+- upstream News Scraper base URL;
+- bearer token;
+- timeout/max-response/transport settings and other sync-only configuration.
+
+Visitor/local-read code must not need to read `sync.env` and must not receive base URL/bearer values in its normalized config/result.
+
+## Legacy duplicated shared keys
+
+For upgrade compatibility only, legacy shared keys still present in `sync.env` may be accepted as validation aliases. When present:
+
+- compare them against canonical `local-read.env` values using the same normalization expected by runtime configuration;
+- exact semantic mismatch fails clearly before synchronization;
+- matching aliases are ignored as authority;
+- absence is preferred canonical state;
+- never let `sync.env` override `local-read.env`.
+
+Avoid an indefinite compatibility abstraction: keep alias handling narrow and explicit.
+
+## Stable packaged sync launcher
+
+Add source for root-level packaged `run-sync.php` (P4 will ensure package placement). It must:
+
+- resolve sibling `../ns-private/local-read.env` and `../ns-private/sync.env` from the supported `ns-integration` layout without customer-specific absolute paths;
+- load canonical configuration through the new package-owned loader;
+- invoke the existing canonical sync runtime/`bin/sync.php` behavior, not duplicate synchronization logic;
+- preserve supported `--force` semantics and existing exit/output behavior where contractually significant;
+- keep bearer credentials out of command-line arguments, public HTML, and normal output;
+- fail boundedly for missing/unreadable/malformed/mismatched config.
+
+Do not add a second cron protocol or second synchronizer.
+
+## Stable customer local-read entrypoint
+
+Create one package-owned customer-facing entry file/API that hides internal `src/bootstrap.php`, source-file names, cache paths, generation manifests, and state layout.
+
+The stable boundary should make ordinary customer code able to do conceptually:
+
+```php
+require <stable package entry>;
+$result = <stable local-read operation using sibling ns-private/local-read.env>;
+```
+
+Exact filename/function/class shape is implementation-owned; prefer the smallest durable API. It must return the existing normalized `LocalReadResult` and preserve current state/freshness/digest semantics.
+
+Customer code must not parse LKG files or instantiate internal state-store classes directly.
+
+`src/bootstrap.php` may remain internal if still useful; it must cease being the documented customer dependency.
+
+## Preserve runtime semantics
+
+Do not change:
+
+- v1/API wire contract;
+- PHP complete snapshot validation;
+- per-Profile synchronization lock;
+- cadence decision based on attempts;
+- atomic LKG activation/recoverable state;
+- local stale cutoff/classifications;
+- digest fail-open normalization;
+- direct `originalUrl` values;
+- visitor local-only behavior;
+- machine credential value/lifecycle.
+
+## Focused proof
+
+Add PHP and Node-side tests proving at least:
+
+- canonical local-read env loads shared settings;
+- sync env supplies only sync-only settings;
+- visitor path never needs/reads bearer/base URL;
+- matching legacy duplicated shared aliases are accepted but do not become authority;
+- mismatch fails before sync and leaks no secret values;
+- missing/malformed/unreadable files fail boundedly;
+- parser does not evaluate shell/PHP/interpolation-like content;
+- run-sync forwards `--force` and otherwise reuses canonical runtime;
+- stable launcher path can replace a hand-created wrapper without changing the cron target;
+- stable customer entry loads only local-read.env and returns normalized `LocalReadResult` for usable/stale/never-synced/cutoff/disabled/unavailable states;
+- digest data continues through the same local result and no visitor upstream/Gemini request occurs;
+- existing sync/LKG/lock/cadence/error behavior regresses cleanly.
+
+## Producer-to-consumer handoff
+
+Leave P4/P5 these stable capabilities:
+
+| Capability | Owner |
+| --- | --- |
+| bounded env parser | package config module |
+| shared config load | local-read.env loader |
+| sync config composition | shared + sync-only loader |
+| legacy alias mismatch check | config composition boundary |
+| packaged sync invocation | root launcher source + canonical runtime |
+| customer normalized read | stable customer entrypoint |
+
+P4/P5 must not invent another loader/customer entry API.
+
+## Validation manifest
+
+### RUN — LOCAL-PORTABLE
+```text
+npm run check
+npm run codex:phase:validate -- p2-2
+git diff --check
+```
+
+Node producer/package tests required by changed source should be covered here.
+
+### DEFER → final Phase 2 qualification/closeout (`VPS-REQUIRED`)
+
+```text
+npm run test:php
+npm run test:browser:php
+```
+
+Do not knowingly invoke them from the normal Windows prompt merely to rediscover PHP absence. If PHP is actually available in the assigned environment and the prompt is deliberately run there, focused PHP iteration is allowed, but final cross-environment acceptance belongs to P7.
+
+### N/A unless scope expands
+
+- DB/recovery;
+- live Sources;
+- live Gemini;
+- reference customer deployment.
+
+## Non-goals
+
+Do not implement:
+
+- renderer removal/top-tag presentation — P4;
+- exact package ZIP/version/preflight/UPGRADE workflow — P5/P6;
+- Source filtering — P1/P2;
+- customer deployment — P7;
+- new PHP framework/dependency;
+- multi-Profile redesign, second cache, second cron, chat, unrelated cleanup.
+
+## Completion
+
+Report exact tree/package `2.2.3`, chosen stable customer entry API, config-authority rules, secret-isolation proof, launcher behavior, portable validation, and deferred PHP/VPS evidence. Do not claim runtime PHP qualification unless actually executed.
