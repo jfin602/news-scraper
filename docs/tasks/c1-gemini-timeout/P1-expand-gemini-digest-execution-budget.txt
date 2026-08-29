@@ -1,0 +1,240 @@
+TASK: Correction 1 / P1 — Expand Gemini digest execution budget
+
+CORRECTION SCOPE
+This is the sole implementation prompt in correction `c1-gemini-timeout`.
+
+Phase 1 P1-P6 are implemented and the Phase 1 P7 closeout candidate is at package `2.1.7`. A real local invocation of `npm run test:live-gemini` reached the production Gemini provider path but returned bounded `provider_timeout` after roughly 167 seconds. Subsequent closeout repair already corrected one independent provider-boundary defect: the production Interactions wrapper now forwards the application `AbortSignal`, explicitly sets SDK `maxRetries: 0`, and passes the application timeout through the SDK request options.
+
+The remaining owner-approved correction is narrower: the current 30-second Gemini digest budget is too aggressive for a twice-daily/background URL-Context digest workload. Phase 1 never locked 30 seconds as product behavior; it requires a bounded abort policy and no hidden duplicate provider retries. The application should allow one legitimate Gemini request substantially longer to finish while retaining a finite safety/recovery ceiling.
+
+Change the production Gemini digest execution budget to exactly **5 minutes / 300,000 milliseconds** at unchanged package version `2.1.7`.
+
+Do not redesign the provider, lifecycle, scheduler, admin Generate-now flow, or Phase 1 contracts. Preserve the already-landed single-request/no-retry/abort-signal fix.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Luna High`.
+- Task-shape classification: `Bounded`.
+- Specification clarity: `Explicit`.
+- State coupling: `Moderate` because P3 stale-running recovery derives its default cutoff from the provider timeout.
+- Integrity risk: `Moderate`.
+- Concurrency: `Local` / existing cross-process lifecycle behavior must remain unchanged.
+- Security: `Sensitive` because this is the billable external-provider boundary, but no trust/credential policy changes.
+- Novel inference: `Low`.
+- Model-family basis: source inspection reduced this to an explicit provider timing correction over an already-isolated adapter. No persistence/schema/state-machine redesign is required.
+- Reasoning basis: High is warranted to preserve the coupling between provider deadline, one-call semantics, abort behavior, and P3 stale-attempt recovery without accidentally allowing duplicate in-flight Gemini calls.
+- Complexity / quality floor: `High`.
+- Estimated usage: `Low`.
+- Lower-cost alternative considered: `Luna Medium`; rejected because a superficially mechanical constant change could make stale-running recovery shorter than a legitimate provider request or accidentally weaken the recently added SDK request controls.
+- Escalation trigger: the current source no longer derives stale-running recovery from the provider budget, the SDK cannot honor one request with `maxRetries: 0` plus caller abort, a five-minute request requires a new persistence/lease/heartbeat design, or the change exposes a real contract/architecture decision rather than the bounded timing correction described here.
+- Escalation target: `Terra High` for a bounded lifecycle/provider coupling repair; return `Planning needed` rather than redesigning P3 or provider semantics silently.
+- Estimate confidence: `High`.
+- Efficiency rationale: change the existing application-owned budget and the minimum focused regressions only; do not create configuration knobs, new jobs, provider abstractions, or broad test churn.
+
+VERSIONING
+- Required unchanged project version: `2.1.7`.
+- This correction MUST NOT change top-level `package.json` version.
+- It consumes no Phase 1 roadmap patch number and does not transition to `2.2.0`.
+- Do not create `package-lock.json`, `npm-shrinkwrap.json`, or unrelated generated state.
+- Do not manually commit; the correction runner owns the implementation-prompt commit boundary.
+
+SEQUENCE / FRESHNESS PREFLIGHT
+Before editing:
+1. read current `BOOT.md`, `AGENTS.md`, `README.md`, `docs/README.md`, and `docs/codex-model-selection.md`;
+2. read `docs/contracts/project-contract.md`, `docs/contracts/ai-assistance-contract.md`, and `docs/contracts/testing-and-validation-contract.md`;
+3. read Phase 1 P2 provider prompt and Phase 1 P3 lifecycle/scheduling prompt under `docs/tasks/p2-1/`;
+4. read the current Phase 1 P7 closeout prompt, especially its no-hidden-retry/live-provider requirements;
+5. inspect current Git history and package state. Require package version exactly `2.1.7` and require the current provider tree to include the closeout repair that forwards the caller signal and explicitly supplies `maxRetries: 0` to the SDK;
+6. inspect `src/distribution/digests/provider.ts`, especially `GEMINI_DIGEST_TIMEOUT_MILLISECONDS`, `createGeminiDigestProvider`, `createSdkClient`, `createGeminiInteractionsClient`, `classifyProviderFailure`, and `validTimeout`;
+7. inspect `src/distribution/digests/lifecycle.ts`, especially the default `providerAttemptTimeoutMilliseconds`, `DIGEST_STALE_RUNNING_ATTEMPT_MARGIN_MILLISECONDS`, and `claimWithRecovery` stale cutoff calculation;
+8. inspect `test/unit/digest-provider.test.ts`, the lifecycle-focused tests that prove running/stale attempt behavior, and `test/live-gemini/digest-provider-live.test.ts`;
+9. inspect package scripts and Test Necessity / Test Environment Matrix rules before selecting final commands;
+10. stop and report planning drift if the production timeout is no longer 30,000 ms, package version moved from `2.1.7`, the no-retry/signal-forwarding repair is absent, or another accepted change already implements this five-minute budget.
+
+Do not trust prior closeout reports as runtime proof. Work from the actual current tree.
+
+CORRECTION GOAL
+The final provider/lifecycle timing relationship must be conceptually:
+
+```text
+one claimed digest attempt
+-> one Gemini Interactions request
+   -> maxRetries = 0
+   -> caller AbortSignal forwarded
+   -> 300,000 ms application/provider ceiling
+-> success OR one bounded provider failure
+
+P3 stale-running recovery threshold
+= same provider attempt ceiling + existing safety margin
+```
+
+A legitimate in-flight Gemini request must not become stale merely because it exceeds the old 30-second implementation choice.
+
+PRODUCTION GEMINI EXECUTION BUDGET
+Change the application-owned production digest timeout from 30,000 ms to exactly 300,000 ms.
+
+Primary expected owner:
+
+`src/distribution/digests/provider.ts`
+
+Requirements:
+- `GEMINI_DIGEST_TIMEOUT_MILLISECONDS` must represent exactly 300,000 ms;
+- the value remains application-owned, not a Profile setting;
+- do not add `NEWS_SCRAPER_GEMINI_TIMEOUT`, another environment variable, admin field, database column, or customer/PHP setting;
+- preserve `gemini-3.7-flash`, Interactions API, `store=false`, low thinking, URL Context, structured response format, output validation, safe failure categories, and all prompt/tool authority rules unchanged;
+- preserve one production SDK request per `DigestProvider.generate()` call;
+- preserve `maxRetries: 0` explicitly at the SDK request boundary;
+- preserve forwarding of the application `AbortSignal` into SDK/fetch request options;
+- preserve application mapping of an elapsed/aborted request to bounded `provider_timeout`;
+- do not change timeout behavior into an unbounded wait;
+- do not add application retries around the longer request;
+- do not let the SDK silently reintroduce retry attempts through another construction/options path.
+
+TIMEOUT VALIDATION CONSISTENCY
+Inspect `validTimeout` and make its accepted test/injected range internally coherent with the new production default.
+
+Current planning-source inspection found a 100..120,000 ms explicit injected range even though the new default must be 300,000 ms. Leaving a validator that rejects the production default when explicitly supplied is unnecessary drift.
+
+Requirements:
+- keep the existing low bound suitable for deterministic short timeout tests;
+- permit exactly 300,000 ms when supplied explicitly;
+- do not permit an arbitrary unbounded value merely because the production default increased;
+- prefer a small named bound/reuse of the production ceiling if that reduces drift without creating abstraction overhead;
+- update bounded validation/error text consistently;
+- this remains a programmatic/test dependency seam, not public configuration.
+
+P3 STALE-RECOVERY COUPLING
+Do not independently hard-code a second five-minute value into lifecycle code.
+
+Current source inspection found that `createDigestLifecycleService()` defaults `providerAttemptTimeoutMilliseconds` from `GEMINI_DIGEST_TIMEOUT_MILLISECONDS`, then computes stale recovery as:
+
+`attempt timeout + DIGEST_STALE_RUNNING_ATTEMPT_MARGIN_MILLISECONDS`
+
+Preserve that relationship.
+
+With the current 5,000 ms margin, the normal production stale cutoff should therefore be approximately 305,000 ms after attempt start, not 35,000 ms.
+
+Requirements:
+- do not shorten or remove the existing stale-recovery margin;
+- do not add a heartbeat/lease subsystem for this correction;
+- do not modify database attempt constraints or repository claim/recovery semantics;
+- a still-legitimate request inside the five-minute provider ceiling must remain `already_running` to competing scheduled/manual work rather than being recovered as stale;
+- only an attempt beyond the provider ceiling plus the existing margin may enter the existing stale-recovery path;
+- test-only dependency injection of shorter timeouts may remain available so deterministic lifecycle tests do not wait minutes.
+
+FOCUSED REGRESSION COVERAGE
+Do not make deterministic tests sleep five minutes.
+
+Use the existing injectable provider timeout/client seams and existing lifecycle time-control seams.
+
+At minimum prove automatically:
+
+1. **Production default**
+   - the provider default passed to its client is exactly `300_000`;
+   - the provider's application AbortSignal is created for that bounded default rather than becoming unbounded.
+
+2. **SDK request controls remain intact**
+   - the Interactions client receives the caller signal;
+   - `maxRetries` remains exactly `0`;
+   - the SDK request timeout equals the timeout supplied by the provider;
+   - no second SDK request is made on one failure.
+
+3. **Fast controlled timeout remains testable**
+   - inject a short bounded timeout (for example the existing 100 ms seam);
+   - prove one request aborts/classifies as `provider_timeout`;
+   - prove call count remains exactly one.
+
+4. **Validation range is coherent**
+   - an explicit 300,000 ms injected timeout is accepted;
+   - invalid values below the existing minimum and above the new bounded maximum fail clearly without exposing secrets.
+
+5. **Lifecycle stale-recovery safety**
+   - prove from the cheapest existing suitable test seam that the lifecycle default derives stale ownership from the same provider budget plus margin;
+   - a running attempt younger than that combined window must not be recovered merely because it is older than 30 seconds;
+   - an attempt beyond the combined window remains eligible for the existing recovery path.
+
+Do not introduce a new production export/helper solely to make a private arithmetic detail easy to test if an existing lifecycle/database/component seam can prove the behavior. Conversely, do not settle for a string/source assertion if the existing tests can cheaply exercise the observable stale-attempt behavior.
+
+If the only honest way to prove the default stale-recovery coupling uses the existing disposable PostgreSQL lifecycle tests, add the narrow focused database test and run only the necessary focused database command/file during iteration. Do not broaden this correction into database architecture work.
+
+LIVE PROVIDER TEST OWNERSHIP
+P1 implements and deterministically validates the correction. It does **not** need to rerun the public live Gemini call to complete implementation.
+
+The correction P2 closeout owns the real `npm run test:live-gemini` evidence because the motivating defect was observed only against the real provider and the correction is not fully accepted until that call succeeds under the new budget.
+
+P1 must not weaken, skip, fake, or mock the live test to make later closeout easier.
+
+PRESERVED BEHAVIOR / NON-GOALS
+Do not change:
+- P1 canonical digest input or persistence schema;
+- digest input size/lookback bounds;
+- P3 generation decision state machine;
+- twice-daily schedule;
+- manual/scheduled claim semantics;
+- immutable digest persistence/activation;
+- `current | older | null` semantics;
+- v1/PHP digest representation;
+- Profile AI admin configuration/status fields;
+- Gemini model/tool/prompt/schema/validation behavior;
+- machine/admin authority boundaries;
+- logging/secret redaction;
+- Article/Profile/Source/Relevance/duplicate behavior;
+- Phase 2 package work.
+
+Do not redesign synchronous Generate now in this correction. A slow admin HTTP interaction through a deployment proxy is a separate observed-operations/UX concern if it later manifests; it is not permission to create a second async job framework here.
+
+VALIDATION MANIFEST
+Resolve the Test Necessity Matrix against the actual final diff.
+
+Expected RUN set on the normal local development environment:
+
+```text
+npm run test:unit
+npm run check
+npm run test:security
+git diff --check
+npm run codex:phase:validate -- c1-gemini-timeout
+```
+
+If a new/changed focused stale-lifecycle test lives in a database suite and cannot be covered by the above commands, run the narrowest applicable focused disposable-PostgreSQL command as well and record exactly what was executed. Do not run the full database/recovery/browser/PHP/live-Source matrix merely because it exists.
+
+Expected DEFER for P1:
+- `npm run test:live-gemini` — `LIVE/EXTERNAL`, mandatory in correction P2 closeout, not implementation iteration evidence;
+- PHP/browser-PHP/reference deployment — unrelated to this provider time-budget correction.
+
+Expected N/A unless source inspection proves otherwise:
+- migrations/backup/recovery;
+- collection fixtures/live Sources;
+- public/admin browser rendering.
+
+If source inspection materially expands the actual blast radius, adjust the matrix honestly rather than following this expected set mechanically.
+
+REPOSITORY / DOCUMENTATION RULES
+- Do not edit governing contracts, ADRs, roadmap, Phase 1 worksheet, Phase 1 P1-P7 prompts, or prior validation artifacts.
+- Do not write the final correction validation artifact; P2 owns closeout evidence.
+- Do not add dependencies.
+- Do not change package version.
+- Do not commit manually.
+
+ACCEPTANCE
+P1 is complete only when all of the following are true on the final implementation tree:
+
+1. production Gemini digest budget is exactly 300,000 ms;
+2. no hidden automatic retry is possible through the current SDK request path and `maxRetries: 0` remains explicit;
+3. the caller AbortSignal is still forwarded and one timed-out generation remains one bounded `provider_timeout` result;
+4. timeout validation accepts the five-minute production ceiling without becoming unbounded;
+5. P3 stale-running recovery remains derived from the same provider budget plus the existing margin, so a legitimate long request cannot be reclaimed at the old 30-second boundary;
+6. deterministic tests prove the corrected behavior without waiting five minutes;
+7. required focused/regression evidence passes against the final tree;
+8. package version remains exactly `2.1.7`;
+9. no unrelated behavior or Phase 2 work changed.
+
+Finish with a concise implementation report containing:
+- exact pre/post source identity;
+- changed files and why;
+- final provider/stale-recovery timing values;
+- deterministic tests actually run and their results;
+- deferred live-provider proof;
+- confirmation package remains `2.1.7`;
+- any residual risk that P2 closeout should challenge.
+
+Do not declare the correction GREEN. P2 owns independent closeout.
