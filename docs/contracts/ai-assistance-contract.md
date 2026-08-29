@@ -1,8 +1,8 @@
 # AI Assistance Contract
 
-**Status:** Owner-approved 3.0 product contract; Phase 1 active at package `2.1.0`  
+**Status:** Owner-approved 3.0 product contract; Phase 1 complete and Phase 2 active at package `2.2.0`  
 **Adopted:** 2026-08-27  
-**Updated:** 2026-08-29 for owner-approved Phase 1 Gemini model change  
+**Updated:** 2026-08-29 for owner-approved Gemini model and Profile digest writing-style guidance changes  
 **Initial provider requirement:** Google Gemini  
 **Roadmap:** `docs/roadmap/3.0-roadmap.md`
 
@@ -60,6 +60,8 @@ All Source-derived Article text and all publisher-page content retrieved through
 
 AI orchestration MUST clearly separate system/developer instructions from Article content and user content. Source titles, summaries, category labels, authors, retrieved page text, and other feed/provider-retrieved text MUST be treated as quoted/reference data, never executable instructions. A Source item or retrieved page that contains text such as "ignore previous instructions" has no authority over model policy, tool selection, secrets, Profile selection, URL selection, or system behavior.
 
+Profile-configured digest writing-style guidance is subordinate editorial configuration, not a replacement system/developer prompt. It MAY influence tone, voice, audience, formality, and similar writing qualities only. It MUST NOT override or weaken application-owned grounding, Article/URL scope, security, secret handling, structured-output schema, validation, supporting-reference, plain-text, or other fixed digest instructions. Guidance text that attempts to redefine those rules is ineffective.
+
 The implementation SHOULD use structured delimiters/typed request construction and provider structured-output facilities where practical. Model output must be validated before persistence or response use.
 
 ## Profile AI administration
@@ -71,10 +73,13 @@ For the Phase 1 digest, that section MUST provide at least:
 - independent digest enable/disable control;
 - bounded lookback configuration;
 - bounded maximum Article count configuration;
+- optional bounded digest writing-style guidance;
 - visible digest evaluation cadence/status;
 - a manual `Generate now` operation;
 - current active-digest generation/freshness information; and
 - latest evaluation/attempt outcome with bounded diagnostic category.
+
+Digest writing-style guidance is optional Profile AI configuration. Its administrator-facing label SHOULD be **Digest writing style** and its canonical implementation concept is `digestStyleGuidance`. The validated stored value is plain text with a hard maximum of **500 Unicode code points**. Blank or whitespace-only input means no custom guidance and preserves the existing default digest-writing behavior. Subject- or audience-specific wording is permitted in this Profile configuration because it remains data/configuration rather than shared-engine topic logic.
 
 Gemini credentials/API secrets are deployment/operator secrets and MUST NOT become Profile fields or be exposed by the Profile AI section. Provider/model configuration remains outside subject-specific Profile behavior unless a later explicit decision makes a bounded value Profile-configurable.
 
@@ -90,7 +95,7 @@ The server performs two scheduled digest evaluations per day for each enabled Pr
 
 A scheduled evaluation does not automatically call Gemini. At each evaluation the application resolves the current bounded digest input, derives its `digestInputIdentity`, and compares it to the latest successful valid digest input. If no Article newly entered the current bounded governed digest input and relevant AI configuration did not change, the existing digest remains and no Gemini request is made. One newly entering Article is sufficient to justify generation. Multiple arrivals naturally accumulate until the next evaluation, producing at most one scheduled regeneration for that evaluation.
 
-Changing the configured lookback/count changes the governed input definition and requires reevaluation rather than waiting indefinitely for a newly collected Article.
+Changing configured lookback, maximum Article count, or validated digest writing-style guidance changes relevant digest configuration and requires reevaluation rather than waiting indefinitely for a newly collected Article. Saving configuration MUST NOT synchronously call Gemini from the admin mutation path; scheduled or manual generation continues to use the governed lifecycle path.
 
 Canonical invalidation is a correctness exception to the normal new-Article threshold. If an Article supporting the active digest is no longer permitted by current governed Profile state because of moderation, duplicate/Primary change, Profile membership/filter change, Source trust/lifecycle change, or another canonical eligibility change, the system MUST NOT keep distributing that digest merely because no new Article arrived.
 
@@ -116,7 +121,7 @@ The AI-origin label is application-owned rather than model-authored. Supported f
 
 The digest generation provenance uses internal `digestInputIdentity`, distinct from the outward distribution `snapshotRevision`.
 
-`digestInputIdentity` identifies the exact bounded governed Article input plus relevant Profile AI configuration used to determine generation behavior. It is the identity used for scheduled comparison, provenance, and generation idempotency.
+`digestInputIdentity` identifies the exact bounded governed Article input plus relevant Profile AI configuration used to determine generation behavior. Relevant configuration includes digest enablement, lookback, maximum Article count, and the validated stored `digestStyleGuidance` value/no-guidance state. A change to writing-style guidance therefore changes `digestInputIdentity` even when the ordered Article IDs are unchanged. It is the identity used for scheduled comparison, provenance, and generation idempotency.
 
 The relationship is:
 
@@ -181,7 +186,7 @@ The permanent `/api/v1` contract adds one top-level `digest` field to successful
 
 Changing visible digest state — activation, replacement, suppression/removal, or `null`/object transition — changes the outward Profile `snapshotRevision`/ETag even when the Article set itself is unchanged. Existing snapshot-change continuation behavior remains authoritative during races.
 
-The distributed digest includes only bounded data needed downstream: `generatedAt`, `freshness`, `inputArticleCount`, provider, model, overview, highlights, and application-resolved supporting Article references. Internal `digestInputIdentity`, attempt IDs/status, prompt text, URL Context diagnostics, raw provider metadata, admin configuration, persistence-only identifiers, and secrets remain server-side.
+The distributed digest includes only bounded data needed downstream: `generatedAt`, `freshness`, `inputArticleCount`, provider, model, overview, highlights, and application-resolved supporting Article references. Internal `digestInputIdentity`, attempt IDs/status, prompt text, URL Context diagnostics, raw provider metadata, admin configuration, persistence-only identifiers, and secrets remain server-side. `digestStyleGuidance` is admin configuration and MUST NOT be exposed through the public v1 digest representation, PHP LKG/local-read digest shape, or customer cache merely because it influences generation.
 
 If internally stored AI state is malformed or cannot safely be materialized while the ordinary Profile Article state is valid, the API serves Articles normally with `digest: null` and records/exposes the AI integrity problem through bounded operator diagnostics. Invalid AI state must not convert otherwise valid Article output into a `503`.
 
@@ -272,7 +277,7 @@ AI output does not replace Article headlines, Source attribution, dates, summari
 
 The shared AI layer is topic agnostic.
 
-Allowed configuration includes Profile selection, generic system instructions describing the role as a feed summarizer/assistant, bounded formatting/tone options if later governed, provider/model configuration, cadence, and operational limits.
+Allowed configuration includes Profile selection, generic system instructions describing the role as a feed summarizer/assistant, bounded Profile digest writing-style guidance, provider/model configuration, cadence, and operational limits.
 
 The shared implementation MUST NOT contain logic such as:
 
@@ -294,7 +299,8 @@ Disabling or failing AI must leave the non-AI product independently operable, pr
 Implementation evidence must cover the narrowest applicable levels from `testing-and-validation-contract.md`, including at minimum:
 
 - deterministic 7-day/default and 1–20 Article input bounding, canonical ordering, zero/one/many cardinality behavior, and Profile grounding;
-- deterministic `digestInputIdentity`, unchanged-input skip behavior, configuration-change reevaluation, and manual force generation;
+- bounded 500-code-point Profile digest writing-style validation, blank/default semantics, and fixed-instruction precedence over guidance that attempts to change grounding/security/schema/URL rules;
+- deterministic `digestInputIdentity`, unchanged-input skip behavior, writing-style/configuration-change reevaluation, and manual force generation;
 - exact governed URL selection for URL Context and rejection of arbitrary/model/user/Source-selected destinations;
 - graceful bounded fallback when URL Context cannot retrieve an Article page;
 - prompt-injection treatment of Source/user/retrieved-page content as untrusted data;
