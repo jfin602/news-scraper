@@ -2,7 +2,7 @@
 
 **Status:** Owner-approved 3.0 product contract; Phase 1 active at package `2.1.0`  
 **Adopted:** 2026-08-27  
-**Updated:** 2026-08-28 for completed Phase 1 worksheet alignment  
+**Updated:** 2026-08-29 for owner-approved Phase 1 Gemini model change  
 **Initial provider requirement:** Google Gemini  
 **Roadmap:** `docs/roadmap/3.0-roadmap.md`
 
