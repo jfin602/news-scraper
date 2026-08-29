@@ -1,0 +1,211 @@
+TASK: Phase 2 / P1 — Source Exclude persistence and collection foundation
+
+- Recommended configuration: `Terra High`.
+- Task-shape classification: `Cross-cutting`.
+- Specification clarity: `Explicit`.
+- State coupling: `High` across supported production migration, Source configuration/repository state, bootstrap compatibility, Worker RSS/Atom admission, and Collection-run accounting.
+- Integrity risk: `High` because the accepted 1.0 production Source configuration must be preserved while a new pre-normalization rejection authority is added.
+- Concurrency: `None` beyond existing collection/run behavior; do not introduce new coordination.
+- Security: `Ordinary` trust-sensitive collection configuration; do not weaken Source approval/network-safety boundaries.
+- Novel inference: `Moderate`.
+- Model-family basis: explicit contract but production migration/data-preservation plus collection semantics require careful cross-file reasoning.
+- Reasoning basis: Terra High is the minimum safe floor for adding a supported-production schema representation without changing existing Include behavior or creating a second Relevance/filter authority.
+- Complexity / quality floor: `High`.
+- Estimated usage: `High`.
+- Lower-cost alternative considered: `Luna High`; rejected because migration/data compatibility and the producer-to-consumer handoff are more important than the simple predicate itself.
+- Escalation trigger: current Source persistence cannot add Exclude state without rewriting supported migration history, or collection admission cannot consume one normalized Source policy without duplicating eligibility/Relevance behavior.
+- Escalation target: `Terra Ultra` for bounded transaction/migration ambiguity; return `Planning needed` for contract/ADR change.
+- Estimate confidence: `High`.
+
+The assigned project version is `2.2.1`.
+
+## Goal
+
+Implement issue `M6SX` through the complete non-UI producer boundary: additive production-safe Source RSS/Atom Exclude persistence, normalized Source configuration, repository/bootstrap propagation, and the existing RSS/Atom pre-normalization admission stage.
+
+The fixed Phase 2 rule is:
+
+```text
+include_passes = Include empty OR any Include phrase matches
+exclude_matches = any Exclude phrase matches
+admit = include_passes AND NOT exclude_matches
+```
+
+Exclude wins when both sides match. Include and Exclude are both fixed `ANY`/OR lists. Do not implement configurable `ANY/ALL` operators from remaining feature idea `+R8VN`.
+
+## Prerequisite and version
+
+Require current `main` containing accepted `c1-digest-style` at package `2.2.0` and no Phase 2 implementation prompt yet. Verify Git/package state rather than trusting conversation text.
+
+Before final validation update only the normal project version metadata required by repository convention from `2.2.0` to `2.2.1`. Do not create `package-lock.json` if absent.
+
+## Read first
+
+Read current:
+
+1. `BOOT.md`, `AGENTS.md`, `README.md`, `docs/README.md`;
+2. `docs/contracts/project-contract.md`;
+3. `docs/contracts/source-and-collection-contract.md`;
+4. `docs/contracts/domain-and-data-contract.md`;
+5. `docs/contracts/public-feed-and-admin-contract.md` for the P2 consumer handoff only;
+6. `docs/contracts/testing-and-validation-contract.md`;
+7. `docs/decisions/production-data-and-schema-compatibility.md`;
+8. Phase 2 entry in `docs/roadmap/3.0-roadmap.md`;
+9. issue `M6SX` and feature idea `+R8VN`;
+10. migrations through current `0020_profile_digest_style_guidance.sql` and migration/upgrade tests;
+11. `src/sources/configuration.ts`, `src/sources/repository.ts`, Publication bootstrap Source parsing/persistence, and important Source configuration consumers;
+12. the RSS/Atom admission helper/stage and collection executor/run accounting that currently consumes `rssAtomAdmissionPhrases`;
+13. Source administration service only enough to leave a complete P2 producer handoff;
+14. relevant unit/collection/database/recovery tests and `package.json`.
+
+Trace all important consumers of the existing Include field before renaming/restructuring shared types.
+
+## Persistence contract
+
+Add the next migration as `migrations/0021_source_rss_atom_admission_excludes.sql` unless current migration state has advanced; if it has, use the actual next contiguous number and explain why. Never rewrite `0001`–`0020`.
+
+Use the smallest representation consistent with the existing Include table and repository conventions. The logical Source state must expose two independently bounded lists:
+
+- Include: existing values and semantics preserved exactly;
+- Exclude: new list, empty by default.
+
+The database must enforce equivalent phrase integrity/bounds for Exclude as the existing Include representation: Source ownership, deterministic position/order, trimmed/nonblank safe bounded text, no control-character ambiguity, bounded count, and cleanup with Source lifecycle/deletion according to current relationship rules.
+
+Supported production-forward upgrade must preserve every existing Include phrase/order and all other governed customer state. Do not migrate Include rows into a new representation merely for naming symmetry unless required for correctness; additive change is preferred.
+
+## Canonical Source configuration
+
+Refactor the current Include-only application shape into one clear Source admission policy without making downstream consumers know table layout.
+
+A suitable explicit model is conceptually:
+
+```text
+rssAtomAdmissionIncludePhrases: readonly string[]
+rssAtomAdmissionExcludePhrases: readonly string[]
+```
+
+or an equally clear nested value object if that is demonstrably simpler in current source. Do not preserve ambiguous `rssAtomAdmissionPhrases` as a second long-term semantic authority merely for compatibility inside production code. Compatibility parsing at explicit bootstrap/admin input boundaries may translate legacy Include naming when needed, but one normalized internal representation must win.
+
+Both lists use the same deterministic literal case-insensitive matching preparation already accepted for Include. Missing optional Source fields normalize to empty lists. Reuse one phrase-list normalizer/bounds owner rather than duplicating almost-identical Include/Exclude validation.
+
+## Collection behavior
+
+At the existing RSS/Atom-only stage after safe parse and before Article-candidate normalization:
+
+1. evaluate Include against only the existing bounded Raw item editorial text fields: title, summary/content text, Source-provided category labels;
+2. evaluate Exclude against those exact same prepared fields;
+3. reject when Exclude matches regardless of Include result;
+4. otherwise preserve current Include behavior;
+5. when both lists are empty, collect all otherwise-valid parsed RSS/Atom items exactly as today.
+
+Preserve:
+
+- HTML listing endpoints bypassing this Source RSS/Atom filter entirely;
+- Source/endpoint approval, lifecycle, operational, lock, fetch, redirect, network-safety, parser, Article-link, Relevance, identity/provenance, duplicate, and scheduling behavior;
+- filtered Raw items terminating before candidate normalization;
+- `source_item_filtered_count` accounting for either Include rejection or Exclude rejection;
+- filtered items not becoming Relevance `excluded`, normalization failures, Articles, observations, or retroactive mutations;
+- Source filter edits remaining prospective only.
+
+Do not add separate counters for Include vs Exclude unless an already-governed observable contract requires them; one existing filtered-item count is authoritative.
+
+## Bootstrap and repository compatibility
+
+Existing bootstrap documents that omit Exclude must remain valid and produce empty Exclude state. Existing Include input remains supported with identical semantics. Bootstrap reruns must continue create-if-absent/no-overwrite behavior and must not erase later operator-managed Include or Exclude values.
+
+Repository reads must return frozen/immutable normalized Include and Exclude lists following existing Source model conventions. Source insert/update transaction behavior must replace each managed list atomically with the rest of the Source mutation or otherwise preserve current all-or-nothing semantics.
+
+Do not expose database IDs or persistence-table concepts to P2.
+
+## Producer-to-consumer handoff
+
+Leave this complete for P2:
+
+| Downstream-required capability | P1 owner/export | Focused proof |
+| --- | --- | --- |
+| normalized Include + Exclude lists | Source configuration normalizer/type | empty/bounds/canonicalization tests |
+| persisted ordered Include + Exclude state | Source repository | insert/read/update/rollback DB tests |
+| production upgrade with legacy Include preserved | migration chain | supported-forward migration test |
+| bootstrap omission/legacy Include compatibility | bootstrap parser/application | bootstrap tests |
+| one admission predicate | collection admission helper/stage | Include/Exclude precedence fixture/unit tests |
+| filtered-item run accounting | existing run executor/result | collection/database tests |
+
+P2 must be able to read and mutate Source Include/Exclude through existing application/repository boundaries without writing SQL or reimplementing validation.
+
+## Focused proof
+
+Add/adjust tests proving at least:
+
+- migration from zero through `0021` succeeds;
+- supported production-forward migration from a realistic pre-`0021` customer state preserves existing Include phrases/order plus Sources/endpoints/Articles/observations/Categories/Relevance/duplicates/Profiles/credentials/AI state as applicable;
+- new Exclude defaults empty for existing and new Sources;
+- 0, 1, maximum, and over-maximum phrase counts at application and DB boundaries;
+- blank/padded/control-character/overlong invalid phrases rejected consistently;
+- Include-only legacy behavior unchanged;
+- empty Include + matching Exclude rejects;
+- matching Include + matching Exclude rejects;
+- matching Include + no Exclude admits;
+- no Include match + no Exclude match rejects when Include is nonempty;
+- both lists empty admits;
+- case-insensitive literal substring behavior remains deterministic;
+- title, summary/content, and Source-category fields participate exactly as before;
+- HTML listing bypass remains unchanged;
+- filtered items increment only `source_item_filtered_count` and do not enter normalization/Relevance/identity/observation counts;
+- editing policy does not retroactively mutate already-persisted Articles;
+- bootstrap rerun preserves operator-managed Include and Exclude;
+- repository mutation failure cannot leave one phrase list partially replaced.
+
+Use real disposable PostgreSQL for migration/constraint/transaction claims.
+
+## Validation manifest
+
+During iteration run the smallest focused unit/collection/database selections.
+
+Final exact-tree `RUN`:
+
+### LOCAL-PORTABLE
+```text
+npm run check
+npm run codex:phase:validate -- p2-2
+git diff --check
+```
+
+### LOCAL-PREREQUISITE
+```text
+npm run test:db
+npm run test:recovery
+```
+
+Run the focused collection suite separately only if it is not already contained by `npm run check` or if diagnosis requires it; do not duplicate contained successful evidence on an unchanged tree.
+
+### DEFER → Phase 2 final qualification/closeout
+
+- PHP CLI/runtime — unrelated to P1 implementation;
+- PHP-backed browser/customer package — unrelated to P1 implementation;
+- reference-customer deployment — unrelated to P1 implementation.
+
+### N/A unless actual scope expands
+
+- live Gemini;
+- live Source network behavior, because this is deterministic collection-policy behavior and existing approved Source transport is unchanged.
+
+If the required PostgreSQL prerequisite is unexpectedly unavailable, fail/report once; do not silently skip or retry the same deterministic environment failure.
+
+## Non-goals
+
+Do not implement:
+
+- protected admin UI/API changes — P2;
+- configurable `ANY/ALL` operators;
+- endpoint-specific Include/Exclude policies;
+- regex/fuzzy/semantic/AI filtering;
+- HTML admission keywords;
+- Relevance changes;
+- PHP integration work;
+- customer deployment;
+- G7PK maintenance unless an actual correctness defect blocks this task;
+- unrelated cleanup or docs/roadmap changes.
+
+## Completion
+
+Return a concise implementation report containing exact commit/tree identity, package `2.2.1`, migration name, normalized Source-policy shape, collection precedence behavior, focused and final validation results, deferred evidence, and any unexpected scope/risk. Do not declare Phase 2 complete and do not resolve unrelated issues.
