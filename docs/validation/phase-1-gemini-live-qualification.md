@@ -1,17 +1,17 @@
 # Phase 1 Gemini Live Qualification
 
-**Status:** GREEN - TECHNICAL EVIDENCE COMPLETE / OWNER REVIEW AND TEST-PROFILE CLEANUP PENDING  
+**Status:** GREEN - OWNER ACCEPTED / CLEARED FOR 2.2.0  
 **Qualification date:** 2026-08-29  
 **Package candidate:** `2.1.7`  
 **Exact VPS qualification candidate:** `05f091980bf8bb0ec70749e94b9fe5b3c53f0edd`  
 **Model correction commit:** `fd777c42e5c4676e268708900afb0883fb5e265e` (`c1-gemini-model`)  
-**Human review:** Required
+**Human review:** Accepted by owner on 2026-08-29
 
 ## Purpose
 
 This artifact continues the blocked Phase 1 closeout recorded in `docs/validation/phase-1-gemini-profile-digest-foundation.md`.
 
-The prior closeout completed the deterministic Phase 1 review but could not close because live Gemini/provider and integrated application evidence were missing. This qualification records the owner-run VPS evidence that cleared those remaining technical gates. It does not rewrite the earlier blocked artifact. Final owner acceptance and the package-only transition to `2.2.0` remain owner-controlled.
+The prior closeout completed the deterministic Phase 1 review but could not close because live Gemini/provider and integrated application evidence were missing. This qualification records the owner-run VPS evidence that cleared those remaining technical gates. It does not rewrite the earlier blocked artifact. The owner has now accepted the evidence and cleared the package-only transition to `2.2.0`.
 
 ## Exact candidate and model correction
 
@@ -206,19 +206,17 @@ This fresh-process proof closes the remaining persistence/representation gap fro
 
 A JSON capture of this exact News Scraper v1 representation was also isolated for owner inspection as `gemini-response.json`; that convenience export is not itself repository evidence and does not replace the observed VPS readback above.
 
-## Remaining operational cleanup
+## Final operational cleanup and owner acceptance
 
-The technical Phase 1 qualification gates are complete. One qualification-only operational cleanup remains:
+After the qualification evidence was captured, the owner disabled the digest again on test Profile `php_integration_test` through the supported administrator panel. This restores the qualification Profile to disabled AI operation and prevents the twice-daily scheduler from continuing qualification-only Gemini spending.
 
-1. Disable the digest again on test Profile `php_integration_test` unless the owner deliberately wants twice-daily scheduled Gemini spending enabled there.
-2. Optionally verify the disabled Profile outwardly normalizes digest state to `null` while preserving successful historical generation/attempt records; this is useful cleanup confirmation but is not needed to re-prove the already established Phase 1 implementation contract.
-3. Owner acceptance may then perform the package-only transition from `2.1.7` to `2.2.0` under the normal closeout workflow.
+The owner then explicitly accepted the Phase 1 qualification and stated that the project is cleared for 2.2. No additional outward-null verification was required because disabled-state normalization had already been covered by the deterministic Phase 1 validation and the preflight had observed the same Profile in a disabled/no-active-digest state before qualification.
 
 The recurring `pg` deprecation warning observed during these qualification reads should be tracked separately for pg 9 compatibility/cleanup. It did not cause a failed query, incorrect state, persistence loss, or representation failure during this evidence run and is not a Phase 1 closeout blocker.
 
-## Final technical disposition
+## Final disposition
 
-**GREEN - TECHNICAL EVIDENCE COMPLETE / HUMAN REVIEW REQUIRED.**
+**GREEN - OWNER ACCEPTED / CLEARED FOR 2.2.0.**
 
 The original live-provider blocker is cleared on exact VPS candidate `05f091980bf8bb0ec70749e94b9fe5b3c53f0edd`. The combined evidence demonstrates:
 
@@ -233,6 +231,9 @@ The original live-provider blocker is cleared on exact VPS candidate `05f091980b
 - fresh-process durable readback through the protected admin model;
 - permanent v1 representation containing the same digest and a real snapshot revision;
 - application-resolved supporting Article destinations using exact stored `originalUrl` values;
-- ordinary Article representation preserved alongside optional digest state.
+- ordinary Article representation preserved alongside optional digest state;
+- qualification-only AI scheduling disabled again through the supported admin panel after proof completion.
 
 No additional broad deterministic matrix rerun was performed during this qualification because the prior Phase 1 closeout artifact already records the full deterministic review/matrix and the remaining blocker was specifically live/integrated provider evidence. Phase 2 PHP/customer-package qualification remains separately deferred as previously documented.
+
+Phase 1 / package `2.1.7` is accepted for closeout. The package-only transition to `2.2.0` may proceed under the normal closeout workflow.
