@@ -11,7 +11,7 @@ const root = resolve(import.meta.dirname, '../..');
 const php = process.platform === 'win32' ? 'php.exe' : 'php';
 let browser: Browser | undefined;
 
-describe('PHP customer-style local-only example', () => {
+describe('PHP customer-editable top-tag local-only reference', () => {
   after(async () => await browser?.close());
 
   for (const scenario of [
@@ -22,6 +22,7 @@ describe('PHP customer-style local-only example', () => {
     'cutoff',
     'disabled',
     'unavailable',
+    'digest',
   ] as const) {
     it(`renders ${scenario} local state through a credential-free PHP server`, async () => {
       await withExample(scenario, async ({ base, open, logs }) => {
@@ -35,14 +36,14 @@ describe('PHP customer-style local-only example', () => {
         );
         assert.deepEqual(requests, []);
         if (scenario === 'populated') {
-          assert.equal(await page.locator('.news-scraper-article').count(), 2);
+          assert.equal(await page.locator('.ns-article').count(), 2);
           assert.equal(
             await page.locator('h1').innerText(),
             'Profile <em>Name</em>',
           );
           assert.deepEqual(
             await page
-              .locator('.news-scraper-article h2 a')
+              .locator('.ns-article h3 a')
               .evaluateAll((links) =>
                 links.map((link) => link.getAttribute('href')),
               ),
@@ -57,12 +58,24 @@ describe('PHP customer-style local-only example', () => {
             logs(),
             /Authorization|Bearer|NEWS_SCRAPER_BEARER_TOKEN/i,
           );
+        } else if (scenario === 'digest') {
+          assert.equal(await page.locator('.ns-digest').count(), 1);
+          assert.match(text, /AI-generated/);
+          assert.doesNotMatch(
+            text,
+            /provider-not-for-readers|model-not-for-readers/,
+          );
+          assert.equal(
+            await page.locator('.ns-digest a').getAttribute('href'),
+            'https://publisher.example.test/first?quoted="yes"&x=1',
+          );
+          assert.equal(await page.locator('.ns-article').count(), 2);
         } else if (scenario === 'empty') {
           assert.match(text, /No articles are currently available/);
           assert.equal(await page.locator('a').count(), 0);
         } else if (scenario === 'stale') {
           assert.match(text, /Local content is stale/);
-          assert.equal(await page.locator('.news-scraper-article').count(), 2);
+          assert.equal(await page.locator('.ns-article').count(), 2);
         } else {
           assert.equal(await page.locator('a').count(), 0);
           assert.match(
@@ -85,12 +98,9 @@ describe('PHP customer-style local-only example', () => {
     await withExample('populated', async ({ base, open }) => {
       const page = await open(false, []);
       await page.goto(base);
-      assert.equal(await page.locator('.news-scraper-article h2 a').count(), 2);
+      assert.equal(await page.locator('.ns-article h3 a').count(), 2);
       assert.equal(
-        await page
-          .locator('.news-scraper-article h2 a')
-          .first()
-          .getAttribute('href'),
+        await page.locator('.ns-article h3 a').first().getAttribute('href'),
         'https://publisher.example.test/first?quoted="yes"&x=1',
       );
       await page.context().close();
@@ -141,18 +151,18 @@ async function withExample(
     const port = await freePort();
     const env = processEnvWithoutIntegrationConfiguration();
     const output: string[] = [];
-    process = spawn(
-      php,
-      ['-S', `127.0.0.1:${port}`, '-t', join(packageRoot, 'example')],
-      { cwd: packageRoot, env, stdio: ['ignore', 'pipe', 'pipe'] },
-    );
+    process = spawn(php, ['-S', `127.0.0.1:${port}`, '-t', packageRoot], {
+      cwd: packageRoot,
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
     process.stdout?.on('data', (value: Buffer) =>
       output.push(value.toString().slice(0, 4096)),
     );
     process.stderr?.on('data', (value: Buffer) =>
       output.push(value.toString().slice(0, 4096)),
     );
-    const base = `http://127.0.0.1:${port}`;
+    const base = `http://127.0.0.1:${port}/top-tag.php`;
     await ready(base, process, output);
     await run({
       base,

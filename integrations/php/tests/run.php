@@ -51,8 +51,6 @@ use NewsScraper\Integration\Php\LocalReadProfile;
 use NewsScraper\Integration\Php\LocalReadPublication;
 use NewsScraper\Integration\Php\LocalReadSource;
 use NewsScraper\Integration\Php\LocalReadHealth;
-use NewsScraper\Integration\Php\LocalProfileRenderer;
-use NewsScraper\Integration\Php\FallbackHtmlRenderer;
 use NewsScraper\Integration\Php\EnvironmentFileLoader;
 use NewsScraper\Integration\Php\IntegrationConfigurationLoader;
 
@@ -1268,6 +1266,7 @@ testCase('local reader exposes bounded redacted health and only the Phase 6 prod
     }
 });
 
+/* Superseded P2 renderer tests retained only as historical context during the package transition.
 testCase('fallback renderer safely escapes untrusted values and preserves direct article links and order', static function (): void {
     $root = filesystemRoot();
     $at = new DateTimeImmutable('2026-08-21T15:00:00+00:00');
@@ -1451,6 +1450,18 @@ testCase('customer example composes only local read and presentation boundaries'
     }
     foreach (['src/bootstrap.php', 'LocalReadConfiguration', 'LocalProfileReader', 'DistributionClient', 'ProfileSynchronizer', 'NEWS_SCRAPER_BASE_URL', 'NEWS_SCRAPER_BEARER_TOKEN', 'manifest.json', 'generations'] as $forbidden) {
         trueValue(!str_contains($example, $forbidden), 'example omits visitor upstream/internal boundary ' . $forbidden);
+    }
+});
+
+*/
+
+testCase('top-tag is the only packaged customer presentation reference', static function (): void {
+    $topTag = (string) file_get_contents(__DIR__ . '/../top-tag.php');
+    foreach (['local-read.php', 'news_scraper_local_read', 'OPTIONAL AI DIGEST SECTION', 'ARTICLE FEED SECTION'] as $required) {
+        trueValue(str_contains($topTag, $required), 'top-tag contains ' . $required);
+    }
+    foreach (['src/bootstrap.php', 'sync.env', 'NEWS_SCRAPER_BASE_URL', 'NEWS_SCRAPER_BEARER_TOKEN', 'FallbackHtmlRenderer', 'LocalProfileRenderer'] as $forbidden) {
+        trueValue(!str_contains($topTag, $forbidden), 'top-tag omits ' . $forbidden);
     }
 });
 

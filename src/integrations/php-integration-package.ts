@@ -4,6 +4,7 @@ import type { FileHandle } from 'node:fs/promises';
 import path from 'node:path';
 
 const PACKAGE_NAME = 'news-scraper-php-integration';
+const PACKAGE_ROOT = 'ns-integration';
 const PRODUCT_NAME = 'news-scraper';
 const API_VERSION = 'v1';
 const PACKAGE_CONTENT_TYPE = 'application/zip';
@@ -20,8 +21,8 @@ const MANIFEST = [
   ['README.md', 'integrations/php/README.md'],
   ['run-sync.php', 'integrations/php/run-sync.php'],
   ['local-read.php', 'integrations/php/local-read.php'],
+  ['top-tag.php', 'integrations/php/top-tag.php'],
   ['bin/sync.php', 'integrations/php/bin/sync.php'],
-  ['example/index.php', 'integrations/php/example/index.php'],
   ['src/Http.php', 'integrations/php/src/Http.php'],
   ['src/Configuration.php', 'integrations/php/src/Configuration.php'],
   ['src/Digest.php', 'integrations/php/src/Digest.php'],
@@ -33,7 +34,6 @@ const MANIFEST = [
     'integrations/php/src/FilesystemStateStore.php',
   ],
   ['src/LocalRead.php', 'integrations/php/src/LocalRead.php'],
-  ['src/Renderer.php', 'integrations/php/src/Renderer.php'],
   ['src/Runtime.php', 'integrations/php/src/Runtime.php'],
   ['src/bootstrap.php', 'integrations/php/src/bootstrap.php'],
   ['config/sync.env.example', 'integrations/php/config/sync.env.example'],
@@ -117,7 +117,7 @@ export function createPhpIntegrationPackageProducer(
         totalEntryBytes += data.length;
         assertEntrySize(data.length, boundedLimits, totalEntryBytes);
         entries.push({
-          name: `${PACKAGE_NAME}/${archivePath}`,
+          name: `${PACKAGE_ROOT}/${archivePath}`,
           data,
         });
       }
@@ -137,8 +137,8 @@ export function createPhpIntegrationPackageProducer(
         'utf8',
       );
       for (const [name, data] of [
-        [`${PACKAGE_NAME}/VERSION`, versionData],
-        [`${PACKAGE_NAME}/integration-package.json`, metadataData],
+        [`${PACKAGE_ROOT}/VERSION`, versionData],
+        [`${PACKAGE_ROOT}/integration-package.json`, metadataData],
       ] as const) {
         totalEntryBytes += data.length;
         assertEntrySize(data.length, boundedLimits, totalEntryBytes);

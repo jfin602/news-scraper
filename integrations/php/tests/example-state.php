@@ -6,6 +6,9 @@ require_once __DIR__ . '/../src/bootstrap.php';
 
 use NewsScraper\Integration\Php\DistributionArticle;
 use NewsScraper\Integration\Php\DistributionCategory;
+use NewsScraper\Integration\Php\DistributionDigest;
+use NewsScraper\Integration\Php\DistributionDigestHighlight;
+use NewsScraper\Integration\Php\DistributionDigestSupport;
 use NewsScraper\Integration\Php\DistributionOutcome;
 use NewsScraper\Integration\Php\DistributionPage;
 use NewsScraper\Integration\Php\DistributionPageClient;
@@ -36,7 +39,18 @@ $items = $scenario === 'empty' ? [] : [
     new DistributionArticle('second', 'Second headline', 'https://publisher.example.test/second', $now->modify('-1 minute')->format(DATE_ATOM), 'published_at', null, null, null, null, new DistributionSource('publisher', 'Publisher'), []),
 ];
 $at = match ($scenario) { 'stale' => $now->modify('-901 seconds'), 'cutoff' => $now->modify('-901 seconds'), default => $now };
-$page = new DistributionPage('v1', $at->format(DATE_ATOM), 'example-revision', new DistributionProfile('weekly-desk', 'Profile <em>Name</em>'), new DistributionPublication('Publication <strong>Name</strong>'), $items, null, 'example-etag');
+$digest = $scenario === 'digest'
+    ? new DistributionDigest(
+        $now->format(DATE_ATOM),
+        'current',
+        2,
+        'provider-not-for-readers',
+        'model-not-for-readers',
+        'Overview <script>alert(1)</script>',
+        [new DistributionDigestHighlight('Highlight <b>One</b>', 'Explanation <img src=x>', [new DistributionDigestSupport('first', 'Support <script>alert(2)</script>', 'Source <b>One</b>', $now->format(DATE_ATOM), 'https://publisher.example.test/first?quoted="yes"&x=1')])],
+    )
+    : null;
+$page = new DistributionPage('v1', $at->format(DATE_ATOM), 'example-revision', new DistributionProfile('weekly-desk', 'Profile <em>Name</em>'), new DistributionPublication('Publication <strong>Name</strong>'), $items, $digest, 'example-etag');
 $store = new FilesystemProfileStateStore($root);
 $sync = new ProfileSynchronizer(new ExampleClient($page), $store, new FilesystemProfileLock($root), new ExampleClock($at), new ExampleSleeper());
 if ($scenario !== 'never') {

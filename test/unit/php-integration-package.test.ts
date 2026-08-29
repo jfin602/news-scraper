@@ -22,8 +22,8 @@ const sourceManifest = [
   ['README.md', 'integrations/php/README.md'],
   ['run-sync.php', 'integrations/php/run-sync.php'],
   ['local-read.php', 'integrations/php/local-read.php'],
+  ['top-tag.php', 'integrations/php/top-tag.php'],
   ['bin/sync.php', 'integrations/php/bin/sync.php'],
-  ['example/index.php', 'integrations/php/example/index.php'],
   ['src/Http.php', 'integrations/php/src/Http.php'],
   ['src/Configuration.php', 'integrations/php/src/Configuration.php'],
   ['src/Digest.php', 'integrations/php/src/Digest.php'],
@@ -35,7 +35,6 @@ const sourceManifest = [
     'integrations/php/src/FilesystemStateStore.php',
   ],
   ['src/LocalRead.php', 'integrations/php/src/LocalRead.php'],
-  ['src/Renderer.php', 'integrations/php/src/Renderer.php'],
   ['src/Runtime.php', 'integrations/php/src/Runtime.php'],
   ['src/bootstrap.php', 'integrations/php/src/bootstrap.php'],
   ['config/sync.env.example', 'integrations/php/config/sync.env.example'],
@@ -45,11 +44,9 @@ const sourceManifest = [
   ],
 ] as const;
 const packageEntries = [
-  ...sourceManifest.map(
-    ([archivePath]) => `news-scraper-php-integration/${archivePath}`,
-  ),
-  'news-scraper-php-integration/VERSION',
-  'news-scraper-php-integration/integration-package.json',
+  ...sourceManifest.map(([archivePath]) => `ns-integration/${archivePath}`),
+  'ns-integration/VERSION',
+  'ns-integration/integration-package.json',
 ];
 
 test('produces the exact deterministic customer manifest and a consumer-ready result', async () => {
@@ -64,14 +61,12 @@ test('produces the exact deterministic customer manifest and a consumer-ready re
   assert.equal(result.contentType, 'application/zip');
   assert.equal(result.version, version);
   assert.equal(
-    entries.get('news-scraper-php-integration/VERSION')?.toString(),
+    entries.get('ns-integration/VERSION')?.toString(),
     `${version}\n`,
   );
   assert.deepEqual(
     JSON.parse(
-      entries
-        .get('news-scraper-php-integration/integration-package.json')!
-        .toString(),
+      entries.get('ns-integration/integration-package.json')!.toString(),
     ),
     {
       name: 'news-scraper-php-integration',
@@ -82,10 +77,10 @@ test('produces the exact deterministic customer manifest and a consumer-ready re
   );
   assert.equal(
     entries
-      .get('news-scraper-php-integration/src/bootstrap.php')
+      .get('ns-integration/src/bootstrap.php')
       ?.toString()
       .match(/require_once __DIR__ \. '\/([^']+)'/gu)?.length,
-    10,
+    9,
   );
   assert.equal(
     [...entries.keys()].some(
@@ -93,6 +88,23 @@ test('produces the exact deterministic customer manifest and a consumer-ready re
     ),
     false,
   );
+  assert.equal(
+    [...entries.keys()].some((name) =>
+      /(?:\/Renderer\.php|\/digest(?:-|_)?template\.php|^ns-integration\/digest\.php)$/iu.test(
+        name,
+      ),
+    ),
+    false,
+  );
+  const topTag = entries.get('ns-integration/top-tag.php')!.toString();
+  assert.match(topTag, /news_scraper_local_read/u);
+  assert.match(topTag, /OPTIONAL AI DIGEST SECTION/u);
+  assert.match(topTag, /ARTICLE FEED SECTION/u);
+  assert.doesNotMatch(
+    topTag,
+    /src\/bootstrap\.php|sync\.env|NEWS_SCRAPER_BEARER_TOKEN|NEWS_SCRAPER_BASE_URL/u,
+  );
+  assert.doesNotMatch(topTag, /FallbackHtmlRenderer|LocalProfileRenderer/u);
 });
 
 test('keeps configuration defaults and visitor/synchronization secrets separate', async () => {
@@ -100,10 +112,10 @@ test('keeps configuration defaults and visitor/synchronization secrets separate'
     (await createPhpIntegrationPackageProducer().build()).bytes,
   );
   const sync = entries
-    .get('news-scraper-php-integration/config/sync.env.example')!
+    .get('ns-integration/config/sync.env.example')!
     .toString();
   const local = entries
-    .get('news-scraper-php-integration/config/local-read.env.example')!
+    .get('ns-integration/config/local-read.env.example')!
     .toString();
 
   for (const expected of [
@@ -129,21 +141,19 @@ test('keeps configuration defaults and visitor/synchronization secrets separate'
     /NEWS_SCRAPER_PROFILE_KEY|NEWS_SCRAPER_STATE_ROOT|NEWS_SCRAPER_SYNC_CADENCE_SECONDS|NEWS_SCRAPER_MAX_STALE_AGE_SECONDS/u,
   );
   const localReader = entries
-    .get('news-scraper-php-integration/src/LocalRead.php')!
+    .get('ns-integration/src/LocalRead.php')!
     .toString();
   assert.doesNotMatch(
     localReader,
     /DistributionPageClient|ClientConfiguration|Gemini|gemini|NEWS_SCRAPER_BASE_URL|NEWS_SCRAPER_BEARER_TOKEN/u,
   );
-  const launcher = entries
-    .get('news-scraper-php-integration/run-sync.php')!
-    .toString();
+  const launcher = entries.get('ns-integration/run-sync.php')!.toString();
   assert.match(launcher, /ns-private.*local-read\.env/su);
   assert.match(launcher, /ns-private.*sync\.env/su);
   assert.match(launcher, /SynchronizationCommand::run/u);
   assert.doesNotMatch(launcher, /NEWS_SCRAPER_BEARER_TOKEN/u);
   const customerEntry = entries
-    .get('news-scraper-php-integration/local-read.php')!
+    .get('ns-integration/local-read.php')!
     .toString();
   assert.match(customerEntry, /function news_scraper_local_read/u);
   assert.doesNotMatch(
@@ -215,7 +225,7 @@ test('fails closed for malformed or missing project metadata', async () => {
 test('fails closed for missing and non-ordinary allowlisted files', async () => {
   const missing = await createFixture('1.7.0');
   try {
-    await rm(path.join(missing, 'integrations/php/src/Renderer.php'));
+    await rm(path.join(missing, 'integrations/php/top-tag.php'));
     await assert.rejects(
       () => createPhpIntegrationPackageProducer(missing).build(),
       isPackageError('missing_file'),
@@ -226,8 +236,8 @@ test('fails closed for missing and non-ordinary allowlisted files', async () => 
 
   const directory = await createFixture('1.7.0');
   try {
-    await rm(path.join(directory, 'integrations/php/src/Renderer.php'));
-    await mkdir(path.join(directory, 'integrations/php/src/Renderer.php'));
+    await rm(path.join(directory, 'integrations/php/top-tag.php'));
+    await mkdir(path.join(directory, 'integrations/php/top-tag.php'));
     await assert.rejects(
       () => createPhpIntegrationPackageProducer(directory).build(),
       isPackageError('missing_file'),
