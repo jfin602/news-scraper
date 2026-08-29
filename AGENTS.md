@@ -4,7 +4,7 @@
 
 News Scraper is a reusable, topic-independent **headless news aggregation and distribution Platform**. Each installation hosts exactly one singleton Publication representing one customer/editorial property and governed content universe; that Publication may contain multiple related subject verticals or feed sections exposed through Distribution Profiles. Publication is singleton editorial/configuration state, not a relational tenant key. The administrator surface is the control plane. Current implemented outward consumers are authenticated `GET /api/v1/distribution/{profile_key}`, `GET /api/feed`, and the bundled/reference `GET /` frontend; neither reference consumer requires a reader-selectable Publication.
 
-Read `BOOT.md` first and route through `docs/README.md` to the narrowest authority. `docs/contracts/project-contract.md` owns locked laws and top-level invariants; `docs/contracts/product-scope-and-users.md` owns current product scope; `docs/contracts/distribution-and-integration-contract.md` owns Distribution Profile/PHP behavior; `docs/contracts/distribution-api-contract.md` owns the permanent machine interface; `docs/contracts/ai-assistance-contract.md` owns active Phase 1 Gemini digest behavior and later AI boundaries; Accepted ADRs own architecture; the testing contract owns proof; the current roadmap owns phase/version sequencing. The completed `docs/roadmap/phase-1-gemini-summary-worksheet.md` is the owner-approved planning record whose locked decisions have been promoted into those governing contracts/roadmap.
+Read `BOOT.md` first and route through `docs/README.md` to the narrowest authority. `docs/contracts/project-contract.md` owns locked laws and top-level invariants; `docs/contracts/product-scope-and-users.md` owns current product scope; `docs/contracts/distribution-and-integration-contract.md` owns Distribution Profile/PHP behavior; `docs/contracts/distribution-api-contract.md` owns the permanent machine interface; `docs/contracts/ai-assistance-contract.md` owns the accepted Gemini digest behavior, the bounded Profile digest writing-style amendment, and later AI boundaries; Accepted ADRs own architecture; the testing contract owns proof; the current roadmap owns phase/version sequencing. The completed `docs/roadmap/phase-1-gemini-summary-worksheet.md` remains the owner-approved historical planning record for Phase 1; later amendments belong in the governing contracts/roadmap rather than by rewriting that worksheet.
 
 If work conflicts with a locked law, report the conflict. Do not silently treat code, a summary, historical evidence, or the worksheet as higher authority than the contracts after promotion.
 
@@ -20,13 +20,13 @@ Follow `BOOT.md`.
 - Terminal MVP Phase 21 `/closeout` transitioned the final validated `0.21.x` tree to `1.0.0`.
 - Former post-1.0 Phase 0 P1 shipped the server-rendered root at `1.0.1`; its unexecuted P2/`1.0.2` closeout is permanently retired.
 - The seven-phase 2.0 roadmap is complete. Terminal `/closeout` changed only top-level `package.json` to `2.0.0`; the Phase 7 owner-approved evidence exception remains recorded in the durable validation artifact and is not rewritten as unobserved test evidence.
-- The owner-approved 3.0 roadmap is **active in Phase 1** at package `2.1.0`. The post-2.0 runner compatibility correction and N6WD Article-summary correction are GREEN/owner-accepted prerequisites.
-- The completed Phase 1 Gemini worksheet is consumed planning input; prompt planning must use the promoted contract/roadmap semantics rather than reopen or reinterpret its 12 owner-approved decisions.
+- The owner-approved 3.0 roadmap is **active in Phase 2** at package `2.2.0`. Phase 1 Gemini Profile digest foundation is GREEN/owner-accepted after live qualification. The immediate implementation stack is owner-approved correction `c1-digest-style` at unchanged `2.2.0`; normal Phase 2 prompts start afterward at `2.2.1`.
+- The completed Phase 1 Gemini worksheet is consumed historical planning input; current work must use the promoted contract/roadmap semantics and later approved amendments rather than reopen or reinterpret the original 12 decisions.
 - Use `docs/codex-model-selection.md` for detailed minimum-cost-adequate model/reasoning/usage policy.
 
 ## Versioning and task-stack grammar
 
-`package.json` is the sole current-version authority and is currently `2.1.0`. Documentation, correction, and UI work is non-versioned unless an explicit owner-authorized roadmap activation/release transition says otherwise.
+`package.json` is the sole current-version authority and is currently `2.2.0`. Documentation, correction, and UI work is non-versioned unless an explicit owner-authorized roadmap activation/release transition says otherwise.
 
 ### Current executable roadmap grammar
 
@@ -44,10 +44,11 @@ The owner-approved `docs/roadmap/3.0-roadmap.md` uses:
 
 - Phase N folder: `p2-N`;
 - prompt target: `2.N.<prompt number>`;
-- current Phase 1 folder: `p2-1`;
-- current Phase 1 prompt space: `2.1.x`, beginning at `2.1.1`.
+- current roadmap Phase 2 folder: `p2-2`;
+- current Phase 2 prompt space: `2.2.x`, beginning at `2.2.1` after `c1-digest-style` closes;
+- immediate correction folder: `c1-digest-style`, with required unchanged package `2.2.0`.
 
-The runner correction remains historical non-versioned correction work completed at `2.0.0`; the separately authorized roadmap activation changed only top-level `package.json` from `2.0.0` to `2.1.0`.
+The runner correction remains historical non-versioned correction work completed at `2.0.0`; the separately authorized roadmap activation changed only top-level `package.json` from `2.0.0` to `2.1.0`. Accepted Phase 1 closeout later changed only the package baseline from `2.1.7` to `2.2.0` after live qualification.
 
 The machine parser is `scripts/codex-phase-core.mjs`; parser changes must update BOOT and focused parser tests. Before reporting `/prompt-write` complete, run `npm run codex:phase:validate -- <task-folder>` when local execution is available. `npm run codex:phase -- <task-folder>` executes implementation prompts and stops before the parsed final closeout prompt by default. `npm run codex:phase -- <task-folder> --closeout` may invoke that final prompt after the Git-proven implementation prefix completes, but its result remains HUMAN REVIEW REQUIRED and is never automatically accepted.
 
@@ -78,28 +79,30 @@ Targeted UI prompts under `docs/design/tasks/` are not a `codex:phase` grammar. 
 
 Historical Phase 7 planned qualification items are not automatically current requirements or evidence. Use the durable Phase 7 artifact to distinguish observed/operator-accepted evidence from the unexecuted formal prompt sequence.
 
-### Owner-approved 3.0 roadmap — active Phase 1
+### Owner-approved 3.0 roadmap — active Phase 2
 
-**Current package:** `2.1.0`  
+**Current package:** `2.2.0`  
 **Roadmap:** `docs/roadmap/3.0-roadmap.md`  
-**Status:** owner-approved / ACTIVE — PHASE 1  
-**Current phase:** Gemini Profile digest foundation  
-**Current task family:** `p2-1`  
-**First prompt version:** `2.1.1`  
+**Status:** owner-approved / ACTIVE — PHASE 2  
+**Completed Phase 1:** Gemini Profile digest foundation — GREEN / OWNER-ACCEPTED 2026-08-29  
+**Immediate stack:** `c1-digest-style` — unchanged `2.2.0`  
+**Current roadmap task family after correction:** `p2-2`  
+**First Phase 2 prompt version:** `2.2.1`  
 **Planned terminal target:** `3.0.0`, with final exit gate intentionally owner-controlled/TBD
 
 Current/planned sequence:
 
-1. `2.1.x` — Gemini Profile digest foundation;
-2. `2.2.x` — PHP integration correction + Gemini-capable customer package refresh/deployment;
-3. `2.3.x` — Profile-grounded "Ask this feed" chatbot;
-4. `2.4.x` — real multi-feed customer integration proof for publishing news, opportunities, and indie filmmaking from one singleton Publication/editorial property;
-5. `2.5.x+` — remaining admin and PHP integration tightening based on observed real deployment friction;
-6. terminal `3.0.0` only after the owner explicitly locks and satisfies the final gate.
+1. `2.1.x` — Gemini Profile digest foundation — COMPLETE;
+2. `c1-digest-style` — bounded Profile digest writing-style correction at unchanged `2.2.0`;
+3. `2.2.x` — PHP integration correction + Gemini-capable customer package refresh/deployment;
+4. `2.3.x` — Profile-grounded "Ask this feed" chatbot;
+5. `2.4.x` — real multi-feed customer integration proof for publishing news, opportunities, and indie filmmaking from one singleton Publication/editorial property;
+6. `2.5.x+` — remaining admin and PHP integration tightening based on observed real deployment friction;
+7. terminal `3.0.0` only after the owner explicitly locks and satisfies the final gate.
 
-The accepted `c1-n6wd` correction already implements the governed 4,000-code-point normalized/persisted Article summary bound and production-forward migration. Phase 1 consumes that producer boundary and must not duplicate it.
+The accepted `c1-n6wd` correction already implements the governed 4,000-code-point normalized/persisted Article summary bound and production-forward migration. The accepted Phase 1 implementation consumes that producer boundary and must not duplicate it.
 
-The completed Phase 1 worksheet locks the implementation planning assumptions: two scheduled evaluations/day, default 7-day lookback, configurable/hard-ceiling 1–20 Article input with default 20, canonical Profile order, governed URL Context, structured overview/highlights/support references, internal `digestInputIdentity`, immutable successful digest records plus separate active pointer/attempt state, `current | older | null` lifecycle, additive v1 digest snapshot state, PHP optional-AI fail-open normalization, Profile AI admin controls, and customer-owned final presentation.
+The completed Phase 1 worksheet locked the original implementation assumptions: two scheduled evaluations/day, default 7-day lookback, configurable/hard-ceiling 1–20 Article input with default 20, canonical Profile order, governed URL Context, structured overview/highlights/support references, internal `digestInputIdentity`, immutable successful digest records plus separate active pointer/attempt state, `current | older | null` lifecycle, additive v1 digest snapshot state, PHP optional-AI fail-open normalization, Profile AI admin controls, and customer-owned final presentation. The later `c1-digest-style` amendment adds bounded Profile writing-style guidance without changing those accepted boundaries.
 
 The 3.0 roadmap does not automatically promote previously post-2.0 ideas such as self-host packaging, WordPress, RSS/Atom output, analytics, advanced SEO tooling, delta sync, or additional adapters.
 
@@ -116,14 +119,17 @@ Always preserve these boundaries and read the routed contract for detail:
 - Collection trust and distribution selection are distinct. Source approval authorizes governed collection; Profile membership determines which already-eligible Source Articles can enter one distribution output.
 - The transport-independent canonical distribution Article eligibility/Profile read-model producer owns effective outward Categories, bounded results/history, keyset continuation positions, and deterministic snapshot revisions. Later API/AI/adapters must reuse it.
 - The governed v1 machine HTTP interface composes the canonical read model and machine credential/authentication/request-guard foundations. Generic PHP synchronization/LKG consumes that stable API.
-- Phase 1 digest input must be a deterministic bounded narrowing of canonical Profile output, preserving canonical order; AI cannot introduce another selector/ranker.
+- The accepted Phase 1 digest input is a deterministic bounded narrowing of canonical Profile output, preserving canonical order; AI cannot introduce another selector/ranker.
 - Phase 1 active digest state is part of the same outward Profile snapshot/revision and PHP LKG/local-read path. Do not invent a second digest endpoint, digest ETag, customer digest cron, or visitor-time upstream read.
+- Optional Profile `digestStyleGuidance` is bounded writing-style configuration only. Fixed News Scraper instructions remain authoritative over grounding, URL selection, secrets, schema, references, validation, and security; style text cannot override them.
+- Validated `digestStyleGuidance`/no-guidance state participates in `digestInputIdentity`, so style changes require reevaluation while admin save remains configuration-only rather than a synchronous provider request.
+- `digestStyleGuidance` stays server-side and is not added to the public v1 digest object, PHP LKG/local-read digest shape, or customer cache simply because it influences generation.
 - `digestInputIdentity` is internal generation provenance/idempotency state and must not be conflated with outward `snapshotRevision`.
 - Persisted digest lifecycle must keep immutable successful generations, a separate active reference, and separate bounded attempt state; consumers never observe partial digest state.
 - Downstream digest freshness is exactly `current | older` when a digest exists, otherwise `null`; age alone does not define staleness and canonical invalidation overrides old-digest retention.
 - Optional invalid digest state fails open relative to valid Article API/PHP snapshot state.
 - Normalized local Profile/Article/digest access uses the customer-facing `LocalProfileReader` / `LocalReadResult` boundary; new work must not bypass it by parsing cache files or making ordinary visitor-path upstream calls.
-- Customer final Article/digest HTML/CSS/layout is customer-owned. Phase 1 must not expand the current fallback renderer into an authoritative digest presentation layer; Phase 2 owns renderer-boundary cleanup/package refresh.
+- Customer final Article/digest HTML/CSS/layout is customer-owned. The accepted Phase 1 foundation does not create an authoritative digest presentation layer; Phase 2 owns renderer-boundary cleanup/package refresh.
 - Source is the approved publisher/trust boundary; endpoint is its concrete feed/API/HTML location. Approval, lifecycle, operational state, and derived health are distinct.
 - Only approved, active, enabled Sources/endpoints are collectable while singleton Publication collection is active. Bootstrap never auto-approves or silently widens trust.
 - Every request and redirect hop passes approval plus DNS/address/port/SSRF checks before contact. Article links pass their separate post-normalization Source/domain policy gate.
