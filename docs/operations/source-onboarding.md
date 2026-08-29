@@ -220,36 +220,35 @@ Only approve the domains that are actually required and understood.
 
 The Source domain list is a **maximum** boundary. Endpoint rules may inherit or narrow it, but they cannot widen it.
 
-## 3. Configure RSS/Atom item admission phrases only when needed
+## 3. Configure RSS/Atom item admission Include/Exclude phrases only when needed
 
-The **RSS/Atom item admission phrases** field is an optional Source-owned pre-normalization filter. It exists for a broad RSS/Atom Source where only part of the feed should enter the Article-candidate pipeline.
+The Source-owned **RSS/Atom item admission Include phrases** and **Exclude phrases** are an optional pre-normalization filter for broad RSS/Atom Sources where only part of the feed should enter the Article-candidate pipeline.
+
+Both groups use fixed `ANY`/OR matching. Phase 2 does not expose configurable `ANY`/`ALL` operators.
 
 ### What empty means
 
-**No configured phrases means collect/admit every otherwise-valid parsed RSS/Atom item.**
+The admission rule is:
 
-There is no separate enabled switch. Empty is the collect-all state.
+```text
+(Include is empty OR any Include phrase matches)
+AND NOT(any Exclude phrase matches)
+```
 
-For a Source whose feed is already tightly focused on the Publication topic, leaving this field empty is often the clearest starting point.
+Therefore:
 
-### What configured phrases mean
+- both lists empty collect/admit every otherwise-valid parsed RSS/Atom item;
+- an empty Include list lets every otherwise-valid item pass the Include side;
+- an empty Exclude list excludes nothing and preserves the earlier Include-only behavior;
+- there is no separate enabled switch; empty lists are the collect-all state.
 
-When one or more phrases are configured, an RSS/Atom Raw item is admitted when **any one** configured phrase matches.
+For a Source whose feed is already tightly focused on the Publication topic, leaving both lists empty is often the clearest starting point.
 
-Matching is:
+### Include phrases
 
-- deterministic;
-- case-insensitive;
-- literal substring matching;
-- include-only.
+When one or more Include phrases are configured, an RSS/Atom Raw item passes the Include side when **any one** configured phrase matches.
 
-The filter may inspect only the RSS/Atom parser's existing editorial text from:
-
-- title;
-- summary/content text; and
-- Source-provided category labels.
-
-Example phrases for a hypothetical broad publishing feed might be:
+Example Include phrases for a hypothetical broad publishing feed might be:
 
 ```text
 self-publishing
@@ -257,14 +256,39 @@ indie author
 book marketing
 ```
 
-An item matching any one phrase is admitted to the normal downstream pipeline.
+### Exclude phrases
+
+When one or more Exclude phrases are configured, an RSS/Atom Raw item is rejected when **any one** Exclude phrase matches. Exclude wins even if the same item also matched an Include phrase.
+
+Example Exclude phrases for a hypothetical broad feed might be:
+
+```text
+job posting
+sponsored webinar
+weekly roundup
+```
+
+### Matching behavior
+
+Both groups use the same matching rules:
+
+- deterministic;
+- case-insensitive;
+- literal substring matching;
+- fixed `ANY`/OR semantics.
+
+The filter may inspect only the RSS/Atom parser's existing editorial text from:
+
+- title;
+- summary/content text; and
+- Source-provided category labels.
 
 ### What admission phrases are not
 
 They are not:
 
 - Relevance rules;
-- an exclude list;
+- configurable Boolean-expression or `ANY`/`ALL` policy;
 - regex;
 - glob/wildcard matching;
 - fuzzy matching;
@@ -283,7 +307,7 @@ For RSS/Atom, the conceptual order is:
 fetch
 → RSS/Atom parse
 → Raw item
-→ optional Source admission phrases
+→ optional Source Include/Exclude admission filter
 → Article-candidate normalization
 → Article-link policy
 → Relevance/Categories
@@ -291,13 +315,13 @@ fetch
 → duplicate/public behavior
 ```
 
-A mismatching Raw item stops before Article-candidate normalization. It is not a Relevance `excluded` result and it does not create an Article observation.
+A Raw item rejected because the Include side did not pass or an Exclude phrase matched stops before Article-candidate normalization. It is not a Relevance `excluded` result and it does not create an Article observation.
 
-Admission-phrase edits are prospective. Changing the phrases does not automatically rescan, hide, delete, or recategorize Articles already stored from earlier collection runs.
+Admission-filter edits are prospective. Changing either phrase list does not automatically rescan, hide, delete, or recategorize Articles already stored from earlier collection runs.
 
 ### Limits and operator guidance
 
-The implementation accepts a bounded list of non-empty trimmed phrases. Use concise literal phrases rather than trying to encode a complex editorial rules engine here. If the desired decision requires include/exclude/categorize logic, use the governed Relevance system instead.
+The implementation accepts bounded lists of non-empty trimmed phrases. Use concise literal phrases rather than trying to encode a complex editorial rules engine here. If the desired decision requires general include/exclude/categorize editorial logic beyond this fixed pre-normalization Source gate, use the governed Relevance system instead.
 
 ## 4. Keep the Source unapproved and disabled until configuration is understood
 
@@ -458,7 +482,7 @@ Purpose: optionally extracts visible summary/excerpt text from the listing item.
 
 Purpose: optionally extracts Source-provided category/label text from the listing item.
 
-This does not apply the Source RSS/Atom admission-phrase filter to HTML. HTML rows are selected by the configured HTML profile and then rejoin the shared downstream pipeline.
+This does not apply the Source RSS/Atom Include/Exclude admission filter to HTML. HTML rows are selected by the configured HTML profile and then rejoin the shared downstream pipeline.
 
 ### HTML sample preview
 
@@ -529,7 +553,7 @@ Interpret common outcomes truthfully:
 
 - **successful content run** — endpoint fetched/parsing/processing completed successfully;
 - **`304 not_modified`** — the publisher correctly reported that previously fetched feed content is unchanged; this is not a transport failure and does not prove new content was collected;
-- **items filtered by Source admission phrases** — the feed was fetched and parsed, but some/all RSS/Atom Raw items did not pass the Source admission filter;
+- **items filtered by Source admission Include/Exclude phrases** — the feed was fetched and parsed, but some/all RSS/Atom Raw items did not pass the Source admission rule because the Include side failed or an Exclude phrase matched;
 - **parser/profile failure** — the response was reached but did not satisfy the selected parser/profile expectations;
 - **transport/network-safety failure** — the request could not proceed or complete under the governed destination/transport policy;
 - **ineligible** — one or more approval/lifecycle/operational/Publication gates prevents collection;
@@ -553,7 +577,7 @@ Before calling a new Source ready for launch, confirm:
 - Source default Category is intentional or empty;
 - approved Source domains are no broader than necessary;
 - subdomain inclusion is deliberate;
-- RSS/Atom admission phrases are either intentionally empty or intentionally configured;
+- RSS/Atom admission Include and Exclude phrase lists are intentionally empty or intentionally configured, with fixed `ANY` semantics understood;
 - Source is deliberately approved and enabled;
 - every launch endpoint has the correct immutable key, type, URL, polling interval, and default Category;
 - endpoint domain policy inherits or narrows the Source boundary without widening it;

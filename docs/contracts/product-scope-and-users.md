@@ -197,7 +197,7 @@ The current sequence is:
 
 1. `2.1.x` — Gemini Profile digest foundation — **COMPLETE / OWNER-ACCEPTED**;
 2. unchanged-version `c1-digest-style` at `2.2.0` — bounded Profile digest writing-style guidance before normal Phase 2 prompts;
-3. `2.2.x` — PHP integration correction/customer package refresh, including the packaged `run-sync.php`, presentation-boundary cleanup, package/version/upgrade workflow, and production customer deployment of the Gemini-capable package;
+3. `2.2.x` — PHP integration release hardening/customer package refresh: package-owned `run-sync.php`; `local-read.env` as the shared non-secret configuration authority with sync-only secrets isolated in `sync.env`; a stable customer local-read entrypoint; customer-editable root `top-tag.php` replacing bundled renderer authority; Source RSS/Atom Exclude phrases under M6SX; exact package-version download/diagnostic coherence; non-secret preflight; supported whole-directory upgrade/rollback preserving `ns-private`, LKG, credentials, customer markup, and cron; and final PHP/VPS/reference-customer qualification before production deployment of the Gemini-capable package;
 4. `2.3.x` — Profile-grounded "Ask this feed" chat;
 5. `2.4.x` — real three-feed publishing/opportunities/indie-filmmaking integration proof;
 6. `2.5.x+` — remaining admin/PHP integration tightening based on observed deployment friction; and

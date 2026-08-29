@@ -8,9 +8,9 @@ Publication is an editorial/configuration concept, not a relational tenancy key.
 
 The administrator surface is the instance-owned Platform control plane. The implemented 2.0 path is canonical eligibility → Distribution Profile → authenticated v1 API → generic PHP complete-snapshot synchronization → local last-known-good data → normalized local-read → customer server-rendered output. Current implemented outward surfaces are authenticated `GET /api/v1/distribution/{profile_key}`, legacy/reference `GET /api/feed`, and bundled/reference `GET /`.
 
-The accepted `1.0.0` customer launch established the first supported production schema/data baseline. The seven-phase 2.0 roadmap is complete at release baseline `2.0.0`. The owner-approved 3.0 roadmap is **active in Phase 1** at `2.1.0`: the accepted runner supports the major-2 `p2-<phase>` task family, and the current implementation target is the Gemini Profile digest foundation. Phase 2 is the mandatory PHP integration release-hardening/customer-package gate before later chatbot and multi-feed work; Phase 3 adds Profile-grounded chat, Phase 4 proves the multi-feed customer deployment, and Phase 5 owns remaining observed admin/PHP hardening. The accepted N6WD correction already owns the bounded persisted Article-summary invariant Phase 1 consumes.
+The accepted `1.0.0` customer launch established the first supported production schema/data baseline. The seven-phase 2.0 roadmap is complete at release baseline `2.0.0`. The owner-approved 3.0 roadmap is **active in Phase 2** at `2.2.0`. Phase 1 Gemini Profile digest foundation is GREEN/owner-accepted after live qualification; owner-approved correction `c1-digest-style` is the immediate unchanged-version stack before normal Phase 2 prompts begin at `2.2.1` in `p2-2`. Phase 2 is the mandatory PHP integration release-hardening/customer-package gate before later chatbot and multi-feed work; Phase 3 adds Profile-grounded chat, Phase 4 proves the multi-feed customer deployment, and Phase 5 owns remaining observed admin/PHP hardening. The accepted N6WD correction already owns the bounded persisted Article-summary invariant consumed by the completed digest foundation.
 
-The completed owner-approved Phase 1 Gemini worksheet has been incorporated into the governing AI/distribution contracts and current roadmap. It is retained as the detailed decision record used to resolve cadence, input/output bounds, digest lifecycle, API/PHP propagation, admin controls, freshness, supporting references, and the later customer package handoff.
+The completed owner-approved Phase 1 Gemini worksheet has been incorporated into the governing AI/distribution contracts and current roadmap. It is retained as the detailed historical decision record used to resolve cadence, input/output bounds, digest lifecycle, API/PHP propagation, admin controls, freshness, supporting references, and the later customer package handoff. Later approved amendments such as `c1-digest-style` belong in current contracts/roadmap rather than rewriting that worksheet.
 
 The 3.0 AI behavior is governed by `contracts/ai-assistance-contract.md`. Gemini is optional and downstream of canonical Profile output; ordinary non-AI collection/distribution/PHP Article rendering must remain independently operable when AI is unavailable.
 
@@ -45,7 +45,7 @@ docs/
 │   ├── mvp-roadmap.md
 │   ├── 2.0-planning-questions.md
 │   ├── post-1.0-roadmap.md                  # completed 2.0 history
-│   ├── 3.0-roadmap.md                       # owner-approved / active Phase 1
+│   ├── 3.0-roadmap.md                       # owner-approved / active Phase 2
 │   ├── phase-1-gemini-summary-worksheet.md # completed owner-approved Phase 1 decisions
 │   └── 3.0-changelog.md                     # brief accepted-history companion
 ├── decisions/
@@ -79,29 +79,29 @@ The tracked docs-maintenance handoff lives outside `docs/` at repository-root `.
 
 - `contracts/project-contract.md` — locked Platform laws, authority hierarchy, singleton Publication/editorial-property boundary, headless product/output law, original-publisher destination law, and derived production-data/AI invariants.
 - `contracts/product-scope-and-users.md` — **current post-2.0 product scope**, multi-vertical Publication interpretation, implemented distribution baseline, and active 3.0 direction.
-- `contracts/ai-assistance-contract.md` — **current owner-approved 3.0 AI contract** for the active Phase 1 Gemini Profile digest plus later Profile-grounded chat: bounded Profile grounding, digest input/output/lifecycle, Profile AI administration, prompt/content trust, citations/supporting references, secrets, later chat authorization/cost controls, failure isolation, and topic independence.
-- `contracts/distribution-and-integration-contract.md` — Distribution Profiles, filters, PHP/LKG/local-read behavior, multi-Profile isolation, adapter/presentation/link boundaries, telemetry, and active Phase 1 digest complete-snapshot propagation requirements.
-- `integrations/php/README.md` — implemented PHP synchronization/LKG/local-read/customer-consumption operational and library guide; ordinary customer code consumes its normalized local-read boundary rather than cache file formats. This remains implementation-truth documentation and changes when the corresponding Phase 1/Phase 2 package behavior actually ships.
-- `contracts/distribution-api-contract.md` — permanent v1 Profile API, schema, revisions/cursors, machine credentials, response classes, rate limits, CORS stance, and the owner-approved compatible additive top-level Phase 1 `digest` field.
+- `contracts/ai-assistance-contract.md` — **current owner-approved 3.0 AI contract** for the completed Phase 1 Gemini Profile digest, bounded Profile digest writing-style amendment, and later Profile-grounded chat: bounded Profile grounding, digest input/output/lifecycle, Profile AI administration, prompt/content trust, citations/supporting references, secrets, later chat authorization/cost controls, failure isolation, and topic independence.
+- `contracts/distribution-and-integration-contract.md` — Distribution Profiles, filters, PHP/LKG/local-read behavior, multi-Profile isolation, adapter/presentation/link boundaries, completed Phase 1 digest propagation, and the owner-approved active Phase 2 package/configuration/customer-integration target.
+- `integrations/php/README.md` — implemented PHP synchronization/LKG/local-read/customer-consumption operational and library guide; ordinary customer code consumes its normalized local-read boundary rather than cache file formats. This remains implementation-truth documentation and changes when the corresponding Phase 2 package behavior actually ships.
+- `contracts/distribution-api-contract.md` — permanent v1 Profile API, schema, revisions/cursors, machine credentials, response classes, rate limits, CORS stance, and the compatible additive top-level Phase 1 `digest` field.
 - `contracts/mvp-scope-and-users.md` — **historical** scope for the accepted `1.0.0` standalone-feed MVP; useful for interpreting completed MVP work but not current product direction.
-- `contracts/domain-and-data-contract.md` — canonical terminology, singleton Publication/editorial-property configuration, real entity relationships, Source/Article identity/provenance, Category/Relevance persistence, Distribution Profiles, and schema lifecycle. Detailed Phase 1 digest state behavior is owned by the narrower AI contract rather than duplicated here before implementation fixes exact persistence names.
-- `contracts/testing-and-validation-contract.md` — project-wide regression law, evidence levels, Test Necessity Matrix, Test Environment Matrix, `RUN`/`DEFER`/`N/A` selection, qualification-gate ownership, exact-tree cross-environment evidence when combining environments for one claim, command containment, prerequisite/retry policy, PostgreSQL/fixture/browser/live-provider validation, production-upgrade validation, and completion gates. Phase-specific Gemini proof requirements are additionally listed in the AI contract and roadmap.
-- `architecture/system-architecture.md` — implemented deployment/process/module boundaries plus the active Phase 1 downstream AI target ownership; it distinguishes current runtime implementation from active-roadmap behavior and routes exact digest semantics to the AI/distribution contracts.
-- `contracts/source-and-collection-contract.md` — approval/bootstrap rules, network safety, bounded static HTML profiles/preview, collection adapters, RSS/Atom-only Source item admission, normalization, installation/Source-scoped Relevance execution, Source-scoped identity/idempotency, and Collection-run accounting.
+- `contracts/domain-and-data-contract.md` — canonical terminology, singleton Publication/editorial-property configuration, real entity relationships, Source/Article identity/provenance, Category/Relevance persistence, Source RSS/Atom admission Include/Exclude configuration, Distribution Profiles, and schema lifecycle.
+- `contracts/testing-and-validation-contract.md` — project-wide regression law, evidence levels, Test Necessity Matrix, Test Environment Matrix, `RUN`/`DEFER`/`N/A` selection, qualification-gate ownership, exact-tree cross-environment evidence, command containment, prerequisite/retry policy, PostgreSQL/fixture/browser/live-provider validation, production-upgrade validation, and completion gates. The final integrated Phase 2 candidate is the explicit earlier PHP/VPS/reference-customer qualification exception before package replacement.
+- `architecture/system-architecture.md` — implemented deployment/process/module boundaries, completed downstream digest ownership, and the active Phase 2 PHP package/configuration target while distinguishing current implementation truth from planned hardening.
+- `contracts/source-and-collection-contract.md` — approval/bootstrap rules, network safety, bounded static HTML profiles/preview, collection adapters, RSS/Atom-only Source Include/Exclude item admission, normalization, installation/Source-scoped Relevance execution, Source-scoped identity/idempotency, and Collection-run accounting.
 - `contracts/article-lifecycle-and-deduplication.md` — Article visibility, Source-scoped identity, duplicate roles/review/groups, Primary selection, and current outward/public eligibility semantics.
-- `contracts/public-feed-and-admin-contract.md` — existing `GET /`, `GET /api/feed`, search/filter/theme behavior, external links, and Cloudflare-protected admin UX. Its historical one-topic wording is narrowed by Project Contract Law 11 and `decisions/single-publication-multi-vertical-editorial-property.md`; the reference frontend remains a singleton-Publication consumer and does not become a Profile/Publication selector automatically.
+- `contracts/public-feed-and-admin-contract.md` — existing `GET /`, `GET /api/feed`, search/filter/theme behavior, external links, and Cloudflare-protected admin UX, including the Phase 2 Source Exclude controls and version-coherent PHP package download requirement. Its historical one-topic wording is narrowed by Project Contract Law 11 and `decisions/single-publication-multi-vertical-editorial-property.md`; the reference frontend remains a singleton-Publication consumer and does not become a Profile/Publication selector automatically.
 - `design/README.md` — design-document authority/routing and the entry point for the parallel UI workstream.
 - `design/public-feed-presentation.md` — durable presentation guidance for the bundled/reference public frontend. It does not define the presentation of consuming client websites.
 - `design/ui-workflow.md` — permanent `ui-polish` branch/worktree rules, presentation task boundaries, conditional `/ui-review` → `/ui-apply` design-guidance workflow, and targeted `/ui-plan` → `/ui-write` prompt workflow.
-- `operations/security-reliability-and-operations.md` — managed admin perimeter, machine credential separation, distribution LKG/telemetry security, fetch safety, Phase 1 Gemini secret/content/digest-lifecycle failure isolation, observability, recovery, and deployment security without treating active roadmap requirements as already-observed runtime behavior.
-- `operations/source-onboarding.md` — operator-facing Source/endpoint onboarding procedure, field-by-field purpose, approved-domain configuration, RSS/Atom admission-phrase semantics, state model, HTML listing profile guidance, approval/enablement sequence, and Check-now/run interpretation.
+- `operations/security-reliability-and-operations.md` — managed admin perimeter, machine credential separation, distribution LKG/telemetry security, fetch safety, Gemini secret/content/digest-lifecycle failure isolation, observability, recovery, and deployment security without treating active roadmap requirements as already-observed runtime behavior.
+- `operations/source-onboarding.md` — operator-facing Source/endpoint onboarding procedure, field-by-field purpose, approved-domain configuration, RSS/Atom Include/Exclude admission semantics, state model, HTML listing profile guidance, approval/enablement sequence, and Check-now/run interpretation.
 - `operations/database-backup-and-restore.md` — governed PostgreSQL backup, restore verification, managed-backup retention, recovery validation, and launch reconfirmation procedure.
 - `operations/deployment-and-incident-runbook.md` — ordered deployment/schema-upgrade/rollback procedure, reference-deployment validation, incident response, and deployed-surface checks. Self-host packaging remains outside current scope unless promoted.
 - `roadmap/mvp-roadmap.md` — historical completed Phase 0–21 MVP sequence and production-baseline handoff.
 - `roadmap/2.0-planning-questions.md` — completed non-normative planning record; later owner decisions and governing contracts/roadmaps control current scope.
 - `roadmap/post-1.0-roadmap.md` — **completed historical 2.0 roadmap authority**: seven 1.x development phases and the owner-accepted terminal `2.0.0` release transition.
-- `roadmap/3.0-roadmap.md` — **current owner-approved active roadmap authority**; Phase 1 is current at `2.1.0`, Phase 2 is the required PHP integration release-hardening/customer-package gate, and the terminal `3.0.0` gate remains owner-controlled/TBD.
-- `roadmap/phase-1-gemini-summary-worksheet.md` — **completed owner-approved Phase 1 planning record** whose decisions were promoted into the current AI/distribution contracts and roadmap before prompt planning. Later roadmap resequencing assigns the production package refresh/deployment to Phase 2 without changing the worksheet's target package semantics.
+- `roadmap/3.0-roadmap.md` — **current owner-approved active roadmap authority**; Phase 1 is complete, Phase 2 is current at `2.2.0`, `c1-digest-style` is the immediate unchanged-version correction before normal `p2-2` work begins at `2.2.1`, and the terminal `3.0.0` gate remains owner-controlled/TBD.
+- `roadmap/phase-1-gemini-summary-worksheet.md` — **completed owner-approved Phase 1 planning record** whose decisions were promoted into the current AI/distribution contracts and roadmap before implementation; later amendments remain in current contracts/roadmap rather than rewriting the historical worksheet.
 - `roadmap/3.0-changelog.md` — **brief non-authoritative accepted-history companion** for material 3.0 roadmap work, decisions, transitions, and closeouts; it summarizes accepted changes but never substitutes for contracts, roadmap authority, or validation evidence.
 - `decisions/single-publication-multi-vertical-editorial-property.md` — **Accepted current Publication interpretation**: one customer/editorial property may contain multiple subject verticals/feeds through Profiles without tenancy.
 - `decisions/headless-distribution-product-boundary.md` — **Accepted ADR** for the headless product boundary and its historical 2026-08-19 decision context.
@@ -139,7 +139,7 @@ Use root `BOOT.md` as the session router; it points to the narrowest authoritati
 - Source approval/trust and consumer-specific distribution selection remain separate concerns.
 - Do not introduce Publication tenant IDs/slugs/FKs/scopes solely as speculative future compatibility or merely to distinguish Profile feeds.
 - After Phase 20 production-baseline acceptance, customer production state must be preserved under `decisions/production-data-and-schema-compatibility.md`.
-- The 2.0 roadmap is complete. Follow `roadmap/3.0-roadmap.md` for the active post-2.0 direction; Phase 1 is current at `2.1.0` and Phase 2 is mandatory before chatbot/multi-feed expansion.
+- The 2.0 roadmap is complete. Follow `roadmap/3.0-roadmap.md` for the active post-2.0 direction; Phase 1 is complete and Phase 2 is current at `2.2.0` before chatbot/multi-feed expansion.
 - Do not promote self-host packaging, WordPress, RSS/Atom, native self-host auth, analytics, browser widgets, advanced SEO, or other deferred product families into 3.0 without a new owner-approved contract/roadmap decision.
 - AI must remain downstream of canonical Profile output and optional for ordinary operation; it cannot become an editorial/eligibility authority or a secret-bearing browser feature.
 - Foundational architecture changes require an Accepted/superseding/amending ADR where appropriate.
@@ -151,20 +151,21 @@ The MVP roadmap is complete through Phase 21. Former post-1.0 Phase 0 P1 shipped
 
 The seven-phase 2.0 roadmap is COMPLETE at release baseline `2.0.0`.
 
-**Current roadmap state:** OWNER-APPROVED / ACTIVE — PHASE 1.  
-**Current package baseline:** `2.1.0`.  
-**Immediate next implementation:** Phase 1 Gemini Profile digest foundation.  
-**Current task folder:** `p2-1`.  
-**First prompt version:** `2.1.1`.  
-**Mandatory next phase:** Phase 2 / `2.2.x` PHP integration release hardening and customer package refresh/deployment.  
+**Current roadmap state:** OWNER-APPROVED / ACTIVE — PHASE 2.  
+**Current package baseline:** `2.2.0`.  
+**Completed Phase 1:** Gemini Profile digest foundation — GREEN / OWNER-ACCEPTED.  
+**Immediate implementation stack:** `c1-digest-style` at unchanged `2.2.0`.  
+**Current roadmap task folder after correction:** `p2-2`.  
+**First Phase 2 prompt version:** `2.2.1`.  
+**Phase 2 gate:** PHP integration release hardening and customer package refresh/deployment with final integrated PHP/VPS/reference-customer qualification.  
 **Planned terminal release:** `3.0.0`, with terminal exit gate intentionally owner-controlled/TBD.
 
 The active task family is `p2-<phase>` / `2.<phase>.<prompt>`. The runner compatibility correction is GREEN/owner-accepted and preserves historical major-0, major-1, and correction behavior.
 
-The accepted `c1-n6wd` correction already owns the normalized/persisted 4,000-code-point Article-summary invariant and additive production migration. Phase 1 planning must consume that producer boundary rather than duplicate it.
+The accepted `c1-n6wd` correction already owns the normalized/persisted 4,000-code-point Article-summary invariant and additive production migration. Later AI work consumes that producer boundary rather than duplicating it.
 
-The completed Phase 1 worksheet has already been promoted into the governing AI/distribution contracts and roadmap; prompt planning must not invent alternate cadence, input/output, lifecycle, snapshot, PHP, admin, freshness, support-reference, or package-handoff semantics.
+The completed Phase 1 worksheet has already been promoted into the governing AI/distribution contracts and roadmap. Current work uses those promoted semantics plus later accepted amendments; the historical worksheet is not reopened to make later decisions appear original.
 
-Normal implementation planning proceeds with `/prompt-ass Phase 1` → `/prompt-plan` → `/prompt-write p2-1`.
+After `c1-digest-style` closes, normal Phase 2 implementation planning proceeds with `/prompt-ass` → `/prompt-plan` → `/prompt-write p2-2`.
 
 Historical validation artifacts describe only the source tree, environment, and observations they record. They do not redefine current contracts. In particular, the Phase 7 artifact truthfully records the owner's explicit release-evidence exception rather than proving the unexecuted formal Phase 7 prompt sequence.

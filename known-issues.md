@@ -67,9 +67,9 @@ This file is the running issue log for problems reported in this chat.
 
 - **Status:** Open
 - **Target:** 3.0 Phase 2 / `2.2.x`
-- The current Source-level RSS/Atom item admission filter is include-only: configured phrases use deterministic case-insensitive `ANY` matching, and the governing collection contract explicitly provides no exclude-phrase list.
+- The currently implemented Source-level RSS/Atom item admission filter is include-only: configured phrases use deterministic case-insensitive `ANY` matching. The owner-approved Phase 2 contract now requires the bounded Exclude extension, but implementation has not shipped it yet.
 - This makes broad approved feeds harder to tune when a Source contains a recurring class of unwanted items that cannot be cleanly removed with positive include phrases alone.
-- Phase 2 should add a bounded Source-level exclude phrase list at the existing pre-normalization RSS/Atom admission boundary. An item matching an exclude phrase must be rejected even if it also matches an existing include phrase; an empty exclude list preserves current behavior.
+- Phase 2 must add a bounded Source-level exclude phrase list at the existing pre-normalization RSS/Atom admission boundary. An item matching an exclude phrase must be rejected even if it also matches an existing include phrase; an empty exclude list preserves current behavior.
 - Existing Source include configuration and collect-all behavior must remain backward compatible. The change must stay topic independent, RSS/Atom-only, prospective for future collection attempts, and must not become a second Relevance engine or retroactively hide/delete already-persisted Articles.
 - The protected admin Source workflow should expose the exclude list alongside the existing admission phrases so operators can manage it without editing storage directly.
 - This promotes only the Source-level exclude capability from proposed feature idea `+R8VN` into the `2.2.x` correction scope. The broader proposed configurable `ANY`/`ALL` operator expansion remains unpromoted unless separately owner-approved.
@@ -90,13 +90,23 @@ This file is the running issue log for problems reported in this chat.
 
 - **Status:** Open
 - **Target:** 3.0 Phase 2 / `2.2.x`
-- The generated PHP integration package includes `bin/sync.php` plus `config/sync.env.example`, but `bin/sync.php` reads configuration from the process environment and does not load the supplied `sync.env` file itself.
-- On shared hosting such as HostGator, this forces the customer to hand-create a private wrapper such as `run-sync.php` merely to load the private sync configuration before invoking the packaged synchronization entrypoint.
+- The generated PHP integration package includes `bin/sync.php` plus `config/sync.env.example`, but `bin/sync.php` reads configuration from the process environment and does not load the supplied private configuration files itself.
+- On shared hosting such as HostGator, this forces the customer to hand-create a private wrapper such as `run-sync.php` merely to load private configuration before invoking the packaged synchronization entrypoint.
 - The current production customer already uses such a custom `run-sync.php`, and the customer's existing cron job calls that launcher. A future whole-folder replacement of `ns-integration` would therefore break scheduled synchronization if the replacement package omitted the launcher or moved its path.
-- The next Gemini-capable PHP package refresh must include a version-matched packaged `run-sync.php` at the stable `ns-integration/run-sync.php` path used by the supported customer layout. It must safely load the sibling private `ns-private/sync.env` configuration and delegate to the packaged `bin/sync.php` behavior while preserving supported CLI arguments such as `--force`.
+- The next Gemini-capable PHP package refresh must include a version-matched packaged `run-sync.php` at the stable `ns-integration/run-sync.php` path used by the supported customer layout. It must load authoritative shared non-secret settings from sibling `ns-private/local-read.env` plus synchronization-only upstream/credential/transport settings from sibling `ns-private/sync.env`, then delegate to the packaged `bin/sync.php` behavior while preserving supported CLI arguments such as `--force`.
+- Legacy duplicated shared keys in `sync.env`, if temporarily tolerated for upgrade compatibility, are validation aliases only: they must exactly match `local-read.env` or fail clearly and must not become a second configuration authority.
 - Replacing `ns-integration` must leave the customer's existing cron target valid; the upgrade must not require editing or recreating the cron job merely because the launcher moved from customer-created glue into the supported package.
 - The launcher must keep the bearer token out of `public_html`, public PHP/HTML, and the Cron Jobs command line; preserve the existing sync entrypoint semantics; and remain generic to the supported package/private-directory model rather than embedding customer-specific credentials or presentation behavior.
 - Documentation, Decision 12 of the Phase 1 Gemini worksheet, and the customer integration worksheet should use the packaged launcher once implemented rather than instructing customers to create their own wrapper.
+
+### G7PK — 2026-08-29 — PostgreSQL client emits concurrent-query deprecation warning during digest reads
+
+- **Status:** Open
+- **Target:** Later compatibility/maintenance; not a Phase 2 blocker unless investigation shows correctness or concurrency risk
+- Phase 1 VPS qualification repeatedly observed the PostgreSQL client warning that `client.query()` was called while another query was already executing during canonical digest-input inspection, integrated lifecycle generation, and fresh-process readback.
+- The observed commands completed successfully and the qualification showed correct persisted/read-back state; the warning is therefore a compatibility/implementation concern, not evidence of data corruption or a failed Phase 1 contract.
+- Investigate connection/query ownership and serialization for current/future `pg` compatibility, remove the deprecated usage without weakening transaction/read consistency, and add focused regression coverage if a reproducible code path is identified.
+- If investigation shows an actual concurrent-use correctness, transaction, or data-integrity defect, reclassify and schedule it according to that observed risk rather than silently treating it as non-blocking maintenance.
 
 ## Resolved Issues
 

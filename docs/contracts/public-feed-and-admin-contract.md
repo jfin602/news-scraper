@@ -339,6 +339,8 @@ Distribution Profiles are a governed control-plane resource defined by `distribu
 
 Distribution Credentials are an adjacent governed control-plane resource. Inside the existing Cloudflare Access-protected admin perimeter, with the same request-integrity and bounded command/resource validation, authorized administrators can create, list, rotate, and revoke credentials. List and revoke responses expose safe metadata only, never plaintext, verifier, or digest material. Successful create/rotate commands may return a newly issued plaintext token once; no reveal or recovery endpoint exists for an old plaintext token. Browser handling is transient: a newly issued token is not persisted in the URL, browser storage, cookies, or reloadable state and is cleared, replaced, or dismissed by the one-time-secret workflow. Rotation does not silently revoke the predecessor. Machine bearer authentication does not satisfy administrator access or mutation-integrity requirements.
 
+The protected PHP integration package download is also an administrator-only distribution control. Phase 2 requires the download action to visibly identify the exact offered package version directly in or immediately adjacent to the action. That displayed value MUST derive from the same authoritative package metadata used for the ZIP filename, packaged `VERSION`, `integration-package.json`, and installed diagnostic/preflight result; the admin UI MUST NOT maintain a separately typed version label that can drift.
+
 When interactive AI ships, its billable/abuse-sensitive machine authorization must be added as a separately governed control-plane concern; existing `distribution:read` credentials do not silently inherit that capability.
 
 ## Source management UI
@@ -346,7 +348,7 @@ When interactive AI ships, its billable/abuse-sensitive machine authorization mu
 Authorized operators MUST be able to view/change:
 
 - Source name/site URL/approved domains/Source priority/default Category;
-- optional Source-level RSS/Atom item admission phrases;
+- optional Source-level RSS/Atom item admission Include phrases and Exclude phrases;
 - Source approval state and operational state;
 - endpoint URL/type/parser configuration/poll interval;
 - endpoint approval state and operational state;
@@ -357,11 +359,11 @@ Authorized operators MUST be able to view/change:
 - manual check-now;
 - approve/unapprove, enable, pause, disable, and archive/state-management actions as permitted.
 
-The Source editor/API presents the admission filter as an include-only Source setting: no configured phrases means collect/process all otherwise-valid RSS/Atom items, while one or more bounded non-empty phrases admit an item when any phrase matches. It MUST NOT expose an exclude-phrase list or an independent enabled toggle, and MUST NOT store the configuration on individual endpoints. This is collection admission before normalization, not outward-feed filtering or Relevance management.
+The Source editor/API presents the RSS/Atom admission filter as two bounded Source-owned literal phrase lists. Include and Exclude both use fixed `ANY`/OR matching; the admin surface does not expose configurable `ANY`/`ALL` operators. The effective rule is `(Include empty OR any Include match) AND NOT(any Exclude match)`: both lists empty preserve collect-all behavior, an empty Exclude list preserves existing Include-only behavior, and any Exclude match wins even when an Include phrase also matches. There is no independent enabled toggle, and the configuration is not stored on individual endpoints. This is collection admission before normalization, not outward-feed filtering or Relevance management.
 
 The Source/endpoint administration surface supports `html_listing` endpoint configuration, bounded endpoint-owned HTML listing profiles, deterministic profile-validation errors, and safe sample preview. Endpoint detail exposes the parser/adapter version, persisted profile revision, and bounded latest parser-failure diagnostics. Existing approval, lifecycle, operational, approved-domain, polling, default-Category, health, recent-run, and manual check-now controls remain governing.
 
-The UI/API makes clear that Source RSS/Atom admission phrases apply to RSS/Atom endpoints and are not an HTML-listing admission mechanism. It exposes no Publication selector, browser collector control, arbitrary scraping script, or generic expression editor.
+The UI/API makes clear that Source RSS/Atom admission Include/Exclude phrases apply to RSS/Atom endpoints and are not an HTML-listing admission mechanism. It exposes no Publication selector, browser collector control, arbitrary scraping script, configurable admission Boolean-operator editor, or generic expression editor.
 
 ### Phase 18 safe selector preview
 
