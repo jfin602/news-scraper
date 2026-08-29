@@ -19,12 +19,13 @@ MODEL / REASONING / USAGE
 - Model-family basis: repository policy deliberately uses Sol Light for independent correction closeout so final review is distinct from the Luna implementation tier.
 - Reasoning basis: Light is adequate because target behavior is explicit and bounded; the required three-pass review must stop/escalate if source inspection reveals provider/lifecycle architecture ambiguity.
 - Complexity / quality floor: `Critical`.
-- Estimated usage: `Moderate`, plus one potentially multi-minute real provider call.
+- Estimated usage: `Very High`.
+- Usage basis: independent three-pass review across the provider/lifecycle boundary, deterministic final-tree validation, one potentially multi-minute real external Gemini qualification call, durable evidence writing, and enough completion headroom for one bounded repair plus complete revalidation if the review finds an in-scope defect.
 - Lower-cost alternative considered: none under the current correction-closeout policy; Sol Light is the intentional independent-review baseline.
 - Escalation trigger: hidden provider retries remain possible, a legitimate request can still be recovered stale before its deadline, abort/failure completion can race into later activation, five-minute execution requires lease/heartbeat redesign, or source review discovers a meaningful behavior-preserving structural refactor.
 - Escalation target: `Terra High` for the mandatory behavior-preserving refactor handoff; use deeper reasoning only if the observed issue genuinely requires transaction/provider architecture reconciliation.
 - Estimate confidence: `High`.
-- Efficiency rationale: review the tiny correction diff and its important provider/lifecycle consumers, run the smallest deterministic regression set, then perform exactly one real live Gemini proof on the exact final candidate.
+- Efficiency rationale: keep Sol Light as the independent-review floor, run the smallest deterministic matrix plus exactly one necessary live provider proof, and allocate Very High execution headroom because external qualification and a complete three-pass closeout are expensive to restart after late tool/execution exhaustion.
 
 VERSIONING
 - Required unchanged project version: `2.1.7`.
