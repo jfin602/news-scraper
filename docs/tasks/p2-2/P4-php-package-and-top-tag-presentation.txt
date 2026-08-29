@@ -26,10 +26,14 @@ Resolve `Q7HF` and establish the second-generation customer-facing package/prese
 ```text
 normalized LocalReadResult
 -> customer-editable root top-tag.php
+   -> optional self-contained AI Digest presentation block
+   -> independent Article Feed presentation block
 -> direct server-rendered HTML
 ```
 
 The package must no longer present `LocalProfileRenderer` / `FallbackHtmlRenderer` as a supported authoritative presentation API.
+
+`top-tag.php` is also the single packaged template/reference file for digest presentation. Do **not** create a separate `digest.php`, `digest-template.php`, renderer partial, required include, or other second customer-facing digest template/runtime file unless current implementation evidence proves that keeping the digest block in `top-tag.php` is technically unsafe. If such evidence appears, stop and report the conflict rather than silently adding another presentation surface.
 
 ## Prerequisite/version
 
@@ -73,7 +77,7 @@ news-scraper-php-integration-<version>.zip
 
 `UPGRADE.md` and final preflight artifacts are owned by P5, but P4 must leave a manifest that P5 can extend without restructuring it again.
 
-Do not package `ns-private`, credentials, runtime state, logs, tests, `.env`, repository metadata, or unrelated files.
+Do not package `ns-private`, credentials, runtime state, logs, tests, `.env`, repository metadata, unrelated files, or a second digest presentation/template file.
 
 ## `top-tag.php`
 
@@ -82,6 +86,7 @@ Add root-level customer-editable `top-tag.php` as the first-party fallback/refer
 Requirements:
 
 - consume only the P3 stable customer local-read entrypoint;
+- load/read normalized local state once, then let both presentation blocks consume that same normalized result;
 - never require `src/bootstrap.php`, cache/manifests, `sync.env`, upstream URL, bearer token, or internal state-store classes;
 - render useful server-side output when local state is usable/stale-usable;
 - preserve canonical Article order exactly;
@@ -89,7 +94,6 @@ Requirements:
 - escape all untrusted Publication/Profile/Article/Source/Category/digest generated text for HTML context;
 - treat digest generated text as untrusted plain text, not trusted HTML/Markdown;
 - handle empty Articles and unavailable/never-synced/disabled/stale-cutoff states safely and simply;
-- when digest exists, render a small useful digest section with truthful generation/freshness information and application-resolved support links; when digest is null, Article rendering remains normal;
 - do not filter, rerank, deduplicate, regroup, recategorize, reinterpret Source trust, or change destinations;
 - no JavaScript required for the core content;
 - no News Scraper/Gemini request on visitor render.
@@ -98,6 +102,53 @@ Keep the source intentionally editable: PHP and actual HTML elements should be l
 
 The file is instructional/customer-owned markup. Avoid framework-specific classes or customer-specific wording that makes it look authoritative.
 
+## Locked presentation-block structure
+
+`top-tag.php` must contain two clearly delimited customer-editable presentation blocks after the one normalized local-read setup:
+
+```text
+normalized local-read setup
+
+OPTIONAL AI DIGEST SECTION
+
+ARTICLE FEED SECTION
+```
+
+Use conspicuous source comments/headings around the two blocks so a customer editing PHP can immediately see where the optional digest markup starts/ends and where ordinary Article rendering starts. The exact comment decoration is implementation-owned; do not make runtime behavior depend on the comments.
+
+The **AI Digest section must be self-contained as presentation markup** so a customer can copy, move, restyle, or remove that whole block without changing synchronization, LKG, local-read configuration, or Article rendering. It may read the already-created normalized local-read result; it must not initialize its own reader, reload configuration, open another state path, or define a second data authority.
+
+The **Article Feed section is independent and unconditional with respect to digest existence**. The intended control flow is:
+
+```text
+if a normalized digest exists:
+    render the optional digest block
+
+render the Article Feed block using the normal Article path
+```
+
+Do not put ordinary Article rendering inside the digest condition, and do not create an alternate Article-rendering path for digest-null state. Removing the digest block from a customized copy of `top-tag.php` must leave ordinary Article behavior intact.
+
+### Optional AI Digest block
+
+When `LocalReadResult->digest` is non-null, render a compact semantic reference section containing:
+
+- a plain reader-facing heading such as `AI News Summary` or an equally clear topic-independent label;
+- an explicit indication that the summary is AI-generated;
+- the digest generation date/time in a truthful human-readable form;
+- a truthful freshness indication when useful, distinguishing `current` from `older` without inventing age-based staleness;
+- the Overview text;
+- each available Highlight title and explanation in canonical digest order;
+- each Highlight's application-resolved Supporting Articles as ordinary anchors using their exact stored `originalUrl` destinations.
+
+Do **not** display provider/model identity by default in the reader-facing reference markup. Those fields remain normalized data available to a customer who deliberately wants them, but the default template should not expose implementation/provider trivia such as a Gemini model name merely because it is present.
+
+When the normalized digest is `null`, emit **no digest-section markup** and proceed directly to ordinary Article rendering. Do not show an AI error, placeholder, empty card, provider failure state, or visitor-time generation control.
+
+Digest presentation must use only simple semantic markup and neutral optional classes such as `ns-digest`, `ns-digest-overview`, `ns-digest-highlight`, and similarly obvious descendants if classes are useful. Do not ship a digest visual design system, inline CSS, framework-specific classes, JavaScript behavior, or customer-specific theme assumptions. The customer owns styling.
+
+Supporting links are a presentation of application-resolved governed Article references, not model-supplied destinations. Never trust or render a provider/model-generated URL as an outward Article destination.
+
 ## Renderer cleanup
 
 If consumer tracing confirms `Renderer.php` and `example/index.php` exist only for the superseded bundled renderer path:
@@ -105,7 +156,8 @@ If consumer tracing confirms `Renderer.php` and `example/index.php` exist only f
 - remove `Renderer.php` from bootstrap/package/runtime;
 - delete obsolete renderer classes and tests rather than leaving them as a second supported presentation path;
 - either remove `example/index.php` or convert any retained example to demonstrate the stable customer entrypoint without defining another presentation authority;
-- ensure package README describes `top-tag.php` as editable example/reference, not a required visual template.
+- ensure package README describes `top-tag.php` as editable example/reference, not a required visual template;
+- do not replace the removed renderer with a digest partial/template/include abstraction.
 
 Do not create a replacement renderer abstraction.
 
@@ -125,21 +177,26 @@ Update Node package tests and PHP/browser tests as applicable to prove:
 - ZIP root is exactly `ns-integration/`;
 - required P3 launcher/stable entry files are present;
 - `top-tag.php` is present at root;
+- no separate digest template/runtime file is required or packaged;
 - obsolete renderer package entry is absent when removed;
 - no tests/private state/secrets/unrelated files enter ZIP;
 - deterministic archive/version metadata behavior remains intact;
 - top-tag consumes stable entrypoint rather than internal bootstrap/files;
-- HTML is escaped against malicious headline/source/digest text;
-- exact `originalUrl` anchors are preserved;
-- canonical order preserved;
+- top-tag performs one normalized local-read setup rather than independently loading local state for digest and Articles;
+- HTML is escaped against malicious headline/source/digest/support text;
+- exact `originalUrl` anchors are preserved for Article headlines and digest Supporting Articles;
+- canonical Article and digest Highlight/support ordering is preserved;
+- digest-null emits no digest block and ordinary Articles still render through the same path;
+- removing/copying the clearly delimited digest presentation block does not imply any dependency needed by the Article block;
+- default digest markup identifies AI-generated content but does not display provider/model identity;
 - unavailable/empty/null-digest states are safe;
 - visitor rendering makes no upstream request;
-- line-readable source requirement is protected by a focused structural test only if it can be asserted without brittle formatting trivia; prefer behavior plus a bounded check that top-tag is not one opaque renderer string;
+- line-readable/source-block requirement is protected by a focused structural test only if it can be asserted without brittle decoration/whitespace trivia; prefer behavior plus bounded proof that the file has distinct editable digest/article blocks and is not one opaque renderer string;
 - retained examples do not resurrect renderer authority.
 
 ## Implementation-truth documentation
 
-Now that package behavior actually changes, update `integrations/php/README.md` to describe the shipped P3/P4 configuration, launcher, stable local-read entrypoint, `top-tag.php`, package/private directory separation, and removal of renderer authority. Keep upgrade/preflight procedure details reserved for P5 if not yet implemented.
+Now that package behavior actually changes, update `integrations/php/README.md` to describe the shipped P3/P4 configuration, launcher, stable local-read entrypoint, `top-tag.php`, package/private directory separation, removal of renderer authority, and the fact that the optional digest presentation lives as a clearly removable/copyable block inside `top-tag.php` rather than as a required second template file. Keep upgrade/preflight procedure details reserved for P5 if not yet implemented.
 
 Do not rewrite governing contracts/roadmap in an implementation prompt.
 
@@ -169,8 +226,8 @@ npm run test:browser:php
 
 ## Non-goals
 
-Do not implement P5 version diagnostic/preflight/UPGRADE mechanics except the minimum manifest seams needed for later extension. Do not redesign customer CSS/site layout, add analytics/SEO promises, change v1/PHP normalized data, add a second sync/cache, or implement customer-specific markup.
+Do not implement P5 version diagnostic/preflight/UPGRADE mechanics except the minimum manifest seams needed for later extension. Do not redesign customer CSS/site layout, add analytics/SEO promises, change v1/PHP normalized data, add a second sync/cache, add a separate digest-template runtime surface, or implement customer-specific markup.
 
 ## Completion
 
-Report exact tree/package `2.2.4`, final ZIP shape, renderer disposition, top-tag behavior/security, README truth changes, package/portable validation, and deferred PHP/browser-PHP evidence.
+Report exact tree/package `2.2.4`, final ZIP shape, renderer disposition, locked single-file digest/article block behavior, top-tag security/editability, README truth changes, package/portable validation, and deferred PHP/browser-PHP evidence.
