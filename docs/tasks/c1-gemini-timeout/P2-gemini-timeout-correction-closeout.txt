@@ -1,0 +1,308 @@
+TASK: Correction 1 / P2 — Gemini timeout correction closeout
+
+CORRECTION CLOSEOUT SCOPE
+This is the sole final closeout prompt for correction `c1-gemini-timeout`.
+
+The motivating live evidence was a real Windows execution of `npm run test:live-gemini` on the Phase 1 package-`2.1.7` candidate that reached the Gemini provider path but returned bounded `provider_timeout` after roughly 167 seconds. Current source subsequently gained an explicit no-hidden-retry/abort-signal repair, and P1 of this correction should have expanded the application-owned Gemini digest execution ceiling from 30 seconds to exactly 5 minutes while preserving one-request semantics and P3 stale-attempt safety.
+
+This closeout independently verifies that bounded timing correction and then executes the real live Gemini provider proof. GREEN means only that `c1-gemini-timeout` is accepted at unchanged `2.1.7`. It does not close Phase 1, does not perform the restored-VPS-database integrated Profile proof, and does not transition to `2.2.0`.
+
+MODEL / REASONING / USAGE
+- Recommended configuration: `Sol Light`.
+- Task-shape classification: `Investigative`.
+- Specification clarity: `Explicit`.
+- State coupling: `Moderate`.
+- Integrity risk: `High` because duplicate billable provider calls and stale-attempt recovery must remain impossible under the longer budget.
+- Concurrency: existing cross-process lifecycle behavior must be reviewed, but no new concurrency design is expected.
+- Security: `Sensitive` external-provider boundary.
+- Novel inference: `Low to Moderate`.
+- Model-family basis: repository policy deliberately uses Sol Light for independent correction closeout so final review is distinct from the Luna implementation tier.
+- Reasoning basis: Light is adequate because target behavior is explicit and bounded; the required three-pass review must stop/escalate if source inspection reveals provider/lifecycle architecture ambiguity.
+- Complexity / quality floor: `Critical`.
+- Estimated usage: `Moderate`, plus one potentially multi-minute real provider call.
+- Lower-cost alternative considered: none under the current correction-closeout policy; Sol Light is the intentional independent-review baseline.
+- Escalation trigger: hidden provider retries remain possible, a legitimate request can still be recovered stale before its deadline, abort/failure completion can race into later activation, five-minute execution requires lease/heartbeat redesign, or source review discovers a meaningful behavior-preserving structural refactor.
+- Escalation target: `Terra High` for the mandatory behavior-preserving refactor handoff; use deeper reasoning only if the observed issue genuinely requires transaction/provider architecture reconciliation.
+- Estimate confidence: `High`.
+- Efficiency rationale: review the tiny correction diff and its important provider/lifecycle consumers, run the smallest deterministic regression set, then perform exactly one real live Gemini proof on the exact final candidate.
+
+VERSIONING
+- Required unchanged project version: `2.1.7`.
+- This closeout MUST NOT change top-level `package.json` version.
+- It consumes no roadmap version and MUST NOT transition to `2.2.0`.
+- Do not create lockfiles or unrelated generated state.
+- The correction remains **HUMAN REVIEW REQUIRED** even if invoked through a combined runner closeout path.
+
+MANUAL / HUMAN REVIEW BOUNDARY
+A GREEN response is advisory until the repository owner reviews and accepts the candidate and evidence.
+
+This closeout may write only:
+- a genuinely tiny, unambiguous defect/test repair already inside this correction's provider-time-budget scope, followed by rerunning every invalidated RUN/live item; and
+- the durable correction validation artifact `docs/validation/c1-gemini-timeout.md` when the exact final tree is genuinely GREEN.
+
+Do not redesign the provider/lifecycle, change package version, edit governing contracts/roadmap/worksheet, modify earlier Phase 1 prompts, implement the cloned-VPS-database integrated proof, or perform Phase 2 work.
+
+MANDATORY HANDOFF / IDENTITY
+Before reviewing behavior:
+1. read current `BOOT.md`, `AGENTS.md`, `README.md`, `docs/README.md`, and `docs/codex-model-selection.md`;
+2. read `docs/contracts/project-contract.md`, `docs/contracts/ai-assistance-contract.md`, and `docs/contracts/testing-and-validation-contract.md`;
+3. read current Phase 1 P2 provider prompt, P3 lifecycle/scheduling prompt, and P7 Phase 1 closeout prompt;
+4. read this correction's P1 prompt;
+5. establish actual current Git identity and runner history. Require package exactly `2.1.7` and identify the P1 implementation commit/diff produced by this correction;
+6. inspect the pre-correction provider repair that forwards caller abort, sets `maxRetries: 0`, and supplies SDK request timeout; do not assume it exists merely because the P1 prompt says so;
+7. inspect the complete P1 correction diff rather than trusting its implementation report;
+8. inspect current `src/distribution/digests/provider.ts`, `src/distribution/digests/lifecycle.ts`, `src/distribution/digests/production.ts`, and important Worker/admin consumers that invoke the lifecycle;
+9. inspect `test/unit/digest-provider.test.ts`, any focused lifecycle/stale-recovery test changed/added by P1, `test/live-gemini/digest-provider-live.test.ts`, and the current package scripts;
+10. inspect current `.env` prerequisites only as presence/non-presence facts; never print secret values;
+11. stop if package version moved, five-minute behavior is already superseded by another accepted policy, unrelated executable changes make the correction impossible to isolate honestly, or the live test environment cannot access the public Gemini API.
+
+Do not treat source inspection as live-provider proof.
+
+GREEN CORRECTION GOAL
+The exact final candidate must satisfy:
+
+```text
+DigestProvider.generate()
+  -> exactly one Gemini Interactions request
+     -> maxRetries = 0
+     -> application AbortSignal forwarded
+     -> finite 300,000 ms ceiling
+  -> validated candidate OR one bounded failure
+
+Digest lifecycle competing claim
+  -> running attempt remains owned throughout provider ceiling
+  -> stale recovery only after provider ceiling + existing margin
+```
+
+The real live proof must then show that the provider can actually return a production-validated bounded candidate under that corrected budget.
+
+# PASS 1 — CONTRACT / EVIDENCE REVIEW
+
+## A. Scope/version
+Verify:
+- top-level package is exactly `2.1.7`;
+- correction source changes remain narrowly attributable to provider timing and focused regression proof;
+- no migrations/schema/config/admin/v1/PHP/Article/Profile/Source behavior changed;
+- no new environment timeout knob, Profile setting, database field, dependency, retry framework, or job abstraction was introduced;
+- Phase 2 behavior was not pulled forward.
+
+## B. Five-minute provider ceiling
+Trace the actual default from provider construction to SDK request options.
+
+Require:
+- `GEMINI_DIGEST_TIMEOUT_MILLISECONDS` or its current equivalent is exactly 300,000 ms;
+- the default provider-created AbortSignal uses the same bounded value;
+- the production SDK request receives the same timeout value;
+- explicit timeout validation/test injection accepts the production ceiling and remains bounded;
+- timeout classification still becomes only secret-safe `provider_timeout`;
+- timeout behavior is finite, not an infinite wait.
+
+## C. One-request/no-hidden-retry semantics
+Trace the real production adapter, not only fakes.
+
+Require:
+- `maxRetries: 0` remains explicit on the current Interactions request options;
+- the caller AbortSignal reaches the SDK/fetch boundary;
+- `createGeminiDigestProvider().generate()` contains no retry loop;
+- P3 contains no provider retry loop that would turn one claimed attempt into multiple Gemini calls;
+- an SDK/provider failure returns one bounded result;
+- no fallback model/API/Search request occurs after failure;
+- the longer timeout does not cause a second client/request path to exist.
+
+The earlier ~167-second failure is not itself proof of retries on the corrected tree. Record only what the final source and live execution actually demonstrate.
+
+## D. P3 stale-running safety
+Trace `createDigestLifecycleService()` and `claimWithRecovery`.
+
+Require:
+- the normal lifecycle provider-attempt timeout defaults from the same provider budget rather than an independent old 30-second constant;
+- the existing stale-recovery margin remains additive;
+- with a 300,000 ms provider ceiling and current 5,000 ms margin, a legitimate running attempt remains protected until approximately 305,000 ms from start;
+- a competing scheduled/manual evaluator does not recover an attempt merely because it is older than 30 seconds;
+- recovery after the combined bound still uses the existing DB-enforced claim/recovery path;
+- no DB transaction/lock is held throughout the external Gemini request;
+- no heartbeat/lease subsystem was introduced unnecessarily.
+
+## E. Failure and lifecycle isolation
+Verify the longer provider wait does not alter:
+- immutable successful digest persistence;
+- atomic activation;
+- failed replacement retention/suppression rules;
+- one-running-attempt-per-Profile ownership;
+- unrelated Profile independence;
+- ordinary collection/Article distribution/non-AI behavior;
+- secret-safe attempt diagnostics.
+
+A provider timeout must complete/fail through the same existing bounded attempt path. A late/aborted provider operation must not later activate a digest after News Scraper has classified that attempt failed.
+
+# PASS 2 — ADVERSARIAL ERROR / EDGE-CASE REVIEW
+
+Independently challenge at least these failure hypotheses:
+
+1. **59-second/2-minute legitimate call** — would any old 30-second timer outside `provider.ts` still abort or recover it?
+2. **299-second in-flight call** — can another Worker/manual click recover or claim the Profile before provider completion?
+3. **>305-second hung call** — does the existing stale-recovery path eventually regain ownership without a permanent running lock?
+4. **SDK transport failure before five minutes** — is it returned once without automatic retry?
+5. **API 429/504/408** — do bounded classifications remain correct without application retry?
+6. **abort race** — if timeout fires while SDK completion is racing, can one attempt produce two terminal outcomes or activate after failure?
+7. **manual + scheduled contention during long call** — does exactly one remain provider owner?
+8. **Profile/config/canonical input changes during a long call** — does existing P3 post-provider revalidation still prevent activation of invalid state?
+9. **missing key** — does ordinary Web/Worker startup remain unaffected and generation fail boundedly without waiting five minutes?
+10. **secret leakage** — does a multi-minute failure surface raw key/prompt/provider/page-body data anywhere?
+11. **test pathology** — did P1 add a deterministic test that literally waits five minutes or create flaky wall-clock dependence?
+12. **timeout drift** — can provider default, SDK request timeout, validation max, and lifecycle stale cutoff silently diverge again?
+
+Classify each as protected, requiring a tiny bounded repair/test, requiring Terra High refactor handoff, or requiring normal replanning. Do not silently ignore a plausible duplicate-spend or stale-recovery defect.
+
+# PASS 3 — STRUCTURAL / CODE-QUALITY REVIEW
+
+Inspect the final correction diff plus provider/lifecycle consumers for:
+- duplicated timeout constants in provider/lifecycle/Worker/admin code;
+- a new public/environment configuration knob with no product need;
+- retry logic duplicated around the SDK;
+- application timing knowledge leaking into v1/PHP/frontend code;
+- a production helper/export added solely for testing when an existing seam sufficed;
+- brittle tests that assert source strings rather than behavior where a cheap behavior test exists;
+- a five-minute real sleep in deterministic suites;
+- provider-specific logic leaking into P3 beyond the existing provider-neutral interface;
+- unnecessary abstraction or compatibility bridge;
+- docs/task/version drift.
+
+Small local cleanup may be made only when clearly inside this correction. Meaningful behavior-preserving structural change triggers the mandatory refactor handoff below.
+
+## TERRA HIGH REFACTOR HANDOFF
+If any pass discovers a meaningful behavior-preserving refactor — for example moving timeout/retry responsibility across provider/lifecycle modules, replacing duplicated request-control logic, changing lifecycle ownership/lease behavior, or reorganizing provider state flow across important consumers — STOP before implementing it and output exactly one self-contained **Terra High refactor remediation prompt**.
+
+That prompt must:
+- recommend exactly `Terra High`;
+- describe the concrete observed problem/evidence;
+- define the smallest behavior-preserving refactor boundary and important producer/consumer traces;
+- preserve one Gemini request, no hidden retries, finite five-minute owner-approved ceiling unless the owner changes it, stale-running safety, provider failure isolation, digest lifecycle semantics, secrets, topic independence, and all non-AI behavior;
+- forbid contract/ADR/roadmap/Phase 2 changes and speculative abstractions;
+- preserve package `2.1.7` and consume no prompt/version number;
+- require focused and invalidated regression evidence;
+- require an implementation report but MUST NOT declare this correction or Phase 1 GREEN;
+- instruct Terra High to stop/report if the issue actually requires a new product/architecture decision.
+
+After remediation is applied, rerun this closeout from the beginning.
+
+# DETERMINISTIC FINAL-TREE VALIDATION
+Resolve the Test Necessity Matrix against the actual final correction diff. Expected minimum normal-local set:
+
+```text
+npm run test:unit
+npm run check
+npm run test:security
+git diff --check
+npm run codex:phase:validate -- c1-gemini-timeout
+```
+
+If P1 added/changed a focused disposable-PostgreSQL lifecycle test to prove stale ownership, execute the narrowest applicable database command/file plus any broader DB suite genuinely invalidated by the final diff. Do not run unrelated browser/PHP/collection/live-Source suites mechanically.
+
+All deterministic evidence must be against the exact source tree that will be used for the live call.
+
+# MANDATORY LIVE GEMINI PROOF
+This correction is not GREEN from deterministic tests alone because its motivating defect occurred only against the real provider.
+
+Require in the current environment, without printing values:
+- `NEWS_SCRAPER_GEMINI_API_KEY` present and non-blank;
+- `NEWS_SCRAPER_GEMINI_TEST_URL` present, non-blank, and valid absolute HTTPS.
+
+Then execute exactly the existing opt-in live proof:
+
+```text
+npm run test:live-gemini
+```
+
+Do not substitute a fake client, direct curl to another Gemini endpoint, different model, different test script, Search grounding, or a hand-built request.
+
+The command must exercise the existing production provider path and production validator with:
+- `gemini-3.7-flash`;
+- Interactions API;
+- `store=false`;
+- low thinking;
+- URL Context;
+- structured JSON response;
+- exact supplied safe public URL;
+- `maxRetries: 0` production request path;
+- five-minute application ceiling.
+
+Record:
+- exact source identity/package;
+- command;
+- total observed test duration from the runner/output;
+- PASS/failure category;
+- provider/model;
+- bounded URL Context retrieval facts printed by the existing test;
+- explicit note that no API key, complete prompt, raw provider response, or retrieved page body was printed.
+
+A successful request that takes more than 30 seconds is valuable direct evidence that the old timeout was too short, but success does not require exceeding 30 seconds.
+
+If the live call still returns `provider_timeout` after the corrected approximately five-minute ceiling:
+- do not automatically increase the timeout again;
+- do not loop/retry the live command merely to obtain a pass;
+- return `BLOCKED / LIVE GEMINI EXCEEDED FIVE-MINUTE BUDGET` with bounded evidence and escalate to owner planning.
+
+If the live call fails for a different provider category, report that exact bounded category and do not disguise it as timeout success.
+
+If required env variables are missing, return `BLOCKED / LIVE GEMINI EVIDENCE REQUIRED`; do not mark GREEN.
+
+The closeout may rerun the live command only if a concrete bounded correction made during this closeout invalidated the first attempt. Do not use repeated external calls as a flaky-test strategy.
+
+# DURABLE VALIDATION ARTIFACT
+Only after all required deterministic and live evidence is GREEN, write:
+
+`docs/validation/c1-gemini-timeout.md`
+
+Record at minimum:
+- correction purpose and owner-approved five-minute policy;
+- exact final Git/source identity and package `2.1.7`;
+- implementation files changed by P1/any bounded closeout repair;
+- provider timeout/no-retry/abort/stale-recovery invariants actually inspected;
+- deterministic commands actually run, environment, and results;
+- live `test:live-gemini` command, observed duration, provider/model/retrieval facts, and PASS;
+- explicit evidence level/limitations: real provider observed locally, not yet the restored managed-VPS database integrated Profile pipeline and not reference deployment proof;
+- Pass 1 findings;
+- Pass 2 adversarial hypotheses/dispositions;
+- Pass 3 structural findings/disposition;
+- whether any Terra High refactor handoff occurred before the final rerun;
+- confirmation no secrets/raw provider/page bodies were recorded;
+- remaining Phase 1 gate: restored managed-VPS database clone / real Profile-to-v1 digest pipeline followed by Phase 1 P7 rerun.
+
+Do not rewrite the existing Phase 1 P7 validation artifact here. P7 will be rerun later against the final accepted tree and new live evidence.
+
+FINAL ACCEPTANCE
+The correction is GREEN only when all are true:
+
+1. package remains exactly `2.1.7`;
+2. production Gemini digest ceiling is exactly 300,000 ms;
+3. SDK request path still explicitly uses `maxRetries: 0` and forwards the caller AbortSignal;
+4. provider timeout validation is coherent/bounded and deterministic tests do not wait five minutes;
+5. P3 stale-running recovery remains later than the legitimate provider ceiling by the existing margin;
+6. one claimed attempt cannot produce concurrent duplicate Gemini calls during the extended window;
+7. deterministic focused/regression evidence passes against the exact final tree;
+8. one real `npm run test:live-gemini` execution succeeds against that exact tree;
+9. no secret/raw provider/page content is exposed;
+10. durable `docs/validation/c1-gemini-timeout.md` records only actually observed evidence;
+11. no unresolved finding requires refactor/replanning.
+
+FINAL RESPONSE
+If GREEN, finish with:
+
+`GREEN — HUMAN REVIEW REQUIRED`
+
+Then concisely report:
+- exact candidate identity/package;
+- five-minute provider/stale-recovery relationship;
+- deterministic evidence;
+- live Gemini elapsed time and bounded provider/model/retrieval facts;
+- validation artifact path;
+- remaining restored-VPS-database integrated proof / Phase 1 P7 rerun;
+- confirmation no transition to `2.2.0` occurred.
+
+If blocked, finish with a clear bounded blocker such as:
+- `BLOCKED / LIVE GEMINI EVIDENCE REQUIRED`
+- `BLOCKED / LIVE GEMINI EXCEEDED FIVE-MINUTE BUDGET`
+- `PLANNING NEEDED — <reason>`
+
+Do not declare Phase 1 closed and do not advance to `2.2.0`.
