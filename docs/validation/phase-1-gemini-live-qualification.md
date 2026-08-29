@@ -1,6 +1,6 @@
 # Phase 1 Gemini Live Qualification
 
-**Status:** IN PROGRESS - LIVE PROVIDER PROOF GREEN / INTEGRATED DB PROOF PENDING  
+**Status:** IN PROGRESS - LIVE PROVIDER AND INTEGRATED DB GENERATION GREEN / FRESH-PROCESS V1 READBACK PENDING  
 **Qualification date:** 2026-08-29  
 **Package candidate:** `2.1.7`  
 **Exact VPS qualification candidate:** `05f091980bf8bb0ec70749e94b9fe5b3c53f0edd`  
@@ -11,7 +11,7 @@
 
 This artifact continues the blocked Phase 1 closeout recorded in `docs/validation/phase-1-gemini-profile-digest-foundation.md`.
 
-The prior closeout completed the deterministic Phase 1 review but could not close because live Gemini/provider and integrated application evidence were missing. This qualification records the owner-run VPS evidence used to clear that remaining gate. It does not rewrite the earlier blocked artifact or claim Phase 1 GREEN before the real database-backed lifecycle proof is complete.
+The prior closeout completed the deterministic Phase 1 review but could not close because live Gemini/provider and integrated application evidence were missing. This qualification records the owner-run VPS evidence used to clear that remaining gate. It does not rewrite the earlier blocked artifact or claim Phase 1 GREEN before the final fresh-process persistence/v1 readback is complete.
 
 ## Exact candidate and model correction
 
@@ -115,19 +115,70 @@ The 10 observed headlines, in canonical order, were:
 9. `When and How to Nudge Agents`;
 10. `Writing, Publishing & Authorship : 8-11-26`.
 
-The read emitted a `pg` deprecation warning about calling `client.query()` while a query was already executing. The command still returned the complete canonical result and no database or application error. This warning is recorded as incidental qualification evidence and does not by itself invalidate the canonical-input proof; if it recurs in the mutation/lifecycle proof or indicates an actual concurrency defect, it must be handled separately rather than ignored.
+The read emitted a `pg` deprecation warning about calling `client.query()` while a query was already executing. The command still returned the complete canonical result and no database or application error. The same warning later recurred during integrated lifecycle generation, again without command or persistence failure. It is retained as a separate compatibility/implementation observation rather than treated as proof failure.
 
-This proves the integrated generation will start from the existing canonical Profile snapshot producer and its bounded 7-day/max-20 projection rather than a test fixture, raw Article query, or AI-owned selector.
+This proves the integrated generation starts from the existing canonical Profile snapshot producer and its bounded 7-day/max-20 projection rather than a test fixture, raw Article query, or AI-owned selector.
+
+## Integrated production lifecycle + PostgreSQL proof
+
+Before generation, the owner loaded the deployment environment into the current shell and explicitly verified:
+
+- `NEWS_SCRAPER_GEMINI_API_KEY` was present;
+- `NEWS_SCRAPER_GEMINI_MODEL` was unset, so the production default model was exercised.
+
+The owner then used `createProductionDigestLifecycleService()` plus `createProfileAiAdministrationService()` against the real VPS PostgreSQL database and Profile `php_integration_test`.
+
+Observed sequence:
+
+1. Before mutation, AI remained disabled, active digest was `null`, and the prior scheduled attempt was `skipped_disabled`.
+2. AI was enabled through the supported administration service while preserving `lookbackDays=7` and `maxArticles=20`.
+3. One manual generation was requested through the supported administration service, which delegates to the production digest lifecycle.
+4. The lifecycle returned `result="generated"`.
+
+Observed active/admin result after generation:
+
+- generated at: `2026-08-29T16:28:42.247Z`;
+- freshness: `current`;
+- input Article count: 10;
+- provider: `google-gemini`;
+- model: `gemini-3.6-flash`;
+- latest attempt trigger: `manual`;
+- latest attempt outcome: `success`;
+- attempt started: `2026-08-29T16:28:35.236Z`;
+- attempt completed: `2026-08-29T16:28:42.247Z`;
+- failure category: `null`;
+- integrated run URL Context counters: 0 succeeded / 0 failed.
+
+The active digest was then read through the lifecycle service and contained a persisted overview plus three highlights with application-resolved supporting Articles and exact stored publisher destinations. The generated digest summarized the observed real Profile material around specialized publishing imprints, literary submission/agent practices, and drafting/AI topics.
+
+Supporting references observed in the active digest included:
+
+- Jane Friedman: `Harper Collins launches manga imprint`;
+- Jane Friedman: `Bindery Books launches a new fiction imprint`;
+- Jane Friedman: `Insight Editions launches Naga Archives`;
+- Jane Friedman: `Why Top Literary Magazines Charge Writers Who Submit: Q&A with Benjamin Davis of Chill Subs`;
+- Jane Friedman: `When and How to Nudge Agents`;
+- The Creative Penn: `From Page One To Done: Fast Drafting Your Novel With Jessica Brody`;
+- Author Media: `AI Read Aristotle That’s Why It Writes Better Than You`;
+- The Episodic Podcast: `Writing, Publishing & Authorship : 8-11-26`.
+
+Every displayed support carried an Article ID from the previously observed canonical 10-Article input and an exact stored `originalUrl` from application state. No model-generated destination was used.
+
+The integrated run's `0/0` URL Context counters do not by themselves establish publisher-page retrieval for this ten-Article generation. That does not invalidate the integrated persistence proof: the separate exact-candidate live provider proof already demonstrated the same production provider/tool boundary with one governed URL Context retrieval succeeding (`1/0`). Taken together, the evidence proves both governed URL Context capability and the real database-backed lifecycle/persistence path without inferring one from the other.
+
+This run materially proves the chain:
+
+`real canonical Profile -> bounded real Article input -> supported admin enablement/manual generation -> production lifecycle -> production-default gemini-3.6-flash -> validated candidate -> durable active digest/admin state`
+
+No production customer PHP package deployment is claimed by this evidence; that remains Phase 2.
 
 ## Evidence still required before Phase 1 closeout
 
-1. Enable the Profile digest through the supported administration service while preserving the existing 7-day / 20-Article bounds.
-2. Execute one manual generation through the production digest lifecycle and real Gemini provider.
-3. Prove a successful generation is durably persisted and activated, with `gemini-3.6-flash` recorded as the model and a bounded successful attempt state.
-4. Re-read the active digest from a fresh process to prove durability rather than in-memory state.
-5. Inspect the protected admin read model and permanent v1 distribution representation for the same active digest where practical, including exact governed supporting-Article destinations and digest participation in the outward snapshot.
-6. Keep ordinary Article distribution and non-AI operation unaffected throughout qualification.
+1. Re-read the active digest and admin state from a fresh Node process to prove persistence independently of the generation process.
+2. Read the permanent v1 distribution representation for `php_integration_test` from a fresh process and verify the same active digest is included with a snapshot revision and exact governed supporting destinations.
+3. After qualification evidence is captured, disable the test Profile digest again unless the owner deliberately wants scheduled Gemini spending enabled on this Profile.
+4. Record final qualification disposition and owner acceptance before advancing package version to `2.2.0`.
 
 ## Current disposition
 
-**IN PROGRESS.** The live provider gate is GREEN; the exact VPS candidate/database baseline is current; and the real canonical digest input has been observed as 10 bounded, summary-bearing Profile Articles across five Sources. Phase 1 is not yet marked GREEN because the final integrated PostgreSQL generation/persistence/activation/readback proof remains to be executed and recorded.
+**IN PROGRESS.** Live Gemini provider validation is GREEN and the integrated production lifecycle/database generation is GREEN on exact VPS candidate `05f091980bf8bb0ec70749e94b9fe5b3c53f0edd`. A real active Profile generated and activated a current 10-Article `gemini-3.6-flash` digest with a bounded successful manual attempt and application-resolved support destinations. Final fresh-process persistence and v1 representation readback remain before Phase 1 is marked GREEN.
