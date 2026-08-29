@@ -20,6 +20,8 @@ import {
 const root = path.resolve(import.meta.dirname, '../..');
 const sourceManifest = [
   ['README.md', 'integrations/php/README.md'],
+  ['run-sync.php', 'integrations/php/run-sync.php'],
+  ['local-read.php', 'integrations/php/local-read.php'],
   ['bin/sync.php', 'integrations/php/bin/sync.php'],
   ['example/index.php', 'integrations/php/example/index.php'],
   ['src/Http.php', 'integrations/php/src/Http.php'],
@@ -106,13 +108,9 @@ test('keeps configuration defaults and visitor/synchronization secrets separate'
 
   for (const expected of [
     'NEWS_SCRAPER_BASE_URL=https://your-news-scraper.example',
-    'NEWS_SCRAPER_PROFILE_KEY=replace-with-profile-key',
-    'NEWS_SCRAPER_STATE_ROOT=/absolute/private/path/news-scraper-state',
     'NEWS_SCRAPER_BEARER_TOKEN=replace-with-machine-credential',
-    'NEWS_SCRAPER_SYNC_CADENCE_SECONDS=900',
     'NEWS_SCRAPER_TIMEOUT_SECONDS=20',
     'NEWS_SCRAPER_MAX_RESPONSE_BYTES=2097152',
-    '# Optional: NEWS_SCRAPER_MAX_STALE_AGE_SECONDS=86400',
   ])
     assert.match(sync, new RegExp(`^${escapeRegExp(expected)}$`, 'mu'));
   for (const expected of [
@@ -126,12 +124,31 @@ test('keeps configuration defaults and visitor/synchronization secrets separate'
     local,
     /NEWS_SCRAPER_BASE_URL|NEWS_SCRAPER_BEARER_TOKEN/u,
   );
+  assert.doesNotMatch(
+    sync,
+    /NEWS_SCRAPER_PROFILE_KEY|NEWS_SCRAPER_STATE_ROOT|NEWS_SCRAPER_SYNC_CADENCE_SECONDS|NEWS_SCRAPER_MAX_STALE_AGE_SECONDS/u,
+  );
   const localReader = entries
     .get('news-scraper-php-integration/src/LocalRead.php')!
     .toString();
   assert.doesNotMatch(
     localReader,
     /DistributionPageClient|ClientConfiguration|Gemini|gemini|NEWS_SCRAPER_BASE_URL|NEWS_SCRAPER_BEARER_TOKEN/u,
+  );
+  const launcher = entries
+    .get('news-scraper-php-integration/run-sync.php')!
+    .toString();
+  assert.match(launcher, /ns-private.*local-read\.env/su);
+  assert.match(launcher, /ns-private.*sync\.env/su);
+  assert.match(launcher, /SynchronizationCommand::run/u);
+  assert.doesNotMatch(launcher, /NEWS_SCRAPER_BEARER_TOKEN/u);
+  const customerEntry = entries
+    .get('news-scraper-php-integration/local-read.php')!
+    .toString();
+  assert.match(customerEntry, /function news_scraper_local_read/u);
+  assert.doesNotMatch(
+    customerEntry,
+    /sync\.env|NEWS_SCRAPER_BASE_URL|NEWS_SCRAPER_BEARER_TOKEN|manifest\.json|generation/u,
   );
 });
 

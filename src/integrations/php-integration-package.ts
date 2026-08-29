@@ -18,6 +18,8 @@ const ABSOLUTE_MAX_ARCHIVE_BYTES = 70_000_000;
 
 const MANIFEST = [
   ['README.md', 'integrations/php/README.md'],
+  ['run-sync.php', 'integrations/php/run-sync.php'],
+  ['local-read.php', 'integrations/php/local-read.php'],
   ['bin/sync.php', 'integrations/php/bin/sync.php'],
   ['example/index.php', 'integrations/php/example/index.php'],
   ['src/Http.php', 'integrations/php/src/Http.php'],

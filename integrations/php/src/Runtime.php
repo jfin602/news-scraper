@@ -101,3 +101,33 @@ final class IntegrationRuntimeFactory
         );
     }
 }
+
+final class SynchronizationCommand
+{
+    /** @param array<int, string> $arguments */
+    public static function run(IntegrationRuntimeConfiguration $configuration, array $arguments): int
+    {
+        $force = in_array('--force', $arguments, true);
+        if (count(array_filter($arguments, static fn (string $argument): bool => $argument !== '--force')) > 0) {
+            fwrite(STDERR, "configuration_error invalid CLI option\n");
+            return 2;
+        }
+        try {
+            $result = IntegrationRuntimeFactory::create($configuration)->run($configuration->profileKey, $force);
+            if ($result instanceof CadenceDecision) {
+                fwrite(STDOUT, "not_due profile=" . $configuration->profileKey . "\n");
+                return 0;
+            }
+            $line = $result->facts->outcome . ' profile=' . $configuration->profileKey;
+            if ($result->facts->failureCategory !== null) $line .= ' category=' . $result->facts->failureCategory;
+            fwrite($result->facts->outcome === SynchronizationResult::FAILED ? STDERR : STDOUT, $line . "\n");
+            return $result->facts->outcome === SynchronizationResult::FAILED ? 1 : 0;
+        } catch (\InvalidArgumentException $error) {
+            fwrite(STDERR, "configuration_error " . $error->getMessage() . "\n");
+            return 2;
+        } catch (\Throwable) {
+            fwrite(STDERR, "configuration_or_local_state_error\n");
+            return 2;
+        }
+    }
+}

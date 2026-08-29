@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, describe, it } from 'node:test';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -109,30 +109,42 @@ async function withExample(
     ) => Promise<import('playwright').Page>;
   }) => Promise<void>,
 ) {
-  const state = await mkdtemp(join(tmpdir(), 'news-scraper-php-browser-'));
+  const installation = await mkdtemp(
+    join(tmpdir(), 'news-scraper-php-browser-'),
+  );
+  const packageRoot = join(installation, 'ns-integration');
+  const privateRoot = join(installation, 'ns-private');
+  const state = join(privateRoot, 'state');
   let process: ChildProcess | undefined;
   try {
+    await cp(join(root, 'integrations/php'), packageRoot, { recursive: true });
+    await mkdir(privateRoot, { recursive: true });
     await runPhp([
       join(root, 'integrations/php/tests/example-state.php'),
       state,
       scenario,
     ]);
+    await writeFile(
+      join(privateRoot, 'local-read.env'),
+      [
+        'NEWS_SCRAPER_PROFILE_KEY=weekly-desk',
+        `NEWS_SCRAPER_STATE_ROOT=${state}`,
+        `NEWS_SCRAPER_SYNC_CADENCE_SECONDS=${
+          scenario === 'stale' || scenario === 'cutoff' ? '900' : '3600'
+        }`,
+        ...(scenario === 'cutoff'
+          ? ['NEWS_SCRAPER_MAX_STALE_AGE_SECONDS=900']
+          : []),
+        '',
+      ].join('\n'),
+    );
     const port = await freePort();
-    const env = {
-      ...processEnvWithoutUpstream(),
-      NEWS_SCRAPER_PROFILE_KEY: 'weekly-desk',
-      NEWS_SCRAPER_STATE_ROOT: state,
-      NEWS_SCRAPER_SYNC_CADENCE_SECONDS:
-        scenario === 'stale' || scenario === 'cutoff' ? '900' : '3600',
-      ...(scenario === 'cutoff'
-        ? { NEWS_SCRAPER_MAX_STALE_AGE_SECONDS: '900' }
-        : {}),
-    };
+    const env = processEnvWithoutIntegrationConfiguration();
     const output: string[] = [];
     process = spawn(
       php,
-      ['-S', `127.0.0.1:${port}`, '-t', join(root, 'integrations/php/example')],
-      { cwd: root, env, stdio: ['ignore', 'pipe', 'pipe'] },
+      ['-S', `127.0.0.1:${port}`, '-t', join(packageRoot, 'example')],
+      { cwd: packageRoot, env, stdio: ['ignore', 'pipe', 'pipe'] },
     );
     process.stdout?.on('data', (value: Buffer) =>
       output.push(value.toString().slice(0, 4096)),
@@ -161,14 +173,18 @@ async function withExample(
       (resolveDone) =>
         process?.once('exit', () => resolveDone()) ?? resolveDone(),
     );
-    await rm(state, { recursive: true, force: true });
+    await rm(installation, { recursive: true, force: true });
   }
 }
 
-function processEnvWithoutUpstream() {
+function processEnvWithoutIntegrationConfiguration() {
   const env = { ...process.env };
   delete env.NEWS_SCRAPER_BASE_URL;
   delete env.NEWS_SCRAPER_BEARER_TOKEN;
+  delete env.NEWS_SCRAPER_PROFILE_KEY;
+  delete env.NEWS_SCRAPER_STATE_ROOT;
+  delete env.NEWS_SCRAPER_SYNC_CADENCE_SECONDS;
+  delete env.NEWS_SCRAPER_MAX_STALE_AGE_SECONDS;
   return env;
 }
 function runPhp(args: string[]) {

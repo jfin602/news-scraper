@@ -53,6 +53,8 @@ use NewsScraper\Integration\Php\LocalReadSource;
 use NewsScraper\Integration\Php\LocalReadHealth;
 use NewsScraper\Integration\Php\LocalProfileRenderer;
 use NewsScraper\Integration\Php\FallbackHtmlRenderer;
+use NewsScraper\Integration\Php\EnvironmentFileLoader;
+use NewsScraper\Integration\Php\IntegrationConfigurationLoader;
 
 $tests = [];
 
@@ -1047,6 +1049,77 @@ testCase('local read configuration is independent from upstream credentials and 
     }
 });
 
+testCase('package-owned env files keep local-read authority and sync secrets isolated', static function (): void {
+    $root = filesystemRoot();
+    $localPath = $root . DIRECTORY_SEPARATOR . 'local-read.env';
+    $syncPath = $root . DIRECTORY_SEPARATOR . 'sync.env';
+    file_put_contents($localPath, "# shared non-secret settings\nNEWS_SCRAPER_PROFILE_KEY=weekly-desk\nNEWS_SCRAPER_STATE_ROOT={$root}\nNEWS_SCRAPER_SYNC_CADENCE_SECONDS=901\nNEWS_SCRAPER_MAX_STALE_AGE_SECONDS=3600\n");
+    file_put_contents($syncPath, "NEWS_SCRAPER_BASE_URL=https://api.example.test\nNEWS_SCRAPER_BEARER_TOKEN=sync-secret-value\nNEWS_SCRAPER_TIMEOUT_SECONDS=21\nNEWS_SCRAPER_MAX_RESPONSE_BYTES=4096\nNEWS_SCRAPER_PROFILE_KEY=weekly-desk\nNEWS_SCRAPER_STATE_ROOT={$root}\nNEWS_SCRAPER_SYNC_CADENCE_SECONDS=901\nNEWS_SCRAPER_MAX_STALE_AGE_SECONDS=3600\n");
+
+    $local = IntegrationConfigurationLoader::loadLocalRead($localPath);
+    same('weekly-desk', $local->profileKey, 'local-read env supplies the Profile key');
+    same($root, $local->stateRoot(), 'local-read env supplies the state root');
+    same(901, $local->cadenceSeconds, 'local-read env supplies cadence');
+    trueValue(!str_contains(serialize($local), 'sync-secret-value'), 'local configuration never contains the bearer credential');
+
+    $sync = IntegrationConfigurationLoader::loadSynchronization($localPath, $syncPath);
+    same('weekly-desk', $sync->profileKey, 'matching legacy Profile alias is ignored as authority');
+    same($root, $sync->stateRoot, 'matching legacy root alias is ignored as authority');
+    same(901, $sync->cadenceSeconds, 'matching legacy cadence alias is ignored as authority');
+    same(21, $sync->timeoutSeconds, 'sync env supplies transport settings');
+
+    file_put_contents($syncPath, "NEWS_SCRAPER_BASE_URL=https://api.example.test\nNEWS_SCRAPER_BEARER_TOKEN=sync-secret-value\nNEWS_SCRAPER_PROFILE_KEY=other-profile\n");
+    try {
+        IntegrationConfigurationLoader::loadSynchronization($localPath, $syncPath);
+        failTest('mismatched legacy alias was accepted');
+    } catch (InvalidArgumentException $error) {
+        trueValue(str_contains($error->getMessage(), 'does not match local-read.env'), 'legacy mismatch fails clearly');
+        trueValue(!str_contains($error->getMessage(), 'sync-secret-value'), 'legacy mismatch does not expose a bearer value');
+    }
+});
+
+testCase('env parser fails boundedly and treats interpolation-like values as literal data', static function (): void {
+    $root = filesystemRoot();
+    $valid = $root . DIRECTORY_SEPARATOR . 'valid.env';
+    file_put_contents($valid, "VALUE=\$(php -r 'echo unsafe')\nPHP=<?= unsafe ?>\n");
+    $values = EnvironmentFileLoader::load($valid);
+    same("\$(php -r 'echo unsafe')", $values['VALUE'], 'shell-like value remains literal');
+    same('<?= unsafe ?>', $values['PHP'], 'PHP-like value remains literal');
+
+    foreach ([
+        $root . DIRECTORY_SEPARATOR . 'missing.env',
+        $root,
+    ] as $path) {
+        try {
+            EnvironmentFileLoader::load($path);
+            failTest('missing or unreadable config was accepted');
+        } catch (InvalidArgumentException) {
+        }
+    }
+    foreach (["NOT_A_SETTING\n", "VALUE=one\nVALUE=two\n", " VALUE=one\n"] as $contents) {
+        $invalid = $root . DIRECTORY_SEPARATOR . 'invalid.env';
+        file_put_contents($invalid, $contents);
+        try {
+            EnvironmentFileLoader::load($invalid);
+            failTest('malformed config was accepted');
+        } catch (InvalidArgumentException) {
+        }
+    }
+});
+
+testCase('stable package entrypoints preserve the canonical command and local-only boundary', static function (): void {
+    $launcher = (string) file_get_contents(__DIR__ . '/../run-sync.php');
+    trueValue(str_contains($launcher, 'local-read.env') && str_contains($launcher, 'sync.env'), 'launcher loads both private config files');
+    trueValue(str_contains($launcher, 'SynchronizationCommand::run') && str_contains($launcher, 'array_slice($argv, 1)'), 'launcher forwards CLI arguments to the canonical command');
+    trueValue(!str_contains($launcher, 'NEWS_SCRAPER_BEARER_TOKEN'), 'launcher never places bearer values on a command line');
+
+    $entry = (string) file_get_contents(__DIR__ . '/../local-read.php');
+    trueValue(str_contains($entry, 'function news_scraper_local_read') && str_contains($entry, 'local-read.env'), 'customer entry loads the stable local config');
+    foreach (['sync.env', 'NEWS_SCRAPER_BASE_URL', 'NEWS_SCRAPER_BEARER_TOKEN', 'manifest.json', 'generation'] as $forbidden) {
+        trueValue(!str_contains($entry, $forbidden), 'customer entry omits ' . $forbidden);
+    }
+});
+
 testCase('local reader maps the complete ordered active payload and preserves nullable fields', static function (): void {
     $root = filesystemRoot();
     $at = new DateTimeImmutable('2026-08-21T15:00:00+00:00');
@@ -1373,10 +1446,10 @@ testCase('customer presentation can replace or bypass the fallback using only Lo
 
 testCase('customer example composes only local read and presentation boundaries', static function (): void {
     $example = (string) file_get_contents(__DIR__ . '/../example/index.php');
-    foreach (['LocalReadConfiguration', 'LocalProfileReader', 'FallbackHtmlRenderer'] as $required) {
+    foreach (['local-read.php', 'news_scraper_local_read', 'FallbackHtmlRenderer'] as $required) {
         trueValue(str_contains($example, $required), 'example composes ' . $required);
     }
-    foreach (['DistributionClient', 'ProfileSynchronizer', 'NEWS_SCRAPER_BASE_URL', 'NEWS_SCRAPER_BEARER_TOKEN', 'manifest.json', 'generations'] as $forbidden) {
+    foreach (['src/bootstrap.php', 'LocalReadConfiguration', 'LocalProfileReader', 'DistributionClient', 'ProfileSynchronizer', 'NEWS_SCRAPER_BASE_URL', 'NEWS_SCRAPER_BEARER_TOKEN', 'manifest.json', 'generations'] as $forbidden) {
         trueValue(!str_contains($example, $forbidden), 'example omits visitor upstream/internal boundary ' . $forbidden);
     }
 });
