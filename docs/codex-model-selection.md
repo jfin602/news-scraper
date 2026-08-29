@@ -2,7 +2,7 @@
 
 This document refines the repository-wide model/reasoning/usage policy in `BOOT.md` for `/prompt-ass`, `/prompt-plan`, `/prompt-write`, `/revalidate`, and targeted UI prompt planning.
 
-It exists to minimize expected Codex token/credit usage without lowering the correctness floor required by the task. Model family and reasoning effort are separate decisions. A more expensive model is not automatically safer, and a larger prompt or validation matrix is not automatically harder reasoning work.
+It exists to minimize expected Codex token/credit usage without lowering the correctness floor required by the task. Model family, reasoning effort, and estimated usage are separate decisions. A more expensive model is not automatically safer, a larger prompt or validation matrix is not automatically harder reasoning work, and a task that needs substantial execution headroom does not automatically need a stronger model.
 
 `BOOT.md` remains authoritative for task-stack grammar and execution rules. `scripts/codex-phase-core.mjs` remains the executable authority for which recommendation labels the runner accepts. **A label described here is not executable until it exists in the runner's current `MODEL_CONFIGS`.** Prompt-writing workflows MUST fail closed rather than writing a planned label that the current runner rejects.
 
@@ -55,6 +55,35 @@ Reasoning effort is selected independently from family:
 
 `Ultra` is repository runner vocabulary already in use. Runner implementation/tests remain the authority for its concrete Codex CLI mapping.
 
+## Usage estimation and completion headroom
+
+Estimated usage is an **execution-workload estimate**, independent from model family and reasoning effort. It describes how much source inspection, implementation, debugging, tool use, focused validation, and required final-tree validation the prompt is expected to consume. It is not an intelligence rating and is not currently a machine-significant runner setting.
+
+Estimate usage for the expected cost of **completing the prompt successfully in one run**, not for the smallest allowance that might succeed on an ideal path. Restarting an otherwise healthy run after late execution/tool exhaustion can duplicate source discovery, implementation context, debugging, and validation; modest unused headroom is normally cheaper than that repeated work.
+
+Use these normal baselines:
+
+| Usage | Normal interpretation |
+| --- | --- |
+| `Low` | Documentation-only work, a tiny mechanical edit, little or no source investigation, and minimal structural/focused validation. |
+| `Moderate` | A bounded localized implementation with limited source tracing, focused tests, and a small portable final regression set. |
+| `High` | Normal multi-file engineering work with meaningful source tracing and/or debugging, or work crossing database, security, browser, provider, integration, or several required validation steps. |
+| `Very High` | Concurrency/recovery/state-machine work, broad cross-system integration, substantial investigation/debugging, live/external qualification, or an independent closeout with broad integrated review/evidence obligations. |
+
+These are defaults, not a mechanical score. A narrowly implemented database task may remain `Moderate`; a conceptually straightforward task may still be `High` because its source tracing and final evidence are substantial. Conversely, a high-capability model recommendation does not force high usage when execution is tiny.
+
+Apply these calibration rules:
+
+- estimate the complete expected run: prerequisite/source inspection + implementation + likely debugging + focused iteration + the final `RUN` validation manifest + required reporting;
+- when the estimate is near a category boundary, estimate confidence is `Low`/`Medium`, or the prompt combines substantial investigation/debugging with meaningful final-tree validation, choose the higher usage category;
+- do not lower usage merely because prompt prose was shortened, ambiguity was removed, or the model/reasoning recommendation was downgraded; lower it only when the **execution workload** actually became smaller;
+- validation optimization and usage headroom are complementary: run the smallest necessary evidence set, then give that necessary work enough room to finish;
+- finishing with unused execution headroom is preferable to exhausting the allowance late in an otherwise healthy run and repeating already-completed work;
+- a healthy prompt that exhausts its execution/tool allowance and must be rerun is evidence that its usage estimate was too low, unless concrete evidence shows an unrelated one-off failure caused the exhaustion;
+- on a rerun after such exhaustion, raise the usage estimate at least one category when possible, or to `Very High` when already at `High`; repeated underruns for comparable task shapes SHOULD raise the future baseline for that class until later evidence justifies lowering it.
+
+Usage calibration must not become an excuse to widen task scope, add redundant validation, increase model capability without cause, or keep a prompt monolithic when decomposition is safer. First remove unnecessary work; then estimate enough headroom for the remaining necessary work to complete once.
+
 ## Current runner matrix
 
 The runner currently accepts this economical matrix:
@@ -102,6 +131,8 @@ Always ask both questions separately:
 
 1. **Is the cheaper option failing because the model family lacks base capability?** If yes, consider moving Luna → Terra → Sol while keeping reasoning moderate.
 2. **Is the cheaper option failing because the task needs more deliberate reasoning?** If yes, first consider raising effort within the same family, then compare that total-cost expectation with the next family at a lower effort.
+
+Usage is a third, separate question: **How much execution workload and headroom does this prompt need to finish once?** Do not answer that question by mechanically copying either the model family or reasoning effort.
 
 ## Required task classification
 
@@ -192,6 +223,7 @@ For every proposed implementation/closeout prompt, record:
 - exact recommended configuration, limited to a current runner label;
 - complexity / quality floor (`Standard`, `Elevated`, `High`, or `Critical`);
 - estimated usage (`Low`, `Moderate`, `High`, or `Very High`);
+- usage basis covering expected investigation, implementation/debugging, validation, and completion headroom;
 - lower-cost alternative considered;
 - why that cheaper option is inadequate, or `None` when the recommendation is already the lowest adequate current option;
 - explicit escalation trigger;
@@ -199,7 +231,7 @@ For every proposed implementation/closeout prompt, record:
 - estimate confidence;
 - concise efficiency rationale.
 
-Implementation prompts start from the cheapest plausible family/effort. Closeout prompts start from the `Sol Light` closeout baseline above and escalate only when the known task shape already proves low reasoning insufficient.
+Implementation prompts start from the cheapest plausible family/effort. Closeout prompts start from the `Sol Light` closeout baseline above and escalate only when the known task shape already proves low reasoning insufficient. Estimated usage is chosen separately from that model/reasoning decision and SHOULD include enough headroom for one-run completion under the usage-calibration rules above.
 
 A useful assessment should make the selection auditable, for example:
 
@@ -207,6 +239,7 @@ A useful assessment should make the selection auditable, for example:
 Recommended: Luna High
 Family basis: bounded deterministic implementation with explicit contract
 Reasoning basis: several edge cases and regression interactions
+Usage: High — multi-file source tracing + focused implementation + portable final regression
 Lower-cost alternative: Luna Medium
 Why rejected: persistence/accounting invariants justify additional reasoning
 Escalation trigger: source inspection exposes shared transaction ownership
@@ -225,9 +258,11 @@ For every assessed prompt:
 4. escalate only when observed implementation complexity proves the cheaper/default configuration inadequate;
 5. identify whether escalation is driven by **base model capability** or **reasoning depth**;
 6. record the final configuration and a model-decision delta from `/prompt-ass`;
-7. resolve the Test Necessity Matrix and Test Environment Matrix from `docs/contracts/testing-and-validation-contract.md` into a prompt-specific validation manifest before `/prompt-write`.
+7. independently finalize estimated usage from the observed source boundary, expected implementation/debugging work, assigned execution environment, and actual validation manifest; include completion headroom rather than mirroring the model rating;
+8. when final usage differs from `/prompt-ass`, name the observed workload fact that caused the change; prior execution/tool-limit exhaustion for this prompt or a closely comparable task is affirmative evidence for raising the estimate unless a concrete unrelated cause was established;
+9. resolve the Test Necessity Matrix and Test Environment Matrix from `docs/contracts/testing-and-validation-contract.md` into a prompt-specific validation manifest before `/prompt-write`.
 
-The required delta is one of:
+The required model delta is one of:
 
 - `Downgraded` — source evidence reduced the required capability/effort;
 - `Unchanged` — provisional choice remains the minimum adequate configuration;
@@ -254,7 +289,7 @@ Delta: Escalated
 Driver: reasoning depth and cross-module state coupling
 ```
 
-Do not retain an expensive provisional rating merely because it was already written in `/prompt-ass`; the `Sol Light` closeout baseline is a deliberate review-policy floor, not an expensive provisional rating inherited from assessment.
+Do not retain an expensive provisional rating merely because it was already written in `/prompt-ass`; the `Sol Light` closeout baseline is a deliberate review-policy floor, not an expensive provisional rating inherited from assessment. Conversely, do not lower estimated usage merely because source inspection allowed a cheaper model/reasoning choice when the remaining execution workload and validation burden are still substantial.
 
 ### `/prompt-plan` validation manifest contract
 
@@ -307,19 +342,20 @@ The validation manifest is a correctness and efficiency contract, not an optiona
 
 ## `/prompt-write` model-selection contract
 
-`/prompt-write` consumes the finalized `/prompt-plan` model decision **and validation manifest**. It does **not** perform a fresh speculative upgrade based on prompt length or perceived importance and does not invent a new validation superset.
+`/prompt-write` consumes the finalized `/prompt-plan` model decision, usage estimate, **and validation manifest**. It does **not** perform a fresh speculative upgrade based on prompt length or perceived importance and does not invent a new validation superset.
 
 Before writing each task file:
 
 1. re-read current `MODEL_CONFIGS` and confirm the planned label still exists;
-2. confirm repository drift has not materially changed the implementation boundary, model floor, validation surfaces, or execution-environment assumptions;
+2. confirm repository drift has not materially changed the implementation boundary, model floor, expected execution workload, validation surfaces, or execution-environment assumptions;
 3. if the exact finalized configuration is unsupported, stop with `Planning needed` rather than substituting a guessed label;
 4. if an implementation task boundary is unchanged and only a safe lower-cost configuration has become available, explicit owner-authorized `/revalidate` may downgrade it without reopening implementation scope; closeout prompts remain subject to the `Sol Light` independent-review baseline above;
 5. never silently upgrade because the generated prompt contains many requirements, tests, or validation commands;
-6. copy the finalized `RUN` / `DEFER` / `N/A` validation manifest into the task in an implementation-ready form, preserving assigned environments and aggregate containment;
-7. do not instruct a Windows prompt to knowingly execute VPS-required or live/external evidence; explicitly invoked specialized suites still fail closed if their expected prerequisite is unexpectedly unavailable;
-8. do not instruct automatic retries for deterministic prerequisite/environment failures;
-9. for every closeout prompt, add distinct error/edge-case adversarial and code-quality/structural review sections after the contract/evidence validation matrix, inherit the Terra High refactor-handoff rule above, permit only governed bounded repairs/test strengthening, and require all three pass outcomes in the durable validation/final report.
+6. copy the finalized estimated usage without silently lowering it because the written prompt is concise, explicit, or uses a smaller non-overlapping validation matrix; change it only when repository drift materially changed the expected execution workload;
+7. copy the finalized `RUN` / `DEFER` / `N/A` validation manifest into the task in an implementation-ready form, preserving assigned environments and aggregate containment;
+8. do not instruct a Windows prompt to knowingly execute VPS-required or live/external evidence; explicitly invoked specialized suites still fail closed if their expected prerequisite is unexpectedly unavailable;
+9. do not instruct automatic retries for deterministic prerequisite/environment failures;
+10. for every closeout prompt, add distinct error/edge-case adversarial and code-quality/structural review sections after the contract/evidence validation matrix, inherit the Terra High refactor-handoff rule above, permit only governed bounded repairs/test strengthening, and require all three pass outcomes in the durable validation/final report.
 
 The final `MODEL / REASONING / USAGE` block SHOULD contain:
 
@@ -329,23 +365,26 @@ The final `MODEL / REASONING / USAGE` block SHOULD contain:
 - Reasoning basis: <why Low/Medium/High/Ultra is needed>.
 - Complexity / quality floor: `<class>`.
 - Estimated usage: `<class>`.
+- Usage basis: <expected source investigation + implementation/debugging + validation + completion headroom>.
 - Lower-cost alternative considered: `<configuration or none>`.
 - Escalation trigger: <specific observed condition, or None>.
 - Escalation target: `<configuration or None>`.
 - Estimate confidence: `<Low|Medium|High>`.
-- Efficiency rationale: <why this is the minimum adequate choice>.
+- Efficiency rationale: <why this is the minimum adequate model/reasoning choice and a sufficient one-run usage estimate>.
 ```
 
-Only the canonical `Recommended configuration` line is machine-significant unless the runner grammar is deliberately expanded later.
+Only the canonical `Recommended configuration` line is machine-significant unless the runner grammar is deliberately expanded later. Estimated usage remains descriptive planning metadata unless a separately reviewed runner change deliberately gives it executable semantics.
 
 ## `/revalidate` behavior
 
-`/revalidate <task or stack>` MUST look for safe downgrades as actively as it looks for required upgrades, except that unexecuted closeout prompts preserve the deliberate `Sol Light` review baseline unless the owner changes that policy or the label becomes unavailable.
+`/revalidate <task or stack>` MUST look for safe model/reasoning downgrades as actively as it looks for required upgrades, while independently checking whether the usage estimate still provides sufficient one-run completion headroom. Unexecuted closeout prompts preserve the deliberate `Sol Light` review baseline unless the owner changes that policy or the label becomes unavailable.
 
 Revalidation should answer:
 
 - Does the task still require the same model family?
 - Does it still require the same reasoning effort?
+- Does the estimated usage still cover the current source-inspection, implementation/debugging, and final validation workload with reasonable completion headroom?
+- Has this prompt, or a closely comparable task class, previously exhausted its execution/tool allowance and required a rerun? If so, is the estimate being raised unless a concrete unrelated cause explains the exhaustion?
 - Has a cheaper supported configuration become available for an implementation task without crossing the correctness floor?
 - For a closeout, is `Sol Light` still available and does observed complexity require escalation above it?
 - Does the validation manifest still match the current changed surfaces, current command containment, and current execution-environment prerequisites?
@@ -356,7 +395,7 @@ Revalidation should answer:
 - Is the prompt long because the task is difficult, or merely because it is explicit?
 - Can redundant prompt prose be removed without weakening contracts, tests, evidence requirements, the validation manifest, either adversarial closeout pass, or its refactor handoff?
 
-Historical completed prompts may retain the configuration used when executed. Unexecuted prompts should be revalidated after a material model-policy, testing-contract, command-containment, or runner-matrix change. Unexecuted closeout prompts written under a prior policy should be updated to the `Sol Light` baseline plus the explicit three-pass hardening flow, Terra High refactor handoff, and current validation manifest before execution when practical.
+Historical completed prompts may retain the configuration and usage estimate recorded when executed. Unexecuted prompts should be revalidated after a material model/usage-policy, testing-contract, command-containment, runner-matrix change, or observed tool-limit calibration failure. Unexecuted closeout prompts written under a prior policy should be updated to the `Sol Light` baseline plus the explicit three-pass hardening flow, Terra High refactor handoff, current usage estimate, and current validation manifest before execution when practical.
 
 ## Prompt-token discipline
 
@@ -370,8 +409,9 @@ Model savings are only part of usage conservation. Prompt construction must also
 - Prefer precise acceptance criteria over long motivational prose.
 - Prompt length, phase number, number of tests, and perceived feature importance MUST NOT independently increase the model rating.
 - A highly explicit prompt often reduces required model reasoning because ambiguity has already been removed.
+- Prompt shortening, decomposition, and validation-matrix optimization reduce expected work only to the extent that they actually remove execution. They do not by themselves justify lowering estimated usage while substantial source investigation, implementation/debugging, or required final-tree validation remains.
 
-Never remove required correctness, security, regression, or evidence requirements merely to shorten a prompt or validation run.
+Never remove required correctness, security, regression, or evidence requirements merely to shorten a prompt or validation run. Optimize away unnecessary work first, then preserve enough usage headroom for the necessary work to complete without a wasteful restart.
 
 ## Runner-change discipline
 
