@@ -23,12 +23,13 @@ MODEL / REASONING / USAGE
 - Model-family basis: source inspection reduced this to an explicit provider timing correction over an already-isolated adapter. No persistence/schema/state-machine redesign is required.
 - Reasoning basis: High is warranted to preserve the coupling between provider deadline, one-call semantics, abort behavior, and P3 stale-attempt recovery without accidentally allowing duplicate in-flight Gemini calls.
 - Complexity / quality floor: `High`.
-- Estimated usage: `Low`.
+- Estimated usage: `Moderate`.
+- Usage basis: bounded provider/lifecycle source tracing, a tiny implementation, focused provider and stale-recovery regression work, the portable local `check`/security/phase-validation matrix, and enough headroom to complete one run without repeating discovery if a focused lifecycle test needs adjustment.
 - Lower-cost alternative considered: `Luna Medium`; rejected because a superficially mechanical constant change could make stale-running recovery shorter than a legitimate provider request or accidentally weaken the recently added SDK request controls.
 - Escalation trigger: the current source no longer derives stale-running recovery from the provider budget, the SDK cannot honor one request with `maxRetries: 0` plus caller abort, a five-minute request requires a new persistence/lease/heartbeat design, or the change exposes a real contract/architecture decision rather than the bounded timing correction described here.
 - Escalation target: `Terra High` for a bounded lifecycle/provider coupling repair; return `Planning needed` rather than redesigning P3 or provider semantics silently.
 - Estimate confidence: `High`.
-- Efficiency rationale: change the existing application-owned budget and the minimum focused regressions only; do not create configuration knobs, new jobs, provider abstractions, or broad test churn.
+- Efficiency rationale: use Luna High for the explicit bounded edit, retain only the minimum focused regressions and portable invalidated suites, and reserve Moderate execution headroom so the required source trace plus final validation completes once without adding unnecessary test breadth.
 
 VERSIONING
 - Required unchanged project version: `2.1.7`.
