@@ -36,6 +36,7 @@ final class ActiveProfileSnapshot
         public readonly ?string $etag,
         public readonly string $generatedAt,
         public readonly array $items,
+        public readonly ?DistributionDigest $digest = null,
     ) {
         if ($profileKey === '' || $profile->configKey !== $profileKey || $apiVersion !== 'v1' || $snapshotRevision === '') {
             throw new \InvalidArgumentException('The active snapshot is inconsistent.');
@@ -88,6 +89,7 @@ final class ProfileActivation
         public readonly string $generatedAt,
         public readonly array $items,
         public readonly SynchronizationFacts $facts,
+        public readonly ?DistributionDigest $digest = null,
     ) {
     }
 }
@@ -104,6 +106,7 @@ final class ProfileCandidate
         public readonly ?string $etag,
         public readonly string $generatedAt,
         public readonly array $items,
+        public readonly ?DistributionDigest $digest = null,
     ) {
     }
 }
@@ -306,6 +309,7 @@ final class ProfileSynchronizer
                 $candidate->generatedAt,
                 $candidate->items,
                 $facts,
+                $candidate->digest,
             );
             try {
                 $this->store->activate($activation);
@@ -341,8 +345,10 @@ final class ProfileSynchronizer
             $page->etag,
             $page->generatedAt,
             $page->items,
+            $page->digest,
         );
         $items = $page->items;
+        $digest = $page->digest;
         $pages = 1;
         if (count($items) > $this->configuration->maximumCandidateItems) {
             return $this->failureTraversal('candidate_item_limit_exceeded', count($items), $pages);
@@ -367,6 +373,9 @@ final class ProfileSynchronizer
             if ($page === null || !$this->sameCandidateIdentity($candidate, $page, $profileKey)) {
                 return $this->failureTraversal('candidate_identity_mismatch', count($items), $pages);
             }
+            if ($digest === null || $page->digest === null || $page->digest != $digest) {
+                $digest = null;
+            }
             $pages++;
             foreach ($page->items as $item) {
                 $items[] = $item;
@@ -386,6 +395,7 @@ final class ProfileSynchronizer
             $candidate->etag,
             $candidate->generatedAt,
             $items,
+            $digest,
         ), null, null, count($items), $pages);
     }
 

@@ -73,6 +73,7 @@ final class DistributionPage
         public readonly array $items,
         public readonly ?string $nextCursor,
         public readonly ?string $etag,
+        public readonly ?DistributionDigest $digest = null,
     ) {
     }
 }
@@ -211,6 +212,9 @@ final class DistributionClient implements DistributionPageClient
         $publicationData = $this->requiredObject($payload, 'publication');
         $itemsData = $this->requiredList($payload, 'items');
         $nextCursor = $this->nullableOpaque($payload, 'nextCursor');
+        $digest = array_key_exists('digest', $payload) && $payload['digest'] !== null
+            ? DistributionDigestMapper::fromArray($payload['digest'])
+            : null;
         if (
             $apiVersion !== 'v1' ||
             $generatedAt === null ||
@@ -267,6 +271,7 @@ final class DistributionClient implements DistributionPageClient
                 $articles,
                 $nextCursor,
                 $etag,
+                $digest,
             ),
             $etag,
         );

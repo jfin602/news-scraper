@@ -24,6 +24,7 @@ const sourceManifest = [
   ['example/index.php', 'integrations/php/example/index.php'],
   ['src/Http.php', 'integrations/php/src/Http.php'],
   ['src/Configuration.php', 'integrations/php/src/Configuration.php'],
+  ['src/Digest.php', 'integrations/php/src/Digest.php'],
   ['src/Client.php', 'integrations/php/src/Client.php'],
   ['src/Synchronizer.php', 'integrations/php/src/Synchronizer.php'],
   ['src/LocalState.php', 'integrations/php/src/LocalState.php'],
@@ -82,7 +83,7 @@ test('produces the exact deterministic customer manifest and a consumer-ready re
       .get('news-scraper-php-integration/src/bootstrap.php')
       ?.toString()
       .match(/require_once __DIR__ \. '\/([^']+)'/gu)?.length,
-    9,
+    10,
   );
   assert.equal(
     [...entries.keys()].some(
@@ -124,6 +125,13 @@ test('keeps configuration defaults and visitor/synchronization secrets separate'
   assert.doesNotMatch(
     local,
     /NEWS_SCRAPER_BASE_URL|NEWS_SCRAPER_BEARER_TOKEN/u,
+  );
+  const localReader = entries
+    .get('news-scraper-php-integration/src/LocalRead.php')!
+    .toString();
+  assert.doesNotMatch(
+    localReader,
+    /DistributionPageClient|ClientConfiguration|Gemini|gemini|NEWS_SCRAPER_BASE_URL|NEWS_SCRAPER_BEARER_TOKEN/u,
   );
 });
 

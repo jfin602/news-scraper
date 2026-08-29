@@ -22,6 +22,7 @@ const MANIFEST = [
   ['example/index.php', 'integrations/php/example/index.php'],
   ['src/Http.php', 'integrations/php/src/Http.php'],
   ['src/Configuration.php', 'integrations/php/src/Configuration.php'],
+  ['src/Digest.php', 'integrations/php/src/Digest.php'],
   ['src/Client.php', 'integrations/php/src/Client.php'],
   ['src/Synchronizer.php', 'integrations/php/src/Synchronizer.php'],
   ['src/LocalState.php', 'integrations/php/src/LocalState.php'],

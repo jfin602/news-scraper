@@ -25,6 +25,8 @@ State uses a SHA-256 Profile identity, an immutable `generations/g-*.json` paylo
 
 Ordinary customer/integration code uses `LocalProfileReader` and receives normalized `LocalReadResult`; it may implement `LocalProfileRenderer`, use `FallbackHtmlRenderer`, or render custom HTML from that model. `LocalProfileReader` internally consumes the validated `FilesystemProfileStateStore::readForPhase6()` / `LocalProfileRead` handoff. Customers must not parse cache paths, generation/manifest JSON, or other state internals; the boundary exposes only a validated committed active snapshot, usability classification, and bounded local health.
 
+When the v1 Profile snapshot contains a valid optional digest, it is synchronized inside that same complete Profile LKG generation and is available as nullable `$result->digest`. The normalized digest contains only its generated time, `current`/`older` freshness, input count, provider/model, overview, highlights, and resolved supporting Article metadata. Missing or malformed optional digest data fails open to `null`; valid Articles still activate. Older local generations that predate digest support also read as `null`. A newer valid Article revision with no usable digest replaces the previous digest with `null`; it does not retain stale AI content.
+
 The customer-facing read path is local-only and does not require the upstream URL or bearer token:
 
 ```php
@@ -41,3 +43,5 @@ stale-age) only. It never needs `NEWS_SCRAPER_BASE_URL` or
 separate scheduled synchronization process.
 
 `FallbackHtmlRenderer` is optional presentation. A customer renderer can implement `LocalProfileRenderer` and receive only `$result`, or bypass the fallback and build its own HTML from the normalized local model.
+
+Digest presentation remains customer-owned. This package does not add digest HTML/CSS, a Gemini key, a visitor-time upstream request, or another digest cron. The Phase 2 package/launcher and presentation refresh remains separate; all non-digest package mechanics documented here are unchanged.

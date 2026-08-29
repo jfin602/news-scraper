@@ -14,6 +14,9 @@ use NewsScraper\Integration\Php\DistributionPublication;
 use NewsScraper\Integration\Php\DistributionArticle;
 use NewsScraper\Integration\Php\DistributionSource;
 use NewsScraper\Integration\Php\DistributionCategory;
+use NewsScraper\Integration\Php\DistributionDigest;
+use NewsScraper\Integration\Php\DistributionDigestHighlight;
+use NewsScraper\Integration\Php\DistributionDigestSupport;
 use NewsScraper\Integration\Php\ProfileActivation;
 use NewsScraper\Integration\Php\ProfileLock;
 use NewsScraper\Integration\Php\ProfileLockLease;
@@ -129,6 +132,34 @@ function pagePayload(): array
     ];
 }
 
+function digestPayload(string $freshness = 'current', string $overview = 'Bounded overview.'): array
+{
+    return [
+        'generatedAt' => '2026-08-21T14:30:00.000Z',
+        'freshness' => $freshness,
+        'inputArticleCount' => 2,
+        'provider' => 'gemini',
+        'model' => 'gemini-3.7-flash',
+        'overview' => $overview,
+        'highlights' => [[
+            'title' => 'A development',
+            'explanation' => 'A bounded explanation.',
+            'supportingArticles' => [[
+                'articleId' => 'article-2',
+                'headline' => 'Second headline',
+                'source' => ['displayName' => 'Publisher'],
+                'effectiveFeedDate' => '2026-08-21T14:00:00+00:00',
+                'originalUrl' => 'https://publisher.example/second?x=1&y=2',
+            ]],
+        ]],
+    ];
+}
+
+function syncDigest(string $overview = 'Bounded overview.'): DistributionDigest
+{
+    return new DistributionDigest('2026-08-21T14:30:00.000Z', 'current', 2, 'gemini', 'gemini-3.7-flash', $overview, [new DistributionDigestHighlight('A development', 'A bounded explanation.', [new DistributionDigestSupport('article-2', 'Second headline', 'Publisher', '2026-08-21T14:00:00+00:00', 'https://publisher.example/second?x=1&y=2')])]);
+}
+
 function jsonResponse(int $status, array|string $body, array $headers = []): HttpResponse
 {
     return new HttpResponse(
@@ -214,6 +245,39 @@ testCase('valid pages preserve nullable fields, additive fields, order, and exac
     $withCursor['nextCursor'] = 'opaque-next-cursor';
     $cursorOutcome = clientFor(jsonResponse(200, $withCursor))->fetchPage('weekly-desk');
     same('opaque-next-cursor', $cursorOutcome->page->nextCursor, 'opaque continuation output');
+});
+
+testCase('optional digest parses independently and malformed optional state fails open', static function (): void {
+    foreach (['current', 'older'] as $freshness) {
+        $payload = pagePayload();
+        $payload['digest'] = digestPayload($freshness);
+        $outcome = clientFor(jsonResponse(200, $payload))->fetchPage('weekly-desk');
+        same(DistributionOutcome::SUCCESS, $outcome->kind, 'valid digest preserves core page');
+        same($freshness, $outcome->page->digest->freshness, 'digest freshness is exact');
+        same('https://publisher.example/second?x=1&y=2', $outcome->page->digest->highlights[0]->supportingArticles[0]->originalUrl, 'support destination is exact');
+    }
+    foreach ([null, 'missing', 'invalid_freshness', 'invalid_count', 'invalid_timestamp', 'invalid_type', 'oversized', 'invalid_support'] as $kind) {
+        $payload = pagePayload();
+        if ($kind === null) $payload['digest'] = null;
+        elseif ($kind !== 'missing') {
+            $payload['digest'] = digestPayload();
+            if ($kind === 'invalid_freshness') $payload['digest']['freshness'] = 'stale';
+            if ($kind === 'invalid_count') $payload['digest']['inputArticleCount'] = 21;
+            if ($kind === 'invalid_timestamp') $payload['digest']['generatedAt'] = 'not-a-date';
+            if ($kind === 'invalid_type') $payload['digest']['provider'] = ['not', 'text'];
+            if ($kind === 'oversized') $payload['digest']['overview'] = str_repeat('x', 2_001);
+            if ($kind === 'invalid_support') $payload['digest']['highlights'][0]['supportingArticles'][0]['originalUrl'] = 'not-a-url';
+        }
+        $outcome = clientFor(jsonResponse(200, $payload))->fetchPage('weekly-desk');
+        same(DistributionOutcome::SUCCESS, $outcome->kind, 'optional digest corruption does not invalidate Articles');
+        same(null, $outcome->page->digest, 'optional digest corruption normalizes to null');
+    }
+    $payload = pagePayload();
+    $payload['digest'] = digestPayload();
+    $payload['digest']['digestInputIdentity'] = 'internal-identity';
+    $payload['digest']['attempt'] = ['rawResponse' => 'untrusted'];
+    $outcome = clientFor(jsonResponse(200, $payload))->fetchPage('weekly-desk');
+    trueValue(!str_contains(serialize($outcome->page->digest), 'internal-identity') && !str_contains(serialize($outcome->page->digest), 'rawResponse'), 'unknown internal digest fields never become DTO data');
 });
 
 testCase('schema, API version, profile, timestamp, and JSON failures are bounded', static function (): void {
@@ -512,6 +576,7 @@ final class FakeSynchronizationStore implements ProfileSynchronizationStore
                 $activation->etag,
                 $activation->generatedAt,
                 $activation->items,
+                $activation->digest,
             ),
             false,
             $activation->facts->lastSuccessfulSyncAt,
@@ -528,7 +593,7 @@ final class FakeSynchronizationStore implements ProfileSynchronizationStore
         $active = $state->active;
         $this->states[$unchanged->profileKey] = new LocalProfileState(
             $unchanged->profileKey,
-            new ActiveProfileSnapshot($active->profileKey, $active->profile, $active->publication, $active->apiVersion, $active->snapshotRevision, $unchanged->etag, $active->generatedAt, $active->items),
+            new ActiveProfileSnapshot($active->profileKey, $active->profile, $active->publication, $active->apiVersion, $active->snapshotRevision, $unchanged->etag, $active->generatedAt, $active->items, $active->digest),
             false,
             $unchanged->facts->lastSuccessfulSyncAt,
         );
@@ -556,9 +621,9 @@ function syncArticle(string $id): DistributionArticle
 }
 
 /** @param array<int, DistributionArticle> $items */
-function syncPage(array $items, ?string $nextCursor = null, string $revision = 'revision-1', string $profileName = 'Weekly Desk', string $publicationName = 'Example Publication', string $apiVersion = 'v1', ?string $etag = 'etag-1'): DistributionPage
+function syncPage(array $items, ?string $nextCursor = null, string $revision = 'revision-1', string $profileName = 'Weekly Desk', string $publicationName = 'Example Publication', string $apiVersion = 'v1', ?string $etag = 'etag-1', ?DistributionDigest $digest = null): DistributionPage
 {
-    return new DistributionPage($apiVersion, '2026-08-21T15:00:00Z', $revision, new DistributionProfile('weekly-desk', $profileName), new DistributionPublication($publicationName), $items, $nextCursor, $etag);
+    return new DistributionPage($apiVersion, '2026-08-21T15:00:00Z', $revision, new DistributionProfile('weekly-desk', $profileName), new DistributionPublication($publicationName), $items, $nextCursor, $etag, $digest);
 }
 
 /** @param array<int, DistributionArticle> $items */
@@ -628,6 +693,24 @@ testCase('synchronizer commits complete one-page, multi-page, and empty candidat
     $result = synchronizerFor($client, $store, new FakeProfileLock())->synchronize('weekly-desk');
     same(SynchronizationResult::SUCCESS, $result->facts->outcome, 'empty Profile activates');
     same([], $store->activations[0]->items, 'empty payload remains a valid snapshot');
+});
+
+testCase('candidate digest requires every continuation page to carry the same valid digest', static function (): void {
+    $digest = syncDigest();
+    $store = new FakeSynchronizationStore();
+    $client = new ScriptedPageClient([successfulPage(syncPage([syncArticle('one')], 'cursor-two', digest: $digest)), successfulPage(syncPage([syncArticle('two')], null, digest: $digest))]);
+    $result = synchronizerFor($client, $store, new FakeProfileLock())->synchronize('weekly-desk');
+    same(SynchronizationResult::SUCCESS, $result->facts->outcome, 'coherent digest candidate activates');
+    same('Bounded overview.', $store->activations[0]->digest->overview, 'coherent digest is activated');
+
+    foreach ([null, syncDigest('Different overview.')] as $continuationDigest) {
+        $store = new FakeSynchronizationStore();
+        $client = new ScriptedPageClient([successfulPage(syncPage([syncArticle('one')], 'cursor-two', digest: $digest)), successfulPage(syncPage([syncArticle('two')], null, digest: $continuationDigest))]);
+        $result = synchronizerFor($client, $store, new FakeProfileLock())->synchronize('weekly-desk');
+        same(SynchronizationResult::SUCCESS, $result->facts->outcome, 'optional digest mismatch preserves Article activation');
+        same(null, $store->activations[0]->digest, 'incoherent digest normalizes to null');
+        same(['one', 'two'], array_map(static fn (DistributionArticle $article): string => $article->articleId, $store->activations[0]->items), 'Article candidate remains complete');
+    }
 });
 
 testCase('synchronizer uses active ETag and 304 preserves active payload while clearing disabled state', static function (): void {
@@ -822,6 +905,12 @@ function filesystemActivation(string $id, string $profileKey = 'weekly-desk', ?D
     return new ProfileActivation($profileKey, $page->profile, $page->publication, $page->apiVersion, $page->snapshotRevision, $page->etag, $page->generatedAt, $page->items, $facts);
 }
 
+function filesystemDigestActivation(string $id, ?DistributionDigest $digest): ProfileActivation
+{
+    $activation = filesystemActivation($id);
+    return new ProfileActivation($activation->profileKey, $activation->profile, $activation->publication, $activation->apiVersion, $activation->snapshotRevision, $activation->etag, $activation->generatedAt, $activation->items, $activation->facts, $digest);
+}
+
 testCase('filesystem store commits immutable generations through one manifest and ignores orphans', static function (): void {
     $root = filesystemRoot();
     $store = new FilesystemProfileStateStore($root);
@@ -857,6 +946,27 @@ testCase('filesystem activation failures preserve committed manifest and active 
     $filesystem->failRenameContaining = null;
     $store->activate(filesystemActivation('new'));
     same('new', $store->load('weekly-desk')->active->items[0]->articleId, 'later commit can recover safely');
+});
+
+testCase('filesystem generation stores digest atomically, accepts pre-digest state, and never preserves stale digest', static function (): void {
+    $root = filesystemRoot();
+    $store = new FilesystemProfileStateStore($root);
+    $store->activate(filesystemDigestActivation('with-digest', syncDigest()));
+    same('Bounded overview.', $store->load('weekly-desk')->active->digest->overview, 'digest round trips with its active Article generation');
+    $store->activate(filesystemDigestActivation('without-digest', null));
+    $active = $store->load('weekly-desk')->active;
+    same('without-digest', $active->items[0]->articleId, 'new Article revision activates');
+    same(null, $active->digest, 'new null digest does not retain prior digest');
+    $profileDirectory = $root . DIRECTORY_SEPARATOR . 'profiles' . DIRECTORY_SEPARATOR . hash('sha256', 'weekly-desk');
+    $manifest = json_decode((string) file_get_contents($profileDirectory . DIRECTORY_SEPARATOR . 'manifest.json'), true, 32, JSON_THROW_ON_ERROR);
+    $generation = $profileDirectory . DIRECTORY_SEPARATOR . 'generations' . DIRECTORY_SEPARATOR . $manifest['activeGeneration'];
+    $data = json_decode((string) file_get_contents($generation), true, 32, JSON_THROW_ON_ERROR);
+    unset($data['digest']);
+    file_put_contents($generation, json_encode($data, JSON_THROW_ON_ERROR));
+    same(null, $store->load('weekly-desk')->active->digest, 'pre-digest generation remains readable as null');
+    $serialized = (string) file_get_contents($generation);
+    foreach (['runtime-secret', 'prompt', 'attempt', 'rawResponse'] as $forbidden) trueValue(!str_contains($serialized, $forbidden), 'generation excludes ' . $forbidden);
+    same([], array_values(array_filter(scandir($profileDirectory) ?: [], static fn (string $name): bool => str_contains($name, 'digest'))), 'no parallel digest state file exists');
 });
 
 testCase('filesystem disabled transitions, health, and freshness remain atomic and bounded', static function (): void {
@@ -996,6 +1106,23 @@ testCase('local reader maps the complete ordered active payload and preserves nu
     same(null, $mappedSecond->imageUrl, 'nullable image URL is preserved');
 });
 
+testCase('local reader exposes digest only with a renderable local snapshot and keeps LKG age independent', static function (): void {
+    $root = filesystemRoot();
+    $at = new DateTimeImmutable('2026-08-21T15:00:00+00:00');
+    $store = new FilesystemProfileStateStore($root);
+    $activation = localReadActivation($at, []);
+    $store->activate(new ProfileActivation($activation->profileKey, $activation->profile, $activation->publication, $activation->apiVersion, $activation->snapshotRevision, $activation->etag, $activation->generatedAt, $activation->items, $activation->facts, syncDigest()));
+    $usable = (new LocalProfileReader(localReadConfiguration($root), $store, new FakeClock($at->modify('+10 seconds'))))->read();
+    same('current', $usable->digest->freshness, 'local digest preserves P3 freshness');
+    same('2026-08-21T14:30:00.000Z', $usable->digest->generatedAt, 'local digest preserves generated timestamp');
+    same(10, $usable->staleAgeSeconds, 'local age remains snapshot synchronization age');
+    $cutoff = (new LocalProfileReader(localReadConfiguration($root, 5), $store, new FakeClock($at->modify('+10 seconds'))))->read();
+    same(LocalReadResult::STALE_CUTOFF, $cutoff->state, 'stale cutoff remains authoritative');
+    same(null, $cutoff->digest, 'non-renderable state suppresses retained digest');
+    $store->markDisabled('weekly-desk', new SynchronizationFacts('weekly-desk', SynchronizationResult::DISABLED, $at, $at, 0.0, 0, 1, false, null, $at, 'news-scraper-php'));
+    same(null, (new LocalProfileReader(localReadConfiguration($root), $store, new FakeClock($at)))->read()->digest, 'disabled state suppresses retained digest');
+});
+
 testCase('local reader exposes empty, stale, never-synced, cutoff, disabled, and unavailable states safely', static function (): void {
     $at = new DateTimeImmutable('2026-08-21T15:00:00+00:00');
 
@@ -1063,7 +1190,7 @@ testCase('local reader exposes bounded redacted health and only the Phase 6 prod
     }
 
     $source = (string) file_get_contents(__DIR__ . '/../src/LocalRead.php');
-    foreach (['DistributionPageClient', 'ClientConfiguration', 'manifest.json', 'generation', 'NEWS_SCRAPER_BASE_URL', 'NEWS_SCRAPER_BEARER_TOKEN'] as $forbidden) {
+    foreach (['DistributionPageClient', 'ClientConfiguration', 'Gemini', 'gemini', 'manifest.json', 'generation', 'NEWS_SCRAPER_BASE_URL', 'NEWS_SCRAPER_BEARER_TOKEN'] as $forbidden) {
         trueValue(!str_contains($source, $forbidden), 'local reader source omits ' . $forbidden);
     }
 });

@@ -126,6 +126,23 @@ final class LocalReadArticle
     }
 }
 
+final class LocalReadDigestSupport
+{
+    public function __construct(public readonly string $articleId, public readonly string $headline, public readonly string $sourceDisplayName, public readonly string $effectiveFeedDate, public readonly string $originalUrl) {}
+}
+
+final class LocalReadDigestHighlight
+{
+    /** @param array<int, LocalReadDigestSupport> $supportingArticles */
+    public function __construct(public readonly string $title, public readonly string $explanation, public readonly array $supportingArticles) {}
+}
+
+final class LocalReadDigest
+{
+    /** @param array<int, LocalReadDigestHighlight> $highlights */
+    public function __construct(public readonly string $generatedAt, public readonly string $freshness, public readonly int $inputArticleCount, public readonly string $provider, public readonly string $model, public readonly string $overview, public readonly array $highlights) {}
+}
+
 final class LocalReadHealth
 {
     public function __construct(
@@ -162,7 +179,8 @@ final class LocalReadResult
         public readonly ?LocalReadPublication $publication,
         public readonly array $articles,
         public readonly ?int $staleAgeSeconds,
-    public readonly LocalReadHealth $health,
+        public readonly LocalReadHealth $health,
+        public readonly ?LocalReadDigest $digest = null,
     ) {
         if (!in_array($state, [self::USABLE, self::STALE_USABLE, self::NEVER_SYNCED, self::STALE_CUTOFF, self::DISABLED, self::UNAVAILABLE], true)) {
             throw new \InvalidArgumentException('The local read state is invalid.');
@@ -173,6 +191,9 @@ final class LocalReadResult
         }
         if (!$renderable && $articles !== []) {
             throw new \InvalidArgumentException('Non-renderable local state cannot contain Articles.');
+        }
+        if (!$renderable && $digest !== null) {
+            throw new \InvalidArgumentException('Non-renderable local state cannot contain a digest.');
         }
     }
 
@@ -216,6 +237,7 @@ final class LocalProfileReader
             array_map(static fn (DistributionArticle $article): LocalReadArticle => self::articleFrom($article), $read->active->items),
             $read->usability->staleAgeSeconds,
             $health,
+            self::digestFrom($read->active->digest),
         );
     }
 
@@ -237,6 +259,12 @@ final class LocalProfileReader
                 $article->categories,
             ),
         );
+    }
+
+    private static function digestFrom(?DistributionDigest $digest): ?LocalReadDigest
+    {
+        if ($digest === null) return null;
+        return new LocalReadDigest($digest->generatedAt, $digest->freshness, $digest->inputArticleCount, $digest->provider, $digest->model, $digest->overview, array_map(static fn (DistributionDigestHighlight $highlight): LocalReadDigestHighlight => new LocalReadDigestHighlight($highlight->title, $highlight->explanation, array_map(static fn (DistributionDigestSupport $support): LocalReadDigestSupport => new LocalReadDigestSupport($support->articleId, $support->headline, $support->sourceDisplayName, $support->effectiveFeedDate, $support->originalUrl), $highlight->supportingArticles)), $digest->highlights));
     }
 
     private function healthFrom(LocalProfileHealth $health): LocalReadHealth

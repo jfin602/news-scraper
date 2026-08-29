@@ -157,7 +157,7 @@ final class FilesystemProfileStateStore implements ProfileSynchronizationStore
         $this->assertSafeFile($path);
         try { $data = json_decode($this->filesystem->read($path), true, 64, JSON_THROW_ON_ERROR); } catch (\Throwable) { throw new LocalStateException('Committed generation is invalid.'); }
         if (!is_array($data) || array_is_list($data) || ($data['profileKey'] ?? null) !== $profileKey || ($data['apiVersion'] ?? null) !== $manifest['apiVersion'] || ($data['snapshotRevision'] ?? null) !== $manifest['snapshotRevision'] || ($data['generatedAt'] ?? null) !== $manifest['generatedAt'] || !is_array($data['profile'] ?? null) || !is_array($data['publication'] ?? null) || !is_array($data['items'] ?? null)) throw new LocalStateException('Committed generation does not match its manifest.');
-        try { return new ActiveProfileSnapshot($profileKey, $this->profileFromArray($data['profile']), $this->publicationFromArray($data['publication']), $data['apiVersion'], $data['snapshotRevision'], $manifest['etag'], $data['generatedAt'], array_map(fn (mixed $item): DistributionArticle => $this->articleFromArray($item), $data['items'])); } catch (\Throwable) { throw new LocalStateException('Committed generation has invalid item data.'); }
+        try { return new ActiveProfileSnapshot($profileKey, $this->profileFromArray($data['profile']), $this->publicationFromArray($data['publication']), $data['apiVersion'], $data['snapshotRevision'], $manifest['etag'], $data['generatedAt'], array_map(fn (mixed $item): DistributionArticle => $this->articleFromArray($item), $data['items']), array_key_exists('digest', $data) && $data['digest'] !== null ? DistributionDigestMapper::fromArray($data['digest']) : null); } catch (\Throwable) { throw new LocalStateException('Committed generation has invalid item data.'); }
     }
 
     /** @return array<string,mixed> */
@@ -219,7 +219,7 @@ final class FilesystemProfileStateStore implements ProfileSynchronizationStore
     /** @return array<string,mixed> */
     private function encodeGeneration(ProfileActivation $activation): string
     {
-        $data = ['profileKey' => $activation->profileKey, 'profile' => ['configKey' => $activation->profile->configKey, 'displayName' => $activation->profile->displayName], 'publication' => ['name' => $activation->publication->name], 'apiVersion' => $activation->apiVersion, 'snapshotRevision' => $activation->snapshotRevision, 'generatedAt' => $activation->generatedAt, 'items' => array_map(fn (DistributionArticle $item): array => $this->articleToArray($item), $activation->items)];
+        $data = ['profileKey' => $activation->profileKey, 'profile' => ['configKey' => $activation->profile->configKey, 'displayName' => $activation->profile->displayName], 'publication' => ['name' => $activation->publication->name], 'apiVersion' => $activation->apiVersion, 'snapshotRevision' => $activation->snapshotRevision, 'generatedAt' => $activation->generatedAt, 'items' => array_map(fn (DistributionArticle $item): array => $this->articleToArray($item), $activation->items), 'digest' => $activation->digest === null ? null : DistributionDigestMapper::toArray($activation->digest)];
         try { return json_encode($data, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES); } catch (\Throwable) { throw new LocalStateException('Generation cannot be encoded.'); }
     }
 
