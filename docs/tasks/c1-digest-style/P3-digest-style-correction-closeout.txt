@@ -1,6 +1,6 @@
 TASK: Correction 1 / P3 — Digest style correction closeout
 
-CORRECTION CLOSEOUT SCOPE 
+CORRECTION CLOSEOUT SCOPE  
 This is the sole final closeout prompt for correction `c1-digest-style`.
 
 P1 should have implemented the complete server-side writing-style producer at unchanged package `2.2.0`: additive persisted configuration, canonical 500-Unicode-code-point normalization, protected admin read/update semantics, backward-compatible digest identity participation, and safe subordinate Gemini request composition. P2 should have added only the bundled protected admin browser client and browser regressions.
